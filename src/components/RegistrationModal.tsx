@@ -1,0 +1,1004 @@
+import React, { useState, useEffect } from 'react';
+import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield } from 'lucide-react';
+import { useData } from '../context/DataContext';
+
+interface RegistrationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  eventTitle: string;
+  eventId: number;
+}
+
+interface TeamMember {
+  name: string;
+  email: string;
+  phone: string;
+}
+
+interface RegistrationData {
+  participant_type: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  college: string;
+  motivation: string;
+  is_team_registration: boolean;
+  team_name: string;
+  team_members: TeamMember[];
+  total_members: number;
+}
+
+export const RegistrationModal: React.FC<RegistrationModalProps> = ({
+  isOpen,
+  onClose,
+  eventTitle,
+  eventId
+}) => {
+  const { addRegistration } = useData();
+  type ErrorsMap = Record<string, string | undefined>;
+  const [formData, setFormData] = useState<RegistrationData>({
+    participant_type: '1st Year',
+    full_name: '',
+    email: '',
+    phone: '',
+    college: '',
+    motivation: '',
+    is_team_registration: false,
+    team_name: '',
+    team_members: [{ name: '', email: '', phone: '' }],
+    total_members: 1
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [registrationId, setRegistrationId] = useState('');
+  const [errors, setErrors] = useState<ErrorsMap>({});
+  const [glitchActive, setGlitchActive] = useState(false);
+
+  const participantTypes = [
+    '1st Year',
+    '2nd Year', 
+    '3rd Year',
+    '4th Year',
+    'Intern',
+    'PG (Post Graduate)'
+  ];
+
+  // Glitch effect trigger
+  useEffect(() => {
+    if (isOpen) {
+      const glitchTimer = setInterval(() => {
+        setGlitchActive(true);
+        setTimeout(() => setGlitchActive(false), 200);
+      }, 10000);
+      return () => clearInterval(glitchTimer);
+    }
+  }, [isOpen]);
+
+  const validateForm = (): boolean => {
+    const newErrors: ErrorsMap = {};
+
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = 'Full name is required';
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+  } else if (!/^\+?[\d\s\-()]{10,}$/.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
+
+    if (!formData.college.trim()) {
+      newErrors.college = 'College/Institution is required';
+    }
+
+    if (formData.is_team_registration) {
+      if (!formData.team_name.trim()) {
+        newErrors.team_name = 'Team name is required';
+      }
+
+      if (formData.total_members < 2) {
+        newErrors.total_members = 'Team must have at least 2 members';
+      }
+
+      formData.team_members.forEach((member, index) => {
+        if (!member.name.trim()) {
+          newErrors[`team_member_${index}_name`] = 'Member name is required';
+        }
+        if (!member.email.trim()) {
+          newErrors[`team_member_${index}_email`] = 'Member email is required';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email)) {
+          newErrors[`team_member_${index}_email`] = 'Please enter a valid email address';
+        }
+        if (!member.phone.trim()) {
+          newErrors[`team_member_${index}_phone`] = 'Member phone is required';
+        }
+      });
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Generate registration ID
+      const regId = `REG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      setRegistrationId(regId);
+
+      // Prepare registration data for Supabase
+      const registrationData = {
+        id: regId,
+        event_id: eventId,
+        event_title: eventTitle,
+        participant_type: formData.participant_type,
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        college: formData.college,
+        motivation: formData.motivation || '',
+        registration_date: new Date().toISOString(),
+        status: 'pending' as const,
+        is_team_registration: formData.is_team_registration,
+        team_name: formData.is_team_registration ? formData.team_name : null,
+        team_members: formData.is_team_registration ? formData.team_members : null,
+        total_members: formData.is_team_registration ? formData.total_members : 1
+      };
+
+      console.log('Submitting registration data:', registrationData);
+
+      // Submit to Supabase
+      await addRegistration(registrationData);
+      
+      setIsSubmitted(true);
+    } catch (err) {
+      console.error('Registration submission error:', err);
+      let message = 'Failed to submit registration. Please try again.';
+      if (err instanceof Error) {
+        message = err.message;
+      } else if (typeof err === 'string') {
+        message = err;
+      } else if (err && typeof err === 'object') {
+        const e = err as Record<string, unknown>;
+        message = (e.message as string) 
+          || ((e.error as Record<string, unknown>)?.message as string)
+          || (e.details as string)
+          || (e.hint as string)
+          || (e.code as string)
+          || message;
+      }
+      setErrors({ submit: `Failed to submit registration: ${message}` });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (field: keyof RegistrationData, value: string | number | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+    setErrors(prev => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  const addTeamMember = () => {
+    if (formData.team_members.length < 10) {
+      setFormData(prev => ({
+        ...prev,
+        team_members: [...prev.team_members, { name: '', email: '', phone: '' }],
+        total_members: prev.total_members + 1
+      }));
+    }
+  };
+
+  const removeTeamMember = (index: number) => {
+    if (formData.team_members.length > 1) {
+      setFormData(prev => ({
+        ...prev,
+        team_members: prev.team_members.filter((_, i) => i !== index),
+        total_members: prev.total_members - 1
+      }));
+    }
+  };
+
+  const updateTeamMember = (index: number, field: keyof TeamMember, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      team_members: prev.team_members.map((member, i) => 
+        i === index ? { ...member, [field]: value } : member
+      )
+    }));
+    
+    // Clear related errors
+    if (errors[`team_member_${index}_${field}`]) {
+      setErrors(prev => ({ ...prev, [`team_member_${index}_${field}`]: undefined }));
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      participant_type: '1st Year',
+      full_name: '',
+      email: '',
+      phone: '',
+      college: '',
+      motivation: '',
+      is_team_registration: false,
+      team_name: '',
+      team_members: [{ name: '', email: '', phone: '' }],
+      total_members: 1
+    });
+    setErrors({});
+    setIsSubmitted(false);
+    setRegistrationId('');
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col">
+        {/* Header */}
+        <div className={`cyberpunk-header p-4 sm:p-6 border-b border-cyan-500/30 flex-shrink-0 ${glitchActive ? 'glitch-active' : ''}`}>
+          <div className="flex justify-between items-center">
+            <div>
+              <div className="flex items-center mb-2">
+                <Terminal className="w-4 h-4 text-cyan-400 mr-3" />
+                <h2 className="text-base sm:text-lg md:text-xl font-bold font-mono leading-tight">REGISTRATION</h2>
+              </div>
+              <p className="text-cyan-300 font-mono text-xs sm:text-sm">EVENT: {eventTitle}</p>
+              <p className="text-gray-400 text-xs mt-1">Initialize registration protocol. All fields marked with * are required.</p>
+            </div>
+            <button
+              onClick={handleClose}
+              className="cyberpunk-btn cyberpunk-btn-danger p-2 flex-shrink-0"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Success State */}
+        {isSubmitted ? (
+          <div className="p-4 sm:p-6 text-center flex-1 overflow-y-auto">
+            <div className="cyberpunk-success-container">
+              <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto mb-6 pulse-ring">
+                <CheckCircle className="w-10 h-10 text-black" />
+              </div>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold cyberpunk-title mb-4">REGISTRATION SUCCESSFUL!</h3>
+              <p className="text-cyan-300 mb-4 font-mono text-sm">
+                PROTOCOL EXECUTED SUCCESSFULLY FOR <strong className="text-green-400">{eventTitle}</strong>
+              </p>
+              <div className="cyberpunk-card bg-gray-900/50 p-4 mb-4 border border-green-500/30">
+                <div className="grid sm:grid-cols-2 gap-4 text-left font-mono text-sm">
+                  <div>
+                    <span className="text-cyan-400">REGISTRATION_ID:</span>
+                    <div className="text-green-400 font-bold">{registrationId}</div>
+                  </div>
+                  <div>
+                    <span className="text-cyan-400">STATUS:</span>
+                    <div className="text-yellow-400 font-bold">PENDING_APPROVAL</div>
+                  </div>
+                  {formData.is_team_registration && (
+                    <>
+                      <div>
+                        <span className="text-cyan-400">TEAM_NAME:</span>
+                        <div className="text-purple-400 font-bold">{formData.team_name}</div>
+                      </div>
+                      <div>
+                        <span className="text-cyan-400">TEAM_SIZE:</span>
+                        <div className="text-blue-400 font-bold">{formData.total_members} MEMBERS</div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleClose}
+                className="cyberpunk-btn cyberpunk-btn-primary text-sm px-6 py-3"
+              >
+                <span className="relative z-10 flex items-center">
+                  <Shield className="mr-2" size={20} />
+                  CLOSE TERMINAL
+                </span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Registration Form */
+          <div className="flex-1 overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              {/* Error Display */}
+              {errors.submit && (
+                <div className="cyberpunk-alert">
+                  <span className="text-red-400 text-sm">{errors.submit}</span>
+                </div>
+              )}
+
+              {/* Registration Type Toggle */}
+              <div className="cyberpunk-section">
+                <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">REGISTRATION_TYPE</h3>
+                <div className="cyberpunk-card w-full p-3 bg-gray-900/30">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                    <label className="cyberpunk-radio-label">
+                      <input
+                        type="radio"
+                        name="registrationType"
+                        checked={!formData.is_team_registration}
+                        onChange={() => {
+                          handleInputChange('is_team_registration', false);
+                          handleInputChange('total_members', 1);
+                        }}
+                        className="cyberpunk-radio"
+                      />
+                      <span className="font-mono text-xs sm:text-sm">INDIVIDUAL_MODE</span>
+                    </label>
+                    <label className="cyberpunk-radio-label">
+                      <input
+                        type="radio"
+                        name="registrationType"
+                        checked={formData.is_team_registration}
+                        onChange={() => {
+                          handleInputChange('is_team_registration', true);
+                          handleInputChange('total_members', formData.team_members.length);
+                        }}
+                        className="cyberpunk-radio"
+                      />
+                      <span className="font-mono text-xs sm:text-sm">TEAM_MODE</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team Name (if team registration) */}
+              {formData.is_team_registration && (
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    TEAM_IDENTIFIER *
+                  </label>
+                  <div className="relative">
+                    <Users className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <input
+                      type="text"
+                      value={formData.team_name}
+                      onChange={(e) => handleInputChange('team_name', e.target.value)}
+                      placeholder="Enter team designation"
+                      className={`cyberpunk-input pl-10 ${errors.team_name ? 'error' : ''}`}
+                    />
+                  </div>
+                  {errors.team_name && (
+                    <p className="cyberpunk-error">{errors.team_name}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Participant Type */}
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    {formData.is_team_registration ? 'LEADER_' : ''}PARTICIPANT_TYPE *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <select
+                      value={formData.participant_type}
+                      onChange={(e) => handleInputChange('participant_type', e.target.value)}
+                      className="cyberpunk-select pl-10"
+                    >
+                      {participantTypes.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Full Name */}
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    {formData.is_team_registration ? 'LEADER_' : ''}FULL_NAME *
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <input
+                      type="text"
+                      value={formData.full_name}
+                      onChange={(e) => handleInputChange('full_name', e.target.value)}
+                      placeholder="Enter full name"
+                      className={`cyberpunk-input pl-10 ${errors.full_name ? 'error' : ''}`}
+                    />
+                  </div>
+                  {errors.full_name && (
+                    <p className="cyberpunk-error">{errors.full_name}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* Email */}
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    {formData.is_team_registration ? 'LEADER_' : ''}EMAIL_ADDRESS *
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      placeholder="user@domain.com"
+                      className={`cyberpunk-input pl-10 ${errors.email ? 'error' : ''}`}
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="cyberpunk-error">{errors.email}</p>
+                  )}
+                </div>
+
+                {/* Phone Number */}
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    {formData.is_team_registration ? 'LEADER_' : ''}PHONE_NUMBER *
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="Contact number"
+                      className={`cyberpunk-input pl-10 ${errors.phone ? 'error' : ''}`}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <p className="cyberpunk-error">{errors.phone}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* College/Institution */}
+              <div className="cyberpunk-section">
+                <label className="cyberpunk-label">
+                  INSTITUTION_NAME *
+                </label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <input
+                    type="text"
+                    value={formData.college}
+                    onChange={(e) => handleInputChange('college', e.target.value)}
+                    placeholder="Your college or institution"
+                    className={`cyberpunk-input pl-10 ${errors.college ? 'error' : ''}`}
+                  />
+                </div>
+                {errors.college && (
+                  <p className="cyberpunk-error">{errors.college}</p>
+                )}
+              </div>
+
+              {/* Team Members (if team registration) */}
+              {formData.is_team_registration && (
+                <div className="cyberpunk-section">
+                  <div className="flex justify-between items-center mb-4">
+                    <label className="cyberpunk-label">
+                      TEAM_MEMBERS * (TOTAL: {formData.total_members})
+                    </label>
+                    <button
+                      type="button"
+                      onClick={addTeamMember}
+                      disabled={formData.team_members.length >= 10}
+                      className="cyberpunk-btn cyberpunk-btn-secondary text-xs sm:text-sm"
+                    >
+                      <span className="relative z-10 flex items-center">
+                        <Plus size={16} className="mr-2" />
+                        ADD_MEMBER
+                      </span>
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3 max-h-40 overflow-y-auto cyberpunk-scrollbar">
+                    {formData.team_members.map((member, index) => (
+                      <div key={index} className="cyberpunk-card bg-gray-900/30 p-3">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-mono text-cyan-400 text-sm">MEMBER_{index + 1}</h4>
+                          {formData.team_members.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeTeamMember(index)}
+                              className="cyberpunk-btn cyberpunk-btn-danger p-1 text-xs"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <input
+                              type="text"
+                              value={member.name}
+                              onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
+                              placeholder="Member name"
+                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_name`] ? 'error' : ''}`}
+                            />
+                            {errors[`team_member_${index}_name`] && (
+                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_name`]}</p>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <input
+                              type="email"
+                              value={member.email}
+                              onChange={(e) => updateTeamMember(index, 'email', e.target.value)}
+                              placeholder="Member email"
+                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_email`] ? 'error' : ''}`}
+                            />
+                            {errors[`team_member_${index}_email`] && (
+                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_email`]}</p>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <input
+                              type="tel"
+                              value={member.phone}
+                              onChange={(e) => updateTeamMember(index, 'phone', e.target.value)}
+                              placeholder="Member phone"
+                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_phone`] ? 'error' : ''}`}
+                            />
+                            {errors[`team_member_${index}_phone`] && (
+                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_phone`]}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {errors.total_members && (
+                    <p className="cyberpunk-error">{errors.total_members}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Motivation */}
+              <div className="cyberpunk-section">
+                <label className="cyberpunk-label">
+                  MOTIVATION_PROTOCOL (OPTIONAL)
+                </label>
+                <div className="relative">
+                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <textarea
+                    value={formData.motivation}
+                    onChange={(e) => handleInputChange('motivation', e.target.value)}
+                    placeholder="Enter your motivation for participating in this event..."
+                    rows={4}
+                    className="cyberpunk-textarea pl-10"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your motivation protocol</p>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-4 border-t border-cyan-500/30">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`cyberpunk-btn cyberpunk-btn-primary w-full text-sm py-3 ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    {isSubmitting ? (
+                      <>
+                        <div className="cyberpunk-spinner mr-3"></div>
+                        <span>EXECUTING...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="mr-2" size={20} />
+                        <span>EXECUTE {formData.is_team_registration ? 'TEAM_' : ''}REGISTRATION</span>
+                      </>
+                    )}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        .cyberpunk-modal {
+          font-family: 'Orbitron', 'Rajdhani', sans-serif;
+          backdrop-filter: blur(11px);
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .cyberpunk-card {
+          background: rgba(10, 10, 30, 0.95);
+          border: 2px solid rgba(0, 255, 255, 0.3);
+          border-radius: 8px;
+          backdrop-filter: blur(15px);
+          position: relative;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .cyberpunk-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
+          animation: borderGlow 3s ease-in-out infinite;
+        }
+
+        @keyframes borderGlow {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+
+        .cyberpunk-header {
+          background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+          border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        .cyberpunk-title {
+          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
+          background-size: 200% 200%;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradientShift 3s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+
+        .glitch-active {
+          animation: glitch 0.3s ease-in-out;
+        }
+
+        @keyframes glitch {
+          0% { transform: translate(0); }
+          20% { transform: translate(-2px, 2px); }
+          40% { transform: translate(-2px, -2px); }
+          60% { transform: translate(2px, 2px); }
+          80% { transform: translate(2px, -2px); }
+          100% { transform: translate(0); }
+        }
+
+        .cyberpunk-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .cyberpunk-label {
+          display: block;
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: #00ffff;
+          margin-bottom: 0.5rem;
+          font-family: 'Orbitron', monospace;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+
+        .cyberpunk-input,
+        .cyberpunk-select,
+        .cyberpunk-textarea {
+          width: 100%;
+          padding: 10px 14px;
+          background: rgba(0, 0, 0, 0.7);
+          border: 2px solid rgba(0, 255, 255, 0.3);
+          border-radius: 8px;
+          color: #ffffff;
+          font-family: 'Orbitron', monospace;
+          transition: all 0.3s ease;
+          font-size: 0.8rem;
+        }
+        
+        @media (min-width: 640px) {
+          .cyberpunk-input,
+          .cyberpunk-select,
+          .cyberpunk-textarea {
+            padding: 12px 16px;
+            font-size: 0.9rem;
+          }
+        }
+
+        .cyberpunk-input:focus,
+        .cyberpunk-select:focus,
+        .cyberpunk-textarea:focus {
+          outline: none;
+          border-color: rgba(0, 255, 255, 0.8);
+          box-shadow: 
+            0 0 15px rgba(0, 255, 255, 0.3),
+            inset 0 0 15px rgba(0, 255, 255, 0.1);
+        }
+
+        .cyberpunk-input::placeholder,
+        .cyberpunk-textarea::placeholder {
+          color: rgba(255, 255, 255, 0.4);
+          font-style: italic;
+        }
+
+        .cyberpunk-input.error,
+        .cyberpunk-select.error,
+        .cyberpunk-textarea.error {
+          border-color: rgba(255, 0, 100, 0.8);
+          box-shadow: 
+            0 0 15px rgba(255, 0, 100, 0.3),
+            inset 0 0 15px rgba(255, 0, 100, 0.1);
+        }
+
+        .cyberpunk-error {
+          color: #ff0064;
+          font-size: 0.75rem;
+          margin-top: 0.25rem;
+          font-family: 'Orbitron', monospace;
+        }
+
+        .cyberpunk-alert {
+          background: rgba(255, 0, 0, 0.1);
+          border: 1px solid rgba(255, 0, 0, 0.3);
+          border-radius: 8px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+
+        .cyberpunk-radio-label {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          color: #00ffff;
+          font-weight: 600;
+          transition: all 0.3s ease;
+        }
+
+        .cyberpunk-radio-label:hover {
+          color: #ff00ff;
+        }
+
+        .cyberpunk-radio {
+          margin-right: 0.75rem;
+          accent-color: #00ffff;
+        }
+
+        .cyberpunk-btn {
+          position: relative;
+          padding: 8px 16px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          border: 2px solid;
+          background: transparent;
+          overflow: hidden;
+          transition: all 0.3s ease;
+          clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 100%, 8px 100%);
+          font-family: 'Orbitron', monospace;
+          font-size: 0.7rem;
+        }
+        
+        @media (min-width: 640px) {
+          .cyberpunk-btn {
+            padding: 12px 24px;
+            clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 100%, 15px 100%);
+            font-size: 0.8rem;
+          }
+        }
+
+        .cyberpunk-btn::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+          transition: left 0.5s;
+        }
+
+        .cyberpunk-btn:hover::before {
+          left: 100%;
+        }
+
+        .cyberpunk-btn-primary {
+          border-color: #00ffff;
+          color: #00ffff;
+          box-shadow: 
+            0 0 15px rgba(0, 255, 255, 0.2),
+            inset 0 0 15px rgba(0, 255, 255, 0.05);
+        }
+
+        .cyberpunk-btn-primary:hover {
+          background: rgba(0, 255, 255, 0.1);
+          box-shadow: 
+            0 0 25px rgba(0, 255, 255, 0.4),
+            inset 0 0 25px rgba(0, 255, 255, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .cyberpunk-btn-secondary {
+          border-color: #ff00ff;
+          color: #ff00ff;
+          box-shadow: 
+            0 0 15px rgba(255, 0, 255, 0.2),
+            inset 0 0 15px rgba(255, 0, 255, 0.05);
+        }
+
+        .cyberpunk-btn-secondary:hover {
+          background: rgba(255, 0, 255, 0.1);
+          box-shadow: 
+            0 0 25px rgba(255, 0, 255, 0.4),
+            inset 0 0 25px rgba(255, 0, 255, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .cyberpunk-btn-danger {
+          border-color: #ff0064;
+          color: #ff0064;
+          box-shadow: 
+            0 0 15px rgba(255, 0, 100, 0.2),
+            inset 0 0 15px rgba(255, 0, 100, 0.05);
+        }
+
+        .cyberpunk-btn-danger:hover {
+          background: rgba(255, 0, 100, 0.1);
+          box-shadow: 
+            0 0 25px rgba(255, 0, 100, 0.4),
+            inset 0 0 25px rgba(255, 0, 100, 0.1);
+          transform: translateY(-2px);
+        }
+
+        .cyberpunk-spinner {
+          width: 20px;
+          height: 20px;
+          border: 2px solid transparent;
+          border-top: 2px solid #00ffff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .cyberpunk-success-container {
+          animation: successPulse 2s ease-in-out;
+        }
+
+        @keyframes successPulse {
+          0% {
+            opacity: 0;
+            transform: scale(0.8);
+          }
+          50% {
+            transform: scale(1.05);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        .pulse-ring {
+          position: relative;
+        }
+
+        .pulse-ring::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 100%;
+          height: 100%;
+          border: 2px solid rgba(0, 255, 255, 0.3);
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          animation: pulseRing 2s ease-out infinite;
+        }
+
+        @keyframes pulseRing {
+          0% {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(2);
+            opacity: 0;
+          }
+        }
+
+        .cyberpunk-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #00ffff #1a1a2e;
+        }
+
+        .cyberpunk-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+
+        .cyberpunk-scrollbar::-webkit-scrollbar-track {
+          background: #1a1a2e;
+          border-radius: 4px;
+        }
+
+        .cyberpunk-scrollbar::-webkit-scrollbar-thumb {
+          background: linear-gradient(45deg, #ff00ff, #00ffff);
+          border-radius: 6px;
+        }
+
+        .cyberpunk-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(45deg, #00ffff, #ff00ff);
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+          .cyberpunk-btn {
+            padding: 8px 16px;
+            font-size: 0.7rem;
+          }
+          
+          .cyberpunk-input,
+          .cyberpunk-select,
+          .cyberpunk-textarea {
+            font-size: 0.75rem;
+            padding: 8px 12px;
+          }
+          
+          .cyberpunk-label {
+            font-size: 0.7rem;
+          }
+          
+          .cyberpunk-section {
+            margin-bottom: 1rem;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .cyberpunk-modal {
+            padding: 0.5rem;
+          }
+          
+          .cyberpunk-card {
+            border-radius: 4px;
+          }
+          
+          .cyberpunk-btn {
+            padding: 6px 12px;
+            font-size: 0.65rem;
+            clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
+          }
+        }
+      `}</style>
+    </div>
+  );
+};

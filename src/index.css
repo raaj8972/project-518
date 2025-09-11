@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global responsive utilities */
+@layer utilities {
+  .container-responsive {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+  
+  .text-responsive-xl {
+    @apply text-xl sm:text-2xl md:text-3xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-2xl sm:text-3xl md:text-4xl;
+  }
+  
+  .text-responsive-3xl {
+    @apply text-3xl sm:text-4xl md:text-5xl;
+  }
+  
+  .text-responsive-4xl {
+    @apply text-4xl sm:text-5xl md:text-6xl;
+  }
+  
+  .text-responsive-5xl {
+    @apply text-5xl sm:text-6xl md:text-7xl;
+  }
+  
+  .padding-responsive {
+    @apply p-2 sm:p-4 md:p-6 lg:p-8;
+  }
+  
+  .margin-responsive {
+    @apply m-2 sm:m-4 md:m-6 lg:m-8;
+  }
+  
+  .gap-responsive {
+    @apply gap-2 sm:gap-4 md:gap-6 lg:gap-8;
+  }
+}
+
+/* Global responsive fixes */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+  min-width: 320px;
+}
+
+/* Prevent horizontal scroll */
+.container,
+.max-w-7xl,
+.max-w-6xl,
+.max-w-5xl,
+.max-w-4xl {
+  max-width: calc(100vw - 2rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 640px) {
+  .max-w-7xl { max-width: 1280px; }
+  .max-w-6xl { max-width: 1152px; }
+  .max-w-5xl { max-width: 1024px; }
+  .max-w-4xl { max-width: 896px; }
+}
+
+/* Grid responsive fixes */
+.grid {
+  width: 100%;
+}
+
+/* Image responsive */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Text overflow fixes */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
