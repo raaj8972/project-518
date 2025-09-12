@@ -209,7 +209,7 @@ export const RicoFamily: React.FC = () => {
               direction="right"
               speedPxPerSec={140}
               itemWrapperClassName="px-3"
-              className="py-2"
+              className="py-2 -mx-4 sm:mx-0"
               renderItem={(m) => (
                 <div className="w-64 cyberpunk-card p-4">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">

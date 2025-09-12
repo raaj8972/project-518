@@ -172,21 +172,21 @@ export default function CoverflowCarousel<T>({
         </div>
         {/* Edge gradient fades for nicer framing */}
         {edgeFades && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 md:w-24" style={{ background: 'linear-gradient(to right, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 md:w-24" style={{ background: 'linear-gradient(to left, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
-          </>
+          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-screen hide-edge-fades-xs" aria-hidden>
+            <div className="absolute inset-y-0 left-0 w-5 sm:w-9 md:w-16 lg:w-24" style={{ background: 'linear-gradient(to right, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
+            <div className="absolute inset-y-0 right-0 w-5 sm:w-9 md:w-16 lg:w-24" style={{ background: 'linear-gradient(to left, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
+          </div>
         )}
       </div>
 
       {showArrows && count > 1 && (
-        <>
+        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-screen flex items-center justify-between pointer-events-none px-1 sm:px-2" aria-hidden>
           <button
             type="button"
             aria-label="Previous slide"
             onClick={() => go('prev')}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20"
-            style={{ width: arrowSize, height: arrowSize }}
+            className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 ml-1 sm:ml-2 shadow-md"
+            style={{ width: Math.max(32, Math.min(arrowSize, 56)), height: Math.max(32, Math.min(arrowSize, 56)) }}
           >
             ‹
           </button>
@@ -194,12 +194,12 @@ export default function CoverflowCarousel<T>({
             type="button"
             aria-label="Next slide"
             onClick={() => go('next')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20"
-            style={{ width: arrowSize, height: arrowSize }}
+            className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 mr-1 sm:mr-2 shadow-md"
+            style={{ width: Math.max(32, Math.min(arrowSize, 56)), height: Math.max(32, Math.min(arrowSize, 56)) }}
           >
             ›
           </button>
-        </>
+        </div>
       )}
 
       {showDots && count > 1 && (

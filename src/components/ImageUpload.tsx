@@ -37,6 +37,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [pendingImage, setPendingImage] = useState<string>('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [missingBucket, setMissingBucket] = useState<string | null>(null);
+  const [uploadHint, setUploadHint] = useState<string>('');
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -46,16 +47,31 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const isPdfUpload = acceptedTypes.includes('pdf');
   const isVideoUpload = acceptedTypes.includes('video');
 
+  // Utility: race a promise against a timeout
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label = 'operation'): Promise<T> => {
+    let timer: any;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+    try {
+      const result = await Promise.race([promise, timeout]);
+      return result as T;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
   const uploadToSupabase = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-  const { error } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+  const { error } = await withTimeout(
+      supabase.storage
+        .from(bucket)
+        .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined }),
+      30000,
+      'upload'
+    );
 
     if (error) {
       const status = (error as any)?.status as number | undefined;
@@ -73,6 +89,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         throw new Error(
           `Storage bucket '${bucket}' not found in this Supabase project. Run the SQL shown below to create it, then retry.`
         );
+      }
+      // Network issues
+      if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
+        throw new Error('Network error during upload. Check your internet connection or try a smaller image.');
       }
       // Generic fallback with status code if present
       throw new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
@@ -128,6 +148,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     // Default path: direct upload (videos/PDFs or cropper disabled)
     setUploading(true);
+  setUploadHint('');
+  let hintTimer: ReturnType<typeof setTimeout> | undefined;
+  hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
     setError('');
     try {
       const fileUrl = await uploadToSupabase(file);
@@ -148,6 +171,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         setError('Upload failed');
       }
     } finally {
+      if (hintTimer) clearTimeout(hintTimer);
       setUploading(false);
     }
   };
@@ -171,7 +195,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   }, []);
 
   // Create a blob from the cropped area via canvas
-  const getCroppedImgBlob = async (imageSrc: string, cropPixels: { x: number; y: number; width: number; height: number }): Promise<Blob> => {
+  const getCroppedImgBlob = async (
+    imageSrc: string,
+    cropPixels?: { x: number; y: number; width: number; height: number } | null
+  ): Promise<Blob> => {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -180,9 +207,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       img.src = imageSrc;
     });
 
+    // If no crop area provided yet (user didn’t move handles), default to full image
+    const effective = cropPixels && cropPixels.width && cropPixels.height
+      ? cropPixels
+      : { x: 0, y: 0, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+
+    // Downscale very large images to keep size reasonable (max dimension ~1600px)
+    const maxDim = 1600;
+    const scale = Math.min(1, Math.min(maxDim / effective.width, maxDim / effective.height));
+    const targetW = Math.max(1, Math.floor(effective.width * scale));
+    const targetH = Math.max(1, Math.floor(effective.height * scale));
+
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.floor(cropPixels.width));
-    canvas.height = Math.max(1, Math.floor(cropPixels.height));
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas not supported');
 
@@ -190,45 +228,51 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(
       image,
-      cropPixels.x,
-      cropPixels.y,
-      cropPixels.width,
-      cropPixels.height,
+      effective.x,
+      effective.y,
+      effective.width,
+      effective.height,
       0,
       0,
-      canvas.width,
-      canvas.height
+      targetW,
+      targetH
     );
 
     return await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error('Canvas toBlob failed'));
-      }, 'image/jpeg', 0.92);
+      }, 'image/jpeg', 0.9);
     });
   };
 
   const confirmCropAndUpload = async () => {
-    if (!cropSrc || !croppedAreaPixels) return;
-    try {
-      setUploading(true);
-      const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels);
-      const file = new File([blob], `crop_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      const fileUrl = await uploadToSupabase(file);
-      setPendingImage(fileUrl);
-      if (autoSave) {
-        onImageSelect(fileUrl);
-        setHasUnsavedChanges(false);
-      } else {
-        setHasUnsavedChanges(true);
-      }
-      setCropSrc(null);
-    } catch (err) {
-      console.error('Crop upload failed:', err);
-      setError(err instanceof Error ? err.message : 'Crop upload failed');
-    } finally {
-      setUploading(false);
+    if (!cropSrc) return;
+  let hintTimer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    setUploading(true);
+    setUploadHint('');
+    hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
+    // Allow full-image fallback when croppedAreaPixels is not yet set
+    const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels);
+    const file = new File([blob], `crop_${Date.now()}.jpg`, { type: 'image/jpeg' });
+    const fileUrl = await uploadToSupabase(file);
+    setPendingImage(fileUrl);
+    if (autoSave) {
+      onImageSelect(fileUrl);
+      setHasUnsavedChanges(false);
+    } else {
+      setHasUnsavedChanges(true);
     }
+    setCropSrc(null);
+  } catch (err) {
+    console.error('Crop upload failed:', err);
+    setError(err instanceof Error ? err.message : 'Crop upload failed');
+  } finally {
+    if (hintTimer) clearTimeout(hintTimer);
+    setUploadHint('');
+    setUploading(false);
+  }
   };
 
   const cancelCrop = () => {
@@ -403,6 +447,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
           )}
           <div className="mt-2 flex items-center justify-center space-x-2">
             <button
+              type="button"
               onClick={handleClick}
               disabled={uploading}
              className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
@@ -412,6 +457,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
             {hasUnsavedChanges ? (
               <>
                 <button
+                  type="button"
                   onClick={handleSaveImage}
                   disabled={uploading}
                   className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
@@ -419,6 +465,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                   Save
                 </button>
                 <button
+                  type="button"
                   onClick={handleDiscardChanges}
                   disabled={uploading}
                   className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
@@ -428,6 +475,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               </>
             ) : (
               <button
+                type="button"
                 onClick={handleSaveImage}
                 disabled={uploading}
                 className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
@@ -436,6 +484,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               </button>
             )}
             <button
+              type="button"
               onClick={removeFile}
              disabled={uploading}
               className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
@@ -460,6 +509,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
             <div className="flex flex-col items-center">
               <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mb-2"></div>
               <p className="text-gray-600">Uploading to Supabase...</p>
+              {uploadHint && <p className="text-xs text-gray-500 mt-1">{uploadHint}</p>}
             </div>
           ) : (
             <div className="flex flex-col items-center">
@@ -517,8 +567,8 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                 />
               </div>
               <div className="flex gap-2">
-                <button onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>
-                <button onClick={confirmCropAndUpload} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Crop & Upload</button>
+                <button type="button" onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>
+                <button type="button" onClick={confirmCropAndUpload} disabled={uploading} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm">Crop & Upload</button>
               </div>
             </div>
           </div>

@@ -16,6 +16,7 @@ import { RicoFamily } from './pages/RicoFamily';
 import { Sponsors } from './pages/Sponsors';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { ParticlesCursor } from './components/ParticlesCursor';
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -77,6 +78,8 @@ function App() {
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-white">
+          {/* Global particles cursor layer */}
+          <ParticlesCursor />
           <GlobalErrorBanner />
           <ConnectionStatusBanner />
           {/* Hide public site chrome on admin pages to avoid overlap */}

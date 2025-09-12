@@ -282,7 +282,7 @@ export const Home: React.FC = () => {
               <p className="text-gray-400 text-sm mb-4 font-mono">
                 {homepageSettings.sponsor_section_text}
               </p>
-              <div className="flex flex-wrap justify-center items-center gap-6 px-4">
+              <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 px-2 sm:px-4">
                 {homepageSettings.sponsor_logos
                   .filter((logo: any) => logo.enabled && logo.logo_url)
                   .sort((a: any, b: any) => a.order - b.order)
@@ -298,14 +298,14 @@ export const Home: React.FC = () => {
                           <img
                             src={logo.logo_url}
                             alt={logo.name}
-                            className="h-14 md:h-10 opacity-90 hover:opacity-100 transition-opacity"
+                            className="h-16 sm:h-16 md:h-20 lg:h-24 opacity-90 hover:opacity-100 transition-opacity object-contain"
                           />
                         </a>
                       ) : (
                         <img
                           src={logo.logo_url}
                           alt={logo.name}
-                          className="h-8 md:h-10 opacity-80"
+                          className="h-16 sm:h-16 md:h-20 lg:h-24 opacity-85 object-contain"
                         />
                       )}
                     </div>
@@ -595,7 +595,8 @@ export const Home: React.FC = () => {
               speedPxPerSec={140}
               pauseOnHover={true}
               className="py-2"
-              heightClass="h-16"
+              heightClass="h-20 sm:h-20 md:h-24"
+               itemPaddingClass="px-4 sm:px-8 md:px-10"
             />
             {/* View all button added above when lists are long */}
           </div>
@@ -668,7 +669,7 @@ export const Home: React.FC = () => {
 
               {/* Committee Heads */}
               {committeeHeads.length > 0 && homepageSettings?.show_committee_heads && (
-                <div className="relative">
+                <div className="relative -mx-4 sm:mx-0">
                   <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center">
                     <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Committee Heads
                   </h3>
@@ -710,9 +711,11 @@ export const Home: React.FC = () => {
                       </div>
                     )}
                   />
-                  {/* Edge fades for readability */}
-                  <div className="pointer-events-none absolute inset-y-0 left-0 w-10 md:w-16 bg-gradient-to-r from-[#0a0a0a] to-transparent"></div>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 w-10 md:w-16 bg-gradient-to-l from-[#0a0a0a] to-transparent"></div>
+                  {/* Edge fades for readability — align to screen edges; thinner on phones; hidden on very small screens */}
+                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-screen hide-edge-fades-xs">
+                    <div className="absolute inset-y-0 left-0 w-4 sm:w-7 md:w-12 lg:w-16 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
+                    <div className="absolute inset-y-0 right-0 w-4 sm:w-7 md:w-12 lg:w-16 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
+                  </div>
                 </div>
               )}
             </div>

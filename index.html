@@ -30,6 +30,22 @@
         color: #ffffff;
         overflow-x: hidden;
       }
+      /* Particles cursor global layer */
+      .particles-cursor-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 9999; /* keep above site chrome but non-interactive */
+        pointer-events: none;
+        background: radial-gradient(ellipse at center, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.0) 60%);
+      }
+      .particles-cursor-layer canvas {
+        display: block;
+        position: fixed !important;
+        inset: 0;
+        pointer-events: none !important;
+        z-index: 9999 !important;
+        mix-blend-mode: screen; /* bright on dark/light */
+      }
       
       /* Custom scrollbar */
       ::-webkit-scrollbar {
@@ -176,7 +192,7 @@
       </div>
     </div>
     
-    <div id="root"></div>
+  <div id="root" style="position: relative; z-index: 1;"></div>
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Loading Screen Script -->

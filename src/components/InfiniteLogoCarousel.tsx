@@ -13,6 +13,7 @@ interface InfiniteLogoCarouselProps {
   pauseOnHover?: boolean;
   className?: string;
   heightClass?: string; // e.g., 'h-16'
+  itemPaddingClass?: string; // e.g., 'px-4 sm:px-6 md:px-8'
 }
 
 const InfiniteLogoCarousel: React.FC<InfiniteLogoCarouselProps> = ({
@@ -20,7 +21,8 @@ const InfiniteLogoCarousel: React.FC<InfiniteLogoCarouselProps> = ({
   speedPxPerSec = 120,
   pauseOnHover = true,
   className = '',
-  heightClass = 'h-16'
+  heightClass = 'h-16',
+  itemPaddingClass = 'px-8'
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -49,7 +51,7 @@ const InfiniteLogoCarousel: React.FC<InfiniteLogoCarouselProps> = ({
   if (!items || items.length === 0) return null;
 
   const renderLogo = (item: LogoItem) => (
-    <div key={item.id} className={`flex items-center justify-center px-8 ${heightClass}`}>
+    <div key={item.id} className={`flex items-center justify-center ${itemPaddingClass} ${heightClass}`}>
       {item.website ? (
         <a href={item.website} target="_blank" rel="noopener noreferrer" title={item.name} className="block">
           <img src={item.logo} alt={item.name} loading="lazy" decoding="async" className={`${heightClass} object-contain max-w-full opacity-90 transition hover:opacity-100`} />

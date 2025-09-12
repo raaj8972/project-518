@@ -351,10 +351,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (coreTeamMembersError) markErr('Error fetching core team members', coreTeamMembersError);
       else setCoreTeamMembers(coreTeamMembersData || []);
 
-      // Fetch Band Members
+      // Fetch Band Members (public-visible only)
       const { data: bandMembersData, error: bandMembersError } = await supabase
         .from('band_members')
-        .select('*');
+        .select('*')
+        .eq('enabled', true)
+        .order('order_position', { ascending: true });
       if (bandMembersError) markErr('Error fetching band members', bandMembersError);
       else setBandMembers(bandMembersData || []);
 

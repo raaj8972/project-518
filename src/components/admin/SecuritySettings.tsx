@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Shield, Smartphone, QrCode, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff } from 'lucide-react';
+import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const SecuritySettings: React.FC = () => {
-  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled } = useAuth();
+  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated } = useAuth();
   const [isSettingUpTOTP, setIsSettingUpTOTP] = useState(false);
   const [totpSecret, setTotpSecret] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -15,6 +15,11 @@ export const SecuritySettings: React.FC = () => {
   const handleSetupTOTP = async () => {
     setIsLoading(true);
     try {
+      if (!isAuthenticated) {
+        setMessage({ type: 'error', text: 'You must be logged in to enable 2FA. Please sign in and try again.' });
+        setIsLoading(false);
+        return;
+      }
       const result = await setupTOTP();
       if (result) {
         setTotpSecret(result.secret);
@@ -22,7 +27,7 @@ export const SecuritySettings: React.FC = () => {
         setIsSettingUpTOTP(true);
         setMessage(null);
       } else {
-        setMessage({ type: 'error', text: 'Failed to setup 2FA. Please try again.' });
+        setMessage({ type: 'error', text: 'Failed to setup 2FA. Please try again (ensure you are signed in).' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to setup 2FA. Please try again.' });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Music, Heart, Users, Star, Instagram, Youtube, AlignJustify as Spotify, Sparkles, Zap, ArrowRight, Mic, Guitar, Headphones, Volume2 } from 'lucide-react';
+import { Music, Star, Instagram, Youtube, AlignJustify as Spotify, ArrowRight, Mic, Guitar, Headphones, Volume2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { AuditionModal } from '../components/AuditionModal';
@@ -45,6 +45,21 @@ export const HomeBound: React.FC = () => {
 
     return () => observer.disconnect();
   }, [enabledBandMembers]);
+
+  // Track mouse position over cards to move the glow
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest?.('.glitch-card') as HTMLElement | null;
+      if (!target) return;
+      const rect = target.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) * 100;
+      const my = ((e.clientY - rect.top) / rect.height) * 100;
+      target.style.setProperty('--mx', `${mx}%`);
+      target.style.setProperty('--my', `${my}%`);
+    };
+    document.addEventListener('mousemove', handleMove);
+    return () => document.removeEventListener('mousemove', handleMove);
+  }, []);
 
   // Parallax effect
   useEffect(() => {
@@ -133,7 +148,9 @@ export const HomeBound: React.FC = () => {
                   className="scroll-animate opacity-0 transform translate-y-20"
                   style={{ animationDelay: `${index * 0.3}s` }}
                 >
-                  <div className="cyberpunk-card overflow-hidden featured-artist">
+                  <div className="cyberpunk-card overflow-hidden featured-artist glitch-card">
+                    <div className="glitch-bg" aria-hidden="true"></div>
+                    <div className="glitch-lines" aria-hidden="true"></div>
                     <div className="grid md:grid-cols-2 gap-0">
                       {/* Image Section */}
                       <div className="relative h-80 overflow-hidden">
@@ -152,7 +169,6 @@ export const HomeBound: React.FC = () => {
                           </div>
                         </div>
                       </div>
-                      
                       {/* Content Section */}
                       <div className="p-6 flex flex-col justify-center">
                         <h3 className="text-2xl font-bold text-white mb-2 neon-pink artist-name">
@@ -169,62 +185,33 @@ export const HomeBound: React.FC = () => {
                         <p className="text-gray-300 mb-4 leading-relaxed text-sm">
                           {member.description}
                         </p>
-                        
                         {/* Social Links */}
                         {member.social_links && Object.keys(member.social_links).length > 0 && (
                           <div className="flex space-x-3 mb-4">
                             {member.social_links.instagram && (
-                              <a
-                                href={member.social_links.instagram}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-pink-400 hover:text-pink-300 transition-colors"
-                              >
-                                <Instagram size={40} />
-                              </a>
+                              <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors"><Instagram size={20} /></a>
                             )}
                             {member.social_links.youtube && (
-                              <a
-                                href={member.social_links.youtube}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-red-400 hover:text-red-300 transition-colors"
-                              >
-                                <Youtube size={20} />
-                              </a>
+                              <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors"><Youtube size={20} /></a>
                             )}
                             {member.social_links.spotify && (
-                              <a
-                                href={member.social_links.spotify}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-green-400 hover:text-green-300 transition-colors"
-                              >
-                                <Spotify size={20} />
-                              </a>
+                              <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors"><Spotify size={20} /></a>
                             )}
                           </div>
                         )}
-                        
                         {/* Achievements */}
-                        {member.achievements.length > 0 && (
+                        {Array.isArray(member.achievements) && member.achievements.length > 0 && (
                           <div>
                             <h4 className="text-sm font-bold text-cyan-400 mb-3">ACHIEVEMENTS</h4>
                             <div className="space-y-2">
                               {member.achievements.slice(0, 3).map((achievement, achievementIndex) => (
-                                <div
-                                  key={achievementIndex}
-                                  className="flex items-start space-x-2 achievement-item"
-                                  style={{ animationDelay: `${achievementIndex * 0.2}s` }}
-                                >
+                                <div key={achievementIndex} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
                                   <div className="w-2 h-2 bg-pink-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
                                   <span className="text-gray-300 text-xs">{achievement}</span>
                                 </div>
                               ))}
                               {member.achievements.length > 3 && (
-                                <div className="text-xs text-gray-500">
-                                  +{member.achievements.length - 3} more achievements
-                                </div>
+                                <div className="text-xs text-gray-500">+{member.achievements.length - 3} more achievements</div>
                               )}
                             </div>
                           </div>
@@ -263,7 +250,9 @@ export const HomeBound: React.FC = () => {
                   className="scroll-animate opacity-0 transform translate-y-20 hover-float band-card"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <div className="cyberpunk-card group h-full overflow-hidden">
+                  <div className="cyberpunk-card group h-full overflow-hidden glitch-card">
+                    <div className="glitch-bg" aria-hidden="true"></div>
+                    <div className="glitch-lines" aria-hidden="true"></div>
                     {/* Member Image */}
                     <div className="relative h-64 overflow-hidden">
                       <img
@@ -272,27 +261,23 @@ export const HomeBound: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 band-member-image"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      
                       {/* Specialty Badge */}
                       <div className="absolute top-4 left-4">
                         <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow">
                           {member.category}
                         </span>
                       </div>
-                      
                       {/* Category Badge */}
                       <div className="absolute bottom-4 left-4">
                         <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
                           {member.specialty}
                         </span>
                       </div>
-                      
                       {/* Floating Icon */}
                       <div className="absolute top-4 right-4 floating-icon">
                         <Volume2 className="w-6 h-6 text-cyan-400 animate-pulse" />
                       </div>
                     </div>
-                    
                     {/* Member Info */}
                     <div className="p-6">
                       <h4 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors member-name">
@@ -301,72 +286,9 @@ export const HomeBound: React.FC = () => {
                       <p className="text-blue-400 font-semibold mb-3 text-sm">
                         {member.role}
                       </p>
-                      <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                      <p className="text-gray-300 text-sm leading-relaxed mb-2 line-clamp-3">
                         {member.description}
                       </p>
-                      
-                      {/* Social Links */}
-                      {member.social_links && Object.keys(member.social_links).length > 0 && (
-                        <div className="flex space-x-3 mb-4">
-                          {member.social_links.instagram && (
-                            <a
-                              href={member.social_links.instagram}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110"
-                            >
-                              <Instagram size={18} />
-                            </a>
-                          )}
-                          {member.social_links.youtube && (
-                            <a
-                              href={member.social_links.youtube}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-red-400 hover:text-red-300 transition-colors hover:scale-110"
-                            >
-                              <Youtube size={18} />
-                            </a>
-                          )}
-                          {member.social_links.spotify && (
-                            <a
-                              href={member.social_links.spotify}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                            >
-                              <Spotify size={18} />
-                            </a>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Achievements */}
-                      {member.achievements.length > 0 && (
-                        <div>
-                          <h5 className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-2">Achievements</h5>
-                          <div className="space-y-1">
-                            {member.achievements.slice(0, 2).map((achievement, achievementIndex) => (
-                              <div
-                                key={achievementIndex}
-                                className="flex items-start space-x-2 achievement-item"
-                                style={{ animationDelay: `${achievementIndex * 0.2}s` }}
-                              >
-                                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full mt-1.5 pulse-ring flex-shrink-0"></div>
-                                <span className="text-gray-300 text-xs">{achievement}</span>
-                              </div>
-                            ))}
-                            {member.achievements.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{member.achievements.length - 2} more achievements
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Animated Underline */}
-                      <div className="mt-4 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
                     </div>
                   </div>
                 </div>
@@ -486,8 +408,8 @@ export const HomeBound: React.FC = () => {
         </div>
       </section>
 
-      {/* Audition Modal */}
-      {/* HomeBound Instagram Link (footer-like section) */}
+  {/* Audition Modal */}
+  {/* HomeBound Instagram Link (footer-like section) */}
       {(homeboundSettings?.instagram_enabled && homeboundSettings?.instagram_url) && (
         <section className="py-8 bg-black/60 border-t border-pink-500/20">
           <div className="container mx-auto px-4 text-center">
@@ -511,6 +433,54 @@ export const HomeBound: React.FC = () => {
       )}
 
       <style>{`
+        /* Glitch Hover Effect */
+        .glitch-card {
+          position: relative;
+          overflow: hidden;
+          border-radius: 12px;
+          transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+        }
+        .glitch-card .glitch-bg {
+          position: absolute;
+          inset: -20%;
+          background: radial-gradient(800px 400px at var(--mx, 60%) var(--my, 60%), rgba(96, 165, 250, 0.22), transparent 60%),
+                      radial-gradient(600px 300px at calc(var(--mx, 40%)) calc(var(--my, 40%)), rgba(236, 72, 153, 0.18), transparent 60%);
+          filter: blur(18px) saturate(120%);
+          opacity: 0;
+          transform: translateZ(0);
+          pointer-events: none;
+          transition: opacity 0.3s ease;
+        }
+        .glitch-card:hover .glitch-bg { opacity: 1; }
+        .glitch-card .glitch-lines {
+          position: absolute;
+          inset: 0;
+          background: repeating-linear-gradient(
+            180deg,
+            rgba(255,255,255,0.05) 0px,
+            rgba(255,255,255,0.05) 1px,
+            transparent 2px,
+            transparent 4px
+          );
+          mix-blend-mode: overlay;
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.25s ease;
+        }
+        .glitch-card:hover .glitch-lines { opacity: 0.35; animation: scan 2.2s linear infinite; }
+        @keyframes scan {
+          0% { transform: translateY(-10%); }
+          100% { transform: translateY(10%); }
+        }
+        .glitch-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.35), 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(236, 72, 153, 0.25);
+          border-color: rgba(236, 72, 153, 0.5);
+        }
+        /* Track mouse for glow position */
+        .glitch-card { --mx: 50%; --my: 50%; }
+        .glitch-card:hover { cursor: pointer; }
+
         .cyberpunk-theme {
           background: #0a0a0a;
           color: #ffffff;
