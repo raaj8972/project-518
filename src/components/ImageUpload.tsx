@@ -57,13 +57,25 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         upsert: false
       });
 
-  if (error) {
-      const msg = (error.message || '').toLowerCase();
-      if (msg.includes('bucket not found') || msg.includes('not found')) {
-    setMissingBucket(bucket);
-    throw new Error(`Storage bucket '${bucket}' not found. Please run the provided SQL to create it.`);
+    if (error) {
+      const status = (error as any)?.status as number | undefined;
+      const msgRaw = error.message || '';
+      const msg = msgRaw.toLowerCase();
+      // Auth/permission issues (common when not logged in to Supabase auth)
+      if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
+        throw new Error(
+          `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
+        );
       }
-      throw new Error(`Upload failed: ${error.message}`);
+      // Missing bucket in this Supabase project
+      if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
+        setMissingBucket(bucket);
+        throw new Error(
+          `Storage bucket '${bucket}' not found in this Supabase project. Run the SQL shown below to create it, then retry.`
+        );
+      }
+      // Generic fallback with status code if present
+      throw new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
     }
 
     // Get public URL
@@ -130,8 +142,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       console.error('Upload error:', err);
       if (err instanceof Error && /mime type/i.test(err.message)) {
         setError('Upload failed: this file type is not allowed in the bucket. Allowed: PNG, JPG, WEBP, GIF, MP4, MOV');
+      } else if (err instanceof Error) {
+        setError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : 'Upload failed');
+        setError('Upload failed');
       }
     } finally {
       setUploading(false);

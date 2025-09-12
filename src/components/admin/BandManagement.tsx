@@ -4,8 +4,10 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { BandMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useAuth } from '../../context/AuthContext';
 
 export const BandManagement: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const { 
     bandMembers,
     addBandMember,
@@ -164,6 +166,11 @@ export const BandManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded" role="alert">
+          <p className="text-sm font-medium">You are not logged in. Uploads and adding band members require an admin session due to RLS policies. Please log in via the Admin header.</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
