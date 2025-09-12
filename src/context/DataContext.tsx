@@ -184,6 +184,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
+  // Reconnection helpers
+  const lastFetchAtRef = React.useRef<number>(0);
+  const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryAttemptRef = React.useRef<number>(0);
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  };
+
+  const scheduleRetry = () => {
+    clearRetryTimer();
+    // Exponential backoff: 2s, 4s, 8s ... capped at 60s
+    const attempt = retryAttemptRef.current;
+    const delay = Math.min(60000, 2000 * Math.pow(2, attempt));
+    retryTimerRef.current = setTimeout(async () => {
+      try {
+        await fetchData(true);
+      } finally {
+        // Increase attempt only if we still aren't OK; will reset on success
+        if (connectionStatus !== 'ok') {
+          retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 10);
+          scheduleRetry();
+        }
+      }
+    }, delay);
+  };
 
   const fetchData = async (silent: boolean = false) => {
     if (!silent) setLoading(true);
@@ -198,6 +227,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Lightweight connectivity ping first to catch obvious offline issues
       try {
+        // If browser is offline, short-circuit
+        if (typeof navigator !== 'undefined' && navigator && 'onLine' in navigator && !navigator.onLine) {
+          throw new Error('Browser offline');
+        }
         const { error: pingError } = await supabase
           .from('events')
           .select('id', { head: true, count: 'exact' });
@@ -442,7 +475,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         setConnectionStatus('ok');
         setLastError(null);
+        // Reset retry attempts on success
+        retryAttemptRef.current = 0;
+        clearRetryTimer();
       }
+      lastFetchAtRef.current = Date.now();
       if (!silent) setLoading(false);
     }
   };
@@ -491,6 +528,48 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
     return () => { subscription.unsubscribe(); };
   }, []);
+
+  // Auto-retry when connection is offline/degraded
+  useEffect(() => {
+    if (connectionStatus === 'ok') {
+      clearRetryTimer();
+      retryAttemptRef.current = 0;
+      return;
+    }
+    // If degraded or offline, schedule exponential backoff retry
+    scheduleRetry();
+    return () => clearRetryTimer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionStatus]);
+
+  // Listen to browser online/offline and visibility changes to opportunistically refetch
+  useEffect(() => {
+    const onOnline = () => {
+      fetchData(true);
+    };
+    const onOffline = () => {
+      setConnectionStatus('offline');
+      setLastError('Browser offline');
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const age = Date.now() - lastFetchAtRef.current;
+        if (connectionStatus !== 'ok' || age > 60_000) {
+          fetchData(true);
+        }
+      }
+    };
+
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionStatus]);
 
   // Realtime subscription for roadmap milestones so roadmap updates instantly
   useEffect(() => {
