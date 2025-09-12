@@ -69,7 +69,8 @@ export const BandManagement: React.FC = () => {
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding band member:', error);
-      alert('Failed to add band member. Please try again.');
+      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
+      alert(`Failed to add band member. ${msg}`);
     }
   };
 
@@ -86,7 +87,8 @@ export const BandManagement: React.FC = () => {
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating band member:', error);
-      alert('Failed to update band member. Please try again.');
+      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
+      alert(`Failed to update band member. ${msg}`);
     }
   };
 

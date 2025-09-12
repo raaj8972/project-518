@@ -1013,8 +1013,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Band Members Management
   const addBandMember = async (member: Partial<BandMember>) => {
+    // Ensure the caller is authenticated (RLS requires authenticated role for insert)
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth || !auth.session) {
+      throw new Error('You must be logged in to add band members.');
+    }
     const { error } = await supabase.from('band_members').insert(member);
-    if (error) throw error;
+    if (error) {
+      // Surface a readable message back to UI
+      throw new Error(error.message || 'Insert failed');
+    }
     await fetchData(true);
   };
 
