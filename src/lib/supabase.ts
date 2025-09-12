@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase Cloud configuration
-// Prefer environment variables from Vite; fall back to committed defaults
-const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL || 'https://isfqhascrdzaoebhuohs.supabase.co'
-const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDAxNDEsImV4cCI6MjA3MzA3NjE0MX0.0akCpqYDlGgEenU4fPzDQorsvygcviBpfk4iluSm9Vs'
+// Require env vars; avoid hard-coded fallbacks so we never hit the wrong project in prod
+const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL
+const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables')
+  throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
