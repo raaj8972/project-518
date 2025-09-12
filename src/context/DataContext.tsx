@@ -412,8 +412,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('roadmap_milestones')
         .select('*')
         .order('order_position', { ascending: true });
-      if (roadmapError) markErr('Error fetching roadmap milestones', roadmapError);
-      else setRoadmapMilestones(roadmapData || []);
+      if (roadmapError) {
+        const msg = String((roadmapError as any)?.message || '').toLowerCase();
+        const code = (roadmapError as any)?.code;
+        // If the table isn't created yet in this Supabase project, don't degrade connection – just show empty roadmap
+        if (
+          code === 'PGRST205' ||
+          msg.includes("relation 'public.roadmap_milestones' does not exist") ||
+          (msg.includes('could not find the table') && msg.includes('roadmap_milestones'))
+        ) {
+          console.warn('[Data] roadmap_milestones table missing; using empty list');
+          setRoadmapMilestones([]);
+        } else {
+          markErr('Error fetching roadmap milestones', roadmapError);
+        }
+      } else setRoadmapMilestones(roadmapData || []);
 
     } catch (error) {
       markErr('Error in fetchData', error);
