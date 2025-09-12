@@ -6,7 +6,11 @@ import HeroBackground from '../components/HeroBackground';
 import InfiniteLogoCarousel from '../components/InfiniteLogoCarousel';
 import InfiniteMarquee from '../components/InfiniteMarquee';
 import CoverflowCarousel from '../components/CoverflowCarousel';
+import AutoCarousel from '../components/AutoCarousel';
 import FacultyProfileModal from '../components/FacultyProfileModal';
+import GuestArtistVideoModal from '../components/GuestArtistVideoModal';
+import GuestArtistDetailModal from '../components/GuestArtistDetailModal';
+import type { GuestArtist } from '../context/DataContext';
 import Roadmap from '../components/Roadmap';
 
 export const Home: React.FC = () => {
@@ -40,6 +44,10 @@ export const Home: React.FC = () => {
   });
   
   const [membershipModal, setMembershipModal] = useState(false);
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [selectedArtistForVideo, setSelectedArtistForVideo] = useState<GuestArtist | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailArtist, setDetailArtist] = useState<GuestArtist | null>(null);
   const [glitchActive, setGlitchActive] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
@@ -184,10 +192,13 @@ export const Home: React.FC = () => {
   }
 
   // Filter for featured content
-  const featuredEvents = events.filter(event => event.featured && event.visible !== false).slice(0, 3);
-  const featuredImages = galleryImages.filter(image => image.featured).slice(0, 6);
-  const featuredSponsors = sponsors.filter(sponsor => sponsor.featured).slice(0, 8);
-  const featuredGuestArtists = guestArtists.filter(artist => artist.is_featured && artist.enabled).slice(0, 3);
+  const featuredEvents = events.filter(event => event.featured && event.visible !== false);
+  const featuredImages = galleryImages.filter(image => image.featured);
+  const featuredSponsors = sponsors.filter(sponsor => sponsor.featured);
+  const featuredGuestArtists = guestArtists.filter(artist => artist.is_featured && artist.enabled);
+  const hasManyEvents = events.length > 6;
+  const hasManyImages = galleryImages.length > 9;
+  const hasManySponsors = sponsors.length > 8;
   
 
   // Check if social media links should be shown
@@ -324,106 +335,95 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {featuredGuestArtists.map((artist, index) => (
-                <div
-                  key={artist.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
-                  style={{ animationDelay: `${index * 0.2}s` }}
-                >
-                  <div className="cyberpunk-card group h-full overflow-hidden">
-                    <div className="relative h-64 overflow-hidden">
-                      <img
-                        src={artist.image}
-                        alt={artist.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      
-                      <div className="absolute top-4 right-4">
-                        <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
-                      </div>
-                      
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
-                          FEATURED ARTIST
-                        </div>
+            <CoverflowCarousel<GuestArtist>
+              items={featuredGuestArtists}
+              intervalMs={3200}
+              visibleRange={2}
+              pauseOnHover={true}
+              showArrows={true}
+              showDots={false}
+              onItemClick={(artist) => { setDetailArtist(artist); setDetailOpen(true); }}
+              className="mt-2"
+              renderItem={(artist) => (
+                <div className="cyberpunk-card group w-[310px] md:w-[360px] overflow-hidden">
+                  <div className="relative h-64 overflow-hidden">
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+
+                    <div className="absolute top-4 right-4">
+                      <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
+                    </div>
+
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
+                        FEATURED ARTIST
                       </div>
                     </div>
-                    
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
-                        {artist.name}
-                      </h3>
-                      <p className="text-pink-400 font-semibold mb-3">
-                        {artist.title}
-                      </p>
-                      <div className="mb-3">
-                        <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">
-                          {artist.specialty}
-                        </span>
-                      </div>
-                      <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                        {artist.description}
-                      </p>
-                      
-                      {/* Social Links */}
-                      {artist.social_links && Object.keys(artist.social_links).length > 0 && (
-                        <div className="flex space-x-3 mb-4">
-                          {artist.social_links.instagram && (
-                            <a
-                              href={artist.social_links.instagram}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110"
-                            >
-                              <Instagram size={20} />
-                            </a>
-                          )}
-                          {artist.social_links.youtube && (
-                            <a
-                              href={artist.social_links.youtube}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-red-400 hover:text-red-300 transition-colors hover:scale-110"
-                            >
-                              <Youtube size={20} />
-                            </a>
-                          )}
-                        </div>
-                      )}
-                      
-                      {/* Achievements */}
-                      {artist.achievements.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-bold text-cyan-400 mb-3">ACHIEVEMENTS</h4>
-                          <div className="space-y-2">
-                            {artist.achievements.slice(0, 2).map((achievement, achievementIndex) => (
-                              <div
-                                key={achievementIndex}
-                                className="flex items-start space-x-2 achievement-item"
-                                style={{ animationDelay: `${achievementIndex * 0.2}s` }}
-                              >
-                                <div className="w-2 h-2 bg-pink-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
-                                <span className="text-gray-300 text-xs">{achievement}</span>
-                              </div>
-                            ))}
-                            {artist.achievements.length > 2 && (
-                              <div className="text-xs text-gray-500">
-                                +{artist.achievements.length - 2} more achievements
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+
+                    {(artist.video_url || artist.youtube_url) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSelectedArtistForVideo(artist); setVideoModalOpen(true); }}
+                        className="absolute top-4 left-4 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg ring-1 ring-pink-400/40 hover:ring-pink-300/70 transition-all animate-pulse"
+                        aria-label={`Play video for ${artist.name}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
+                      {artist.name}
+                    </h3>
+                    <p className="text-pink-400 font-semibold mb-3">{artist.title}</p>
+                    <div className="mb-3">
+                      <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">
+                        {artist.specialty}
+                      </span>
                     </div>
+                    <p className="text-gray-300 text-sm leading-relaxed mb-4 line-clamp-3">
+                      {artist.description}
+                    </p>
+
+                    {artist.social_links && Object.keys(artist.social_links).length > 0 && (
+                      <div className="flex space-x-3 mb-1">
+                        {artist.social_links.instagram && (
+                          <a href={artist.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110">
+                            <Instagram size={20} />
+                          </a>
+                        )}
+                        {artist.social_links.youtube && (
+                          <a href={artist.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors hover:scale-110">
+                            <Youtube size={20} />
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            />
           </div>
         </section>
       )}
+
+      <GuestArtistVideoModal
+        isOpen={videoModalOpen}
+        onClose={() => { setVideoModalOpen(false); setSelectedArtistForVideo(null); }}
+        artist={selectedArtistForVideo}
+      />
+      <GuestArtistDetailModal
+        isOpen={detailOpen}
+        onClose={() => { setDetailOpen(false); setDetailArtist(null); }}
+        artist={detailArtist}
+      />
 
       {/* Featured Events */}
       {featuredEvents.length > 0 && (
@@ -439,15 +439,29 @@ export const Home: React.FC = () => {
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                   Don't miss these highlighted experiences at RICORRENZA 2025
                 </p>
+                {hasManyEvents && (
+                  <div className="mt-6">
+                    <a href="/events" className="inline-flex items-center text-blue-400 hover:text-blue-300 font-semibold">
+                      View all events <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            {/* 2D Slider for events using AutoCarousel */}
+            <AutoCarousel
+              intervalMs={4200}
+              pauseOnHover
+              showArrows
+              showDots
+              className="mt-4"
+            >
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
-                  style={{ animationDelay: `${index * 0.2}s` }}
+                  className="scroll-animate opacity-0 transform translate-y-20 hover-float w-72 md:w-96"
+                  style={{ animationDelay: `${index * 0.15}s` }}
                 >
                   <div className="cyberpunk-card group h-full overflow-hidden">
                     <div className="relative h-48 overflow-hidden">
@@ -457,13 +471,13 @@ export const Home: React.FC = () => {
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      
+
                       <div className="absolute top-4 left-4">
                         <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-ring">
                           FEATURED
                         </span>
                       </div>
-                      
+
                       <div className="absolute bottom-4 left-4 right-4">
                         <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
                           {event.title}
@@ -471,7 +485,7 @@ export const Home: React.FC = () => {
                         <p className="text-blue-400 text-sm">{event.category}</p>
                       </div>
                     </div>
-                    
+
                     <div className="p-6">
                       <p className="text-gray-300 text-sm mb-4 line-clamp-3">{event.description}</p>
                       <div className="flex justify-between items-center">
@@ -482,15 +496,15 @@ export const Home: React.FC = () => {
                           href="/events"
                           className="text-blue-400 hover:text-blue-300 text-sm font-medium group"
                         >
-                          
-                          <ArrowRight size={1} className="inline ml-1 group-hover:translate-x-1 transition-transform" />
+                          More
+                          <ArrowRight size={12} className="inline ml-1 group-hover:translate-x-1 transition-transform" />
                         </a>
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-            </div>
+            </AutoCarousel>
 
             {/* Removed bottom navigation button for Events section as per request */}
           </div>
@@ -511,6 +525,13 @@ export const Home: React.FC = () => {
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                   Glimpses from our journey through the years
                 </p>
+                {hasManyImages && (
+                  <div className="mt-6">
+                    <a href="/gallery" className="inline-flex items-center text-green-300 hover:text-green-200 font-semibold">
+                      View all photos <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -540,7 +561,7 @@ export const Home: React.FC = () => {
               ))}
             </div>
 
-            {/* Removed bottom navigation button for Gallery section as per request */}
+            {/* View all button added above when lists are long */}
           </div>
         </section>
       )}
@@ -559,6 +580,13 @@ export const Home: React.FC = () => {
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                   Powered by industry leaders who believe in our vision
                 </p>
+                {hasManySponsors && (
+                  <div className="mt-6">
+                    <a href="/sponsors" className="inline-flex items-center text-gray-200 hover:text-white font-semibold">
+                      View all partners <ArrowRight className="ml-1 h-4 w-4" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -569,8 +597,7 @@ export const Home: React.FC = () => {
               className="py-2"
               heightClass="h-16"
             />
-
-            {/* Removed bottom navigation button for Partners section as per request */}
+            {/* View all button added above when lists are long */}
           </div>
         </section>
       )}

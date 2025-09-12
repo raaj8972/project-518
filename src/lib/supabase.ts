@@ -722,6 +722,8 @@ export interface Database {
           title: string
           image: string
           video: string | null
+          video_url: string | null
+          youtube_url: string | null
           description: string
           specialty: string
           achievements: string[]
@@ -738,6 +740,8 @@ export interface Database {
           title: string
           image: string
           video?: string | null
+          video_url?: string | null
+          youtube_url?: string | null
           description: string
           specialty: string
           achievements?: string[]
@@ -754,6 +758,8 @@ export interface Database {
           title?: string
           image?: string
           video?: string | null
+          video_url?: string | null
+          youtube_url?: string | null
           description?: string
           specialty?: string
           achievements?: string[]

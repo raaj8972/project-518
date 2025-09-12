@@ -23,6 +23,8 @@ export const GuestArtistManagement: React.FC = () => {
     title: '',
     image: '',
     video: '',
+    video_url: '',
+    youtube_url: '',
     description: '',
     specialty: '',
     achievements: [] as string[],
@@ -41,7 +43,9 @@ export const GuestArtistManagement: React.FC = () => {
       name: '',
       title: '',
       image: '',
-      video: '',
+  video: '',
+  video_url: '',
+  youtube_url: '',
       description: '',
       specialty: '',
       achievements: [],
@@ -63,7 +67,21 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
-      await addGuestArtist(form);
+      await addGuestArtist({
+        name: form.name,
+        title: form.title,
+        image: form.image,
+        video: form.video || null,
+        video_url: form.video_url || null,
+        youtube_url: form.youtube_url || null,
+        description: form.description,
+        specialty: form.specialty,
+        achievements: form.achievements,
+        order_position: form.order_position,
+        enabled: form.enabled,
+        is_featured: form.is_featured,
+        social_links: form.social_links,
+      });
       setIsAdding(false);
       resetForm();
       try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
@@ -80,7 +98,21 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
-      await updateGuestArtist(id, form);
+      await updateGuestArtist(id, {
+        name: form.name,
+        title: form.title,
+        image: form.image,
+        video: form.video || null,
+        video_url: form.video_url || null,
+        youtube_url: form.youtube_url || null,
+        description: form.description,
+        specialty: form.specialty,
+        achievements: form.achievements,
+        order_position: form.order_position,
+        enabled: form.enabled,
+        is_featured: form.is_featured,
+        social_links: form.social_links,
+      });
       setEditing(null);
       resetForm();
       try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
@@ -124,7 +156,9 @@ export const GuestArtistManagement: React.FC = () => {
       name: artist.name,
       title: artist.title,
       image: artist.image,
-      video: artist.video || '',
+  video: artist.video || '',
+  video_url: (artist as any).video_url || '',
+  youtube_url: (artist as any).youtube_url || '',
       description: artist.description,
       specialty: artist.specialty,
       achievements: artist.achievements,
@@ -228,14 +262,29 @@ export const GuestArtistManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Performance Video URL (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">YouTube Video URL (Optional)</label>
                 <input
                   type="url"
-                  value={form.video}
-                  onChange={(e) => setForm(prev => ({ ...prev, video: e.target.value }))}
-                  placeholder="https://youtube.com/watch?v=..."
+                  value={form.youtube_url}
+                  onChange={(e) => setForm(prev => ({ ...prev, youtube_url: e.target.value }))}
+                  placeholder="https://www.youtube.com/watch?v=..."
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Performance Video (Optional)</label>
+                <ImageUpload
+                  onImageSelect={(url) => setForm(prev => ({ ...prev, video_url: url }))}
+                  currentImage={form.video_url}
+                  bucket="guest-artist-videos"
+                  folder="artists"
+                  acceptedTypes="video/*"
+                  fileTypeLabel="MP4/WEBM/MOV up to 80MB"
+                  enableCropper={false}
+                />
+                {form.video_url && (
+                  <p className="text-xs text-gray-500 mt-1 break-all">Uploaded video URL: {form.video_url}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
