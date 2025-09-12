@@ -14,6 +14,8 @@ interface ImageUploadProps {
   // optional crop settings
   enableCropper?: boolean; // default true for images
   cropAspect?: number; // e.g., 1 for square avatar, 4/3, 16/9, etc.
+  // if true, immediately calls onImageSelect after a successful upload (skip extra Save click)
+  autoSave?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -25,7 +27,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   acceptedTypes = 'image/*',
   fileTypeLabel = 'PNG, JPG, GIF up to 5MB',
   enableCropper = true,
-  cropAspect
+  cropAspect,
+  autoSave = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -55,7 +58,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       });
 
   if (error) {
-      if (error.message.includes('Bucket not found')) {
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('bucket not found') || msg.includes('not found')) {
     setMissingBucket(bucket);
     throw new Error(`Storage bucket '${bucket}' not found. Please run the provided SQL to create it.`);
       }
@@ -116,7 +120,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       const fileUrl = await uploadToSupabase(file);
       setPendingImage(fileUrl);
-      setHasUnsavedChanges(true);
+      if (autoSave) {
+        onImageSelect(fileUrl);
+        setHasUnsavedChanges(false);
+      } else {
+        setHasUnsavedChanges(true);
+      }
     } catch (err) {
       console.error('Upload error:', err);
       if (err instanceof Error && /mime type/i.test(err.message)) {
@@ -193,7 +202,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const file = new File([blob], `crop_${Date.now()}.jpg`, { type: 'image/jpeg' });
       const fileUrl = await uploadToSupabase(file);
       setPendingImage(fileUrl);
-      setHasUnsavedChanges(true);
+      if (autoSave) {
+        onImageSelect(fileUrl);
+        setHasUnsavedChanges(false);
+      } else {
+        setHasUnsavedChanges(true);
+      }
       setCropSrc(null);
     } catch (err) {
       console.error('Crop upload failed:', err);
