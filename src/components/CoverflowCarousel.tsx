@@ -172,9 +172,13 @@ export default function CoverflowCarousel<T>({
         </div>
         {/* Edge gradient fades for nicer framing */}
         {edgeFades && (
-          <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-screen hide-edge-fades-xs" aria-hidden>
-            <div className="absolute inset-y-0 left-0 w-5 sm:w-9 md:w-16 lg:w-24" style={{ background: 'linear-gradient(to right, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
-            <div className="absolute inset-y-0 right-0 w-5 sm:w-9 md:w-16 lg:w-24" style={{ background: 'linear-gradient(to left, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
+          <div
+            className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-[100svw] hide-edge-fades-xs"
+            style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+            aria-hidden
+          >
+            <div className="absolute inset-y-0 left-0 w-2 sm:w-5 md:w-12 lg:w-20" style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.25), rgba(0,0,0,0.05), rgba(0,0,0,0))' }} />
+            <div className="absolute inset-y-0 right-0 w-2 sm:w-5 md:w-12 lg:w-20" style={{ background: 'linear-gradient(to left, rgba(0,0,0,0.25), rgba(0,0,0,0.05), rgba(0,0,0,0))' }} />
           </div>
         )}
       </div>

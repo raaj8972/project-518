@@ -1,20 +1,23 @@
 import React from 'react';
-import { Instagram, Youtube, Heart, Zap } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Instagram, Youtube } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 export const Footer: React.FC = () => {
   const { socialMediaSettings } = useData();
+  const location = useLocation();
+  const isHomeBound = location.pathname === '/home-bound' || location.pathname.startsWith('/home-bound');
 
   // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url;
-  const showYoutube = socialMediaSettings?.youtube_enabled && socialMediaSettings?.youtube_url;
-  const showSocialMedia = showInstagram || showYoutube;
+  const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
+  const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
+  const showSocialMedia = (showInstagram || showYoutube) && !isHomeBound;
 
   return (
     <footer className="cyberpunk-footer relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900/40 via-blue-900/60 to-pink-900/40"></div>
-      <div className="absolute inset-0 cyberpunk-grid opacity-15"></div>
+  {/* Animated Background */}
+  <div className="absolute inset-0 bg-gradient-to-br from-[#0b0b12]/60 via-[#0a0a0a]/70 to-[#0b0b12]/60"></div>
+  <div className="absolute inset-0 cyberpunk-grid opacity-10"></div>
       
       {/* Floating Particles */}
       <div className="particles-container">
@@ -35,44 +38,70 @@ export const Footer: React.FC = () => {
         {/* Social Media Section */}
         {showSocialMedia && (
           <div className="text-center mb-8">
-            <h3 className="text-lg md:text-xl font-bold mb-4 cyberpunk-title">
-              Connect With Us
-            </h3>
-            <div className="flex justify-center items-center space-x-6">
-              {showInstagram && (
-                <a
-                  href={socialMediaSettings.instagram_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center space-x-2 text-pink-400 hover:text-pink-300 transition-all duration-300 hover:scale-110 hover-float"
-                >
-                  <Instagram size={24} className="group-hover:rotate-12 transition-transform pulse-ring" />
-                  <span className="text-sm font-medium hidden sm:block">Instagram</span>
-                </a>
-              )}
-              {showYoutube && (
-                <a
-                  href={socialMediaSettings.youtube_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center space-x-2 text-red-400 hover:text-red-300 transition-all duration-300 hover:scale-110 hover-float"
-                >
-                  <Youtube size={24} className="group-hover:rotate-12 transition-transform pulse-ring" />
-                  <span className="text-sm font-medium hidden sm:block">YouTube</span>
-                </a>
-              )}
+            <div className="flex justify-center">
+              <div className="glass-panel inline-block px-5 py-4 sm:px-6 sm:py-5">
+                <h3 className="text-base sm:text-lg md:text-xl font-bold mb-3 sm:mb-4 cyberpunk-title">
+                  Connect With Us
+                </h3>
+                <div className="flex justify-center items-center space-x-5 sm:space-x-6">
+                  {showInstagram && (
+                    <a
+                      href={socialMediaSettings.instagramUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center space-x-2 text-pink-400 hover:text-pink-300 transition-all duration-300 hover:scale-110 hover-float"
+                    >
+                      <Instagram size={24} className="group-hover:rotate-12 transition-transform pulse-ring" />
+                      <span className="text-sm font-medium hidden sm:block">Instagram</span>
+                    </a>
+                  )}
+                  {showYoutube && (
+                    <a
+                      href={socialMediaSettings.youtubeUrl || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group flex items-center space-x-2 text-red-400 hover:text-red-300 transition-all duration-300 hover:scale-110 hover-float"
+                    >
+                      <Youtube size={24} className="group-hover:rotate-12 transition-transform pulse-ring" />
+                      <span className="text-sm font-medium hidden sm:block">YouTube</span>
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Fallback strip: always visible */}
+        <div className="mt-4">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+          <div className="py-4 text-center text-xs text-gray-300/80">
+            © {new Date().getFullYear()} RICORRENZA 2025 • All rights reserved
+          </div>
+        </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .cyberpunk-footer {
           background: #0a0a0a;
           color: #ffffff;
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           position: relative;
           margin-top: auto;
+        }
+
+        /* Frosted glass panel for social section */
+        .glass-panel {
+          background: rgba(10, 10, 10, 0.55); /* match page color with subtle tint */
+          border: 1px solid rgba(255, 255, 255, 0.07);
+          border-radius: 16px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+          -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+        }
+
+        @supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+          .glass-panel { background: rgba(10, 10, 10, 0.75); }
         }
 
         .cyberpunk-grid {
@@ -198,6 +227,11 @@ export const Footer: React.FC = () => {
           
           .particles-container {
             display: none;
+          }
+          .glass-panel {
+            border-radius: 12px;
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
           }
         }
         

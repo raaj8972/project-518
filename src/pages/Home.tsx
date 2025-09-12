@@ -680,7 +680,8 @@ export const Home: React.FC = () => {
                     pauseOnHover={true}
                     paused={committeePaused}
                     pauseOnTouch={false}
-                    itemWrapperClassName="px-4 md:px-6"
+                    itemWrapperClassName="pr-4 md:pr-6 first:pl-0"
+                    sideGutterPx={2}
                     className="py-4 relative"
                     renderItem={(m) => (
                       <div
@@ -711,10 +712,13 @@ export const Home: React.FC = () => {
                       </div>
                     )}
                   />
-                  {/* Edge fades for readability — align to screen edges; thinner on phones; hidden on very small screens */}
-                  <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-screen hide-edge-fades-xs">
-                    <div className="absolute inset-y-0 left-0 w-4 sm:w-7 md:w-12 lg:w-16 bg-gradient-to-r from-[#0a0a0a] to-transparent" />
-                    <div className="absolute inset-y-0 right-0 w-4 sm:w-7 md:w-12 lg:w-16 bg-gradient-to-l from-[#0a0a0a] to-transparent" />
+                  {/* Edge fades for readability — soften the black at screen edges; thinner on phones; hidden on very small screens */}
+                  <div
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-[100svw] hide-edge-fades-xs"
+                    style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+                  >
+                    <div className="absolute inset-y-0 left-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-r from-black/25 via-black/5 to-transparent" />
+                    <div className="absolute inset-y-0 right-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-l from-black/25 via-black/5 to-transparent" />
                   </div>
                 </div>
               )}

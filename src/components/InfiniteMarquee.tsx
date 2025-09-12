@@ -12,6 +12,8 @@ interface InfiniteMarqueeProps<T> {
   className?: string;
   direction?: Direction;
   itemWrapperClassName?: string; // spacing classes for each item
+  // Optional fixed gutter on both sides so content doesn't touch/fade under screen edges
+  sideGutterPx?: number;
 }
 
 function InfiniteMarquee<T>({
@@ -23,7 +25,8 @@ function InfiniteMarquee<T>({
   paused = false,
   className = '',
   direction = 'left',
-  itemWrapperClassName = 'px-4'
+  itemWrapperClassName = 'px-4',
+  sideGutterPx = 0
 }: InfiniteMarqueeProps<T>) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -66,7 +69,10 @@ function InfiniteMarquee<T>({
           animation: `im-scroll ${durationSec}s linear infinite`,
           animationPlayState: (paused || isHovering) ? ('paused' as const) : ('running' as const),
           animationDirection: direction === 'right' ? ('reverse' as const) : ('normal' as const),
-          willChange: 'transform'
+          willChange: 'transform',
+          // Keep items off the very edges and out from under the edge fades
+          paddingLeft: sideGutterPx ? `calc(env(safe-area-inset-left) + ${sideGutterPx}px)` : undefined,
+          paddingRight: sideGutterPx ? `calc(env(safe-area-inset-right) + ${sideGutterPx}px)` : undefined
         }}
       >
         <div className="flex items-stretch">

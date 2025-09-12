@@ -40,6 +40,58 @@ export const Events: React.FC = () => {
     return () => io.disconnect();
   }, [events]);
 
+  // Soft perspective tilt on hover for desktop/fine pointers
+  useEffect(() => {
+    const supportsTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!supportsTilt) return;
+    const maxTilt = 12; // degrees (increase for more depth)
+    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
+
+    const move = (el: HTMLElement, e: MouseEvent) => {
+      const rect = el.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
+      const py = (e.clientY - rect.top) / rect.height - 0.5; // -0.5..0.5
+      const rx = Math.max(-maxTilt, Math.min(maxTilt, -py * maxTilt * 2));
+      const ry = Math.max(-maxTilt, Math.min(maxTilt, px * maxTilt * 2));
+      el.style.setProperty('--rx', `${rx}deg`);
+      el.style.setProperty('--ry', `${ry}deg`);
+    };
+    const leave = (el: HTMLElement) => {
+      el.style.setProperty('--rx', '0deg');
+      el.style.setProperty('--ry', '0deg');
+    };
+
+    const handlers: Array<{ el: HTMLElement; onMove: (e: MouseEvent) => void; onLeave: () => void }> = [];
+    cards.forEach((el) => {
+      const onMove = (e: MouseEvent) => move(el, e);
+      const onLeave = () => leave(el);
+      el.addEventListener('mousemove', onMove);
+      el.addEventListener('mouseleave', onLeave);
+      handlers.push({ el, onMove, onLeave });
+    });
+    return () => {
+      handlers.forEach(({ el, onMove, onLeave }) => {
+        el.removeEventListener('mousemove', onMove);
+        el.removeEventListener('mouseleave', onLeave);
+      });
+    };
+  }, []);
+
+  // Tap-triggered sheen on touch devices (short once-off)
+  useEffect(() => {
+    const supportsTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    if (!supportsTouch) return;
+    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
+    const handler = (e: Event) => {
+      const el = e.currentTarget as HTMLElement;
+      if (!el) return;
+      el.classList.add('sheen');
+      setTimeout(() => el.classList.remove('sheen'), 700);
+    };
+    cards.forEach((el) => el.addEventListener('click', handler, { passive: true }));
+    return () => cards.forEach((el) => el.removeEventListener('click', handler as EventListener));
+  }, []);
+
   const openRegistration = (eventId: number, eventTitle: string) => setRegistrationModal({ isOpen: true, eventId, eventTitle });
   const closeRegistration = () => setRegistrationModal({ isOpen: false, eventId: 0, eventTitle: '' });
   const toggleRules = (id: number) => setExpandedRules((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -112,7 +164,7 @@ export const Events: React.FC = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event, index) => (
               <div key={event.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
-                <div className={`flip-3d ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
+                <div className={`flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
                     <button className="flip-face flip-front relative" onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
                       <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})` }} />
@@ -164,9 +216,14 @@ export const Events: React.FC = () => {
                                 {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
                               {expandedRules.has(event.id) && (
-                                <div className="bg-gray-800/50 rounded-lg p-3 space-y-2 border border-gray-700 max-h-40 overflow-y-auto">
+                                <div
+                                  className="rules-panel rounded-xl p-4 space-y-3 max-h-56 overflow-y-auto rules-zoom-in"
+                                  onClick={(e) => e.stopPropagation()}
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                >
                                   {event.rules.map((rule: string, i: number) => (
-                                    <div key={i} className="flex items-start text-sm text-gray-300"><span className="font-medium text-pink-400 mr-2 mt-0.5">{i + 1}.</span><span>{rule}</span></div>
+                                    <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
                                   ))}
                                 </div>
                               )}
@@ -175,13 +232,17 @@ export const Events: React.FC = () => {
                         </div>
                         <div className="p-6 pt-0">
                           {event.registration_open ? (
-                            <button onClick={(e) => { e.stopPropagation(); openRegistration(event.id, event.title); }} disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)} className={`w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center transition-all duration-300 ${event.max_participants && (event.current_registrations || 0) >= event.max_participants ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'cyberpunk-btn cyberpunk-btn-primary'}`}>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openRegistration(event.id, event.title); }}
+                              disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
+                              className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
+                            >
                               {event.max_participants && (event.current_registrations || 0) >= event.max_participants ? (
                                 <>
                                   <AlertCircle size={16} className="mr-2" /> EVENT FULL
                                 </>
                               ) : (
-                                <span className="relative z-10 flex items-center"><UserPlus size={16} className="mr-2" /> REGISTER NOW</span>
+                                <span className="glow-text-btn__content"><UserPlus size={16} className="mr-2" /> <span className="glow-text-animated">REGISTER NOW</span></span>
                               )}
                             </button>
                           ) : (
@@ -219,29 +280,165 @@ export const Events: React.FC = () => {
         .flip-3d { perspective: 1200px; position: relative; height: 380px; }
         @media (min-width: 480px) { .flip-3d { height: 420px; } }
         @media (min-width: 768px) { .flip-3d { height: 520px; } }
-        .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); }
+  .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); z-index: 10; }
         .flip-3d.is-flipped .flip-3d-inner { transform: rotateY(180deg); }
         /* Only enable hover flip on devices with fine pointer (non-touch) */
         @media (hover: hover) and (pointer: fine) {
           .flip-3d:hover .flip-3d-inner { transform: rotateY(180deg); }
           .flip-3d:hover .flip-front-media { transform: scale(1.08); }
         }
-        .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
+          .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
         .flip-front { z-index: 2; }
-        .flip-front-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: scale(1.02); transition: transform 400ms ease; }
-        .flip-back { transform: rotateY(180deg); background: rgba(20,20,40,0.92); border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+          /* Parallax depth for media on the front */
+          .flip-front-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: translateZ(18px) scale(1.03); transition: transform 400ms ease; }
+          @media (hover: hover) and (pointer: fine) {
+            .tilt-card:hover .flip-front-media { transform: translateZ(22px) scale(1.06); }
+          }
+  .flip-back { transform: rotateY(180deg); background: rgba(20,20,40,0.92); border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 11; }
+
+        /* Animated neon border ring around the entire card (both faces) */
+        .neon-anim-border {
+          border-radius: 16px;
+          overflow: hidden;
+          position: relative;
+          /* Layered shadows for 3D depth */
+          box-shadow:
+            0 18px 36px rgba(0,0,0,0.45),
+            0 8px 18px rgba(0,0,0,0.35),
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 -10px 24px rgba(0,0,0,0.25) inset;
+          transform-style: preserve-3d;
+          transform: translateY(var(--ty, 0)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+          transition: box-shadow 250ms ease, transform 250ms ease;
+          isolation: isolate; /* ensure ::before ring can sit above inner content safely */
+          /* Fallback/Primary: gradient border using background-clip for wide compatibility */
+          border: 1px solid transparent; /* ultra-thin ring */
+          background:
+            linear-gradient(transparent, transparent) padding-box,
+            conic-gradient(
+              from 20deg,
+              #ff00ff 0%,
+              #ff4de9 18%,
+              #5b21b6 32%,
+              #0e7490 55%,
+              #0e7490 70%,
+              #5b21b6 85%,
+              #ff00ff 100%
+            ) border-box;
+          /* Inner glow illusion */
+          box-shadow:
+            inset 0 0 46px rgba(255,0,255,0.10),
+            inset 0 0 72px rgba(14,116,144,0.06),
+            0 18px 36px rgba(0,0,0,0.45),
+            0 8px 18px rgba(0,0,0,0.35),
+            0 1px 0 rgba(255,255,255,0.06) inset,
+            0 -10px 24px rgba(0,0,0,0.25) inset;
+        }
+        /* Fallback ring using border-image to ensure visibility on all devices */
+        .neon-anim-border::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          border: 1px solid transparent; /* match ultra-thin ring */
+          /* draw gradient border via border-image without masking */
+          border-image: conic-gradient(
+            from 20deg,
+            #ff00ff 0%,
+            #ff4de9 18%,
+            #5b21b6 32%,
+            #0e7490 55%,
+            #0e7490 70%,
+            #5b21b6 85%,
+            #ff00ff 100%
+          ) 1;
+          z-index: 40;
+          pointer-events: none;
+        }
+        .neon-anim-border::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          /* soft inner edge glow: fades from edges inward */
+          background:
+            radial-gradient(120% 60% at 50% -10%, rgba(255,0,255,0.10), transparent 60%),
+            radial-gradient(120% 60% at 50% 110%, rgba(14,116,144,0.08), transparent 60%),
+            radial-gradient(60% 120% at -10% 50%, rgba(255,0,255,0.08), transparent 60%),
+            radial-gradient(60% 120% at 110% 50%, rgba(14,116,144,0.06), transparent 60%);
+          filter: blur(34px); /* increased blur for softer light */
+          opacity: 0.55; /* slightly reduced intensity */
+          z-index: 5;
+          pointer-events: none;
+          transition: opacity 250ms ease, filter 250ms ease;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .neon-anim-border:hover {
+            --ty: -4px;
+            box-shadow:
+              0 24px 48px rgba(0,0,0,0.5),
+              0 12px 24px rgba(0,0,0,0.4),
+              0 1px 0 rgba(255,255,255,0.08) inset,
+              0 -12px 28px rgba(0,0,0,0.3) inset,
+              inset 0 0 54px rgba(255,0,255,0.12),
+        inset 0 0 80px rgba(14,116,144,0.08);
+          }
+          .neon-anim-border:hover::before { filter: saturate(150%) brightness(1.1); }
+      .neon-anim-border:hover::after { opacity: 0.65; filter: blur(40px); }
+        }
+
+        /* Subtle curvature highlight inside both faces */
+        .flip-face::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(120% 120% at 8% 8%, rgba(255,255,255,0.06), rgba(255,255,255,0) 38%),
+            radial-gradient(120% 120% at 92% 92%, rgba(255,255,255,0.04), rgba(255,255,255,0) 42%);
+          mix-blend-mode: screen;
+        }
+        /* Disable overlays on the back face to keep text sharp and readable */
+        .flip-back::after,
+        .flip-back::before { display: none; }
+
+        /* Sweeping specular sheen on hover (desktop) */
+        .flip-face::before {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border-radius: inherit;
+          background: linear-gradient(115deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.07) 10%, rgba(255,255,255,0) 35%);
+          background-size: 200% 200%;
+          background-position: -150% -150%;
+          mix-blend-mode: screen;
+          opacity: 0;
+          transition: background-position 800ms ease, opacity 300ms ease;
+          pointer-events: none;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          .tilt-card:hover .flip-face::before { background-position: 150% 150%; opacity: 0.35; }
+        }
+        @media (hover: none) and (pointer: coarse) {
+          .tilt-card.sheen .flip-face::before { background-position: 150% 150%; opacity: 0.35; transition-duration: 600ms; }
+          .tilt-card:active { transform: translateY(-2px); }
+        }
+        @media (min-width: 768px) {
+          .neon-anim-border::before { padding: 3px; }
+        }
 
         /* Theme and effects */
         .cyberpunk-theme { background:#0a0a0a; color:#ffffff; font-family:'Orbitron','Rajdhani',sans-serif; min-height:100vh; }
         .hero-section { position:relative; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
         .particles-container { position:absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; }
-        .particle { position:absolute; width:2px; height:2px; background: linear-gradient(45deg, #ff00ff, #00ffff); border-radius:50%; animation: particleFloat linear infinite; }
+  .particle { position:absolute; width:2px; height:2px; background: linear-gradient(45deg, #ff00ff, #06b6d4); border-radius:50%; animation: particleFloat linear infinite; }
+    .particle { background: linear-gradient(45deg, #ff00ff, #0e7490); }
         @keyframes particleFloat { 0% { transform: translateY(100vh) scale(0); opacity:0; } 10% { opacity:1; } 90% { opacity:1; } 100% { transform: translateY(-100px) scale(1); opacity:0; } }
-        .cyberpunk-title { background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff); background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation: gradientShift 3s ease-in-out infinite; }
+  .cyberpunk-title { background: linear-gradient(45deg, #ff00ff, #0e7490, #ff00ff); background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation: gradientShift 3s ease-in-out infinite; }
         @keyframes gradientShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
         .neon-pink { color:#ff00ff; text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff; }
-        .neon-blue { color:#00ffff; text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff; }
-        .neon-purple { color:#8a2be2; text-shadow: 0 0 5px #8a2be2, 0 0 10px #8a2be2; }
+  .neon-blue { color:#0e7490; text-shadow: 0 0 5px #0e7490, 0 0 10px #0e7490; }
+  .neon-purple { color:#5b21b6; text-shadow: 0 0 5px #5b21b6, 0 0 10px #5b21b6; }
         .glow-text { text-shadow: 0 0 3px currentColor, 0 0 6px currentColor; }
         .pulse-glow { animation: pulseGlow 2s ease-in-out infinite alternate; }
         @keyframes pulseGlow { from { box-shadow: 0 0 5px rgba(255,0,255,0.3);} to { box-shadow: 0 0 15px rgba(255,0,255,0.6);} }
@@ -255,12 +452,87 @@ export const Events: React.FC = () => {
         .cyberpunk-btn:hover::before { left:100%; }
         .cyberpunk-btn-primary { border-color:#ff00ff; color:#ff00ff; box-shadow: 0 0 10px rgba(255,0,255,0.2), inset 0 0 10px rgba(255,0,255,0.05); }
         .cyberpunk-btn-primary:hover { background: rgba(255,0,255,0.1); box-shadow: 0 0 20px rgba(255,0,255,0.4), inset 0 0 20px rgba(255,0,255,0.1); transform: translateY(-2px); }
-        .cyberpunk-card { background: rgba(20,20,40,0.8); border:1px solid rgba(0,255,255,0.3); border-radius:8px; backdrop-filter: blur(10px); transition: all .3s ease; position: relative; overflow:hidden; }
-        .cyberpunk-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff); transform: translateX(-100%); transition: transform .5s ease; }
+  .cyberpunk-card { background: rgba(20,20,40,0.8); border:1px solid rgba(14,116,144,0.30); border-radius:8px; backdrop-filter: blur(10px); transition: all .3s ease; position: relative; overflow:hidden; }
+  .cyberpunk-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background: linear-gradient(90deg, #ff00ff, #0e7490, #ff00ff); transform: translateX(-100%); transition: transform .5s ease; }
         .cyberpunk-card:hover::before { transform: translateX(0); }
         .cyberpunk-card:hover { border-color: rgba(255,0,255,0.6); box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(255,0,255,0.1); transform: translateY(-5px); }
         .scroll-animate { transition: all .8s cubic-bezier(.25,.46,.45,.94); }
         .scroll-animate.animate-in { opacity:1 !important; transform: translateY(0) !important; }
+        
+        /* Zoom-in animation for rules panel */
+        .rules-zoom-in { animation: rulesZoomIn 220ms cubic-bezier(.16,.84,.44,1) both; transform-origin: top center; }
+        @keyframes rulesZoomIn { from { opacity: 0; transform: scale(.94) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        /* Rules panel readability improvements */
+        .rules-panel {
+          position: relative;
+          background: rgba(17, 22, 36, 0.98);
+          border: 1px solid rgba(91, 33, 182, 0.32); /* darker purple tone */
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(0,0,0,0.35);
+          color: #d9d9e3;
+          z-index: 2; /* above decorative layers */
+          -webkit-overflow-scrolling: touch;
+          backdrop-filter: blur(6px);
+        }
+        .rules-panel .rule-line { font-size: 0.95rem; line-height: 1.4rem; color: #e2e8f0; }
+        .rules-panel .rule-index { color: #ff66e5; font-weight: 700; text-shadow: 0 0 6px rgba(255,0,255,0.35); }
+        .rules-panel .rule-text { color: #e6e6f0; }
+        .rules-panel::-webkit-scrollbar { width: 8px; }
+  .rules-panel::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #5b21b6, #0e7490); border-radius: 9999px; }
+        .rules-panel::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 9999px; }
+
+        /* Glow Text Button (inspired by provided demo) */
+        .glow-text-btn {
+          position: relative;
+          padding: 14px 18px;
+          border-radius: 12px;
+          background: rgba(14,14,30,0.85);
+          border: none;
+          outline: none;
+          transition: transform .18s ease, box-shadow .2s ease, background .2s ease;
+          text-transform: uppercase;
+          letter-spacing: .5px;
+          color: #e7e7e7;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        .glow-text-btn:hover { transform: translateY(-2px); }
+        .glow-text-btn:active { transform: translateY(0); }
+        .glow-text-btn::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 2px;
+          background: linear-gradient(90deg, #ff00ff, #5b21b6, #0e7490, #ff00ff);
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor; /* safari */
+                  mask-composite: exclude; /* others */
+          filter: drop-shadow(0 0 10px rgba(255,0,255,.30)) drop-shadow(0 0 18px rgba(14,116,144,.20));
+          pointer-events: none;
+          z-index: 0;
+        }
+        .glow-text-btn::after {
+          /* ambient glow under the button */
+          content: '';
+          position: absolute;
+          left: 8%; right: 8%; bottom: -8px; height: 18px;
+          background: radial-gradient(60% 100% at 50% 0%, rgba(255,0,255,.30), rgba(14,116,144,.20) 60%, transparent 80%);
+          filter: blur(12px);
+          z-index: -1;
+          pointer-events: none;
+        }
+        .glow-text-btn__content { position: relative; z-index: 2; display: inline-flex; align-items: center; }
+        .glow-text-animated {
+          background: linear-gradient(90deg, #ff00ff, #ffffff 35%, #0e7490 70%, #ff00ff 100%);
+          background-size: 200% 100%;
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          text-shadow: 0 0 8px rgba(255,0,255,.45), 0 0 16px rgba(14,116,144,.28);
+          animation: glowTextSweep 2.4s linear infinite;
+        }
+        @keyframes glowTextSweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @media (prefers-reduced-motion: reduce) { .glow-text-animated { animation: none; } }
+
         @media (max-width: 768px) {
           .cyberpunk-title { font-size: 2rem; }
           .hero-section h1 { font-size: 2.25rem !important; }

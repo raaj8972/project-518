@@ -397,14 +397,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (formSettingsError) markErr('Error fetching form settings', formSettingsError);
       else setFormSettings(formSettingsData || null);
 
-      // Fetch Social Media Settings
+      // Fetch Social Media Settings (normalize snake_case -> camelCase)
       const { data: socialMediaSettingsData, error: socialMediaSettingsError } = await supabase
         .from('social_media_settings')
         .select('*')
         .eq('id', 1)
         .single();
       if (socialMediaSettingsError) markErr('Error fetching social media settings', socialMediaSettingsError);
-      else setSocialMediaSettings(socialMediaSettingsData || null);
+      else {
+        if (socialMediaSettingsData) {
+          // Normalize to camelCase expected by UI components
+          const normalized: any = {
+            id: (socialMediaSettingsData as any).id,
+            instagramEnabled: (socialMediaSettingsData as any).instagram_enabled ?? false,
+            instagramUrl: (socialMediaSettingsData as any).instagram_url ?? null,
+            youtubeEnabled: (socialMediaSettingsData as any).youtube_enabled ?? false,
+            youtubeUrl: (socialMediaSettingsData as any).youtube_url ?? null,
+            created_at: (socialMediaSettingsData as any).created_at,
+            updated_at: (socialMediaSettingsData as any).updated_at,
+          };
+          setSocialMediaSettings(normalized as SocialMediaSettings);
+        } else {
+          setSocialMediaSettings(null);
+        }
+      }
 
       // Fetch Homepage Settings
       const { data: homepageSettingsData, error: homepageSettingsError } = await supabase
@@ -916,7 +932,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Social Media Settings Management
   const updateSocialMediaSettings = async (settings: Partial<SocialMediaSettings>) => {
-    const { error } = await supabase.from('social_media_settings').update(settings).eq('id', 1);
+    // Convert camelCase patch -> snake_case for DB
+    const patch: Record<string, any> = {};
+    if (settings.instagramEnabled !== undefined) patch.instagram_enabled = settings.instagramEnabled;
+    if (settings.instagramUrl !== undefined) patch.instagram_url = settings.instagramUrl;
+    if (settings.youtubeEnabled !== undefined) patch.youtube_enabled = settings.youtubeEnabled;
+    if (settings.youtubeUrl !== undefined) patch.youtube_url = settings.youtubeUrl;
+    const { error } = await supabase.from('social_media_settings').update(patch).eq('id', 1);
     if (error) throw error;
     await fetchData(true);
   };

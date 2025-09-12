@@ -73,7 +73,7 @@ function App() {
   // Inner shell to use routing hooks (must be inside <Router>)
   const AppShell: React.FC = () => {
     const location = useLocation();
-    const isAdminRoute = location.pathname.startsWith('/admin');
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
     return (
       <RouteErrorBoundary>
