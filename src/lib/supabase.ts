@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js'
 // Supabase Cloud configuration
 // Require env vars; avoid hard-coded fallbacks so we never hit the wrong project in prod
 const { VITE_SUPABASE_URL: VITE_URL_RAW, VITE_SUPABASE_ANON_KEY: VITE_KEY_RAW } = import.meta.env as any;
-const supabaseUrl = (VITE_URL_RAW || '').trim();
+const rawUrl = (VITE_URL_RAW || '').trim();
+// Normalize URL: remove trailing slashes and trailing dots which can break DNS/TLS or CORS
+const normalizedUrl = rawUrl.replace(/\/+$/, '').replace(/\.+$/, '');
+const supabaseUrl = normalizedUrl;
 const supabaseAnonKey = (VITE_KEY_RAW || '').trim();
 
 if (import.meta.env.DEV) {
@@ -16,6 +19,22 @@ if (import.meta.env.DEV) {
 if (!supabaseUrl || !supabaseAnonKey) {
   // Common causes: .env missing, wrong variable names, dev server not restarted, or Netlify env not set at build time
   throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+}
+
+// Basic sanity checks to catch malformed inputs early in dev/prod logs
+try {
+  const url = new URL(supabaseUrl)
+  if (!/^https?:$/.test(url.protocol)) {
+    // eslint-disable-next-line no-console
+    console.warn('[Supabase] Unexpected protocol in VITE_SUPABASE_URL:', url.protocol)
+  }
+  if (!/\.supabase\.(co|in)$/.test(url.host)) {
+    // eslint-disable-next-line no-console
+    console.warn('[Supabase] Host does not look like a Supabase domain:', url.host)
+  }
+} catch (e) {
+  // eslint-disable-next-line no-console
+  console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot.', e)
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
