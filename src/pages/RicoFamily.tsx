@@ -1,30 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Heart, Star, Crown, Instagram, Youtube, AlignJustify as Spotify, Sparkles, Zap, ArrowRight, Award, Shield, Gem, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Heart, Star, Crown, Instagram, Youtube, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
+import InfiniteMarquee from '../components/InfiniteMarquee';
+import CoverflowCarousel from '../components/CoverflowCarousel';
+import FacultyProfileModal from '../components/FacultyProfileModal';
 
-type SocialLinks = {
-  instagram?: string;
-  youtube?: string;
-  spotify?: string;
-};
-
-// Remove duplicate/erroneous declaration here
-// If you need a type, define it like this:
-type FacultyHead = {
-  description: string;
-  image: string;
-  enabled: boolean;
-  order_position: number;
-  social_links?: SocialLinks;
-  achievements: string[];
-};
+// Local FacultyHead type removed; rely on DataContext types instead
 
 export const RicoFamily: React.FC = () => {
-  const { socialMediaSettings, facultyHeads, coreCommittees, coreTeamMembers, formSettings } = useData();
+  const { facultyHeads, coreCommittees, coreTeamMembers, formSettings } = useData();
   const [glitchActive, setGlitchActive] = useState(false);
   const [membershipModal, setMembershipModal] = useState(false);
-  const [currentFacultyIndex, setCurrentFacultyIndex] = useState(0);
+  const [facultyModalOpen, setFacultyModalOpen] = useState(false);
+  const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
+  const [facultyPaused, setFacultyPaused] = useState(false);
 
   // Filter enabled faculty heads and sort by order
   const enabledFacultyHeads = (facultyHeads || [])
@@ -51,6 +42,11 @@ export const RicoFamily: React.FC = () => {
   Object.keys(membersByCommittee).forEach(committee_id => {
     membersByCommittee[committee_id].sort((a, b) => a.order_position - b.order_position);
   });
+
+  // Committee heads across all committees (for marquee)
+  const committeeHeads = (coreTeamMembers || [])
+    .filter(m => m.enabled && m.is_head)
+    .sort((a, b) => a.order_position - b.order_position);
 
   // Glitch effect trigger
   useEffect(() => {
@@ -98,49 +94,16 @@ export const RicoFamily: React.FC = () => {
   }, []);
 
   // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
-  const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
-  const showSocialMedia = showInstagram || showYoutube;
+  // Social media settings available via context if needed
 
-  const handleNextFaculty = () => {
-    setCurrentFacultyIndex((prev) => 
-      prev === enabledFacultyHeads.length - 1 ? 0 : prev + 1
-    );
-  };
-
-  const handlePrevFaculty = () => {
-    setCurrentFacultyIndex((prev) => 
-      prev === 0 ? enabledFacultyHeads.length - 1 : prev - 1
-    );
-  };
-
-  // Reset faculty index when faculty heads change
-  useEffect(() => {
-    if (currentFacultyIndex >= enabledFacultyHeads.length) {
-      setCurrentFacultyIndex(0);
-    }
-  }, [enabledFacultyHeads.length, currentFacultyIndex]);
   return (
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <img
-              src="https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1920"
-              alt="Rico Family"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/50"></div>
-          </div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles */}
-          <div className="particles-container">
+        <HeroBackground pageKey="ricofamily" />
+
+        {/* Floating Particles */}
+        <div className="particles-container">
             {[...Array(50)].map((_, i) => (
               <div
                 key={i}
@@ -152,11 +115,10 @@ export const RicoFamily: React.FC = () => {
                 }}
               ></div>
             ))}
-          </div>
-
-          {/* Glitch Overlay */}
-          <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
         </div>
+
+        {/* Glitch Overlay */}
+        <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
@@ -177,7 +139,7 @@ export const RicoFamily: React.FC = () => {
         </div>
       </section>
 
-      {/* Faculty Head Section */}
+      {/* Faculty Head Section — 3D coverflow autoplay */}
       {enabledFacultyHeads.length > 0 && (
         <section className="py-13 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-yellow-900/20 via-orange-900/30 to-red-900/20"></div>
@@ -194,153 +156,72 @@ export const RicoFamily: React.FC = () => {
               </div>
             </div>
 
-            {/* Faculty Heads */}
-            <div className="relative min-h-[400px] flex items-center justify-center">
-              {/* Navigation Arrows */}
-              {enabledFacultyHeads.length > 1 && (
-                <>
-                  <button
-                    onClick={handlePrevFaculty}
-                    className="absolute left-0 top-1/2 transform -translate-y-1/2 z-20 cyberpunk-btn cyberpunk-btn-secondary p-3 hover-float"
-                    title="Previous Faculty Head"
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  
-                  <button
-                    onClick={handleNextFaculty}
-                    className="absolute right-0 top-1/2 transform -translate-y-1/2 z-20 cyberpunk-btn cyberpunk-btn-secondary p-3 hover-float"
-                    title="Next Faculty Head"
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                </>
-              )}
-
-              {/* Faculty Head Display */}
-              {enabledFacultyHeads.length > 0 && (
-                <div className="w-full max-w-4xl mx-auto">
-                  <div
-                    key={enabledFacultyHeads[currentFacultyIndex].id}
-                    className="scroll-animate opacity-0 transform translate-y-20"
-                    style={{ animationDelay: '0s' }}
-                  >
-                    <div className="cyberpunk-card overflow-hidden faculty-spotlight">
-                      <div className="grid md:grid-cols-2 gap-0">
-                        {/* Image Section */}
-                        <div className="relative h-64 md:h-auto overflow-hidden">
-                          <img
-                            src={enabledFacultyHeads[currentFacultyIndex].image}
-                            alt={enabledFacultyHeads[currentFacultyIndex].name}
-                            className="w-full h-full object-cover faculty-image"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                          <div className="absolute top-4 right-4">
-                            <Crown className="w-6 h-6 text-yellow-400 animate-pulse pulse-ring" />
-                          </div>
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold inline-block">
-                              FACULTY HEAD
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {/* Content Section */}
-                        <div className="p-6 flex flex-col justify-center">
-                          <h3 className="text-2xl font-bold text-white mb-2 neon-yellow faculty-name">
-                            {enabledFacultyHeads[currentFacultyIndex].name}
-                          </h3>
-                          <p className="text-lg text-yellow-400 mb-3 font-semibold">
-                            {enabledFacultyHeads[currentFacultyIndex].title}
-                          </p>
-                          <p className="text-gray-300 mb-4 leading-relaxed text-sm">
-                            {enabledFacultyHeads[currentFacultyIndex].description}
-                          </p>
-                          
-                          {/* Social Links */}
-                          {('social_links' in enabledFacultyHeads[currentFacultyIndex] &&
-                            enabledFacultyHeads[currentFacultyIndex].social_links &&
-                            Object.values(
-                              // @ts-ignore
-                              enabledFacultyHeads[currentFacultyIndex].social_links
-                            ).some(link => link)) ? (
-                            <div className="flex space-x-3 mb-4">
-                              {(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks)?.instagram && (
-                                <a
-                                  href={(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks).instagram}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110"
-                                >
-                                  <Instagram size={20} />
-                                </a>
-                              )}
-                              {(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks)?.youtube && (
-                                <a
-                                  href={(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks).youtube}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-red-400 hover:text-red-300 transition-colors hover:scale-110"
-                                >
-                                  <Youtube size={20} />
-                                </a>
-                              )}
-                              {(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks)?.spotify && (
-                                <a
-                                  href={(enabledFacultyHeads[currentFacultyIndex].social_links as SocialLinks).spotify}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                                >
-                                  <Spotify size={20} />
-                                </a>
-                              )}
-                            </div>
-                          ) : null}
-                          
-                          {/* Achievements */}
-                          {enabledFacultyHeads[currentFacultyIndex].achievements.length > 0 && (
-                            <div>
-                              <h4 className="text-sm font-bold text-cyan-400 mb-3">KEY ACHIEVEMENTS</h4>
-                              <div className="space-y-2">
-                                {enabledFacultyHeads[currentFacultyIndex].achievements.map((achievement, achievementIndex) => (
-                                  <div
-                                    key={achievementIndex}
-                                    className="flex items-start space-x-2 achievement-item"
-                                    style={{ animationDelay: `${achievementIndex * 0.2}s` }}
-                                  >
-                                    <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
-                                    <span className="text-gray-300 text-xs">{achievement}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+            <CoverflowCarousel
+              items={[...enabledFacultyHeads].sort((a, b) => a.order_position - b.order_position)}
+              intervalMs={2600}
+              visibleRange={2}
+              stepPx={280}
+              rotateYDeg={42}
+              scaleStep={0.13}
+              translateZStep={-80}
+              blurPerStep={2.5}
+              edgeFades={true}
+              centerGlow={true}
+              arrowSize={48}
+              paused={facultyPaused}
+              onItemClick={(item) => { setSelectedFaculty(item); setFacultyModalOpen(true); setFacultyPaused(true); }}
+              pauseOnHover={true}
+              showArrows={true}
+              className="py-6"
+              renderItem={(head) => (
+                <div className="w-72 md:w-80 cyberpunk-card p-5">
+                  <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
+                    <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
+                  <div className="font-bold text-white text-center">{head.name}</div>
+                  <div className="text-sm text-gray-300 text-center">{head.title}</div>
                 </div>
               )}
+            />
+          </div>
+        </section>
+      )}
 
-              {/* Faculty Navigation Dots */}
-              {enabledFacultyHeads.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                  {enabledFacultyHeads.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentFacultyIndex(index)}
-                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                        index === currentFacultyIndex
-                          ? 'bg-yellow-400 scale-125'
-                          : 'bg-gray-600 hover:bg-gray-500'
-                      }`}
-                      title={`View ${enabledFacultyHeads[index].name}`}
-                    />
-                  ))}
+      {/* Committee Heads marquee — opposite direction */}
+      {committeeHeads.length > 0 && (
+        <section className="py-13 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="scroll-animate opacity-0 transform translate-y-20">
+              <div className="text-center mb-8">
+                <h2 className="text-2xl md:text-4xl font-black mb-4 cyberpunk-title">
+                  COMMITTEE <span className="neon-blue">HEADS</span>
+                </h2>
+                <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-4 expand-width"></div>
+                <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+                  Leading the specialized teams driving RICORRENZA's innovation
+                </p>
+              </div>
+            </div>
+
+            <InfiniteMarquee
+              items={committeeHeads}
+              direction="right"
+              speedPxPerSec={140}
+              itemWrapperClassName="px-3"
+              className="py-2"
+              renderItem={(m) => (
+                <div className="w-64 cyberpunk-card p-4">
+                  <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
+                    <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="font-bold text-white flex items-center">
+                    <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                  </div>
+                  <div className="text-sm text-gray-300">{m.role}</div>
                 </div>
               )}
-            </div>
+            />
           </div>
         </section>
       )}
@@ -366,7 +247,6 @@ export const RicoFamily: React.FC = () => {
             <div className="space-y-16">
               {enabledCommittees.map((committee, committeeIndex) => {
                 const allCommitteeMembers = membersByCommittee[committee.id] || [];
-                const committeeHead = allCommitteeMembers.find(member => member.is_head);
                 const regularMembers = allCommitteeMembers.filter(member => !member.is_head);
                 
                 if (allCommitteeMembers.length === 0) return null;
@@ -399,7 +279,7 @@ export const RicoFamily: React.FC = () => {
                           Committee Heads ({allCommitteeMembers.filter(m => m.is_head).length})
                         </h4>
                         <div className="grid md:grid-cols-2 gap-8">
-                          {allCommitteeMembers.filter(m => m.is_head).map((head, headIndex) => (
+                          {allCommitteeMembers.filter(m => m.is_head).map((head) => (
                             <div key={head.id} className="committee-head-card cyberpunk-card overflow-hidden faculty-spotlight">
                               <div className="grid md:grid-cols-2 gap-0">
                                 {/* Image Section */}
@@ -797,6 +677,13 @@ export const RicoFamily: React.FC = () => {
           onClose={() => setMembershipModal(false)}
         />
       )}
+
+      {/* Faculty Profile Modal */}
+      <FacultyProfileModal
+        open={facultyModalOpen}
+        onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); }}
+        person={selectedFaculty}
+      />
 
       <style>{`
         .cyberpunk-theme {

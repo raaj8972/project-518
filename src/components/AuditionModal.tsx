@@ -258,11 +258,11 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                     PARTICIPANT_TYPE *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <select
                       value={formData.participant_type}
                       onChange={(e) => handleInputChange('participant_type', e.target.value)}
-                      className="cyberpunk-select pl-10"
+                      className="cyberpunk-select pl-12"
                     >
                       {participantTypes.map(type => (
                         <option key={type} value={type}>{type}</option>
@@ -277,13 +277,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                     FULL_NAME *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="text"
                       value={formData.full_name}
                       onChange={(e) => handleInputChange('full_name', e.target.value)}
                       placeholder="Enter your full name"
-                      className={`cyberpunk-input pl-10 ${errors.full_name ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.full_name ? 'error' : ''}`}
                     />
                   </div>
                   {errors.full_name && (
@@ -297,11 +297,11 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                     INSTRUMENT_ROLE *
                   </label>
                   <div className="relative">
-                    <Music className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Music className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <select
                       value={formData.instrument_role}
                       onChange={(e) => handleInputChange('instrument_role', e.target.value)}
-                      className={`cyberpunk-select pl-10 ${errors.instrument_role ? 'error' : ''}`}
+                      className={`cyberpunk-select pl-12 ${errors.instrument_role ? 'error' : ''}`}
                     >
                       <option value="">Select instrument/role</option>
                       {instrumentRoles.map(role => (
@@ -322,13 +322,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                     EMAIL_ADDRESS *
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       placeholder="user@domain.com"
-                      className={`cyberpunk-input pl-10 ${errors.email ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.email ? 'error' : ''}`}
                     />
                   </div>
                   {errors.email && (
@@ -342,13 +342,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                     PHONE_NUMBER *
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="Contact number"
-                      className={`cyberpunk-input pl-10 ${errors.phone ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.phone ? 'error' : ''}`}
                     />
                   </div>
                   {errors.phone && (
@@ -363,13 +363,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                   PORTFOLIO_LINK (OPTIONAL)
                 </label>
                 <div className="relative">
-                  <Link className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <Link className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                   <input
                     type="url"
                     value={formData.portfolio_link}
                     onChange={(e) => handleInputChange('portfolio_link', e.target.value)}
                     placeholder="https://your-portfolio.com or social media link"
-                    className={`cyberpunk-input pl-10 ${errors.portfolio_link ? 'error' : ''}`}
+                    className={`cyberpunk-input pl-12 ${errors.portfolio_link ? 'error' : ''}`}
                   />
                 </div>
                 {errors.portfolio_link && (
@@ -384,13 +384,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                   EXPERIENCE_MOTIVATION (OPTIONAL)
                 </label>
                 <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <MessageSquare className="absolute left-3 top-3 md:top-1/2 md:-translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                   <textarea
                     value={formData.experience_motivation}
                     onChange={(e) => handleInputChange('experience_motivation', e.target.value)}
                     placeholder="Tell us about your musical experience and why you want to join Home Bound..."
                     rows={4}
-                    className="cyberpunk-textarea pl-10"
+                    className="cyberpunk-textarea pl-12"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your musical background and motivation</p>
@@ -425,7 +425,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+  <style>{`
         .cyberpunk-modal {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           backdrop-filter: blur(11px);
@@ -511,7 +511,9 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
         .cyberpunk-select,
         .cyberpunk-textarea {
           width: 100%;
-          padding: 10px 14px;
+          padding-top: 10px;
+          padding-bottom: 10px;
+          padding-right: 14px;
           background: rgba(0, 0, 0, 0.7);
           border: 2px solid rgba(0, 255, 255, 0.3);
           border-radius: 8px;
@@ -519,14 +521,29 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
           font-family: 'Orbitron', monospace;
           transition: all 0.3s ease;
           font-size: 0.8rem;
+          line-height: 1.25rem;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .cyberpunk-select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          padding-right: 2.25rem;
+          background-image: none;
         }
         
         @media (min-width: 640px) {
           .cyberpunk-input,
           .cyberpunk-select,
           .cyberpunk-textarea {
-            padding: 12px 16px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            padding-right: 16px;
             font-size: 0.9rem;
+            min-height: 48px;
           }
         }
 
@@ -713,7 +730,10 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
           .cyberpunk-select,
           .cyberpunk-textarea {
             font-size: 0.75rem;
-            padding: 8px 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            padding-right: 12px;
+            min-height: 42px;
           }
           
           .cyberpunk-label {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, Instagram, Youtube, FileText, ChevronDown, ChevronUp, Sparkles, Zap, Play, Star } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { RegistrationModal } from '../components/RegistrationModal';
+import { HeroBackground } from '../components/HeroBackground';
 
 export const Events: React.FC = () => {
-  const { events, socialMediaSettings } = useData();
+  const { events } = useData();
   const eventsRef = useRef<HTMLDivElement>(null);
   const [registrationModal, setRegistrationModal] = useState<{
     isOpen: boolean;
@@ -111,25 +112,69 @@ export const Events: React.FC = () => {
     return colors[category] || colors.default;
   };
 
-  // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url;
-  const showYoutube = socialMediaSettings?.youtube_enabled && socialMediaSettings?.youtube_url;
-  const showSocialMedia = showInstagram || showYoutube;
+  // Social media links visibility not used on this page currently
+
+  // Lightweight 3D tilt wrapper for cards
+  const Tilt3D: React.FC<React.PropsWithChildren<{ intensity?: number }>> = ({ children, intensity = 12 }) => {
+    const wrapRef = useRef<HTMLDivElement>(null);
+    const innerRef = useRef<HTMLDivElement>(null);
+    const glareRef = useRef<HTMLDivElement>(null);
+    const frame = useRef<number | null>(null);
+
+    const reset = () => {
+      if (innerRef.current) {
+        innerRef.current.style.transform = 'rotateX(0deg) rotateY(0deg) translateZ(0)';
+      }
+      if (glareRef.current) {
+        glareRef.current.style.opacity = '0';
+      }
+    };
+
+    const onMove = (e: React.MouseEvent) => {
+      if (!wrapRef.current || !innerRef.current || !glareRef.current) return;
+      const rect = wrapRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const px = (x / rect.width) * 2 - 1;
+      const py = (y / rect.height) * 2 - 1;
+      const rx = (-py * intensity).toFixed(2);
+      const ry = (px * intensity).toFixed(2);
+
+      if (frame.current) cancelAnimationFrame(frame.current);
+      frame.current = requestAnimationFrame(() => {
+        if (!innerRef.current || !glareRef.current) return;
+        innerRef.current.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) translateZ(8px)`;
+        glareRef.current.style.opacity = '1';
+        glareRef.current.style.setProperty('--px', `${(x / rect.width) * 100}%`);
+        glareRef.current.style.setProperty('--py', `${(y / rect.height) * 100}%`);
+      });
+    };
+
+    return (
+      <div
+        ref={wrapRef}
+        className="tilt-wrap"
+        onMouseMove={onMove}
+        onMouseLeave={reset}
+        onMouseEnter={onMove}
+      >
+        <div ref={innerRef} className="tilt-inner">
+          <div ref={glareRef} className="tilt-glare pointer-events-none" />
+          {children}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      {/* 3D Tilt helper defined above; used around each card */}
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Animated Background */}
         <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/50"></div>
-          </div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
+          <HeroBackground pageKey="events" />
+
           {/* Floating Particles */}
           <div className="particles-container">
             {[...Array(50)].map((_, i) => (
@@ -210,14 +255,18 @@ export const Events: React.FC = () => {
             {filteredEvents.map((event, index) => (
               <div
                 key={event.id}
-                className="scroll-animate opacity-0 transform translate-y-20 hover-float"
+                className="scroll-animate opacity-0 transform translate-y-20"
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <div className="cyberpunk-card group h-full overflow-hidden">
+                {/* @ts-ignore */}
+                <Tilt3D intensity={14}>
+                <div className="cyberpunk-card group h-full overflow-hidden tilt-elevated">
                   <div className="relative h-48 overflow-hidden">
                     <img
                       src={event.image}
                       alt={event.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
@@ -278,18 +327,16 @@ export const Events: React.FC = () => {
                       </div>
                       
                       {/* Registration Progress */}
-                      {event.maxParticipants && (
+                      {event.max_participants && (
                         <div className="mt-3">
                           <div className="flex justify-between text-sm text-gray-400 mb-1">
                             <span>Registrations</span>
-                            <span>{event.currentRegistrations || 0} / {event.maxParticipants}</span>
+                            <span>{event.current_registrations || 0} / {event.max_participants}</span>
                           </div>
                           <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                             <div 
                               className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                              style={{ 
-                                width: `${Math.min(100, ((event.currentRegistrations || 0) / event.maxParticipants) * 100)}%` 
-                              }}
+                              style={{ width: `${Math.min(100, (((event.current_registrations || 0) / (event.max_participants || 1)) * 100))}%` }}
                             ></div>
                           </div>
                         </div>
@@ -346,7 +393,7 @@ export const Events: React.FC = () => {
                     {event.registration_open ? (
                       <button 
                         onClick={() => openRegistration(event.id, event.title)}
-                        disabled={event.max_participants && (event.current_registrations || 0) >= event.max_participants}
+                        disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
                         className={`w-full py-3 px-4 rounded-lg font-medium flex items-center justify-center transition-all duration-300 ${
                           event.max_participants && (event.current_registrations || 0) >= event.max_participants
                             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
@@ -372,6 +419,7 @@ export const Events: React.FC = () => {
                     )}
                   </div>
                 </div>
+                </Tilt3D>
               </div>
             ))}
           </div>
@@ -402,7 +450,7 @@ export const Events: React.FC = () => {
         eventId={registrationModal.eventId}
       />
 
-      <style jsx>{`
+  <style>{`
         .cyberpunk-theme {
           background: #0a0a0a;
           color: #ffffff;
@@ -642,6 +690,42 @@ export const Events: React.FC = () => {
         .scroll-animate.animate-in {
           opacity: 1 !important;
           transform: translateY(0) !important;
+        }
+
+        /* 3D Tilt */
+        .tilt-wrap {
+          perspective: 900px;
+        }
+        .tilt-inner {
+          position: relative;
+          transform-style: preserve-3d;
+          transition: transform 180ms ease-out;
+          will-change: transform;
+        }
+        .tilt-glare {
+          position: absolute;
+          inset: 0;
+          border-radius: 10px;
+          background: radial-gradient(circle at var(--px, 50%) var(--py, 50%), rgba(255,255,255,0.22), transparent 45%),
+                      conic-gradient(from 180deg at 50% 50%, rgba(255,0,255,0.07), rgba(0,255,255,0.07), rgba(255,0,255,0.07));
+          mix-blend-mode: screen;
+          opacity: 0;
+          transition: opacity 120ms ease-out;
+          pointer-events: none;
+        }
+        .tilt-elevated {
+          box-shadow: 0 12px 30px rgba(0,0,0,0.35), 0 0 20px rgba(255,0,255,0.08);
+        }
+        .tilt-inner:hover .tilt-glare { opacity: 1; }
+
+        /* Subtle 3D pop on reveal */
+        .scroll-animate.animate-in .tilt-inner {
+          animation: tiltPop 600ms cubic-bezier(.2,.8,.2,1) both;
+        }
+        @keyframes tiltPop {
+          0% { transform: rotateX(8deg) rotateY(-8deg) scale(.94); }
+          60% { transform: rotateX(-2deg) rotateY(2deg) scale(1.02); }
+          100% { transform: rotateX(0) rotateY(0) scale(1); }
         }
 
         .hover-float:hover {

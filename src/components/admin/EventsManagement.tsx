@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOf
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { Event } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const EventsManagement: React.FC = () => {
   const { 
@@ -19,7 +20,7 @@ export const EventsManagement: React.FC = () => {
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
 
-  const [eventForm, setEventForm] = useState({
+  const [eventForm, setEventForm] = useLocalStorage('admin_events_form_draft', {
     title: '',
     category: '',
     description: '',
@@ -71,6 +72,7 @@ export const EventsManagement: React.FC = () => {
       });
       setIsAddingEvent(false);
       resetEventForm();
+      try { localStorage.removeItem('admin_events_form_draft'); } catch {}
     } catch (error: any) {
       console.error('Error adding event:', error);
       alert(error?.message || 'Failed to add event. Please try again.');
@@ -87,6 +89,7 @@ export const EventsManagement: React.FC = () => {
       await updateEvent(id, eventForm);
       setEditingEvent(null);
       resetEventForm();
+      try { localStorage.removeItem('admin_events_form_draft'); } catch {}
     } catch (error: any) {
       console.error('Error updating event:', error);
       alert(error?.message || 'Failed to update event. Please try again.');

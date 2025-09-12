@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Music, Heart, Users, Star, Instagram, Youtube, AlignJustify as Spotify, Sparkles, Zap, ArrowRight, Mic, Guitar, Headphones, Volume2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import HeroBackground from '../components/HeroBackground';
 import { AuditionModal } from '../components/AuditionModal';
 
 export const HomeBound: React.FC = () => {
@@ -69,23 +70,10 @@ export const HomeBound: React.FC = () => {
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <img
-              src="https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&cs=tinysrgb&w=1920"
-              alt="Home Bound Band"
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/50"></div>
-          </div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles */}
-          <div className="particles-container">
+        <HeroBackground pageKey="homebound" />
+
+        {/* Floating Particles */}
+        <div className="particles-container">
             {[...Array(50)].map((_, i) => (
               <div
                 key={i}
@@ -97,11 +85,10 @@ export const HomeBound: React.FC = () => {
                 }}
               ></div>
             ))}
-          </div>
-
-          {/* Glitch Overlay */}
-          <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
         </div>
+
+        {/* Glitch Overlay */}
+        <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">

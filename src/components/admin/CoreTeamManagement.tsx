@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Yout
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 // Spotify icon component since it's not in lucide-react
 const Spotify = ({ className }: { className?: string }) => (
@@ -32,7 +33,7 @@ export const CoreTeamManagement: React.FC = () => {
   const [editingCommittee, setEditingCommittee] = useState<number | null>(null);
   const [editingMember, setEditingMember] = useState<number | null>(null);
 
-  const [committeeForm, setCommitteeForm] = useState({
+  const [committeeForm, setCommitteeForm] = useLocalStorage('admin_core_committee_form_draft', {
     name: '',
     description: '',
     color: '#3B82F6',
@@ -41,7 +42,7 @@ export const CoreTeamManagement: React.FC = () => {
     enabled: true
   });
 
-  const [memberForm, setMemberForm] = useState({
+  const [memberForm, setMemberForm] = useLocalStorage('admin_core_member_form_draft', {
     committee_id: 0,
     name: '',
     role: '',
@@ -101,6 +102,7 @@ export const CoreTeamManagement: React.FC = () => {
       await addCoreCommittee(committeeForm);
       setIsAddingCommittee(false);
       resetCommitteeForm();
+      try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding committee:', error);
       alert('Failed to add committee. Please try again.');
@@ -117,6 +119,7 @@ export const CoreTeamManagement: React.FC = () => {
       await updateCoreCommittee(id, committeeForm);
       setEditingCommittee(null);
       resetCommitteeForm();
+      try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating committee:', error);
       alert('Failed to update committee. Please try again.');
@@ -165,6 +168,7 @@ export const CoreTeamManagement: React.FC = () => {
       await addCoreTeamMember(memberForm);
       setIsAddingMember(false);
       resetMemberForm();
+      try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding team member:', error);
       alert('Failed to add team member. Please try again.');
@@ -181,6 +185,7 @@ export const CoreTeamManagement: React.FC = () => {
       await updateCoreTeamMember(id, memberForm);
       setEditingMember(null);
       resetMemberForm();
+      try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating team member:', error);
       alert('Failed to update team member. Please try again.');

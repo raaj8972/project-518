@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
-import AutoCarousel from '../components/AutoCarousel';
+import HeroBackground from '../components/HeroBackground';
+import InfiniteLogoCarousel from '../components/InfiniteLogoCarousel';
+import InfiniteMarquee from '../components/InfiniteMarquee';
+import CoverflowCarousel from '../components/CoverflowCarousel';
+import FacultyProfileModal from '../components/FacultyProfileModal';
 import Roadmap from '../components/Roadmap';
 
 export const Home: React.FC = () => {
@@ -37,6 +41,46 @@ export const Home: React.FC = () => {
   
   const [membershipModal, setMembershipModal] = useState(false);
   const [glitchActive, setGlitchActive] = useState(false);
+  const [facultyModalOpen, setFacultyModalOpen] = useState(false);
+  const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
+  const [selectedType, setSelectedType] = useState<'faculty' | 'committee' | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [clicked, setClicked] = useState<{ type: 'faculty' | 'committee'; id: number } | null>(null);
+  const [facultyPaused, setFacultyPaused] = useState(false);
+  const [committeePaused, setCommitteePaused] = useState(false);
+
+  // Heads data and memoized sorted lists (must be before any early return)
+  const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
+  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head);
+  const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
+  const sortedCommitteeHeads = React.useMemo(() => committeeHeads.slice().sort((a, b) => a.order_position - b.order_position), [committeeHeads]);
+
+  // Keyboard navigation within the profile modal (place before early return)
+  useEffect(() => {
+    if (!facultyModalOpen || selectedType == null || selectedIndex == null) return;
+    const handler = (e: KeyboardEvent) => {
+      const list = selectedType === 'faculty' ? sortedFacultyHeads : sortedCommitteeHeads;
+      if (!list || list.length === 0) return;
+      if (e.key === 'ArrowRight') {
+        const next = (selectedIndex + 1) % list.length;
+        setSelectedIndex(next);
+        setSelectedPerson(list[next]);
+      } else if (e.key === 'ArrowLeft') {
+        const prev = (selectedIndex - 1 + list.length) % list.length;
+        setSelectedIndex(prev);
+        setSelectedPerson(list[prev]);
+      } else if (e.key === 'Escape') {
+        setFacultyModalOpen(false);
+        setFacultyPaused(false);
+        setCommitteePaused(false);
+        setSelectedPerson(null);
+        setSelectedType(null);
+        setSelectedIndex(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [facultyModalOpen, selectedType, selectedIndex, sortedFacultyHeads, sortedCommitteeHeads]);
 
   // Glitch effect trigger
   useEffect(() => {
@@ -63,7 +107,12 @@ export const Home: React.FC = () => {
     const animatedElements = document.querySelectorAll('.scroll-animate');
     animatedElements.forEach((el) => observer.observe(el));
 
-    return () => observer.disconnect();
+    // Safety fallback: ensure content becomes visible even if the observer doesn't fire
+    const safetyTimer = setTimeout(() => {
+      animatedElements.forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+    }, 2000);
+
+    return () => { clearTimeout(safetyTimer); observer.disconnect(); };
   }, [loading]);
 
   // Parallax effect
@@ -139,8 +188,7 @@ export const Home: React.FC = () => {
   const featuredImages = galleryImages.filter(image => image.featured).slice(0, 6);
   const featuredSponsors = sponsors.filter(sponsor => sponsor.featured).slice(0, 8);
   const featuredGuestArtists = guestArtists.filter(artist => artist.is_featured && artist.enabled).slice(0, 3);
-  const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head);
+  
 
   // Check if social media links should be shown
   // const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
@@ -150,39 +198,11 @@ export const Home: React.FC = () => {
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Media */}
-        <div className="absolute inset-0 z-0">
-          {homepageSettings?.hero_media_url ? (
-            homepageSettings.hero_media_type === 'video' ? (
-              <video
-                src={homepageSettings.hero_media_url}
-                autoPlay
-                muted
-                playsInline
-                loop
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <img
-                src={homepageSettings.hero_media_url}
-                alt="Hero background"
-                className="w-full h-full object-cover"
-              />
-            )
-          ) : (
-            <div className="hero-bg parallax" data-speed="0.3">
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            </div>
-          )}
-          
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-black/50"></div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles */}
-          <div className="particles-container">
+        {/* Background Media via unified component */}
+        <HeroBackground pageKey="home" />
+
+        {/* Floating Particles */}
+        <div className="particles-container">
             {[...Array(50)].map((_, i) => (
               <div
                 key={i}
@@ -194,15 +214,14 @@ export const Home: React.FC = () => {
                 }}
               ></div>
             ))}
-          </div>
-
-          {/* Glitch Overlay */}
-          <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
         </div>
+
+        {/* Glitch Overlay */}
+        <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
+          <div className="scroll-animate animate-in">
             <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
               <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
               FESTIVAL 2025
@@ -543,35 +562,13 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            <AutoCarousel intervalMs={homepageSettings?.partners_carousel_speed_ms ?? 3000}>
-              {featuredSponsors.map((sponsor) => (
-                <div key={sponsor.id} className="w-40 flex items-center justify-center px-4 hover-float">
-                  {sponsor.website ? (
-                    <a
-                      href={sponsor.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                      title={sponsor.name}
-                    >
-                      <img
-                        src={sponsor.logo}
-                        alt={sponsor.name}
-                        className="h-16 object-contain max-w-full mx-auto opacity-90 transition duration-300 hover:opacity-100"
-                      />
-                      <span className="sr-only">{sponsor.name}</span>
-                    </a>
-                  ) : (
-                    <img
-                      src={sponsor.logo}
-                      alt={sponsor.name}
-                      title={sponsor.name}
-                      className="h-16 object-contain max-w-full mx-auto opacity-90 transition duration-300 hover:opacity-100"
-                    />
-                  )}
-                </div>
-              ))}
-            </AutoCarousel>
+            <InfiniteLogoCarousel
+              items={featuredSponsors.map(s => ({ id: s.id, name: s.name, logo: s.logo, website: s.website }))}
+              speedPxPerSec={140}
+              pauseOnHover={true}
+              className="py-2"
+              heightClass="h-16"
+            />
 
             {/* Removed bottom navigation button for Partners section as per request */}
           </div>
@@ -594,47 +591,101 @@ export const Home: React.FC = () => {
 
               {/* Faculty Heads */}
               {enabledFacultyHeads.length > 0 && homepageSettings?.show_faculty_heads && (
-                <div className="mb-12">
+                <div className="mb-12 relative">
                   <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center">
                     <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Faculty Heads
                   </h3>
-                  <AutoCarousel intervalMs={homepageSettings?.leadership_carousel_speed_ms ?? 2500}>
-                    {enabledFacultyHeads
-                      .sort((a, b) => a.order_position - b.order_position)
-                      .map((head) => (
-                        <div key={head.id} className="w-64 cyberpunk-card p-4 mr-2">
-                          <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                            <img src={head.image} alt={head.name} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="font-bold text-white">{head.name}</div>
-                          <div className="text-sm text-gray-300">{head.title}</div>
+                  <CoverflowCarousel
+                    items={sortedFacultyHeads}
+                    intervalMs={homepageSettings?.leadership_carousel_speed_ms ?? 2600}
+                    visibleRange={2}
+                    stepPx={280}
+                    rotateYDeg={42}
+                    scaleStep={0.13}
+                    translateZStep={-80}
+                    blurPerStep={2.5}
+                    edgeFades={true}
+                    centerGlow={true}
+                    arrowSize={48}
+                    paused={facultyPaused}
+                    onItemClick={(item) => {
+                      // quick click-zoom, then open modal
+                      setClicked({ type: 'faculty', id: item.id });
+                      const idx = sortedFacultyHeads.findIndex(h => h.id === item.id);
+                      setTimeout(() => {
+                        setSelectedType('faculty');
+                        setSelectedIndex(idx >= 0 ? idx : 0);
+                        setSelectedPerson(item);
+                        setFacultyModalOpen(true);
+                        setFacultyPaused(true);
+                        setCommitteePaused(true);
+                        setClicked(null);
+                      }, 180);
+                    }}
+                    pauseOnHover={true}
+                    showArrows={true}
+                    showDots={false}
+                    className="py-6"
+                    renderItem={(head) => (
+                      <div className={`w-72 md:w-80 cyberpunk-card p-5 transition-shadow duration-150 ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}>
+                        <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
+                          <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover"/>
                         </div>
-                      ))}
-                  </AutoCarousel>
+                        <div className="font-bold text-white text-base md:text-lg text-center">{head.name}</div>
+                        <div className="text-sm md:text-base text-gray-300 text-center">{head.title}</div>
+                      </div>
+                    )}
+                  />
                 </div>
               )}
 
               {/* Committee Heads */}
               {committeeHeads.length > 0 && homepageSettings?.show_committee_heads && (
-                <div>
+                <div className="relative">
                   <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center">
                     <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Committee Heads
                   </h3>
-                  <AutoCarousel intervalMs={homepageSettings?.leadership_carousel_speed_ms ?? 2500}>
-                    {committeeHeads
-                      .sort((a, b) => a.order_position - b.order_position)
-                      .map((m) => (
-                        <div key={m.id} className="w-64 cyberpunk-card p-4 mr-2">
-                          <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                            <img src={m.image} alt={m.name} className="w-full h-full object-cover" />
-                          </div>
-                          <div className="font-bold text-white flex items-center">
-                            <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
-                          </div>
-                          <div className="text-sm text-gray-300">{m.role}</div>
+                  <InfiniteMarquee
+                    items={sortedCommitteeHeads}
+                    direction="right"
+                    speedPxPerSec={75}
+                    pauseOnHover={true}
+                    paused={committeePaused}
+                    pauseOnTouch={false}
+                    itemWrapperClassName="px-4 md:px-6"
+                    className="py-4 relative"
+                    renderItem={(m) => (
+                      <div
+                        className={`w-72 md:w-80 cyberpunk-card p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
+                        onClick={() => {
+                          setClicked({ type: 'committee', id: m.id });
+                          const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
+                          setTimeout(() => {
+                            setSelectedType('committee');
+                            setSelectedIndex(idx >= 0 ? idx : 0);
+                            setSelectedPerson(m);
+                            setFacultyModalOpen(true);
+                            setFacultyPaused(true);
+                            setCommitteePaused(true);
+                            setClicked(null);
+                          }, 180);
+                        }}
+                        onMouseEnter={() => setCommitteePaused(true)}
+                        onMouseLeave={() => setCommitteePaused(false)}
+                      >
+                        <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
+                          <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                         </div>
-                      ))}
-                  </AutoCarousel>
+                        <div className="font-bold text-white flex items-center text-base md:text-lg">
+                          <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                        </div>
+                        <div className="text-sm md:text-base text-gray-300">{m.role}</div>
+                      </div>
+                    )}
+                  />
+                  {/* Edge fades for readability */}
+                  <div className="pointer-events-none absolute inset-y-0 left-0 w-10 md:w-16 bg-gradient-to-r from-[#0a0a0a] to-transparent"></div>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 w-10 md:w-16 bg-gradient-to-l from-[#0a0a0a] to-transparent"></div>
                 </div>
               )}
             </div>
@@ -818,6 +869,13 @@ export const Home: React.FC = () => {
           onClose={() => setMembershipModal(false)}
         />
       )}
+
+      {/* Faculty Profile Modal */}
+      <FacultyProfileModal
+        open={facultyModalOpen}
+        onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); setCommitteePaused(false); setSelectedPerson(null); setSelectedType(null); setSelectedIndex(null); }}
+        person={selectedPerson}
+      />
 
       <style>{`
         .cyberpunk-theme {

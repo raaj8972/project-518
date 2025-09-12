@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Save, X, Monitor, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const HomepageManagement: React.FC = () => {
   const { homepageSettings, updateHomepageSettings } = useData();
@@ -33,7 +34,7 @@ export const HomepageManagement: React.FC = () => {
     leadership_carousel_speed_ms: number;
   };
   
-  const [form, setForm] = useState<FormState>({
+  const [form, setForm] = useLocalStorage<FormState>('admin_homepage_form_draft', {
     hero_media_url: homepageSettings?.hero_media_url || '',
     hero_media_type: homepageSettings?.hero_media_type || 'image' as 'image' | 'video',
     hero_title: homepageSettings?.hero_title || 'RICORRENZA',
@@ -54,6 +55,7 @@ export const HomepageManagement: React.FC = () => {
       await updateHomepageSettings(form);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Homepage settings updated successfully!' });
+      try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
       setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Error updating homepage settings:', error);
@@ -79,6 +81,7 @@ export const HomepageManagement: React.FC = () => {
       partners_carousel_speed_ms: homepageSettings?.partners_carousel_speed_ms ?? 3000,
       leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500
     });
+    try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
     setIsEditing(false);
     setMessage(null);
   };
@@ -278,7 +281,7 @@ export const HomepageManagement: React.FC = () => {
                       .filter((logo: SponsorLogo) => logo.enabled && !!logo.logo_url)
                       .sort((a: SponsorLogo, b: SponsorLogo) => a.order - b.order)
                       .map((logo: SponsorLogo) => (
-                        <img key={logo.id} src={logo.logo_url} alt={logo.name} className="h-8 opacity-80" />
+                        <img key={logo.id} src={logo.logo_url} alt={logo.name} loading="lazy" decoding="async" className="h-8 opacity-80" />
                       ))}
                   </div>
                 </div>

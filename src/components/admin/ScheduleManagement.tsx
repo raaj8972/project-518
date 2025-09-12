@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { ScheduleDay, ScheduleEvent } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const ScheduleManagement: React.FC = () => {
   const { 
@@ -21,13 +22,13 @@ export const ScheduleManagement: React.FC = () => {
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
 
-  const [dayForm, setDayForm] = useState({
+  const [dayForm, setDayForm] = useLocalStorage('admin_schedule_day_form_draft', {
     date: '',
     day: '',
     title: ''
   });
 
-  const [eventForm, setEventForm] = useState({
+  const [eventForm, setEventForm] = useLocalStorage('admin_schedule_event_form_draft', {
     time: '',
     title: '',
     venue: '',
@@ -63,6 +64,7 @@ export const ScheduleManagement: React.FC = () => {
       await addScheduleDay(dayForm);
       setIsAddingDay(false);
       resetDayForm();
+      try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding schedule day:', error);
       alert('Failed to add schedule day. Please try again.');
@@ -79,6 +81,7 @@ export const ScheduleManagement: React.FC = () => {
       await updateScheduleDay(id, dayForm);
       setEditingDay(null);
       resetDayForm();
+      try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating schedule day:', error);
       alert('Failed to update schedule day. Please try again.');
@@ -106,6 +109,7 @@ export const ScheduleManagement: React.FC = () => {
       await addScheduleEvent(dayId, eventForm);
       setIsAddingEvent(null);
       resetEventForm();
+      try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding schedule event:', error);
       alert('Failed to add schedule event. Please try again.');
@@ -122,6 +126,7 @@ export const ScheduleManagement: React.FC = () => {
       await updateScheduleEvent(eventId, eventForm);
       setEditingEvent(null);
       resetEventForm();
+      try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating schedule event:', error);
       alert('Failed to update schedule event. Please try again.');

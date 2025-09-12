@@ -1,0 +1,220 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+
+type Direction = 'next' | 'prev';
+
+interface CoverflowCarouselProps<T> {
+  items: T[];
+  // Render an individual item card (should be a fixed-width card)
+  renderItem: (item: T, index: number) => React.ReactNode;
+  // Autoplay interval; set 0 to disable autoplay
+  intervalMs?: number;
+  // How many siblings to show on each side of the active card
+  visibleRange?: number; // default 2
+  // Pixel distance between adjacent cards
+  stepPx?: number; // default 260
+  // Rotation applied to side cards
+  rotateYDeg?: number; // default 35
+  // Scale reduction per offset step
+  scaleStep?: number; // default 0.12
+  // Extra z-translation per offset to emphasize depth
+  translateZStep?: number; // default -60 (negative pulls away from the camera)
+  pauseOnHover?: boolean; // default true
+  showArrows?: boolean; // default true
+  showDots?: boolean; // default false
+  className?: string;
+  // Visual boosters
+  blurPerStep?: number; // default 2 (px per step)
+  edgeFades?: boolean; // default true - gradient fades at edges
+  centerGlow?: boolean; // default true - subtle radial glow behind active card
+  arrowSize?: number; // default 44
+  // Interactions
+  paused?: boolean; // externally pause autoplay
+  onItemClick?: (item: T, index: number) => void;
+}
+
+// A lightweight, dependency-free 3D "coverflow" carousel with autoplay and infinite loop
+export default function CoverflowCarousel<T>({
+  items,
+  renderItem,
+  intervalMs = 2800,
+  visibleRange = 2,
+  stepPx = 260,
+  rotateYDeg = 35,
+  scaleStep = 0.12,
+  translateZStep = -60,
+  pauseOnHover = true,
+  showArrows = true,
+  showDots = false,
+  className = '',
+  blurPerStep = 2,
+  edgeFades = true,
+  centerGlow = true,
+  arrowSize = 44,
+  paused = false,
+  onItemClick
+}: CoverflowCarouselProps<T>) {
+  const [active, setActive] = useState(0);
+  const [hovering, setHovering] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  const count = items.length;
+  const canPlay = count > 1 && intervalMs > 0;
+
+  // Pause when not visible (reduces CPU and avoids jumps)
+  useEffect(() => {
+    const el = rootRef.current; if (!el) return;
+    const io = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? true), { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Autoplay tick
+  useEffect(() => {
+    if (!canPlay) return;
+    const id = setInterval(() => {
+      if (paused) return;
+      if (pauseOnHover && hovering) return;
+      if (!visible) return;
+      setActive(a => (a + 1) % count);
+    }, intervalMs);
+    return () => clearInterval(id);
+  }, [canPlay, intervalMs, hovering, visible, count, pauseOnHover, paused]);
+
+  const go = (dir: Direction) => {
+    setActive(a => {
+      if (dir === 'next') return (a + 1) % count;
+      return (a - 1 + count) % count;
+    });
+  };
+
+  // Compute per-item offsets in circular space
+  const computed = useMemo(() => {
+    const arr: Array<{ idx: number; item: T; offset: number }> = [];
+    for (let i = 0; i < count; i++) {
+      // shortest signed distance from active to i in circular list
+      let raw = i - active;
+      if (raw > count / 2) raw -= count;
+      if (raw < -count / 2) raw += count;
+      arr.push({ idx: i, item: items[i], offset: raw });
+    }
+    return arr.filter(x => Math.abs(x.offset) <= visibleRange).sort((a, b) => Math.abs(a.offset) - Math.abs(b.offset));
+  }, [items, count, active, visibleRange]);
+
+  return (
+    <div
+      ref={rootRef}
+      className={`relative w-full select-none ${className}`}
+      onMouseEnter={() => pauseOnHover && setHovering(true)}
+      onMouseLeave={() => pauseOnHover && setHovering(false)}
+    >
+      {/* Perspective stage */}
+      <div
+        className="relative mx-auto"
+        style={{
+          height: 460,
+          perspective: 1200,
+        }}
+        aria-roledescription="carousel"
+      >
+        {/* center glow */}
+        {centerGlow && (
+          <div
+            className="absolute inset-0 pointer-events-none flex items-center justify-center"
+            aria-hidden
+          >
+            <div
+              className="rounded-full"
+              style={{
+                width: '56%',
+                height: '56%',
+                background: 'radial-gradient(ellipse at center, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 40%, rgba(255,255,255,0.0) 70%)',
+                filter: 'blur(8px)',
+              }}
+            />
+          </div>
+        )}
+        {/* Center rail for absolute-positioned cards */}
+        <div className="absolute inset-0 [transform-style:preserve-3d] flex items-center justify-center">
+          {computed.map(({ idx, item, offset }) => {
+            const abs = Math.abs(offset);
+            const sign = Math.sign(offset) || 0;
+            const translateX = offset * stepPx;
+            const rotateY = -sign * rotateYDeg; // negative so left tilts to the left
+            let scale = Math.max(0.5, 1 - abs * scaleStep);
+            if (hoveredIndex === idx) scale *= 1.04; // subtle hover pop
+            const translateZ = abs * translateZStep; // pulls away with depth
+            const zIndex = (hoveredIndex === idx ? 200 : 100) - abs; // hovered above
+            const opacity = Math.max(0.25, 1 - abs * 0.25);
+            const blur = abs > 0 ? Math.min(12, abs * blurPerStep) : 0;
+
+            return (
+              <div
+                key={idx}
+                className={`absolute will-change-transform drop-shadow-xl ${onItemClick ? 'cursor-pointer' : ''}`}
+                style={{
+                  transform: `translateX(${translateX}px) translateZ(${translateZ}px) rotateY(${rotateY}deg) scale(${scale})`,
+                  zIndex,
+                  opacity,
+                  filter: `blur(${blur}px)`,
+                  transition: 'transform 600ms ease, opacity 400ms ease, filter 400ms ease',
+                }}
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex((h) => (h === idx ? null : h))}
+                onClick={() => { setActive(idx); onItemClick?.(item, idx); }}
+                aria-hidden={abs !== 0}
+              >
+                {renderItem(item, idx)}
+              </div>
+            );
+          })}
+        </div>
+        {/* Edge gradient fades for nicer framing */}
+        {edgeFades && (
+          <>
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 md:w-24" style={{ background: 'linear-gradient(to right, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 md:w-24" style={{ background: 'linear-gradient(to left, rgba(10,10,10,0.9), rgba(10,10,10,0))' }} />
+          </>
+        )}
+      </div>
+
+      {showArrows && count > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Previous slide"
+            onClick={() => go('prev')}
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20"
+            style={{ width: arrowSize, height: arrowSize }}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Next slide"
+            onClick={() => go('next')}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20"
+            style={{ width: arrowSize, height: arrowSize }}
+          >
+            ›
+          </button>
+        </>
+      )}
+
+      {showDots && count > 1 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">
+          {items.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Go to slide ${i + 1}`}
+              onClick={() => setActive(i)}
+              className={`w-2.5 h-2.5 rounded-full ${i === active ? 'bg-white' : 'bg-white/40 hover:bg-white/70'}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

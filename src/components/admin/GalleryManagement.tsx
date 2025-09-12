@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, Star, Calendar } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -11,7 +11,9 @@ export const GalleryManagement: React.FC = () => {
     addGalleryImage, 
     updateGalleryImage, 
     deleteGalleryImage,
-    toggleGalleryImageFeatured
+    toggleGalleryImageFeatured,
+    gallerySettings,
+    updateGallerySettings
   } = useData();
 
   const [isAdding, setIsAdding] = useState(false);
@@ -30,6 +32,51 @@ export const GalleryManagement: React.FC = () => {
   const filteredImages = selectedCategory === 'All' 
     ? galleryImages 
     : galleryImages.filter(img => img.category === selectedCategory);
+
+  // ---- Gallery animation settings form (controlled) ----
+  const [settingsForm, setSettingsForm] = useState({
+    scroll_per_item: gallerySettings?.scroll_per_item ?? 650,
+    distance: gallerySettings?.distance ?? 1400,
+    background_blur_px: gallerySettings?.background_blur_px ?? 100,
+    card_blur_max: gallerySettings?.card_blur_max ?? 8,
+    reveal_enabled: gallerySettings?.reveal_enabled ?? true,
+    reveal_duration_ms: gallerySettings?.reveal_duration_ms ?? 800,
+    reveal_orientation: gallerySettings?.reveal_orientation ?? 'horizontal',
+  });
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSettingsForm({
+      scroll_per_item: gallerySettings?.scroll_per_item ?? 650,
+      distance: gallerySettings?.distance ?? 1400,
+      background_blur_px: gallerySettings?.background_blur_px ?? 100,
+      card_blur_max: gallerySettings?.card_blur_max ?? 8,
+      reveal_enabled: gallerySettings?.reveal_enabled ?? true,
+      reveal_duration_ms: gallerySettings?.reveal_duration_ms ?? 800,
+      reveal_orientation: gallerySettings?.reveal_orientation ?? 'horizontal',
+    });
+    setDirty(false);
+  }, [gallerySettings]);
+
+  const onNum = (v: string, fallback: number) => {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      setSaving(true);
+      await updateGallerySettings({ ...settingsForm });
+      setDirty(false);
+      setSavedAt(Date.now());
+    } finally {
+      setSaving(false);
+      // Clear success note after a short delay
+      setTimeout(() => setSavedAt(null), 2000);
+    }
+  };
 
   const resetForm = () => {
     setForm({
@@ -111,6 +158,122 @@ export const GalleryManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Gallery Settings */}
+      <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
+        <h3 className="text-lg font-semibold mb-4">Gallery Animation Settings</h3>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Scroll per item (px)</label>
+            <input
+              type="number"
+              value={settingsForm.scroll_per_item}
+              min={100}
+              step={10}
+              onChange={(e) => { setSettingsForm(s => ({ ...s, scroll_per_item: onNum(e.target.value, s.scroll_per_item) })); setDirty(true); }}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Depth distance (px)</label>
+            <input
+              type="number"
+              value={settingsForm.distance}
+              min={200}
+              step={50}
+              onChange={(e) => { setSettingsForm(s => ({ ...s, distance: onNum(e.target.value, s.distance) })); setDirty(true); }}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Background blur (px)</label>
+            <input
+              type="number"
+              value={settingsForm.background_blur_px}
+              min={0}
+              step={5}
+              onChange={(e) => { setSettingsForm(s => ({ ...s, background_blur_px: onNum(e.target.value, s.background_blur_px) })); setDirty(true); }}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Card max blur (px)</label>
+            <input
+              type="number"
+              value={settingsForm.card_blur_max}
+              min={0}
+              step={1}
+              onChange={(e) => { setSettingsForm(s => ({ ...s, card_blur_max: onNum(e.target.value, s.card_blur_max) })); setDirty(true); }}
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            />
+          </div>
+        </div>
+        {/* Reveal controls */}
+        <div className="mt-4 border-t pt-4">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-gray-700">Enable pre-open reveal</label>
+            <input
+              type="checkbox"
+              checked={!!settingsForm.reveal_enabled}
+              onChange={(e) => { setSettingsForm(s => ({ ...s, reveal_enabled: e.target.checked })); setDirty(true); }}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reveal duration (ms)</label>
+              <input
+                type="number"
+                min={200}
+                step={50}
+                value={settingsForm.reveal_duration_ms}
+                onChange={(e) => { setSettingsForm(s => ({ ...s, reveal_duration_ms: onNum(e.target.value, s.reveal_duration_ms || 800) })); setDirty(true); }}
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Reveal orientation</label>
+              <select
+                value={settingsForm.reveal_orientation}
+                onChange={(e) => { setSettingsForm(s => ({ ...s, reveal_orientation: (e.target.value as 'horizontal'|'vertical') })); setDirty(true); }}
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="horizontal">Horizontal</option>
+                <option value="vertical">Vertical</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mt-4">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSaveSettings}
+              disabled={!dirty || saving}
+              className={`px-4 py-2 rounded-lg font-medium ${(!dirty || saving) ? 'bg-yellow-200 text-yellow-800 cursor-not-allowed' : 'bg-yellow-400 text-black hover:bg-yellow-300'}`}
+            >
+              {saving ? 'Saving…' : 'Save settings'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSettingsForm({
+                scroll_per_item: gallerySettings?.scroll_per_item ?? 650,
+                distance: gallerySettings?.distance ?? 1400,
+                background_blur_px: gallerySettings?.background_blur_px ?? 100,
+                card_blur_max: gallerySettings?.card_blur_max ?? 8,
+                reveal_enabled: gallerySettings?.reveal_enabled ?? true,
+                reveal_duration_ms: gallerySettings?.reveal_duration_ms ?? 800,
+                reveal_orientation: gallerySettings?.reveal_orientation ?? 'horizontal',
+              }); setDirty(false); }}
+              className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Reset
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">Tip: More images will automatically slow the forward movement slightly for better pacing.</p>
+          {savedAt && (
+            <span className="text-xs text-green-600">Saved</span>
+          )}
+        </div>
+      </div>
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

@@ -237,11 +237,11 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     PARTICIPANT_TYPE *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <select
                       value={formData.participant_type}
                       onChange={(e) => handleInputChange('participant_type', e.target.value)}
-                      className="cyberpunk-select pl-10"
+                      className="cyberpunk-select pl-12"
                     >
                       {participantTypes.map(type => (
                         <option key={type} value={type}>{type}</option>
@@ -256,13 +256,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     FULL_NAME *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="text"
                       value={formData.full_name}
                       onChange={(e) => handleInputChange('full_name', e.target.value)}
                       placeholder="Enter your full name"
-                      className={`cyberpunk-input pl-10 ${errors.full_name ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.full_name ? 'error' : ''}`}
                     />
                   </div>
                   {errors.full_name && (
@@ -276,13 +276,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     COLLEGE_DEPARTMENT *
                   </label>
                   <div className="relative">
-                    <Building className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="text"
                       value={formData.college_department}
                       onChange={(e) => handleInputChange('college_department', e.target.value)}
                       placeholder="Your college and department"
-                      className={`cyberpunk-input pl-10 ${errors.college_department ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.college_department ? 'error' : ''}`}
                     />
                   </div>
                   {errors.college_department && (
@@ -298,13 +298,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     EMAIL_ADDRESS *
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       placeholder="user@domain.com"
-                      className={`cyberpunk-input pl-10 ${errors.email ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.email ? 'error' : ''}`}
                     />
                   </div>
                   {errors.email && (
@@ -318,13 +318,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                     PHONE_NUMBER *
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="Contact number"
-                      className={`cyberpunk-input pl-10 ${errors.phone ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.phone ? 'error' : ''}`}
                     />
                   </div>
                   {errors.phone && (
@@ -339,13 +339,13 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                   MOTIVATION_PROTOCOL (OPTIONAL)
                 </label>
                 <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <MessageSquare className="absolute left-3 top-3 md:top-1/2 md:-translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                   <textarea
                     value={formData.motivation}
                     onChange={(e) => handleInputChange('motivation', e.target.value)}
                     placeholder="Tell us why you want to join the Rico Family and contribute to RICORRENZA..."
                     rows={4}
-                    className="cyberpunk-textarea pl-10"
+                    className="cyberpunk-textarea pl-12"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your motivation for joining the Rico Family</p>
@@ -380,7 +380,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         )}
       </div>
 
-      <style jsx>{`
+  <style>{`
         .cyberpunk-modal {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           backdrop-filter: blur(11px);
@@ -466,7 +466,9 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         .cyberpunk-select,
         .cyberpunk-textarea {
           width: 100%;
-          padding: 10px 14px;
+          padding-top: 10px;
+          padding-bottom: 10px;
+          padding-right: 14px;
           background: rgba(0, 0, 0, 0.7);
           border: 2px solid rgba(0, 255, 255, 0.3);
           border-radius: 8px;
@@ -474,14 +476,29 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
           font-family: 'Orbitron', monospace;
           transition: all 0.3s ease;
           font-size: 0.8rem;
+          line-height: 1.25rem;
+          min-height: 44px;
+          display: inline-flex;
+          align-items: center;
+        }
+
+        .cyberpunk-select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          padding-right: 2.25rem;
+          background-image: none;
         }
         
         @media (min-width: 640px) {
           .cyberpunk-input,
           .cyberpunk-select,
           .cyberpunk-textarea {
-            padding: 12px 16px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            padding-right: 16px;
             font-size: 0.9rem;
+            min-height: 48px;
           }
         }
 
@@ -668,7 +685,10 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
           .cyberpunk-select,
           .cyberpunk-textarea {
             font-size: 0.75rem;
-            padding: 8px 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            padding-right: 12px;
+            min-height: 42px;
           }
           
           .cyberpunk-label {

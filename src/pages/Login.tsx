@@ -114,7 +114,7 @@ export const Login: React.FC = () => {
                 )}
               </div>
               <h1 className="text-4xl font-black mb-4 cyberpunk-title">
-                {requiresTOTP ? 'CYBER <span class="neon-green">VERIFY</span>' : 'ADMIN <span class="neon-yellow">ACCESS</span>'}
+                {requiresTOTP ? 'CYBER <span class="neon-green">VERIFY</span>' : 'ADMIN'}
               </h1>
               <p className="text-lg text-gray-300">
                 {requiresTOTP 

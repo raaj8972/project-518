@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
@@ -35,33 +35,114 @@ import { MembershipManagement } from '../components/admin/MembershipManagement';
 import { FormSettingsManagement } from '../components/admin/FormSettingsManagement';
 import { HomeBoundSettings } from '../components/admin/HomeBoundSettings';
 import { RoadmapMilestonesAdmin } from '../components/admin/RoadmapMilestonesAdmin';
+import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
-type TabType = 'overview' | 'homepage' | 'homebound' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
 
 export const AdminDashboard: React.FC = () => {
-  const { isAuthenticated, logout, isTOTPEnabled } = useAuth();
-  const { events, registrations, galleryImages, sponsors, loading, coreCommittees, coreTeamMembers, bandMembers, guestArtists, auditions, memberships } = useData();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading } = useAuth();
+  const { events, registrations, galleryImages, sponsors, coreCommittees, coreTeamMembers, bandMembers, guestArtists, auditions, memberships } = useData();
+  const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
+  const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
+  const [authGrace, setAuthGrace] = useState(false);
 
+  // Debounce redirect to handle transient auth events on tab focus
+  const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
+    if (logoutTimer.current) {
+      clearTimeout(logoutTimer.current);
+      logoutTimer.current = null;
     }
-  }, [isAuthenticated, navigate]);
+    if (!authLoading && !isAuthenticated) {
+      // Keep UI mounted briefly to avoid flicker while auth stabilizes
+      setAuthGrace(true);
+      logoutTimer.current = setTimeout(() => {
+        // Double-check before redirect in case auth stabilized
+        if (!isAuthenticated) navigate('/login');
+        setAuthGrace(false);
+  }, 1500);
+    }
+    if (isAuthenticated) {
+      setAuthGrace(false);
+    }
+    return () => {
+      if (logoutTimer.current) clearTimeout(logoutTimer.current);
+    };
+  }, [authLoading, isAuthenticated, navigate]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/');
   };
 
-  if (!isAuthenticated) {
-    return null;
+  // Optional inactivity/visibility auto-logout with generous thresholds
+  useEffect(() => {
+    if (!autoLogoutEnabled || !isAuthenticated) return;
+
+    let lastActivity = Date.now();
+    const ACTIVITY_TIMEOUT_MS = 1000 * 60 * 60; // 60 minutes inactivity
+    const VISIBILITY_TIMEOUT_MS = 1000 * 60 * 120; // 120 minutes tab hidden
+    let visibilityHiddenAt: number | null = document.visibilityState === 'hidden' ? Date.now() : null;
+
+    const onActivity = () => { lastActivity = Date.now(); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') visibilityHiddenAt = Date.now();
+      else visibilityHiddenAt = null;
+    };
+
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('click', onActivity);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      const inactive = now - lastActivity > ACTIVITY_TIMEOUT_MS;
+      const hiddenTooLong = visibilityHiddenAt ? (now - visibilityHiddenAt > VISIBILITY_TIMEOUT_MS) : false;
+      if ((inactive || hiddenTooLong) && isAuthenticated) {
+        try { await logout(); } finally { navigate('/'); }
+      }
+    }, 30_000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('click', onActivity);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
+
+  // Show loading state while authentication is initializing to avoid flicker/redirects
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If user is not authenticated yet and grace is not active, show a tiny loader instead of a blank screen
+  if (!isAuthenticated && !authGrace) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600 text-sm">Checking authentication…</p>
+        </div>
+      </div>
+    );
   }
 
   const tabs = [
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
+    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
   { id: 'events' as TabType, name: 'Events', icon: Calendar },
   { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings },
     { id: 'schedule' as TabType, name: 'Schedule', icon: Clock },
@@ -114,16 +195,7 @@ export const AdminDashboard: React.FC = () => {
   const pendingAuditions = auditions.filter(a => a.status === 'pending').length;
   const pendingMemberships = memberships.filter(m => m.status === 'pending').length;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  // loading already handled above
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -141,13 +213,24 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <LogOut className="w-5 h-5 mr-2" />
-              Logout
-            </button>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs text-gray-600 select-none">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={autoLogoutEnabled}
+                  onChange={(e) => setAutoLogoutEnabled(e.target.checked)}
+                />
+                Auto-logout on inactivity
+              </label>
+              <button
+                onClick={handleLogout}
+                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <LogOut className="w-5 h-5 mr-2" />
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -420,6 +503,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
+            {activeTab === 'hero-media' && <HeroMediaManagement />}
           </div>
         </div>
       </div>

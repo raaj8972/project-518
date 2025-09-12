@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Image as ImageIcon, AlertCircle, FileText, Play } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import Cropper from 'react-easy-crop';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -10,6 +11,9 @@ interface ImageUploadProps {
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
+  // optional crop settings
+  enableCropper?: boolean; // default true for images
+  cropAspect?: number; // e.g., 1 for square avatar, 4/3, 16/9, etc.
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -19,7 +23,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   bucket,
   folder = '',
   acceptedTypes = 'image/*',
-  fileTypeLabel = 'PNG, JPG, GIF up to 5MB'
+  fileTypeLabel = 'PNG, JPG, GIF up to 5MB',
+  enableCropper = true,
+  cropAspect
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -28,6 +34,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [pendingImage, setPendingImage] = useState<string>('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [missingBucket, setMissingBucket] = useState<string | null>(null);
+  // Cropper state
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
 
   const isPdfUpload = acceptedTypes.includes('pdf');
   const isVideoUpload = acceptedTypes.includes('video');
@@ -84,14 +95,29 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       return;
     }
 
+    // For images, optionally open cropper instead of immediate upload
+    if (!isPdfUpload && !isVideoUpload && enableCropper) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCropSrc(dataUrl);
+        setZoom(1);
+        setCrop({ x: 0, y: 0 });
+        setError('');
+      };
+      reader.readAsDataURL(file);
+      // stash the original file object for later in input (not stored; we’ll recreate from canvas)
+      return;
+    }
+
+    // Default path: direct upload (videos/PDFs or cropper disabled)
     setUploading(true);
     setError('');
-    
     try {
       const fileUrl = await uploadToSupabase(file);
       setPendingImage(fileUrl);
       setHasUnsavedChanges(true);
-  } catch (err) {
+    } catch (err) {
       console.error('Upload error:', err);
       if (err instanceof Error && /mime type/i.test(err.message)) {
         setError('Upload failed: this file type is not allowed in the bucket. Allowed: PNG, JPG, WEBP, GIF, MP4, MOV');
@@ -115,6 +141,70 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setPendingImage('');
     setHasUnsavedChanges(false);
     setError('');
+  };
+
+  const onCropComplete = useCallback((_: any, areaPixels: { x: number; y: number; width: number; height: number }) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  // Create a blob from the cropped area via canvas
+  const getCroppedImgBlob = async (imageSrc: string, cropPixels: { x: number; y: number; width: number; height: number }): Promise<Blob> => {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = imageSrc;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(cropPixels.width));
+    canvas.height = Math.max(1, Math.floor(cropPixels.height));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      image,
+      cropPixels.x,
+      cropPixels.y,
+      cropPixels.width,
+      cropPixels.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      }, 'image/jpeg', 0.92);
+    });
+  };
+
+  const confirmCropAndUpload = async () => {
+    if (!cropSrc || !croppedAreaPixels) return;
+    try {
+      setUploading(true);
+      const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels);
+      const file = new File([blob], `crop_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const fileUrl = await uploadToSupabase(file);
+      setPendingImage(fileUrl);
+      setHasUnsavedChanges(true);
+      setCropSrc(null);
+    } catch (err) {
+      console.error('Crop upload failed:', err);
+      setError(err instanceof Error ? err.message : 'Crop upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const cancelCrop = () => {
+    setCropSrc(null);
   };
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -151,15 +241,23 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const imageToRemove = pendingImage || currentImage;
     if (imageToRemove && imageToRemove.includes(bucket)) {
       try {
-        // Extract file path from URL
+        // Extract object path relative to the bucket from the public URL
         const url = new URL(imageToRemove);
-        const pathParts = url.pathname.split('/');
-        const fileName = pathParts[pathParts.length - 1];
-        
-        // Delete from Supabase storage
-        await supabase.storage
-          .from(bucket)
-          .remove([fileName]);
+        // Typical pathname: /storage/v1/object/public/<bucket>/<folder>/<filename>
+        const publicPrefix = `/storage/v1/object/public/${bucket}/`;
+        let objectPath = '';
+        if (url.pathname.includes(publicPrefix)) {
+          objectPath = url.pathname.substring(url.pathname.indexOf(publicPrefix) + publicPrefix.length);
+        } else {
+          // Fallback: find bucket segment and take the rest
+          const parts = url.pathname.split('/');
+          const idx = parts.findIndex((p) => p === bucket);
+          objectPath = idx >= 0 ? parts.slice(idx + 1).join('/') : parts[parts.length - 1];
+        }
+
+        if (objectPath) {
+          await supabase.storage.from(bucket).remove([objectPath]);
+        }
       } catch (error) {
         console.error('Error deleting file:', error);
       }
@@ -314,7 +412,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
              disabled={uploading}
               className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
             >
-              Remove
+              Delete
             </button>
           </div>
         </div>
@@ -352,6 +450,50 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               <p className="text-sm text-gray-500">{fileTypeLabel}</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Cropper Modal */}
+      {cropSrc && !isPdfUpload && !isVideoUpload && enableCropper && (
+        <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden">
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold">Adjust & Crop</h3>
+              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. Ensure the face or content is centered.</p>
+            </div>
+            <div className="relative" style={{ height: 420 }}>
+              <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={cropAspect || 1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+                restrictPosition={false}
+                objectFit="cover"
+                cropShape="rect"
+                showGrid={false}
+              />
+            </div>
+            <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-gray-600">Zoom</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={zoom}
+                  onChange={(e) => setZoom(parseFloat(e.target.value))}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>
+                <button onClick={confirmCropAndUpload} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-sm">Crop & Upload</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

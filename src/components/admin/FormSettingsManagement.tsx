@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import { Save, X, ToggleLeft, ToggleRight, MessageSquare, Music, Users, AlertCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { SUPABASE_HOST } from '../../lib/supabase';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const FormSettingsManagement: React.FC = () => {
   const { formSettings, updateFormSettings } = useData();
   const [isEditing, setIsEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
+  // const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('admin_form_settings_draft', {
     audition_form_enabled: formSettings?.audition_form_enabled ?? true,
     membership_form_enabled: formSettings?.membership_form_enabled ?? true,
     audition_form_message: formSettings?.audition_form_message || 'Auditions are currently closed. Please check back later.',
@@ -29,10 +30,11 @@ export const FormSettingsManagement: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      setSaving(true);
+      // setSaving(true);
       await updateFormSettings(form);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Form settings updated successfully!' });
+      try { localStorage.removeItem('admin_form_settings_draft'); } catch {}
       setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Error updating form settings:', error);
@@ -40,7 +42,7 @@ export const FormSettingsManagement: React.FC = () => {
       setMessage({ type: 'error', text: `Failed to update form settings: ${errText}` });
       setTimeout(() => setMessage(null), 5000);
     } finally {
-      setSaving(false);
+      // setSaving(false);
     }
   };
 
@@ -53,6 +55,7 @@ export const FormSettingsManagement: React.FC = () => {
     });
     setIsEditing(false);
     setMessage(null);
+    try { localStorage.removeItem('admin_form_settings_draft'); } catch {}
   };
 
   return (

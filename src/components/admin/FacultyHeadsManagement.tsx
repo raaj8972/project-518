@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Users, Crown, Eye, EyeOff } from 'lucide-r
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { FacultyHead } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const FacultyHeadsManagement: React.FC = () => {
   const { 
@@ -16,7 +17,7 @@ export const FacultyHeadsManagement: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('admin_faculty_head_form_draft', {
     name: '',
     title: '',
     image: '',
@@ -48,6 +49,7 @@ export const FacultyHeadsManagement: React.FC = () => {
       await addFacultyHead(form);
       setIsAdding(false);
       resetForm();
+      try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding faculty head:', error);
       alert('Failed to add faculty head. Please try again.');
@@ -64,6 +66,7 @@ export const FacultyHeadsManagement: React.FC = () => {
       await updateFacultyHead(id, form);
       setEditing(null);
       resetForm();
+      try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating faculty head:', error);
       alert('Failed to update faculty head. Please try again.');

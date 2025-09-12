@@ -94,9 +94,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       newErrors.phone = 'Please enter a valid phone number';
     }
 
-    if (!formData.college.trim()) {
-      newErrors.college = 'College/Institution is required';
-    }
+    // Institution name is optional
 
     if (formData.is_team_registration) {
       if (!formData.team_name.trim()) {
@@ -375,13 +373,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     TEAM_IDENTIFIER *
                   </label>
                   <div className="relative">
-                    <Users className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="text"
                       value={formData.team_name}
                       onChange={(e) => handleInputChange('team_name', e.target.value)}
                       placeholder="Enter team designation"
-                      className={`cyberpunk-input pl-10 ${errors.team_name ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.team_name ? 'error' : ''}`}
                     />
                   </div>
                   {errors.team_name && (
@@ -397,11 +395,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     {formData.is_team_registration ? 'LEADER_' : ''}PARTICIPANT_TYPE *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <select
                       value={formData.participant_type}
                       onChange={(e) => handleInputChange('participant_type', e.target.value)}
-                      className="cyberpunk-select pl-10"
+                      className="cyberpunk-select pl-12"
                     >
                       {participantTypes.map(type => (
                         <option key={type} value={type}>{type}</option>
@@ -416,13 +414,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     {formData.is_team_registration ? 'LEADER_' : ''}FULL_NAME *
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="text"
                       value={formData.full_name}
                       onChange={(e) => handleInputChange('full_name', e.target.value)}
                       placeholder="Enter full name"
-                      className={`cyberpunk-input pl-10 ${errors.full_name ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.full_name ? 'error' : ''}`}
                     />
                   </div>
                   {errors.full_name && (
@@ -438,13 +436,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     {formData.is_team_registration ? 'LEADER_' : ''}EMAIL_ADDRESS *
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
                       placeholder="user@domain.com"
-                      className={`cyberpunk-input pl-10 ${errors.email ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.email ? 'error' : ''}`}
                     />
                   </div>
                   {errors.email && (
@@ -458,13 +456,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     {formData.is_team_registration ? 'LEADER_' : ''}PHONE_NUMBER *
                   </label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                     <input
                       type="tel"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="Contact number"
-                      className={`cyberpunk-input pl-10 ${errors.phone ? 'error' : ''}`}
+                      className={`cyberpunk-input pl-12 ${errors.phone ? 'error' : ''}`}
                     />
                   </div>
                   {errors.phone && (
@@ -473,24 +471,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               </div>
 
-              {/* College/Institution */}
+              {/* College/Institution (Optional) */}
               <div className="cyberpunk-section">
                 <label className="cyberpunk-label">
-                  INSTITUTION_NAME *
+                  INSTITUTION_NAME (OPTIONAL)
                 </label>
                 <div className="relative">
-                  <Building className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                   <input
                     type="text"
                     value={formData.college}
                     onChange={(e) => handleInputChange('college', e.target.value)}
                     placeholder="Your college or institution"
-                    className={`cyberpunk-input pl-10 ${errors.college ? 'error' : ''}`}
+                    className={`cyberpunk-input pl-12`}
                   />
                 </div>
-                {errors.college && (
-                  <p className="cyberpunk-error">{errors.college}</p>
-                )}
               </div>
 
               {/* Team Members (if team registration) */}
@@ -585,13 +580,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   MOTIVATION_PROTOCOL (OPTIONAL)
                 </label>
                 <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 w-5 h-5 text-cyan-400" />
+                  <MessageSquare className="absolute left-3 top-3 md:top-1/2 md:-translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
                   <textarea
                     value={formData.motivation}
                     onChange={(e) => handleInputChange('motivation', e.target.value)}
                     placeholder="Enter your motivation for participating in this event..."
                     rows={4}
-                    className="cyberpunk-textarea pl-10"
+                    className="cyberpunk-textarea pl-12"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your motivation protocol</p>
@@ -712,7 +707,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         .cyberpunk-select,
         .cyberpunk-textarea {
           width: 100%;
-          padding: 10px 14px;
+          padding-top: 10px;        /* do not override left padding from Tailwind class */
+          padding-bottom: 10px;
+          padding-right: 14px;
           background: rgba(0, 0, 0, 0.7);
           border: 2px solid rgba(0, 255, 255, 0.3);
           border-radius: 8px;
@@ -720,14 +717,30 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           font-family: 'Orbitron', monospace;
           transition: all 0.3s ease;
           font-size: 0.8rem;
+          line-height: 1.25rem;
+          min-height: 44px; /* ensure enough height so icon and text never overlap */
+          display: inline-flex;
+          align-items: center; /* vertically center placeholder/value */
+        }
+
+        /* Normalize native select look and keep enough right padding for caret */
+        .cyberpunk-select {
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          appearance: none;
+          padding-right: 2.25rem; /* space for system arrow */
+          background-image: none;
         }
         
         @media (min-width: 640px) {
           .cyberpunk-input,
           .cyberpunk-select,
           .cyberpunk-textarea {
-            padding: 12px 16px;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            padding-right: 16px;
             font-size: 0.9rem;
+            min-height: 48px;
           }
         }
 
@@ -971,7 +984,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           .cyberpunk-select,
           .cyberpunk-textarea {
             font-size: 0.75rem;
-            padding: 8px 12px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+            padding-right: 12px;
+            min-height: 42px;
           }
           
           .cyberpunk-label {

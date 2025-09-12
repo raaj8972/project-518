@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Building, Star, Eye, EyeOff, ExternalLink, Download, Mail, Award, Link as LinkIcon, FileText } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { Sponsor, SponsorshipPackage, ContactSection } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 type SubTabType = 'sponsors' | 'packages' | 'settings';
 
@@ -36,7 +37,7 @@ export const SponsorsManagement: React.FC = () => {
   const [editingContact, setEditingContact] = useState<number | null>(null);
   const [brochureMode, setBrochureMode] = useState<'upload' | 'url'>('upload');
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('admin_sponsor_form_draft', {
     name: '',
     category: '',
     logo: '',
@@ -46,7 +47,7 @@ export const SponsorsManagement: React.FC = () => {
     order_position: 1
   });
 
-  const [packageForm, setPackageForm] = useState({
+  const [packageForm, setPackageForm] = useLocalStorage('admin_sponsor_package_form_draft', {
     tier: '',
     price: '',
     color: 'from-gray-500 to-gray-600',
@@ -56,14 +57,14 @@ export const SponsorsManagement: React.FC = () => {
     enabled: true
   });
 
-  const [settingsForm, setSettingsForm] = useState({
+  const [settingsForm, setSettingsForm] = useLocalStorage('admin_sponsorship_settings_draft', {
     intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
     call_to_action_text: sponsorshipSettings?.call_to_action_text || 'Interested in Sponsoring?',
     brochure_url: sponsorshipSettings?.brochure_url || '',
     brochure_title: sponsorshipSettings?.brochure_title || 'Download Sponsorship Brochure'
   });
 
-  const [contactForm, setContactForm] = useState({
+  const [contactForm, setContactForm] = useLocalStorage('admin_sponsor_contact_form_draft', {
     type: 'email' as 'email' | 'phone' | 'address' | 'custom',
     title: '',
     content: '',
@@ -71,6 +72,20 @@ export const SponsorsManagement: React.FC = () => {
     enabled: true,
     order: 0
   });
+
+  // If there is no saved settings draft and settings exist from server, hydrate them once
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem('admin_sponsorship_settings_draft') && sponsorshipSettings) {
+        setSettingsForm({
+          intro_text: sponsorshipSettings.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
+          call_to_action_text: sponsorshipSettings.call_to_action_text || 'Interested in Sponsoring?',
+          brochure_url: sponsorshipSettings.brochure_url || '',
+          brochure_title: sponsorshipSettings.brochure_title || 'Download Sponsorship Brochure'
+        });
+      }
+    } catch {}
+  }, [sponsorshipSettings, setSettingsForm]);
 
   // Create dynamic categories based on sponsorship packages
   const getAvailableCategories = () => {
@@ -147,6 +162,7 @@ export const SponsorsManagement: React.FC = () => {
       await addSponsor(form);
       setIsAdding(false);
       resetForm();
+      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding sponsor:', error);
       alert('Failed to add sponsor. Please try again.');
@@ -163,6 +179,7 @@ export const SponsorsManagement: React.FC = () => {
       await updateSponsor(id, form);
       setEditing(null);
       resetForm();
+      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsor:', error);
       alert('Failed to update sponsor. Please try again.');
@@ -212,6 +229,7 @@ export const SponsorsManagement: React.FC = () => {
       await addSponsorshipPackage(packageForm);
       setIsAddingPackage(false);
       resetPackageForm();
+      try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding sponsorship package:', error);
       alert('Failed to add sponsorship package. Please try again.');
@@ -228,6 +246,7 @@ export const SponsorsManagement: React.FC = () => {
       await updateSponsorshipPackage(id, packageForm);
       setEditingPackage(null);
       resetPackageForm();
+      try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsorship package:', error);
       alert('Failed to update sponsorship package. Please try again.');
@@ -272,6 +291,7 @@ export const SponsorsManagement: React.FC = () => {
       await updateSponsorshipSettings(settingsForm);
       setIsEditingSettings(false);
       alert('Sponsorship settings updated successfully!');
+      try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsorship settings:', error);
       alert('Failed to update sponsorship settings. Please try again.');
@@ -298,6 +318,7 @@ export const SponsorsManagement: React.FC = () => {
       await addContactSection(contactForm);
       setIsAddingContact(false);
       resetContactForm();
+      try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding contact section:', error);
       alert('Failed to add contact section. Please try again.');
@@ -314,6 +335,7 @@ export const SponsorsManagement: React.FC = () => {
       await updateContactSection(id, contactForm);
       setEditingContact(null);
       resetContactForm();
+      try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating contact section:', error);
       alert('Failed to update contact section. Please try again.');

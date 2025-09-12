@@ -2,10 +2,19 @@ import { createClient } from '@supabase/supabase-js'
 
 // Supabase Cloud configuration
 // Require env vars; avoid hard-coded fallbacks so we never hit the wrong project in prod
-const supabaseUrl = (import.meta as any)?.env?.VITE_SUPABASE_URL
-const supabaseAnonKey = (import.meta as any)?.env?.VITE_SUPABASE_ANON_KEY
+const { VITE_SUPABASE_URL: VITE_URL_RAW, VITE_SUPABASE_ANON_KEY: VITE_KEY_RAW } = import.meta.env as any;
+const supabaseUrl = (VITE_URL_RAW || '').trim();
+const supabaseAnonKey = (VITE_KEY_RAW || '').trim();
+
+if (import.meta.env.DEV) {
+  // Minimal diagnostics without leaking secrets
+  const keyLen = supabaseAnonKey ? supabaseAnonKey.length : 0;
+  // eslint-disable-next-line no-console
+  console.info('[Supabase] env present:', { urlSet: !!supabaseUrl, keyLen });
+}
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  // Common causes: .env missing, wrong variable names, dev server not restarted, or Netlify env not set at build time
   throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
 }
 
@@ -103,6 +112,41 @@ export interface Database {
           visible?: boolean
           artist_id?: number | null
           created_at?: string
+        }
+      }
+      gallery_settings: {
+        Row: {
+          id: number
+          scroll_per_item: number
+          distance: number
+          background_blur_px: number
+          card_blur_max: number
+          reveal_enabled: boolean
+          reveal_duration_ms: number
+          reveal_orientation: 'horizontal' | 'vertical'
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          scroll_per_item?: number
+          distance?: number
+          background_blur_px?: number
+          card_blur_max?: number
+          reveal_enabled?: boolean
+          reveal_duration_ms?: number
+          reveal_orientation?: 'horizontal' | 'vertical'
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          scroll_per_item?: number
+          distance?: number
+          background_blur_px?: number
+          card_blur_max?: number
+          reveal_enabled?: boolean
+          reveal_duration_ms?: number
+          reveal_orientation?: 'horizontal' | 'vertical'
+          updated_at?: string
         }
       }
       gallery_images: {
@@ -607,6 +651,47 @@ export interface Database {
           show_committee_heads?: boolean
           partners_carousel_speed_ms?: number
           leadership_carousel_speed_ms?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      hero_media: {
+        Row: {
+          id: number
+          page_key: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
+          background_type: 'image' | 'video' | 'auto'
+          image_url: string | null
+          video_url: string | null
+          poster_url: string | null
+          overlay_color: string | null
+          overlay_opacity: number
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          page_key: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
+          background_type?: 'image' | 'video' | 'auto'
+          image_url?: string | null
+          video_url?: string | null
+          poster_url?: string | null
+          overlay_color?: string | null
+          overlay_opacity?: number
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          page_key?: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
+          background_type?: 'image' | 'video' | 'auto'
+          image_url?: string | null
+          video_url?: string | null
+          poster_url?: string | null
+          overlay_color?: string | null
+          overlay_opacity?: number
+          enabled?: boolean
           created_at?: string
           updated_at?: string
         }

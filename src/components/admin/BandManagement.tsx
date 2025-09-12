@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtu
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { BandMember } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const BandManagement: React.FC = () => {
   const { 
@@ -17,7 +18,7 @@ export const BandManagement: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('admin_band_member_form_draft', {
     name: '',
     role: '',
     image: '',
@@ -65,6 +66,7 @@ export const BandManagement: React.FC = () => {
       await addBandMember(form);
       setIsAdding(false);
       resetForm();
+      try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding band member:', error);
       alert('Failed to add band member. Please try again.');
@@ -81,6 +83,7 @@ export const BandManagement: React.FC = () => {
       await updateBandMember(id, form);
       setEditing(null);
       resetForm();
+      try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating band member:', error);
       alert('Failed to update band member. Please try again.');

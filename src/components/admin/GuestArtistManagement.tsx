@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Star, Eye, EyeOff, Music, Play, Instagram,
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GuestArtist } from '../../context/DataContext';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const GuestArtistManagement: React.FC = () => {
   const { 
@@ -17,7 +18,7 @@ export const GuestArtistManagement: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useLocalStorage('admin_guest_artist_form_draft', {
     name: '',
     title: '',
     image: '',
@@ -65,6 +66,7 @@ export const GuestArtistManagement: React.FC = () => {
       await addGuestArtist(form);
       setIsAdding(false);
       resetForm();
+      try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding guest artist:', error);
       alert('Failed to add guest artist. Please try again.');
@@ -81,6 +83,7 @@ export const GuestArtistManagement: React.FC = () => {
       await updateGuestArtist(id, form);
       setEditing(null);
       resetForm();
+      try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating guest artist:', error);
       alert('Failed to update guest artist. Please try again.');

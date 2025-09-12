@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, ZoomIn, Calendar, Instagram, Youtube, Sparkles, Zap, Image as ImageIcon } from 'lucide-react';
+import { X, Download, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
+// import GalleryArcSlider from '../components/GalleryArcSlider';
+import GalleryWave from '../components/GalleryWave';
+import HeroBackground from '../components/HeroBackground';
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, eventCategories, socialMediaSettings } = useData();
+  const { galleryImages, eventCategories, gallerySettings } = useData();
   const [selectedImage, setSelectedImage] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -49,10 +52,6 @@ export const Gallery: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const openLightbox = (index: number) => {
-    setSelectedImage(index);
-  };
-
   const closeLightbox = () => {
     setSelectedImage(null);
   };
@@ -78,27 +77,16 @@ export const Gallery: React.FC = () => {
     return category ? category.color : '#6B7280';
   };
 
-  // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
-  const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
-  const showSocialMedia = showInstagram || showYoutube;
+  // Social media links (unused here, kept in context if needed elsewhere)
 
   return (
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/50"></div>
-          </div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles */}
-          <div className="particles-container">
+        <HeroBackground pageKey="gallery" />
+
+        {/* Floating Particles */}
+        <div className="particles-container">
             {[...Array(30)].map((_, i) => (
               <div
                 key={i}
@@ -110,7 +98,6 @@ export const Gallery: React.FC = () => {
                 }}
               ></div>
             ))}
-          </div>
         </div>
 
         {/* Hero Content */}
@@ -169,65 +156,22 @@ export const Gallery: React.FC = () => {
         </div>
       </section>
 
-      {/* Gallery Grid */}
+      {/* Gallery 3D Stacked Scroll */}
       <section className="py-12 relative">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredImages.map((image, index) => (
-              <div
-                key={image.id}
-                className="scroll-animate opacity-0 transform translate-y-20"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="cyberpunk-card group relative overflow-hidden">
-                  <div className="aspect-w-4 aspect-h-3 relative overflow-hidden">
-                    <img
-                      src={image.src}
-                      alt={image.title}
-                      className="w-full h-64 object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-                    
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <button
-                        onClick={() => openLightbox(galleryImages.findIndex(img => img.id === image.id))}
-                        className="cyberpunk-btn cyberpunk-btn-secondary"
-                      >
-                        <span className="relative z-10 flex items-center">
-                          <ZoomIn size={20} className="mr-2" />
-                          VIEW
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-white text-sm line-clamp-2 group-hover:text-purple-400 transition-colors">
-                        {image.title}
-                      </h3>
-                      <div className="flex items-center space-x-1">
-                        <span 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getCategoryColor(image.category) }}
-                        ></span>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-xs text-gray-400">
-                        <Calendar size={12} className="mr-1" />
-                        {image.year}
-                      </div>
-                      <span className="text-xs font-medium text-gray-500">
-                        {image.category}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* CSS 3D Wave (reference style using :has and sibling selectors) */}
+          <GalleryWave
+            items={filteredImages.map(img => ({ id: img.id, src: img.src, title: img.title }))}
+            revealEnabled={gallerySettings?.reveal_enabled ?? true}
+            revealOrientation={gallerySettings?.reveal_orientation ?? 'horizontal'}
+            revealDurationMs={gallerySettings?.reveal_duration_ms ?? 800}
+            onItemClick={(idx) => {
+              const clicked = filteredImages[idx];
+              if (!clicked) return;
+              const globalIndex = galleryImages.findIndex(g => g.id === clicked.id);
+              if (globalIndex >= 0) setSelectedImage(globalIndex);
+            }}
+          />
 
           {/* No Images Message */}
           {filteredImages.length === 0 && (
@@ -325,7 +269,7 @@ export const Gallery: React.FC = () => {
         </div>
       </section>
 
-      <style jsx>{`
+      <style>{`
         .cyberpunk-theme {
           background: #0a0a0a;
           color: #ffffff;
