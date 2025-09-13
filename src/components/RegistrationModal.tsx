@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
@@ -54,6 +54,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [registrationId, setRegistrationId] = useState('');
   const [errors, setErrors] = useState<ErrorsMap>({});
   const [glitchActive, setGlitchActive] = useState(false);
+
+  // Precompute spark vectors when success state appears
+  const sparkVectors = useMemo(() => {
+    if (!isSubmitted) return [] as Array<{ tx: number; ty: number; delay: number }>;
+    return Array.from({ length: 10 }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 20 + Math.random() * 28;
+      return { tx: Math.cos(angle) * radius, ty: Math.sin(angle) * radius, delay: Math.random() * 0.15 };
+    });
+  }, [isSubmitted]);
 
   const participantTypes = [
     '1st Year',
@@ -284,8 +294,23 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         {isSubmitted ? (
           <div className="p-4 sm:p-6 text-center flex-1 overflow-y-auto">
             <div className="cyberpunk-success-container">
-              <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto mb-6 pulse-ring">
-                <CheckCircle className="w-10 h-10 text-black" />
+              <div className="relative w-20 h-20 mx-auto mb-6 success-anim-in">
+                <div className="absolute inset-0 success-ring" />
+                <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,197,94,0.45)]">
+                  <CheckCircle className="w-10 h-10 text-black" />
+                </div>
+                {sparkVectors.map((v, i) => (
+                  <div
+                    key={i}
+                    className="success-spark"
+                    style={{
+                      // @ts-expect-error CSS custom props
+                      '--tx': `${v.tx}px`,
+                      '--ty': `${v.ty}px`,
+                      animationDelay: `${v.delay}s`
+                    }}
+                  />
+                ))}
               </div>
               <h3 className="text-lg sm:text-xl md:text-2xl font-bold cyberpunk-title mb-4">REGISTRATION SUCCESSFUL!</h3>
               <p className="text-cyan-300 mb-4 font-mono text-sm">
@@ -775,6 +800,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           animation: spin .6s linear infinite;
         }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg);} }
+
+        /* Success completion animations (mobile-friendly) */
+        .success-anim-in { animation: successIn 420ms cubic-bezier(.2,.9,.2,1) both; }
+        @keyframes successIn { from { transform: scale(.9); opacity: 0; filter: blur(2px);} to { transform: scale(1); opacity: 1; filter: blur(0);} }
+        .success-ring { position: absolute; inset: -24px; border-radius: 9999px; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); animation: ringPulse 900ms ease-out 1; }
+        @keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5);} 100% { box-shadow: 0 0 0 28px rgba(34,197,94,0);} }
+        .success-spark { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin-left: -1.5px; margin-top: -1.5px; background: linear-gradient(90deg, #22c55e, #0e7490); border-radius: 50%; filter: drop-shadow(0 0 8px rgba(34,197,94,0.7)); animation: spark 600ms ease-out forwards; }
+        @keyframes spark { 0% { transform: translate(0,0) scale(1); opacity: 1; } 80% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0.15); opacity: 0; } }
+        @media (prefers-reduced-motion: reduce) {
+          .success-anim-in, .success-ring, .success-spark { animation: none !important; }
+        }
 
         .cyberpunk-input.error,
         .cyberpunk-select.error,
