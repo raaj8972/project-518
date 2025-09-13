@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Music, MessageSquare, CheckCircle, Link, Zap, Terminal, Shield } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, User, Mail, Phone, Music, MessageSquare, CheckCircle, Link, Zap, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 interface AuditionModalProps {
@@ -37,6 +37,14 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
   const [auditionId, setAuditionId] = useState('');
   const [errors, setErrors] = useState<any>({});
   const [glitchActive, setGlitchActive] = useState(false);
+  const sparkVectors = useMemo(() => {
+    if (!isSubmitted) return [] as Array<{ tx: number; ty: number; delay: number }>;
+    return Array.from({ length: 10 }, () => {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 20 + Math.random() * 28;
+      return { tx: Math.cos(angle) * radius, ty: Math.sin(angle) * radius, delay: Math.random() * 0.15 };
+    });
+  }, [isSubmitted]);
 
   const participantTypes = [
     '1st Year',
@@ -109,7 +117,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
     try {
       // Generate audition ID
@@ -131,9 +139,14 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       console.log('Submitting audition data:', auditionData);
 
       // Submit to Supabase
+      const start = performance.now();
       await addAudition(auditionData);
-      
-      setIsSubmitted(true);
+      const elapsed = performance.now() - start;
+      const minDelay = 250;
+      if (elapsed < minDelay) {
+        await new Promise((r) => setTimeout(r, minDelay - elapsed));
+      }
+  setIsSubmitted(true);
     } catch (error) {
       console.error('Audition submission error:', error);
       setErrors({ submit: 'Failed to submit audition. Please try again.' });
@@ -198,8 +211,17 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
         {isSubmitted ? (
           <div className="p-4 sm:p-6 text-center flex-1 overflow-y-auto">
             <div className="cyberpunk-success-container">
-              <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto mb-6 pulse-ring">
-                <CheckCircle className="w-10 h-10 text-black" />
+              <div className="relative w-20 h-20 mx-auto mb-6 success-anim-in">
+                <div className="absolute inset-0 success-ring" />
+                <div className="w-20 h-20 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(34,197,94,0.45)]">
+                  <CheckCircle className="w-10 h-10 text-black" />
+                </div>
+                {sparkVectors.map((v, i) => (
+                  <div key={i} className="success-spark" style={{
+                    // @ts-expect-error css var
+                    '--tx': `${v.tx}px`, '--ty': `${v.ty}px`, animationDelay: `${v.delay}s`
+                  }} />
+                ))}
               </div>
               <h3 className="text-lg sm:text-xl md:text-2xl font-bold cyberpunk-title mb-4">AUDITION SUBMITTED!</h3>
               <p className="text-cyan-300 mb-4 font-mono text-sm">
@@ -562,6 +584,15 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
         }
+
+        /* Success completion animations */
+        .success-anim-in { animation: successIn 420ms cubic-bezier(.2,.9,.2,1) both; }
+        @keyframes successIn { from { transform: scale(.9); opacity: 0; filter: blur(2px);} to { transform: scale(1); opacity: 1; filter: blur(0);} }
+        .success-ring { position: absolute; inset: -24px; border-radius: 9999px; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); animation: ringPulse 900ms ease-out 1; }
+        @keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.5);} 100% { box-shadow: 0 0 0 28px rgba(34,197,94,0);} }
+        .success-spark { position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin-left: -1.5px; margin-top: -1.5px; background: linear-gradient(90deg, #22c55e, #0e7490); border-radius: 50%; filter: drop-shadow(0 0 8px rgba(34,197,94,0.7)); animation: spark 600ms ease-out forwards; }
+        @keyframes spark { 0% { transform: translate(0,0) scale(1); opacity: 1; } 80% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 1; } 100% { transform: translate(var(--tx), var(--ty)) scale(0.15); opacity: 0; } }
+        @media (prefers-reduced-motion: reduce) { .success-anim-in, .success-ring, .success-spark { animation: none !important; } }
 
         .cyberpunk-input.error,
         .cyberpunk-select.error,

@@ -1152,9 +1152,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (formSettings && formSettings.audition_form_enabled === false) {
       throw new Error('Auditions are currently closed');
     }
+    // Optimistic add for instant feedback
+    try { setAuditions((prev) => [{ ...(audition as Audition), status: 'pending' } as Audition, ...prev]); } catch {}
     const { error } = await supabase.from('auditions').insert(audition);
     if (error) throw error;
-  await fetchData(true);
+    // Background refresh; don't block UI
+    fetchData(true).catch((e) => console.warn('[Data] background refresh after audition add failed', e));
   };
 
   const updateAuditionStatus = async (id: string, status: 'pending' | 'reviewed' | 'contacted') => {
@@ -1175,9 +1178,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (formSettings && formSettings.membership_form_enabled === false) {
       throw new Error('Membership applications are currently closed');
     }
+    // Optimistic add for instant feedback
+    try { setMemberships((prev) => [{ ...(membership as Membership), status: 'pending' } as Membership, ...prev]); } catch {}
     const { error } = await supabase.from('memberships').insert(membership);
     if (error) throw error;
-  await fetchData(true);
+    // Background refresh; don't block UI
+    fetchData(true).catch((e) => console.warn('[Data] background refresh after membership add failed', e));
   };
 
   const updateMembershipStatus = async (id: string, status: 'pending' | 'reviewed' | 'accepted') => {
