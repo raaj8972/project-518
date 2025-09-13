@@ -791,6 +791,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Registration Management
   const addRegistration = async (registration: Partial<Registration>) => {
+    // Optimistic UI: prepend a pending registration so the modal can confirm instantly
+    // This does not affect counts; the background refresh will reconcile actual data
+    try {
+      setRegistrations((prev) => [{ ...(registration as Registration), status: 'pending' } as Registration, ...prev]);
+    } catch {}
     // Prefer server-side RPC to bypass RLS via SECURITY DEFINER
   const { error: rpcError } = await supabase.rpc('register_for_event', {
       p_id: registration.id ?? null,
@@ -813,8 +818,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const { error } = await supabase.from('registrations').insert(registration);
       if (error) throw error;
     }
-    // Avoid client-side count updates; rely on DB triggers
-    await fetchData(true);
+    // Avoid blocking the UI on a full refresh; trigger background refresh instead
+    // Counts and related views will sync shortly after
+    fetchData(true).catch((e) => console.warn('[Data] background refresh after registration failed', e));
   };
 
   const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected') => {

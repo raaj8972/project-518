@@ -70,7 +70,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const glitchTimer = setInterval(() => {
         setGlitchActive(true);
         setTimeout(() => setGlitchActive(false), 200);
-      }, 10000);
+      }, 12000);
       return () => clearInterval(glitchTimer);
     }
   }, [isOpen]);
@@ -131,7 +131,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
     try {
       // Generate registration ID
@@ -160,8 +160,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       console.log('Submitting registration data:', registrationData);
 
       // Submit to Supabase
+      const start = performance.now();
       await addRegistration(registrationData);
-      
+      // Ensure a minimum UX timing so the spinner doesn't flash too fast or too slow
+      const elapsed = performance.now() - start;
+      const minDelay = 250; // ms
+      if (elapsed < minDelay) {
+        await new Promise((r) => setTimeout(r, minDelay - elapsed));
+      }
       setIsSubmitted(true);
     } catch (err) {
       console.error('Registration submission error:', err);
@@ -759,6 +765,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           color: rgba(255, 255, 255, 0.4);
           font-style: italic;
         }
+
+        /* Snappier spinner for submit feedback */
+        .cyberpunk-spinner {
+          width: 16px; height: 16px;
+          border: 2px solid rgba(0,255,255,0.25);
+          border-top-color: rgba(0,255,255,0.9);
+          border-radius: 50%;
+          animation: spin .6s linear infinite;
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg);} }
 
         .cyberpunk-input.error,
         .cyberpunk-select.error,
