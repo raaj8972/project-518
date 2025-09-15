@@ -16,9 +16,12 @@ if (import.meta.env.DEV) {
   console.info('[Supabase] env present:', { urlSet: !!supabaseUrl, keyLen });
 }
 
-if (!supabaseUrl || !supabaseAnonKey) {
+export const SUPABASE_ENV_OK = !!(supabaseUrl && supabaseAnonKey);
+if (!SUPABASE_ENV_OK) {
   // Common causes: .env missing, wrong variable names, dev server not restarted, or Netlify env not set at build time
-  throw new Error('Missing Supabase environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
+  // Do not crash the entire app in production; run in degraded mode instead and surface via ConnectionStatusBanner.
+  // eslint-disable-next-line no-console
+  console.error('[Supabase] Missing environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Running in degraded mode.');
 }
 
 // Basic sanity checks to catch malformed inputs early in dev/prod logs
@@ -37,7 +40,11 @@ try {
   console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot.', e)
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Use provided values when present; otherwise, create a noop client pointed at a placeholder domain.
+// This keeps the app mountable; data fetching will fail gracefully and surface via connection status.
+const effectiveUrl = supabaseUrl || 'https://example.supabase.co';
+const effectiveKey = supabaseAnonKey || 'public-anon-key';
+export const supabase = createClient(effectiveUrl, effectiveKey)
 
 // Helpful for diagnostics
 export const SUPABASE_HOST = (() => {
