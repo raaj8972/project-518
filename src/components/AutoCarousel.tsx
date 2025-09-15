@@ -119,7 +119,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
     >
       <div
         ref={containerRef}
-        className="flex space-x-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory px-1"
+        className={`flex space-x-4 overflow-x-auto overflow-y-hidden no-scrollbar scroll-smooth snap-x snap-mandatory ${showArrows ? 'px-1 md:px-10' : 'px-1'}`}
       >
         {React.Children.map(children, (child, idx) => (
           <div key={idx} className="snap-start shrink-0">
@@ -133,7 +133,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
           <button
             type="button"
             onClick={onPrev}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/70"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 hidden md:flex items-center justify-center hover:bg-black/70"
             aria-label="Previous"
           >
             ‹
@@ -141,7 +141,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
           <button
             type="button"
             onClick={onNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/70"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full w-8 h-8 hidden md:flex items-center justify-center hover:bg-black/70"
             aria-label="Next"
           >
             ›

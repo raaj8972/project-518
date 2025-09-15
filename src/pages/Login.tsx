@@ -343,15 +343,15 @@ export const Login: React.FC = () => {
         .neon-yellow {
           color: #ffff00;
           text-shadow: 
-            0 0 3px #ffff00,
-            0 0 6px #ffff00;
+            0 0 2px #ffff00,
+            0 0 4px #ffff00;
         }
 
         .neon-green {
           color: #00ff00;
           text-shadow: 
-            0 0 3px #00ff00,
-            0 0 6px #00ff00;
+            0 0 2px #00ff00,
+            0 0 4px #00ff00;
         }
 
         .cyberpunk-icon-container {

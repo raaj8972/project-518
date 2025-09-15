@@ -379,7 +379,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                   type="submit"
                   disabled={isSubmitting}
                   className={`cyberpunk-btn cyberpunk-btn-primary w-full text-sm py-3 ${
-                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                    isSubmitting ? 'submitting cursor-not-allowed' : ''
                   }`}
                 >
                   <span className="relative z-10 flex items-center justify-center">
@@ -627,6 +627,32 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
             0 0 25px rgba(0, 255, 255, 0.4),
             inset 0 0 25px rgba(0, 255, 255, 0.1);
           transform: translateY(-2px);
+        }
+
+        /* Animated submitting state for primary button */
+        .cyberpunk-btn-primary.submitting {
+          background-image: linear-gradient(120deg, rgba(14,116,144,0.18) 25%, rgba(91,33,182,0.18) 50%, rgba(14,116,144,0.18) 75%);
+          background-size: 200% 100%;
+          animation: btnShimmer 1.1s linear infinite;
+        }
+        .cyberpunk-btn-primary.submitting::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          bottom: 0;
+          height: 2px;
+          width: 30%;
+          background: linear-gradient(90deg, #0e7490, #5b21b6, #0e7490);
+          box-shadow: 0 0 10px rgba(14,116,144,0.6), 0 0 16px rgba(91,33,182,0.45);
+          animation: btnLoadingBar 1.2s ease-in-out infinite;
+        }
+        @keyframes btnShimmer {
+          0% { background-position-x: 200%; }
+          100% { background-position-x: -200%; }
+        }
+        @keyframes btnLoadingBar {
+          0% { transform: translateX(-30%); }
+          100% { transform: translateX(130%); }
         }
 
         .cyberpunk-btn-danger {

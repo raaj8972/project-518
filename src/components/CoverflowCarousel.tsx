@@ -30,6 +30,8 @@ interface CoverflowCarouselProps<T> {
   // Interactions
   paused?: boolean; // externally pause autoplay
   onItemClick?: (item: T, index: number) => void;
+  // Container height for the 3D stage; can be number (px) or any CSS size (e.g., '60vh')
+  stageHeight?: number | string; // default 460
 }
 
 // A lightweight, dependency-free 3D "coverflow" carousel with autoplay and infinite loop
@@ -51,7 +53,8 @@ export default function CoverflowCarousel<T>({
   centerGlow = true,
   arrowSize = 44,
   paused = false,
-  onItemClick
+  onItemClick,
+  stageHeight = 460
 }: CoverflowCarouselProps<T>) {
   const [active, setActive] = useState(0);
   const [hovering, setHovering] = useState(false);
@@ -113,7 +116,7 @@ export default function CoverflowCarousel<T>({
       <div
         className="relative mx-auto"
         style={{
-          height: 460,
+          height: typeof stageHeight === 'number' ? `${stageHeight}px` : stageHeight,
           perspective: 1200,
         }}
         aria-roledescription="carousel"

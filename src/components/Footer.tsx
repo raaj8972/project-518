@@ -178,8 +178,8 @@ export const Footer: React.FC = () => {
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 5px #ff00ff,
-            0 0 10px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .hover-float:hover {

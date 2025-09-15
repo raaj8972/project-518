@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Save, X, Monitor, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import LogoLoop from '../LogoLoop';
+import InfiniteMarquee from '../InfiniteMarquee';
 import { ImageUpload } from '../ImageUpload';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const HomepageManagement: React.FC = () => {
-  const { homepageSettings, updateHomepageSettings } = useData();
+  const { homepageSettings, updateHomepageSettings, sponsors, coreTeamMembers } = useData();
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   
@@ -30,8 +32,11 @@ export const HomepageManagement: React.FC = () => {
     featured_partners_enabled: boolean;
     show_faculty_heads: boolean;
     show_committee_heads: boolean;
-    partners_carousel_speed_ms: number;
-    leadership_carousel_speed_ms: number;
+  leadership_carousel_speed_ms: number | '';
+  sponsors_belt_speed_px_per_sec: number | '';
+  committee_marquee_speed_px_per_sec: number | '';
+    sponsors_belt_direction: 'left' | 'right';
+    committee_marquee_direction: 'left' | 'right';
   };
   
   const [form, setForm] = useLocalStorage<FormState>('admin_homepage_form_draft', {
@@ -46,13 +51,32 @@ export const HomepageManagement: React.FC = () => {
     featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
     show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
     show_committee_heads: homepageSettings?.show_committee_heads ?? true,
-    partners_carousel_speed_ms: homepageSettings?.partners_carousel_speed_ms ?? 3000,
-    leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500
+    leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
+    sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
+    committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
+    sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
+    committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
   });
 
   const handleSave = async () => {
     try {
-      await updateHomepageSettings(form);
+      // Normalize numeric fields before saving (convert '' to defaults)
+      const payload = {
+        ...form,
+        leadership_carousel_speed_ms: typeof form.leadership_carousel_speed_ms === 'number' && !isNaN(form.leadership_carousel_speed_ms)
+          ? Math.max(1000, form.leadership_carousel_speed_ms)
+          : 2500,
+        sponsors_belt_speed_px_per_sec: typeof form.sponsors_belt_speed_px_per_sec === 'number' && !isNaN(form.sponsors_belt_speed_px_per_sec)
+          ? Math.min(800, Math.max(1, form.sponsors_belt_speed_px_per_sec))
+          : 140,
+        committee_marquee_speed_px_per_sec: typeof form.committee_marquee_speed_px_per_sec === 'number' && !isNaN(form.committee_marquee_speed_px_per_sec)
+          ? Math.min(800, Math.max(1, form.committee_marquee_speed_px_per_sec))
+          : 75,
+      } as const;
+
+      await updateHomepageSettings(payload as any);
+      // Sync the form state to the normalized payload so UI reflects saved values immediately
+      setForm(payload as unknown as FormState);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Homepage settings updated successfully!' });
       try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
@@ -78,8 +102,11 @@ export const HomepageManagement: React.FC = () => {
       featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
       show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
       show_committee_heads: homepageSettings?.show_committee_heads ?? true,
-      partners_carousel_speed_ms: homepageSettings?.partners_carousel_speed_ms ?? 3000,
-      leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500
+      leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
+      sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
+      committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
+      sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
+      committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
     });
     try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
     setIsEditing(false);
@@ -395,6 +422,7 @@ export const HomepageManagement: React.FC = () => {
                       ? 'MP4 / MOV / WEBM up to 80MB' 
                       : 'PNG, JPG, WEBP, GIF up to 5MB'
                   }
+                  cropAspect={form.hero_media_type === 'video' ? undefined : 16/9}
                 />
                 <p className="text-xs text-gray-500 mt-2">
                   {form.hero_media_type === 'video' 
@@ -473,16 +501,7 @@ export const HomepageManagement: React.FC = () => {
             <h4 className="text-lg font-semibold text-gray-900 mb-4">Homepage Sections & Animation</h4>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
-                <label className="block text-sm font-medium text-gray-700">Partners Carousel Speed (ms)</label>
-                <input
-                  type="number"
-                  min={1000}
-                  step={100}
-                  value={form.partners_carousel_speed_ms}
-                  onChange={(e) => setForm(prev => ({ ...prev, partners_carousel_speed_ms: parseInt(e.target.value) || 3000 }))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                />
-                <label className="block text-sm font-medium text-gray-700 mt-3">Show Partners Carousel</label>
+                <label className="block text-sm font-medium text-gray-700 mt-3">Show Partners Belt</label>
                 <label className="inline-flex items-center">
                   <input
                     type="checkbox"
@@ -500,10 +519,89 @@ export const HomepageManagement: React.FC = () => {
                   type="number"
                   min={1000}
                   step={100}
-                  value={form.leadership_carousel_speed_ms}
-                  onChange={(e) => setForm(prev => ({ ...prev, leadership_carousel_speed_ms: parseInt(e.target.value) || 2500 }))}
+                  value={form.leadership_carousel_speed_ms === '' ? '' : form.leadership_carousel_speed_ms}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm(prev => ({ ...prev, leadership_carousel_speed_ms: v === '' ? '' : parseInt(v, 10) }));
+                  }}
+                  onBlur={() => {
+                    setForm(prev => {
+                      const n = typeof prev.leadership_carousel_speed_ms === 'number' && !isNaN(prev.leadership_carousel_speed_ms)
+                        ? Math.max(1000, prev.leadership_carousel_speed_ms)
+                        : 2500;
+                      return { ...prev, leadership_carousel_speed_ms: n };
+                    });
+                  }}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
+                <div className="mt-4 grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Sponsors Belt Speed (px/sec)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={800}
+                      step={1}
+                      value={form.sponsors_belt_speed_px_per_sec === '' ? '' : form.sponsors_belt_speed_px_per_sec}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm(prev => ({ ...prev, sponsors_belt_speed_px_per_sec: v === '' ? '' : parseInt(v, 10) }));
+                      }}
+                      onBlur={() => {
+                        setForm(prev => {
+                          const n = typeof prev.sponsors_belt_speed_px_per_sec === 'number' && !isNaN(prev.sponsors_belt_speed_px_per_sec)
+                            ? Math.min(800, Math.max(1, prev.sponsors_belt_speed_px_per_sec))
+                            : 140;
+                          return { ...prev, sponsors_belt_speed_px_per_sec: n };
+                        });
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Controls the scrolling speed of the Partners belt.</p>
+                    <label className="block text-sm font-medium text-gray-700 mt-3">Sponsors Belt Direction</label>
+                    <select
+                      value={form.sponsors_belt_direction}
+                      onChange={(e) => setForm(prev => ({ ...prev, sponsors_belt_direction: (e.target.value as 'left' | 'right') }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Committee Marquee Speed (px/sec)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={800}
+                      step={1}
+                      value={form.committee_marquee_speed_px_per_sec === '' ? '' : form.committee_marquee_speed_px_per_sec}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setForm(prev => ({ ...prev, committee_marquee_speed_px_per_sec: v === '' ? '' : parseInt(v, 10) }));
+                      }}
+                      onBlur={() => {
+                        setForm(prev => {
+                          const n = typeof prev.committee_marquee_speed_px_per_sec === 'number' && !isNaN(prev.committee_marquee_speed_px_per_sec)
+                            ? Math.min(800, Math.max(1, prev.committee_marquee_speed_px_per_sec))
+                            : 75;
+                          return { ...prev, committee_marquee_speed_px_per_sec: n };
+                        });
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Controls the horizontal marquee speed of Committee Heads.</p>
+                    <label className="block text-sm font-medium text-gray-700 mt-3">Committee Marquee Direction</label>
+                    <select
+                      value={form.committee_marquee_direction}
+                      onChange={(e) => setForm(prev => ({ ...prev, committee_marquee_direction: (e.target.value as 'left' | 'right') }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="left">Left</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="mt-3 space-y-2">
                   <label className="inline-flex items-center">
                     <input
@@ -523,6 +621,110 @@ export const HomepageManagement: React.FC = () => {
                     />
                     <span className="text-sm text-gray-700">Show Committee Heads</span>
                   </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Live Preview */}
+          <div className="space-y-6 lg:col-span-2">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">Live Preview</h4>
+            <div className="space-y-8 p-4 border rounded-lg bg-white">
+              {/* Partners Belt Preview */}
+              <div>
+                <h5 className="text-sm font-semibold text-gray-700 mb-3">Partners Belt</h5>
+                <div className="relative overflow-hidden rounded-md" style={{ background: '#0b0f1a' }}>
+                  <div className="relative left-1/2 -translate-x-1/2 w-full">
+                    <LogoLoop
+                      logos={(sponsors || [])
+                        .filter((s: any) => s.enabled)
+                        .sort((a: any, b: any) => (a.order_position ?? 0) - (b.order_position ?? 0))
+                        .map((s: any) => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
+                      speed={Math.min(800, Math.max(1, Math.abs((form.sponsors_belt_speed_px_per_sec === '' ? 140 : form.sponsors_belt_speed_px_per_sec) as number)))}
+                      direction={form.sponsors_belt_direction}
+                      pauseOnHover={true}
+                      pauseInstantOnHover={false}
+                      smoothTauSec={0.6}
+                      scaleOnHover={false}
+                      fadeOut={true}
+                      fadeOutColor="#0b0f1a"
+                      glow={true}
+                      cardRadius={24}
+                      cardPaddingX={18}
+                      cardPaddingY={0}
+                      ariaLabel="Partners belt preview"
+                      style={{
+                        background: '#0b0f1a',
+                        paddingTop: 8,
+                        paddingBottom: 8,
+                        isolation: 'isolate',
+                        pointerEvents: 'auto',
+                        ['--logoloop-logoHeight' as any]: 'clamp(60px, 12vw, 96px)',
+                        ['--logoloop-gap' as any]: 'clamp(16px, 4vw, 28px)',
+                        ['--ll-pulse-duration' as any]: '0s',
+                        ['--ll-floor-opacity' as any]: 0,
+                        ['--ll-floor-width' as any]: '66%',
+                        ['--ll-glow-color' as any]: 'rgba(0,0,0,0)',
+                        ['--ll-border-blur' as any]: '0em',
+                        ['--ll-border-spread' as any]: '0em',
+                        ['--ll-outer-blur' as any]: '0em',
+                        ['--ll-outer-spread' as any]: '0em',
+                        ['--ll-pulse-outer-blur' as any]: '0em',
+                        ['--ll-pulse-outer-spread' as any]: '0em',
+                        ['--ll-rim-alpha' as any]: 0,
+                        ['--ll-glow-spread-color' as any]: 'rgba(0,0,0,0)',
+                        ['--ll-glass-blur' as any]: '0px',
+                        ['--ll-glass-saturate' as any]: '100%',
+                        ['--ll-glass-sheen' as any]: 0,
+                        ['--ll-hover-outer-color' as any]: 'rgba(255,255,255,0.6)',
+                        ['--ll-hover-outer-blur' as any]: '0.75em',
+                        ['--ll-hover-outer-spread' as any]: '0.18em',
+                        ['--ll-card-scale-hover' as any]: 1.04,
+                        ['--ll-depth-shadow-fn' as any]: '0 0 0 rgba(0,0,0,0)',
+                        ['--ll-card-bg' as any]: '#000000',
+                        ['--ll-card-border-w' as any]: '0px',
+                        ['--ll-card-min-h' as any]: 'unset',
+                        ['--ll-card-h' as any]: 'clamp(120px, 22vw, 176px)',
+                        ['--ll-card-w' as any]: 'clamp(120px, 22vw, 176px)',
+                        ['--ll-logo-h' as any]: 'auto',
+                        ['--ll-logo-w' as any]: 'auto',
+                        ['--ll-logo-fit' as any]: 'contain',
+                        ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 4px)',
+                        ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 4px)',
+                        ['--ll-logo-radius' as any]: '8px',
+                        ['--ll-logo-filter' as any]: 'none',
+                        ['--ll-logo-filter-hover' as any]: 'none',
+                        ['--logoloop-fadeWidth' as any]: 'clamp(8px, 3vw, 28px)'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Committee Heads Preview */}
+              <div>
+                <h5 className="text-sm font-semibold text-gray-700 mb-3">Committee Heads</h5>
+                <div className="relative overflow-hidden rounded-md bg-gray-50 p-3">
+                  <InfiniteMarquee
+                    items={(coreTeamMembers || []).filter((m: any) => m.enabled && m.is_head)}
+                    renderItem={(m: any) => (
+                      <div className="flex items-center gap-3 bg-white/70 rounded-md px-3 py-2 shadow-sm">
+                        {m.photo_url ? (
+                          <img src={m.photo_url} alt={m.name} className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-300" />
+                        )}
+                        <div className="text-sm font-medium text-gray-800">{m.name}</div>
+                      </div>
+                    )}
+                    speedPxPerSec={Math.min(800, Math.max(1, (form.committee_marquee_speed_px_per_sec === '' ? 75 : form.committee_marquee_speed_px_per_sec) as number))}
+                    pauseOnHover={false}
+                    paused={false}
+                    direction={form.committee_marquee_direction}
+                    itemWrapperClassName="px-4"
+                    sideGutterPx={16}
+                    className="py-2"
+                  />
                 </div>
               </div>
             </div>

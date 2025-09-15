@@ -22,6 +22,10 @@ export const FacultyHeadsManagement: React.FC = () => {
     title: '',
     image: '',
     description: '',
+    email: '',
+    phone: '',
+    instagram: '',
+    youtube: '',
     achievements: [] as string[],
     order_position: 1,
     enabled: true
@@ -33,6 +37,10 @@ export const FacultyHeadsManagement: React.FC = () => {
       title: '',
       image: '',
       description: '',
+      email: '',
+      phone: '',
+      instagram: '',
+      youtube: '',
       achievements: [],
       order_position: facultyHeads.length + 1,
       enabled: true
@@ -46,13 +54,23 @@ export const FacultyHeadsManagement: React.FC = () => {
     }
     
     try {
-      await addFacultyHead(form);
+      // Build optional social_links only when present
+      const social_links: Record<string, string> = {};
+      if (form.instagram?.trim()) social_links.instagram = form.instagram.trim();
+      if (form.youtube?.trim()) social_links.youtube = form.youtube.trim();
+      const payload: any = { ...form };
+      delete payload.instagram;
+      delete payload.youtube;
+      if (Object.keys(social_links).length > 0) payload.social_links = social_links;
+
+      await addFacultyHead(payload);
       setIsAdding(false);
       resetForm();
       try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
     } catch (error) {
       console.error('Error adding faculty head:', error);
-      alert('Failed to add faculty head. Please try again.');
+      const msg = (error as any)?.message || String(error);
+      alert(`Failed to add faculty head. ${msg}`);
     }
   };
 
@@ -63,13 +81,35 @@ export const FacultyHeadsManagement: React.FC = () => {
     }
     
     try {
-      await updateFacultyHead(id, form);
+      const payload: any = { ...form };
+      delete payload.instagram;
+      delete payload.youtube;
+      // Merge with existing social_links, but allow clearing by empty field
+      const existing = facultyHeads.find(f => f.id === id) as any;
+      const merged: Record<string, string> = { ...(existing?.social_links || {}) };
+      if (form.instagram !== undefined) {
+        if (form.instagram.trim()) merged.instagram = form.instagram.trim();
+        else delete merged.instagram;
+      }
+      if (form.youtube !== undefined) {
+        if (form.youtube.trim()) merged.youtube = form.youtube.trim();
+        else delete merged.youtube;
+      }
+      if (Object.keys(merged).length > 0) {
+        payload.social_links = merged;
+      } else {
+        // Omit the property entirely to avoid unknown-column updates when DB lacks social_links
+        delete payload.social_links;
+      }
+
+      await updateFacultyHead(id, payload);
       setEditing(null);
       resetForm();
       try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating faculty head:', error);
-      alert('Failed to update faculty head. Please try again.');
+      const msg = (error as any)?.message || String(error);
+      alert(`Failed to update faculty head. ${msg}`);
     }
   };
 
@@ -99,6 +139,10 @@ export const FacultyHeadsManagement: React.FC = () => {
       title: facultyHead.title,
       image: facultyHead.image,
       description: facultyHead.description,
+      email: (facultyHead as any).email || '',
+      phone: (facultyHead as any).phone || '',
+      instagram: ((facultyHead as any).social_links?.instagram) || '',
+      youtube: ((facultyHead as any).social_links?.youtube) || '',
       achievements: facultyHead.achievements,
       order_position: facultyHead.order_position,
       enabled: facultyHead.enabled
@@ -189,6 +233,48 @@ export const FacultyHeadsManagement: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email (optional)</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="name@example.com (optional)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone (optional)</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+91 98765 43210 (optional)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+              </div>
+              {/* Social Links */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Social Links (optional)</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="url"
+                    value={form.instagram}
+                    onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
+                    placeholder="Instagram URL (e.g., https://instagram.com/yourhandle)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  />
+                  <input
+                    type="url"
+                    value={form.youtube}
+                    onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
+                    placeholder="YouTube URL (e.g., https://youtube.com/@yourchannel)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
                   <input
                     type="number"
@@ -250,6 +336,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   currentImage={form.image}
                   bucket="faculty-images"
                   folder="faculty"
+                  cropAspect={1}
                 />
               </div>
             </div>
@@ -298,6 +385,39 @@ export const FacultyHeadsManagement: React.FC = () => {
                   placeholder="Title/Position"
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Email (optional)"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Phone (optional)"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                {/* Social links for edit */}
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="url"
+                    value={form.instagram}
+                    onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
+                    placeholder="Instagram URL (optional)"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400"
+                  />
+                  <input
+                    type="url"
+                    value={form.youtube}
+                    onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
+                    placeholder="YouTube URL (optional)"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                </div>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
@@ -364,6 +484,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   bucket="faculty-images"
                   folder="faculty"
                   className="h-32"
+                  cropAspect={1}
                 />
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
                   <button

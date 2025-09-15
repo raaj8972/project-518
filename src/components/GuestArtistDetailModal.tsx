@@ -1,4 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import CountdownTimer from './CountdownTimer';
+import Sparkle3D from './Sparkle3D';
+import { Calendar, MapPin } from 'lucide-react';
+import Instagram3DButtonLink from './Instagram3DButtonLink';
+import YouTube3DButtonLink from './YouTube3DButtonLink';
 
 type SocialLinks = Record<string, string> | null | undefined;
 
@@ -13,6 +18,9 @@ export type GuestArtistDetail = {
   social_links?: SocialLinks;
   video_url?: string | null;
   youtube_url?: string | null;
+  performance_at?: string | null;
+  venue?: string | null;
+  countdown_enabled?: boolean;
 };
 
 // Extract YouTube video id from various URL formats
@@ -96,6 +104,37 @@ const GuestArtistDetailModal: React.FC<{
                 <p className="text-gray-300 leading-relaxed mb-4 whitespace-pre-line">{artist.description}</p>
               )}
 
+              {artist.countdown_enabled && artist.performance_at && (
+                <div className="relative mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
+                  <div className="absolute -top-2 -right-2 w-12 h-12">
+                    <Sparkle3D intensity={8} />
+                  </div>
+                  <div className="flex flex-col items-start gap-3">
+                    <div className="text-sm text-gray-300">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-pink-300" />
+                        <span>{new Date(artist.performance_at).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' })}</span>
+                      </div>
+                      {artist.venue && (
+                        <div className="flex items-center gap-2 mt-1 text-gray-400">
+                          <MapPin className="w-4 h-4" />
+                          <span>{artist.venue}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 self-start">
+                      <CountdownTimer
+                        className="max-w-full"
+                        target={artist.performance_at}
+                        endedText="LIVE NOW"
+                        showEnded={(artist as any).live_now_enabled !== false}
+                        liveLink={artist.youtube_url as any}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {artist.achievements && artist.achievements.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-sm font-bold text-cyan-300 mb-2">Achievements</h4>
@@ -104,6 +143,21 @@ const GuestArtistDetailModal: React.FC<{
                   </ul>
                 </div>
               )}
+
+              {/* Social media buttons */}
+              {(artist.social_links && (artist.social_links.instagram || artist.social_links.youtube)) || artist.youtube_url ? (
+                <div className="mt-6">
+                  <h4 className="text-sm font-bold text-pink-300 mb-2">Social Media</h4>
+                  <div className="flex items-center gap-3">
+                    {artist.social_links?.instagram && (
+                      <Instagram3DButtonLink href={artist.social_links!.instagram} iconSize={28} buttonSize={44} ariaLabel={`Instagram of ${artist.name}`} />
+                    )}
+                    {(artist.social_links?.youtube || artist.youtube_url) && (
+                      <YouTube3DButtonLink href={(artist.social_links?.youtube || artist.youtube_url)!} iconSize={28} buttonSize={44} ariaLabel={`YouTube of ${artist.name}`} />
+                    )}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 

@@ -4,6 +4,7 @@ import type { Database } from '../lib/supabase';
 
 // Define types for your data based on Supabase schema
 export type Event = Database['public']['Tables']['events']['Row'];
+export type EventCoordinator = Database['public']['Tables']['event_coordinators']['Row'];
 export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
 export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[] };
@@ -54,6 +55,7 @@ const DEFAULT_GALLERY_SETTINGS: GallerySettings = {
 
 interface DataContextType {
   events: Event[];
+  eventCoordinators: EventCoordinator[];
   galleryImages: GalleryImage[];
   sponsors: Sponsor[];  
   schedule: ScheduleDay[];
@@ -81,8 +83,15 @@ interface DataContextType {
   lastError: string | null;
   refreshAll: (silent?: boolean) => Promise<void>;
   addEvent: (event: Partial<Event>) => Promise<void>;
+  addEventWithCoordinators: (
+    event: Partial<Event>,
+    coordinators: Array<{ name: string; phone?: string | null }>
+  ) => Promise<void>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   deleteEvent: (id: number) => Promise<void>;
+  addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
+  deleteEventCoordinator: (id: number) => Promise<void>;
   toggleEventFeatured: (id: number) => Promise<void>;
   toggleEventVisibility: (id: number) => Promise<void>;
   toggleEventRegistration: (id: number) => Promise<void>;
@@ -160,6 +169,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [events, setEvents] = useState<Event[]>([]);
+  const [eventCoordinators, setEventCoordinators] = useState<EventCoordinator[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
@@ -247,14 +257,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (eventsError) markErr('Error fetching events', eventsError);
       else setEvents(eventsData || []);
 
-      // Fetch Gallery Images
+  // Fetch Gallery Images
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
         .from('gallery_images')
         .select('*');
       if (galleryImagesError) markErr('Error fetching gallery images', galleryImagesError);
       else setGalleryImages(galleryImagesData || []);
 
-      // Fetch Sponsors
+  // Fetch Sponsors
+      // Fetch Event Coordinators
+      try {
+        const { data: ec, error: ecErr } = await supabase
+          .from('event_coordinators')
+          .select('*')
+          .order('event_id', { ascending: true })
+          .order('order_position', { ascending: true });
+        if (ecErr) markErr('Error fetching event coordinators', ecErr);
+        else setEventCoordinators(ec || []);
+      } catch (e) {
+        markErr('Event coordinators fetch threw', e);
+      }
       const { data: sponsorsData, error: sponsorsError } = await supabase
         .from('sponsors')
         .select('*');
@@ -402,7 +424,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('social_media_settings')
         .select('*')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
       if (socialMediaSettingsError) markErr('Error fetching social media settings', socialMediaSettingsError);
       else {
         if (socialMediaSettingsData) {
@@ -427,7 +449,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('homepage_settings')
         .select('*')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
       if (homepageSettingsError) markErr('Error fetching homepage settings', homepageSettingsError);
       else setHomepageSettings(homepageSettingsData || null);
 
@@ -436,7 +458,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('homebound_settings')
         .select('*')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
       if (hbSettingsError) markErr('Error fetching homebound settings', hbSettingsError);
       else setHomeboundSettings(hbSettingsData || null);
 
@@ -445,7 +467,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('gallery_settings')
         .select('*')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
       if (gallerySettingsError) {
         const msg = String((gallerySettingsError as any)?.message || '').toLowerCase();
         const code = (gallerySettingsError as any)?.code;
@@ -613,6 +635,58 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => { try { supabase.removeChannel(channel); } catch {} };
   }, []);
 
+  // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
+  useEffect(() => {
+    const channel = supabase
+      .channel('ctx-sponsors')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, (payload: any) => {
+        setSponsors((cur) => {
+          const row = (payload.new || payload.old) as Sponsor;
+          if (payload.eventType === 'INSERT') {
+            if (cur.find((s) => s.id === row.id)) return cur; // avoid dup
+            return [...cur, row].sort((a: any, b: any) => (a.order_position ?? 0) - (b.order_position ?? 0));
+          }
+          if (payload.eventType === 'UPDATE') {
+            return cur
+              .map((s) => (s.id === row.id ? { ...s, ...row } : s))
+              .sort((a: any, b: any) => (a.order_position ?? 0) - (b.order_position ?? 0));
+          }
+          if (payload.eventType === 'DELETE') {
+            return cur.filter((s) => s.id !== row.id).sort((a: any, b: any) => (a.order_position ?? 0) - (b.order_position ?? 0));
+          }
+          return cur;
+        });
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, []);
+
+  // Realtime: keep sponsorship packages in sync so category chips and grouping update immediately
+  useEffect(() => {
+    const channel = supabase
+      .channel('ctx-sponsorship-packages')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_packages' }, (payload: any) => {
+        setSponsorshipPackages((cur) => {
+          const row = (payload.new || payload.old) as SponsorshipPackage;
+          if (payload.eventType === 'INSERT') {
+            if (cur.find((p) => p.id === row.id)) return cur;
+            return [...cur, row].sort((a, b) => a.order_position - b.order_position);
+          }
+          if (payload.eventType === 'UPDATE') {
+            return cur
+              .map((p) => (p.id === row.id ? { ...p, ...row } : p))
+              .sort((a, b) => a.order_position - b.order_position);
+          }
+          if (payload.eventType === 'DELETE') {
+            return cur.filter((p) => p.id !== row.id).sort((a, b) => a.order_position - b.order_position);
+          }
+          return cur;
+        });
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, []);
+
   // Realtime: keep form_settings in sync so enable/disable reflects instantly
   useEffect(() => {
     const formChannel = supabase
@@ -662,6 +736,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await fetchData(true);
   };
 
+  const addEventWithCoordinators = async (
+    event: Partial<Event>,
+    coordinators: Array<{ name: string; phone?: string | null }>
+  ) => {
+    // Insert event and get the id back so we can link coordinators
+    const { data: inserted, error } = await supabase
+      .from('events')
+      .insert(event)
+      .select('id')
+      .single();
+    if (error) throw error;
+    const newId = inserted?.id as number;
+    if (newId && coordinators && coordinators.length > 0) {
+      // Prepare coordinator rows with order
+      const rows = coordinators.map((c, idx) => ({
+        event_id: newId,
+        name: (c.name || '').trim() || '—',
+        phone: (c.phone ?? null) as string | null,
+        order_position: idx + 1,
+      }));
+      // Best-effort insert; if this fails we still keep the event
+      const { error: ecErr } = await supabase.from('event_coordinators').insert(rows as any);
+      if (ecErr) {
+        console.error('Failed to insert event coordinators for new event', ecErr);
+      }
+    }
+    await fetchData(true);
+  };
+
   const updateEvent = async (id: number, event: Partial<Event>) => {
     const { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) throw error;
@@ -670,6 +773,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const deleteEvent = async (id: number) => {
     const { error } = await supabase.from('events').delete().eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  // Event Coordinators
+  const addEventCoordinator = async (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => {
+    const { error } = await supabase.from('event_coordinators').insert(coordinator as any);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const updateEventCoordinator = async (id: number, patch: Partial<EventCoordinator>) => {
+    const { error } = await supabase.from('event_coordinators').update(patch).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const deleteEventCoordinator = async (id: number) => {
+    const { error } = await supabase.from('event_coordinators').delete().eq('id', id);
     if (error) throw error;
     await fetchData(true);
   };
@@ -727,21 +849,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sponsor Management
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
-    const { error } = await supabase.from('sponsors').insert(sponsor);
+    // Ensure optional fields have safe defaults for current DB constraints
+    const payload = {
+      ...sponsor,
+      description: sponsor.description ?? '',
+    } as Partial<Sponsor>;
+    const { error } = await supabase.from('sponsors').insert(payload);
     if (error) throw error;
     await fetchData(true);
   };
 
   const updateSponsor = async (id: number, sponsor: Partial<Sponsor>) => {
-    const { error } = await supabase.from('sponsors').update(sponsor).eq('id', id);
+    const payload = {
+      ...sponsor,
+      description: sponsor.description ?? '',
+    } as Partial<Sponsor>;
+    const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
     if (error) throw error;
     await fetchData(true);
   };
 
   const deleteSponsor = async (id: number) => {
-    const { error } = await supabase.from('sponsors').delete().eq('id', id);
-    if (error) throw error;
-    await fetchData(true);
+    // Optimistic UI: remove immediately for snappy admin feedback
+    const prev = sponsors;
+    const exists = sponsors.find((s) => s.id === id);
+    if (!exists) return;
+    setSponsors((curr) => curr.filter((s) => s.id !== id));
+
+    try {
+      const { error } = await supabase.from('sponsors').delete().eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      // Revert on failure so UI matches server state
+      setSponsors(prev);
+      throw e;
+    }
+
+    // Background refresh to reconcile ordering and related data
+    fetchData(true).catch((e) => console.warn('[Data] background refresh after sponsor delete failed', e));
   };
 
   const toggleSponsorFeatured = async (id: number) => {
@@ -931,9 +1076,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const deleteEventCategory = async (id: number) => {
-    const { error } = await supabase.from('event_categories').delete().eq('id', id);
-    if (error) throw error;
-    await fetchData(true);
+    // Optimistic UI update for snappy admin UX; we'll reconcile after RPC
+    const prev = eventCategories;
+    const removing = eventCategories.find((c) => c.id === id) || null;
+    if (!removing) return;
+    setEventCategories((curr) => curr.filter((c) => c.id !== id));
+
+    try {
+      // Use SECURITY DEFINER RPC to perform atomic reassignment + delete under owner privileges
+      const { error: rpcError } = await supabase.rpc('delete_event_category', {
+        p_category_id: id,
+        p_fallback_name: null,
+      });
+      if (rpcError) throw rpcError;
+    } catch (e) {
+      // Revert on failure
+      setEventCategories(prev);
+      throw e;
+    }
+
+    // Background refresh to ensure consistency
+    fetchData(true).catch((e) => console.warn('[Data] background refresh after category delete failed', e));
   };
 
   // Social Media Settings Management
@@ -952,13 +1115,36 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Faculty Heads Management
   const addFacultyHead = async (head: Partial<FacultyHead>) => {
     const { error } = await supabase.from('faculty_heads').insert(head);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const code = (error as any)?.code || '';
+      const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found') || msg.includes('social_links'));
+      if (code === '42703' || (msg.includes('column') && msg.includes('does not exist')) || schemaCacheUnknown) {
+        // Fallback if new optional columns (email/phone/social_links) aren’t deployed yet
+        const { email, phone, social_links, ...rest } = (head as any) || {};
+        const { error: e2 } = await supabase.from('faculty_heads').insert(rest as any);
+        if (e2) throw e2;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
   const updateFacultyHead = async (id: number, head: Partial<FacultyHead>) => {
     const { error } = await supabase.from('faculty_heads').update(head).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const code = (error as any)?.code || '';
+      const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found') || msg.includes('social_links'));
+      if (code === '42703' || (msg.includes('column') && msg.includes('does not exist')) || schemaCacheUnknown) {
+        const { email, phone, social_links, ...rest } = (head as any) || {};
+        const { error: e2 } = await supabase.from('faculty_heads').update(rest as any).eq('id', id);
+        if (e2) throw e2;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -1009,13 +1195,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Core Team Members Management
   const addCoreTeamMember = async (member: Partial<CoreTeamMember>) => {
     const { error } = await supabase.from('core_team_members').insert(member);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      // Fallback if optional columns aren't in schema yet
+      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      if (unknownColumn && (msg.includes('phone') || msg.includes('social_links'))) {
+        const { phone, social_links, ...rest } = (member as any) || {};
+        const { error: e2 } = await supabase.from('core_team_members').insert(rest as any);
+        if (e2) throw e2;
+      } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
+        throw new Error('Invalid committee selected for member');
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
   const updateCoreTeamMember = async (id: number, member: Partial<CoreTeamMember>) => {
     const { error } = await supabase.from('core_team_members').update(member).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      if (unknownColumn && (msg.includes('phone') || msg.includes('social_links'))) {
+        const { phone, social_links, ...rest } = (member as any) || {};
+        const { error: e2 } = await supabase.from('core_team_members').update(rest as any).eq('id', id);
+        if (e2) throw e2;
+      } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
+        throw new Error('Invalid committee selected for member');
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -1087,13 +1298,35 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Guest Artists Management
   const addGuestArtist = async (artist: Partial<GuestArtist>) => {
     const { error } = await supabase.from('guest_artists').insert(artist);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const code = (error as any)?.code || '';
+      const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
+      if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
+        const { performance_at, venue, countdown_enabled, live_now_enabled, ...rest } = (artist as any) || {};
+        const { error: e2 } = await supabase.from('guest_artists').insert(rest as any);
+        if (e2) throw e2;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
   const updateGuestArtist = async (id: number, artist: Partial<GuestArtist>) => {
     const { error } = await supabase.from('guest_artists').update(artist).eq('id', id);
-    if (error) throw error;
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const code = (error as any)?.code || '';
+      const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
+      if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
+        const { performance_at, venue, countdown_enabled, live_now_enabled, ...rest } = (artist as any) || {};
+        const { error: e2 } = await supabase.from('guest_artists').update(rest as any).eq('id', id);
+        if (e2) throw e2;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -1216,10 +1449,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (payload.sponsor_logos && typeof payload.sponsor_logos !== 'object') {
       try { payload.sponsor_logos = JSON.parse(String(payload.sponsor_logos)); } catch { /* ignore */ }
     }
-    const { error } = await supabase
+    let { error } = await supabase
       .from('homepage_settings')
       .upsert(payload, { onConflict: 'id' });
-    if (error) throw error;
+    // Some self-hosted or older PostgRESTs can fail upsert if row missing; fallback to insert
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      if (msg.includes('duplicate key') || msg.includes('conflict')) {
+        // Race or already exists; ignore and continue
+        error = null as any;
+      } else {
+        // Try insert then update as last resort
+        const { error: insertErr } = await supabase
+          .from('homepage_settings')
+          .insert({ id: 1 } as any);
+        if (insertErr && !String(insertErr.message || '').toLowerCase().includes('duplicate')) {
+          throw error; // original error
+        }
+        const { error: updateErr } = await supabase
+          .from('homepage_settings')
+          .update(settings as any)
+          .eq('id', 1);
+        if (updateErr) throw updateErr;
+      }
+    }
   await fetchData(true);
   };
 
@@ -1239,7 +1492,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .from('gallery_settings')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
-    await fetchData(true);
+  await fetchData(true);
   };
 
   // Roadmap Milestones CRUD
@@ -1272,6 +1525,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     <DataContext.Provider
       value={{
         events,
+        eventCoordinators,
         galleryImages,
         sponsors,
         schedule,
@@ -1298,8 +1552,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         lastError,
         refreshAll: fetchData,
         addEvent,
+  addEventWithCoordinators,
         updateEvent,
         deleteEvent,
+  addEventCoordinator,
+  updateEventCoordinator,
+  deleteEventCoordinator,
         toggleEventFeatured,
         toggleEventVisibility,
         toggleEventRegistration,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -9,22 +10,32 @@ export const EventsManagement: React.FC = () => {
   const { 
     events, 
     eventCategories,
-    addEvent, 
+  addEventWithCoordinators,
     updateEvent, 
     deleteEvent,
     toggleEventFeatured,
     toggleEventVisibility,
-    toggleEventRegistration
+    toggleEventRegistration,
+    eventCoordinators,
+    addEventCoordinator,
+    updateEventCoordinator,
+    deleteEventCoordinator
   } = useData();
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
+  const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
+  // Draft coordinators when creating a brand new event (before it has an id)
+  const [draftCoordinators, setDraftCoordinators] = useState<Array<{ name: string; phone?: string | null }>>([]);
 
   const [eventForm, setEventForm] = useLocalStorage('admin_events_form_draft', {
     title: '',
     category: '',
     description: '',
     image: '',
+    motion_poster_url: '' as string | null,
+    coordinator_name: '' as string | null,
+    coordinator_phone: '' as string | null,
     date: '',
     time: '',
     venue: '',
@@ -44,6 +55,9 @@ export const EventsManagement: React.FC = () => {
       category: eventCategories.length > 0 ? eventCategories[0].name : '',
       description: '',
       image: '',
+      motion_poster_url: '',
+      coordinator_name: '',
+      coordinator_phone: '',
       date: '',
       time: '',
       venue: '',
@@ -65,13 +79,15 @@ export const EventsManagement: React.FC = () => {
     }
     
     try {
-      await addEvent({
+      // Insert event and any drafted coordinators in one go
+      await addEventWithCoordinators({
         ...eventForm,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
         current_registrations: 0
-      });
+      }, draftCoordinators);
       setIsAddingEvent(false);
       resetEventForm();
+      setDraftCoordinators([]);
       try { localStorage.removeItem('admin_events_form_draft'); } catch {}
     } catch (error: any) {
       console.error('Error adding event:', error);
@@ -140,6 +156,9 @@ export const EventsManagement: React.FC = () => {
       category: event.category,
       description: event.description,
       image: event.image,
+      motion_poster_url: event.motion_poster_url || '',
+      coordinator_name: event.coordinator_name || '',
+      coordinator_phone: event.coordinator_phone || '',
       date: event.date,
       time: event.time,
       venue: event.venue,
@@ -153,6 +172,51 @@ export const EventsManagement: React.FC = () => {
   artist_id: event.artist_id ?? undefined
     });
     setEditingEvent(event.id);
+  };
+
+  const coordinatorsFor = (eventId: number): EventCoordinator[] => eventCoordinators.filter(c => c.event_id === eventId).sort((a,b)=>a.order_position - b.order_position);
+  const addCoordinator = async (eventId: number) => {
+    if (!newCoordinator.name.trim() && !newCoordinator.phone.trim()) return;
+    await addEventCoordinator({ event_id: eventId, name: newCoordinator.name.trim() || '—', phone: newCoordinator.phone.trim() || null, order_position: (coordinatorsFor(eventId).slice(-1)[0]?.order_position ?? 0) + 1 });
+    setNewCoordinator({ name: '', phone: '' });
+  };
+
+  const removeCoordinator = async (id: number) => {
+    await deleteEventCoordinator(id);
+  };
+
+  const updateCoordinatorField = async (id: number, field: 'name' | 'phone', value: string) => {
+    await updateEventCoordinator(id, { [field]: value } as any);
+  };
+
+  const moveCoordinator = async (eventId: number, id: number, delta: -1 | 1) => {
+    const list = coordinatorsFor(eventId);
+    const i = list.findIndex(c => c.id === id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    const a = list[i];
+    const b = list[j];
+    try {
+      await Promise.all([
+        updateEventCoordinator(a.id, { order_position: b.order_position }),
+        updateEventCoordinator(b.id, { order_position: a.order_position })
+      ]);
+    } catch (e) {
+      console.error('Failed to reorder coordinators', e);
+      alert('Could not reorder right now. Please try again.');
+    }
+  };
+
+  const moveDraftCoordinator = (index: number, delta: -1 | 1) => {
+    setDraftCoordinators(prev => {
+      const j = index + delta;
+      if (index < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[index];
+      next[index] = next[j];
+      next[j] = tmp;
+      return next;
+    });
   };
 
   const addHighlight = () => {
@@ -273,6 +337,72 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.time}
                     onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
                     placeholder="e.g., 10:00 AM - 2:00 PM"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+              </div>
+              {/* Coordinators (draft while creating a new event) */}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <div className="text-sm font-semibold text-gray-700 mb-2">Coordinators</div>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {draftCoordinators.map((c, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                      <input
+                        className="col-span-5 p-2 text-sm border rounded"
+                        value={c.name}
+                        onChange={(e)=>{
+                          const v = e.target.value; setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, name: v }: row));
+                        }}
+                        placeholder="Name"
+                      />
+                      <input
+                        className="col-span-5 p-2 text-sm border rounded"
+                        value={c.phone || ''}
+                        onChange={(e)=>{
+                          const v = e.target.value; setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, phone: v }: row));
+                        }}
+                        placeholder="Phone"
+                      />
+                      <div className="col-span-2 flex items-center gap-1">
+                        <button type="button" onClick={()=>moveDraftCoordinator(idx,-1)} className="p-1 text-gray-600 hover:text-gray-800" title="Move up"><ArrowUp size={14} /></button>
+                        <button type="button" onClick={()=>moveDraftCoordinator(idx,1)} className="p-1 text-gray-600 hover:text-gray-800" title="Move down"><ArrowDown size={14} /></button>
+                        <button type="button" onClick={()=>setDraftCoordinators(prev=>prev.filter((_,i)=>i!==idx))} className="p-1 text-red-600" title="Delete"><Trash2 size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-12 gap-2 mt-2">
+                  <input className="col-span-5 p-2 text-sm border rounded" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
+                  <input className="col-span-5 p-2 text-sm border rounded" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
+                  <button
+                    type="button"
+                    onClick={()=>{
+                      if (!newCoordinator.name.trim() && !newCoordinator.phone.trim()) return;
+                      setDraftCoordinators(prev=>[...prev, { name: newCoordinator.name.trim() || '—', phone: newCoordinator.phone.trim() || null }]);
+                      setNewCoordinator({ name: '', phone: '' });
+                    }}
+                    className="col-span-2 bg-green-600 text-white rounded text-xs px-2"
+                  >Add</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Coordinator Name</label>
+                  <input
+                    type="text"
+                    value={eventForm.coordinator_name || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_name: e.target.value }))}
+                    placeholder="Name of coordinator"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Coordinator Phone</label>
+                  <input
+                    type="tel"
+                    value={eventForm.coordinator_phone || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_phone: e.target.value }))}
+                    placeholder="e.g., +91 90000 00000"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   />
                 </div>
@@ -412,6 +542,19 @@ export const EventsManagement: React.FC = () => {
                   currentImage={eventForm.image}
                   bucket="event-images"
                   folder="events"
+                  cropAspect={16/9}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Motion Poster (Video)</label>
+                <ImageUpload
+                  onImageSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
+                  currentImage={eventForm.motion_poster_url || ''}
+                  bucket="event-images"
+                  folder="events/motion-posters"
+                  acceptedTypes="video/*"
+                  fileTypeLabel="MP4, MOV, WEBM up to 50MB"
+                  enableCropper={false}
                 />
               </div>
             </div>
@@ -532,7 +675,21 @@ export const EventsManagement: React.FC = () => {
                   bucket="event-images"
                   folder="events"
                   className="h-32"
+                  cropAspect={16/9}
                 />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motion Poster (Video)</label>
+                  <ImageUpload
+                    onImageSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
+                    currentImage={eventForm.motion_poster_url || ''}
+                    bucket="event-images"
+                    folder="events/motion-posters"
+                    acceptedTypes="video/*"
+                    fileTypeLabel="MP4, MOV, WEBM up to 50MB"
+                    enableCropper={false}
+                    className="mt-1"
+                  />
+                </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
                   <button
                     type="button"
@@ -553,6 +710,28 @@ export const EventsManagement: React.FC = () => {
                     <Save size={14} className="mr-1" />
                     Save
                   </button>
+                </div>
+                {/* Coordinators management */}
+                <div className="mt-4 border-t pt-3">
+                  <div className="text-sm font-semibold mb-2">Coordinators</div>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {coordinatorsFor(event.id).map((c, idx, list) => (
+                      <div key={c.id} className="grid grid-cols-12 gap-2 items-center">
+                        <input className="col-span-5 p-1 text-sm border rounded" value={c.name} onChange={(e)=>updateCoordinatorField(c.id,'name',e.target.value)} />
+                        <input className="col-span-5 p-1 text-sm border rounded" value={c.phone || ''} onChange={(e)=>updateCoordinatorField(c.id,'phone',e.target.value)} />
+                        <div className="col-span-2 flex items-center gap-1">
+                          <button type="button" onClick={()=>moveCoordinator(event.id, c.id, -1)} disabled={idx===0} className={`p-1 ${idx===0? 'text-gray-300':'text-gray-600 hover:text-gray-800'}`} title="Move up"><ArrowUp size={12} /></button>
+                          <button type="button" onClick={()=>moveCoordinator(event.id, c.id, 1)} disabled={idx===list.length-1} className={`p-1 ${idx===list.length-1? 'text-gray-300':'text-gray-600 hover:text-gray-800'}`} title="Move down"><ArrowDown size={12} /></button>
+                          <button type="button" onClick={()=>removeCoordinator(c.id)} className="p-1 text-red-600" title="Delete"><Trash2 size={12} /></button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-12 gap-2 mt-2">
+                    <input className="col-span-5 p-1 text-sm border rounded" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
+                    <input className="col-span-5 p-1 text-sm border rounded" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
+                    <button type="button" onClick={()=>addCoordinator(event.id)} className="col-span-2 bg-green-600 text-white rounded text-xs px-2">Add</button>
+                  </div>
                 </div>
               </div>
             ) : (

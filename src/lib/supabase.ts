@@ -78,6 +78,9 @@ export interface Database {
           category: string
           description: string
           image: string
+          motion_poster_url: string | null
+          coordinator_name: string | null
+          coordinator_phone: string | null
           date: string
           time: string
           venue: string
@@ -98,6 +101,9 @@ export interface Database {
           category: string
           description: string
           image: string
+          motion_poster_url?: string | null
+          coordinator_name?: string | null
+          coordinator_phone?: string | null
           date: string
           time: string
           venue: string
@@ -118,6 +124,9 @@ export interface Database {
           category?: string
           description?: string
           image?: string
+          motion_poster_url?: string | null
+          coordinator_name?: string | null
+          coordinator_phone?: string | null
           date?: string
           time?: string
           venue?: string
@@ -131,6 +140,35 @@ export interface Database {
           visible?: boolean
           artist_id?: number | null
           created_at?: string
+        }
+      }
+      event_coordinators: {
+        Row: {
+          id: number
+          event_id: number
+          name: string
+          phone: string | null
+          order_position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          event_id: number
+          name: string
+          phone?: string | null
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          event_id?: number
+          name?: string
+          phone?: string | null
+          order_position?: number
+          created_at?: string
+          updated_at?: string
         }
       }
       gallery_settings: {
@@ -415,6 +453,8 @@ export interface Database {
           image: string
           description: string
           achievements: string[]
+          email: string | null
+          phone: string | null
           order_position: number
           enabled: boolean
           created_at: string
@@ -427,6 +467,8 @@ export interface Database {
           image: string
           description: string
           achievements?: string[]
+          email?: string | null
+          phone?: string | null
           order_position?: number
           enabled?: boolean
           created_at?: string
@@ -439,6 +481,8 @@ export interface Database {
           image?: string
           description?: string
           achievements?: string[]
+          email?: string | null
+          phone?: string | null
           order_position?: number
           enabled?: boolean
           created_at?: string
@@ -493,6 +537,7 @@ export interface Database {
           order_position: number
           enabled: boolean
           is_head: boolean
+          phone: string | null
           social_links: any
           created_at: string
           updated_at: string
@@ -509,6 +554,7 @@ export interface Database {
           order_position?: number
           enabled?: boolean
           is_head?: boolean
+          phone?: string | null
           social_links?: any
           created_at?: string
           updated_at?: string
@@ -525,6 +571,7 @@ export interface Database {
           order_position?: number
           enabled?: boolean
           is_head?: boolean
+          phone?: string | null
           social_links?: any
           created_at?: string
           updated_at?: string
@@ -632,8 +679,11 @@ export interface Database {
           featured_partners_enabled: boolean
           show_faculty_heads: boolean
           show_committee_heads: boolean
-          partners_carousel_speed_ms: number
           leadership_carousel_speed_ms: number
+          sponsors_belt_speed_px_per_sec: number
+          committee_marquee_speed_px_per_sec: number
+          sponsors_belt_direction: 'left' | 'right'
+          committee_marquee_direction: 'left' | 'right'
           created_at: string
           updated_at: string
         }
@@ -650,8 +700,11 @@ export interface Database {
           featured_partners_enabled?: boolean
           show_faculty_heads?: boolean
           show_committee_heads?: boolean
-          partners_carousel_speed_ms?: number
           leadership_carousel_speed_ms?: number
+          sponsors_belt_speed_px_per_sec?: number
+          committee_marquee_speed_px_per_sec?: number
+          sponsors_belt_direction?: 'left' | 'right'
+          committee_marquee_direction?: 'left' | 'right'
           created_at?: string
           updated_at?: string
         }
@@ -668,8 +721,11 @@ export interface Database {
           featured_partners_enabled?: boolean
           show_faculty_heads?: boolean
           show_committee_heads?: boolean
-          partners_carousel_speed_ms?: number
           leadership_carousel_speed_ms?: number
+          sponsors_belt_speed_px_per_sec?: number
+          committee_marquee_speed_px_per_sec?: number
+          sponsors_belt_direction?: 'left' | 'right'
+          committee_marquee_direction?: 'left' | 'right'
           created_at?: string
           updated_at?: string
         }
@@ -731,6 +787,10 @@ export interface Database {
           enabled: boolean
           is_featured: boolean
           social_links: any
+          performance_at: string | null
+          venue: string | null
+          countdown_enabled: boolean
+          live_now_enabled: boolean
           created_at: string
           updated_at: string
         }
@@ -749,6 +809,10 @@ export interface Database {
           enabled?: boolean
           is_featured?: boolean
           social_links?: any
+          performance_at?: string | null
+          venue?: string | null
+          countdown_enabled?: boolean
+          live_now_enabled?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -767,6 +831,10 @@ export interface Database {
           enabled?: boolean
           is_featured?: boolean
           social_links?: any
+          performance_at?: string | null
+          venue?: string | null
+          countdown_enabled?: boolean
+          live_now_enabled?: boolean
           created_at?: string
           updated_at?: string
         }

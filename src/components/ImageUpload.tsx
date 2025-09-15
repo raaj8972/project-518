@@ -137,7 +137,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       reader.onload = () => {
         const dataUrl = reader.result as string;
         setCropSrc(dataUrl);
-        setZoom(1);
+        setZoom(0.9); // start slightly zoomed-out for easier full-photo view
         setCrop({ x: 0, y: 0 });
         setError('');
       };
@@ -273,6 +273,35 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setUploadHint('');
     setUploading(false);
   }
+  };
+
+  // Explicit "Use Full Photo" path: ignore the crop area and upload the whole image
+  const confirmFullImageUpload = async () => {
+    if (!cropSrc) return;
+    let hintTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      setUploading(true);
+      setUploadHint('');
+      hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
+      const blob = await getCroppedImgBlob(cropSrc, null);
+      const file = new File([blob], `full_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const fileUrl = await uploadToSupabase(file);
+      setPendingImage(fileUrl);
+      if (autoSave) {
+        onImageSelect(fileUrl);
+        setHasUnsavedChanges(false);
+      } else {
+        setHasUnsavedChanges(true);
+      }
+      setCropSrc(null);
+    } catch (err) {
+      console.error('Full image upload failed:', err);
+      setError(err instanceof Error ? err.message : 'Full image upload failed');
+    } finally {
+      if (hintTimer) clearTimeout(hintTimer);
+      setUploadHint('');
+      setUploading(false);
+    }
   };
 
   const cancelCrop = () => {
@@ -537,21 +566,23 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">Adjust & Crop</h3>
-              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. Ensure the face or content is centered.</p>
+              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. You can zoom out to see the full photo, or use the button to upload the entire image.</p>
             </div>
             <div className="relative" style={{ height: 420 }}>
               <Cropper
                 image={cropSrc}
                 crop={crop}
                 zoom={zoom}
-                aspect={cropAspect || 1}
+                aspect={cropAspect}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
                 onCropComplete={onCropComplete}
                 restrictPosition={false}
-                objectFit="cover"
+                objectFit="contain"
                 cropShape="rect"
                 showGrid={false}
+                minZoom={0.2}
+                maxZoom={8}
               />
             </div>
             <div className="flex items-center justify-between p-4 border-t bg-gray-50">
@@ -559,8 +590,8 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                 <label className="text-sm text-gray-600">Zoom</label>
                 <input
                   type="range"
-                  min={1}
-                  max={3}
+                  min={0.2}
+                  max={8}
                   step={0.01}
                   value={zoom}
                   onChange={(e) => setZoom(parseFloat(e.target.value))}
@@ -568,6 +599,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>
+                <button type="button" onClick={confirmFullImageUpload} disabled={uploading} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm">Use Full Photo</button>
                 <button type="button" onClick={confirmCropAndUpload} disabled={uploading} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm">Crop & Upload</button>
               </div>
             </div>

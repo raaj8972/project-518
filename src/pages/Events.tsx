@@ -5,7 +5,8 @@ import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 
 export const Events: React.FC = () => {
-  const { events, connectionStatus, lastError, refreshAll } = useData();
+  const { events, eventCoordinators, connectionStatus, lastError, refreshAll } = useData();
+  const getCoordinators = (eventId: number) => eventCoordinators?.filter(c => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
   const [registrationModal, setRegistrationModal] = useState<{ isOpen: boolean; eventId: number; eventTitle: string }>(
     { isOpen: false, eventId: 0, eventTitle: '' }
@@ -18,6 +19,14 @@ export const Events: React.FC = () => {
   const visibleEvents = events.filter((e) => e.visible !== false);
   const categories = ['All', ...Array.from(new Set(visibleEvents.map((e) => e.category)))];
   const filteredEvents = selectedCategory === 'All' ? visibleEvents : visibleEvents.filter((e) => e.category === selectedCategory);
+  const categoriesKey = categories.join('|');
+
+  // If current selection disappears due to data refresh, fallback to All so cards render
+  useEffect(() => {
+    if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
+      setSelectedCategory('All');
+    }
+  }, [categoriesKey, selectedCategory]);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -38,7 +47,13 @@ export const Events: React.FC = () => {
     );
     document.querySelectorAll('.scroll-animate').forEach((el) => io.observe(el));
     return () => io.disconnect();
-  }, [events]);
+  }, [events, selectedCategory, filteredRulesKey(filteredEvents)]);
+
+  // Stable key for dependency to re-run observer when filteredEvents set changes
+  function filteredRulesKey(list: typeof filteredEvents) {
+    // use ids + length to avoid heavy deps, and ensure change when category toggles
+    return list.length + ':' + list.map((e) => e.id).join(',');
+  }
 
   // Soft perspective tilt on hover for desktop/fine pointers
   useEffect(() => {
@@ -98,6 +113,12 @@ export const Events: React.FC = () => {
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const getCategoryColor = (c: string) => ({ Cultural: 'from-purple-500 to-pink-500', Technical: 'from-blue-500 to-cyan-500', Sports: 'from-green-500 to-emerald-500', default: 'from-gray-500 to-gray-600' } as Record<string, string>)[c] || 'from-gray-500 to-gray-600';
 
+  // Reset UI state when category changes to avoid empty-looking UI due to flipped/expanded states
+  useEffect(() => {
+    setExpandedRules(new Set());
+    setFlippedCards(new Set());
+  }, [selectedCategory]);
+
   return (
     <div className="cyberpunk-theme min-h-screen">
       {connectionStatus !== 'ok' && (
@@ -147,10 +168,16 @@ export const Events: React.FC = () => {
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-10">
             <div className="flex justify-center mb-8">
-              <div className="cyberpunk-card inline-block p-4">
-                <div className="flex flex-wrap gap-3 justify-center">
+              <div className="cyberpunk-card w-full md:max-w-5xl lg:max-w-6xl xl:max-w-7xl p-3 md:p-4">
+                <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
                   {categories.map((category) => (
-                    <button key={category} onClick={() => setSelectedCategory(category)} className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 border-2 hover-float ${selectedCategory === category ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-pink-500 shadow-lg shadow-pink-500/25' : 'text-gray-300 border-gray-600 hover:border-pink-500/50 hover:text-pink-400'}`}>{category}</button>
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`filter-btn px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-all duration-300 border-2 whitespace-nowrap hover-float ${selectedCategory === category ? 'bg-gradient-to-r from-pink-500 to-purple-500 text-white border-pink-500 shadow-lg shadow-pink-500/25' : 'text-gray-300 border-gray-600 hover:border-pink-500/50 hover:text-pink-400'}`}
+                    >
+                      {category}
+                    </button>
                   ))}
                 </div>
               </div>
@@ -163,16 +190,27 @@ export const Events: React.FC = () => {
         <div className="container mx-auto px-4" ref={eventsRef}>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event, index) => (
-              <div key={event.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
+              <div key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className={`flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
-                    <button className="flip-face flip-front relative" onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
+                    <button className="flip-face flip-front relative group" onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
                       <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})` }} />
-                      <div className="absolute top-4 left-4">
+                      {event.motion_poster_url ? (
+                        <video
+                          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video"
+                          src={event.motion_poster_url}
+                          autoPlay
+                          muted
+                          playsInline
+                          loop
+                          poster={event.image}
+                        />
+                      ) : null}
+                      <div className="absolute top-4 left-4 z-10">
                         <span className={`bg-gradient-to-r ${getCategoryColor(event.category)} text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg`}>{event.category}</span>
                       </div>
                       {event.featured && (
-                        <div className="absolute bottom-4 right-4">
+                        <div className="absolute bottom-4 right-4 z-10">
                           <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2 rounded-full animate-pulse pulse-ring">
                             <Star className="w-4 h-4 fill-current" />
                           </div>
@@ -190,6 +228,21 @@ export const Events: React.FC = () => {
                             <div className="flex items-center text-sm text-gray-400"><Clock size={16} className="mr-2 text-green-400" />{event.time}</div>
                             <div className="flex items-center text-sm text-gray-400"><MapPin size={16} className="mr-2 text-purple-400" />{event.venue}</div>
                             <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{event.participants} participants</div>
+                            {getCoordinators(event.id).length > 0 ? (
+                              <div className="mt-2 text-sm text-gray-300">
+                                <div className="font-semibold text-gray-200">Coordinators</div>
+                                <div className="text-gray-400 space-y-0.5">
+                                  {getCoordinators(event.id).map(c => (
+                                    <div key={c.id}>{c.name}{c.phone ? ` • ${c.phone}` : ''}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : ((event as any).coordinator_name || (event as any).coordinator_phone) ? (
+                              <div className="mt-2 text-sm text-gray-300">
+                                <div className="font-semibold text-gray-200">Coordinator</div>
+                                <div className="text-gray-400">{(event as any).coordinator_name || '—'}{(event as any).coordinator_phone ? ` • ${(event as any).coordinator_phone}` : ''}</div>
+                              </div>
+                            ) : null}
                             {event.max_participants && (
                               <div className="mt-3">
                                 <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Registrations</span><span>{event.current_registrations || 0} / {event.max_participants}</span></div>
@@ -277,15 +330,14 @@ export const Events: React.FC = () => {
 
       <style>{`
         /* Flip card styles */
-        .flip-3d { perspective: 1200px; position: relative; height: 380px; }
-        @media (min-width: 480px) { .flip-3d { height: 420px; } }
-        @media (min-width: 768px) { .flip-3d { height: 520px; } }
+  .flip-3d { perspective: 1200px; position: relative; height: 460px; }
+  @media (min-width: 480px) { .flip-3d { height: 520px; } }
+  @media (min-width: 768px) { .flip-3d { height: 620px; } }
   .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); z-index: 10; }
         .flip-3d.is-flipped .flip-3d-inner { transform: rotateY(180deg); }
-        /* Only enable hover flip on devices with fine pointer (non-touch) */
+        /* Remove hover flip so hover can reveal motion poster video on the front; flip via click only */
         @media (hover: hover) and (pointer: fine) {
-          .flip-3d:hover .flip-3d-inner { transform: rotateY(180deg); }
-          .flip-3d:hover .flip-front-media { transform: scale(1.08); }
+          .tilt-card:hover .flip-front-media { transform: scale(1.08); }
         }
           .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
         .flip-front { z-index: 2; }
@@ -294,7 +346,7 @@ export const Events: React.FC = () => {
           @media (hover: hover) and (pointer: fine) {
             .tilt-card:hover .flip-front-media { transform: translateZ(22px) scale(1.06); }
           }
-  .flip-back { transform: rotateY(180deg); background: rgba(20,20,40,0.92); border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 11; }
+  .flip-back { transform: rotateY(180deg); background: #000; border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 11; }
 
         /* Animated neon border ring around the entire card (both faces) */
         .neon-anim-border {
@@ -367,10 +419,21 @@ export const Events: React.FC = () => {
             radial-gradient(60% 120% at -10% 50%, rgba(255,0,255,0.08), transparent 60%),
             radial-gradient(60% 120% at 110% 50%, rgba(14,116,144,0.06), transparent 60%);
           filter: blur(34px); /* increased blur for softer light */
-          opacity: 0.55; /* slightly reduced intensity */
+          opacity: 0.25; /* even darker overall look by reducing inner glow */
           z-index: 5;
           pointer-events: none;
           transition: opacity 250ms ease, filter 250ms ease;
+        }
+        /* Dark overlay on the front face to reduce brightness (below badges) */
+        .flip-front::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 12px;
+          background: linear-gradient(to bottom, rgba(0,0,0,0.60), rgba(0,0,0,0.85));
+          z-index: 1; /* keep below badges and labels */
+          pointer-events: none;
+          transition: opacity 250ms ease;
         }
         @media (hover: hover) and (pointer: fine) {
           .neon-anim-border:hover {
@@ -384,7 +447,7 @@ export const Events: React.FC = () => {
         inset 0 0 80px rgba(14,116,144,0.08);
           }
           .neon-anim-border:hover::before { filter: saturate(150%) brightness(1.1); }
-      .neon-anim-border:hover::after { opacity: 0.65; filter: blur(40px); }
+      .neon-anim-border:hover::after { opacity: 0.55; filter: blur(36px); }
         }
 
         /* Subtle curvature highlight inside both faces */
@@ -436,10 +499,10 @@ export const Events: React.FC = () => {
         @keyframes particleFloat { 0% { transform: translateY(100vh) scale(0); opacity:0; } 10% { opacity:1; } 90% { opacity:1; } 100% { transform: translateY(-100px) scale(1); opacity:0; } }
   .cyberpunk-title { background: linear-gradient(45deg, #ff00ff, #0e7490, #ff00ff); background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation: gradientShift 3s ease-in-out infinite; }
         @keyframes gradientShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
-        .neon-pink { color:#ff00ff; text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff; }
-  .neon-blue { color:#0e7490; text-shadow: 0 0 5px #0e7490, 0 0 10px #0e7490; }
-  .neon-purple { color:#5b21b6; text-shadow: 0 0 5px #5b21b6, 0 0 10px #5b21b6; }
-        .glow-text { text-shadow: 0 0 3px currentColor, 0 0 6px currentColor; }
+    .neon-pink { color:#ff00ff; text-shadow: 0 0 2px #ff00ff, 0 0 4px #ff00ff; }
+  .neon-blue { color:#0e7490; text-shadow: 0 0 2px #0e7490, 0 0 4px #0e7490; }
+  .neon-purple { color:#5b21b6; text-shadow: 0 0 2px #5b21b6, 0 0 4px #5b21b6; }
+    .glow-text { text-shadow: 0 0 2px currentColor, 0 0 4px currentColor; }
         .pulse-glow { animation: pulseGlow 2s ease-in-out infinite alternate; }
         @keyframes pulseGlow { from { box-shadow: 0 0 5px rgba(255,0,255,0.3);} to { box-shadow: 0 0 15px rgba(255,0,255,0.6);} }
         .glitch-active { animation: glitch 0.3s ease-in-out; }
@@ -527,7 +590,7 @@ export const Events: React.FC = () => {
           background: linear-gradient(90deg, #ff00ff, #ffffff 35%, #0e7490 70%, #ff00ff 100%);
           background-size: 200% 100%;
           -webkit-background-clip: text; background-clip: text; color: transparent;
-          text-shadow: 0 0 8px rgba(255,0,255,.45), 0 0 16px rgba(14,116,144,.28);
+          text-shadow: 0 0 4px rgba(255,0,255,.38), 0 0 8px rgba(14,116,144,.22);
           animation: glowTextSweep 2.4s linear infinite;
         }
         @keyframes glowTextSweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
@@ -537,6 +600,10 @@ export const Events: React.FC = () => {
           .cyberpunk-title { font-size: 2rem; }
           .hero-section h1 { font-size: 2.25rem !important; }
           .hero-section p { font-size: 0.95rem !important; }
+          /* One-line, horizontally scrollable category row on mobile */
+          .filter-row { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+          .filter-row::-webkit-scrollbar { display: none; }
+          .filter-btn { font-size: 0.85rem; }
         }
       `}</style>
     </div>

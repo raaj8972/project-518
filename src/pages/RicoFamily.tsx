@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Heart, Star, Crown, Instagram, Youtube, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
+import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
+import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
+import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
+import Phone3DButtonLink from '../components/Phone3DButtonLink';
+import Email3DButtonLink from '../components/Email3DButtonLink';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
@@ -319,26 +323,13 @@ export const RicoFamily: React.FC = () => {
                                   
                                   {/* Social Links */}
                                   {head.social_links && Object.values(head.social_links).some(link => link) && (
-                                    <div className="flex space-x-3 mb-4">
+                                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                                      <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
                                       {head.social_links.instagram && (
-                                        <a
-                                          href={head.social_links.instagram}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-150"
-                                        >
-                                          <Instagram size={48} />
-                                        </a>
+                                        <Instagram3DButtonLink href={head.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${head.name}`} />
                                       )}
                                       {head.social_links.youtube && (
-                                        <a
-                                          href={head.social_links.youtube}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-red-400 hover:text-red-300 transition-colors hover:scale-110"
-                                        >
-                                          <Youtube size={30} />
-                                        </a>
+                                        <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />
                                       )}
                                       {head.social_links.spotify && (
                                         <a
@@ -350,6 +341,20 @@ export const RicoFamily: React.FC = () => {
                                           <Spotify size={30} />
                                         </a>
                                       )}
+                                    </div>
+                                  )}
+                                  {/* Contact Icons */}
+                                  {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
+                                    <div className="mb-4">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
+                                        {Boolean((head as any).email) && (
+                                          <Email3DButtonLink href={`mailto:${(head as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${head.name}`} />
+                                        )}
+                                        {Boolean((head as any).phone) && (
+                                          <Phone3DButtonLink href={`tel:${(head as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${head.name}`} />
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                   
@@ -430,26 +435,13 @@ export const RicoFamily: React.FC = () => {
                                   
                                   {/* Social Links */}
                                   {member.social_links && Object.values(member.social_links).some(link => link) && (
-                                    <div className="flex space-x-3 mb-3">
+                                    <div className="flex flex-wrap items-center gap-2 mb-3">
+                                      <span className="text-[10px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
                                       {member.social_links.instagram && (
-                                        <a
-                                          href={member.social_links.instagram}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110"
-                                        >
-                                          <Instagram size={28} />
-                                        </a>
+                                        <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={38} ariaLabel={`Instagram of ${member.name}`} />
                                       )}
                                       {member.social_links.youtube && (
-                                        <a
-                                          href={member.social_links.youtube}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-red-400 hover:text-red-300 transition-colors hover:scale-110"
-                                        >
-                                          <Youtube size={18} />
-                                        </a>
+                                        <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={36} ariaLabel={`YouTube of ${member.name}`} />
                                       )}
                                       {member.social_links.spotify && (
                                         <a
@@ -476,6 +468,20 @@ export const RicoFamily: React.FC = () => {
                                         ))}
                                         {member.achievements.length > 1 && (
                                           <div>+{member.achievements.length - 1} more</div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Contact Icons */}
+                                  {(Boolean((member as any).phone) || Boolean((member as any).email)) && (
+                                    <div className="mb-2">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[10px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
+                                        {Boolean((member as any).email) && (
+                                          <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
+                                        )}
+                                        {Boolean((member as any).phone) && (
+                                          <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
                                         )}
                                       </div>
                                     </div>
@@ -682,7 +688,17 @@ export const RicoFamily: React.FC = () => {
       <FacultyProfileModal
         open={facultyModalOpen}
         onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); }}
-        person={selectedFaculty}
+        person={selectedFaculty ? {
+          name: selectedFaculty.name,
+          title: selectedFaculty.title,
+          image: selectedFaculty.image,
+          description: selectedFaculty.description,
+          specialty: (selectedFaculty as any).specialty,
+          email: (selectedFaculty as any).email,
+          phone: (selectedFaculty as any).phone,
+          achievements: selectedFaculty.achievements,
+          social_links: (selectedFaculty as any).social_links,
+        } : null}
       />
 
       <style>{`
@@ -763,43 +779,42 @@ export const RicoFamily: React.FC = () => {
         .neon-text {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff,
-            0 0 15px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 5px #ff00ff,
-            0 0 10px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .neon-blue {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-purple {
           color: #8a2be2;
           text-shadow: 
-            0 0 5px #8a2be2,
-            0 0 10px #8a2be2;
+            0 0 2px #8a2be2,
+            0 0 4px #8a2be2;
         }
 
         .neon-yellow {
           color: #ffff00;
           text-shadow: 
-            0 0 5px #ffff00,
-            0 0 10px #ffff00;
+            0 0 2px #ffff00,
+            0 0 4px #ffff00;
         }
 
         .glow-text {
           text-shadow: 
-            0 0 3px currentColor,
-            0 0 6px currentColor;
+            0 0 2px currentColor,
+            0 0 4px currentColor;
         }
 
         .glitch-active {
@@ -1035,14 +1050,14 @@ export const RicoFamily: React.FC = () => {
         @keyframes nameGlow {
           from {
             text-shadow: 
-              0 0 5px #ffff00,
-              0 0 10px #ffff00;
+              0 0 2px #ffff00,
+              0 0 4px #ffff00;
           }
           to {
             text-shadow: 
-              0 0 10px #ffff00,
-              0 0 20px #ffff00,
-              0 0 30px #ffff00;
+              0 0 4px #ffff00,
+              0 0 8px #ffff00,
+              0 0 12px #ffff00;
           }
         }
 

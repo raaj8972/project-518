@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useAuth } from '../../context/AuthContext';
 
 // Spotify icon component since it's not in lucide-react
 const Spotify = ({ className }: { className?: string }) => (
@@ -13,6 +14,7 @@ const Spotify = ({ className }: { className?: string }) => (
 );
 
 export const CoreTeamManagement: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const { 
     coreCommittees,
     coreTeamMembers,
@@ -53,6 +55,7 @@ export const CoreTeamManagement: React.FC = () => {
     order_position: 1,
     enabled: true,
     is_head: false,
+    phone: '',
     social_links: {
       instagram: '',
       youtube: '',
@@ -83,6 +86,7 @@ export const CoreTeamManagement: React.FC = () => {
       order_position: coreTeamMembers.length + 1,
       enabled: true,
       is_head: false,
+      phone: '',
       social_links: {
         instagram: '',
         youtube: '',
@@ -159,6 +163,11 @@ export const CoreTeamManagement: React.FC = () => {
 
   // Member Management
   const handleAddMember = async () => {
+    // Validate committee selection
+    if (!memberForm.committee_id || !coreCommittees.some(c => c.id === memberForm.committee_id)) {
+      alert('Please select a committee for this member');
+      return;
+    }
     if (!memberForm.name || !memberForm.role || !memberForm.image || !memberForm.description || !memberForm.specialty) {
       alert('Please fill in all required fields');
       return;
@@ -176,6 +185,10 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateMember = async (id: number) => {
+    if (!memberForm.committee_id || !coreCommittees.some(c => c.id === memberForm.committee_id)) {
+      alert('Please select a valid committee');
+      return;
+    }
     if (!memberForm.name || !memberForm.role || !memberForm.image || !memberForm.description || !memberForm.specialty) {
       alert('Please fill in all required fields');
       return;
@@ -215,6 +228,7 @@ export const CoreTeamManagement: React.FC = () => {
       order_position: member.order_position,
       enabled: member.enabled,
       is_head: member.is_head,
+      phone: (member as any).phone || '',
       social_links: member.social_links || { instagram: '', youtube: '', spotify: '' }
     });
     setEditingMember(member.id);
@@ -261,6 +275,11 @@ export const CoreTeamManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {!isAuthenticated && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded" role="alert">
+          <p className="text-sm font-medium">You are not logged in. Adding or editing committees and team members may be blocked by security policies. Please log in via the Admin header.</p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -673,6 +692,16 @@ export const CoreTeamManagement: React.FC = () => {
                     </div>
                   </div>
                   <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone (optional)</label>
+                    <input
+                      type="tel"
+                      value={memberForm.phone}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+91 98765 43210 (optional)"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Specialty *</label>
                     <input
                       type="text"
@@ -810,6 +839,7 @@ export const CoreTeamManagement: React.FC = () => {
                       currentImage={memberForm.image}
                       bucket="team-images"
                       folder="core-team"
+                      cropAspect={1}
                     />
                   </div>
                 </div>
@@ -896,6 +926,13 @@ export const CoreTeamManagement: React.FC = () => {
                             className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                           />
                           <input
+                            type="tel"
+                            value={memberForm.phone}
+                            onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+                            placeholder="Phone (optional)"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          />
+                          <input
                             type="text"
                             value={memberForm.specialty}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
@@ -957,6 +994,7 @@ export const CoreTeamManagement: React.FC = () => {
                             bucket="team-images"
                             folder="core-team"
                             className="h-24"
+                            cropAspect={1}
                           />
                           <div className="flex justify-end space-x-2">
                             <button

@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Download, Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
-// import GalleryArcSlider from '../components/GalleryArcSlider';
-import GalleryWave from '../components/GalleryWave';
+import DomeGallery from '../components/DomeGallery';
 import HeroBackground from '../components/HeroBackground';
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, eventCategories, gallerySettings } = useData();
-  const [selectedImage, setSelectedImage] = useState<number | null>(null);
+  const { galleryImages, eventCategories } = useData();
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const categories = ['All', ...eventCategories.map(cat => cat.name)];
@@ -15,6 +13,15 @@ export const Gallery: React.FC = () => {
   const filteredImages = selectedCategory === 'All' 
     ? galleryImages 
     : galleryImages.filter(image => image.category === selectedCategory);
+
+  // Build images for DomeGallery. If there are no images at all (and 'All' is selected),
+  // let DomeGallery use its built-in demo set by passing undefined.
+  const domeImages = filteredImages.length
+    ? filteredImages.map(img => ({ src: img.src, alt: img.title }))
+    : undefined;
+  // We only show the Dome when either "All" is selected or the current filter has items.
+  // For empty specific categories, we hide the Dome and show the empty-state card instead.
+  const showDome = selectedCategory === 'All' || filteredImages.length > 0;
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -52,30 +59,9 @@ export const Gallery: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const closeLightbox = () => {
-    setSelectedImage(null);
-  };
+  // Lightbox removed; DomeGallery provides its own enlarge experience
 
-  const navigateImage = (direction: 'prev' | 'next') => {
-    if (selectedImage === null) return;
-    
-    const currentIndex = filteredImages.findIndex(img => img.id === galleryImages[selectedImage].id);
-    let newIndex;
-    
-    if (direction === 'prev') {
-      newIndex = currentIndex > 0 ? currentIndex - 1 : filteredImages.length - 1;
-    } else {
-      newIndex = currentIndex < filteredImages.length - 1 ? currentIndex + 1 : 0;
-    }
-    
-    const newImageIndex = galleryImages.findIndex(img => img.id === filteredImages[newIndex].id);
-    setSelectedImage(newImageIndex);
-  };
-
-  const getCategoryColor = (categoryName: string) => {
-    const category = eventCategories.find(cat => cat.name === categoryName);
-    return category ? category.color : '#6B7280';
-  };
+  // No category color helper needed in DomeGallery layout
 
   // Social media links (unused here, kept in context if needed elsewhere)
 
@@ -118,13 +104,13 @@ export const Gallery: React.FC = () => {
         </div>
       </section>
 
-      {/* Category Filter */}
+      {/* Category Filter (optional) */}
       <section className="py-12 relative">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="flex justify-center mb-8">
-              <div className="cyberpunk-card inline-block p-4">
-                <div className="flex flex-wrap gap-3 justify-center">
+              <div className="cyberpunk-card inline-block p-3 md:p-4">
+                <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
                   {categories.map((category) => {
                     const categoryData = eventCategories.find(cat => cat.name === category);
                     const categoryColor = categoryData ? categoryData.color : '#6B7280';
@@ -133,7 +119,7 @@ export const Gallery: React.FC = () => {
                       <button
                         key={category}
                         onClick={() => setSelectedCategory(category)}
-                        className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 border-2 ${
+                        className={`filter-btn px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-all duration-300 border-2 whitespace-nowrap ${
                           selectedCategory === category
                             ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-500 shadow-lg shadow-purple-500/25'
                             : 'text-gray-300 border-gray-600 hover:border-purple-500/50 hover:text-purple-400'
@@ -141,7 +127,7 @@ export const Gallery: React.FC = () => {
                       >
                         {category !== 'All' && (
                           <span 
-                            className="w-3 h-3 rounded-full mr-2 inline-block"
+                            className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full mr-1.5 md:mr-2 inline-block"
                             style={{ backgroundColor: categoryColor }}
                           ></span>
                         )}
@@ -156,117 +142,46 @@ export const Gallery: React.FC = () => {
         </div>
       </section>
 
-      {/* Gallery 3D Stacked Scroll */}
-      <section className="py-12 relative">
-        <div className="container mx-auto px-4">
-          {/* CSS 3D Wave (reference style using :has and sibling selectors) */}
-          <GalleryWave
-            items={filteredImages.map(img => ({ id: img.id, src: img.src, title: img.title }))}
-            revealEnabled={gallerySettings?.reveal_enabled ?? true}
-            revealOrientation={gallerySettings?.reveal_orientation ?? 'horizontal'}
-            revealDurationMs={gallerySettings?.reveal_duration_ms ?? 800}
-            onItemClick={(idx) => {
-              const clicked = filteredImages[idx];
-              if (!clicked) return;
-              const globalIndex = galleryImages.findIndex(g => g.id === clicked.id);
-              if (globalIndex >= 0) setSelectedImage(globalIndex);
-            }}
-          />
+      {/* Dome Gallery (immersive) */}
+      <section className="relative" style={{ height: '90vh', overflow: 'hidden' }}>
+        <div className="absolute inset-0 pointer-events-none" style={{
+          background: 'radial-gradient(ellipse at center, rgba(10,10,20,0.6) 0%, rgba(10,10,10,0.95) 70%)'
+        }} />
+        {showDome && (
+          <div className="absolute inset-0">
+            <DomeGallery
+              images={domeImages}
+              fit={0.52}
+              fitBasis="auto"
+              minRadius={480}
+              maxRadius={1200}
+              padFactor={0.18}
+              overlayBlurColor="#0a0a0a"
+              grayscale={false}
+              imageBorderRadius="18px"
+              openedImageBorderRadius="18px"
+              openedImageWidth="70vmin"
+              openedImageHeight="70vmin"
+            />
+          </div>
+        )}
 
-          {/* No Images Message */}
-          {filteredImages.length === 0 && (
+          {/* No Images Message: show only when a specific category has no results */}
+          {!showDome && (
             <div className="text-center py-12 scroll-animate opacity-0 transform translate-y-20">
               <div className="cyberpunk-card max-w-md mx-auto">
                 <ImageIcon size={64} className="mx-auto mb-4 text-gray-400" />
                 <h3 className="text-xl font-semibold text-gray-300 mb-2">No Images Found</h3>
                 <p className="text-gray-500">
-                  {selectedCategory === 'All' 
-                    ? "No images are currently available."
-                    : `No images found in the ${selectedCategory} category.`
-                  }
+                  {`No images found in the ${selectedCategory} category.`}
                 </p>
               </div>
             </div>
           )}
 
-          {/* Lightbox */}
-          {selectedImage !== null && (
-            <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4">
-              <div className="relative max-w-6xl max-h-full">
-                <button
-                  onClick={closeLightbox}
-                  className="absolute top-4 right-4 text-white hover:text-purple-400 z-10 cyberpunk-btn cyberpunk-btn-secondary"
-                >
-                  <X size={24} />
-                </button>
-                
-                <button
-                  onClick={() => navigateImage('prev')}
-                  className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white hover:text-purple-400 text-4xl z-10 cyberpunk-btn cyberpunk-btn-secondary"
-                >
-                  ‹
-                </button>
-                
-                <button
-                  onClick={() => navigateImage('next')}
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white hover:text-purple-400 text-4xl z-10 cyberpunk-btn cyberpunk-btn-secondary"
-                >
-                  ›
-                </button>
-                
-                <img
-                  src={galleryImages[selectedImage].src}
-                  alt={galleryImages[selectedImage].title}
-                  className="max-w-full max-h-full object-contain rounded-lg"
-                />
-                
-                <div className="absolute bottom-4 left-4 right-4 text-white">
-                  <div className="cyberpunk-card p-4">
-                    <h3 className="text-lg font-semibold mb-2 neon-text">{galleryImages[selectedImage].title}</h3>
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center space-x-2">
-                        <span 
-                          className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: getCategoryColor(galleryImages[selectedImage].category) }}
-                        ></span>
-                        <span className="text-sm text-gray-300">{galleryImages[selectedImage].category} • {galleryImages[selectedImage].year}</span>
-                      </div>
-                      <button
-                        onClick={() => window.open(galleryImages[selectedImage].src, '_blank')}
-                        className="cyberpunk-btn cyberpunk-btn-primary"
-                      >
-                        <span className="relative z-10 flex items-center">
-                          <Download size={16} className="mr-2" />
-                          DOWNLOAD
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Lightbox removed: DomeGallery handles enlarge */}
 
-          {/* Stats */}
-          <div className="mt-16 scroll-animate opacity-0 transform translate-y-20">
-            <div className="cyberpunk-card">
-              <div className="grid md:grid-cols-4 gap-6 text-center p-8">
-                <div>
-                  <div className="text-3xl font-bold neon-purple mb-2">{galleryImages.length}</div>
-                  <div className="text-gray-400">Total Photos</div>
-                </div>
-                {eventCategories.slice(0, 3).map((category) => (
-                  <div key={category.id}>
-                    <div className="text-3xl font-bold neon-blue mb-2">
-                      {galleryImages.filter(img => img.category === category.name).length}
-                    </div>
-                    <div className="text-gray-400">{category.name} Events</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+          {/* Stats (optional) removed for cleaner dome focus */}
       </section>
 
       <style>{`
@@ -347,29 +262,29 @@ export const Gallery: React.FC = () => {
         .neon-text {
           color: #00ffff;
           text-shadow: 
-            0 0 3px #00ffff,
-            0 0 6px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 3px #ff00ff,
-            0 0 6px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .neon-blue {
           color: #00ffff;
           text-shadow: 
-            0 0 3px #00ffff,
-            0 0 6px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-purple {
           color: #8a2be2;
           text-shadow: 
-            0 0 3px #8a2be2,
-            0 0 6px #8a2be2;
+            0 0 2px #8a2be2,
+            0 0 4px #8a2be2;
         }
 
         .cyberpunk-btn {
@@ -484,6 +399,13 @@ export const Gallery: React.FC = () => {
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
+          /* Make category row a one-line scroller */
+          .filter-row {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+          }
+          .filter-row::-webkit-scrollbar { display: none; }
+          .filter-btn { font-size: 0.85rem; }
           .cyberpunk-title {
             font-size: 2rem;
           }
@@ -512,6 +434,8 @@ export const Gallery: React.FC = () => {
         }
         
         @media (max-width: 480px) {
+          .filter-btn { font-size: 0.8rem; }
+          .cyberpunk-card { padding: 8px 6px !important; }
           .cyberpunk-title {
             font-size: 1.5rem;
           }

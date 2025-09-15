@@ -32,6 +32,8 @@ export const SponsorsManagement: React.FC = () => {
   const [editing, setEditing] = useState<number | null>(null);
   const [isAddingPackage, setIsAddingPackage] = useState(false);
   const [editingPackage, setEditingPackage] = useState<number | null>(null);
+  // Track if the admin has manually chosen an icon so we don't override with auto-suggestions
+  const [packageIconTouched, setPackageIconTouched] = useState(false);
   const [isEditingSettings, setIsEditingSettings] = useState(false);
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [editingContact, setEditingContact] = useState<number | null>(null);
@@ -110,7 +112,13 @@ export const SponsorsManagement: React.FC = () => {
     return [...fixedCategories, ...packageTiers];
   };
 
-  const availableCategories = getAvailableCategories();
+  // Dedupe categories derived from packages to avoid duplicate labels
+  const availableCategories = Array.from(new Set(getAvailableCategories()));
+  // Include any categories present on sponsors that are not in available (package-derived) categories
+  const sponsorCategories = Array.from(new Set(sponsors.map((s) => s.category)));
+  const missingCategories = sponsorCategories.filter((c) => !availableCategories.includes(c));
+  // Merge and dedupe combined categories (package-derived first, then any sponsor-only categories)
+  const allCategories = Array.from(new Set([...availableCategories, ...missingCategories]));
 
   const getIconComponent = (iconName: string) => {
     const IconComponent = (LucideIcons as any)[iconName];
@@ -139,6 +147,7 @@ export const SponsorsManagement: React.FC = () => {
       order_position: sponsorshipPackages.length + 1,
       enabled: true
     });
+    setPackageIconTouched(false);
   };
 
   const resetContactForm = () => {
@@ -153,8 +162,8 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleAdd = async () => {
-    if (!form.name || !form.category || !form.logo || !form.description) {
-      alert('Please fill in all required fields (name, category, logo, and description)');
+    if (!form.name || !form.category || !form.logo) {
+      alert('Please fill in all required fields (name, category, and logo)');
       return;
     }
     
@@ -170,8 +179,8 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   const handleUpdate = async (id: number) => {
-    if (!form.name || !form.category || !form.logo || !form.description) {
-      alert('Please fill in all required fields (name, category, logo, and description)');
+    if (!form.name || !form.category || !form.logo) {
+      alert('Please fill in all required fields (name, category, and logo)');
       return;
     }
     
@@ -211,7 +220,7 @@ export const SponsorsManagement: React.FC = () => {
       name: sponsor.name,
       category: sponsor.category,
       logo: sponsor.logo,
-      description: sponsor.description,
+      description: sponsor.description || '',
       website: sponsor.website || '',
       featured: sponsor.featured || false,
       order_position: sponsor.order_position || 1
@@ -284,6 +293,7 @@ export const SponsorsManagement: React.FC = () => {
       enabled: pkg.enabled
     });
     setEditingPackage(pkg.id);
+    setPackageIconTouched(false);
   };
 
   const handleSaveSettings = async () => {
@@ -434,7 +444,7 @@ export const SponsorsManagement: React.FC = () => {
   };
 
   // Group sponsors by category for better organization
-  const groupedSponsors = availableCategories.reduce((acc, category) => {
+  const groupedSponsors = allCategories.reduce((acc, category) => {
     acc[category] = sponsors.filter(sponsor => sponsor.category === category);
     return acc;
   }, {} as Record<string, Sponsor[]>);
@@ -458,9 +468,44 @@ export const SponsorsManagement: React.FC = () => {
     'from-orange-500 to-orange-600'
   ];
 
+  // Expanded icon options to cover more package/partner names
   const iconOptions = [
-    'Award', 'Crown', 'Star', 'Gem', 'Shield', 'Trophy', 'Medal', 'Target', 'Zap', 'Sparkles'
+    'Award',
+    'Crown',
+    'Star',
+    'Gem',
+    'Shield',
+    'ShieldCheck',
+    'Trophy',
+    'Medal',
+    'Target',
+    'Zap',
+    'Sparkles',
+    'Megaphone', // Media Partner
+    'GraduationCap', // Knowledge/Education Partner
+    'Users', // Community Partner
+    'Handshake', // Partner/Associate
+    'Utensils', // Hospitality/Food Partner
+    'BadgeCheck', // Associate/Verified
+    'Rocket' // Premium/Launch/Platinum vibes
   ];
+
+  // Choose a sensible default icon based on common tier naming patterns
+  const defaultIconForTier = (tier: string): string => {
+    const t = (tier || '').toLowerCase();
+    if (/title/.test(t)) return 'Crown';
+    if (/co\s*-?\s*sponsor/.test(t)) return 'Award';
+    if (/diamond|platinum/.test(t)) return 'Gem';
+    if (/gold/.test(t)) return 'Trophy';
+    if (/silver|bronze/.test(t)) return 'Medal';
+    if (/media\s*partner/.test(t)) return 'Megaphone';
+    if (/(knowledge|education)/.test(t)) return 'GraduationCap';
+    if (/community/.test(t)) return 'Users';
+    if (/hospitality|food|catering/.test(t)) return 'Utensils';
+    if (/associate|partner/.test(t)) return 'Handshake';
+    if (/patron|protector|guardian|safety|security/.test(t)) return 'ShieldCheck';
+    return 'Award';
+  };
 
   const contactTypes = [
     { value: 'email', label: 'Email', icon: 'Mail' },
@@ -591,20 +636,20 @@ export const SponsorsManagement: React.FC = () => {
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     >
                       <option value="">Select sponsorship category</option>
-                      {availableCategories.map(category => (
+                      {allCategories.map(category => (
                         <option key={category} value={category}>
                           {category}
                         </option>
                       ))}
                     </select>
-                    {availableCategories.length === 0 && (
+                    {allCategories.length === 0 && (
                       <p className="text-xs text-red-600 mt-1">
                         No sponsorship categories available. Please add sponsorship packages first.
                       </p>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
                     <textarea
                       value={form.description}
                       onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
@@ -685,7 +730,7 @@ export const SponsorsManagement: React.FC = () => {
           )}
 
           {/* Sponsors by Category */}
-          {availableCategories.map((category) => {
+          {allCategories.map((category) => {
             const categorySponsors = groupedSponsors[category] || [];
             if (categorySponsors.length === 0 && !isAdding && editing === null) return null;
 
@@ -718,7 +763,8 @@ export const SponsorsManagement: React.FC = () => {
                             className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                           >
                             <option value="">Select category</option>
-                            {availableCategories.map(cat => (
+                            {/* Allow selecting both package-derived and existing sponsor-only categories to avoid losing current values */}
+                            {allCategories.map(cat => (
                               <option key={cat} value={cat}>{cat}</option>
                             ))}
                           </select>
@@ -820,7 +866,9 @@ export const SponsorsManagement: React.FC = () => {
                                 {sponsor.category}
                               </span>
                             </div>
-                            <p className="text-gray-600 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
+                            {sponsor.description && sponsor.description.trim().length > 0 && (
+                              <p className="text-gray-600 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
+                            )}
                             
                             {sponsor.website && (
                               <div className="mb-4">
@@ -992,7 +1040,17 @@ export const SponsorsManagement: React.FC = () => {
                     <input
                       type="text"
                       value={packageForm.tier}
-                      onChange={(e) => setPackageForm(prev => ({ ...prev, tier: e.target.value }))}
+                      onChange={(e) => {
+                        const nextTier = e.target.value;
+                        setPackageForm(prev => {
+                          // Auto-suggest icon if user hasn't manually chosen one yet
+                          if (!packageIconTouched) {
+                            const suggested = defaultIconForTier(nextTier);
+                            return { ...prev, tier: nextTier, icon: suggested };
+                          }
+                          return { ...prev, tier: nextTier };
+                        });
+                      }}
                       placeholder="e.g., Platinum Sponsor, Gold Sponsor"
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     />
@@ -1033,7 +1091,10 @@ export const SponsorsManagement: React.FC = () => {
                           <button
                             key={iconName}
                             type="button"
-                            onClick={() => setPackageForm(prev => ({ ...prev, icon: iconName }))}
+                            onClick={() => {
+                              setPackageIconTouched(true);
+                              setPackageForm(prev => ({ ...prev, icon: iconName }));
+                            }}
                             className={`p-3 rounded-lg border-2 transition-all ${
                               packageForm.icon === iconName 
                                 ? 'border-yellow-400 bg-yellow-50' 
@@ -1045,6 +1106,9 @@ export const SponsorsManagement: React.FC = () => {
                         );
                       })}
                     </div>
+                    {!packageIconTouched && packageForm.tier && (
+                      <p className="text-xs text-gray-500 mt-2">Suggested icon based on tier: {defaultIconForTier(packageForm.tier)}</p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -1161,15 +1225,34 @@ export const SponsorsManagement: React.FC = () => {
                           </option>
                         ))}
                       </select>
-                      <select
-                        value={packageForm.icon}
-                        onChange={(e) => setPackageForm(prev => ({ ...prev, icon: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                      >
-                        {iconOptions.map(iconName => (
-                          <option key={iconName} value={iconName}>{iconName}</option>
-                        ))}
-                      </select>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Icon</label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {iconOptions.map((iconName) => {
+                            const IconComponent = getIconComponent(iconName);
+                            return (
+                              <button
+                                key={iconName}
+                                type="button"
+                                onClick={() => {
+                                  setPackageIconTouched(true);
+                                  setPackageForm(prev => ({ ...prev, icon: iconName }));
+                                }}
+                                className={`p-3 rounded-lg border-2 transition-all ${
+                                  packageForm.icon === iconName 
+                                    ? 'border-yellow-400 bg-yellow-50' 
+                                    : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                              >
+                                <IconComponent size={20} className="mx-auto" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {!packageIconTouched && packageForm.tier && (
+                          <p className="text-xs text-gray-500 mt-2">Suggested icon based on tier: {defaultIconForTier(packageForm.tier)}</p>
+                        )}
+                      </div>
                       <div className="grid grid-cols-2 gap-4">
                         <input
                           type="number"

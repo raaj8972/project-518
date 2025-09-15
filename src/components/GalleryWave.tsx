@@ -81,7 +81,9 @@ export default function GalleryWave({ items, className = '', onItemClick, reveal
           .gw-item { width: calc(var(--gw-index) * 5.6); height: calc(var(--gw-index) * 14.8); border-radius: 14px; }
         }
         @media (max-width: 640px) {
-          .gw-item { width: calc(var(--gw-index) * 5.0); height: calc(var(--gw-index) * 13.4); border-radius: 12px; }
+          /* Focus on image tiles height on phones */
+          .gw-wrapper { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+          .gw-item { width: calc(var(--gw-index) * 5.0); height: clamp(380px, 62vh, 680px); border-radius: 12px; }
           .gw-items { gap: calc(var(--gw-index) * 0.5); }
         }
 

@@ -39,8 +39,11 @@ function InfiniteMarquee<T>({
       if (!track) return;
       const fullWidth = track.scrollWidth; // both copies
       const singleWidth = Math.max(1, Math.floor(fullWidth / 2));
-      const sec = Math.max(10, Math.round(singleWidth / Math.max(30, speedPxPerSec)));
-      setDurationSec(sec);
+      // Respect provided speed across full range; avoid artificial floors that hide admin changes
+      const effectiveSpeed = Math.max(1, Number.isFinite(speedPxPerSec) ? speedPxPerSec : 120); // px/sec
+      const sec = singleWidth / effectiveSpeed;
+      // Round to 2 decimals to reduce re-renders yet reflect changes
+      setDurationSec(Math.max(0.1, Number(sec.toFixed(2))));
     };
 
     measure();

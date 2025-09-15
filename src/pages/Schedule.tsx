@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, Instagram, Youtube, Zap, Play } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 
 export const Schedule: React.FC = () => {
-  const { schedule, socialMediaSettings } = useData();
+  const { schedule } = useData();
   const [selectedDay, setSelectedDay] = useState(0);
 
   // Intersection Observer for scroll animations
@@ -56,10 +56,7 @@ export const Schedule: React.FC = () => {
     }
   };
 
-  // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
-  const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
-  const showSocialMedia = showInstagram || showYoutube;
+  // Social media display flags were unused in this view; removed to satisfy noUnusedLocals
 
   return (
     <div className="cyberpunk-theme min-h-screen">
@@ -328,22 +325,32 @@ export const Schedule: React.FC = () => {
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 3px #ff00ff,
-            0 0 6px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
+        /* Theme-aware neon (matches --theme-accent) */
         .neon-blue {
-          color: #00ffff;
-          text-shadow: 
-            0 0 3px #00ffff,
-            0 0 6px #00ffff;
+          color: var(--theme-accent, #00ffff);
+          text-shadow:
+            0 0 2px var(--theme-accent, #00ffff),
+            0 0 4px var(--theme-accent, #00ffff);
+        }
+
+        /* Progressive enhancement: smoother glow on browsers supporting color-mix */
+        @supports (color: color-mix(in srgb, #000 0%, #000 100%)) {
+          .neon-blue {
+            text-shadow:
+              0 0 2px color-mix(in srgb, var(--theme-accent, #00ffff) 60%, transparent),
+              0 0 4px color-mix(in srgb, var(--theme-accent, #00ffff) 40%, transparent);
+          }
         }
 
         .neon-purple {
           color: #8a2be2;
           text-shadow: 
-            0 0 3px #8a2be2,
-            0 0 6px #8a2be2;
+            0 0 2px #8a2be2,
+            0 0 4px #8a2be2;
         }
 
         .cyberpunk-btn {
@@ -375,24 +382,24 @@ export const Schedule: React.FC = () => {
         }
 
         .cyberpunk-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
+          border-color: var(--theme-accent, #00ffff);
+          color: var(--theme-accent, #00ffff);
+          box-shadow:
+            0 0 10px color-mix(in srgb, var(--theme-accent, #00ffff) 20%, transparent),
+            inset 0 0 10px color-mix(in srgb, var(--theme-accent, #00ffff) 10%, transparent);
         }
 
         .cyberpunk-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
+          background: color-mix(in srgb, var(--theme-accent, #00ffff) 10%, transparent);
+          box-shadow:
+            0 0 20px color-mix(in srgb, var(--theme-accent, #00ffff) 40%, transparent),
+            inset 0 0 20px color-mix(in srgb, var(--theme-accent, #00ffff) 15%, transparent);
           transform: translateY(-2px);
         }
 
         .cyberpunk-card {
           background: rgba(20, 20, 40, 0.8);
-          border: 1px solid rgba(0, 255, 255, 0.3);
+          border: 1px solid color-mix(in srgb, var(--theme-accent, #00ffff) 30%, transparent);
           border-radius: 8px;
           backdrop-filter: blur(10px);
           transition: all 0.3s ease;

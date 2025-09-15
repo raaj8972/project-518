@@ -124,6 +124,7 @@ export const HeroMediaManagement: React.FC = () => {
                   folder={`hero/${selectedPage}`}
                   acceptedTypes="image/*"
                   fileTypeLabel="PNG, JPG, WEBP, GIF up to 5MB"
+                  cropAspect={16/9}
                 />
                 {form.image_url && (
                   <div className="mt-2 flex justify-end">
@@ -174,6 +175,7 @@ export const HeroMediaManagement: React.FC = () => {
                   folder={`hero/${selectedPage}`}
                   acceptedTypes="image/*"
                   fileTypeLabel="PNG, JPG, WEBP up to 5MB"
+                  cropAspect={16/9}
                 />
                 {form.poster_url && (
                   <div className="mt-2 flex justify-end">

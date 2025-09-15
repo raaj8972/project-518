@@ -3,11 +3,15 @@ import { Music, Star, Instagram, Youtube, AlignJustify as Spotify, ArrowRight, M
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { AuditionModal } from '../components/AuditionModal';
+import HoloTiltCard from '../components/holo/HoloTiltCard';
+import useRevealCardInteractions from '../hooks/useRevealCardInteractions';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings } = useData();
   const [glitchActive, setGlitchActive] = useState(false);
   const [auditionModal, setAuditionModal] = useState(false);
+  // Delegate reveal/close/social interactions for any current or future containers
+  useRevealCardInteractions();
 
   // Filter enabled band members and sort by order
   const enabledBandMembers = (bandMembers || [])
@@ -148,83 +152,63 @@ export const HomeBound: React.FC = () => {
                   className="scroll-animate opacity-0 transform translate-y-20"
                   style={{ animationDelay: `${index * 0.3}s` }}
                 >
-                  <div className="cyberpunk-card overflow-hidden featured-artist glitch-card">
-                    <div className="glitch-bg" aria-hidden="true"></div>
-                    <div className="glitch-lines" aria-hidden="true"></div>
-                    <div className="grid md:grid-cols-2 gap-0">
-                      {/* Image Section */}
-                      <div className="relative h-80 overflow-hidden">
-                        <img
-                          src={member.image}
-                          alt={member.name}
-                          className="w-full h-full object-cover artist-image"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                        <div className="absolute top-4 right-4">
-                          <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
-                        </div>
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
-                            FEATURED ARTIST
-                          </div>
-                        </div>
-                      </div>
-                      {/* Content Section */}
-                      <div className="p-6 flex flex-col justify-center">
-                        <h3 className="text-2xl font-bold text-white mb-2 neon-pink artist-name">
-                          {member.name}
-                        </h3>
-                        <p className="text-lg text-pink-400 mb-3 font-semibold">
-                          {member.role}
-                        </p>
-                        <div className="mb-3">
-                          <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">
-                            {member.specialty}
-                          </span>
-                        </div>
-                        <p className="text-gray-300 mb-4 leading-relaxed text-sm">
-                          {member.description}
-                        </p>
-                        {/* Social Links */}
-                        {member.social_links && Object.keys(member.social_links).length > 0 && (
-                          <div className="flex space-x-3 mb-4">
-                            {member.social_links.instagram && (
-                              <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors"><Instagram size={20} /></a>
-                            )}
-                            {member.social_links.youtube && (
-                              <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors"><Youtube size={20} /></a>
-                            )}
-                            {member.social_links.spotify && (
-                              <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors"><Spotify size={20} /></a>
-                            )}
-                          </div>
-                        )}
-                        {/* Achievements */}
-                        {Array.isArray(member.achievements) && member.achievements.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-bold text-cyan-400 mb-3">ACHIEVEMENTS</h4>
-                            <div className="space-y-2">
-                              {member.achievements.slice(0, 3).map((achievement, achievementIndex) => (
-                                <div key={achievementIndex} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
-                                  <div className="w-2 h-2 bg-pink-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
-                                  <span className="text-gray-300 text-xs">{achievement}</span>
-                                </div>
-                              ))}
-                              {member.achievements.length > 3 && (
-                                <div className="text-xs text-gray-500">+{member.achievements.length - 3} more achievements</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+                  <HoloTiltCard className="group reveal-card glitch-card h-full mx-auto md:max-w-xl lg:max-w-[40rem] xl:max-w-[42rem]">
+                     <div className="glitch-bg" aria-hidden="true"></div>
+                     <div className="glitch-lines" aria-hidden="true"></div>
+                     <div className="relative overflow-hidden reveal-trigger">
+                       <img
+                         src={member.image}
+                         alt={member.name}
+                         className="w-full h-[30rem] md:h-[34rem] lg:h-[40rem] xl:h-[44rem] object-cover artist-image"
+                       />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                       <div className="absolute top-4 right-4">
+                         <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
+                       </div>
+                       <div className="absolute bottom-4 left-4 right-4">
+                         <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
+                           FEATURED ARTIST
+                         </div>
+                       </div>
+                       {/* Full-card Reveal Details */}
+                       <div className="reveal-details">
+                         <button className="reveal-close" aria-label="Close details">×</button>
+                         <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center h-full">
+                           <h3 className="text-2xl md:text-3xl font-black text-white mb-2 neon-pink artist-name">{member.name}</h3>
+                           <p className="text-lg text-pink-400 mb-3 font-semibold">{member.role}</p>
+                           <div className="mb-3">
+                             <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">{member.specialty}</span>
+                           </div>
+                           <p className="text-gray-200 mb-4 leading-relaxed text-sm md:text-base">{member.description}</p>
+                           {member.social_links && Object.keys(member.social_links).length > 0 && (
+                             <div className="flex space-x-4 mb-4 items-center">
+                               {member.social_links.instagram && (
+                                 <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors ig-anim" aria-label="Instagram">
+                                   <Instagram size={36} />
+                                 </a>
+                               )}
+                               {member.social_links.youtube && (
+                                 <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors" aria-label="YouTube">
+                                   <Youtube size={22} />
+                                 </a>
+                               )}
+                               {member.social_links.spotify && (
+                                 <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors" aria-label="Spotify">
+                                   <Spotify size={22} />
+                                 </a>
+                               )}
+                             </div>
+                           )}
+                         </div>
+                       </div>
+                     </div>
+                   </HoloTiltCard>
+                 </div>
+               ))}
+             </div>
+           </div>
+         </section>
+       )}
 
       {/* Band Members Section */}
       {regularMembers.length > 0 && (
@@ -250,50 +234,47 @@ export const HomeBound: React.FC = () => {
                   className="scroll-animate opacity-0 transform translate-y-20 hover-float band-card"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <div className="cyberpunk-card group h-full overflow-hidden glitch-card">
-                    <div className="glitch-bg" aria-hidden="true"></div>
-                    <div className="glitch-lines" aria-hidden="true"></div>
-                    {/* Member Image */}
-                    <div className="relative h-64 overflow-hidden">
-                      <img
-                        src={member.image}
-                        alt={member.name}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 band-member-image"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      {/* Specialty Badge */}
-                      <div className="absolute top-4 left-4">
-                        <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow">
-                          {member.category}
-                        </span>
-                      </div>
-                      {/* Category Badge */}
-                      <div className="absolute bottom-4 left-4">
-                        <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                          {member.specialty}
-                        </span>
-                      </div>
-                      {/* Floating Icon */}
-                      <div className="absolute top-4 right-4 floating-icon">
-                        <Volume2 className="w-6 h-6 text-cyan-400 animate-pulse" />
-                      </div>
-                    </div>
-                    {/* Member Info */}
-                    <div className="p-6">
-                      <h4 className="text-xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors member-name">
-                        {member.name}
-                      </h4>
-                      <p className="text-blue-400 font-semibold mb-3 text-sm">
-                        {member.role}
-                      </p>
-                      <p className="text-gray-300 text-sm leading-relaxed mb-2 line-clamp-3">
-                        {member.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  <HoloTiltCard className="group reveal-card h-full overflow-hidden glitch-card mx-auto md:max-w-sm lg:max-w-md xl:max-w-lg">
+                     <div className="glitch-bg" aria-hidden="true"></div>
+                     <div className="glitch-lines" aria-hidden="true"></div>
+                     {/* Member Image */}
+                     <div className="relative h-80 md:h-96 lg:h-[28rem] overflow-hidden reveal-trigger">
+                       <img
+                         src={member.image}
+                         alt={member.name}
+                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 band-member-image"
+                       />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                       {/* Specialty Badge */}
+                       <div className="absolute top-4 left-4">
+                         <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow">
+                           {member.category}
+                         </span>
+                       </div>
+                       {/* Category Badge */}
+                       <div className="absolute bottom-4 left-4">
+                         <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                           {member.specialty}
+                         </span>
+                       </div>
+                       {/* Floating Icon */}
+                       <div className="absolute top-4 right-4 floating-icon">
+                         <Volume2 className="w-6 h-6 text-cyan-400 animate-pulse" />
+                       </div>
+                     </div>
+                     {/* Reveal Info Overlay */}
+                     <div className="reveal-details">
+                       <button className="reveal-close" aria-label="Close details">×</button>
+                       <div className="p-6">
+                         <h4 className="text-xl font-bold text-white mb-2 member-name">{member.name}</h4>
+                         <p className="text-blue-400 font-semibold mb-3 text-sm">{member.role}</p>
+                         <p className="text-gray-200 text-sm leading-relaxed mb-2">{member.description}</p>
+                       </div>
+                     </div>
+                   </HoloTiltCard>
+                 </div>
+               ))}
+             </div>
           </div>
         </section>
       )}
@@ -440,6 +421,96 @@ export const HomeBound: React.FC = () => {
           border-radius: 12px;
           transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
         }
+        /* Reveal behavior */
+        .reveal-card { position: relative; }
+        .reveal-card .reveal-details {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.12) 35%, rgba(0,0,0,0.22));
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          transform: translateY(5%);
+          opacity: 0;
+          pointer-events: none;
+          transition: transform .35s ease, opacity .35s ease;
+          border-radius: 12px;
+          display: flex;
+          overflow: auto;
+          /* scroll hint */
+          position: absolute;
+        }
+        .reveal-card:hover .reveal-details,
+        .reveal-card.revealed .reveal-details {
+          transform: translateY(0);
+          opacity: 1;
+          pointer-events: auto;
+        }
+        .reveal-trigger { cursor: pointer; }
+        .reveal-close {
+          position: absolute; top: 8px; right: 10px; z-index: 50;
+          width: 40px; height: 40px; border-radius: 9999px;
+          display: inline-flex; align-items: center; justify-content: center;
+          background: rgba(0,0,0,0.45); color: #fff; font-size: 22px; line-height: 1;
+          border: 1px solid rgba(255,255,255,0.35);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.35), 0 0 10px rgba(236,72,153,0.35);
+          backdrop-filter: blur(4px);
+        }
+        .reveal-close:active { transform: scale(0.95); }
+        @media (max-width: 768px) {
+          .reveal-card .reveal-details { transform: translateY(7%); padding-bottom: 20px; padding-top: 60px; }
+        }
+        /* Ensure names are always visible, especially on mobile */
+        .reveal-card .reveal-details .artist-name,
+        .reveal-card .reveal-details .member-name {
+          color: #ffffff !important;
+          opacity: 1 !important;
+          visibility: visible !important;
+          text-shadow: 0 0 6px rgba(255, 0, 200, 0.6), 0 0 14px rgba(255, 0, 200, 0.35);
+          /* normal flow, not sticky */
+          position: relative;
+          padding-top: 4px;
+          padding-bottom: 8px;
+          background: transparent;
+        }
+        /* Instagram icon animation */
+        .ig-anim { position: relative; display:inline-flex; }
+  .ig-anim svg { filter: drop-shadow(0 0 6px rgba(236,72,153,0.5)); transition: transform .22s ease, color .22s ease; }
+        .ig-anim::after {
+          content: '';
+          position: absolute; inset: -6px; border-radius: 9999px;
+          border: 1px solid rgba(236,72,153,0.35);
+          opacity: 0; transform: scale(0.9);
+          transition: all .35s ease;
+        }
+        .ig-anim:hover::after { opacity: 1; transform: scale(1); }
+        .ig-anim:hover svg { filter: drop-shadow(0 0 10px rgba(236,72,153,0.8)); }
+  .ig-anim.ig-click svg { animation: igBounce .5s ease; color: #ff6ad5; }
+  .ig-anim.ig-click::after { opacity: 1; transform: scale(1.25); animation: igRipple .55s ease; }
+        @keyframes igBounce {
+          0% { transform: scale(1); }
+          25% { transform: scale(0.88); }
+          60% { transform: scale(1.12); }
+          100% { transform: scale(1); }
+        }
+        @keyframes igRipple {
+          0% { opacity: 0.9; transform: scale(0.85); }
+          100% { opacity: 0; transform: scale(1.45); }
+        }
+        /* create space under sticky header so next text doesn't feel overlapped */
+        .reveal-card .reveal-details .artist-name + p,
+        .reveal-card .reveal-details .member-name + p {
+          margin-top: 6px;
+        }
+        /* Bottom scroll hint */
+        .reveal-card .reveal-details::after {
+          content: '';
+          position: sticky;
+          bottom: 0;
+          display: block;
+          height: 36px;
+          background: linear-gradient(0deg, rgba(0,0,0,0.75), rgba(0,0,0,0));
+          pointer-events: none;
+        }
         .glitch-card .glitch-bg {
           position: absolute;
           inset: -20%;
@@ -558,36 +629,35 @@ export const HomeBound: React.FC = () => {
         .neon-text {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff,
-            0 0 15px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 5px #ff00ff,
-            0 0 10px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .neon-blue {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-purple {
           color: #8a2be2;
           text-shadow: 
-            0 0 5px #8a2be2,
-            0 0 10px #8a2be2;
+            0 0 2px #8a2be2,
+            0 0 4px #8a2be2;
         }
 
         .glow-text {
           text-shadow: 
-            0 0 3px currentColor,
-            0 0 6px currentColor;
+            0 0 2px currentColor,
+            0 0 4px currentColor;
         }
 
         .glitch-active {
@@ -807,14 +877,14 @@ export const HomeBound: React.FC = () => {
         @keyframes nameGlow {
           from {
             text-shadow: 
-              0 0 5px #ff00ff,
-              0 0 10px #ff00ff;
+              0 0 2px #ff00ff,
+              0 0 4px #ff00ff;
           }
           to {
             text-shadow: 
-              0 0 10px #ff00ff,
-              0 0 20px #ff00ff,
-              0 0 30px #ff00ff;
+              0 0 4px #ff00ff,
+              0 0 8px #ff00ff,
+              0 0 12px #ff00ff;
           }
         }
 
@@ -973,6 +1043,8 @@ export const HomeBound: React.FC = () => {
           }
         }
       `}</style>
+
+      {/* Interactions handled by useRevealCardInteractions() */}
     </div>
   );
 };

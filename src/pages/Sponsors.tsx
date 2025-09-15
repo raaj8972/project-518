@@ -43,33 +43,81 @@ export const Sponsors: React.FC = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in');
+            // Also support 3D variant
+            if (entry.target.classList.contains('scroll-animate-3d')) {
+              entry.target.classList.add('animate-in-3d');
+            }
+            observer.unobserve(entry.target); // reveal once
           }
         });
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    const animatedElements = document.querySelectorAll('.scroll-animate');
+    const animatedElements = document.querySelectorAll('.scroll-animate, .scroll-animate-3d');
     animatedElements.forEach((el) => observer.observe(el));
 
+    // Fallback: if IntersectionObserver unsupported, reveal immediately
+    if (typeof IntersectionObserver === 'undefined') {
+      animatedElements.forEach((el) => {
+        el.classList.add('animate-in');
+        if (el.classList.contains('scroll-animate-3d')) el.classList.add('animate-in-3d');
+      });
+    }
+
     return () => observer.disconnect();
-  }, []);
+  }, [sponsors, sponsorshipPackages, eventCategories]);
 
   // Parallax effect
   useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.pageYOffset;
       const parallaxElements = document.querySelectorAll('.parallax');
-      
       parallaxElements.forEach((element) => {
         const speed = parseFloat(element.getAttribute('data-speed') || '0.5');
         const yPos = -(scrolled * speed);
         (element as HTMLElement).style.transform = `translateY(${yPos}px)`;
       });
+
+      // Spotlight zoom logic
+      const scopes = document.querySelectorAll<HTMLElement>('.sponsors-zoom-scope');
+      scopes.forEach((scope) => {
+        const rect = scope.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        const cards = scope.querySelectorAll<HTMLElement>('.sponsor-zoom-card');
+        cards.forEach((card) => {
+          // The first child is the inner wrapper we animate for better composition with hover effects
+          const inner = card.firstElementChild as HTMLElement | null;
+          const cardRect = card.getBoundingClientRect();
+          const cardCenter = cardRect.top + cardRect.height / 2;
+          const distance = Math.abs(cardCenter - centerY);
+          const maxDist = Math.max(120, rect.height * 0.5);
+          let t = 1 - Math.min(distance / maxDist, 1); // 1 at center, 0 far
+
+          // Ease it for a softer ramp
+          t = t * t * (3 - 2 * t); // smoothstep
+
+          const scale = 0.92 + t * 0.16; // from ~0.92 to ~1.08 for subtler pop
+          const z = t * 180; // less Z for a calmer zoom
+
+          card.classList.toggle('is-spotlit', t > 0.54);
+          if (inner) {
+            inner.style.transform = `translateZ(${z}px) scale(${scale})`;
+            // Remove blur entirely to avoid blurred containers
+            inner.style.filter = 'none';
+          }
+        });
+      });
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Run once to initialize based on starting scroll
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll as any);
+      window.removeEventListener('resize', handleScroll as any);
+    };
   }, []);
 
   const enabledContactSections = sponsorshipSettings?.contactSections?.filter(section => section.enabled) || [];
@@ -137,50 +185,70 @@ export const Sponsors: React.FC = () => {
 
       {/* Title Sponsors */}
       {titleSponsors.length > 0 && (
-        <section className="py-20 relative">
+        <section className="py-20 relative sponsors-zoom-scope">
           <div className="container mx-auto px-4">
             <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
+              <div className="text-center mb-8 md:mb-10">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
                   TITLE <span className="neon-pink">SPONSORS</span>
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto expand-width"></div>
+                {/* Big animated crown centered under the title */}
+                <div className="mt-2 md:mt-3 flex justify-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-yellow-400/20 blur-lg scale-125 animate-pulse"></div>
+                    <Crown className="relative text-yellow-400 w-16 h-16 md:w-20 md:h-20 animate-pulse pointer-events-none" />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div
+              className={
+                titleSponsors.length === 1
+                  ? 'grid grid-cols-1 gap-8 place-items-center'
+                  : titleSponsors.length === 2
+                  ? 'grid grid-cols-1 sm:grid-cols-2 gap-8 place-items-center'
+                  : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8'
+              }
+            >
               {titleSponsors.map((sponsor, index) => (
                 <div
                   key={sponsor.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
+                  className={`scroll-animate-3d hover-float ${
+                    titleSponsors.length === 1
+                      ? 'w-full mx-auto md:max-w-2xl lg:max-w-3xl'
+                      : titleSponsors.length === 2
+                      ? 'w-full mx-auto md:max-w-2xl lg:max-w-3xl'
+                      : ''
+                  }`}
                   style={{ animationDelay: `${index * 0.2}s` }}
                 >
-                  <div className="cyberpunk-card group h-full">
+                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                     <div className="relative p-8">
-                      {/* Crown Icon */}
-                      <div className="absolute top-4 right-4">
-                        <Crown className="w-8 h-8 text-yellow-400 animate-pulse pulse-ring" />
-                      </div>
+                      {/* Crown moved to the section header; removed from individual cards */}
                       
                       <div className="flex items-center mb-6">
-                        <div className="mr-6">
+                        <div className="mr-6 logo-glow logo-pulse-soft logo-3d-stage w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors bg-black/10">
                           <img
                             src={sponsor.logo}
                             alt={sponsor.name}
-                            className="w-20 h-20 object-cover rounded-lg border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors"
+                            className="w-full h-full object-contain rounded-lg logo-3d"
                           />
                         </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <h3 className="text-2xl font-bold text-white group-hover:text-pink-400 transition-colors">
                             {sponsor.name}
                           </h3>
-                          <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-2 rounded-full text-sm font-bold">
+                          <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full font-bold whitespace-nowrap leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
                             {sponsor.category}
                           </span>
                         </div>
                       </div>
                       
-                      <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                      {sponsor.description && sponsor.description.trim().length > 0 && (
+                        <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                      )}
                       
                       {sponsor.website && (
                         <a
@@ -204,7 +272,7 @@ export const Sponsors: React.FC = () => {
 
       {/* Co Sponsors */}
       {coSponsors.length > 0 && (
-        <section className="py-20 relative">
+        <section className="py-20 relative sponsors-zoom-scope">
           <div className="container mx-auto px-4">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
@@ -215,14 +283,28 @@ export const Sponsors: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8">
+            <div
+              className={
+                coSponsors.length === 1
+                  ? 'grid grid-cols-1 gap-8 place-items-center'
+                  : coSponsors.length === 2
+                  ? 'grid grid-cols-1 sm:grid-cols-2 gap-8 place-items-center'
+                  : 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8'
+              }
+            >
               {coSponsors.map((sponsor, index) => (
                 <div
                   key={sponsor.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
+                  className={`scroll-animate-3d hover-float ${
+                    coSponsors.length === 1
+                      ? 'w-full mx-auto md:max-w-2xl lg:max-w-3xl'
+                      : coSponsors.length === 2
+                      ? 'w-full mx-auto md:max-w-2xl lg:max-w-3xl'
+                      : ''
+                  }`}
                   style={{ animationDelay: `${index * 0.2}s` }}
                 >
-                  <div className="cyberpunk-card group h-full">
+                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                     <div className="relative p-8">
                       {/* Star Icon */}
                       <div className="absolute top-4 right-4">
@@ -230,24 +312,26 @@ export const Sponsors: React.FC = () => {
                       </div>
                       
                       <div className="flex items-center mb-6">
-                        <div className="mr-6">
+                        <div className="mr-6 logo-glow logo-pulse-soft logo-3d-stage w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors bg-black/10">
                           <img
                             src={sponsor.logo}
                             alt={sponsor.name}
-                            className="w-20 h-20 object-cover rounded-lg border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors"
+                            className="w-full h-full object-contain rounded-lg logo-3d"
                           />
                         </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-blue-400 transition-colors">
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <h3 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">
                             {sponsor.name}
                           </h3>
-                          <span className="bg-gradient-to-r from-blue-400 to-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold">
+                          <span className="inline-block bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-full font-bold whitespace-nowrap leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
                             {sponsor.category}
                           </span>
                         </div>
                       </div>
                       
-                      <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                      {sponsor.description && sponsor.description.trim().length > 0 && (
+                        <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                      )}
                       
                       {sponsor.website && (
                         <a
@@ -271,7 +355,7 @@ export const Sponsors: React.FC = () => {
 
       {/* Other Sponsors Grid */}
       {otherCategories.length > 0 && (
-        <section className="py-20 relative">
+        <section className="py-20 relative sponsors-zoom-scope">
           <div className="container mx-auto px-4">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
@@ -289,33 +373,51 @@ export const Sponsors: React.FC = () => {
                     {categoryName}
                   </h3>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <div
+                  className={(() => {
+                    const count = groupedOtherSponsors[categoryName].length;
+                    if (count === 1) return 'grid grid-cols-1 gap-6 place-items-center';
+                    if (count === 2) return 'grid grid-cols-1 sm:grid-cols-2 gap-6 place-items-center';
+                    if (count === 3) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6';
+                    return 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6';
+                  })()}
+                >
                   {groupedOtherSponsors[categoryName].sort((a, b) => a.order_position - b.order_position).map((sponsor, index) => (
                     <div
                       key={sponsor.id}
-                      className="scroll-animate opacity-0 transform translate-y-20 hover-float"
+                      className={`scroll-animate-3d hover-float ${
+                        groupedOtherSponsors[categoryName].length === 1
+                          ? 'w-full mx-auto md:max-w-xl lg:max-w-2xl'
+                          : groupedOtherSponsors[categoryName].length === 2
+                          ? 'w-full mx-auto md:max-w-xl lg:max-w-2xl'
+                          : ''
+                      }`}
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <div className="cyberpunk-card group h-full">
+                      <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                         <div className="p-6">
                           <div className="text-center mb-4">
-                            <img
-                              src={sponsor.logo}
-                              alt={sponsor.name}
-                              className="w-16 h-16 object-cover rounded-lg mx-auto mb-4 border border-gray-600 group-hover:border-purple-500 transition-colors"
-                            />
+                            <div className="logo-glow logo-pulse-soft logo-3d-stage inline-flex mb-4 w-24 h-24 md:w-28 md:h-28 p-2 rounded-xl border border-purple-500/40 group-hover:border-purple-500 transition-colors bg-black/10">
+                              <img
+                                src={sponsor.logo}
+                                alt={sponsor.name}
+                                className="w-full h-full object-contain rounded-lg logo-3d"
+                              />
+                            </div>
                             <h4 className="font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">
                               {sponsor.name}
                             </h4>
                             <span 
-                              className="inline-block px-3 py-1 rounded-full text-xs font-medium text-white"
+                              className="inline-block px-2.5 py-1 rounded-full text-xs sm:text-sm font-medium text-white whitespace-nowrap leading-tight"
                               style={{ backgroundColor: getCategoryColor(sponsor.category) }}
                             >
                               {sponsor.category}
                             </span>
                           </div>
                           
-                          <p className="text-gray-300 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
+                          {sponsor.description && sponsor.description.trim().length > 0 && (
+                            <p className="text-gray-300 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
+                          )}
                           
                           {sponsor.website && (
                             <div className="text-center">
@@ -341,7 +443,7 @@ export const Sponsors: React.FC = () => {
       )}
 
       {/* Sponsorship Packages */}
-      <section className="py-20 relative">
+  <section className="py-20 relative sponsors-zoom-scope">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="text-center mb-16">
@@ -361,10 +463,10 @@ export const Sponsors: React.FC = () => {
               return (
                 <div
                   key={index}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
+                  className="scroll-animate-3d hover-float"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <div className="cyberpunk-card group h-full">
+                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d">
                     <div className={`bg-gradient-to-r ${tier.color} p-6 text-center rounded-t-lg`}>
                       <IconComponent className="w-12 h-12 mx-auto mb-4 text-white pulse-ring" />
                       <h3 className="text-xl font-bold text-white mb-2">{tier.tier}</h3>
@@ -563,22 +665,22 @@ export const Sponsors: React.FC = () => {
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 5px #ff00ff,
-            0 0 10px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .neon-blue {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-purple {
           color: #8a2be2;
           text-shadow: 
-            0 0 5px #8a2be2,
-            0 0 10px #8a2be2;
+            0 0 2px #8a2be2,
+            0 0 4px #8a2be2;
         }
 
         .pulse-glow {

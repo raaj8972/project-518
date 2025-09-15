@@ -1,3 +1,28 @@
+/* Backlight glow behind logo container (appears to come from behind the box) */
+  .logo-backglow { position: relative; isolation: isolate; }
+  .logo-backglow::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0; /* sits behind the logo content */
+    background:
+      radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.22), rgba(236,72,153,0.34) 42%, rgba(147,51,234,0.28) 64%, rgba(0,0,0,0) 76%);
+    opacity: var(--bglo-base, 0.32);
+  filter: blur(var(--bglo-blur, 16px));
+  transform: scale(0.98);
+  animation: backGlowPulse var(--bglo-speed, 2.6s) ease-in-out infinite;
+  }
+  @keyframes backGlowPulse {
+    0% { opacity: var(--bglo-base, 0.32); filter: blur(var(--bglo-blur, 16px)); transform: scale(0.98); }
+    50% { opacity: calc(var(--bglo-base, 0.32) + var(--bglo-amp, 0.28)); filter: blur(calc(var(--bglo-blur, 16px) + 6px)); transform: scale(1.02); }
+    100% { opacity: var(--bglo-base, 0.32); filter: blur(var(--bglo-blur, 16px)); transform: scale(0.98); }
+  }
+  /* Intensities per tier */
+  .glow-strong { --bglo-base: 0.42; --bglo-amp: 0.38; --bglo-blur: 18px; --bglo-speed: 2.2s; }
+  .glow-medium { --bglo-base: 0.32; --bglo-amp: 0.28; --bglo-blur: 16px; --bglo-speed: 2.6s; }
+  .glow-soft { --bglo-base: 0.24; --bglo-amp: 0.22; --bglo-blur: 14px; --bglo-speed: 3.0s; }
 /* Tailwind layers */
 @tailwind base;
 @tailwind components;
@@ -16,6 +41,95 @@
     opacity: 1 !important;
     transform: translateY(0) !important;
   }
+
+  /* Sponsors 3D scroll zoom helpers */
+  .sponsors-zoom-scope {
+    perspective: 720px;
+    perspective-origin: 50% 50%;
+  }
+  .sponsor-zoom-card {
+    transform: translateZ(0) scale(0.96);
+    transform-style: preserve-3d;
+    will-change: transform, filter;
+    transition: box-shadow 200ms ease;
+  }
+  /* The inner wrapper we actually animate so hover tilt on the card can compose */
+  .sponsor-zoom-card > *:first-child {
+    transform: translateZ(0) scale(0.96);
+    transform-style: preserve-3d;
+    will-change: transform, filter;
+    transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease-out;
+  }
+  .sponsor-zoom-card.is-spotlit {
+    box-shadow: 0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sponsor-zoom-card { transform: none !important; }
+    .sponsor-zoom-card > *:first-child { transform: none !important; filter: none !important; }
+  }
+
+  /* 3D scroll-in variants */
+  .scroll-animate-3d {
+    opacity: 0;
+    transform: translateY(26px) rotateX(10deg) scale(0.975);
+    transform-origin: 50% 100%;
+    transition: opacity 700ms cubic-bezier(.2,.8,.2,1), transform 700ms cubic-bezier(.2,.8,.2,1);
+    will-change: opacity, transform;
+    perspective: 1000px;
+  }
+  .animate-in-3d {
+    opacity: 1 !important;
+    transform: translateY(0) rotateX(0deg) scale(1) !important;
+  }
+
+  /* Hover tilt helper for fine pointers */
+  @media (hover: hover) and (pointer: fine) {
+    .tilt-3d {
+      transform-style: preserve-3d;
+      transition: transform 240ms ease, box-shadow 240ms ease;
+      will-change: transform;
+    }
+    .tilt-3d:hover {
+      transform: perspective(1000px) rotateX(6deg) rotateY(-6deg) translateY(-2px);
+    }
+  }
+
+  /* Reusable 3D card container: adds inner glow and beveled rim on a higher Z-plane */
+  .card-3d {
+    transform-style: preserve-3d;
+    box-shadow: 0 18px 48px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.05) inset;
+  }
+  .card-3d::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02) 18%, rgba(255,255,255,0) 40%),
+                radial-gradient(100% 120% at 50% -10%, rgba(147,51,234,0.18), rgba(236,72,153,0.10) 45%, rgba(0,0,0,0) 65%);
+    mix-blend-mode: screen;
+    transform: translateZ(2px);
+    opacity: 0.85;
+  }
+  /* Spotlight intensifies the 3D sheen */
+  .sponsor-zoom-card.is-spotlit.card-3d::after { opacity: 1; }
+
+  /* Hover/tap glow for full card container */
+  .card-glow-hover { position: relative; isolation: isolate; }
+  .card-glow-hover::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: inherit;
+    background: radial-gradient(80% 90% at 50% 8%, rgba(236,72,153,0.18), rgba(147,51,234,0.12) 45%, rgba(0,0,0,0) 70%);
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateZ(1px);
+    transition: opacity 200ms ease, filter 200ms ease;
+    pointer-events: none;
+  }
+  .card-glow-hover:hover::before, .card-glow-hover:focus-within::before, .card-glow-hover:active::before { opacity: 0.95; filter: blur(12px); }
 
   .container-responsive {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
@@ -79,6 +193,132 @@
     min-width: 2.5rem;  /* 40px */
     padding: 0.5rem 0.75rem; /* 8px 12px */
   }
+
+  /* Shimmering gradient button utility */
+  @keyframes shimmer-x {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+  .btn-shimmer {
+    background-image: linear-gradient(90deg, rgba(236,72,153,0.9), rgba(147,51,234,0.9), rgba(236,72,153,0.9));
+    background-size: 200% 200%;
+    animation: shimmer-x 2.5s linear infinite;
+    box-shadow: 0 8px 24px rgba(236,72,153,0.25);
+  }
+  .btn-shimmer:hover { box-shadow: 0 8px 28px rgba(236,72,153,0.35); }
+
+  /* Solid-to-gradient fade on hover */
+  .btn-fade-gradient {
+    background-color: rgba(236,72,153,0.9); /* pink-500 */
+    box-shadow: 0 6px 18px rgba(236,72,153,0.25);
+    transition: background 320ms ease, box-shadow 320ms ease, color 320ms ease;
+    background-image: none;
+    background-size: 200% 200%;
+  }
+  .btn-fade-gradient:hover,
+  .btn-fade-gradient:focus-visible {
+    background-image: linear-gradient(90deg, rgba(236,72,153,1), rgba(147,51,234,1), rgba(236,72,153,1));
+    box-shadow: 0 8px 26px rgba(236,72,153,0.35);
+  }
+
+  /* Sponsor logo white faded hover glow utility */
+  .logo-glow {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate; /* keep ::after behind the img */
+    transition: transform 220ms ease;
+  }
+  .logo-glow img { position: relative; z-index: 1; }
+  .logo-glow::after {
+    content: '';
+    position: absolute;
+    inset: -8px; /* extend a bit beyond logo */
+    border-radius: 18px;
+    background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 60%, rgba(255,255,255,0) 72%);
+    filter: blur(8px);
+    opacity: 0.0;
+    transform: scale(0.98);
+    z-index: 0;
+    transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+    pointer-events: none;
+  }
+  .logo-glow:hover::after, .logo-glow:focus-visible::after, .logo-glow:active::after {
+    opacity: 0.85;
+    transform: scale(1.0);
+    filter: blur(10px);
+  }
+  .logo-glow:hover, .logo-glow:focus-visible, .logo-glow:active { transform: translateY(-2px) scale(1.04); }
+
+  /* 3D stage and looping glow for sponsor logos */
+  .logo-3d-stage { perspective: 800px; perspective-origin: 50% 50%; }
+  .logo-3d { transform-style: preserve-3d; will-change: transform, filter; }
+  .logo-3d-stage .logo-3d { transition: transform 260ms cubic-bezier(.2,.8,.2,1), filter 260ms ease; }
+  .logo-3d:hover { transform: translateZ(24px) rotateX(2deg) rotateY(-2deg) scale(1.04); filter: brightness(1.06) saturate(1.06); }
+  @keyframes glowLoop {
+    0% { box-shadow: 0 0 0 rgba(236,72,153,0.0), 0 0 0 rgba(147,51,234,0.0); }
+    50% { box-shadow: 0 0 24px rgba(236,72,153,0.35), 0 0 36px rgba(147,51,234,0.28); }
+    100% { box-shadow: 0 0 0 rgba(236,72,153,0.0), 0 0 0 rgba(147,51,234,0.0); }
+  }
+  .logo-3d-stage { animation: glowLoop 3.4s ease-in-out infinite; border-radius: 16px; }
+
+  /* Force dark logo box: disable glow overlays and stage animation */
+  .logo-dark { background-color: #000 !important; }
+  .logo-dark.logo-3d-stage { animation: none !important; box-shadow: none !important; }
+  .logo-dark.logo-glow::after { opacity: 0 !important; filter: none !important; }
+
+  /* Optional gentle pulse you can apply to containers */
+  @keyframes glowPulseSoft {
+    0% { --lg-pulse: 0; }
+    50% { --lg-pulse: 1; }
+    100% { --lg-pulse: 0; }
+  }
+  .logo-pulse-soft::after {
+    /* Use the same ::after as logo-glow when combined on the element */
+    animation: glowPulseSoft 4.5s ease-in-out infinite;
+    /* Modulate opacity subtly via CSS variable */
+    opacity: calc(0.28 + (var(--lg-pulse, 0) * 0.25));
+  }
+
+  /* Soft white text glow for labels like "Powered by" */
+  .text-glow-soft {
+    text-shadow:
+      0 0 8px rgba(255,255,255,0.45),
+      0 0 16px rgba(255,255,255,0.25),
+      0 0 28px rgba(255,255,255,0.12);
+  }
+
+  /* Stronger white text glow */
+  .text-glow-strong {
+    text-shadow:
+      0 0 10px rgba(255,255,255,0.65),
+      0 0 20px rgba(255,255,255,0.40),
+      0 0 36px rgba(255,255,255,0.25),
+      0 0 54px rgba(255,255,255,0.18);
+  }
+
+  /* Animated pulse for white text glow (pair with text-glow-strong) */
+  @keyframes textGlowPulse {
+    0%, 100% {
+      text-shadow:
+        0 0 10px rgba(255,255,255,0.55),
+        0 0 20px rgba(255,255,255,0.35),
+        0 0 36px rgba(255,255,255,0.22),
+        0 0 54px rgba(255,255,255,0.14);
+    }
+    50% {
+      text-shadow:
+        0 0 12px rgba(255,255,255,0.80),
+        0 0 24px rgba(255,255,255,0.55),
+        0 0 44px rgba(255,255,255,0.32),
+        0 0 64px rgba(255,255,255,0.22);
+    }
+  }
+  .text-glow-pulse {
+    animation: textGlowPulse 3.6s ease-in-out infinite;
+    will-change: filter, text-shadow;
+  }
 }
 
 /* (Removed) 3D Glow Social Icons utilities */
@@ -95,6 +335,71 @@ html {
 body {
   overflow-x: hidden;
   min-width: 320px;
+}
+
+/* Global theme variables (used by LogoLoop and other accents) */
+:root {
+  /* default light-ish theme */
+  --theme-accent: rgb(217, 176, 255); /* soft purple rim */
+  --theme-glow-spread: rgba(11, 15, 26, 0.42);
+  --theme-card-bg: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  /* Featured Artists carousel stage height (default/mobile) */
+  --featured-stage-height: clamp(600px, 86svh, 860px);
+}
+
+/* Prefer dark scheme by default for our cyberpunk pages */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --theme-accent: rgb(217, 176, 255);
+    --theme-glow-spread: rgba(11, 15, 26, 0.60);
+    --theme-card-bg: linear-gradient(180deg, #151a24 0%, #0b0f1a 100%);
+  }
+}
+
+/* Desktop: make Featured Artists container a bit shorter */
+@media (min-width: 1024px) {
+  :root {
+    /* Slightly reduced height on larger screens for a tighter layout */
+    --featured-stage-height: clamp(520px, 72svh, 720px);
+  }
+}
+
+/* Page-specific theme hooks via data-theme on <html> */
+html[data-theme="home"] {
+  --theme-accent: rgb(217, 176, 255); /* lavender */
+  --theme-glow-spread: rgba(11, 15, 26, 0.60);
+  --theme-card-bg: linear-gradient(180deg, #151a24 0%, #0b0f1a 100%);
+}
+html[data-theme="events"] {
+  --theme-accent: rgb(56, 189, 248); /* cyan */
+  --theme-glow-spread: rgba(3, 7, 18, 0.55);
+  --theme-card-bg: linear-gradient(180deg, #0b1720 0%, #071019 100%);
+}
+html[data-theme="schedule"] {
+  /* Cyan/blue to match schedule hero visuals */
+  --theme-accent: rgb(34, 211, 238); /* cyan-400 */
+  --theme-glow-spread: rgba(3, 7, 18, 0.55);
+  --theme-card-bg: linear-gradient(180deg, #0b1720 0%, #071019 100%);
+}
+html[data-theme="gallery"] {
+  --theme-accent: rgb(99, 102, 241); /* indigo */
+  --theme-glow-spread: rgba(10, 12, 28, 0.55);
+  --theme-card-bg: linear-gradient(180deg, #0f1020 0%, #0a0b16 100%);
+}
+html[data-theme="homebound"] {
+  --theme-accent: rgb(34, 197, 94); /* green */
+  --theme-glow-spread: rgba(3, 18, 10, 0.50);
+  --theme-card-bg: linear-gradient(180deg, #0f1a14 0%, #09120d 100%);
+}
+html[data-theme="ricofamily"] {
+  --theme-accent: rgb(244, 114, 182); /* pink */
+  --theme-glow-spread: rgba(18, 6, 12, 0.50);
+  --theme-card-bg: linear-gradient(180deg, #1c1016 0%, #100a0f 100%);
+}
+html[data-theme="sponsors"] {
+  --theme-accent: rgb(251, 191, 36); /* gold */
+  --theme-glow-spread: rgba(21, 14, 0, 0.55);
+  --theme-card-bg: linear-gradient(180deg, #19150e 0%, #0d0b07 100%);
 }
 
 /* Prevent horizontal scroll */
@@ -167,6 +472,11 @@ img {
   overflow: hidden;
   word-break: break-word;
 }
+
+  /* Allow inline-flex groups to wrap when constrained */
+  .flex-wrap {
+    flex-wrap: wrap !important;
+  }
 
 /* Extra-small devices: optionally hide viewport edge fades */
 @media (max-width: 380px) {

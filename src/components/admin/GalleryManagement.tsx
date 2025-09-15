@@ -384,6 +384,7 @@ export const GalleryManagement: React.FC = () => {
                   currentImage={form.src}
                   bucket="gallery-images"
                   folder="gallery"
+                  cropAspect={16/9}
                 />
               </div>
             </div>

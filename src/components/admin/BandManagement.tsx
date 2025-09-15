@@ -371,6 +371,7 @@ export const BandManagement: React.FC = () => {
                   currentImage={form.image}
                   bucket="band-images"
                   folder="band"
+                  cropAspect={4/5}
                   autoSave
                 />
               </div>
@@ -527,6 +528,7 @@ export const BandManagement: React.FC = () => {
                   bucket="band-images"
                   folder="band"
                   className="h-32"
+                  cropAspect={4/5}
                   autoSave
                 />
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">

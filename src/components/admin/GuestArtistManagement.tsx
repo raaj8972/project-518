@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Star, Eye, EyeOff, Music, Play, Instagram, Youtube, AlignJustify as Spotify } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Star, Eye, EyeOff, Music, Play, Instagram, Youtube, AlignJustify as Spotify, Calendar, MapPin, Timer } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GuestArtist } from '../../context/DataContext';
@@ -31,6 +31,12 @@ export const GuestArtistManagement: React.FC = () => {
     order_position: 1,
     enabled: true,
     is_featured: false,
+    // scheduling
+    performance_date: '', // YYYY-MM-DD
+    performance_time: '', // HH:mm
+    venue: '',
+    countdown_enabled: false,
+    live_now_enabled: true,
     social_links: {
       instagram: '',
       youtube: '',
@@ -52,6 +58,11 @@ export const GuestArtistManagement: React.FC = () => {
       order_position: guestArtists.length + 1,
       enabled: true,
       is_featured: false,
+      performance_date: '',
+      performance_time: '',
+      venue: '',
+      countdown_enabled: false,
+      live_now_enabled: true,
       social_links: {
         instagram: '',
         youtube: '',
@@ -67,6 +78,11 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
+      let performance_at: string | null = null;
+      if (form.performance_date && form.performance_time) {
+        const local = new Date(`${form.performance_date}T${form.performance_time}`);
+        performance_at = isNaN(local.getTime()) ? null : local.toISOString();
+      }
       await addGuestArtist({
         name: form.name,
         title: form.title,
@@ -80,6 +96,10 @@ export const GuestArtistManagement: React.FC = () => {
         order_position: form.order_position,
         enabled: form.enabled,
         is_featured: form.is_featured,
+        performance_at,
+        venue: form.venue || null,
+        countdown_enabled: !!form.countdown_enabled,
+        live_now_enabled: form.live_now_enabled !== false,
         social_links: form.social_links,
       });
       setIsAdding(false);
@@ -98,6 +118,13 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
+      let performance_at: string | null = null;
+      if (form.performance_date && form.performance_time) {
+        const local = new Date(`${form.performance_date}T${form.performance_time}`);
+        performance_at = isNaN(local.getTime()) ? null : local.toISOString();
+      } else {
+        performance_at = null;
+      }
       await updateGuestArtist(id, {
         name: form.name,
         title: form.title,
@@ -111,6 +138,10 @@ export const GuestArtistManagement: React.FC = () => {
         order_position: form.order_position,
         enabled: form.enabled,
         is_featured: form.is_featured,
+        performance_at,
+        venue: form.venue || null,
+        countdown_enabled: !!form.countdown_enabled,
+        live_now_enabled: form.live_now_enabled !== false,
         social_links: form.social_links,
       });
       setEditing(null);
@@ -152,6 +183,19 @@ export const GuestArtistManagement: React.FC = () => {
   };
 
   const startEditing = (artist: GuestArtist) => {
+    // derive date/time from ISO if present
+    let performance_date = '';
+    let performance_time = '';
+    if ((artist as any).performance_at) {
+      try {
+        const d = new Date((artist as any).performance_at as any);
+        if (!isNaN(d.getTime())) {
+          const pad = (n: number) => String(n).padStart(2, '0');
+          performance_date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+          performance_time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+      } catch {}
+    }
     setForm({
       name: artist.name,
       title: artist.title,
@@ -165,6 +209,11 @@ export const GuestArtistManagement: React.FC = () => {
       order_position: artist.order_position,
       enabled: artist.enabled,
       is_featured: artist.is_featured,
+      performance_date,
+      performance_time,
+      venue: (artist as any).venue || '',
+      countdown_enabled: !!(artist as any).countdown_enabled,
+      live_now_enabled: (artist as any).live_now_enabled ?? true,
       social_links: artist.social_links || { instagram: '', youtube: '', spotify: '' }
     });
     setEditing(artist.id);
@@ -318,6 +367,59 @@ export const GuestArtistManagement: React.FC = () => {
                   </label>
                 </div>
               </div>
+
+              {/* Performance Schedule */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Performance Schedule (Optional)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <div className="flex items-center text-xs text-gray-500 mb-1"><Calendar size={14} className="mr-1" /> Date</div>
+                    <input
+                      type="date"
+                      value={form.performance_date}
+                      onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center text-xs text-gray-500 mb-1"><Timer size={14} className="mr-1" /> Time</div>
+                    <input
+                      type="time"
+                      value={form.performance_time}
+                      onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center text-xs text-gray-500 mb-1"><MapPin size={14} className="mr-1" /> Venue</div>
+                    <input
+                      type="text"
+                      value={form.venue}
+                      onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
+                      placeholder="Venue"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center mt-3">
+                  <input
+                    type="checkbox"
+                    checked={!!form.countdown_enabled}
+                    onChange={(e) => setForm(prev => ({ ...prev, countdown_enabled: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Show countdown on public site</span>
+                </label>
+                <label className="flex items-center mt-2">
+                  <input
+                    type="checkbox"
+                    checked={form.live_now_enabled !== false}
+                    onChange={(e) => setForm(prev => ({ ...prev, live_now_enabled: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  <span className="text-sm text-gray-700">Show LIVE NOW when event starts</span>
+                </label>
+              </div>
               
               {/* Social Links */}
               <div>
@@ -405,6 +507,7 @@ export const GuestArtistManagement: React.FC = () => {
                   currentImage={form.image}
                   bucket="guest-artist-images"
                   folder="artists"
+                  cropAspect={4/5}
                 />
               </div>
             </div>
@@ -504,6 +607,53 @@ export const GuestArtistManagement: React.FC = () => {
                     </label>
                   </div>
                 </div>
+
+                {/* Performance Schedule editing */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <input
+                      type="date"
+                      value={form.performance_date}
+                      onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="time"
+                      value={form.performance_time}
+                      onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={form.venue}
+                      onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
+                      placeholder="Venue"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                  </div>
+                </div>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={!!form.countdown_enabled}
+                    onChange={(e) => setForm(prev => ({ ...prev, countdown_enabled: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  <span className="text-xs">Show countdown on public site</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={form.live_now_enabled !== false}
+                    onChange={(e) => setForm(prev => ({ ...prev, live_now_enabled: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  <span className="text-xs">Show LIVE NOW when event starts</span>
+                </label>
                 
                 {/* Social Links editing */}
                 <div className="space-y-2">
@@ -554,6 +704,7 @@ export const GuestArtistManagement: React.FC = () => {
                   bucket="guest-artist-images"
                   folder="artists"
                   className="h-32"
+                  cropAspect={4/5}
                 />
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
                   <button

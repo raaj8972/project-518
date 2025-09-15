@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube } from 'lucide-react';
+import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, MapPin } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
-import InfiniteLogoCarousel from '../components/InfiniteLogoCarousel';
+import LogoLoop from '../components/LogoLoop';
 import InfiniteMarquee from '../components/InfiniteMarquee';
 import CoverflowCarousel from '../components/CoverflowCarousel';
 import AutoCarousel from '../components/AutoCarousel';
@@ -12,12 +12,14 @@ import GuestArtistVideoModal from '../components/GuestArtistVideoModal';
 import GuestArtistDetailModal from '../components/GuestArtistDetailModal';
 import type { GuestArtist } from '../context/DataContext';
 import Roadmap from '../components/Roadmap';
+import CountdownTimer from '../components/CountdownTimer';
+import Sparkle3D from '../components/Sparkle3D';
 
 export const Home: React.FC = () => {
   const { 
     events, 
     galleryImages, 
-    sponsors, 
+    sponsors,
     guestArtists, 
   facultyHeads,
   coreTeamMembers,
@@ -43,10 +45,12 @@ export const Home: React.FC = () => {
     formSettings: !!formSettings
   });
   
+  
   const [membershipModal, setMembershipModal] = useState(false);
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedArtistForVideo, setSelectedArtistForVideo] = useState<GuestArtist | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  // Selected artist for the detail modal
   const [detailArtist, setDetailArtist] = useState<GuestArtist | null>(null);
   const [glitchActive, setGlitchActive] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
@@ -90,27 +94,16 @@ export const Home: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [facultyModalOpen, selectedType, selectedIndex, sortedFacultyHeads, sortedCommitteeHeads]);
 
-  // Glitch effect trigger
+  // Reveal-on-scroll observer
   useEffect(() => {
-    const glitchTimer = setInterval(() => {
-      setGlitchActive(true);
-      setTimeout(() => setGlitchActive(false), 200);
-    }, 15000);
-    return () => clearInterval(glitchTimer);
-  }, []);
-
-  // Intersection Observer for scroll animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animate-in');
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          (entry.target as HTMLElement).classList.add('animate-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
 
     const animatedElements = document.querySelectorAll('.scroll-animate');
     animatedElements.forEach((el) => observer.observe(el));
@@ -247,7 +240,7 @@ export const Home: React.FC = () => {
               {homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity'}
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+            <div className="flex justify-center items-center">
               <a
                 href="/events"
                 className="cyberpunk-btn cyberpunk-btn-primary group hover-float"
@@ -255,22 +248,8 @@ export const Home: React.FC = () => {
                 <span className="relative z-10 flex items-center">
                   <Calendar className="mr-2 group-hover:animate-pulse" size={20} />
                   EXPLORE EVENTS
-                  <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
                 </span>
               </a>
-              
-              {formSettings?.membership_form_enabled && (
-                <button 
-                  onClick={() => setMembershipModal(true)}
-                  className="cyberpunk-btn cyberpunk-btn-secondary group hover-float"
-                >
-                  <span className="relative z-10 flex items-center">
-                    <Users className="mr-2 group-hover:animate-pulse" size={20} />
-                    JOIN RICO FAMILY
-                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={20} />
-                  </span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -279,7 +258,7 @@ export const Home: React.FC = () => {
         {homepageSettings?.sponsor_section_enabled && homepageSettings?.sponsor_logos && homepageSettings.sponsor_logos.length > 0 && (
           <div className="absolute bottom-8 left-0 right-0 z-10">
             <div className="text-center">
-              <p className="text-gray-400 text-sm mb-4 font-mono">
+              <p className="text-gray-100 text-lg sm:text-xl md:text-2xl font-semibold mb-4 font-mono text-glow-strong text-glow-pulse">
                 {homepageSettings.sponsor_section_text}
               </p>
               <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 px-2 sm:px-4">
@@ -287,7 +266,7 @@ export const Home: React.FC = () => {
                   .filter((logo: any) => logo.enabled && logo.logo_url)
                   .sort((a: any, b: any) => a.order - b.order)
                   .map((logo: any) => (
-                    <div key={logo.id} className="hover-float">
+                    <div key={logo.id} className="hover-float logo-glow logo-pulse-soft">
                       {logo.website ? (
                         <a
                           href={logo.website}
@@ -320,16 +299,16 @@ export const Home: React.FC = () => {
 
       {/* Featured Guest Artists */}
       {featuredGuestArtists.length > 0 && (
-        <section className="py-20 relative overflow-hidden">
+        <section className="py-14 md:py-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/30 to-pink-900/20"></div>
-          <div className="container mx-auto px-4 relative z-10">
+          <div className="container mx-auto px-0 sm:px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
+              <div className="text-center mb-10 md:mb-16">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
                   FEATURED <span className="neon-pink">ARTISTS</span>
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-6 md:mb-8 expand-width"></div>
+                <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
                   Meet the incredible artists who will light up RICORRENZA 2025
                 </p>
               </div>
@@ -343,7 +322,8 @@ export const Home: React.FC = () => {
               showArrows={true}
               showDots={false}
               onItemClick={(artist) => { setDetailArtist(artist); setDetailOpen(true); }}
-              className="mt-2"
+              className="mt-0 md:mt-2"
+              stageHeight={'var(--featured-stage-height)'}
               renderItem={(artist) => (
                 <div className="cyberpunk-card group w-[310px] md:w-[360px] overflow-hidden">
                   <div className="relative h-64 overflow-hidden">
@@ -388,24 +368,49 @@ export const Home: React.FC = () => {
                         {artist.specialty}
                       </span>
                     </div>
-                    <p className="text-gray-300 text-sm leading-relaxed mb-4 line-clamp-3">
-                      {artist.description}
-                    </p>
-
-                    {artist.social_links && Object.keys(artist.social_links).length > 0 && (
-                      <div className="flex space-x-3 mb-1">
-                        {artist.social_links.instagram && (
-                          <a href={artist.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors hover:scale-110">
-                            <Instagram size={20} />
-                          </a>
-                        )}
-                        {artist.social_links.youtube && (
-                          <a href={artist.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors hover:scale-110">
-                            <Youtube size={20} />
-                          </a>
-                        )}
+                    {(artist as any).countdown_enabled && (artist as any).performance_at && (
+                      <div className="relative mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                        <div className="absolute -top-2 -right-2 w-10 h-10">
+                          <Sparkle3D intensity={7} />
+                        </div>
+                        <div className="flex flex-col items-start gap-3">
+                          <div className="text-xs text-gray-300">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4 text-pink-300" />
+                              <span>{new Date((artist as any).performance_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                            </div>
+                            {(artist as any).venue && (
+                              <div className="flex items-center gap-1 mt-1 text-gray-400">
+                                <MapPin className="w-4 h-4" />
+                                <span>{(artist as any).venue}</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="mt-2 self-start">
+                            <CountdownTimer
+                              className="max-w-full"
+                              target={(artist as any).performance_at as any}
+                              endedText="LIVE NOW"
+                              showEnded={(artist as any).live_now_enabled !== false}
+                              liveLink={(artist as any).youtube_url || (artist as any).social_links?.youtube || undefined}
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
+                    {/* Description removed from card to avoid overlap; shown in detail modal on click */}
+                    <div className="mt-3">
+                      <button
+                        type="button"
+                        onClick={() => { setDetailArtist(artist as any); setDetailOpen(true); }}
+                        className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
+                        aria-label={`Read more about ${artist.name}`}
+                      >
+                        Details
+                      </button>
+                    </div>
+
+                    {/* Social icons moved into detail modal; hidden on card to reduce clutter */}
                   </div>
                 </div>
               )}
@@ -427,11 +432,11 @@ export const Home: React.FC = () => {
 
       {/* Featured Events */}
       {featuredEvents.length > 0 && (
-        <section className="py-20 relative overflow-hidden">
+  <section className="py-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
+              <div className="text-center mb-10">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
                   FEATURED <span className="neon-blue">EVENTS</span>
                 </h2>
@@ -513,7 +518,7 @@ export const Home: React.FC = () => {
 
       {/* Featured Gallery */}
       {featuredImages.length > 0 && (
-        <section className="py-20 relative overflow-hidden">
+  <section className="pt-20 pb-0 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
@@ -568,15 +573,15 @@ export const Home: React.FC = () => {
 
       {/* Featured Sponsors */}
   {featuredSponsors.length > 0 && homepageSettings?.featured_partners_enabled && (
-        <section className="py-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-slate-900/60 to-zinc-900/40"></div>
+  <section className="pt-8 pb-20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[#0b0f1a]"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                  OUR <span className="neon-white">PARTNERS</span>
+                  OUR <span className="neon-blue">PARTNERS</span>
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-gray-500 to-slate-500 mx-auto mb-8 expand-width"></div>
+                <div className="w-32 h-1 bg-gradient-to-r from-cyan-400 to-cyan-600 mx-auto mb-8 expand-width"></div>
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
                   Powered by industry leaders who believe in our vision
                 </p>
@@ -590,14 +595,86 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            <InfiniteLogoCarousel
-              items={featuredSponsors.map(s => ({ id: s.id, name: s.name, logo: s.logo, website: s.website }))}
-              speedPxPerSec={140}
-              pauseOnHover={true}
-              className="py-2"
-              heightClass="h-20 sm:h-20 md:h-24"
-               itemPaddingClass="px-4 sm:px-8 md:px-10"
-            />
+            <div
+              className="relative left-1/2 -translate-x-1/2 w-screen"
+              style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+            >
+              <LogoLoop
+                logos={featuredSponsors.map(s => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
+                speed={Math.min(800, Math.max(1, Math.abs(homepageSettings?.sponsors_belt_speed_px_per_sec ?? 140)))}
+                direction={homepageSettings?.sponsors_belt_direction ?? 'left'}
+                pauseOnHover={true}
+                pauseInstantOnHover={false}
+                smoothTauSec={0.6}
+                scaleOnHover={false}
+                fadeOut={true}
+                fadeOutColor="#0b0f1a"
+                glow={true}
+                cardRadius={24}
+                cardPaddingX={18}
+                cardPaddingY={0}
+                ariaLabel="Our partners"
+                className=""
+                style={{
+                  background: '#0b0f1a',
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                  isolation: 'isolate',
+                  // Allow hover events to pause the belt when hovering
+                  pointerEvents: 'auto',
+                  // Responsive sizing like the reference: bigger on phones, capped on desktop
+                  ['--logoloop-logoHeight' as any]: 'clamp(70px, 16vw, 110px)',
+                  ['--logoloop-gap' as any]: 'clamp(18px, 4.5vw, 28px)',
+                  // Belt background removed so only inner card is filled
+                  // Disable any pulse/glow animation
+                  ['--ll-pulse-duration' as any]: '0s',
+                  // Disable floor glow entirely
+                  ['--ll-floor-opacity' as any]: 0,
+                  ['--ll-floor-width' as any]: '66%',
+                  // Remove any base glow
+                  ['--ll-glow-color' as any]: 'rgba(0,0,0,0)',
+                  ['--ll-border-blur' as any]: '0em',
+                  ['--ll-border-spread' as any]: '0em',
+                  ['--ll-outer-blur' as any]: '0em',
+                  ['--ll-outer-spread' as any]: '0em',
+                  ['--ll-pulse-outer-blur' as any]: '0em',
+                  ['--ll-pulse-outer-spread' as any]: '0em',
+                  ['--ll-rim-alpha' as any]: 0,
+                  ['--ll-glow-spread-color' as any]: 'rgba(0,0,0,0)',
+                  // Disable glass sheen overlay
+                  ['--ll-glass-blur' as any]: '0px',
+                  ['--ll-glass-saturate' as any]: '100%',
+                  ['--ll-glass-sheen' as any]: 0,
+                  // Enable subtle white glow on hover + gentle lift
+                  ['--ll-hover-outer-color' as any]: 'rgba(255,255,255,0.6)',
+                  ['--ll-hover-outer-blur' as any]: '0.75em',
+                  ['--ll-hover-outer-spread' as any]: '0.18em',
+                  ['--ll-card-scale-hover' as any]: 1.04,
+                  // Disable card depth shadow to avoid any banding across the row
+                  ['--ll-depth-shadow-fn' as any]: '0 0 0 rgba(0,0,0,0)',
+                  // Darker inner container (pure black)
+                  ['--ll-card-bg' as any]: '#000000',
+                  // Remove border line for a cleaner pill
+                  ['--ll-card-border-w' as any]: '0px',
+                  // Square rounded tiles: fixed equal H & W
+                  ['--ll-card-min-h' as any]: 'unset',
+                  ['--ll-card-h' as any]: 'clamp(140px, 24vw, 200px)',
+                  ['--ll-card-w' as any]: 'clamp(140px, 24vw, 200px)',
+                  // Center logos inside square without cropping
+                  ['--ll-logo-h' as any]: 'auto',
+                  ['--ll-logo-w' as any]: 'auto',
+                  ['--ll-logo-fit' as any]: 'contain',
+                  ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 4px)',
+                  ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 4px)',
+                  // Remove inner image rounding and extra shadows for a crisp tile
+                  ['--ll-logo-radius' as any]: '8px',
+                  ['--ll-logo-filter' as any]: 'none',
+                  ['--ll-logo-filter-hover' as any]: 'none',
+                  // Narrow edge fades to frame the belt subtly
+                  ['--logoloop-fadeWidth' as any]: 'clamp(8px, 3vw, 28px)'
+                }}
+              />
+            </div>
             {/* View all button added above when lists are long */}
           </div>
         </section>
@@ -669,58 +746,68 @@ export const Home: React.FC = () => {
 
               {/* Committee Heads */}
               {committeeHeads.length > 0 && homepageSettings?.show_committee_heads && (
-                <div className="relative -mx-4 sm:mx-0">
-                  <h3 className="text-xl font-semibold mb-4 text-gray-200 flex items-center">
-                    <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Committee Heads
-                  </h3>
-                  <InfiniteMarquee
-                    items={sortedCommitteeHeads}
-                    direction="right"
-                    speedPxPerSec={75}
-                    pauseOnHover={true}
-                    paused={committeePaused}
-                    pauseOnTouch={false}
-                    itemWrapperClassName="pr-4 md:pr-6 first:pl-0"
-                    sideGutterPx={2}
-                    className="py-4 relative"
-                    renderItem={(m) => (
-                      <div
-                        className={`w-72 md:w-80 cyberpunk-card p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
-                        onClick={() => {
-                          setClicked({ type: 'committee', id: m.id });
-                          const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
-                          setTimeout(() => {
-                            setSelectedType('committee');
-                            setSelectedIndex(idx >= 0 ? idx : 0);
-                            setSelectedPerson(m);
-                            setFacultyModalOpen(true);
-                            setFacultyPaused(true);
-                            setCommitteePaused(true);
-                            setClicked(null);
-                          }, 180);
-                        }}
-                        onMouseEnter={() => setCommitteePaused(true)}
-                        onMouseLeave={() => setCommitteePaused(false)}
-                      >
-                        <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
-                          <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="font-bold text-white flex items-center text-base md:text-lg">
-                          <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
-                        </div>
-                        <div className="text-sm md:text-base text-gray-300">{m.role}</div>
-                      </div>
-                    )}
-                  />
-                  {/* Edge fades for readability — soften the black at screen edges; thinner on phones; hidden on very small screens */}
+                <>
+                  {/* Heading aligned with container (matches Faculty Heads) */}
+                  <div className="mb-4">
+                    <h3 className="text-xl font-semibold text-gray-200 flex items-center leading-[1.2] md:leading-[1.25] pt-1 relative z-10">
+                      <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Committee Heads
+                    </h3>
+                  </div>
+                  {/* Full-bleed marquee below heading */}
                   <div
-                    className="pointer-events-none absolute left-1/2 -translate-x-1/2 inset-y-0 w-[100svw] hide-edge-fades-xs"
+                    className="relative left-1/2 -translate-x-1/2 w-screen"
                     style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
                   >
-                    <div className="absolute inset-y-0 left-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-r from-black/25 via-black/5 to-transparent" />
-                    <div className="absolute inset-y-0 right-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-l from-black/25 via-black/5 to-transparent" />
+                    <div className="relative">
+                      <InfiniteMarquee
+                        items={sortedCommitteeHeads}
+                        direction={homepageSettings?.committee_marquee_direction ?? 'right'}
+                        speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 75}
+                        pauseOnHover={false}
+                        paused={committeePaused}
+                        pauseOnTouch={false}
+                        itemWrapperClassName="pr-4 md:pr-6 first:pl-0"
+                        sideGutterPx={2}
+                        className="py-4 relative"
+                        renderItem={(m) => (
+                          <div
+                            className={`w-72 md:w-80 cyberpunk-card p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
+                            onClick={() => {
+                              setClicked({ type: 'committee', id: m.id });
+                              const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
+                              setTimeout(() => {
+                                setSelectedType('committee');
+                                setSelectedIndex(idx >= 0 ? idx : 0);
+                                setSelectedPerson(m);
+                                setFacultyModalOpen(true);
+                                setFacultyPaused(true);
+                                setCommitteePaused(true);
+                                setClicked(null);
+                              }, 180);
+                            }}
+                            // Keep marquee running on hover
+                          >
+                            <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
+                              <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="font-bold text-white flex items-center text-base md:text-lg">
+                              <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                            </div>
+                            <div className="text-sm md:text-base text-gray-300">{m.role}</div>
+                          </div>
+                        )}
+                      />
+                      {/* Edge fades for readability — scoped to marquee area only */}
+                      <div
+                        className="pointer-events-none absolute inset-y-0 left-0 right-0 hide-edge-fades-xs"
+                        style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
+                      >
+                        <div className="absolute inset-y-0 left-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-r from-black/25 via-black/5 to-transparent" />
+                        <div className="absolute inset-y-0 right-0 w-1 sm:w-3 md:w-8 lg:w-12 bg-gradient-to-l from-black/25 via-black/5 to-transparent" />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -989,43 +1076,43 @@ export const Home: React.FC = () => {
         .neon-pink {
           color: #ff00ff;
           text-shadow: 
-            0 0 5px #ff00ff,
-            0 0 10px #ff00ff;
+            0 0 2px #ff00ff,
+            0 0 4px #ff00ff;
         }
 
         .neon-blue {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .neon-green {
           color: #00ff00;
           text-shadow: 
-            0 0 5px #00ff00,
-            0 0 10px #00ff00;
+            0 0 2px #00ff00,
+            0 0 4px #00ff00;
         }
 
         .neon-yellow {
           color: #ffff00;
           text-shadow: 
-            0 0 5px #ffff00,
-            0 0 10px #ffff00;
+            0 0 2px #ffff00,
+            0 0 4px #ffff00;
         }
 
         .neon-white {
           color: #ffffff;
           text-shadow: 
-            0 0 5px #ffffff,
-            0 0 10px #ffffff;
+            0 0 2px #ffffff,
+            0 0 4px #ffffff;
         }
 
         .neon-cyan {
           color: #00ffff;
           text-shadow: 
-            0 0 5px #00ffff,
-            0 0 10px #00ffff;
+            0 0 2px #00ffff,
+            0 0 4px #00ffff;
         }
 
         .counter-animation {
@@ -1035,21 +1122,21 @@ export const Home: React.FC = () => {
         @keyframes counterPulse {
           from {
             text-shadow: 
-              0 0 5px currentColor,
-              0 0 10px currentColor;
+              0 0 2px currentColor,
+              0 0 4px currentColor;
           }
           to {
             text-shadow: 
-              0 0 10px currentColor,
-              0 0 20px currentColor,
-              0 0 30px currentColor;
+              0 0 4px currentColor,
+              0 0 8px currentColor,
+              0 0 12px currentColor;
           }
         }
 
         .glow-text {
           text-shadow: 
-            0 0 3px currentColor,
-            0 0 6px currentColor;
+            0 0 2px currentColor,
+            0 0 4px currentColor;
         }
 
         .glitch-active {

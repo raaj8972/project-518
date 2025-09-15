@@ -1,0 +1,326 @@
+.logoloop {
+  position: relative;
+  /* Hide any vertical hairlines and confine paint to this element */
+  overflow: hidden;
+  background: transparent;
+  contain: paint;
+  /* Promote to its own layer to prevent 1px banding on some GPUs */
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
+  will-change: transform;
+
+  --logoloop-gap: 32px;
+  --logoloop-logoHeight: 28px;
+  --logoloop-fadeColorAuto: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .logoloop {
+    --logoloop-fadeColorAuto: #0b0b0b;
+  }
+}
+
+.logoloop__track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  user-select: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.logoloop__list {
+  display: flex;
+  align-items: center;
+}
+
+.logoloop__item {
+  flex: 0 0 auto;
+  margin-right: var(--logoloop-gap);
+  font-size: var(--logoloop-logoHeight);
+  line-height: 1;
+}
+
+.logoloop__item:last-child {
+  margin-right: var(--logoloop-gap);
+}
+
+.logoloop__node {
+  display: inline-flex;
+  align-items: center;
+}
+
+.logoloop__item img {
+  height: var(--logoloop-logoHeight);
+  width: auto;
+  display: block;
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  -webkit-user-drag: none;
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Register a numeric custom property we can animate smoothly */
+@property --ll-pulse {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Optional helper class to enable pulsing glow */
+.logoloop--pulse {
+  /* Duration and amplitude are tunable via CSS variables */
+  --ll-pulse-duration: 3s;
+  animation: ll-glow-pulse var(--ll-pulse-duration) ease-in-out infinite;
+}
+
+@keyframes ll-glow-pulse {
+  0%   { --ll-pulse: 0; }
+  50%  { --ll-pulse: 1; }
+  100% { --ll-pulse: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logoloop--pulse {
+    animation: none !important;
+  }
+}
+
+/* Glowing card container */
+.logoloop--glow {
+  /* Pull from global theme vars with sensible fallbacks */
+  --ll-glow-color: var(--theme-accent, rgb(200, 120, 255));
+  --ll-glow-spread-color: var(--theme-glow-spread, rgba(11, 15, 26, 0.42));
+  --ll-card-bg: var(--theme-card-bg, linear-gradient(180deg, #151a24 0%, #0b0f1a 100%));
+  --ll-card-radius: 16px;
+  --ll-card-pad-x: 20px;
+  --ll-card-pad-y: 10px;
+  /* floor glow tuning */
+  --ll-floor-width: 70%;
+  --ll-floor-opacity: 0.45;
+  --ll-floor-offset: -14px;
+  --ll-floor-blur: 10px;
+
+  /* Pulse tuning (how much the glow expands at peak) */
+  --ll-pulse-border-blur: 0.10em;
+  --ll-pulse-border-spread: 0.02em;
+  --ll-pulse-outer-blur: 0.22em;
+  --ll-pulse-outer-spread: 0.04em;
+
+  /* Derived animated values based on pulse (0..1) */
+  --ll-border-blur-anim: calc(var(--ll-border-blur, 0.25em) + (var(--ll-pulse) * var(--ll-pulse-border-blur)));
+  --ll-border-spread-anim: calc(var(--ll-border-spread, 0.1em) + (var(--ll-pulse) * var(--ll-pulse-border-spread)));
+  --ll-outer-blur-anim: calc(var(--ll-outer-blur, 0.45em) + (var(--ll-pulse) * var(--ll-pulse-outer-blur)));
+  --ll-outer-spread-anim: calc(var(--ll-outer-spread, 0.05em) + (var(--ll-pulse) * var(--ll-pulse-outer-spread)));
+}
+
+.logoloop__card {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ll-card-pad-y) var(--ll-card-pad-x);
+  border-radius: var(--ll-card-radius);
+  background: var(--ll-card-bg);
+  border: var(--ll-card-border-w, 0px) solid var(--ll-card-border-color, transparent);
+  /* Solid, consistent interior size and no spillover */
+  min-height: var(--ll-card-min-h, calc(var(--logoloop-logoHeight) + 12px));
+  height: var(--ll-card-h, auto);
+  width: var(--ll-card-w, auto);
+  overflow: hidden;
+  /* Depth shadow under the card */
+  --ll-depth-shadow: var(--ll-depth-shadow-fn, 0 18px 28px rgba(0,0,0,0.45));
+  /* Use vars to tune glow strength per-section without editing this file again */
+  box-shadow:
+    /* Inner inset glow stays static */
+    0 0 var(--ll-border-blur, 0.25em) var(--ll-border-spread, 0.1em) var(--ll-glow-color) inset,
+    var(--ll-depth-shadow),
+    /* Only the outer halo pulses */
+    0 0 var(--ll-outer-blur-anim, var(--ll-outer-blur, 0.45em)) var(--ll-outer-spread-anim, var(--ll-outer-spread, 0.05em)) var(--ll-glow-spread-color),
+    /* Optional hover-only white glow, injected via CSS var on hover */
+    var(--ll-hover-shadow, 0 0 0 0 rgba(0,0,0,0));
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Wrap to layer logo above card overlays */
+.logoloop__imgwrap {
+  position: relative;
+  z-index: 2; /* ensure above ::before/::after sheen */
+  display: inline-block;
+}
+
+/* Glassmorphism: frosted, subtle border, and sine pulsing sheen contained within each card */
+.logoloop--glass .logoloop__card {
+  background: var(--ll-card-bg, rgba(7,7,7,0.38));
+  backdrop-filter: blur(var(--ll-glass-blur, 10px)) saturate(var(--ll-glass-saturate, 120%));
+  -webkit-backdrop-filter: blur(var(--ll-glass-blur, 10px)) saturate(var(--ll-glass-saturate, 120%));
+  border: var(--ll-card-border-w, 1px) solid var(--ll-card-border-color, rgba(255,255,255,0.12));
+}
+
+/* Repurpose ::after for a diagonal sheen (floor glow stays off via opacity 0) */
+.logoloop--glass .logoloop__card::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      115deg,
+      rgba(255,255,255,0) 28%,
+      rgba(255,255,255, var(--ll-glass-sheen, calc(0.05 + (var(--ll-pulse, 0) * 0.06)))) 50%,
+      rgba(255,255,255,0) 72%
+    );
+  transform: translateX(calc((var(--ll-pulse, 0) - 0.5) * 14%));
+  opacity: 1;
+  filter: blur(0.3px);
+  pointer-events: none;
+  z-index: 1; /* keep behind image wrapper */
+}
+
+/* When inside a card, favor fitting logos within the box without overflow */
+.logoloop__card img,
+.logoloop__card .logoloop__node img {
+  height: var(--ll-logo-h, auto);
+  width: var(--ll-logo-w, auto);
+  max-height: var(--ll-logo-max-h, var(--logoloop-logoHeight));
+  max-width: var(--ll-logo-max-w, 100%);
+  object-fit: var(--ll-logo-fit, contain);
+  display: block;
+  /* Round only the image corners (not the container) */
+  border-radius: var(--ll-logo-radius, 16px);
+  /* Strong drop-shadow to make logos look like they float */
+  filter: var(--ll-logo-filter, drop-shadow(0 8px 16px rgba(0,0,0,0.55)) drop-shadow(0 2px 4px rgba(0,0,0,0.35)));
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), filter 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Optional: fade image edges to transparent so off-black background shows as black vignette */
+.logoloop--img-fade .logoloop__card img,
+.logoloop--img-fade .logoloop__card .logoloop__node img {
+  -webkit-mask-image: radial-gradient(ellipse at center,
+      #fff var(--ll-img-fade-inner, 78%),
+      rgba(255, 255, 255, 0) var(--ll-img-fade-outer, 98%)
+  );
+  mask-image: radial-gradient(ellipse at center,
+      #fff var(--ll-img-fade-inner, 78%),
+      rgba(255, 255, 255, 0) var(--ll-img-fade-outer, 98%)
+  );
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+/* inner rim highlight */
+.logoloop__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ll-card-radius);
+  /* Subtle inner rim highlight, adjustable via --ll-rim-alpha */
+  box-shadow: 0 0 1.2em rgba(255 255 255 / var(--ll-rim-alpha, 0.08)) inset;
+  pointer-events: none;
+}
+
+/* floor glow illusion */
+.logoloop__card::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--ll-floor-width);
+  bottom: var(--ll-floor-offset);
+  height: 22px;
+  border-radius: 50% / 60%;
+  background: radial-gradient(60% 100% at 50% 0%, var(--ll-glow-spread-color), rgba(0,0,0,0) 70%);
+  filter: blur(var(--ll-floor-blur));
+  opacity: var(--ll-floor-opacity);
+  pointer-events: none;
+}
+
+.logoloop--scale-hover .logoloop__item {
+  overflow: visible;
+}
+
+.logoloop--scale-hover .logoloop__item:hover img,
+.logoloop--scale-hover .logoloop__item:hover .logoloop__node {
+  transform: scale(1.2);
+  transform-origin: center center;
+}
+
+/* Card + logo lift on hover/tap/focus for 3D feel */
+.logoloop__item:hover .logoloop__card,
+.logoloop__item:active .logoloop__card,
+.logoloop__item:focus-within .logoloop__card {
+  /* Provide interaction-only white glow and a subtle zoom */
+  --ll-hover-shadow: 0 0 var(--ll-hover-outer-blur, 0.65em) var(--ll-hover-outer-spread, 0.16em) var(--ll-hover-outer-color, rgba(255,255,255,0.6));
+  transform: translateY(-4px) scale(var(--ll-card-scale-hover, 1.05));
+}
+
+.logoloop__item:hover .logoloop__card img,
+.logoloop__item:hover .logoloop__card .logoloop__node img {
+  transform: translateZ(0) scale(1.03);
+  filter: var(--ll-logo-filter-hover, drop-shadow(0 14px 26px rgba(0,0,0,0.6)) drop-shadow(0 6px 10px rgba(0,0,0,0.45)));
+}
+
+.logoloop--scale-hover .logoloop__node {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logoloop__link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.logoloop__link:hover {
+  opacity: 0.8;
+}
+
+.logoloop__link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.logoloop--fade::before,
+.logoloop--fade::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--logoloop-fadeWidth, clamp(24px, 8%, 120px));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.logoloop--fade::before {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    var(--logoloop-fadeColor, var(--logoloop-fadeColorAuto)) 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+.logoloop--fade::after {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    var(--logoloop-fadeColor, var(--logoloop-fadeColorAuto)) 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logoloop__track {
+    transform: translate3d(0, 0, 0) !important;
+  }
+
+  .logoloop__item img,
+  .logoloop__node {
+    transition: none !important;
+  }
+}

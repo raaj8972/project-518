@@ -35,12 +35,12 @@ export const Navbar: React.FC = () => {
       scrolled ? 'backdrop-blur-md bg-black/80 border-b border-pink-500/30' : 'bg-transparent'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+  <div className="flex justify-between items-center h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="cyberpunk-logo group">
-            <div className="flex items-center space-x-2">
-              <Zap className="w-8 h-8 text-pink-400 group-hover:text-pink-300 transition-colors animate-pulse" />
-              <span className="text-xl font-black tracking-wider cyberpunk-text">
+            <div className="flex items-center space-x-3">
+              <Zap className="w-8 h-8 md:w-10 md:h-10 text-pink-400 group-hover:text-pink-300 transition-colors animate-pulse flex-shrink-0" />
+              <span className="text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
                 RICORRENZA 2025
               </span>
             </div>
@@ -105,7 +105,7 @@ export const Navbar: React.FC = () => {
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .cyberpunk-navbar {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
         }
@@ -154,12 +154,12 @@ export const Navbar: React.FC = () => {
 
         .cyberpunk-nav-item:hover {
           color: #ff00ff;
-          text-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+          text-shadow: 0 0 2px rgba(255, 0, 255, 0.28);
         }
 
         .cyberpunk-nav-item.active {
           color: #00ffff;
-          text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+          text-shadow: 0 0 2px rgba(0, 255, 255, 0.28);
         }
 
         .cyberpunk-menu-btn {
@@ -217,12 +217,12 @@ export const Navbar: React.FC = () => {
 
         .cyberpunk-mobile-nav-item:hover {
           color: #ff00ff;
-          text-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
+          text-shadow: 0 0 2px rgba(255, 0, 255, 0.28);
         }
 
         .cyberpunk-mobile-nav-item.active {
-          color: #00ffff;
-          text-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+          color: #80449eff;
+          text-shadow: 0 0 2px rgba(0, 255, 255, 0.28);
         }
 
         /* Smooth page transitions */
@@ -234,7 +234,7 @@ export const Navbar: React.FC = () => {
         /* Mobile optimizations */
         @media (max-width: 768px) {
           .cyberpunk-text {
-            font-size: 0.9rem;
+            font-size: 1.1rem;
           }
           
           .cyberpunk-nav-item,
@@ -245,7 +245,7 @@ export const Navbar: React.FC = () => {
         
         @media (max-width: 480px) {
           .cyberpunk-text {
-            font-size: 0.8rem;
+            font-size: 1rem;
           }
           
           .cyberpunk-nav-item,
