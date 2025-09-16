@@ -9,6 +9,29 @@ export const Sponsors: React.FC = () => {
   // removed unused ref to satisfy TypeScript
   const [glitchActive, setGlitchActive] = useState(false);
 
+  // Helpers to compute glow color/intensity per tier without breaking mix-blend-mode
+  const hexToRgba = (hex: string, alpha = 0.75) => {
+    try {
+      let h = hex.replace('#', '');
+      if (h.length === 3) {
+        h = h.split('').map((c) => c + c).join('');
+      }
+      const r = parseInt(h.substring(0, 2), 16);
+      const g = parseInt(h.substring(2, 4), 16);
+      const b = parseInt(h.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    } catch {
+      return `rgba(255,255,255,${alpha})`;
+    }
+  };
+
+  const intensityFromTier = (tier: string): 'strong' | 'medium' | 'soft' => {
+    const t = (tier || '').toLowerCase();
+    if (/title/.test(t) || /diamond/.test(t) || /platinum/.test(t)) return 'strong';
+    if (/co\s*-?\s*sponsor/.test(t) || /gold/.test(t) || /silver/.test(t)) return 'medium';
+    return 'soft';
+  };
+
   const titleSponsors = sponsors.filter(s => s.category === 'Title Sponsor');
   const coSponsors = sponsors.filter(s => s.category === 'Co Sponsor');
   
@@ -229,11 +252,21 @@ export const Sponsors: React.FC = () => {
                       {/* Crown moved to the section header; removed from individual cards */}
                       
                       <div className="flex items-center mb-6">
-                        <div className="mr-6 logo-glow logo-pulse-soft logo-3d-stage w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors bg-black/10">
+                        <div
+                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors bg-transparent"
+                          style={{
+                            ['--tier-glow' as any]: hexToRgba('#FFD700', 0.55),
+                            ['--tier-opacity' as any]: 0.55,
+                            ['--tier-blur' as any]: '10px',
+                            ['--tier-opacity-min' as any]: 0.38,
+                            ['--tier-blur-min' as any]: '8px',
+                            ['--tier-speed' as any]: '3.2s',
+                          }}
+                        >
                           <img
                             src={sponsor.logo}
                             alt={sponsor.name}
-                            className="w-full h-full object-contain rounded-lg logo-3d"
+                            className="w-full h-full object-contain rounded-lg"
                           />
                         </div>
                         <div className="flex-1 min-w-0 space-y-2">
@@ -312,11 +345,21 @@ export const Sponsors: React.FC = () => {
                       </div>
                       
                       <div className="flex items-center mb-6">
-                        <div className="mr-6 logo-glow logo-pulse-soft logo-3d-stage w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors bg-black/10">
+                        <div
+                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors bg-transparent"
+                          style={{
+                            ['--tier-glow' as any]: hexToRgba('#60A5FA', 0.8),
+                            ['--tier-opacity' as any]: 0.7,
+                            ['--tier-blur' as any]: '11px',
+                            ['--tier-opacity-min' as any]: 0.45,
+                            ['--tier-blur-min' as any]: '9px',
+                            ['--tier-speed' as any]: '3.4s',
+                          }}
+                        >
                           <img
                             src={sponsor.logo}
                             alt={sponsor.name}
-                            className="w-full h-full object-contain rounded-lg logo-3d"
+                            className="w-full h-full object-contain rounded-lg"
                           />
                         </div>
                         <div className="flex-1 min-w-0 space-y-2">
@@ -397,11 +440,19 @@ export const Sponsors: React.FC = () => {
                       <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                         <div className="p-6">
                           <div className="text-center mb-4">
-                            <div className="logo-glow logo-pulse-soft logo-3d-stage inline-flex mb-4 w-24 h-24 md:w-28 md:h-28 p-2 rounded-xl border border-purple-500/40 group-hover:border-purple-500 transition-colors bg-black/10">
+                            <div
+                              className={`logo-no-bg logo-tier-glow tier-pulse inline-flex mb-4 w-24 h-24 md:w-28 md:h-28 p-2 rounded-xl border border-purple-500/40 group-hover:border-purple-500 transition-colors bg-transparent tier-glow-${intensityFromTier(sponsor.category)}`}
+                              style={{
+                                ['--tier-glow' as any]: hexToRgba(getCategoryColor(sponsor.category), 0.78),
+                                ['--tier-opacity-min' as any]: 0.42,
+                                ['--tier-blur-min' as any]: '8px',
+                                ['--tier-speed' as any]: '3.6s',
+                              }}
+                            >
                               <img
                                 src={sponsor.logo}
                                 alt={sponsor.name}
-                                className="w-full h-full object-contain rounded-lg logo-3d"
+                                className="w-full h-full object-contain rounded-lg"
                               />
                             </div>
                             <h4 className="font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">

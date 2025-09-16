@@ -3,15 +3,14 @@ import { Music, Star, Instagram, Youtube, AlignJustify as Spotify, ArrowRight, M
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { AuditionModal } from '../components/AuditionModal';
-import HoloTiltCard from '../components/holo/HoloTiltCard';
-import useRevealCardInteractions from '../hooks/useRevealCardInteractions';
+import FlipCard, { FlipCardHandle } from '../components/FlipCard';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings } = useData();
   const [glitchActive, setGlitchActive] = useState(false);
   const [auditionModal, setAuditionModal] = useState(false);
-  // Delegate reveal/close/social interactions for any current or future containers
-  useRevealCardInteractions();
+  const [isTouch, setIsTouch] = useState(false);
+  // Removed hover-heavy reveal interactions to improve mobile scroll usability
 
   // Filter enabled band members and sort by order
   const enabledBandMembers = (bandMembers || [])
@@ -22,14 +21,29 @@ export const HomeBound: React.FC = () => {
   const featuredMembers = enabledBandMembers.filter(member => member.is_featured);
   const regularMembers = enabledBandMembers.filter(member => !member.is_featured);
 
-  // Glitch effect trigger
+  // Detect touch device once on mount
   useEffect(() => {
+    try {
+      const mq = typeof window !== 'undefined' ? window.matchMedia('(hover: none), (pointer: coarse)') : null;
+      const detected = !!(
+        (mq && mq.matches) ||
+        (typeof window !== 'undefined' && 'ontouchstart' in window)
+      );
+      setIsTouch(detected);
+    } catch {
+      setIsTouch(false);
+    }
+  }, []);
+
+  // Glitch effect trigger (skip on mobile to save battery)
+  useEffect(() => {
+    if (isTouch) return;
     const glitchTimer = setInterval(() => {
       setGlitchActive(true);
       setTimeout(() => setGlitchActive(false), 200);
     }, 12000);
     return () => clearInterval(glitchTimer);
-  }, []);
+  }, [isTouch]);
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -50,8 +64,9 @@ export const HomeBound: React.FC = () => {
     return () => observer.disconnect();
   }, [enabledBandMembers]);
 
-  // Track mouse position over cards to move the glow
+  // Track mouse position over cards to move the glow (desktop only)
   useEffect(() => {
+    if (isTouch) return;
     const handleMove = (e: MouseEvent) => {
       const target = (e.target as HTMLElement)?.closest?.('.glitch-card') as HTMLElement | null;
       if (!target) return;
@@ -63,10 +78,11 @@ export const HomeBound: React.FC = () => {
     };
     document.addEventListener('mousemove', handleMove);
     return () => document.removeEventListener('mousemove', handleMove);
-  }, []);
+  }, [isTouch]);
 
-  // Parallax effect
+  // Parallax effect (desktop only)
   useEffect(() => {
+    if (isTouch) return;
     const handleScroll = () => {
       const scrolled = window.pageYOffset;
       const parallaxElements = document.querySelectorAll('.parallax');
@@ -80,7 +96,7 @@ export const HomeBound: React.FC = () => {
 
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isTouch]);
 
   // Check if social media links should be shown
   // Prefer HomeBound-specific Instagram if configured
@@ -91,9 +107,9 @@ export const HomeBound: React.FC = () => {
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="homebound" />
 
-        {/* Floating Particles */}
+        {/* Floating Particles (reduced on mobile) */}
         <div className="particles-container">
-            {[...Array(50)].map((_, i) => (
+            {[...Array(isTouch ? 18 : 50)].map((_, i) => (
               <div
                 key={i}
                 className="particle"
@@ -146,65 +162,83 @@ export const HomeBound: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-2 gap-12">
-              {featuredMembers.map((member, index) => (
+              {featuredMembers.map((member, index) => {
+                const cardRef = React.createRef<FlipCardHandle>();
+                return (
                 <div
                   key={member.id}
                   className="scroll-animate opacity-0 transform translate-y-20"
                   style={{ animationDelay: `${index * 0.3}s` }}
                 >
-                  <HoloTiltCard className="group reveal-card glitch-card h-full mx-auto md:max-w-xl lg:max-w-[40rem] xl:max-w-[42rem]">
-                     <div className="glitch-bg" aria-hidden="true"></div>
-                     <div className="glitch-lines" aria-hidden="true"></div>
-                     <div className="relative overflow-hidden reveal-trigger">
-                       <img
-                         src={member.image}
-                         alt={member.name}
-                         className="w-full h-[30rem] md:h-[34rem] lg:h-[40rem] xl:h-[44rem] object-cover artist-image"
-                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-                       <div className="absolute top-4 right-4">
-                         <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
-                       </div>
-                       <div className="absolute bottom-4 left-4 right-4">
-                         <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
-                           FEATURED ARTIST
-                         </div>
-                       </div>
-                       {/* Full-card Reveal Details */}
-                       <div className="reveal-details">
-                         <button className="reveal-close" aria-label="Close details">×</button>
-                         <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center h-full">
-                           <h3 className="text-2xl md:text-3xl font-black text-white mb-2 neon-pink artist-name">{member.name}</h3>
-                           <p className="text-lg text-pink-400 mb-3 font-semibold">{member.role}</p>
-                           <div className="mb-3">
-                             <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">{member.specialty}</span>
-                           </div>
-                           <p className="text-gray-200 mb-4 leading-relaxed text-sm md:text-base">{member.description}</p>
-                           {member.social_links && Object.keys(member.social_links).length > 0 && (
-                             <div className="flex space-x-4 mb-4 items-center">
-                               {member.social_links.instagram && (
-                                 <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors ig-anim" aria-label="Instagram">
-                                   <Instagram size={36} />
-                                 </a>
-                               )}
-                               {member.social_links.youtube && (
-                                 <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors" aria-label="YouTube">
-                                   <Youtube size={22} />
-                                 </a>
-                               )}
-                               {member.social_links.spotify && (
-                                 <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors" aria-label="Spotify">
-                                   <Spotify size={22} />
-                                 </a>
-                               )}
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     </div>
-                   </HoloTiltCard>
-                 </div>
-               ))}
+                  <FlipCard
+                    className="group glitch-card hover-flip w-full mx-auto md:max-w-xl lg:max-w-[40rem] xl:max-w-[42rem] h-[30rem] md:h-[34rem] lg:h-[40rem] xl:h-[44rem]"
+                    ref={cardRef}
+                    disableWrapperTap={false}
+                    enableClickToggleOnDesktop
+                    front={(
+                      <div className="relative overflow-hidden w-full h-full">
+                        <div className="glitch-bg" aria-hidden="true"></div>
+                        <div className="glitch-lines" aria-hidden="true"></div>
+                        <img
+                          src={member.image}
+                          alt={member.name}
+                          className="w-full h-full object-cover artist-image"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+                        <div className="absolute top-4 right-4">
+                          <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
+                        </div>
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
+                            FEATURED ARTIST
+                          </div>
+                        </div>
+                        {/* More button */}
+                        <button
+                          type="button"
+                          onClick={(e)=>{ e.stopPropagation(); cardRef.current?.toggle(); }}
+                          className="absolute bottom-4 right-4 px-4 py-2 rounded-full text-sm font-semibold text-white more-btn-glow"
+                          aria-label="More details"
+                        >
+                          More
+                        </button>
+                      </div>
+                    )}
+                    back={(
+                      <div className="w-full h-full bg-gradient-to-b from-black/70 via-black/60 to-black/80">
+                        <div className="p-6 md:p-8 lg:p-10 flex flex-col justify-center h-full">
+                          <h3 className="text-2xl md:text-3xl font-black text-white mb-2 neon-pink artist-name">{member.name}</h3>
+                          <p className="text-lg text-pink-400 mb-3 font-semibold">{member.role}</p>
+                          <div className="mb-3">
+                            <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">{member.specialty}</span>
+                          </div>
+                          <p className="text-gray-200 mb-4 leading-relaxed text-sm md:text-base">{member.description}</p>
+                          {member.social_links && Object.keys(member.social_links).length > 0 && (
+                            <div className="flex space-x-4 mb-4 items-center">
+                              {member.social_links.instagram && (
+                                <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:text-pink-300 transition-colors ig-anim" aria-label="Instagram">
+                                  <Instagram size={36} />
+                                </a>
+                              )}
+                              {member.social_links.youtube && (
+                                <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 transition-colors" aria-label="YouTube">
+                                  <Youtube size={22} />
+                                </a>
+                              )}
+                              {member.social_links.spotify && (
+                                <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors" aria-label="Spotify">
+                                  <Spotify size={22} />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          {/* Back button removed; tap/click card to flip back */}
+                        </div>
+                      </div>
+                    )}
+                  />
+                </div>
+              );})}
              </div>
            </div>
          </section>
@@ -228,52 +262,70 @@ export const HomeBound: React.FC = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {regularMembers.map((member, index) => (
+              {regularMembers.map((member, index) => {
+                const cardRef = React.createRef<FlipCardHandle>();
+                return (
                 <div
                   key={member.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float band-card"
+                  className="scroll-animate opacity-0 transform translate-y-20 band-card"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <HoloTiltCard className="group reveal-card h-full overflow-hidden glitch-card mx-auto md:max-w-sm lg:max-w-md xl:max-w-lg">
-                     <div className="glitch-bg" aria-hidden="true"></div>
-                     <div className="glitch-lines" aria-hidden="true"></div>
-                     {/* Member Image */}
-                     <div className="relative h-80 md:h-96 lg:h-[28rem] overflow-hidden reveal-trigger">
-                       <img
-                         src={member.image}
-                         alt={member.name}
-                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 band-member-image"
-                       />
-                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                       {/* Specialty Badge */}
-                       <div className="absolute top-4 left-4">
-                         <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow">
-                           {member.category}
-                         </span>
-                       </div>
-                       {/* Category Badge */}
-                       <div className="absolute bottom-4 left-4">
-                         <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
-                           {member.specialty}
-                         </span>
-                       </div>
-                       {/* Floating Icon */}
-                       <div className="absolute top-4 right-4 floating-icon">
-                         <Volume2 className="w-6 h-6 text-cyan-400 animate-pulse" />
-                       </div>
-                     </div>
-                     {/* Reveal Info Overlay */}
-                     <div className="reveal-details">
-                       <button className="reveal-close" aria-label="Close details">×</button>
-                       <div className="p-6">
-                         <h4 className="text-xl font-bold text-white mb-2 member-name">{member.name}</h4>
-                         <p className="text-blue-400 font-semibold mb-3 text-sm">{member.role}</p>
-                         <p className="text-gray-200 text-sm leading-relaxed mb-2">{member.description}</p>
-                       </div>
-                     </div>
-                   </HoloTiltCard>
-                 </div>
-               ))}
+                  <FlipCard
+                    className="group overflow-hidden glitch-card hover-flip w-full mx-auto md:max-w-sm lg:max-w-md xl:max-w-lg h-80 md:h-96 lg:h-[28rem]"
+                    ref={cardRef}
+                    disableWrapperTap={false}
+                    enableClickToggleOnDesktop
+                    front={(
+                      <div className="relative w-full h-full overflow-hidden">
+                        <div className="glitch-bg" aria-hidden="true"></div>
+                        <div className="glitch-lines" aria-hidden="true"></div>
+                        <img
+                          src={member.image}
+                          alt={member.name}
+                          className="w-full h-full object-cover band-member-image"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                        {/* Specialty Badge */}
+                        <div className="absolute top-4 left-4">
+                          <span className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow">
+                            {member.category}
+                          </span>
+                        </div>
+                        {/* Category Badge */}
+                        <div className="absolute bottom-4 left-4">
+                          <span className="bg-black/70 text-white px-2 py-1 rounded text-xs font-medium">
+                            {member.specialty}
+                          </span>
+                        </div>
+                        {/* Floating Icon */}
+                        <div className="absolute top-4 right-4 floating-icon">
+                          <Volume2 className="w-6 h-6 text-cyan-400 animate-pulse" />
+                        </div>
+                        {/* More button */}
+                        <button
+                          type="button"
+                          onClick={(e)=>{ e.stopPropagation(); cardRef.current?.toggle(); }}
+                          className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white more-btn-glow"
+                          aria-label="More details"
+                        >
+                          More
+                        </button>
+                      </div>
+                    )}
+                    back={(
+                      <div className="w-full h-full bg-gradient-to-b from-black/70 via-black/60 to-black/80">
+                        <div className="p-6">
+                          <h4 className="text-xl font-bold text-white mb-2 member-name">{member.name}</h4>
+                          <p className="text-blue-400 font-semibold mb-3 text-sm">{member.role}</p>
+                          <p className="text-gray-200 text-sm leading-relaxed mb-2">{member.description}</p>
+                          {/* Back button removed; tap/click card to flip back */}
+                        </div>
+                      </div>
+                    )}
+                  />
+                </div>
+               );
+             })}
              </div>
           </div>
         </section>
@@ -414,6 +466,24 @@ export const HomeBound: React.FC = () => {
       )}
 
       <style>{`
+        /* Flip 3D base (mirrors Events page) */
+  .flip-3d { perspective: 1200px; position: relative; }
+  .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); z-index: 10; will-change: transform; }
+  /* Our FlipCard toggles is-flipped on the inner element */
+  .flip-3d-inner.is-flipped { transform: rotateY(180deg); }
+  .flip-3d-front, .flip-3d-back { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: block; will-change: transform; transform: translateZ(0); }
+  /* Safari/iOS: explicit 0deg + slight Z nudge to ensure front paints */
+  .flip-3d-front { transform: rotateY(0deg) translateZ(0.02px); }
+    .flip-3d-back { transform: rotateY(180deg) translateZ(0.02px); }
+    @media (max-width: 480px) { .flip-3d { min-height: 18rem; } }
+
+        /* Hover flip behavior only on hover-capable devices */
+        @media (hover: hover) and (pointer: fine) {
+          .hover-flip .flip-3d-inner { transition: transform 600ms cubic-bezier(.2,.8,.2,1); }
+          /* Only apply hover flip if not already flipped via click */
+          .hover-flip:hover .flip-3d-inner:not(.is-flipped) { transform: rotateY(180deg); }
+        }
+
         /* Glitch Hover Effect */
         .glitch-card {
           position: relative;
@@ -700,6 +770,57 @@ export const HomeBound: React.FC = () => {
           100% { transform: translateX(100%); }
         }
 
+        /* Neon glow for More/Back buttons */
+        .more-btn-glow {
+          position: relative;
+          background: rgba(0, 0, 0, 0.38);
+          border: 1px solid rgba(236, 72, 153, 0.45); /* pink */
+          border-radius: 9999px;
+          box-shadow:
+            0 0 0 1px rgba(168, 85, 247, 0.28) inset,  /* purple inner */
+            0 0 12px rgba(236, 72, 153, 0.35),        /* pink glow */
+            0 0 24px rgba(59, 130, 246, 0.22);         /* blue glow */
+          -webkit-backdrop-filter: blur(6px);
+          backdrop-filter: blur(6px);
+          text-shadow: 0 0 6px rgba(255,255,255,0.35);
+          transition: transform .18s ease, box-shadow .25s ease, border-color .25s ease, background .25s ease;
+        }
+        .more-btn-glow::before {
+          content: '';
+          position: absolute; inset: -6px;
+          border-radius: inherit;
+          background:
+            radial-gradient(75% 75% at var(--mx, 60%) var(--my, 40%), rgba(236,72,153,0.25), transparent 60%),
+            radial-gradient(75% 75% at calc(var(--mx, 40%)) calc(var(--my, 60%)), rgba(59,130,246,0.20), transparent 60%);
+          filter: blur(12px);
+          opacity: 0; pointer-events: none;
+          transition: opacity .28s ease;
+        }
+        .more-btn-glow:hover,
+        .more-btn-glow:focus-visible {
+          transform: translateY(-1px) scale(1.02);
+          border-color: rgba(236, 72, 153, 0.7);
+          box-shadow:
+            0 0 0 1px rgba(236, 72, 153, 0.45) inset,
+            0 0 16px rgba(236, 72, 153, 0.55),
+            0 0 32px rgba(59, 130, 246, 0.35);
+        }
+        .more-btn-glow:hover::before,
+        .more-btn-glow:focus-visible::before { opacity: 1; }
+        .more-btn-glow:active { transform: translateY(0) scale(0.98); }
+        .more-btn-glow:focus-visible {
+          outline: none;
+          box-shadow:
+            0 0 0 2px rgba(255,255,255,0.20),
+            0 0 0 4px rgba(236, 72, 153, 0.45),
+            0 0 22px rgba(236, 72, 153, 0.55);
+        }
+        .more-btn-glow.pulse { animation: btnPulse 2.2s ease-in-out infinite; }
+        @keyframes btnPulse {
+          0%, 100% { box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.26) inset, 0 0 10px rgba(236, 72, 153, 0.32), 0 0 20px rgba(59, 130, 246, 0.18); }
+          50%      { box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.40) inset, 0 0 16px rgba(236, 72, 153, 0.50), 0 0 30px rgba(59, 130, 246, 0.30); }
+        }
+
         .cyberpunk-btn {
           position: relative;
           padding: 12px 32px;
@@ -778,17 +899,17 @@ export const HomeBound: React.FC = () => {
           transform: translateY(-5px);
         }
 
-        .scroll-animate {
-          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        .scroll-animate { transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .scroll-animate.animate-in { opacity: 1 !important; transform: translateY(0) !important; }
+        @media (max-width: 768px) {
+          /* Mobile fallback if IntersectionObserver timing delays the reveal */
+          .scroll-animate { opacity: 1 !important; transform: none !important; }
         }
 
-        .scroll-animate.animate-in {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
-        }
-
-        .hover-float:hover {
-          animation: float 3s ease-in-out infinite;
+        /* Limit hover float to hover-capable devices to avoid scroll issues on mobile */
+        @media (hover: hover) and (pointer: fine) {
+          .hover-float:hover { animation: float 3s ease-in-out infinite; }
+          .group:hover .band-member-image { transform: none; }
         }
 
         @keyframes float {
@@ -907,9 +1028,9 @@ export const HomeBound: React.FC = () => {
           z-index: 1;
         }
 
-        .band-card:hover::before {
-          opacity: 1;
-          animation: bandCardSweep 1s ease-in-out;
+        @media (hover: hover) and (pointer: fine) {
+          .band-card:hover::before { opacity: 1; animation: bandCardSweep 1s ease-in-out; }
+          .band-card:hover .member-name::after { width: 100%; }
         }
 
         @keyframes bandCardSweep {
@@ -922,8 +1043,8 @@ export const HomeBound: React.FC = () => {
           transition: all 0.5s ease;
         }
 
-        .band-card:hover .band-member-image {
-          filter: grayscale(0%) contrast(120%);
+        @media (hover: hover) and (pointer: fine) {
+          .band-card:hover .band-member-image { filter: grayscale(0%) contrast(120%); }
         }
 
         .member-name {
@@ -942,9 +1063,7 @@ export const HomeBound: React.FC = () => {
           transition: width 0.5s ease;
         }
 
-        .band-card:hover .member-name::after {
-          width: 100%;
-        }
+        /* member-name underline grows on hover only on hover devices (handled above) */
 
         .floating-icon {
           animation: floatingIcon 3s ease-in-out infinite;

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star, Activity } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
@@ -119,6 +119,95 @@ export const Events: React.FC = () => {
     setFlippedCards(new Set());
   }, [selectedCategory]);
 
+  // Helper: countdown string for an event's open time
+  const getCountdown = (e: any): string | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_opens_at) return null;
+    const openAt = new Date(e.registration_opens_at).getTime();
+    if (Number.isNaN(openAt)) return null;
+    const now = Date.now();
+    const diff = openAt - now;
+    if (diff <= 0) return 'now';
+    const d = Math.floor(diff / (24*60*60*1000));
+    const h = Math.floor((diff % (24*60*60*1000)) / (60*60*1000));
+    const m = Math.floor((diff % (60*60*1000)) / (60*1000));
+    const s = Math.floor((diff % (60*1000)) / 1000);
+    const parts = [] as string[];
+    if (d) parts.push(`${d}d`);
+    if (h || parts.length) parts.push(`${h}h`);
+    if (m || parts.length) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  };
+
+  // Tick per-second to refresh countdowns
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((v) => (v + 1) % 1_000_000), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Helpers to gate registration behind the timer
+  const getOpenAtMs = (e: any): number | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_opens_at) return null;
+    const ts = new Date(e.registration_opens_at).getTime();
+    return Number.isNaN(ts) ? null : ts;
+  };
+  const OPEN_GRACE_MS = 1000; // allow 1s grace around boundary for device clock drift
+  const getSecondsToOpen = (e: any): number | null => {
+    const openAt = getOpenAtMs(e);
+    if (openAt == null) return null;
+    const diff = openAt - Date.now();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / 1000);
+  };
+  const getOpensAtTooltip = (e: any): string => {
+    const iso = e?.registration_opens_at as string | null | undefined;
+    if (!iso) return 'Opens at —';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Opens at —';
+    const ist = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const local = d.toLocaleString();
+    const utc = d.toUTCString();
+    return `Opens at — IST: ${ist} • Local: ${local} • UTC: ${utc} • Note: countdown uses your device time`;
+  };
+
+  // Soft palette for last-10s countdown (not too bright), with colored glow
+  const COUNTDOWN_PALETTE = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#f87171', '#93c5fd', '#c084fc', '#38bdf8'];
+  const hexToRgba = (hex: string, alpha: number): string => {
+    const h = hex.replace('#','');
+    const bigint = parseInt(h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+  const getCountdownStylesForSecs = (secs: number | null | undefined) => {
+    const s = Math.max(1, Math.min(10, Number(secs) || 10));
+    const idx = (10 - s) % COUNTDOWN_PALETTE.length; // vary color each second as it counts down
+    const color = COUNTDOWN_PALETTE[idx];
+    const glow = hexToRgba(color, 0.35);
+    const filter = `drop-shadow(0 10px 24px rgba(0,0,0,0.65)) drop-shadow(0 0 18px ${glow})`;
+    return { color, filter };
+  };
+
+  const isLastTenSeconds = (e: any): boolean => {
+    const secs = getSecondsToOpen(e);
+    return typeof secs === 'number' && secs >= 1 && secs <= 10 && isBeforeOpen(e);
+  };
+  const isBeforeOpen = (e: any): boolean => {
+    const openAt = getOpenAtMs(e);
+    if (openAt == null) return false;
+    return Date.now() < openAt;
+  };
+  const canRegisterNow = (e: any): boolean => {
+    // Allow registration if either:
+    // 1) Admin has opened registration (registration_open true) and the timer hasn't blocked it, OR
+    // 2) The timer has reached/passed the open time (immediate open at boundary even if flag hasn't toggled yet)
+    const openAt = getOpenAtMs(e);
+    const isTimerOpenWithGrace = openAt != null ? Date.now() + OPEN_GRACE_MS >= openAt : false;
+    return (!!e?.registration_open && !isBeforeOpen(e)) || isTimerOpenWithGrace;
+  };
+
   return (
     <div className="cyberpunk-theme min-h-screen">
       {connectionStatus !== 'ok' && (
@@ -191,7 +280,7 @@ export const Events: React.FC = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event, index) => (
               <div key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
-                <div className={`flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
+                <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
                     <button className="flip-face flip-front relative group" onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
                       <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})` }} />
@@ -209,7 +298,29 @@ export const Events: React.FC = () => {
                       <div className="absolute top-4 left-4 z-10">
                         <span className={`bg-gradient-to-r ${getCategoryColor(event.category)} text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg`}>{event.category}</span>
                       </div>
-                      {event.featured && (
+                      {/* Live badge or Featured */}
+                      {canRegisterNow(event) ? (
+                        <div className="absolute top-4 right-4 z-10">
+                          <span className="inline-flex items-center bg-green-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
+                            <Activity size={12} className="mr-1" /> LIVE NOW
+                          </span>
+                        </div>
+                      ) : (getCountdown(event) && getCountdown(event) !== 'now') ? (
+                        <div className="absolute top-4 right-4 z-10">
+                          {(() => {
+                            const secs = getSecondsToOpen(event);
+                            const isBoundary = typeof secs === 'number' && secs > 0 && secs <= 3;
+                            return (
+                              <span
+                                className={`inline-flex items-center bg-blue-600/90 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow ${isBoundary ? 'animate-pulse' : ''}`}
+                                title={getOpensAtTooltip(event)}
+                              >
+                                {isBoundary ? `Starting in ${secs}s` : `Opens in ${getCountdown(event)}`}
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      ) : event.featured && (
                         <div className="absolute bottom-4 right-4 z-10">
                           <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2 rounded-full animate-pulse pulse-ring">
                             <Star className="w-4 h-4 fill-current" />
@@ -284,7 +395,7 @@ export const Events: React.FC = () => {
                           )}
                         </div>
                         <div className="p-6 pt-0">
-                          {event.registration_open ? (
+                          {canRegisterNow(event) ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); openRegistration(event.id, event.title); }}
                               disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
@@ -298,6 +409,23 @@ export const Events: React.FC = () => {
                                 <span className="glow-text-btn__content"><UserPlus size={16} className="mr-2" /> <span className="glow-text-animated">REGISTER NOW</span></span>
                               )}
                             </button>
+                          ) : getCountdown(event) ? (
+                            getCountdown(event) === 'now' ? (
+                              <div className="w-full py-3 px-4 rounded-lg bg-green-600/20 text-green-300 text-center font-medium" title="Opening now">Opening now…</div>
+                            ) : (
+                              (() => {
+                                const secs = getSecondsToOpen(event);
+                                const isBoundary = typeof secs === 'number' && secs > 0 && secs <= 3;
+                                return (
+                                  <div
+                                    className={`w-full py-3 px-4 rounded-lg text-center font-medium ${isBoundary ? 'bg-green-600/20 text-green-300 animate-pulse' : 'bg-blue-600/20 text-blue-300'}`}
+                                    title={getOpensAtTooltip(event)}
+                                  >
+                                    {isBoundary ? `Starting in ${secs}s` : `Opens in ${getCountdown(event)}`}
+                                  </div>
+                                );
+                              })()
+                            )
                           ) : (
                             <div className="w-full py-3 px-4 rounded-lg bg-gray-700 text-gray-400 text-center font-medium">REGISTRATION CLOSED</div>
                           )}
@@ -305,6 +433,23 @@ export const Events: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  {isLastTenSeconds(event) && !canRegisterNow(event) && (
+                    <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center">
+                      <div className="w-full h-full bg-black/60 flex items-center justify-center">
+                        <div
+                          className="font-black select-none countdown-drama"
+                          style={{
+                            fontSize: 'clamp(72px, 16vw, 200px)',
+                            lineHeight: 1,
+                            ...getCountdownStylesForSecs(getSecondsToOpen(event)),
+                          }}
+                          title={getOpensAtTooltip(event)}
+                        >
+                          {getSecondsToOpen(event)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -345,6 +490,18 @@ export const Events: React.FC = () => {
           .flip-front-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: translateZ(18px) scale(1.03); transition: transform 400ms ease; }
           @media (hover: hover) and (pointer: fine) {
             .tilt-card:hover .flip-front-media { transform: translateZ(22px) scale(1.06); }
+          }
+          /* Dramatic countdown animation */
+          @keyframes countdownScalePulse {
+            0% { transform: scale(0.9); text-shadow: 0 12px 32px rgba(0,0,0,0.6); opacity: 0.9; }
+            35% { transform: scale(1.06); text-shadow: 0 18px 48px rgba(0,0,0,0.7); opacity: 1; }
+            70% { transform: scale(1.0); text-shadow: 0 12px 32px rgba(0,0,0,0.6); opacity: 0.95; }
+            100% { transform: scale(0.98); text-shadow: 0 10px 24px rgba(0,0,0,0.55); opacity: 0.92; }
+          }
+          .countdown-drama {
+            letter-spacing: -0.02em;
+            animation: countdownScalePulse 1000ms ease-in-out infinite;
+            filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
           }
   .flip-back { transform: rotateY(180deg); background: #000; border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 11; }
 

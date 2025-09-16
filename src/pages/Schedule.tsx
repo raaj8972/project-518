@@ -4,11 +4,31 @@ import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 
 export const Schedule: React.FC = () => {
-  const { schedule } = useData();
+  const { schedule, loading, connectionStatus } = useData();
   const [selectedDay, setSelectedDay] = useState(0);
 
-  // Intersection Observer for scroll animations
+  // Ensure selectedDay stays within bounds when schedule changes
   useEffect(() => {
+    if (schedule.length === 0) {
+      if (selectedDay !== 0) setSelectedDay(0);
+      return;
+    }
+    if (selectedDay >= schedule.length) {
+      setSelectedDay(Math.max(0, schedule.length - 1));
+    }
+  }, [schedule.length]);
+
+  // Intersection Observer for scroll animations
+  // Re-run when schedule or selected day changes so newly mounted nodes are observed
+  useEffect(() => {
+    const animatedElements = document.querySelectorAll('.scroll-animate');
+
+    // Fallback: if IntersectionObserver isn't available, reveal immediately
+    if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
+      animatedElements.forEach((el) => el.classList.add('animate-in'));
+      return;
+    }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -20,11 +40,10 @@ export const Schedule: React.FC = () => {
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    const animatedElements = document.querySelectorAll('.scroll-animate');
     animatedElements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, []);
+  }, [schedule, selectedDay, loading]);
 
   // Parallax effect
   useEffect(() => {
@@ -113,7 +132,19 @@ export const Schedule: React.FC = () => {
                   </button>
                   
                   <div className="flex space-x-1 sm:space-x-2 flex-shrink-0">
-                    {schedule.map((day, index) => (
+                    {/* Loading skeletons when schedule is being fetched on direct refresh */}
+                    {loading && schedule.length === 0 && (
+                      [...Array(3)].map((_, i) => (
+                        <div key={i} className="px-6 py-4 rounded-lg border-2 border-gray-700 bg-gray-800/50 animate-pulse">
+                          <div className="h-4 w-16 bg-gray-600 rounded mb-2"></div>
+                          <div className="h-3 w-24 bg-gray-700 rounded mb-1"></div>
+                          <div className="h-3 w-8 bg-gray-700 rounded"></div>
+                        </div>
+                      ))
+                    )}
+
+                    {/* Day buttons when data is ready */}
+                    {!loading && schedule.length > 0 && schedule.map((day, index) => (
                       <button
                         key={index}
                         onClick={() => setSelectedDay(index)}
@@ -140,6 +171,16 @@ export const Schedule: React.FC = () => {
                     <ChevronRight size={20} />
                   </button>
                 </div>
+                {/* Connection status note when empty */}
+                {(!loading && schedule.length === 0) && (
+                  <div className="px-4 pb-3 pt-2 text-center text-sm text-gray-400">
+                    {connectionStatus !== 'ok' ? (
+                      <span>Unable to load schedule while {connectionStatus}. Please check your connection.</span>
+                    ) : (
+                      <span>Schedule will be published soon. Please check back later.</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -220,7 +261,8 @@ export const Schedule: React.FC = () => {
         </section>
       )}
 
-      {/* Quick Stats */}
+      {/* Quick Stats - hide while loading initial data to avoid flashing 0s */}
+      {!loading && (
       <section className="py-12 relative">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
@@ -245,6 +287,7 @@ export const Schedule: React.FC = () => {
           </div>
         </div>
       </section>
+      )}
 
       <style>
         {`

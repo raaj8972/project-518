@@ -168,6 +168,7 @@ export const RicoFamily: React.FC = () => {
               rotateYDeg={42}
               scaleStep={0.13}
               translateZStep={-80}
+              pauseOnTouch={true}
               blurPerStep={2.5}
               edgeFades={true}
               centerGlow={true}
@@ -212,6 +213,10 @@ export const RicoFamily: React.FC = () => {
               items={committeeHeads}
               direction="right"
               speedPxPerSec={140}
+              glowOnPause
+              glowColor="rgba(255,255,255,0.14)"
+              adaptiveGlowOnPause
+              adaptiveGlowOpacity={0.26}
               itemWrapperClassName="px-3"
               className="py-2 -mx-4 sm:mx-0"
               renderItem={(m) => (

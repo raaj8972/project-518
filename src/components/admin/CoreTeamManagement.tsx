@@ -163,18 +163,14 @@ export const CoreTeamManagement: React.FC = () => {
 
   // Member Management
   const handleAddMember = async () => {
-    // Validate committee selection
-    if (!memberForm.committee_id || !coreCommittees.some(c => c.id === memberForm.committee_id)) {
-      alert('Please select a committee for this member');
-      return;
-    }
-    if (!memberForm.name || !memberForm.role || !memberForm.image || !memberForm.description || !memberForm.specialty) {
-      alert('Please fill in all required fields');
-      return;
-    }
+    // Prepare payload with optional fields; treat 0 as "no committee"
+    const payload = {
+      ...memberForm,
+      committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
+    } as any;
     
     try {
-      await addCoreTeamMember(memberForm);
+      await addCoreTeamMember(payload);
       setIsAddingMember(false);
       resetMemberForm();
       try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
@@ -185,17 +181,13 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateMember = async (id: number) => {
-    if (!memberForm.committee_id || !coreCommittees.some(c => c.id === memberForm.committee_id)) {
-      alert('Please select a valid committee');
-      return;
-    }
-    if (!memberForm.name || !memberForm.role || !memberForm.image || !memberForm.description || !memberForm.specialty) {
-      alert('Please fill in all required fields');
-      return;
-    }
+    const payload = {
+      ...memberForm,
+      committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
+    } as any;
     
     try {
-      await updateCoreTeamMember(id, memberForm);
+      await updateCoreTeamMember(id, payload);
       setEditingMember(null);
       resetMemberForm();
       try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
@@ -628,25 +620,13 @@ export const CoreTeamManagement: React.FC = () => {
                 setIsAddingMember(true);
                 resetMemberForm();
               }}
-              disabled={coreCommittees.length === 0}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
-                coreCommittees.length === 0
-                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                  : 'bg-yellow-400 text-black hover:bg-yellow-300'
-              }`}
+              className="px-4 py-2 rounded-lg transition-colors flex items-center bg-yellow-400 text-black hover:bg-yellow-300"
             >
               <Plus size={16} className="mr-2" />
               Add Team Member
             </button>
           </div>
 
-          {coreCommittees.length === 0 && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-yellow-800 text-sm">
-                You need to create at least one committee before adding team members.
-              </p>
-            </div>
-          )}
 
           {/* Add Member Form */}
           {isAddingMember && coreCommittees.length > 0 && (
@@ -655,13 +635,13 @@ export const CoreTeamManagement: React.FC = () => {
               <div className="grid lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee (optional)</label>
                     <select
                       value={memberForm.committee_id}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     >
-                      <option value={0}>Select Committee</option>
+                      <option value={0}>Unassigned</option>
                       {sortedCommittees.map(committee => (
                         <option key={committee.id} value={committee.id}>
                           {committee.name} {committee.is_core ? '(Core)' : ''}
@@ -671,7 +651,7 @@ export const CoreTeamManagement: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name (optional)</label>
                       <input
                         type="text"
                         value={memberForm.name}
@@ -681,7 +661,7 @@ export const CoreTeamManagement: React.FC = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Role/Position *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Role/Position (optional)</label>
                       <input
                         type="text"
                         value={memberForm.role}
@@ -702,7 +682,7 @@ export const CoreTeamManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialty *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialty (optional)</label>
                     <input
                       type="text"
                       value={memberForm.specialty}
@@ -712,7 +692,7 @@ export const CoreTeamManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
                     <textarea
                       value={memberForm.description}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
@@ -833,7 +813,7 @@ export const CoreTeamManagement: React.FC = () => {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo (optional)</label>
                     <ImageUpload
                       onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
                       currentImage={memberForm.image}

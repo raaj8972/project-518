@@ -832,12 +832,8 @@ export const SponsorsManagement: React.FC = () => {
                         </div>
                       ) : (
                         <>
-                          <div className="relative h-32">
-                            <div 
-                              className="absolute inset-0"
-                              style={{ backgroundColor: `${getCategoryColor(sponsor.category)}20` }}
-                            ></div>
-                            <div className="relative h-full flex items-center justify-center p-4">
+                          <div className="relative h-32 bg-black rounded-md overflow-hidden">
+                            <div className="relative h-full flex items-center justify-center p-4 logo-no-bg">
                               <img
                                 src={sponsor.logo}
                                 alt={sponsor.name}

@@ -19,6 +19,7 @@ interface CoverflowCarouselProps<T> {
   // Extra z-translation per offset to emphasize depth
   translateZStep?: number; // default -60 (negative pulls away from the camera)
   pauseOnHover?: boolean; // default true
+  pauseOnTouch?: boolean; // default false
   showArrows?: boolean; // default true
   showDots?: boolean; // default false
   className?: string;
@@ -45,6 +46,7 @@ export default function CoverflowCarousel<T>({
   scaleStep = 0.12,
   translateZStep = -60,
   pauseOnHover = true,
+  pauseOnTouch = false,
   showArrows = true,
   showDots = false,
   className = '',
@@ -58,9 +60,12 @@ export default function CoverflowCarousel<T>({
 }: CoverflowCarouselProps<T>) {
   const [active, setActive] = useState(0);
   const [hovering, setHovering] = useState(false);
+  const [touching, setTouching] = useState(false);
   const [visible, setVisible] = useState(true);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [isTouch, setIsTouch] = useState(false);
+  const [isReducedMotion, setIsReducedMotion] = useState(false);
 
   const count = items.length;
   const canPlay = count > 1 && intervalMs > 0;
@@ -73,17 +78,37 @@ export default function CoverflowCarousel<T>({
     return () => io.disconnect();
   }, []);
 
-  // Autoplay tick
+  // Detect touch-capable devices and reduced-motion preference
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mqTouch = window.matchMedia('(hover: none), (pointer: coarse)');
+    const mqReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      setIsTouch(mqTouch.matches);
+      setIsReducedMotion(mqReduced.matches);
+    };
+    update();
+    mqTouch.addEventListener?.('change', update);
+    mqReduced.addEventListener?.('change', update);
+    return () => {
+      mqTouch.removeEventListener?.('change', update);
+      mqReduced.removeEventListener?.('change', update);
+    };
+  }, []);
+
+  // Autoplay tick (slightly slower on touch or reduced-motion to feel calmer)
   useEffect(() => {
     if (!canPlay) return;
+    const autoInterval = (isTouch || isReducedMotion) ? Math.max(intervalMs, 3200) : intervalMs;
     const id = setInterval(() => {
       if (paused) return;
       if (pauseOnHover && hovering) return;
+      if (pauseOnTouch && touching) return;
       if (!visible) return;
       setActive(a => (a + 1) % count);
-    }, intervalMs);
+    }, autoInterval);
     return () => clearInterval(id);
-  }, [canPlay, intervalMs, hovering, visible, count, pauseOnHover, paused]);
+  }, [canPlay, intervalMs, hovering, touching, visible, count, pauseOnHover, pauseOnTouch, paused, isTouch, isReducedMotion]);
 
   const go = (dir: Direction) => {
     setActive(a => {
@@ -109,15 +134,24 @@ export default function CoverflowCarousel<T>({
     <div
       ref={rootRef}
       className={`relative w-full select-none ${className}`}
-      onMouseEnter={() => pauseOnHover && setHovering(true)}
-      onMouseLeave={() => pauseOnHover && setHovering(false)}
+      onMouseEnter={() => pauseOnHover && !isTouch && setHovering(true)}
+      onMouseLeave={() => pauseOnHover && !isTouch && setHovering(false)}
+      onTouchStart={() => pauseOnTouch && setTouching(true)}
+      onTouchEnd={() => pauseOnTouch && setTouching(false)}
+      onTouchCancel={() => pauseOnTouch && setTouching(false)}
     >
       {/* Perspective stage */}
       <div
         className="relative mx-auto"
         style={{
-          height: typeof stageHeight === 'number' ? `${stageHeight}px` : stageHeight,
-          perspective: 1200,
+          height: (() => {
+            const h = typeof stageHeight === 'number' ? `${stageHeight}px` : stageHeight;
+            if (!isTouch) return h;
+            // Slightly shorter stage on touch for tighter layout
+            if (typeof stageHeight === 'number') return `${Math.max(320, Math.min(520, stageHeight - 60))}px`;
+            return h;
+          })(),
+          perspective: isTouch || isReducedMotion ? 900 : 1200,
         }}
         aria-roledescription="carousel"
       >
@@ -143,14 +177,21 @@ export default function CoverflowCarousel<T>({
           {computed.map(({ idx, item, offset }) => {
             const abs = Math.abs(offset);
             const sign = Math.sign(offset) || 0;
-            const translateX = offset * stepPx;
-            const rotateY = -sign * rotateYDeg; // negative so left tilts to the left
-            let scale = Math.max(0.5, 1 - abs * scaleStep);
-            if (hoveredIndex === idx) scale *= 1.04; // subtle hover pop
-            const translateZ = abs * translateZStep; // pulls away with depth
+            // Soften motion and spacing on touch and reduced-motion
+            const effStepPx = (isTouch || isReducedMotion) ? Math.min(stepPx, 220) : stepPx;
+            const effRotateY = (isTouch || isReducedMotion) ? Math.min(rotateYDeg, 18) : rotateYDeg;
+            const effScaleStep = (isTouch || isReducedMotion) ? Math.min(scaleStep, 0.08) : scaleStep;
+            const effTranslateZ = (isTouch || isReducedMotion) ? Math.max(translateZStep, -36) : translateZStep;
+            const effBlurPerStep = (isTouch || isReducedMotion) ? Math.min(blurPerStep, 1) : blurPerStep;
+
+            const translateX = offset * effStepPx;
+            const rotateY = -sign * effRotateY; // negative so left tilts to the left
+            let scale = Math.max(0.6, 1 - abs * effScaleStep);
+            if (!isTouch && hoveredIndex === idx) scale *= 1.04; // subtle hover pop only on hover-capable
+            const translateZ = abs * effTranslateZ; // pulls away with depth
             const zIndex = (hoveredIndex === idx ? 200 : 100) - abs; // hovered above
             const opacity = Math.max(0.25, 1 - abs * 0.25);
-            const blur = abs > 0 ? Math.min(12, abs * blurPerStep) : 0;
+            const blur = abs > 0 ? Math.min(12, abs * effBlurPerStep) : 0;
 
             return (
               <div
@@ -161,10 +202,12 @@ export default function CoverflowCarousel<T>({
                   zIndex,
                   opacity,
                   filter: `blur(${blur}px)`,
-                  transition: 'transform 600ms ease, opacity 400ms ease, filter 400ms ease',
+                  transition: (isTouch || isReducedMotion)
+                    ? 'transform 480ms ease, opacity 360ms ease, filter 360ms ease'
+                    : 'transform 600ms ease, opacity 400ms ease, filter 400ms ease',
                 }}
-                onMouseEnter={() => setHoveredIndex(idx)}
-                onMouseLeave={() => setHoveredIndex((h) => (h === idx ? null : h))}
+                onMouseEnter={() => { if (!isTouch) setHoveredIndex(idx); }}
+                onMouseLeave={() => { if (!isTouch) setHoveredIndex((h) => (h === idx ? null : h)); }}
                 onClick={() => { setActive(idx); onItemClick?.(item, idx); }}
                 aria-hidden={abs !== 0}
               >

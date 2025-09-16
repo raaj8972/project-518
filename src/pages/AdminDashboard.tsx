@@ -198,7 +198,7 @@ export const AdminDashboard: React.FC = () => {
   // loading already handled above
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="min-h-screen bg-gray-50 text-gray-900 admin-root">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -235,8 +235,8 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
+        <div className="flex flex-col lg:flex-row gap-8 min-w-0">
           {/* Sidebar */}
           <div className="lg:w-64 flex-shrink-0">
             <nav className="bg-white rounded-lg shadow-md p-4">
@@ -284,7 +284,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {activeTab === 'overview' && (
               <div className="space-y-8">
                 {/* Stats Grid */}

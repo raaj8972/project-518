@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
@@ -27,6 +27,13 @@ export const EventsManagement: React.FC = () => {
   const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   // Draft coordinators when creating a brand new event (before it has an id)
   const [draftCoordinators, setDraftCoordinators] = useState<Array<{ name: string; phone?: string | null }>>([]);
+  const [autoOpenEnabled, setAutoOpenEnabled] = useState<boolean>(() => {
+    try { return (localStorage.getItem('admin_auto_open_enabled') === 'true'); } catch { return false; }
+  });
+  const persistAutoOpen = (v: boolean) => {
+    setAutoOpenEnabled(v);
+    try { localStorage.setItem('admin_auto_open_enabled', v ? 'true' : 'false'); } catch {}
+  };
 
   const [eventForm, setEventForm] = useLocalStorage('admin_events_form_draft', {
     title: '',
@@ -43,11 +50,77 @@ export const EventsManagement: React.FC = () => {
     highlights: [] as string[],
     rules: [] as string[],
     registration_open: true,
+    registration_timer_enabled: false as boolean,
+    registration_opens_at: '' as string | null,
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
     artist_id: undefined as number | undefined
   });
+
+  // Admin-side live countdown support so you can see the timer ticking here too
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((v) => (v + 1) % 1_000_000), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const getCountdown = (e: any): string | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_opens_at) return null;
+    const openAt = new Date(e.registration_opens_at as string).getTime();
+    if (Number.isNaN(openAt)) return null;
+    const now = Date.now();
+    const diff = openAt - now;
+    if (diff <= 0) return 'now';
+    const d = Math.floor(diff / (24*60*60*1000));
+    const h = Math.floor((diff % (24*60*60*1000)) / (60*60*1000));
+    const m = Math.floor((diff % (60*60*1000)) / (60*1000));
+    const s = Math.floor((diff % (60*1000)) / 1000);
+    const parts: string[] = [];
+    if (d) parts.push(`${d}d`);
+    if (h || parts.length) parts.push(`${h}h`);
+    if (m || parts.length) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  };
+
+  const getSecondsToOpen = (e: any): number | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_opens_at) return null;
+    const ts = new Date(e.registration_opens_at as string).getTime();
+    if (Number.isNaN(ts)) return null;
+    const diff = ts - Date.now();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / 1000);
+  };
+  const getOpensAtTooltip = (e: any): string => {
+    const iso = e?.registration_opens_at as string | null | undefined;
+    if (!iso) return 'Opens at —';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Opens at —';
+    const ist = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const local = d.toLocaleString();
+    const utc = d.toUTCString();
+    return `Opens at — IST: ${ist} • Local: ${local} • UTC: ${utc} • Note: countdown uses your device time`;
+  };
+
+  // Soft palette + glow for admin overlay countdown
+  const COUNTDOWN_PALETTE = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#f87171', '#93c5fd', '#c084fc', '#38bdf8'];
+  const hexToRgba = (hex: string, alpha: number): string => {
+    const h = hex.replace('#','');
+    const bigint = parseInt(h, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+  const getCountdownStylesForSecs = (secs: number | null | undefined) => {
+    const s = Math.max(1, Math.min(10, Number(secs) || 10));
+    const idx = (10 - s) % COUNTDOWN_PALETTE.length;
+    const color = COUNTDOWN_PALETTE[idx];
+    const glow = hexToRgba(color, 0.35);
+    const filter = `drop-shadow(0 10px 24px rgba(0,0,0,0.65)) drop-shadow(0 0 18px ${glow})`;
+    return { color, filter };
+  };
 
   const resetEventForm = () => {
     setEventForm({
@@ -65,6 +138,8 @@ export const EventsManagement: React.FC = () => {
       highlights: [],
       rules: [],
       registration_open: true,
+      registration_timer_enabled: false,
+      registration_opens_at: '',
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -83,6 +158,8 @@ export const EventsManagement: React.FC = () => {
       await addEventWithCoordinators({
         ...eventForm,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
+        registration_timer_enabled: !!eventForm.registration_timer_enabled,
+        registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         current_registrations: 0
       }, draftCoordinators);
       setIsAddingEvent(false);
@@ -102,7 +179,11 @@ export const EventsManagement: React.FC = () => {
     }
     
     try {
-      await updateEvent(id, eventForm);
+      await updateEvent(id, {
+        ...eventForm,
+        registration_timer_enabled: !!eventForm.registration_timer_enabled,
+        registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
+      } as any);
       setEditingEvent(null);
       resetEventForm();
       try { localStorage.removeItem('admin_events_form_draft'); } catch {}
@@ -166,6 +247,8 @@ export const EventsManagement: React.FC = () => {
       highlights: event.highlights,
       rules: event.rules || [],
       registration_open: event.registration_open,
+      registration_timer_enabled: (event as any).registration_timer_enabled ?? false,
+      registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
   max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
@@ -219,6 +302,15 @@ export const EventsManagement: React.FC = () => {
     });
   };
 
+  const handleSetRegistrationOpen = async (id: number, open: boolean) => {
+    try {
+      await updateEvent(id, { registration_open: open } as any);
+    } catch (error) {
+      console.error('Error setting registration_open:', error);
+      alert('Failed to update live status. Please try again.');
+    }
+  };
+
   const addHighlight = () => {
     setEventForm(prev => ({
       ...prev,
@@ -263,13 +355,24 @@ export const EventsManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Backend schema compatibility notice */}
+      {events.length > 0 && !('registration_timer_enabled' in (events[0] as any)) && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3">
+          Registration timer fields are not found in the database yet. Please apply the migration and then Reset API cache in Supabase. Until then, timer settings will be ignored on save.
+        </div>
+      )}
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Events Management</h2>
           <p className="text-gray-600">Manage festival events and registrations</p>
         </div>
-        <button
+        <div className="flex items-center gap-3">
+          <label className="flex items-center text-sm text-gray-700">
+            <input type="checkbox" className="mr-2" checked={autoOpenEnabled} onChange={(e)=>persistAutoOpen(e.target.checked)} />
+            Auto-open after timer
+          </label>
+          <button
           onClick={() => {
             setIsAddingEvent(true);
             resetEventForm();
@@ -278,7 +381,8 @@ export const EventsManagement: React.FC = () => {
         >
           <Plus size={16} className="mr-2" />
           Add Event
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Add Event Form */}
@@ -517,6 +621,15 @@ export const EventsManagement: React.FC = () => {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={!!eventForm.registration_timer_enabled}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, registration_timer_enabled: e.target.checked }))}
+                    className="mr-2"
+                  />
+                  Enable Timer (optional)
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
                     checked={eventForm.featured}
                     onChange={(e) => setEventForm(prev => ({ ...prev, featured: e.target.checked }))}
                     className="mr-2"
@@ -533,6 +646,18 @@ export const EventsManagement: React.FC = () => {
                   Visible to Public
                 </label>
               </div>
+              {eventForm.registration_timer_enabled && (
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At (optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={eventForm.registration_opens_at || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Users will see countdown until this time. After it passes, event can show "Live Now" if registration is open.</p>
+                </div>
+              )}
             </div>
             <div className="space-y-4">
               <div>
@@ -690,6 +815,30 @@ export const EventsManagement: React.FC = () => {
                     className="mt-1"
                   />
                 </div>
+                {/* Timer settings (edit) */}
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={!!eventForm.registration_timer_enabled}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_timer_enabled: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    Enable Timer (optional)
+                  </label>
+                  {eventForm.registration_timer_enabled && (
+                    <div className="w-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At</label>
+                      <input
+                        type="datetime-local"
+                        value={eventForm.registration_opens_at || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      />
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
                   <button
                     type="button"
@@ -742,6 +891,30 @@ export const EventsManagement: React.FC = () => {
                     alt={event.title}
                     className="w-full h-full object-cover"
                   />
+                  {/* Last-10s full-card countdown overlay for admins too */}
+                  {(() => {
+                    const secs = getSecondsToOpen(event);
+                    const openAt = (event as any).registration_opens_at ? new Date((event as any).registration_opens_at as string).getTime() : null;
+                    const isTimerOpenWithGrace = openAt != null ? Date.now() + 1000 >= openAt : false;
+                    const show = !isTimerOpenWithGrace && !event.registration_open && (event as any).registration_timer_enabled && typeof secs === 'number' && secs > 0 && secs <= 10;
+                    if (!show) return null;
+                    return (
+                      <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
+                        <div
+                          className="font-black select-none countdown-drama"
+                          title={getOpensAtTooltip(event)}
+                          style={{
+                            fontSize: 'clamp(36px, 14vw, 120px)',
+                            lineHeight: 1,
+                            textAlign: 'center',
+                            ...getCountdownStylesForSecs(secs),
+                          }}
+                       >
+                          {secs}
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="absolute top-2 right-2 flex space-x-1">
                     {event.featured && (
                       <span className="bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-medium">
@@ -859,6 +1032,37 @@ export const EventsManagement: React.FC = () => {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                    <div className="ml-2 flex items-center gap-2">
+                      <label className="flex items-center text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          className="mr-1"
+                          checked={!!event.registration_open}
+                          onChange={(e)=>handleSetRegistrationOpen(event.id, e.target.checked)}
+                        />
+                        Live
+                      </label>
+                      {event.registration_open ? (
+                        <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Live Now</span>
+                      ) : (event as any).registration_timer_enabled && (event as any).registration_opens_at ? (
+                        getCountdown(event) === 'now' ? (
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700" title="Opening now">Opening now…</span>
+                        ) : (
+                          (() => {
+                            const secs = getSecondsToOpen(event);
+                            const isBoundary = typeof secs === 'number' && secs > 0 && secs <= 3;
+                            return (
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${isBoundary ? 'bg-green-100 text-green-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}
+                                title={getOpensAtTooltip(event)}
+                              >
+                                {isBoundary ? `Starting in ${secs}s` : `Opens in ${getCountdown(event)}`}
+                              </span>
+                            );
+                          })()
+                        )
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </>
@@ -885,6 +1089,19 @@ export const EventsManagement: React.FC = () => {
           </button>
         </div>
       )}
+      <style>{`
+        @keyframes countdownScalePulse { 
+          0% { transform: scale(0.9); text-shadow: 0 12px 32px rgba(0,0,0,0.6); opacity: 0.9; }
+          35% { transform: scale(1.06); text-shadow: 0 18px 48px rgba(0,0,0,0.7); opacity: 1; }
+          70% { transform: scale(1.0); text-shadow: 0 12px 32px rgba(0,0,0,0.6); opacity: 0.95; }
+          100% { transform: scale(0.98); text-shadow: 0 10px 24px rgba(0,0,0,0.55); opacity: 0.92; }
+        }
+        .countdown-drama {
+          letter-spacing: -0.02em;
+          animation: countdownScalePulse 1000ms ease-in-out infinite;
+          filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
+        }
+      `}</style>
     </div>
   );
 };

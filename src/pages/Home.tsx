@@ -5,6 +5,7 @@ import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
 import LogoLoop from '../components/LogoLoop';
 import InfiniteMarquee from '../components/InfiniteMarquee';
+import { getDominantColor } from '../utils/getDominantColor';
 import CoverflowCarousel from '../components/CoverflowCarousel';
 import AutoCarousel from '../components/AutoCarousel';
 import FacultyProfileModal from '../components/FacultyProfileModal';
@@ -65,13 +66,16 @@ export const Home: React.FC = () => {
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
   const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head);
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
-  const sortedCommitteeHeads = React.useMemo(() => committeeHeads.slice().sort((a, b) => a.order_position - b.order_position), [committeeHeads]);
+  // Sorted full list of heads for display and navigation
+  const sortedCommitteeHeads = React.useMemo(() => (
+    committeeHeads.slice().sort((a, b) => (a.order_position ?? 0) - (b.order_position ?? 0))
+  ), [committeeHeads]);
 
   // Keyboard navigation within the profile modal (place before early return)
   useEffect(() => {
     if (!facultyModalOpen || selectedType == null || selectedIndex == null) return;
     const handler = (e: KeyboardEvent) => {
-      const list = selectedType === 'faculty' ? sortedFacultyHeads : sortedCommitteeHeads;
+  const list = selectedType === 'faculty' ? sortedFacultyHeads : sortedCommitteeHeads;
       if (!list || list.length === 0) return;
       if (e.key === 'ArrowRight') {
         const next = (selectedIndex + 1) % list.length;
@@ -263,32 +267,43 @@ export const Home: React.FC = () => {
               </p>
               <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 px-2 sm:px-4">
                 {homepageSettings.sponsor_logos
-                  .filter((logo: any) => logo.enabled && logo.logo_url)
+                  .filter((logo: any) => logo.enabled && logo.logo_url && (logo.show_on_homepage ?? true))
                   .sort((a: any, b: any) => a.order - b.order)
-                  .map((logo: any) => (
-                    <div key={logo.id} className="hover-float logo-glow logo-pulse-soft">
+                  .map((logo: any) => {
+                    const key = logo.updated_at || logo.updatedAt || homepageSettings?.updated_at || '';
+                    const src = (() => {
+                      if (!logo.logo_url) return '';
+                      const sep = logo.logo_url.includes('?') ? '&' : '?';
+                      return key ? `${logo.logo_url}${sep}v=${encodeURIComponent(key)}` : logo.logo_url;
+                    })();
+                    return (
+                    <div key={`${logo.id}-${logo.logo_url}`} className="logo-no-bg home-sponsor-glow">
                       {logo.website ? (
                         <a
                           href={logo.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block transition-transform hover:scale-110"
+                          className="block"
                         >
                           <img
-                            src={logo.logo_url}
+                            src={src}
                             alt={logo.name}
-                            className="h-16 sm:h-16 md:h-20 lg:h-24 opacity-90 hover:opacity-100 transition-opacity object-contain"
+                            className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
+                            loading="lazy"
+                            decoding="async"
                           />
                         </a>
                       ) : (
                         <img
-                          src={logo.logo_url}
+                          src={src}
                           alt={logo.name}
-                          className="h-16 sm:h-16 md:h-20 lg:h-24 opacity-85 object-contain"
+                          className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
+                          loading="lazy"
+                          decoding="async"
                         />
                       )}
                     </div>
-                  ))}
+                  );})}
               </div>
             </div>
           </div>
@@ -708,6 +723,7 @@ export const Home: React.FC = () => {
                     rotateYDeg={42}
                     scaleStep={0.13}
                     translateZStep={-80}
+                    pauseOnTouch={true}
                     blurPerStep={2.5}
                     edgeFades={true}
                     centerGlow={true}
@@ -745,7 +761,7 @@ export const Home: React.FC = () => {
               )}
 
               {/* Committee Heads */}
-              {committeeHeads.length > 0 && homepageSettings?.show_committee_heads && (
+              {sortedCommitteeHeads.length > 0 && homepageSettings?.show_committee_heads && (
                 <>
                   {/* Heading aligned with container (matches Faculty Heads) */}
                   <div className="mb-4">
@@ -762,40 +778,53 @@ export const Home: React.FC = () => {
                       <InfiniteMarquee
                         items={sortedCommitteeHeads}
                         direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                        speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 75}
-                        pauseOnHover={false}
+                        speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
+                        pauseOnHover={true}
                         paused={committeePaused}
-                        pauseOnTouch={false}
-                        itemWrapperClassName="pr-4 md:pr-6 first:pl-0"
+                        pauseOnTouch={true}
+                        glowOnPause
+                        itemWrapperClassName="pr-3 sm:pr-4 md:pr-6 first:pl-0"
+                        minItemWidthPx={140}
                         sideGutterPx={2}
                         className="py-4 relative"
-                        renderItem={(m) => (
-                          <div
-                            className={`w-72 md:w-80 cyberpunk-card p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
-                            onClick={() => {
-                              setClicked({ type: 'committee', id: m.id });
-                              const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
-                              setTimeout(() => {
-                                setSelectedType('committee');
-                                setSelectedIndex(idx >= 0 ? idx : 0);
-                                setSelectedPerson(m);
-                                setFacultyModalOpen(true);
-                                setFacultyPaused(true);
-                                setCommitteePaused(true);
-                                setClicked(null);
-                              }, 180);
-                            }}
-                            // Keep marquee running on hover
-                          >
-                            <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
-                              <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                        renderItem={(m) => {
+                          const [glowColor, setGlowColor] = React.useState<string>('rgba(255,255,255,0.22)');
+                          React.useEffect(() => {
+                            let mounted = true;
+                            getDominantColor(m.image).then((color) => { if (mounted) setGlowColor(color); });
+                            return () => { mounted = false; };
+                          }, [m.image]);
+                          return (
+                            <div
+                              className={`w-[232px] sm:w-[262px] md:w-80 cyberpunk-card p-4 sm:p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
+                              onClick={() => {
+                                setClicked({ type: 'committee', id: m.id });
+                                const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
+                                setTimeout(() => {
+                                  setSelectedType('committee');
+                                  setSelectedIndex(idx >= 0 ? idx : 0);
+                                  setSelectedPerson(m);
+                                  setFacultyModalOpen(true);
+                                  setFacultyPaused(true);
+                                  setCommitteePaused(true);
+                                  setClicked(null);
+                                }, 180);
+                              }}
+                            >
+                              <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 sm:mb-4 bg-black/30 flex items-center justify-center">
+                                <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="font-bold text-white flex items-center text-sm sm:text-base md:text-lg">
+                                <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                              </div>
+                              <div className="text-xs sm:text-sm md:text-base text-gray-300">{m.role}</div>
+                              {/* Pass the dynamic glow color to InfiniteMarquee via a custom prop */}
+                              <style>{`.im-glow-${m.id} { --im-glow-color: ${glowColor}; }`}</style>
                             </div>
-                            <div className="font-bold text-white flex items-center text-base md:text-lg">
-                              <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
-                            </div>
-                            <div className="text-sm md:text-base text-gray-300">{m.role}</div>
-                          </div>
-                        )}
+                          );
+                        }}
+                        glowColor={undefined} // will be set per-item
+                        glowIntensity={0.38} // stronger glow
                       />
                       {/* Edge fades for readability — scoped to marquee area only */}
                       <div

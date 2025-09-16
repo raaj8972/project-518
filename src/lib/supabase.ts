@@ -95,6 +95,8 @@ export interface Database {
           highlights: string[]
           rules: string[]
           registration_open: boolean
+          registration_timer_enabled: boolean
+          registration_opens_at: string | null
           max_participants: number | null
           current_registrations: number
           featured: boolean
@@ -118,6 +120,8 @@ export interface Database {
           highlights: string[]
           rules?: string[]
           registration_open?: boolean
+          registration_timer_enabled?: boolean
+          registration_opens_at?: string | null
           max_participants?: number | null
           current_registrations?: number
           featured?: boolean
@@ -141,6 +145,8 @@ export interface Database {
           highlights?: string[]
           rules?: string[]
           registration_open?: boolean
+          registration_timer_enabled?: boolean
+          registration_opens_at?: string | null
           max_participants?: number | null
           current_registrations?: number
           featured?: boolean

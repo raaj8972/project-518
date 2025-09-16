@@ -40,6 +40,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [uploadHint, setUploadHint] = useState<string>('');
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [originalImageMime, setOriginalImageMime] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
@@ -142,6 +143,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         setError('');
       };
       reader.readAsDataURL(file);
+      setOriginalImageMime(file.type || null);
       // stash the original file object for later in input (not stored; we’ll recreate from canvas)
       return;
     }
@@ -197,7 +199,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   // Create a blob from the cropped area via canvas
   const getCroppedImgBlob = async (
     imageSrc: string,
-    cropPixels?: { x: number; y: number; width: number; height: number } | null
+    cropPixels: { x: number; y: number; width: number; height: number } | null,
+    outputMime: 'image/png' | 'image/jpeg'
   ): Promise<Blob> => {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
@@ -239,11 +242,30 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     );
 
     return await new Promise<Blob>((resolve, reject) => {
+      const quality = outputMime === 'image/jpeg' ? 0.9 : undefined;
       canvas.toBlob((blob) => {
         if (blob) resolve(blob);
         else reject(new Error('Canvas toBlob failed'));
-      }, 'image/jpeg', 0.9);
+      }, outputMime, quality as any);
     });
+  };
+
+  // Decide export format: strictly preserve PNG/JPG; otherwise choose sensible fallback
+  const chooseOutputFormat = () => {
+    const orig = (originalImageMime || '').toLowerCase();
+    if (orig.includes('image/png')) {
+      return { mime: 'image/png' as const, ext: 'png' };
+    }
+    if (orig.includes('image/jpeg') || orig.includes('image/jpg')) {
+      return { mime: 'image/jpeg' as const, ext: 'jpg' };
+    }
+    // Fallbacks for other types
+    if (bucket === 'sponsor-logos') {
+      // Prefer PNG for logos when original type is unknown/other to preserve transparency
+      return { mime: 'image/png' as const, ext: 'png' };
+    }
+    // Default to JPEG for photos
+    return { mime: 'image/jpeg' as const, ext: 'jpg' };
   };
 
   const confirmCropAndUpload = async () => {
@@ -254,8 +276,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setUploadHint('');
     hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
     // Allow full-image fallback when croppedAreaPixels is not yet set
-    const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels);
-    const file = new File([blob], `crop_${Date.now()}.jpg`, { type: 'image/jpeg' });
+  const fmt = chooseOutputFormat();
+  const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels, fmt.mime);
+  const file = new File([blob], `crop_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
     const fileUrl = await uploadToSupabase(file);
     setPendingImage(fileUrl);
     if (autoSave) {
@@ -283,8 +306,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setUploading(true);
       setUploadHint('');
       hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
-      const blob = await getCroppedImgBlob(cropSrc, null);
-      const file = new File([blob], `full_${Date.now()}.jpg`, { type: 'image/jpeg' });
+  const fmt = chooseOutputFormat();
+  const blob = await getCroppedImgBlob(cropSrc, null, fmt.mime);
+  const file = new File([blob], `full_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
       const fileUrl = await uploadToSupabase(file);
       setPendingImage(fileUrl);
       if (autoSave) {

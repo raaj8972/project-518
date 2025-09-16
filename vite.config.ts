@@ -10,6 +10,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          supabase: ['@supabase/supabase-js'],
+          vendors: ['xlsx', 'gsap']
+        }
+      }
+    }
   },
   base: '/',
 });

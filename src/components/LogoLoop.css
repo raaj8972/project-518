@@ -57,6 +57,8 @@
   display: block;
   object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
+  /* Nudge to its own layer to avoid subpixel blur in motion */
+  transform: translateZ(0);
   -webkit-user-drag: none;
   pointer-events: none;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -243,25 +245,26 @@
   overflow: visible;
 }
 
-.logoloop--scale-hover .logoloop__item:hover img,
-.logoloop--scale-hover .logoloop__item:hover .logoloop__node {
-  transform: scale(1.2);
-  transform-origin: center center;
-}
+@media (hover: hover) and (pointer: fine) {
+  .logoloop--scale-hover .logoloop__item:hover img,
+  .logoloop--scale-hover .logoloop__item:hover .logoloop__node {
+    transform: scale(1.2);
+    transform-origin: center center;
+  }
 
-/* Card + logo lift on hover/tap/focus for 3D feel */
-.logoloop__item:hover .logoloop__card,
-.logoloop__item:active .logoloop__card,
-.logoloop__item:focus-within .logoloop__card {
-  /* Provide interaction-only white glow and a subtle zoom */
-  --ll-hover-shadow: 0 0 var(--ll-hover-outer-blur, 0.65em) var(--ll-hover-outer-spread, 0.16em) var(--ll-hover-outer-color, rgba(255,255,255,0.6));
-  transform: translateY(-4px) scale(var(--ll-card-scale-hover, 1.05));
-}
+  /* Card + logo lift on hover/focus for 3D feel on hover-capable devices */
+  .logoloop__item:hover .logoloop__card,
+  .logoloop__item:focus-within .logoloop__card {
+    /* Provide interaction-only white glow and a subtle zoom */
+    --ll-hover-shadow: 0 0 var(--ll-hover-outer-blur, 0.65em) var(--ll-hover-outer-spread, 0.16em) var(--ll-hover-outer-color, rgba(255,255,255,0.6));
+    transform: translateY(-4px) scale(var(--ll-card-scale-hover, 1.05));
+  }
 
-.logoloop__item:hover .logoloop__card img,
-.logoloop__item:hover .logoloop__card .logoloop__node img {
-  transform: translateZ(0) scale(1.03);
-  filter: var(--ll-logo-filter-hover, drop-shadow(0 14px 26px rgba(0,0,0,0.6)) drop-shadow(0 6px 10px rgba(0,0,0,0.45)));
+  .logoloop__item:hover .logoloop__card img,
+  .logoloop__item:hover .logoloop__card .logoloop__node img {
+    transform: translateZ(0) scale(1.03);
+    filter: var(--ll-logo-filter-hover, drop-shadow(0 14px 26px rgba(0,0,0,0.6)) drop-shadow(0 6px 10px rgba(0,0,0,0.45)));
+  }
 }
 
 .logoloop--scale-hover .logoloop__node {
@@ -322,5 +325,54 @@
   .logoloop__item img,
   .logoloop__node {
     transition: none !important;
+  }
+}
+
+/* Disable pulsing glow on non-hover/touch environments to reduce motion */
+@media (hover: none) {
+  .logoloop--pulse {
+    animation: none !important;
+  }
+}
+
+/* Mobile-first sizing tweaks for clarity and fit */
+@media (max-width: 640px) {
+  .logoloop {
+    /* Tighter spacing and slightly smaller logos on phones */
+    --logoloop-gap: 14px;
+    --logoloop-logoHeight: 22px;
+  }
+
+  /* Softer glow footprint and padding on small screens */
+  .logoloop--glow .logoloop__card {
+    --ll-card-pad-x: 12px;
+    --ll-card-pad-y: 6px;
+    --ll-card-radius: 12px;
+    --ll-floor-opacity: 0.30;
+    --ll-outer-blur: 0.36em;
+    --ll-outer-spread: 0.04em;
+  }
+
+  .logoloop__card {
+    min-height: var(--ll-card-min-h, calc(var(--logoloop-logoHeight) + 8px));
+  }
+
+  /* Constrain logo max size to avoid overflow and keep PNGs crisp */
+  .logoloop__card img,
+  .logoloop__card .logoloop__node img {
+    --ll-logo-max-w: clamp(84px, 38vw, 150px);
+    --ll-logo-max-h: var(--logoloop-logoHeight);
+  }
+}
+
+@media (max-width: 380px) {
+  .logoloop {
+    --logoloop-gap: 10px;
+    --logoloop-logoHeight: 20px;
+  }
+
+  .logoloop__card img,
+  .logoloop__card .logoloop__node img {
+    --ll-logo-max-w: clamp(72px, 44vw, 132px);
   }
 }

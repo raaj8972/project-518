@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Save, X, Monitor, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { Save, X, Monitor, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown, Wand2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import LogoLoop from '../LogoLoop';
 import InfiniteMarquee from '../InfiniteMarquee';
@@ -10,6 +11,7 @@ export const HomepageManagement: React.FC = () => {
   const { homepageSettings, updateHomepageSettings, sponsors, coreTeamMembers } = useData();
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [bgRemoveBusyId, setBgRemoveBusyId] = useState<string | null>(null);
   
   type SponsorLogo = {
     id: string;
@@ -57,6 +59,57 @@ export const HomepageManagement: React.FC = () => {
     sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
     committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
   });
+
+  // --- Helper: remove near-black background and return transparent PNG Blob
+  const removeBlackBackground = async (input: Blob, threshold = 24): Promise<Blob> => {
+    const bmp = await createImageBitmap(input);
+    const canvas = document.createElement('canvas');
+    canvas.width = bmp.width; canvas.height = bmp.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+    ctx.drawImage(bmp, 0, 0);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i+1], b = d[i+2];
+      if (r < threshold && g < threshold && b < threshold) d[i+3] = 0;
+    }
+    ctx.putImageData(img, 0, 0);
+    const blob: Blob = await new Promise((resolve) => canvas.toBlob(b => resolve(b as Blob), 'image/png'));
+    return blob;
+  };
+
+  // --- Helper: upload cleaned logo to sponsor-logos and return public URL
+  const uploadCleanLogo = async (blob: Blob): Promise<string> => {
+    const fileName = `bg-removed/${Date.now()}-${Math.random().toString(36).slice(2)}.png`;
+    const { error } = await supabase.storage.from('sponsor-logos').upload(fileName, blob, {
+      cacheControl: '3600', upsert: false, contentType: 'image/png'
+    });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from('sponsor-logos').getPublicUrl(fileName);
+    return publicUrl;
+  };
+
+  const handleRemoveLogoBg = async (logoId: string) => {
+    const logo = form.sponsor_logos.find(l => l.id === logoId);
+    if (!logo?.logo_url) return;
+    try {
+      setBgRemoveBusyId(logoId);
+      const res = await fetch(logo.logo_url, { mode: 'cors' });
+      const blob = await res.blob();
+      const cleaned = await removeBlackBackground(blob, 28);
+      const url = await uploadCleanLogo(cleaned);
+      setForm(prev => ({
+        ...prev,
+        sponsor_logos: prev.sponsor_logos.map(l => l.id === logoId ? { ...l, logo_url: url } : l)
+      }));
+    } catch (e) {
+      console.error('Remove background failed', e);
+      alert('Unable to remove background. Please ensure CORS allows fetching this image, or upload a transparent PNG.');
+    } finally {
+      setBgRemoveBusyId(null);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -854,6 +907,22 @@ export const HomepageManagement: React.FC = () => {
                               fileTypeLabel="PNG, JPG, GIF up to 5MB"
                               className="h-24"
                             />
+                            <div className="mt-2 flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLogoBg(logo.id)}
+                                disabled={!logo.logo_url || bgRemoveBusyId === logo.id}
+                                className={`inline-flex items-center px-3 py-1.5 text-xs rounded-md border transition-colors ${
+                                  !logo.logo_url || bgRemoveBusyId === logo.id
+                                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                    : 'bg-white hover:bg-blue-50 text-blue-700 border-blue-300'
+                                }`}
+                                title="Automatically remove black background and replace with transparent PNG"
+                              >
+                                <Wand2 size={14} className="mr-1" />
+                                {bgRemoveBusyId === logo.id ? 'Removing…' : 'Remove BG (auto)'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

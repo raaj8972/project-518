@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_ENV_OK, SUPABASE_HOST } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 
 // Define types for your data based on Supabase schema
@@ -198,6 +198,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const lastFetchAtRef = React.useRef<number>(0);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryAttemptRef = React.useRef<number>(0);
+  // Feature detection: whether events table supports timer columns yet
+  const timersSupportedRef = React.useRef<boolean>(true);
+  // Auto-open guard: ensure we only auto-open an event once per openAt timestamp
+  const autoOpenedRef = React.useRef<Set<string>>(new Set());
+
+  const autoOpenKey = (id: number, openAtIso: string) => `event:auto-opened:${id}:${openAtIso}`;
+  const hasAutoOpened = (id: number, openAtIso: string): boolean => {
+    const key = autoOpenKey(id, openAtIso);
+    if (autoOpenedRef.current.has(key)) return true;
+    try {
+      return localStorage.getItem(key) === '1';
+    } catch { return false; }
+  };
+  const markAutoOpened = (id: number, openAtIso: string) => {
+    const key = autoOpenKey(id, openAtIso);
+    autoOpenedRef.current.add(key);
+    try { localStorage.setItem(key, '1'); } catch {}
+  };
+
+  const isAutoOpenEnabled = (): boolean => {
+    try {
+      const raw = localStorage.getItem('admin_auto_open_enabled');
+      if (raw === null) return false; // default disabled until admin opts in
+      return raw === 'true' || raw === '1';
+    } catch {
+      return false;
+    }
+  };
 
   const clearRetryTimer = () => {
     if (retryTimerRef.current) {
@@ -205,6 +233,78 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       retryTimerRef.current = null;
     }
   };
+
+  // Normalize potentially problematic image/asset URLs so they work on HTTPS production
+  const sanitizeUrl = (u: string | null | undefined): string => {
+    if (!u) return '';
+    let s = String(u).trim();
+    if (!s) return '';
+    // Prefix relative Supabase storage paths with our Supabase origin
+    // Example: /storage/v1/object/public/bucket/path -> https://<project>.supabase.co/storage/v1/object/public/...
+    if (s.startsWith('/storage/')) {
+      const origin = `https://${SUPABASE_HOST}`;
+      s = origin + s;
+    }
+    // Avoid mixed content on Netlify (https site loading http images)
+    try {
+      const url = new URL(s);
+      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
+        url.protocol = 'https:';
+        s = url.toString();
+      }
+    } catch {
+      // s might be a relative path that isn't storage; keep as-is
+    }
+    return s;
+  };
+
+  // Immediately surface configuration issues so UX is explanatory instead of a hard crash
+  useEffect(() => {
+    if (!SUPABASE_ENV_OK) {
+      setConnectionStatus('degraded');
+      setLastError('Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify.');
+    }
+  }, []);
+
+  // Auto-open registration after timer passes (optional behavior)
+  useEffect(() => {
+    if (!events || events.length === 0) return;
+    let stopped = false;
+    const tick = async () => {
+      // Respect admin toggle
+      if (!isAutoOpenEnabled()) return;
+      if (stopped) return;
+      const now = Date.now();
+      const due = events.filter((e: any) => {
+        if (!e) return false;
+        if (!e.registration_timer_enabled) return false;
+        if (!e.registration_opens_at) return false;
+        if (e.registration_open) return false; // already open
+        const openAt = new Date(e.registration_opens_at).getTime();
+        if (Number.isNaN(openAt)) return false;
+        if (now < openAt) return false;
+        // open time passed; ensure we haven't auto-opened this (for this exact timestamp) already
+        return !hasAutoOpened(e.id, new Date(e.registration_opens_at).toISOString());
+      });
+      for (const e of due) {
+        try {
+          const { error } = await supabase.from('events').update({ registration_open: true }).eq('id', e.id);
+          if (!error) {
+            markAutoOpened(e.id, new Date((e as any).registration_opens_at).toISOString());
+          } else {
+            console.warn('Auto-open failed for event', e.id, error.message);
+          }
+        } catch (err) {
+          console.warn('Auto-open threw for event', (e as any)?.id, err);
+        }
+      }
+    };
+    // Check every second so UI flips quickly at boundary time
+    const interval = setInterval(tick, 1000);
+    // Run an immediate check as well
+    tick();
+    return () => { stopped = true; clearInterval(interval); };
+  }, [events]);
 
   const scheduleRetry = () => {
     clearRetryTimer();
@@ -250,19 +350,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } catch (e) {
         markErr('Supabase ping threw', e);
       }
-      // Fetch Events
+      // Fetch Events (use * to avoid selecting explicit new columns that may not exist yet)
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
         .select('*');
       if (eventsError) markErr('Error fetching events', eventsError);
-      else setEvents(eventsData || []);
+      else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
 
   // Fetch Gallery Images
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
         .from('gallery_images')
         .select('*');
       if (galleryImagesError) markErr('Error fetching gallery images', galleryImagesError);
-      else setGalleryImages(galleryImagesData || []);
+      else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
 
   // Fetch Sponsors
       // Fetch Event Coordinators
@@ -281,7 +381,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('sponsors')
         .select('*');
       if (sponsorsError) markErr('Error fetching sponsors', sponsorsError);
-      else setSponsors(sponsorsData || []);
+      else setSponsors((sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) })));
 
       // Fetch Hero Media (all pages at once)
       const { data: heroMediaData, error: heroMediaError } = await supabase
@@ -292,7 +392,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       } else {
         const map: Partial<Record<PageKey, HeroMedia | null>> = {};
         (heroMediaData || []).forEach((row) => {
-          map[row.page_key as PageKey] = row as HeroMedia;
+          const patched = {
+            ...row,
+            image_url: sanitizeUrl((row as any).image_url),
+            video_url: sanitizeUrl((row as any).video_url),
+          } as HeroMedia;
+          map[row.page_key as PageKey] = patched;
         });
         setHeroMedia(map);
       }
@@ -357,7 +462,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('faculty_heads')
         .select('*');
       if (facultyHeadsError) markErr('Error fetching faculty heads', facultyHeadsError);
-      else setFacultyHeads(facultyHeadsData || []);
+      else setFacultyHeads((facultyHeadsData || []).map(h => ({ ...h, image: sanitizeUrl((h as any).image) })));
 
       // Fetch Core Committees
       const { data: coreCommitteesData, error: coreCommitteesError } = await supabase
@@ -371,7 +476,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('core_team_members')
         .select('*');
       if (coreTeamMembersError) markErr('Error fetching core team members', coreTeamMembersError);
-      else setCoreTeamMembers(coreTeamMembersData || []);
+      else setCoreTeamMembers((coreTeamMembersData || []).map(m => ({ ...m, image: sanitizeUrl((m as any).image) })));
 
       // Fetch Band Members (public-visible only)
       const { data: bandMembersData, error: bandMembersError } = await supabase
@@ -380,14 +485,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .eq('enabled', true)
         .order('order_position', { ascending: true });
       if (bandMembersError) markErr('Error fetching band members', bandMembersError);
-      else setBandMembers(bandMembersData || []);
+      else setBandMembers((bandMembersData || []).map(b => ({ ...b, image: sanitizeUrl((b as any).image) })));
 
       // Fetch Guest Artists
       const { data: guestArtistsData, error: guestArtistsError } = await supabase
         .from('guest_artists')
         .select('*');
       if (guestArtistsError) markErr('Error fetching guest artists', guestArtistsError);
-      else setGuestArtists(guestArtistsData || []);
+      else setGuestArtists((guestArtistsData || []).map(a => ({ ...a, image: sanitizeUrl((a as any).image) })));
 
       // Fetch Sponsorship Packages
       const { data: sponsorshipPackagesData, error: sponsorshipPackagesError } = await supabase
@@ -544,13 +649,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Do not allow updating page_key via patch
     const payload = { ...patch } as Partial<HeroMedia>;
     delete (payload as any).page_key;
-
+    const prev = heroMedia[pageKey] || null;
     const { error } = await supabase
       .from('hero_media')
       .update(payload)
       .eq('page_key', pageKey);
     if (error) throw error;
-
+    // If media URL changed, delete the previous asset where safe
+    if (prev) {
+      if (payload.image_url && !urlsEqual(prev.image_url, payload.image_url)) {
+        if (!isUrlReferencedSomewhere(prev.image_url, { table: 'hero_media', id: String(pageKey) })) {
+          deleteStorageFileByPublicUrl(prev.image_url);
+        }
+      }
+      if (payload.video_url && !urlsEqual(prev.video_url, payload.video_url)) {
+        if (!isUrlReferencedSomewhere(prev.video_url, { table: 'hero_media', id: String(pageKey) })) {
+          deleteStorageFileByPublicUrl(prev.video_url);
+        }
+      }
+    }
     // Refresh local cache
     await fetchHeroMedia(pageKey);
   };
@@ -731,8 +848,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Event Management
   const addEvent = async (event: Partial<Event>) => {
-    const { error } = await supabase.from('events').insert(event);
-    if (error) throw error;
+    // Try with provided payload first
+    let { error } = await supabase.from('events').insert(event);
+    if (error) {
+      const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
+        // Backend likely hasn't been migrated yet; strip timer fields and retry once
+        timersSupportedRef.current = false;
+        const safe: any = { ...event };
+        delete safe.registration_opens_at;
+        delete safe.registration_timer_enabled;
+        const retry = await supabase.from('events').insert(safe);
+        if (retry.error) throw retry.error;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -741,12 +872,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     coordinators: Array<{ name: string; phone?: string | null }>
   ) => {
     // Insert event and get the id back so we can link coordinators
-    const { data: inserted, error } = await supabase
+    let { data: inserted, error } = await supabase
       .from('events')
       .insert(event)
       .select('id')
       .single();
-    if (error) throw error;
+    if (error) {
+      const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
+        timersSupportedRef.current = false;
+        const safe: any = { ...event };
+        delete safe.registration_opens_at;
+        delete safe.registration_timer_enabled;
+        const retry = await supabase
+          .from('events')
+          .insert(safe)
+          .select('id')
+          .single();
+        if (retry.error) throw retry.error;
+        inserted = retry.data as any;
+      } else {
+        throw error;
+      }
+    }
     const newId = inserted?.id as number;
     if (newId && coordinators && coordinators.length > 0) {
       // Prepare coordinator rows with order
@@ -766,8 +914,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateEvent = async (id: number, event: Partial<Event>) => {
-    const { error } = await supabase.from('events').update(event).eq('id', id);
-    if (error) throw error;
+    let { error } = await supabase.from('events').update(event).eq('id', id);
+    if (error) {
+      const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
+        timersSupportedRef.current = false;
+        const safe: any = { ...event };
+        delete safe.registration_opens_at;
+        delete safe.registration_timer_enabled;
+        const retry = await supabase.from('events').update(safe).eq('id', id);
+        if (retry.error) throw retry.error;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -775,6 +935,131 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) throw error;
     await fetchData(true);
+  };
+
+  // --- Utility: Delete a file from Supabase Storage when given a public URL
+  // Tracks objects already attempted this session to avoid duplicate removal if multiple rows used same image
+  const removedObjectsRef = React.useRef<Set<string>>(new Set());
+  const KNOWN_BUCKETS = [
+    'gallery-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
+    'artists','members','uploads','hero-media','hero-videos','guest-artist-videos','pdf','documents'
+  ];
+  // Normalize a storage/public URL for reliable equality checks
+  const normalizeStorageUrl = (raw?: string | null): string => {
+    if (!raw) return '';
+    try {
+      let url = String(raw).trim();
+      if (!url) return '';
+      // Strip query/hash (signed URLs etc.)
+      url = url.split('?')[0].split('#')[0];
+      // Remove accidental double slashes (except protocol)
+      url = url.replace(/([^:])\/\/+/, '$1/');
+      return url;
+    } catch {
+      return '';
+    }
+  };
+  const urlsEqual = (a?: string | null, b?: string | null) => normalizeStorageUrl(a) === normalizeStorageUrl(b);
+
+  // Scan current client-side cache to see if a URL is still referenced anywhere else
+  const isUrlReferencedSomewhere = (target?: string | null, opts?: { table?: string; id?: number | string | null }) => {
+    const t = normalizeStorageUrl(target);
+    if (!t) return false;
+    const skip = (table: string, id: any) => opts && opts.table === table && opts.id === id;
+
+    // gallery_images.src
+    for (const g of galleryImages) {
+      if (skip('gallery_images', g.id)) continue;
+      if (normalizeStorageUrl((g as any).src) === t) return true;
+    }
+    // sponsors.logo
+    for (const s of sponsors) {
+      if (skip('sponsors', s.id)) continue;
+      if (normalizeStorageUrl((s as any).logo) === t) return true;
+    }
+    // faculty_heads.image / image_url
+    for (const f of facultyHeads) {
+      if (skip('faculty_heads', f.id)) continue;
+      const u1 = normalizeStorageUrl((f as any).image);
+      const u2 = normalizeStorageUrl((f as any).image_url);
+      if (u1 === t || u2 === t) return true;
+    }
+    // core_team_members.image
+    for (const m of coreTeamMembers) {
+      if (skip('core_team_members', m.id)) continue;
+      if (normalizeStorageUrl((m as any).image) === t) return true;
+    }
+    // band_members.image
+    for (const b of bandMembers) {
+      if (skip('band_members', b.id)) continue;
+      if (normalizeStorageUrl((b as any).image) === t) return true;
+    }
+    // guest_artists.image / image_url / photo_url
+    for (const a of guestArtists) {
+      if (skip('guest_artists', a.id)) continue;
+      const u1 = normalizeStorageUrl((a as any).image);
+      const u2 = normalizeStorageUrl((a as any).image_url);
+      const u3 = normalizeStorageUrl((a as any).photo_url);
+      if (u1 === t || u2 === t || u3 === t) return true;
+    }
+    // homepage_settings.hero_media_url and sponsor_logos[].logo_url
+    if (homepageSettings) {
+      const hm = normalizeStorageUrl((homepageSettings as any).hero_media_url);
+      if (hm === t) return true;
+      const logos: any[] = (homepageSettings as any).sponsor_logos || [];
+      for (const L of logos) {
+        if (normalizeStorageUrl(L?.logo_url) === t) return true;
+      }
+    }
+    // hero_media per pageKey
+    for (const key of Object.keys(heroMedia)) {
+      const row = (heroMedia as any)[key] || null;
+      if (!row) continue;
+      const iu = normalizeStorageUrl(row.image_url);
+      const vu = normalizeStorageUrl(row.video_url);
+      if (iu === t || vu === t) return true;
+    }
+    return false;
+  };
+  const deleteStorageFileByPublicUrl = async (raw?: string | null) => {
+    if (!raw) return;
+    try {
+      let url = raw.trim();
+      if (!url) return;
+      // Strip query params / fragments (signed URLs etc.)
+      url = url.split('?')[0].split('#')[0];
+      // If it's already a full Supabase public URL
+      let bucket: string | null = null;
+      let path: string | null = null;
+      const fullMatch = url.match(/\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+      if (fullMatch) {
+        bucket = fullMatch[1];
+        path = decodeURIComponent(fullMatch[2]);
+      } else {
+        // Handle relative or plain path forms like "gallery-images/filename.jpg" or just "uploads/foo.png"
+        const rel = url.replace(/^\/*/, '');
+        const firstSlash = rel.indexOf('/');
+        if (firstSlash > 0) {
+          const maybeBucket = rel.substring(0, firstSlash);
+            if (KNOWN_BUCKETS.includes(maybeBucket)) {
+              bucket = maybeBucket;
+              path = rel.substring(firstSlash + 1);
+            }
+        }
+      }
+      if (!bucket || !path) return; // Not a recognized storage object
+      if (!KNOWN_BUCKETS.includes(bucket)) return; // Safety: only delete from known buckets
+      const key = bucket + '::' + path;
+      if (removedObjectsRef.current.has(key)) return; // Already attempted
+      removedObjectsRef.current.add(key);
+      if (!path) return;
+      const { error } = await supabase.storage.from(bucket).remove([path]);
+      if (error) {
+        console.warn('[Storage] Failed to remove object', bucket, path, error.message);
+      }
+    } catch (e) {
+      console.warn('[Storage] Unexpected error parsing/removing file', e);
+    }
   };
 
   // Event Coordinators
@@ -828,14 +1113,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateGalleryImage = async (id: number, image: Partial<GalleryImage>) => {
+    const prev = galleryImages.find(g => g.id === id) || null;
     const { error } = await supabase.from('gallery_images').update(image).eq('id', id);
     if (error) throw error;
+    // Cleanup old file if replaced
+    if (prev && image.src && !urlsEqual((prev as any).src, image.src)) {
+      if (!isUrlReferencedSomewhere((prev as any).src, { table: 'gallery_images', id })) {
+        deleteStorageFileByPublicUrl((prev as any).src);
+      }
+    }
     await fetchData(true);
   };
 
   const deleteGalleryImage = async (id: number) => {
+    // Find image first to capture src for storage cleanup
+    const img = galleryImages.find(g => g.id === id) || null;
     const { error } = await supabase.from('gallery_images').delete().eq('id', id);
     if (error) throw error;
+    // Fire-and-forget storage delete (do not block UI)
+    deleteStorageFileByPublicUrl(img?.src);
     await fetchData(true);
   };
 
@@ -864,8 +1160,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       ...sponsor,
       description: sponsor.description ?? '',
     } as Partial<Sponsor>;
+    const prev = sponsors.find(s => s.id === id) || null;
     const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
     if (error) throw error;
+    if (prev && payload.logo && !urlsEqual((prev as any).logo, payload.logo)) {
+      if (!isUrlReferencedSomewhere((prev as any).logo, { table: 'sponsors', id })) {
+        deleteStorageFileByPublicUrl((prev as any).logo);
+      }
+    }
     await fetchData(true);
   };
 
@@ -879,6 +1181,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const { error } = await supabase.from('sponsors').delete().eq('id', id);
       if (error) throw error;
+      // Attempt to delete logo asset if stored in public bucket and is a full URL
+      deleteStorageFileByPublicUrl((exists as any).logo);
     } catch (e) {
       // Revert on failure so UI matches server state
       setSponsors(prev);
@@ -1132,6 +1436,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateFacultyHead = async (id: number, head: Partial<FacultyHead>) => {
+    const prev = facultyHeads.find(h => h.id === id) || null;
     const { error } = await supabase.from('faculty_heads').update(head).eq('id', id);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
@@ -1145,12 +1450,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
     }
+    // Delete any replaced image
+    if (prev) {
+      const newImg = (head as any)?.image;
+      const newUrl = (head as any)?.image_url;
+      const oldA = (prev as any)?.image;
+      const oldB = (prev as any)?.image_url;
+      const toDelete: string[] = [];
+      if (newImg && !urlsEqual(oldA, newImg)) toDelete.push(oldA);
+      if (newUrl && !urlsEqual(oldB, newUrl)) toDelete.push(oldB);
+      for (const u of toDelete.filter(Boolean)) {
+        if (!isUrlReferencedSomewhere(u, { table: 'faculty_heads', id })) {
+          deleteStorageFileByPublicUrl(u);
+        }
+      }
+    }
     await fetchData(true);
   };
 
   const deleteFacultyHead = async (id: number) => {
+    const head = facultyHeads.find(h => h.id === id) || null;
     const { error } = await supabase.from('faculty_heads').delete().eq('id', id);
     if (error) throw error;
+    deleteStorageFileByPublicUrl((head as any)?.image || (head as any)?.image_url);
     await fetchData(true);
   };
 
@@ -1213,6 +1535,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateCoreTeamMember = async (id: number, member: Partial<CoreTeamMember>) => {
+    const prev = coreTeamMembers.find(m => m.id === id) || null;
     const { error } = await supabase.from('core_team_members').update(member).eq('id', id);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
@@ -1227,12 +1550,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
     }
+    if (prev && (member as any)?.image && !urlsEqual((prev as any).image, (member as any).image)) {
+      if (!isUrlReferencedSomewhere((prev as any).image, { table: 'core_team_members', id })) {
+        deleteStorageFileByPublicUrl((prev as any).image);
+      }
+    }
     await fetchData(true);
   };
 
   const deleteCoreTeamMember = async (id: number) => {
+    const member = coreTeamMembers.find(m => m.id === id) || null;
     const { error } = await supabase.from('core_team_members').delete().eq('id', id);
     if (error) throw error;
+    deleteStorageFileByPublicUrl((member as any)?.image);
     await fetchData(true);
   };
 
@@ -1268,14 +1598,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateBandMember = async (id: number, member: Partial<BandMember>) => {
+    const prev = bandMembers.find(m => m.id === id) || null;
     const { error } = await supabase.from('band_members').update(member).eq('id', id);
     if (error) throw error;
+    if (prev && (member as any)?.image && !urlsEqual((prev as any).image, (member as any).image)) {
+      if (!isUrlReferencedSomewhere((prev as any).image, { table: 'band_members', id })) {
+        deleteStorageFileByPublicUrl((prev as any).image);
+      }
+    }
     await fetchData(true);
   };
 
   const deleteBandMember = async (id: number) => {
+    const member = bandMembers.find(m => m.id === id) || null;
     const { error } = await supabase.from('band_members').delete().eq('id', id);
     if (error) throw error;
+    deleteStorageFileByPublicUrl((member as any)?.image);
     await fetchData(true);
   };
 
@@ -1314,6 +1652,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateGuestArtist = async (id: number, artist: Partial<GuestArtist>) => {
+    const prev = guestArtists.find(a => a.id === id) || null;
     const { error } = await supabase.from('guest_artists').update(artist).eq('id', id);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
@@ -1327,12 +1666,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         throw error;
       }
     }
+    if (prev) {
+      const newImg = (artist as any)?.image;
+      const newUrl = (artist as any)?.image_url;
+      const newPhoto = (artist as any)?.photo_url;
+      const oldImg = (prev as any)?.image;
+      const oldUrl = (prev as any)?.image_url;
+      const oldPhoto = (prev as any)?.photo_url;
+      const toDelete: string[] = [];
+      if (newImg && !urlsEqual(oldImg, newImg)) toDelete.push(oldImg);
+      if (newUrl && !urlsEqual(oldUrl, newUrl)) toDelete.push(oldUrl);
+      if (newPhoto && !urlsEqual(oldPhoto, newPhoto)) toDelete.push(oldPhoto);
+      for (const u of toDelete.filter(Boolean)) {
+        if (!isUrlReferencedSomewhere(u, { table: 'guest_artists', id })) {
+          deleteStorageFileByPublicUrl(u);
+        }
+      }
+    }
     await fetchData(true);
   };
 
   const deleteGuestArtist = async (id: number) => {
+    const artist = guestArtists.find(a => a.id === id) || null;
     const { error } = await supabase.from('guest_artists').delete().eq('id', id);
     if (error) throw error;
+    deleteStorageFileByPublicUrl((artist as any)?.image || (artist as any)?.image_url || (artist as any)?.photo_url);
     await fetchData(true);
   };
 
@@ -1449,6 +1807,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (payload.sponsor_logos && typeof payload.sponsor_logos !== 'object') {
       try { payload.sponsor_logos = JSON.parse(String(payload.sponsor_logos)); } catch { /* ignore */ }
     }
+    const prev = homepageSettings;
     let { error } = await supabase
       .from('homepage_settings')
       .upsert(payload, { onConflict: 'id' });
@@ -1472,6 +1831,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .eq('id', 1);
         if (updateErr) throw updateErr;
       }
+    }
+    // Cleanup replaced/removed homepage assets
+    try {
+      if (prev) {
+        if (Object.prototype.hasOwnProperty.call(payload, 'hero_media_url')) {
+          const newHM = (payload as any).hero_media_url;
+          if (newHM && !urlsEqual(prev.hero_media_url as any, newHM)) {
+            if (!isUrlReferencedSomewhere(prev.hero_media_url as any, { table: 'homepage_settings', id: 1 })) {
+              deleteStorageFileByPublicUrl(prev.hero_media_url as any);
+            }
+          }
+        }
+        if (Object.prototype.hasOwnProperty.call(payload, 'sponsor_logos')) {
+          const oldLogos: any[] = ((prev as any).sponsor_logos || []) as any[];
+          const newLogos: any[] = (((payload as any).sponsor_logos || []) as any[]);
+          const oldById = new Map<any, any>();
+          const newById = new Map<any, any>();
+          for (const L of oldLogos) if (L && L.id != null) oldById.set(L.id, L);
+          for (const L of newLogos) if (L && L.id != null) newById.set(L.id, L);
+          const oldUrls = oldLogos.map((L: any) => normalizeStorageUrl(L?.logo_url)).filter(Boolean);
+          const newUrls = newLogos.map((L: any) => normalizeStorageUrl(L?.logo_url)).filter(Boolean);
+          for (const [id, o] of oldById.entries()) {
+            if (newById.has(id)) {
+              const n = newById.get(id);
+              const ou = normalizeStorageUrl(o?.logo_url);
+              const nu = normalizeStorageUrl(n?.logo_url);
+              if (ou && nu && ou !== nu) {
+                if (!isUrlReferencedSomewhere(ou, { table: 'homepage_settings', id: 1 })) {
+                  deleteStorageFileByPublicUrl(ou);
+                }
+              }
+            }
+          }
+          for (const ou of oldUrls) {
+            if (ou && !newUrls.includes(ou)) {
+              if (!isUrlReferencedSomewhere(ou, { table: 'homepage_settings', id: 1 })) {
+                deleteStorageFileByPublicUrl(ou);
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Data] homepage_settings cleanup failed', e);
     }
   await fetchData(true);
   };

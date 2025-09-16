@@ -281,6 +281,101 @@
     opacity: calc(0.28 + (var(--lg-pulse, 0) * 0.25));
   }
 
+  /* Remove black backgrounds from non-transparent logo PNGs on dark hero */
+  /* Important: do NOT isolate, so the image can blend with the page background */
+  .logo-no-bg { isolation: unset !important; }
+  /* Ensure the base .logo-glow isolation and ::after overlay don't block blending */
+  .logo-no-bg.logo-glow { isolation: unset !important; }
+  .logo-no-bg.logo-glow::after { opacity: 0 !important; display: none !important; }
+    .logo-no-bg img { mix-blend-mode: screen; background-color: transparent !important; image-rendering: auto; }
+    @supports (mix-blend-mode: plus-lighter) {
+      .logo-no-bg img { mix-blend-mode: plus-lighter; }
+    }
+    @supports not (mix-blend-mode: screen) {
+      .logo-no-bg img { opacity: 0.96; }
+    }
+
+    /* Optional: provide an alternate class if a logo was designed on white background */
+    .logo-no-bg--light img { mix-blend-mode: multiply; }
+
+  /* Tier-based soft glow behind logos (doesn't interfere with blending) */
+  .logo-tier-glow { position: relative; 
+    /* Max intensity (current) */
+    --tier-opacity: 0.65;
+    --tier-blur: 12px;
+    /* Auto-computed minimums so animation never exceeds current max */
+    --tier-opacity-min: calc(var(--tier-opacity, 0.65) * 0.75);
+    --tier-blur-min: calc(var(--tier-blur, 12px) - 2px);
+    --tier-speed: 3.4s;
+  }
+  .logo-tier-glow::before {
+    content: '';
+    position: absolute;
+    inset: -8px; /* extend slightly beyond logo box */
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0; /* behind the image */
+    /* Uses a CSS variable set inline: --tier-glow: rgba(r,g,b,alpha) */
+    background: radial-gradient(60% 60% at 50% 50%, var(--tier-glow, rgba(255,255,255,0.35)) 0%, rgba(0,0,0,0) 70%);
+    filter: blur(var(--tier-blur, 12px));
+    opacity: var(--tier-opacity, 0.65);
+    transform: translateZ(0);
+  }
+  .logo-tier-glow img { position: relative; z-index: 1; }
+  .tier-glow-strong { --tier-opacity: 0.85; --tier-blur: 14px; }
+  .tier-glow-medium { --tier-opacity: 0.75; --tier-blur: 12px; }
+  .tier-glow-soft { --tier-opacity: 0.65; --tier-blur: 10px; }
+
+  /* Gentle pulse: animates between min and current max values */
+  @keyframes tierPulse {
+    0%, 100% {
+      opacity: var(--tier-opacity-min, 0.5);
+      filter: blur(var(--tier-blur-min, 10px));
+    }
+    50% {
+      opacity: var(--tier-opacity, 0.65);
+      filter: blur(var(--tier-blur, 12px));
+    }
+  }
+  .logo-tier-glow.tier-pulse::before { animation: tierPulse var(--tier-speed, 3.4s) ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .logo-tier-glow.tier-pulse::before { animation: none; }
+  }
+
+  /* Home hero sponsor hover glow (keeps blend-only logos but adds subtle interactive feedback) */
+  .home-sponsor-glow { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 18px; padding: 2px; transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease; }
+  .home-sponsor-glow::before {
+    content: '';
+    position: absolute;
+    inset: -10px; /* extend slightly beyond image */
+    border-radius: inherit;
+    pointer-events: none;
+    background:
+      radial-gradient(65% 65% at 50% 45%, rgba(255,255,255,0.50), rgba(236,72,153,0.28) 38%, rgba(147,51,234,0.22) 58%, rgba(0,0,0,0) 72%);
+    opacity: 0;
+    filter: blur(14px) brightness(1.05);
+    transform: scale(.92);
+    transition: opacity 240ms ease, filter 240ms ease, transform 300ms cubic-bezier(.2,.8,.2,1);
+    z-index: 0;
+  }
+  .home-sponsor-glow:hover::before,
+  .home-sponsor-glow:focus-within::before,
+  .home-sponsor-glow:active::before { opacity: .9; filter: blur(18px) brightness(1.15); transform: scale(1); }
+  .home-sponsor-glow:hover,
+  .home-sponsor-glow:focus-within,
+  .home-sponsor-glow:active { transform: translateY(-3px) scale(1.05); }
+  .home-sponsor-glow a:focus-visible { outline: 2px solid rgba(236,72,153,0.8); outline-offset: 4px; border-radius: 14px; }
+  @media (prefers-reduced-motion: reduce) {
+    .home-sponsor-glow { transition: none; }
+    .home-sponsor-glow::before { transition: none; }
+    .home-sponsor-glow:hover::before,
+    .home-sponsor-glow:focus-within::before,
+    .home-sponsor-glow:active::before { filter: blur(14px); transform: none; }
+    .home-sponsor-glow:hover,
+    .home-sponsor-glow:focus-within,
+    .home-sponsor-glow:active { transform: none; }
+  }
+
   /* Soft white text glow for labels like "Powered by" */
   .text-glow-soft {
     text-shadow:
@@ -408,7 +503,7 @@ html[data-theme="sponsors"] {
 .max-w-6xl,
 .max-w-5xl,
 .max-w-4xl {
-  max-width: calc(100vw - 2rem);
+  max-width: calc(100vw - 1.5rem);
   margin-left: auto;
   margin-right: auto;
 }
@@ -419,6 +514,19 @@ html[data-theme="sponsors"] {
   .max-w-5xl { max-width: 1024px; }
   .max-w-4xl { max-width: 896px; }
 }
+
+/* Admin: allow a bit more breathing room and horizontal scroll safety */
+.admin-root {
+  overflow-x: auto;
+}
+.admin-root .max-w-7xl,
+.admin-root .max-w-6xl,
+.admin-root .max-w-5xl,
+.admin-root .max-w-4xl {
+  max-width: calc(100vw - 0.5rem);
+}
+.admin-root .flex-1 { min-width: 0; }
+.admin-root .grid { min-width: 0; }
 
 /* Grid responsive fixes */
 .grid {
