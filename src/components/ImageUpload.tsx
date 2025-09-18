@@ -66,11 +66,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const fileExt = file.name.split('.').pop();
     const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-  const { error } = await withTimeout(
+    // Dynamic timeout based on file type: videos can be large, images smaller
+    const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : 120_000;
+    const { error } = await withTimeout(
       supabase.storage
         .from(bucket)
         .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined }),
-      30000,
+      timeoutMs,
       'upload'
     );
 

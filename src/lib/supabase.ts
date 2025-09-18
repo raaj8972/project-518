@@ -102,6 +102,7 @@ export interface Database {
           featured: boolean
           visible: boolean
           artist_id: number | null
+          watch_live_url: string | null
           created_at: string
         }
         Insert: {
@@ -127,6 +128,7 @@ export interface Database {
           featured?: boolean
           visible?: boolean
           artist_id?: number | null
+          watch_live_url?: string | null
           created_at?: string
         }
         Update: {
@@ -152,6 +154,7 @@ export interface Database {
           featured?: boolean
           visible?: boolean
           artist_id?: number | null
+          watch_live_url?: string | null
           created_at?: string
         }
       }
@@ -313,6 +316,8 @@ export interface Database {
           type: string
           duration: string
           created_at: string
+          event_id?: number | null
+          guest_artist_id?: number | null
         }
         Insert: {
           id?: number
@@ -323,6 +328,8 @@ export interface Database {
           type: string
           duration: string
           created_at?: string
+          event_id?: number | null
+          guest_artist_id?: number | null
         }
         Update: {
           id?: number
@@ -333,6 +340,8 @@ export interface Database {
           type?: string
           duration?: string
           created_at?: string
+          event_id?: number | null
+          guest_artist_id?: number | null
         }
       }
       registrations: {
@@ -686,6 +695,21 @@ export interface Database {
           hero_title: string
           hero_subtitle: string
           hero_description: string
+          // Branding
+          brand_logo_url: string | null
+          brand_year: number | null
+          brand_logo_size_px: number | null
+          brand_logo_glow_strength: number | null
+          brand_logo_glow_color: string | null
+          brand_logo_side: 'left' | 'right' | null
+          brand_logo_offset_x_px: number | null
+          brand_logo_offset_y_px: number | null
+          brand_logo_offset_x_sm_px: number | null
+          brand_logo_offset_y_sm_px: number | null
+          brand_logo_offset_x_md_px: number | null
+          brand_logo_offset_y_md_px: number | null
+          brand_logo_offset_x_lg_px: number | null
+          brand_logo_offset_y_lg_px: number | null
           sponsor_logos: any
           sponsor_section_enabled: boolean
           sponsor_section_text: string
@@ -707,6 +731,21 @@ export interface Database {
           hero_title?: string
           hero_subtitle?: string
           hero_description?: string
+          // Branding
+          brand_logo_url?: string | null
+          brand_year?: number | null
+          brand_logo_size_px?: number | null
+          brand_logo_glow_strength?: number | null
+          brand_logo_glow_color?: string | null
+          brand_logo_side?: 'left' | 'right' | null
+          brand_logo_offset_x_px?: number | null
+          brand_logo_offset_y_px?: number | null
+          brand_logo_offset_x_sm_px?: number | null
+          brand_logo_offset_y_sm_px?: number | null
+          brand_logo_offset_x_md_px?: number | null
+          brand_logo_offset_y_md_px?: number | null
+          brand_logo_offset_x_lg_px?: number | null
+          brand_logo_offset_y_lg_px?: number | null
           sponsor_logos?: any
           sponsor_section_enabled?: boolean
           sponsor_section_text?: string
@@ -728,6 +767,21 @@ export interface Database {
           hero_title?: string
           hero_subtitle?: string
           hero_description?: string
+          // Branding
+          brand_logo_url?: string | null
+          brand_year?: number | null
+          brand_logo_size_px?: number | null
+          brand_logo_glow_strength?: number | null
+          brand_logo_glow_color?: string | null
+          brand_logo_side?: 'left' | 'right' | null
+          brand_logo_offset_x_px?: number | null
+          brand_logo_offset_y_px?: number | null
+          brand_logo_offset_x_sm_px?: number | null
+          brand_logo_offset_y_sm_px?: number | null
+          brand_logo_offset_x_md_px?: number | null
+          brand_logo_offset_y_md_px?: number | null
+          brand_logo_offset_x_lg_px?: number | null
+          brand_logo_offset_y_lg_px?: number | null
           sponsor_logos?: any
           sponsor_section_enabled?: boolean
           sponsor_section_text?: string
@@ -793,6 +847,7 @@ export interface Database {
           video: string | null
           video_url: string | null
           youtube_url: string | null
+          watch_live_url: string | null
           description: string
           specialty: string
           achievements: string[]
@@ -815,6 +870,7 @@ export interface Database {
           video?: string | null
           video_url?: string | null
           youtube_url?: string | null
+          watch_live_url?: string | null
           description: string
           specialty: string
           achievements?: string[]
@@ -837,6 +893,7 @@ export interface Database {
           video?: string | null
           video_url?: string | null
           youtube_url?: string | null
+          watch_live_url?: string | null
           description?: string
           specialty?: string
           achievements?: string[]
@@ -848,6 +905,53 @@ export interface Database {
           venue?: string | null
           countdown_enabled?: boolean
           live_now_enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      chief_guests: {
+        Row: {
+          id: number
+          name: string
+          title: string
+          image: string
+          description: string
+          specialty: string | null
+          achievements: string[]
+          social_links: any
+          enabled: boolean
+          is_featured: boolean
+          order_position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          title: string
+          image: string
+          description: string
+          specialty?: string | null
+            achievements?: string[]
+          social_links?: any
+          enabled?: boolean
+          is_featured?: boolean
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          title?: string
+          image?: string
+          description?: string
+          specialty?: string | null
+          achievements?: string[]
+          social_links?: any
+          enabled?: boolean
+          is_featured?: boolean
+          order_position?: number
           created_at?: string
           updated_at?: string
         }

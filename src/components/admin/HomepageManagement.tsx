@@ -1,17 +1,24 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Save, X, Monitor, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown, Wand2 } from 'lucide-react';
+import { SUPABASE_ENV_OK, SUPABASE_HOST } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { Save, X, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown, Wand2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import LogoLoop from '../LogoLoop';
 import InfiniteMarquee from '../InfiniteMarquee';
 import { ImageUpload } from '../ImageUpload';
+// Removed dev-only Branding preview
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const HomepageManagement: React.FC = () => {
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
   const { homepageSettings, updateHomepageSettings, sponsors, coreTeamMembers } = useData();
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [bgRemoveBusyId, setBgRemoveBusyId] = useState<string | null>(null);
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [savingPage, setSavingPage] = useState(false);
+  // Removed dev-only preview breakpoint state and window width tracking
   
   type SponsorLogo = {
     id: string;
@@ -28,6 +35,21 @@ export const HomepageManagement: React.FC = () => {
     hero_title: string;
     hero_subtitle: string;
     hero_description: string;
+    brand_logo_url?: string;
+  brand_year?: number | '';
+  brand_logo_size_px?: number | '';
+  brand_logo_glow_strength?: number | '';
+  brand_logo_glow_color?: string;
+  brand_logo_side?: 'left' | 'right';
+  brand_logo_offset_x_px?: number | '';
+  brand_logo_offset_y_px?: number | '';
+  // Optional responsive overrides
+  brand_logo_offset_x_sm_px?: number | '';
+  brand_logo_offset_y_sm_px?: number | '';
+  brand_logo_offset_x_md_px?: number | '';
+  brand_logo_offset_y_md_px?: number | '';
+  brand_logo_offset_x_lg_px?: number | '';
+  brand_logo_offset_y_lg_px?: number | '';
     sponsor_logos: SponsorLogo[];
     sponsor_section_enabled: boolean;
     sponsor_section_text: string;
@@ -47,6 +69,20 @@ export const HomepageManagement: React.FC = () => {
     hero_title: homepageSettings?.hero_title || 'RICORRENZA',
     hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
     hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
+    brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
+  brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
+  brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
+  brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
+  brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
+    brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
+    brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
+    brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
+  brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
+  brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
+  brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
+  brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
+  brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
+  brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
     sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
     sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
     sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
@@ -113,9 +149,29 @@ export const HomepageManagement: React.FC = () => {
 
   const handleSave = async () => {
     try {
+      if (savingPage || savingBranding) return;
+      setSavingPage(true);
       // Normalize numeric fields before saving (convert '' to defaults)
       const payload = {
         ...form,
+        brand_logo_url: (form as any).brand_logo_url || null,
+        brand_year: typeof (form as any).brand_year === 'number' && !isNaN((form as any).brand_year)
+          ? (form as any).brand_year
+          : new Date().getFullYear(),
+        brand_logo_size_px: typeof (form as any).brand_logo_size_px === 'number' && !isNaN((form as any).brand_logo_size_px)
+          ? Math.min(256, Math.max(16, (form as any).brand_logo_size_px))
+          : 36,
+        brand_logo_glow_strength: typeof (form as any).brand_logo_glow_strength === 'number' && !isNaN((form as any).brand_logo_glow_strength)
+          ? Math.min(2, Math.max(0, (form as any).brand_logo_glow_strength))
+          : 1,
+        brand_logo_glow_color: ((form as any).brand_logo_glow_color || '').toString().trim() || '#ff00ff',
+        brand_logo_side: ((form as any).brand_logo_side === 'right' ? 'right' : 'left') as any,
+        brand_logo_offset_x_px: typeof (form as any).brand_logo_offset_x_px === 'number' && !isNaN((form as any).brand_logo_offset_x_px)
+          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_x_px))
+          : 0,
+        brand_logo_offset_y_px: typeof (form as any).brand_logo_offset_y_px === 'number' && !isNaN((form as any).brand_logo_offset_y_px)
+          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_y_px))
+          : 0,
         leadership_carousel_speed_ms: typeof form.leadership_carousel_speed_ms === 'number' && !isNaN(form.leadership_carousel_speed_ms)
           ? Math.max(1000, form.leadership_carousel_speed_ms)
           : 2500,
@@ -139,6 +195,8 @@ export const HomepageManagement: React.FC = () => {
   const errText = (error as any)?.message || 'Failed to update homepage settings. Please try again.';
   setMessage({ type: 'error', text: errText });
       setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setSavingPage(false);
     }
   };
 
@@ -149,6 +207,20 @@ export const HomepageManagement: React.FC = () => {
       hero_title: homepageSettings?.hero_title || 'RICORRENZA',
       hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
       hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
+      brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
+      brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
+  brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
+  brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
+  brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
+  brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
+  brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
+  brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
+  brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
+  brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
+  brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
+  brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
+  brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
+  brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
       sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
       sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
       sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
@@ -223,31 +295,108 @@ export const HomepageManagement: React.FC = () => {
     setForm(prev => ({ ...prev, sponsor_logos: newLogos }));
   };
 
+  // Save only branding-related fields explicitly (no autosave)
+  const saveBranding = async () => {
+    try {
+      if (savingBranding || savingPage) return;
+      setSavingBranding(true);
+      const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
+      const brandingPayload: any = {
+        brand_logo_url: (form as any).brand_logo_url || null,
+        brand_year: typeof (form as any).brand_year === 'number' && !isNaN((form as any).brand_year) ? (form as any).brand_year : null,
+        brand_logo_size_px: clamp((form as any).brand_logo_size_px, 16, 256),
+        brand_logo_glow_strength: clamp((form as any).brand_logo_glow_strength, 0, 2),
+        brand_logo_glow_color: ((form as any).brand_logo_glow_color || '').toString().trim() || null,
+        brand_logo_side: ((form as any).brand_logo_side === 'right' ? 'right' : 'left') as any,
+        brand_logo_offset_x_px: clamp((form as any).brand_logo_offset_x_px, -200, 200),
+        brand_logo_offset_y_px: clamp((form as any).brand_logo_offset_y_px, -200, 200),
+        brand_logo_offset_x_sm_px: (typeof (form as any).brand_logo_offset_x_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_x_sm_px)) ? clamp((form as any).brand_logo_offset_x_sm_px, -400, 400) : null,
+        brand_logo_offset_y_sm_px: (typeof (form as any).brand_logo_offset_y_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_y_sm_px)) ? clamp((form as any).brand_logo_offset_y_sm_px, -400, 400) : null,
+        brand_logo_offset_x_md_px: (typeof (form as any).brand_logo_offset_x_md_px === 'number' && !isNaN((form as any).brand_logo_offset_x_md_px)) ? clamp((form as any).brand_logo_offset_x_md_px, -400, 400) : null,
+        brand_logo_offset_y_md_px: (typeof (form as any).brand_logo_offset_y_md_px === 'number' && !isNaN((form as any).brand_logo_offset_y_md_px)) ? clamp((form as any).brand_logo_offset_y_md_px, -400, 400) : null,
+        brand_logo_offset_x_lg_px: (typeof (form as any).brand_logo_offset_x_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_x_lg_px)) ? clamp((form as any).brand_logo_offset_x_lg_px, -400, 400) : null,
+        brand_logo_offset_y_lg_px: (typeof (form as any).brand_logo_offset_y_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_y_lg_px)) ? clamp((form as any).brand_logo_offset_y_lg_px, -400, 400) : null,
+      };
+      await updateHomepageSettings(brandingPayload);
+      setMessage({ type: 'success', text: 'Branding saved' });
+      setTimeout(() => setMessage(null), 2000);
+    } catch (e: any) {
+      console.error('Save branding failed', e);
+      setMessage({ type: 'error', text: e?.message || 'Failed to save branding' });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
+  const resetBrandingDraft = () => {
+    setForm(prev => ({
+      ...prev,
+      brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
+      brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
+      brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
+      brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
+      brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
+      brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
+      brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
+      brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
+      brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
+      brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
+      brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
+      brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
+      brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
+      brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
+    }));
+  };
+
   return (
     <div className="space-y-6">
+      {!SUPABASE_ENV_OK && (
+        <div className="rounded-lg p-4 bg-yellow-50 border border-yellow-200 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+          <div>
+            <div className="font-semibold text-yellow-800">Supabase is not configured</div>
+            <div className="text-sm text-yellow-700">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local (for local) and in Netlify Env Vars (for deploy), then rebuild. Current host: {String(SUPABASE_HOST)}</div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Homepage Management</h2>
           <p className="text-gray-600">Customize the hero section background and content</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsEditing(!isEditing)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 flex items-center transition-colors"
-        >
-          {isEditing ? (
-            <>
-              <X size={16} className="mr-2" />
-              Cancel
-            </>
-          ) : (
-            <>
-              <Save size={16} className="mr-2" />
-              Edit Homepage
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Connection/Auth status chips */}
+          <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs border ${SUPABASE_ENV_OK ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-yellow-200 bg-yellow-50 text-yellow-700'}`} title={`Supabase host: ${String(SUPABASE_HOST)}`}>
+            <span className={`inline-block w-2 h-2 rounded-full ${SUPABASE_ENV_OK ? 'bg-emerald-500' : 'bg-yellow-500'}`}></span>
+            <span>{SUPABASE_ENV_OK ? `Supabase: ${String(SUPABASE_HOST)}` : 'Supabase not configured'}</span>
+          </div>
+          <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs border ${authLoading ? 'border-gray-200 bg-gray-50 text-gray-600' : isAuthenticated ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            <span className={`inline-block w-2 h-2 rounded-full ${authLoading ? 'bg-gray-400' : isAuthenticated ? 'bg-blue-500' : 'bg-red-500'}`}></span>
+            <span>
+              {authLoading ? 'Checking auth…' : isAuthenticated ? `Admin: ${user?.email ?? 'Signed in'}` : 'Not logged in'}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsEditing(!isEditing)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 flex items-center transition-colors"
+          >
+            {isEditing ? (
+              <>
+                <X size={16} className="mr-2" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Save size={16} className="mr-2" />
+                Edit Homepage
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Message */}
@@ -283,117 +432,242 @@ export const HomepageManagement: React.FC = () => {
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Subtitle</label>
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <span className="text-gray-900">{homepageSettings?.hero_subtitle || 'Experience the Future'}</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Description</label>
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <span className="text-gray-900">{homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity'}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Hero Media */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hero Background Media</label>
-              <div className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-700">Media Type:</span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    homepageSettings?.hero_media_type === 'video' 
-                      ? 'bg-purple-100 text-purple-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {homepageSettings?.hero_media_type === 'video' ? (
-                      <>
-                        <Video size={12} className="mr-1" />
-                        Video
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon size={12} className="mr-1" />
-                        Image
-                      </>
+              {/* Branding */}
+              <div className="space-y-6 mt-8">
+                <h4 className="text-lg font-semibold text-gray-900">Branding</h4>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand Year</label>
+                    <input
+                      type="number"
+                      min={2000}
+                      max={2999}
+                      value={(form.brand_year as any) ?? ''}
+                      onChange={(e)=>{
+                        const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                        setForm(prev=>({ ...prev, brand_year: val }));
+                      }}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder={`${new Date().getFullYear()}`}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Draft only. Click “Save Branding” to apply.</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand Logo (PNG preferred)</label>
+                    <ImageUpload
+                      onImageSelect={(url) => {
+                        setForm(prev => ({ ...prev, brand_logo_url: url }));
+                        setMessage({ type: 'success', text: 'Logo selected. Click Save Branding to apply.' });
+                        setTimeout(() => setMessage(null), 2000);
+                      }}
+                      currentImage={form.brand_logo_url}
+                      bucket="hero-media"
+                      folder="brand"
+                      acceptedTypes="image/png,image/webp,image/jpeg"
+                      fileTypeLabel="PNG/JPG/WEBP up to 5MB (PNG preferred for transparency)"
+                      enableCropper={false}
+                      autoSave={true}
+                    />
+                    {form.brand_logo_url && (
+                      <button
+                        type="button"
+                        className="mt-2 text-sm text-red-600"
+                        onClick={()=>{
+                          setForm(prev=>({ ...prev, brand_logo_url: '' }));
+                          setMessage({ type: 'success', text: 'Removed from draft. Click Save Branding to apply.' });
+                          setTimeout(() => setMessage(null), 2500);
+                        }}
+                      >
+                        Remove logo
+                      </button>
                     )}
-                  </span>
+                    <p className="text-xs text-gray-500 mt-1">We render it automatically with a soft neon 3D glow. Changes are draft until saved.</p>
+                  </div>
                 </div>
-                
-                {homepageSettings?.hero_media_url ? (
-                  <div className="space-y-3">
-                    {homepageSettings.hero_media_type === 'video' ? (
-                      <video
-                        src={homepageSettings.hero_media_url}
-                        className="w-full h-32 object-cover rounded-lg border"
-                        controls
-                        muted
-                      />
-                    ) : (
-                      <img
-                        src={homepageSettings.hero_media_url}
-                        alt="Hero background"
-                        className="w-full h-32 object-cover rounded-lg border"
-                      />
-                    )}
-                    <div className="text-xs text-gray-500 break-all">
-                      {homepageSettings.hero_media_url}
+                {/* Size and Glow Controls */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo Size (px)</label>
+                    <input
+                      type="range"
+                      min={16}
+                      max={256}
+                      step={1}
+                      value={(form.brand_logo_size_px as any) ?? 36}
+                      onChange={(e)=>{
+                        const raw = parseInt(e.target.value, 10);
+                        setForm(prev=>({ ...prev, brand_logo_size_px: raw }));
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                      <span>Controls the logo height in the navbar. Draft until saved.</span>
+                      <span>{(form.brand_logo_size_px as any) ?? 36}px</span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <Monitor size={32} className="mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No background media set</p>
-                    <p className="text-xs">Using default background</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Sponsor Logos Preview (from settings) */}
-              {homepageSettings?.sponsor_section_enabled && Array.isArray(homepageSettings?.sponsor_logos) && (homepageSettings?.sponsor_logos as SponsorLogo[]).length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <p className="text-xs text-gray-500 mb-2">{homepageSettings.sponsor_section_text}</p>
-                  <div className="flex flex-wrap justify-center items-center gap-4">
-                    {(homepageSettings.sponsor_logos as SponsorLogo[])
-                      .filter((logo: SponsorLogo) => logo.enabled && !!logo.logo_url)
-                      .sort((a: SponsorLogo, b: SponsorLogo) => a.order - b.order)
-                      .map((logo: SponsorLogo) => (
-                        <img key={logo.id} src={logo.logo_url} alt={logo.name} loading="lazy" decoding="async" className="h-8 opacity-80" />
-                      ))}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Glow Strength</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      value={(form.brand_logo_glow_strength as any) ?? 1}
+                      onChange={(e)=>{
+                        const raw = parseFloat(e.target.value);
+                        setForm(prev=>({ ...prev, brand_logo_glow_strength: raw }));
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                      <span>0 = no glow, 1 = default, 2 = strong.</span>
+                      <span>{(form.brand_logo_glow_strength as any) ?? 1}</span>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Glow Color</label>
+                    <input
+                      type="color"
+                      value={(form.brand_logo_glow_color as any) || '#ff00ff'}
+                      onChange={(e)=>{
+                        const val = e.target.value;
+                        setForm(prev=>({ ...prev, brand_logo_glow_color: val }));
+                      }}
+                      className="w-16 h-10 p-0 border rounded"
+                      title="Pick the glow color"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Leave as default for theme pink/cyan blend. Draft until saved.</p>
+                  </div>
+                </div>
+                {/* Position Controls (base) */}
+                <div className="grid md:grid-cols-3 gap-6 mt-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo Side</label>
+                    <select
+                      value={(form.brand_logo_side as any) || 'left'}
+                      onChange={(e)=>{
+                        const val = (e.target.value === 'right' ? 'right' : 'left') as 'left'|'right';
+                        setForm(prev=>({ ...prev, brand_logo_side: val }));
+                      }}
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="left">Left of text</option>
+                      <option value="right">Right of text</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Offset X (px)</label>
+                    <input
+                      type="range"
+                      min={-200}
+                      max={200}
+                      step={1}
+                      value={(form.brand_logo_offset_x_px as any) ?? 0}
+                      onChange={(e)=>{
+                        const raw = parseInt(e.target.value, 10);
+                        setForm(prev=>({ ...prev, brand_logo_offset_x_px: raw }));
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                      <span>Negative = left, Positive = right.</span>
+                      <span>{(form.brand_logo_offset_x_px as any) ?? 0}px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Offset Y (px)</label>
+                    <input
+                      type="range"
+                      min={-200}
+                      max={200}
+                      step={1}
+                      value={(form.brand_logo_offset_y_px as any) ?? 0}
+                      onChange={(e)=>{
+                        const raw = parseInt(e.target.value, 10);
+                        setForm(prev=>({ ...prev, brand_logo_offset_y_px: raw }));
+                      }}
+                      className="w-full"
+                    />
+                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                      <span>Negative = up, Positive = down.</span>
+                      <span>{(form.brand_logo_offset_y_px as any) ?? 0}px</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Responsive Overrides (optional) */}
+                <div className="mt-4 p-3 rounded border border-gray-200 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <h5 className="text-sm font-semibold text-gray-700">Responsive Offsets (optional)</h5>
+                    <span className="text-xs text-gray-500">Overrides base offsets at specific breakpoints</span>
+                  </div>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    {/* sm */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-600 mb-1">Small (sm &lt;768px)</div>
+                      <label className="block text-xs text-gray-700 mb-1">X (px)</label>
+                      <input type="number" value={form.brand_logo_offset_x_sm_px === '' ? '' : (form.brand_logo_offset_x_sm_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_x_sm_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                      <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
+                      <input type="number" value={form.brand_logo_offset_y_sm_px === '' ? '' : (form.brand_logo_offset_y_sm_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_y_sm_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                    </div>
+                    {/* md */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-600 mb-1">Medium (md ≥768px)</div>
+                      <label className="block text-xs text-gray-700 mb-1">X (px)</label>
+                      <input type="number" value={form.brand_logo_offset_x_md_px === '' ? '' : (form.brand_logo_offset_x_md_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_x_md_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                      <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
+                      <input type="number" value={form.brand_logo_offset_y_md_px === '' ? '' : (form.brand_logo_offset_y_md_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_y_md_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                    </div>
+                    {/* lg */}
+                    <div>
+                      <div className="text-xs font-medium text-gray-600 mb-1">Large (lg ≥1024px)</div>
+                      <label className="block text-xs text-gray-700 mb-1">X (px)</label>
+                      <input type="number" value={form.brand_logo_offset_x_lg_px === '' ? '' : (form.brand_logo_offset_x_lg_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_x_lg_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                      <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
+                      <input type="number" value={form.brand_logo_offset_y_lg_px === '' ? '' : (form.brand_logo_offset_y_lg_px as any)} onChange={(e)=>{
+                        const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
+                        setForm(p=>({ ...p, brand_logo_offset_y_lg_px: (e.target.value === '' ? '' : v) as any }));
+                      }} className="w-full p-2 border rounded" />
+                    </div>
+                  </div>
+                  {/* Actions for branding saves */}
+                  <div className="mt-4 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={saveBranding}
+                      disabled={savingBranding || savingPage}
+                      className={`px-4 py-2 rounded text-white ${savingBranding || savingPage ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'}`}
+                    >
+                      {savingBranding ? 'Saving…' : 'Save Branding'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetBrandingDraft}
+                      disabled={savingBranding || savingPage}
+                      className={`px-4 py-2 border rounded ${savingBranding || savingPage ? 'text-gray-400 bg-gray-50 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      Discard Changes
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-      {/* Edit Form */}
-      {isEditing && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-400">
-          <h3 className="text-lg font-semibold mb-6">Edit Homepage Settings</h3>
-          
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* Hero Content Form */}
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={form.hero_title}
-                    onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
-                    placeholder="RICORRENZA"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Main title displayed on the homepage</p>
-              </div>
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Hero Subtitle</label>
                 <div className="relative">
@@ -467,7 +741,7 @@ export const HomepageManagement: React.FC = () => {
                 <ImageUpload
                   onImageSelect={handleMediaSelect}
                   currentImage={form.hero_media_url}
-                  bucket="hero-video"
+                  bucket={form.hero_media_type === 'video' ? 'hero-video' : 'hero-media'}
                   folder="background"
                   acceptedTypes={form.hero_media_type === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'}
                   fileTypeLabel={
@@ -978,7 +1252,8 @@ export const HomepageManagement: React.FC = () => {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+              disabled={savingPage}
+              className={`px-6 py-2 flex items-center ${savingPage ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}
             >
               <X size={16} className="mr-2" />
               Cancel
@@ -986,10 +1261,11 @@ export const HomepageManagement: React.FC = () => {
             <button
               type="button"
               onClick={handleSave}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center transition-colors"
+              disabled={savingPage || savingBranding}
+              className={`px-6 py-2 rounded-lg text-white flex items-center transition-colors ${savingPage || savingBranding ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'}`}
             >
               <Save size={16} className="mr-2" />
-              Save Changes
+              {savingPage ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
         </div>

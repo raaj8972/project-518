@@ -25,6 +25,7 @@ export const GuestArtistManagement: React.FC = () => {
     video: '',
     video_url: '',
     youtube_url: '',
+    watch_live_url: '', // NEW field for external live stream link
     description: '',
     specialty: '',
     achievements: [] as string[],
@@ -52,6 +53,7 @@ export const GuestArtistManagement: React.FC = () => {
   video: '',
   video_url: '',
   youtube_url: '',
+      watch_live_url: '',
       description: '',
       specialty: '',
       achievements: [],
@@ -90,6 +92,7 @@ export const GuestArtistManagement: React.FC = () => {
         video: form.video || null,
         video_url: form.video_url || null,
         youtube_url: form.youtube_url || null,
+        watch_live_url: form.watch_live_url || null,
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -132,6 +135,7 @@ export const GuestArtistManagement: React.FC = () => {
         video: form.video || null,
         video_url: form.video_url || null,
         youtube_url: form.youtube_url || null,
+        watch_live_url: form.watch_live_url || null,
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -149,7 +153,11 @@ export const GuestArtistManagement: React.FC = () => {
       try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating guest artist:', error);
-      alert('Failed to update guest artist. Please try again.');
+      const msg = (error as any)?.message || String(error);
+      const hint = /watch_live_url|schema|column/i.test(msg)
+        ? '\nHint: Database migration for watch_live_url may not be applied yet.'
+        : '';
+      alert(`Failed to update guest artist. ${msg}${hint}`);
     }
   };
 
@@ -169,7 +177,8 @@ export const GuestArtistManagement: React.FC = () => {
       await toggleGuestArtistEnabled(id);
     } catch (error) {
       console.error('Error toggling guest artist status:', error);
-      alert('Failed to update guest artist status. Please try again.');
+      const msg = (error as any)?.message || String(error);
+      alert(`Failed to update guest artist status. ${msg}`);
     }
   };
 
@@ -178,7 +187,8 @@ export const GuestArtistManagement: React.FC = () => {
       await toggleGuestArtistFeatured(id);
     } catch (error) {
       console.error('Error toggling featured status:', error);
-      alert('Failed to update featured status. Please try again.');
+      const msg = (error as any)?.message || String(error);
+      alert(`Failed to update featured status. ${msg}`);
     }
   };
 
@@ -203,6 +213,7 @@ export const GuestArtistManagement: React.FC = () => {
   video: artist.video || '',
   video_url: (artist as any).video_url || '',
   youtube_url: (artist as any).youtube_url || '',
+      watch_live_url: (artist as any).watch_live_url || '',
       description: artist.description,
       specialty: artist.specialty,
       achievements: artist.achievements,
@@ -334,6 +345,16 @@ export const GuestArtistManagement: React.FC = () => {
                 {form.video_url && (
                   <p className="text-xs text-gray-500 mt-1 break-all">Uploaded video URL: {form.video_url}</p>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Live Stream URL (Optional)</label>
+                <input
+                  type="url"
+                  value={form.watch_live_url}
+                  onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
+                  placeholder="https://www.youtube.com/live/... or other platform"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -575,6 +596,13 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.video}
                   onChange={(e) => setForm(prev => ({ ...prev, video: e.target.value }))}
                   placeholder="Video URL"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <input
+                  type="url"
+                  value={form.watch_live_url}
+                  onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
+                  placeholder="Live Stream URL"
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
                 <div className="grid grid-cols-2 gap-4">

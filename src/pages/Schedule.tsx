@@ -1,11 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, ChevronDown, ExternalLink } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { computeLiveStatus, formatPreLiveCountdown } from '../utils/eventTime';
+import WatchLiveButton from '../components/WatchLiveButton';
+import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import HeroBackground from '../components/HeroBackground';
+// Registration is disabled on Schedule; users will open the event card instead.
 
 export const Schedule: React.FC = () => {
-  const { schedule, loading, connectionStatus } = useData();
+  const { schedule, loading, connectionStatus, events, guestArtists, eventCoordinators } = useData() as any;
   const [selectedDay, setSelectedDay] = useState(0);
+  const [openIndices, setOpenIndices] = useState<Record<number, boolean>>({});
+  const toggleOpen = (idx: number) => setOpenIndices((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  // Registration flow removed on Schedule page; navigation to Events card is used instead.
+
+  // Persist expanded rows per session (per selected day)
+  useEffect(() => {
+    if (!schedule || schedule.length === 0) return;
+    const dayKey = `schedule-open-v1-${selectedDay}-${schedule[selectedDay]?.date || ''}`;
+    try {
+      const raw = sessionStorage.getItem(dayKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<number, boolean>;
+        setOpenIndices(parsed || {});
+      } else {
+        setOpenIndices({});
+      }
+    } catch {
+      setOpenIndices({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDay, schedule.length]);
+
+  useEffect(() => {
+    if (!schedule || schedule.length === 0) return;
+    const dayKey = `schedule-open-v1-${selectedDay}-${schedule[selectedDay]?.date || ''}`;
+    try {
+      sessionStorage.setItem(dayKey, JSON.stringify(openIndices));
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIndices]);
 
   // Ensure selectedDay stays within bounds when schedule changes
   useEffect(() => {
@@ -73,6 +109,89 @@ export const Schedule: React.FC = () => {
       default:
         return 'from-gray-500 to-gray-600';
     }
+  };
+
+  // Per-second tick to refresh live status (LIVE / Opens in / NOT LIVE)
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Registration gating helpers removed; Schedule no longer offers registration UI.
+
+  const mapsUrlFor = (venue: string | undefined | null, explicit?: string | null | undefined): string | null => {
+    if (explicit && explicit.trim()) return explicit;
+    if (!venue || !venue.trim()) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
+  };
+
+  const renderLiveBadge = (evt: any, dayDate: string) => {
+    let watch_live_url: string | null | undefined = null;
+    let registration_open: boolean | undefined = undefined;
+    let startDateStr: string | null | undefined = null;
+    let startTimeStr: string | null | undefined = null;
+    let forceLive = false;
+
+    if (evt.event_id) {
+      const linked = events?.find((e: any) => e.id === evt.event_id);
+      if (linked) {
+        watch_live_url = (linked as any).watch_live_url;
+        registration_open = (linked as any).registration_open;
+        startDateStr = linked.date;
+        startTimeStr = linked.time;
+        forceLive = !!(linked as any).registration_open || !!linked.featured;
+      }
+    } else if (evt.guest_artist_id) {
+      const ga = guestArtists?.find((g: any) => g.id === evt.guest_artist_id);
+      if (ga) {
+        watch_live_url = (ga as any).watch_live_url;
+        registration_open = false; // no registration flag for guest artist force
+        startDateStr = dayDate;
+        startTimeStr = evt.time;
+        forceLive = !!(ga as any).live_now_enabled || !!(ga as any).is_featured;
+      }
+    } else {
+      // Unlinked – treat schedule day date + time as baseline but no stream unless explicit
+      startDateStr = dayDate;
+      startTimeStr = evt.time;
+      watch_live_url = (evt as any).watch_live_url;
+      registration_open = (evt as any).registration_open;
+      forceLive = !!registration_open || !!(evt as any).force_live_override;
+    }
+
+    const { isLive, isPreLive, deltaMs } = computeLiveStatus(startDateStr, startTimeStr, {
+      now: nowTs,
+      leadMinutes: LIVE_LEAD_MINUTES,
+      registrationOpen: registration_open,
+    });
+    const wlu = watch_live_url;
+    if (isLive && wlu) {
+      return (
+        <span className={`ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-white text-[10px] sm:text-xs font-semibold shadow-inner ${forceLive ? 'bg-gradient-to-r from-amber-500 via-rose-500 to-fuchsia-600 shadow-pink-400/30' : 'bg-green-600 shadow-green-400/30'}`} title={forceLive ? 'Early Access Live (forced)' : 'Live'}>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-60" />
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${forceLive ? 'bg-white ring-1 ring-amber-300' : 'bg-white'}`} />
+          </span>
+          {forceLive ? 'EARLY LIVE' : 'LIVE'}
+        </span>
+      );
+    }
+    if (isPreLive && typeof deltaMs === 'number' && wlu && !forceLive) {
+      return (
+        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] sm:text-xs font-semibold shadow-inner shadow-blue-400/30">
+          Opens in {formatPreLiveCountdown(deltaMs)}
+        </span>
+      );
+    }
+    if (wlu && !forceLive) {
+      return (
+        <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full bg-gray-700 text-gray-200 text-[10px] sm:text-xs font-medium border border-gray-600">
+          NOT LIVE
+        </span>
+      );
+    }
+    return null;
   };
 
   // Social media display flags were unused in this view; removed to satisfy noUnusedLocals
@@ -144,7 +263,7 @@ export const Schedule: React.FC = () => {
                     )}
 
                     {/* Day buttons when data is ready */}
-                    {!loading && schedule.length > 0 && schedule.map((day, index) => (
+                    {!loading && schedule.length > 0 && schedule.map((day: any, index: number) => (
                       <button
                         key={index}
                         onClick={() => setSelectedDay(index)}
@@ -212,7 +331,7 @@ export const Schedule: React.FC = () => {
               {/* Events Timeline */}
               <div className="p-4 sm:p-6 md:p-8">
                 <div className="space-y-6">
-                  {(schedule[selectedDay]?.events ?? []).map((event, index) => (
+                  {(schedule[selectedDay]?.events ?? []).map((event: any, index: number) => (
                     <div
                       key={index}
                       className="scroll-animate opacity-0 transform translate-y-20"
@@ -231,8 +350,9 @@ export const Schedule: React.FC = () => {
                           {/* Event Details */}
                           <div className="flex-grow w-full">
                             <div className="flex items-start justify-between mb-3">
-                              <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
-                                {event.title}
+                              <h3 className="text-base sm:text-lg font-bold text-white group-hover:text-blue-400 transition-colors flex items-center flex-wrap">
+                                <span className="pr-2">{event.title}</span>
+                                {renderLiveBadge(event, schedule[selectedDay].date)}
                               </h3>
                               <span className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-gradient-to-r ${getTypeColor(event.type)} text-white shadow-lg flex-shrink-0 ml-2`}>
                                 {event.type}
@@ -242,12 +362,145 @@ export const Schedule: React.FC = () => {
                             <div className="flex items-center text-gray-400 mb-2 text-sm">
                               <MapPin size={16} className="mr-2 text-purple-400" />
                               <span>{event.venue}</span>
+                              {/* Prefer explicit schedule map_url; if missing and linked to an event, fallback to linked event.map_url */}
+                              {(() => {
+                                const linkedEv = event.event_id ? (events?.find((e: any) => e.id === event.event_id) as any) : null;
+                                const explicit = (event as any).map_url || (linkedEv ? (linkedEv as any).map_url : undefined);
+                                const url = mapsUrlFor(event.venue, explicit);
+                                return url ? (
+                                <a
+                                  href={url as string}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-3 map-3d-btn"
+                                  title="Open map"
+                                  aria-label="Open map"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                                ) : null;
+                              })()}
                             </div>
                             
                             {/* Event Type Indicator */}
                             <div className="flex items-center space-x-2">
                               <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getTypeColor(event.type)}`}></div>
                               <span className="text-xs sm:text-sm text-gray-500">Duration: {event.duration}</span>
+                            </div>
+                            {(() => {
+                              // Inline WatchLiveButton (optional) leveraging same resolution as badge
+                              const dayDate = schedule[selectedDay].date;
+                              let watch_live_url: string | null | undefined = null;
+                              let startDateStr: string | null | undefined = null;
+                              let startTimeStr: string | null | undefined = null;
+                              let forceLive = false;
+                              let registration_open: boolean | undefined = undefined;
+                              if (event.event_id) {
+                                const linked = events?.find((e: any) => e.id === event.event_id);
+                                if (linked) {
+                                  watch_live_url = (linked as any).watch_live_url;
+                                  startDateStr = linked.date; startTimeStr = linked.time;
+                                  registration_open = (linked as any).registration_open;
+                                  forceLive = !!(linked as any).registration_open || !!linked.featured;
+                                }
+                              } else if (event.guest_artist_id) {
+                                const ga = guestArtists?.find((g: any) => g.id === event.guest_artist_id);
+                                if (ga) {
+                                  watch_live_url = (ga as any).watch_live_url;
+                                  startDateStr = dayDate; startTimeStr = event.time;
+                                  registration_open = false;
+                                  forceLive = !!(ga as any).live_now_enabled || !!(ga as any).is_featured;
+                                }
+                              } else {
+                                watch_live_url = (event as any).watch_live_url;
+                                startDateStr = dayDate; startTimeStr = event.time;
+                                registration_open = (event as any).registration_open;
+                                forceLive = !!registration_open || !!(event as any).force_live_override;
+                              }
+                              if (!watch_live_url || !startDateStr || !startTimeStr) return null;
+                              const startIso = new Date(`${startDateStr} ${startTimeStr}`).toISOString();
+                              return (
+                                <div className="mt-3">
+                                  <WatchLiveButton url={watch_live_url} startTime={startIso} leadMinutes={LIVE_LEAD_MINUTES} forceLive={forceLive} size="xs" />
+                                </div>
+                              );
+                            })()}
+
+                            {/* Expand/collapse details in-place (no navigation) */}
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                onClick={() => toggleOpen(index)}
+                                className="inline-flex items-center gap-2 text-xs sm:text-sm text-blue-300 hover:text-white px-3 py-1 rounded border border-blue-500/40 hover:border-blue-400/70 bg-blue-500/10 focus:outline-none focus:ring-2 focus:ring-blue-400/50"
+                                aria-expanded={!!openIndices[index]}
+                              >
+                                <ChevronDown className={`w-4 h-4 transition-transform ${openIndices[index] ? 'rotate-180' : ''}`} />
+                                {openIndices[index] ? 'Hide details' : 'View details'}
+                              </button>
+                              {openIndices[index] && (() => {
+                                // Resolve linked details and coordinators
+                                let linkedTitle: string | undefined;
+                                let linkedDesc: string | undefined;
+                                let img: string | undefined;
+                                let coords: Array<{ id: number; name: string; phone?: string | null }> = [];
+                                let linkedEvent: any | undefined;
+                                if (event.event_id) {
+                                  const ev = events?.find((e: any) => e.id === event.event_id);
+                                  linkedEvent = ev;
+                                  linkedTitle = ev?.title;
+                                  linkedDesc = ev?.description;
+                                  img = (ev as any)?.image;
+                                  const list = (eventCoordinators || []).filter((c: any) => c.event_id === event.event_id);
+                                  coords = list.map((c: any) => ({ id: c.id, name: c.name, phone: c.phone }));
+                                } else if (event.guest_artist_id) {
+                                  const ga = guestArtists?.find((g: any) => g.id === event.guest_artist_id);
+                                  linkedTitle = ga?.name;
+                                  linkedDesc = (ga as any)?.description;
+                                  img = (ga as any)?.image;
+                                } else {
+                                  linkedTitle = event.title;
+                                  linkedDesc = (event as any)?.description;
+                                  img = (event as any)?.image;
+                                }
+                                return (
+                                  <div className="mt-3 p-3 sm:p-4 rounded-lg border border-white/10 bg-white/5">
+                                    <div className="flex gap-3 items-start">
+                                      {img ? (
+                                        <img src={img} alt={linkedTitle || 'event'} className="w-20 h-20 object-cover rounded-md border border-white/10 flex-shrink-0" />
+                                      ) : null}
+                                      <div className="flex-1 min-w-0">
+                                        {linkedTitle && <div className="text-white font-semibold text-sm sm:text-base mb-1">{linkedTitle}</div>}
+                                        {linkedDesc && <p className="text-gray-300 text-xs sm:text-sm whitespace-pre-line line-clamp-5">{linkedDesc}</p>}
+                                        {coords.length > 0 && (
+                                          <div className="mt-3">
+                                            <div className="text-xs text-gray-400 mb-1">Coordinators</div>
+                                            <ul className="text-xs text-gray-200 space-y-0.5">
+                                              {coords.map(c => (
+                                                <li key={c.id}>{c.name}{c.phone ? ` • ${c.phone}` : ''}</li>
+                                              ))}
+                                            </ul>
+                                          </div>
+                                        )}
+
+                                        {/* Direct navigation to the linked event card (registration disabled on Schedule) */}
+                                        {linkedEvent && (
+                                          <div className="mt-3">
+                                            <a
+                                              href={`/events#event-${linkedEvent.id}`}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="cyberpunk-btn cyberpunk-btn-primary text-xs px-3 py-2"
+                                              title="Open event card"
+                                            >
+                                              OPEN EVENT
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -274,7 +527,7 @@ export const Schedule: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl sm:text-4xl font-bold neon-purple mb-2">
-                    {schedule.reduce((total, day) => total + (day.events ?? []).length, 0)}
+                    {schedule.reduce((total: number, day: any) => total + (day.events ?? []).length, 0)}
                   </div>
                   <div className="text-gray-400 text-sm sm:text-base">Total Events</div>
                 </div>
@@ -288,6 +541,8 @@ export const Schedule: React.FC = () => {
         </div>
       </section>
       )}
+
+      {/* RegistrationModal removed: Schedule no longer handles registration */}
 
       <style>
         {`
@@ -481,6 +736,36 @@ export const Schedule: React.FC = () => {
         .scroll-animate.animate-in {
           opacity: 1 !important;
           transform: translateY(0) !important;
+        }
+
+        /* 3D animated icon button for Map link */
+        .map-3d-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 9999px;
+          color: #93c5fd; /* tailwind text-blue-300 */
+          background: radial-gradient(50% 50% at 50% 50%, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 60%, transparent 100%);
+          border: 1px solid rgba(59,130,246,0.35);
+          box-shadow:
+            0 2px 8px rgba(0,0,0,0.4),
+            inset 0 0 12px rgba(59,130,246,0.15);
+          transform: perspective(600px) rotateX(8deg) rotateY(-8deg);
+          transition: transform 180ms ease, box-shadow 180ms ease, color 180ms ease, border-color 180ms ease;
+        }
+        .map-3d-btn:hover {
+          color: #fff;
+          border-color: rgba(147,197,253,0.7);
+          box-shadow:
+            0 6px 18px rgba(0,0,0,0.35),
+            0 0 18px rgba(147,197,253,0.25),
+            inset 0 0 16px rgba(147,197,253,0.25);
+          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(-2px) scale(1.05);
+        }
+        .map-3d-btn:active {
+          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0) scale(0.98);
         }
 
         /* Mobile optimizations */

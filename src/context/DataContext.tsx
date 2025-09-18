@@ -18,6 +18,7 @@ export type CoreCommittee = Database['public']['Tables']['core_committees']['Row
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
 export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
+export type ChiefGuest = Database['public']['Tables']['chief_guests']['Row'];
 export type SponsorshipPackage = Database['public']['Tables']['sponsorship_packages']['Row'];
 export type Audition = Database['public']['Tables']['auditions']['Row'];
 export type Membership = Database['public']['Tables']['memberships']['Row'];
@@ -25,6 +26,17 @@ export type FormSettings = Database['public']['Tables']['form_settings']['Row'];
 export type SocialMediaSettings = Database['public']['Tables']['social_media_settings']['Row'];
 export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'];
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
+export type AboutSettings = {
+  id: number;
+  enabled: boolean;
+  hero_title: string | null;
+  hero_heading: string | null;
+  hero_paragraphs: string[]; // jsonb
+  tracks: string[]; // jsonb
+  zones: string[]; // jsonb
+  stats: Array<{ value: string; label: string }>; // jsonb
+  updated_at: string | null;
+};
 export interface GallerySettings {
   id: number;
   scroll_per_item: number; // base per-image scroll in px
@@ -67,6 +79,7 @@ interface DataContextType {
   coreTeamMembers: CoreTeamMember[];
   bandMembers: BandMember[];
   guestArtists: GuestArtist[];
+  chiefGuests: ChiefGuest[];
   sponsorshipPackages: SponsorshipPackage[];
   auditions: Audition[];
   memberships: Membership[];
@@ -74,6 +87,7 @@ interface DataContextType {
   socialMediaSettings: SocialMediaSettings | null;
   homepageSettings: HomepageSettings | null;
   homeboundSettings: HomeboundSettings | null;
+  aboutSettings: AboutSettings | null;
   gallerySettings: GallerySettings | null;
   roadmapMilestones: RoadmapMilestone[];
   heroMedia: Partial<Record<PageKey, HeroMedia | null>>;
@@ -81,6 +95,7 @@ interface DataContextType {
   // Connection health
   connectionStatus: 'ok' | 'degraded' | 'offline';
   lastError: string | null;
+  latencyMs?: number | null;
   refreshAll: (silent?: boolean) => Promise<void>;
   addEvent: (event: Partial<Event>) => Promise<void>;
   addEventWithCoordinators: (
@@ -111,6 +126,8 @@ interface DataContextType {
   deleteScheduleEvent: (id: number) => Promise<void>;
   addRegistration: (registration: Partial<Registration>) => Promise<void>;
   updateRegistrationStatus: (id: string, status: 'approved' | 'rejected') => Promise<void>;
+  bulkApproveRegistrations?: (ids: string[]) => Promise<void>;
+  bulkRejectRegistrations?: (ids: string[]) => Promise<void>;
   deleteRegistration: (id: string) => Promise<void>;
   updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
@@ -143,6 +160,11 @@ interface DataContextType {
   deleteGuestArtist: (id: number) => Promise<void>;
   toggleGuestArtistEnabled: (id: number) => Promise<void>;
   toggleGuestArtistFeatured: (id: number) => Promise<void>;
+  // Chief Guests
+  addChiefGuest: (guest: Partial<ChiefGuest>) => Promise<void>;
+  updateChiefGuest: (id: number, guest: Partial<ChiefGuest>) => Promise<void>;
+  deleteChiefGuest: (id: number) => Promise<void>;
+  toggleChiefGuestEnabled: (id: number) => Promise<void>;
   addSponsorshipPackage: (pkg: Partial<SponsorshipPackage>) => Promise<void>;
   updateSponsorshipPackage: (id: number, pkg: Partial<SponsorshipPackage>) => Promise<void>;
   deleteSponsorshipPackage: (id: number) => Promise<void>;
@@ -156,6 +178,7 @@ interface DataContextType {
   updateFormSettings: (settings: Partial<FormSettings>) => Promise<void>;
   updateHomepageSettings: (settings: Partial<HomepageSettings>) => Promise<void>;
   updateHomeboundSettings: (settings: Partial<HomeboundSettings>) => Promise<void>;
+  updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
   addRoadmapMilestone: (m: Partial<RoadmapMilestone>) => Promise<void>;
   updateRoadmapMilestone: (id: number, m: Partial<RoadmapMilestone>) => Promise<void>;
@@ -181,6 +204,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [coreTeamMembers, setCoreTeamMembers] = useState<CoreTeamMember[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [guestArtists, setGuestArtists] = useState<GuestArtist[]>([]);
+  const [chiefGuests, setChiefGuests] = useState<ChiefGuest[]>([]);
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [auditions, setAuditions] = useState<Audition[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
@@ -188,12 +212,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
+  const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(null);
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
+  const [latencyMs, setLatencyMs] = useState<number | null>(null);
   // Reconnection helpers
   const lastFetchAtRef = React.useRef<number>(0);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -337,19 +363,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       // Lightweight connectivity ping first to catch obvious offline issues
       try {
-        // If browser is offline, short-circuit
         if (typeof navigator !== 'undefined' && navigator && 'onLine' in navigator && !navigator.onLine) {
           throw new Error('Browser offline');
         }
-        const { error: pingError } = await supabase
-          .from('events')
-          .select('id', { head: true, count: 'exact' });
-        if (pingError) {
-          markErr('Supabase ping failed', pingError);
-        }
-      } catch (e) {
-        markErr('Supabase ping threw', e);
-      }
+        const t0 = performance.now();
+        const { error: pingError } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+        const dt = performance.now() - t0;
+        if (!pingError) setLatencyMs(Math.round(dt));
+        if (pingError) markErr('Supabase ping failed', pingError);
+      } catch (e) { markErr('Supabase ping threw', e); }
       // Fetch Events (use * to avoid selecting explicit new columns that may not exist yet)
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
@@ -407,15 +429,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('schedule_days')
         .select(`
           *,
-          schedule_events (
-            id,
-            time,
-            title,
-            venue,
-            type,
-            duration,
-            created_at
-          )
+          schedule_events (*)
         `)
         .order('date', { ascending: true });
       if (scheduleDaysError) markErr('Error fetching schedule days', scheduleDaysError);
@@ -494,6 +508,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (guestArtistsError) markErr('Error fetching guest artists', guestArtistsError);
       else setGuestArtists((guestArtistsData || []).map(a => ({ ...a, image: sanitizeUrl((a as any).image) })));
 
+      // Fetch Chief Guests
+      const { data: chiefGuestsData, error: chiefGuestsError } = await supabase
+        .from('chief_guests')
+        .select('*')
+        .order('order_position', { ascending: true });
+      if (chiefGuestsError) markErr('Error fetching chief guests', chiefGuestsError);
+      else setChiefGuests((chiefGuestsData || []).map(c => ({ ...c, image: sanitizeUrl((c as any).image) })));
+
       // Fetch Sponsorship Packages
       const { data: sponsorshipPackagesData, error: sponsorshipPackagesError } = await supabase
         .from('sponsorship_packages')
@@ -566,6 +588,38 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .maybeSingle();
       if (hbSettingsError) markErr('Error fetching homebound settings', hbSettingsError);
       else setHomeboundSettings(hbSettingsData || null);
+
+      // Fetch About Settings (resilient: empty if table missing)
+      try {
+        const { data: aboutData, error: aboutErr } = await supabase
+          .from('about_settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        if (aboutErr) throw aboutErr;
+        if (aboutData) {
+          const normalized: AboutSettings = {
+            id: (aboutData as any).id,
+            enabled: (aboutData as any).enabled ?? true,
+            hero_title: (aboutData as any).hero_title ?? null,
+            hero_heading: (aboutData as any).hero_heading ?? null,
+            hero_paragraphs: Array.isArray((aboutData as any).hero_paragraphs) ? (aboutData as any).hero_paragraphs : [],
+            tracks: Array.isArray((aboutData as any).tracks) ? (aboutData as any).tracks : [],
+            zones: Array.isArray((aboutData as any).zones) ? (aboutData as any).zones : [],
+            stats: Array.isArray((aboutData as any).stats) ? (aboutData as any).stats : [],
+            updated_at: (aboutData as any).updated_at ?? null,
+          };
+          setAboutSettings(normalized);
+        } else setAboutSettings(null);
+      } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
+          console.warn('[Data] about_settings table missing; continuing with null');
+          setAboutSettings(null);
+        } else {
+          markErr('Error fetching about settings', e);
+        }
+      }
 
       // Fetch Gallery Settings
       const { data: gallerySettingsData, error: gallerySettingsError } = await supabase
@@ -852,12 +906,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let { error } = await supabase.from('events').insert(event);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
-        // Backend likely hasn't been migrated yet; strip timer fields and retry once
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
+        // Backend likely hasn't been migrated yet; strip newer fields and retry once
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
+        delete safe.watch_live_url;
+        delete safe.map_url;
         const retry = await supabase.from('events').insert(safe);
         if (retry.error) throw retry.error;
       } else {
@@ -879,11 +935,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .single();
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
+        delete safe.watch_live_url;
+        delete safe.map_url;
         const retry = await supabase
           .from('events')
           .insert(safe)
@@ -914,26 +972,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateEvent = async (id: number, event: Partial<Event>) => {
+    const prev = events.find(e => e.id === id) || null;
     let { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('schema cache')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
+        delete safe.watch_live_url;
+        delete safe.map_url;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
         throw error;
       }
     }
+    // Clean up replaced assets (image, motion poster)
+    if (prev) {
+      const newImg = (event as any)?.image;
+      const newMotion = (event as any)?.motion_poster_url;
+      const oldImg = (prev as any)?.image;
+      const oldMotion = (prev as any)?.motion_poster_url;
+      const toDelete: string[] = [];
+      if (newImg && !urlsEqual(oldImg, newImg)) toDelete.push(oldImg);
+      if (newMotion && !urlsEqual(oldMotion, newMotion)) toDelete.push(oldMotion);
+      for (const u of toDelete.filter(Boolean)) {
+        if (!isUrlReferencedSomewhere(u, { table: 'events', id })) {
+          deleteStorageFileByPublicUrl(u);
+        }
+      }
+    }
     await fetchData(true);
   };
 
   const deleteEvent = async (id: number) => {
+    const prev = events.find(e => e.id === id) || null;
     const { error } = await supabase.from('events').delete().eq('id', id);
     if (error) throw error;
+    // Attempt storage cleanup for associated assets
+    if (prev) {
+      deleteStorageFileByPublicUrl((prev as any)?.image);
+      deleteStorageFileByPublicUrl((prev as any)?.motion_poster_url);
+    }
     await fetchData(true);
   };
 
@@ -942,7 +1024,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const removedObjectsRef = React.useRef<Set<string>>(new Set());
   const KNOWN_BUCKETS = [
     'gallery-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
-    'artists','members','uploads','hero-media','hero-videos','guest-artist-videos','pdf','documents'
+    'artists','members','uploads','hero-media','hero-videos','hero-video','guest-artist-videos','pdf','documents'
   ];
   // Normalize a storage/public URL for reliable equality checks
   const normalizeStorageUrl = (raw?: string | null): string => {
@@ -1000,16 +1082,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const u1 = normalizeStorageUrl((a as any).image);
       const u2 = normalizeStorageUrl((a as any).image_url);
       const u3 = normalizeStorageUrl((a as any).photo_url);
-      if (u1 === t || u2 === t || u3 === t) return true;
+      const uv = normalizeStorageUrl((a as any).video_url);
+      if (u1 === t || u2 === t || u3 === t || uv === t) return true;
     }
-    // homepage_settings.hero_media_url and sponsor_logos[].logo_url
+    // events.image / motion_poster_url
+    for (const e of events) {
+      if (skip('events', e.id)) continue;
+      const ei = normalizeStorageUrl((e as any).image);
+      const em = normalizeStorageUrl((e as any).motion_poster_url);
+      if (ei === t || em === t) return true;
+    }
+    // homepage_settings.hero_media_url and sponsor_logos[].logo_url and brand_logo_url
     if (homepageSettings) {
       const hm = normalizeStorageUrl((homepageSettings as any).hero_media_url);
       if (hm === t) return true;
+      const bl = normalizeStorageUrl((homepageSettings as any).brand_logo_url);
+      if (bl === t) return true;
       const logos: any[] = (homepageSettings as any).sponsor_logos || [];
       for (const L of logos) {
         if (normalizeStorageUrl(L?.logo_url) === t) return true;
       }
+    }
+    // sponsorship_settings.brochure_url
+    if (sponsorshipSettings) {
+      const br = normalizeStorageUrl((sponsorshipSettings as any).brochure_url);
+      if (br === t) return true;
     }
     // hero_media per pageKey
     for (const key of Object.keys(heroMedia)) {
@@ -1221,14 +1318,117 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addScheduleEvent = async (dayId: number, event: Partial<ScheduleEvent>) => {
-    const { error } = await supabase.from('schedule_events').insert({ ...event, schedule_day_id: dayId });
-    if (error) throw error;
+    // Normalize time to HH:MM for Postgres TIME
+    const normalizeTime = (t: any): string | undefined => {
+      if (!t) return undefined;
+      const s = String(t).trim();
+      // Accept "HH:MM" from input type=time or common variants like "9", "9:30", "9 AM", "9:30 pm"
+      const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+      if (!m) return undefined;
+      let h = parseInt(m[1], 10);
+      let min = m[2] ? parseInt(m[2], 10) : 0;
+      const ap = m[3]?.toLowerCase();
+      if (ap) {
+        if (ap === 'pm' && h < 12) h += 12;
+        if (ap === 'am' && h === 12) h = 0;
+      }
+      if (isNaN(h) || isNaN(min)) return undefined;
+      h = Math.max(0, Math.min(23, h));
+      min = Math.max(0, Math.min(59, min));
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(h)}:${pad(min)}`;
+    };
+    // Sanitize payload: convert blank linkage fields to null to satisfy FK constraints
+    const payload: any = { ...event, schedule_day_id: dayId };
+    if (payload.time !== undefined) {
+      const nt = normalizeTime(payload.time);
+      if (nt) payload.time = nt as any;
+      else delete payload.time;
+    }
+    const normalize = (v: any) => (v === '' || v === undefined ? null : v);
+    payload.event_id = normalize(payload.event_id);
+    payload.guest_artist_id = normalize(payload.guest_artist_id);
+    // Mutual exclusivity safety: if both somehow set (UI bug), prefer event_id and drop guest_artist_id
+    if (payload.event_id && payload.guest_artist_id) {
+      payload.guest_artist_id = null;
+    }
+    // Backward-compat: If columns are not present in DB, omit keys entirely to avoid PostgREST schema errors
+    if (payload.event_id === null) delete payload.event_id;
+    if (payload.guest_artist_id === null) delete payload.guest_artist_id;
+    // If map_url empty string, set to null for cleanliness
+    if (payload.map_url === '') payload.map_url = null;
+    let { error } = await supabase.from('schedule_events').insert(payload);
+    if (error) {
+      // Graceful fallback: if new columns aren't in schema cache yet, strip offending keys and retry once
+  const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+      const safe: any = { ...payload };
+      let shouldRetry = false;
+      if (msg.includes('map_url') || msg.includes('schema cache')) { delete safe.map_url; shouldRetry = true; }
+      if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
+      if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
+      if (shouldRetry) {
+        const retry = await supabase.from('schedule_events').insert(safe);
+        if (retry.error) {
+          console.error('[addScheduleEvent] retry failed', { safe, error: retry.error });
+          throw retry.error;
+        }
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('[addScheduleEvent] insertion failed', { payload, error });
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
   const updateScheduleEvent = async (id: number, event: Partial<ScheduleEvent>) => {
-    const { error } = await supabase.from('schedule_events').update(event).eq('id', id);
-    if (error) throw error;
+    const normalizeTime = (t: any): string | undefined => {
+      if (!t) return undefined;
+      const s = String(t).trim();
+      const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+      if (!m) return undefined;
+      let h = parseInt(m[1], 10);
+      let min = m[2] ? parseInt(m[2], 10) : 0;
+      const ap = m[3]?.toLowerCase();
+      if (ap) {
+        if (ap === 'pm' && h < 12) h += 12;
+        if (ap === 'am' && h === 12) h = 0;
+      }
+      if (isNaN(h) || isNaN(min)) return undefined;
+      h = Math.max(0, Math.min(23, h));
+      min = Math.max(0, Math.min(59, min));
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(h)}:${pad(min)}`;
+    };
+    // Ensure mutual exclusivity: if event_id provided, clear guest_artist_id unless explicitly set; vice versa.
+    const payload: any = { ...event };
+    if (payload.time !== undefined) {
+      const nt = normalizeTime(payload.time);
+      if (nt) payload.time = nt as any;
+      else delete payload.time;
+    }
+    if ('event_id' in payload && payload.event_id) {
+      if (!('guest_artist_id' in payload)) payload.guest_artist_id = null;
+    } else if ('guest_artist_id' in payload && payload.guest_artist_id) {
+      if (!('event_id' in payload)) payload.event_id = null;
+    }
+    // If map_url empty string, set to null for cleanliness
+    if (payload.map_url === '') payload.map_url = null;
+    let { error } = await supabase.from('schedule_events').update(payload).eq('id', id);
+    if (error) {
+  const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+      const safe: any = { ...payload };
+      let shouldRetry = false;
+      if (msg.includes('map_url') || msg.includes('schema cache')) { delete safe.map_url; shouldRetry = true; }
+      if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
+      if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
+      if (shouldRetry) {
+        const retry = await supabase.from('schedule_events').update(safe).eq('id', id);
+        if (retry.error) throw retry.error;
+      } else {
+        throw error;
+      }
+    }
     await fetchData(true);
   };
 
@@ -1275,6 +1475,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected') => {
     const { error } = await supabase.from('registrations').update({ status }).eq('id', id);
     if (error) throw error;
+    await fetchData(true);
+  };
+
+  const bulkApproveRegistrations = async (ids: string[]) => {
+    if (!ids.length) return;
+    // Batch in chunks to avoid huge single queries if very large
+    const CHUNK = 100;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from('registrations').update({ status: 'approved' }).in('id', slice);
+      if (error) throw error;
+    }
+    await fetchData(true);
+  };
+
+  const bulkRejectRegistrations = async (ids: string[]) => {
+    if (!ids.length) return;
+    const CHUNK = 100;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from('registrations').update({ status: 'rejected' }).in('id', slice);
+      if (error) throw error;
+    }
     await fetchData(true);
   };
 
@@ -1337,6 +1560,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             throw insertError;
           }
         }
+      }
+
+      // Clean up replaced brochure if stored in storage
+      try {
+        const prev = sponsorshipSettings;
+        if (prev && Object.prototype.hasOwnProperty.call(mainSettingsToUpdate, 'brochure_url')) {
+          const newB = (mainSettingsToUpdate as any).brochure_url;
+          const oldB = (prev as any).brochure_url;
+          if (newB && !urlsEqual(oldB, newB)) {
+            if (!isUrlReferencedSomewhere(oldB, { table: 'sponsorship_settings', id: 1 })) {
+              deleteStorageFileByPublicUrl(oldB);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Data] sponsorship_settings brochure cleanup failed', e);
       }
 
   await fetchData(true);
@@ -1641,7 +1880,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const code = (error as any)?.code || '';
       const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
       if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
-        const { performance_at, venue, countdown_enabled, live_now_enabled, ...rest } = (artist as any) || {};
+        // Strip columns that may not exist yet if migration hasn't been applied (graceful degradation)
+        const { performance_at, venue, countdown_enabled, live_now_enabled, watch_live_url, ...rest } = (artist as any) || {};
         const { error: e2 } = await supabase.from('guest_artists').insert(rest as any);
         if (e2) throw e2;
       } else {
@@ -1659,7 +1899,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const code = (error as any)?.code || '';
       const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
       if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
-        const { performance_at, venue, countdown_enabled, live_now_enabled, ...rest } = (artist as any) || {};
+        // Strip possibly non-migrated columns and retry
+        const { performance_at, venue, countdown_enabled, live_now_enabled, watch_live_url, ...rest } = (artist as any) || {};
         const { error: e2 } = await supabase.from('guest_artists').update(rest as any).eq('id', id);
         if (e2) throw e2;
       } else {
@@ -1670,13 +1911,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const newImg = (artist as any)?.image;
       const newUrl = (artist as any)?.image_url;
       const newPhoto = (artist as any)?.photo_url;
+      const newVideo = (artist as any)?.video_url;
       const oldImg = (prev as any)?.image;
       const oldUrl = (prev as any)?.image_url;
       const oldPhoto = (prev as any)?.photo_url;
+      const oldVideo = (prev as any)?.video_url;
       const toDelete: string[] = [];
       if (newImg && !urlsEqual(oldImg, newImg)) toDelete.push(oldImg);
       if (newUrl && !urlsEqual(oldUrl, newUrl)) toDelete.push(oldUrl);
       if (newPhoto && !urlsEqual(oldPhoto, newPhoto)) toDelete.push(oldPhoto);
+      if (newVideo && !urlsEqual(oldVideo, newVideo)) toDelete.push(oldVideo);
       for (const u of toDelete.filter(Boolean)) {
         if (!isUrlReferencedSomewhere(u, { table: 'guest_artists', id })) {
           deleteStorageFileByPublicUrl(u);
@@ -1691,6 +1935,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { error } = await supabase.from('guest_artists').delete().eq('id', id);
     if (error) throw error;
     deleteStorageFileByPublicUrl((artist as any)?.image || (artist as any)?.image_url || (artist as any)?.photo_url);
+    deleteStorageFileByPublicUrl((artist as any)?.video_url);
     await fetchData(true);
   };
 
@@ -1706,6 +1951,70 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const artist = guestArtists.find(a => a.id === id);
     if (!artist) return;
     const { error } = await supabase.from('guest_artists').update({ is_featured: !artist.is_featured }).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  // Chief Guests Management
+  const addChiefGuest = async (guest: Partial<ChiefGuest>) => {
+    // Auto-append order_position if not provided: place at end
+    let toInsert: any = { ...guest };
+    if (toInsert.order_position == null) {
+      const maxPos = chiefGuests.reduce((m, g) => {
+        const p = g.order_position ?? 0; return p > m ? p : m;
+      }, 0);
+      toInsert.order_position = maxPos + 1;
+    }
+    const { error } = await supabase.from('chief_guests').insert(toInsert);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const updateChiefGuest = async (id: number, guest: Partial<ChiefGuest>) => {
+    const prev = chiefGuests.find(g => g.id === id) || null;
+    const { error } = await supabase.from('chief_guests').update(guest).eq('id', id);
+    if (error) throw error;
+    if (prev && (guest as any)?.image && !urlsEqual((prev as any).image, (guest as any).image)) {
+      if (!isUrlReferencedSomewhere((prev as any).image, { table: 'chief_guests', id })) {
+        deleteStorageFileByPublicUrl((prev as any).image);
+      }
+    }
+    await fetchData(true);
+  };
+
+  const deleteChiefGuest = async (id: number) => {
+    const prev = chiefGuests.find(g => g.id === id) || null;
+    const { error } = await supabase.from('chief_guests').delete().eq('id', id);
+    if (error) throw error;
+    deleteStorageFileByPublicUrl((prev as any)?.image);
+    // After deletion, compact order_position values so they remain 1..n
+    try {
+      // Refetch quickly to get current list minus deleted one
+      const { data: current, error: fetchErr } = await supabase.from('chief_guests').select('id, order_position').order('order_position', { ascending: true });
+      if (!fetchErr && current) {
+        let dirty = false;
+        const updates: { id: number; order_position: number }[] = [];
+        current.forEach((row, idx) => {
+          const desired = idx + 1;
+          if ((row as any).order_position !== desired) {
+            dirty = true;
+            updates.push({ id: (row as any).id, order_position: desired });
+          }
+        });
+        if (dirty) {
+          await Promise.all(updates.map(u => supabase.from('chief_guests').update({ order_position: u.order_position }).eq('id', u.id)));
+        }
+      }
+    } catch (e) {
+      console.warn('Order normalization after chief guest delete failed:', e);
+    }
+    await fetchData(true);
+  };
+
+  const toggleChiefGuestEnabled = async (id: number) => {
+    const cg = chiefGuests.find(g => g.id === id);
+    if (!cg) return;
+    const { error } = await supabase.from('chief_guests').update({ enabled: !cg.enabled }).eq('id', id);
     if (error) throw error;
     await fetchData(true);
   };
@@ -1872,11 +2181,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
           }
         }
+        // Brand logo cleanup if replaced
+        if (Object.prototype.hasOwnProperty.call(payload, 'brand_logo_url')) {
+          const old = normalizeStorageUrl((prev as any).brand_logo_url);
+          const neu = normalizeStorageUrl((payload as any).brand_logo_url);
+          if (old && old !== neu) {
+            if (!isUrlReferencedSomewhere(old, { table: 'homepage_settings', id: 1 })) {
+              deleteStorageFileByPublicUrl(old);
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn('[Data] homepage_settings cleanup failed', e);
     }
-  await fetchData(true);
+    // Lightweight refresh to avoid heavy full fetch churn during admin auto-saves
+    try {
+      const { data, error: refetchErr } = await supabase
+        .from('homepage_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      if (!refetchErr) {
+        setHomepageSettings(data || null);
+      }
+    } catch (e) {
+      // Fallback: schedule a background full refresh if something odd happens
+      fetchData(true).catch(() => {});
+    }
   };
 
   // HomeBound Settings Management
@@ -1887,6 +2219,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .upsert({ id: 1, ...(settings as any) }, { onConflict: 'id' });
     if (error) throw error;
   await fetchData(true);
+  };
+
+  const updateAboutSettings = async (settings: Partial<AboutSettings>) => {
+    // Upsert singleton row id=1
+    // Ensure json arrays are arrays
+    const payload: any = { id: 1, ...settings };
+    if (payload.hero_paragraphs && !Array.isArray(payload.hero_paragraphs)) {
+      try { payload.hero_paragraphs = JSON.parse(String(payload.hero_paragraphs)); } catch { payload.hero_paragraphs = []; }
+    }
+    if (payload.tracks && !Array.isArray(payload.tracks)) {
+      try { payload.tracks = JSON.parse(String(payload.tracks)); } catch { payload.tracks = []; }
+    }
+    if (payload.zones && !Array.isArray(payload.zones)) {
+      try { payload.zones = JSON.parse(String(payload.zones)); } catch { payload.zones = []; }
+    }
+    if (payload.stats && !Array.isArray(payload.stats)) {
+      try { payload.stats = JSON.parse(String(payload.stats)); } catch { payload.stats = []; }
+    }
+    const { error } = await supabase
+      .from('about_settings')
+      .upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    await fetchData(true);
   };
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
@@ -1940,12 +2295,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         coreTeamMembers,
         bandMembers,
         guestArtists,
+  chiefGuests,
         sponsorshipPackages,
         auditions,
         memberships,
         formSettings,
         socialMediaSettings,
         homepageSettings,
+  aboutSettings,
   homeboundSettings,
   gallerySettings,
   roadmapMilestones,
@@ -1953,6 +2310,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         connectionStatus,
         lastError,
+  latencyMs,
         refreshAll: fetchData,
         addEvent,
   addEventWithCoordinators,
@@ -1980,6 +2338,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteScheduleEvent,
         addRegistration,
         updateRegistrationStatus,
+  bulkApproveRegistrations,
+  bulkRejectRegistrations,
         deleteRegistration,
         updateSponsorshipSettings,
   addContactSection,
@@ -2012,6 +2372,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteGuestArtist,
         toggleGuestArtistEnabled,
         toggleGuestArtistFeatured,
+  addChiefGuest,
+  updateChiefGuest,
+  deleteChiefGuest,
+  toggleChiefGuestEnabled,
         addSponsorshipPackage,
         updateSponsorshipPackage,
         deleteSponsorshipPackage,
@@ -2025,6 +2389,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateFormSettings,
         updateHomepageSettings,
   updateHomeboundSettings,
+  updateAboutSettings,
   updateGallerySettings,
   addRoadmapMilestone,
   updateRoadmapMilestone,

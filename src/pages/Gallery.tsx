@@ -5,23 +5,19 @@ import DomeGallery from '../components/DomeGallery';
 import HeroBackground from '../components/HeroBackground';
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, eventCategories } = useData();
+  const { galleryImages, eventCategories, loading } = useData() as any;
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  const categories = ['All', ...eventCategories.map(cat => cat.name)];
+  const categories = ['All', ...eventCategories.map((cat: any) => cat.name as string)];
 
   const filteredImages = selectedCategory === 'All' 
     ? galleryImages 
-    : galleryImages.filter(image => image.category === selectedCategory);
+    : galleryImages.filter((image: any) => image.category === selectedCategory);
 
-  // Build images for DomeGallery. If there are no images at all (and 'All' is selected),
-  // let DomeGallery use its built-in demo set by passing undefined.
-  const domeImages = filteredImages.length
-    ? filteredImages.map(img => ({ src: img.src, alt: img.title }))
-    : undefined;
-  // We only show the Dome when either "All" is selected or the current filter has items.
-  // For empty specific categories, we hide the Dome and show the empty-state card instead.
-  const showDome = selectedCategory === 'All' || filteredImages.length > 0;
+  // Build images for DomeGallery. Never pass undefined to avoid demo/default images.
+  const domeImages = filteredImages.map((img: any) => ({ src: img.src as string, alt: (img.title as string) || '' }));
+  // Only show the Dome when we actually have images for the current filter.
+  const showDome = filteredImages.length > 0;
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -112,7 +108,7 @@ export const Gallery: React.FC = () => {
               <div className="cyberpunk-card inline-block p-3 md:p-4">
                 <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
                   {categories.map((category) => {
-                    const categoryData = eventCategories.find(cat => cat.name === category);
+                    const categoryData = eventCategories.find((cat: any) => cat.name === category);
                     const categoryColor = categoryData ? categoryData.color : '#6B7280';
                     
                     return (
@@ -147,8 +143,19 @@ export const Gallery: React.FC = () => {
         <div className="absolute inset-0 pointer-events-none" style={{
           background: 'radial-gradient(ellipse at center, rgba(10,10,20,0.6) 0%, rgba(10,10,10,0.95) 70%)'
         }} />
-        {showDome && (
-          <div className="absolute inset-0">
+        {/* Loading state: prevent showing default/demo images before data arrives */}
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="cyberpunk-card px-6 py-4 text-sm text-gray-300 bg-black/30 border-cyan-500/30">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" aria-hidden="true" />
+                <span>Loading gallery…</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {!loading && showDome && (
+          <div className="absolute inset-0 dome-fade-in">
             <DomeGallery
               images={domeImages}
               fit={0.52}
@@ -166,15 +173,17 @@ export const Gallery: React.FC = () => {
           </div>
         )}
 
-          {/* No Images Message: show only when a specific category has no results */}
-          {!showDome && (
+          {/* No Images Message */}
+          {!loading && !showDome && (
             <div className="text-center py-12 scroll-animate opacity-0 transform translate-y-20">
               <div className="cyberpunk-card max-w-md mx-auto">
                 <ImageIcon size={64} className="mx-auto mb-4 text-gray-400" />
                 <h3 className="text-xl font-semibold text-gray-300 mb-2">No Images Found</h3>
-                <p className="text-gray-500">
-                  {`No images found in the ${selectedCategory} category.`}
-                </p>
+                {selectedCategory === 'All' ? (
+                  <p className="text-gray-500">No images uploaded yet. Please check back later.</p>
+                ) : (
+                  <p className="text-gray-500">{`No images found in the ${selectedCategory} category.`}</p>
+                )}
               </div>
             </div>
           )}
@@ -191,6 +200,16 @@ export const Gallery: React.FC = () => {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           min-height: 100vh;
         }
+
+        /* Soft fade-in for Dome once real images are ready */
+        .dome-fade-in {
+          animation: domeFadeIn 320ms ease-out both;
+        }
+        @keyframes domeFadeIn {
+          from { opacity: 0; transform: scale(0.985); filter: blur(2px); }
+          to { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+        @media (prefers-reduced-motion: reduce) { .dome-fade-in { animation: none; } }
 
         .hero-section {
           position: relative;

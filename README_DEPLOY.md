@@ -213,3 +213,58 @@ Admin must be logged in to add band members, due to RLS. If you see "You must be
 - Save
 
 If fail persists in production, re-check Netlify envs match the Supabase project used above and redeploy.
+
+---
+
+## Admin-Editable About Section (Supabase + RLS)
+
+This app includes a fully admin-editable About section backed by a small singleton table in Supabase. Follow these steps once per project.
+
+### 1) Apply SQL migrations (Supabase SQL Editor)
+
+Run these two files from the repository under `supabase/migrations/` in order:
+
+1. `20250918093000_about_settings.sql`
+   - Creates `public.about_settings` with fields:
+     - `id integer primary key` (singleton row id=1)
+     - `enabled boolean` – controls visibility on Home
+     - `hero_title text`, `hero_heading text`
+     - `hero_paragraphs jsonb` (array of strings; HTML allowed and sanitized)
+     - `tracks jsonb` (array of strings)
+     - `zones jsonb` (array of strings)
+     - `stats jsonb` (array of objects: { value, label })
+     - `updated_at timestamptz`
+   - Seeds row `id=1` with sensible defaults
+   - Adds an `updated_at` trigger
+
+2. `20250918094500_about_settings_rls.sql`
+   - Enables Row Level Security (RLS)
+   - Policies (idempotent):
+     - Select: `anon`, `authenticated`
+     - Insert: `authenticated` only, `id=1`
+     - Update: `authenticated` only, `id=1`
+
+Verification queries (optional):
+
+```sql
+select * from public.about_settings where id = 1;
+select policyname, cmd, roles from pg_policies where tablename = 'about_settings';
+```
+
+### 2) Admin usage
+
+- Go to Admin Dashboard → About tab
+- Edit Title/Heading, Paragraphs (HTML allowed), Tracks, Zones, Stats
+- Toggle Enabled to show/hide on Home
+- Click “Save About” — the frontend upserts `id=1`
+
+### 3) Security & safety
+
+- RLS allows public read, but only authenticated users can insert/update the singleton row
+- Any HTML in paragraphs is sanitized on render with DOMPurify to prevent XSS
+
+### 4) Troubleshooting
+
+- "relation about_settings does not exist": run the migrations above in Supabase
+- "permission denied": ensure you are logged in when saving from Admin
+- Changes not visible: refresh the Home page; ensure Enabled is checked

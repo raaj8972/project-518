@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star, Activity } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star, ExternalLink } from 'lucide-react';
+import WatchLiveButton from '../components/WatchLiveButton';
+import { LIVE_LEAD_MINUTES } from '../config/liveStream';
+import { parseEventDateTime } from '../utils/eventTime';
 import { useData } from '../context/DataContext';
 import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
@@ -8,6 +12,7 @@ export const Events: React.FC = () => {
   const { events, eventCoordinators, connectionStatus, lastError, refreshAll } = useData();
   const getCoordinators = (eventId: number) => eventCoordinators?.filter(c => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
   const [registrationModal, setRegistrationModal] = useState<{ isOpen: boolean; eventId: number; eventTitle: string }>(
     { isOpen: false, eventId: 0, eventTitle: '' }
   );
@@ -15,6 +20,7 @@ export const Events: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [glitchActive, setGlitchActive] = useState(false);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+  // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
   const visibleEvents = events.filter((e) => e.visible !== false);
   const categories = ['All', ...Array.from(new Set(visibleEvents.map((e) => e.category)))];
@@ -36,6 +42,27 @@ export const Events: React.FC = () => {
     return () => clearInterval(t);
   }, []);
 
+  // Scroll to event card if URL contains #event-<id>
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || !hash.startsWith('#event-')) return;
+    const idStr = hash.replace('#event-', '');
+    let target = document.getElementById(`event-${idStr}`);
+    if (target) {
+      setTimeout(() => target!.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+      target.classList.add('ring-2', 'ring-pink-500');
+      setTimeout(() => target!.classList.remove('ring-2', 'ring-pink-500'), 1500);
+      return;
+    }
+    // If target not found, switch category to include it
+    const idNum = Number(idStr);
+    const ev = events.find(e => e.id === idNum);
+    if (ev && selectedCategory !== 'All' && selectedCategory !== ev.category) {
+      setSelectedCategory(ev.category);
+      // After category update, effect will re-run and scroll
+    }
+  }, [location.hash, selectedCategory, filteredEvents.length, events.length]);
+
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
@@ -48,6 +75,8 @@ export const Events: React.FC = () => {
     document.querySelectorAll('.scroll-animate').forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [events, selectedCategory, filteredRulesKey(filteredEvents)]);
+
+  // (No per-second ticker needed for pills now; WatchLiveButton manages its own countdown.)
 
   // Stable key for dependency to re-run observer when filteredEvents set changes
   function filteredRulesKey(list: typeof filteredEvents) {
@@ -112,6 +141,7 @@ export const Events: React.FC = () => {
   const toggleRules = (id: number) => setExpandedRules((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const getCategoryColor = (c: string) => ({ Cultural: 'from-purple-500 to-pink-500', Technical: 'from-blue-500 to-cyan-500', Sports: 'from-green-500 to-emerald-500', default: 'from-gray-500 to-gray-600' } as Record<string, string>)[c] || 'from-gray-500 to-gray-600';
+
 
   // Reset UI state when category changes to avoid empty-looking UI due to flipped/expanded states
   useEffect(() => {
@@ -208,6 +238,8 @@ export const Events: React.FC = () => {
     return (!!e?.registration_open && !isBeforeOpen(e)) || isTimerOpenWithGrace;
   };
 
+  // mapsUrlFor helper removed (we compute inline where needed)
+
   return (
     <div className="cyberpunk-theme min-h-screen">
       {connectionStatus !== 'ok' && (
@@ -279,14 +311,14 @@ export const Events: React.FC = () => {
         <div className="container mx-auto px-4" ref={eventsRef}>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event, index) => (
-              <div key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
+              <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
-                    <button className="flip-face flip-front relative group" onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
+                    <button className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`} onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
                       <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})` }} />
                       {event.motion_poster_url ? (
                         <video
-                          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video"
+                          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden"
                           src={event.motion_poster_url}
                           autoPlay
                           muted
@@ -295,41 +327,72 @@ export const Events: React.FC = () => {
                           poster={event.image}
                         />
                       ) : null}
-                      <div className="absolute top-4 left-4 z-10">
-                        <span className={`bg-gradient-to-r ${getCategoryColor(event.category)} text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg`}>{event.category}</span>
+                      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex flex-wrap items-center gap-2 max-w-[75%] sm:max-w-[70%] pr-16">
+                        <span className={`bg-gradient-to-r ${getCategoryColor(event.category)} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg`}>{event.category}</span>
+                        {/* Suppress separate LIVE/Opens-in pill when Watch Live exists to avoid overlap; the button conveys status */}
+                        {(() => {
+                          const wlu = (event as any).watch_live_url;
+                          if (wlu) return null;
+                          // If no watch-live url, you could show other non-live chips here in future.
+                          return null;
+                        })()}
                       </div>
-                      {/* Live badge or Featured */}
-                      {canRegisterNow(event) ? (
-                        <div className="absolute top-4 right-4 z-10">
-                          <span className="inline-flex items-center bg-green-500 text-white px-2.5 py-1 rounded-full text-xs font-bold shadow-lg">
-                            <Activity size={12} className="mr-1" /> LIVE NOW
-                          </span>
-                        </div>
-                      ) : (getCountdown(event) && getCountdown(event) !== 'now') ? (
-                        <div className="absolute top-4 right-4 z-10">
-                          {(() => {
-                            const secs = getSecondsToOpen(event);
-                            const isBoundary = typeof secs === 'number' && secs > 0 && secs <= 3;
+                      {/* Watch Live button (60m pre-live gating) or Featured badge */}
+                      {(() => {
+                        const wlu = (event as any).watch_live_url;
+                        if (wlu) {
+                          const dt = parseEventDateTime(event.date as any, event.time as any);
+                          if (dt) {
                             return (
-                              <span
-                                className={`inline-flex items-center bg-blue-600/90 text-white px-2.5 py-1 rounded-full text-xs font-semibold shadow ${isBoundary ? 'animate-pulse' : ''}`}
-                                title={getOpensAtTooltip(event)}
-                              >
-                                {isBoundary ? `Starting in ${secs}s` : `Opens in ${getCountdown(event)}`}
-                              </span>
+                              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10">
+                                <WatchLiveButton
+                                  url={wlu}
+                                  startTime={dt.toISOString()}
+                                  leadMinutes={LIVE_LEAD_MINUTES}
+                                  forceLive={(event as any).registration_open || event.featured}
+                                  size="xs"
+                                  className=""
+                                />
+                              </div>
                             );
-                          })()}
-                        </div>
-                      ) : event.featured && (
-                        <div className="absolute bottom-4 right-4 z-10">
-                          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2 rounded-full animate-pulse pulse-ring">
-                            <Star className="w-4 h-4 fill-current" />
-                          </div>
-                        </div>
-                      )}
+                          }
+                        }
+                        if (event.featured) {
+                          return (
+                            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-10">
+                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2 rounded-full animate-pulse pulse-ring">
+                                <Star className="w-4 h-4 fill-current" />
+                              </div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </button>
 
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
+                      {/* Back face Watch Live button (mirrors front face, 60m pre-live gating) */}
+                      {(() => {
+                        const wlu = (event as any).watch_live_url;
+                        if (wlu) {
+                          const dt = parseEventDateTime(event.date as any, event.time as any);
+                          if (dt) {
+                            return (
+                              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                                <WatchLiveButton
+                                  url={wlu}
+                                  startTime={dt.toISOString()}
+                                  leadMinutes={LIVE_LEAD_MINUTES}
+                                  forceLive={(event as any).registration_open || event.featured}
+                                  size="xs"
+                                  className=""
+                                />
+                              </div>
+                            );
+                          }
+                        }
+                        return null;
+                      })()}
                       <div className="h-full overflow-hidden flex flex-col">
                         <div className="p-6 overflow-y-auto flex-1">
                           <h3 className="text-xl font-bold text-white mb-3">{event.title}</h3>
@@ -337,7 +400,32 @@ export const Events: React.FC = () => {
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center text-sm text-gray-400"><Calendar size={16} className="mr-2 text-blue-400" />{event.date}</div>
                             <div className="flex items-center text-sm text-gray-400"><Clock size={16} className="mr-2 text-green-400" />{event.time}</div>
-                            <div className="flex items-center text-sm text-gray-400"><MapPin size={16} className="mr-2 text-purple-400" />{event.venue}</div>
+                            <div className="flex items-center text-sm text-gray-400">
+                              <MapPin size={16} className="mr-2 text-purple-400" />
+                              <span>{event.venue}</span>
+                              {(() => {
+                                // Map link: prefer event.map_url; fallback to Google Maps search
+                                const explicit = (event as any).map_url;
+                                const url = ((): string | null => {
+                                  if (explicit && String(explicit).trim()) return String(explicit);
+                                  if (!event.venue || !String(event.venue).trim()) return null;
+                                  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(event.venue))}`;
+                                })();
+                                return url ? (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="ml-3 map-3d-btn"
+                                    title="Open map"
+                                    aria-label="Open map"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                  </a>
+                                ) : null;
+                              })()}
+                            </div>
                             <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{event.participants} participants</div>
                             {getCoordinators(event.id).length > 0 ? (
                               <div className="mt-2 text-sm text-gray-300">
@@ -474,9 +562,9 @@ export const Events: React.FC = () => {
       <RegistrationModal isOpen={registrationModal.isOpen} onClose={closeRegistration} eventTitle={registrationModal.eventTitle} eventId={registrationModal.eventId} />
 
       <style>{`
-        /* Flip card styles */
-  .flip-3d { perspective: 1200px; position: relative; height: 460px; }
-  @media (min-width: 480px) { .flip-3d { height: 520px; } }
+    /* Flip card styles */
+  .flip-3d { perspective: 1200px; position: relative; height: 440px; }
+  @media (min-width: 480px) { .flip-3d { height: 500px; } }
   @media (min-width: 768px) { .flip-3d { height: 620px; } }
   .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); z-index: 10; }
         .flip-3d.is-flipped .flip-3d-inner { transform: rotateY(180deg); }
@@ -587,11 +675,13 @@ export const Events: React.FC = () => {
           position: absolute;
           inset: 0;
           border-radius: 12px;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.60), rgba(0,0,0,0.85));
+          background: linear-gradient(to bottom, rgba(0,0,0,0.45), rgba(0,0,0,0.85));
           z-index: 1; /* keep below badges and labels */
           pointer-events: none;
           transition: opacity 250ms ease;
         }
+        /* When a WatchLive button is present, remove the front overlay so image under the button is clean */
+        .flip-front.no-front-overlay::after { display: none; }
         @media (hover: hover) and (pointer: fine) {
           .neon-anim-border:hover {
             --ty: -4px;
@@ -753,6 +843,36 @@ export const Events: React.FC = () => {
         @keyframes glowTextSweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @media (prefers-reduced-motion: reduce) { .glow-text-animated { animation: none; } }
 
+        /* 3D animated icon button for Map link (parity with Schedule) */
+        .map-3d-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 9999px;
+          color: #93c5fd; /* tailwind text-blue-300 */
+          background: radial-gradient(50% 50% at 50% 50%, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 60%, transparent 100%);
+          border: 1px solid rgba(59,130,246,0.35);
+          box-shadow:
+            0 2px 8px rgba(0,0,0,0.4),
+            inset 0 0 12px rgba(59,130,246,0.15);
+          transform: perspective(600px) rotateX(8deg) rotateY(-8deg);
+          transition: transform 180ms ease, box-shadow 180ms ease, color 180ms ease, border-color 180ms ease;
+        }
+        .map-3d-btn:hover {
+          color: #fff;
+          border-color: rgba(147,197,253,0.7);
+          box-shadow:
+            0 6px 18px rgba(0,0,0,0.35),
+            0 0 18px rgba(147,197,253,0.25),
+            inset 0 0 16px rgba(147,197,253,0.25);
+          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(-2px) scale(1.05);
+        }
+        .map-3d-btn:active {
+          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0) scale(0.98);
+        }
+
         @media (max-width: 768px) {
           .cyberpunk-title { font-size: 2rem; }
           .hero-section h1 { font-size: 2.25rem !important; }
@@ -761,6 +881,15 @@ export const Events: React.FC = () => {
           .filter-row { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
           .filter-row::-webkit-scrollbar { display: none; }
           .filter-btn { font-size: 0.85rem; }
+          /* Ensure grid spacing and card content have breathing room */
+          .container .grid { gap: 16px; }
+          /* Reserve space at top of front face for badges/buttons */
+          .flip-front { padding-top: 42px; }
+          /* Prevent inner content from colliding at the bottom */
+          .flip-back .p-6 { padding: 16px; }
+          .flip-back .p-6.pt-0 { padding-top: 8px; }
+          /* Make badges and watch button smaller on mobile via inherited positions updated above */
+        }
         }
       `}</style>
     </div>

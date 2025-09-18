@@ -55,7 +55,9 @@ export const EventsManagement: React.FC = () => {
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
-    artist_id: undefined as number | undefined
+    artist_id: undefined as number | undefined,
+    watch_live_url: '' as string | null,
+    map_url: '' as string | null,
   });
 
   // Admin-side live countdown support so you can see the timer ticking here too
@@ -143,7 +145,9 @@ export const EventsManagement: React.FC = () => {
       max_participants: undefined,
       featured: false,
       visible: true,
-      artist_id: undefined
+      artist_id: undefined,
+      watch_live_url: '',
+      map_url: '',
     });
   };
 
@@ -249,10 +253,12 @@ export const EventsManagement: React.FC = () => {
       registration_open: event.registration_open,
       registration_timer_enabled: (event as any).registration_timer_enabled ?? false,
       registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
-  max_participants: event.max_participants ?? undefined,
+      max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
-  artist_id: event.artist_id ?? undefined
+      artist_id: event.artist_id ?? undefined,
+      watch_live_url: (event as any).watch_live_url || '',
+      map_url: (event as any).map_url || '',
     });
     setEditingEvent(event.id);
   };
@@ -400,6 +406,29 @@ export const EventsManagement: React.FC = () => {
                   placeholder="Event title"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+              </div>
+              {/* Map URL (optional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Map URL (optional)</label>
+                <input
+                  type="url"
+                  value={eventForm.map_url || ''}
+                  onChange={(e) => setEventForm((prev: any) => ({ ...prev, map_url: e.target.value }))}
+                  placeholder="https://maps.google.com/..."
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Paste a Google Maps or Apple Maps link. If empty, the site will use a search link from the venue.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Watch Live URL</label>
+                <input
+                  type="url"
+                  value={eventForm.watch_live_url || ''}
+                  onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <p className="text-xs text-gray-500 mt-1">Will appear 60 minutes before start, disabled until live begins.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -658,6 +687,17 @@ export const EventsManagement: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1">Users will see countdown until this time. After it passes, event can show "Live Now" if registration is open.</p>
                 </div>
               )}
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Watch Live URL (optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={eventForm.watch_live_url || ''}
+                  onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <p className="text-xs text-gray-500 mt-1">Shown 60 min before start (disabled until live) and during the event.</p>
+              </div>
             </div>
             <div className="space-y-4">
               <div>
@@ -760,6 +800,18 @@ export const EventsManagement: React.FC = () => {
                   placeholder="Venue"
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+                {/* Watch Live URL (edit mode) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 mt-1">Watch Live URL (optional)</label>
+                  <input
+                    type="url"
+                    value={eventForm.watch_live_url || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">Appears 60 min before start (disabled until live) and during event.</p>
+                </div>
                 
                 {/* Rules editing */}
                 <div>

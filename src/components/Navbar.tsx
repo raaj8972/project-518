@@ -1,11 +1,67 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Calendar, Image, Clock, Users, LogIn, Zap } from 'lucide-react';
+import React, { useState, useEffect, startTransition } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, Calendar, Image, Clock, Users, LogIn } from 'lucide-react';
+import { useData } from '../context/DataContext';
+import BrandLogo3D from './BrandLogo3D';
 
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { homepageSettings } = useData();
+
+  // Compute responsive offsets with fallback to base values
+  const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const bp = vw >= 1024 ? 'lg' : vw >= 768 ? 'md' : 'sm';
+  const offX = (() => {
+    const hs: any = homepageSettings || {};
+    if (bp === 'lg' && typeof hs.brand_logo_offset_x_lg_px === 'number') return hs.brand_logo_offset_x_lg_px;
+    if (bp === 'md' && typeof hs.brand_logo_offset_x_md_px === 'number') return hs.brand_logo_offset_x_md_px;
+    if (bp === 'sm' && typeof hs.brand_logo_offset_x_sm_px === 'number') return hs.brand_logo_offset_x_sm_px;
+    return Number(hs.brand_logo_offset_x_px || 0);
+  })();
+  const offY = (() => {
+    const hs: any = homepageSettings || {};
+    if (bp === 'lg' && typeof hs.brand_logo_offset_y_lg_px === 'number') return hs.brand_logo_offset_y_lg_px;
+    if (bp === 'md' && typeof hs.brand_logo_offset_y_md_px === 'number') return hs.brand_logo_offset_y_md_px;
+    if (bp === 'sm' && typeof hs.brand_logo_offset_y_sm_px === 'number') return hs.brand_logo_offset_y_sm_px;
+    return Number(hs.brand_logo_offset_y_px || 0);
+  })();
+
+  // Defensive URL normalization for logo (avoid mixed-content / protocol-relative issues)
+  const logoSrc = React.useMemo(() => {
+    const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
+    if (!raw) return '';
+    let u = String(raw).trim();
+    if (!u) return '';
+    if (u.startsWith('//')) u = 'https:' + u; // protocol-relative -> https
+    if (u.startsWith('http://')) u = 'https://' + u.slice(7); // force https
+    // Cache-bust when branding updates so the newest logo shows up immediately
+    const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
+    const sep = u.includes('?') ? '&' : '?';
+    return ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
+  }, [homepageSettings?.brand_logo_url, (homepageSettings as any)?.updated_at]);
+
+  // Safe defaults for size and glow
+  const logoSize = Math.max(8, Number((homepageSettings as any)?.brand_logo_size_px) || 36);
+  const glowStrength = Math.max(0, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
+
+  // Wrap route changes in a non-urgent transition to avoid input-time Suspense warnings
+  const handleNavClick = (e: React.MouseEvent, path: string) => {
+    // Allow standard browser behaviors: new tab/window, etc.
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
+    e.preventDefault();
+    startTransition(() => {
+      navigate(path);
+    });
+    setIsOpen(false);
+  };
 
   const navItems = [
     { name: 'Home', path: '/', icon: null },
@@ -36,13 +92,49 @@ export const Navbar: React.FC = () => {
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
   <div className="flex justify-between items-center h-16 md:h-20">
-          {/* Logo */}
-          <Link to="/" className="cyberpunk-logo group">
-            <div className="flex items-center space-x-3">
-              <Zap className="w-8 h-8 md:w-10 md:h-10 text-pink-400 group-hover:text-pink-300 transition-colors animate-pulse flex-shrink-0" />
+          {/* Logo + Title */}
+          <Link to="/" onClick={(e)=>handleNavClick(e, '/')} className="cyberpunk-logo group">
+            <div className="flex items-center space-x-3 relative">
+              {/* Left side logo */}
+              {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'left' && (
+                <div
+                  className="relative"
+                  style={{
+                    transform: `translate(${offX}px, ${offY}px)`
+                  }}
+                >
+                  <BrandLogo3D
+                    src={logoSrc}
+                    size={logoSize}
+                    glowStrength={glowStrength}
+                    glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
+                  />
+                </div>
+              )}
+
+              {/* Title */}
               <span className="text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
-                RICORRENZA 2025
+                RICORRENZA {homepageSettings?.brand_year ?? 2025}
               </span>
+
+              {/* Right side logo */}
+              {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'right' && (
+                <div
+                  className="relative"
+                  style={{
+                    transform: `translate(${offX}px, ${offY}px)`
+                  }}
+                >
+                  <BrandLogo3D
+                    src={logoSrc}
+                    size={logoSize}
+                    glowStrength={glowStrength}
+                    glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
+                  />
+                </div>
+              )}
+
+              {/* No fallback icon when logo is missing to avoid flashing during initial load */}
             </div>
           </Link>
 
@@ -54,6 +146,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={(e)=>handleNavClick(e, item.path)}
                   className={`cyberpunk-nav-item group ${
                     isActive(item.path) ? 'active' : ''
                   }`}
@@ -89,7 +182,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => setIsOpen(false)}
+                  onClick={(e) => handleNavClick(e, item.path)}
                   className={`cyberpunk-mobile-nav-item ${
                     isActive(item.path) ? 'active' : ''
                   }`}
@@ -258,6 +351,7 @@ export const Navbar: React.FC = () => {
             padding-right: 1rem;
           }
         }
+        /* Dev-only helper outline handled inline next to BrandLogo3D */
       `}</style>
     </nav>
   );

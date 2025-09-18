@@ -253,7 +253,7 @@ export const Sponsors: React.FC = () => {
                       
                       <div className="flex items-center mb-6">
                         <div
-                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors bg-transparent"
+                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse sponsor-interactive w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-pink-500/50 group-hover:border-pink-500 transition-colors bg-transparent"
                           style={{
                             ['--tier-glow' as any]: hexToRgba('#FFD700', 0.55),
                             ['--tier-opacity' as any]: 0.55,
@@ -346,7 +346,7 @@ export const Sponsors: React.FC = () => {
                       
                       <div className="flex items-center mb-6">
                         <div
-                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors bg-transparent"
+                          className="mr-6 logo-no-bg logo-tier-glow tier-glow-medium tier-pulse sponsor-interactive w-28 h-28 md:w-32 md:h-32 p-2 rounded-xl border-2 border-blue-500/50 group-hover:border-blue-500 transition-colors bg-transparent"
                           style={{
                             ['--tier-glow' as any]: hexToRgba('#60A5FA', 0.8),
                             ['--tier-opacity' as any]: 0.7,
@@ -441,7 +441,7 @@ export const Sponsors: React.FC = () => {
                         <div className="p-6">
                           <div className="text-center mb-4">
                             <div
-                              className={`logo-no-bg logo-tier-glow tier-pulse inline-flex mb-4 w-24 h-24 md:w-28 md:h-28 p-2 rounded-xl border border-purple-500/40 group-hover:border-purple-500 transition-colors bg-transparent tier-glow-${intensityFromTier(sponsor.category)}`}
+                              className={`logo-no-bg logo-tier-glow tier-pulse sponsor-interactive inline-flex mb-4 w-24 h-24 md:w-28 md:h-28 p-2 rounded-xl border border-purple-500/40 group-hover:border-purple-500 transition-colors bg-transparent tier-glow-${intensityFromTier(sponsor.category)}`}
                               style={{
                                 ['--tier-glow' as any]: hexToRgba(getCategoryColor(sponsor.category), 0.78),
                                 ['--tier-opacity-min' as any]: 0.42,

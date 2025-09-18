@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { Home } from './pages/Home'; // keep Home eager for fast first paint
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { ToastProvider } from './components/ToastProvider';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 
 // Eager imports for maximum reliability (avoids lazy chunk loading issues)
@@ -106,9 +107,11 @@ function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <Router>
-          <AppShell />
-        </Router>
+        <ToastProvider>
+          <Router>
+            <AppShell />
+          </Router>
+        </ToastProvider>
       </DataProvider>
     </AuthProvider>
   );

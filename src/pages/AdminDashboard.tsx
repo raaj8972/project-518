@@ -13,7 +13,8 @@ import {
   Palette,
   Share2,
   Shield,
-  Star
+  Star,
+  Info
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -29,6 +30,7 @@ import { FacultyHeadsManagement } from '../components/admin/FacultyHeadsManageme
 import { CoreTeamManagement } from '../components/admin/CoreTeamManagement';
 import { BandManagement } from '../components/admin/BandManagement';
 import { GuestArtistManagement } from '../components/admin/GuestArtistManagement';
+import { ChiefGuestManagement } from '../components/admin/ChiefGuestManagement';
 import { HomepageManagement } from '../components/admin/HomepageManagement';
 import { AuditionManagement } from '../components/admin/AuditionManagement';
 import { MembershipManagement } from '../components/admin/MembershipManagement';
@@ -36,9 +38,11 @@ import { FormSettingsManagement } from '../components/admin/FormSettingsManageme
 import { HomeBoundSettings } from '../components/admin/HomeBoundSettings';
 import { RoadmapMilestonesAdmin } from '../components/admin/RoadmapMilestonesAdmin';
 import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
+import { AboutSettings } from '../components/admin/AboutSettings';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { HealthBadge } from '../components/admin/HealthBadge';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading } = useAuth();
@@ -141,7 +145,8 @@ export const AdminDashboard: React.FC = () => {
 
   const tabs = [
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
-    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
+  { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
+  { id: 'about' as TabType, name: 'About', icon: Info },
     { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
   { id: 'events' as TabType, name: 'Events', icon: Calendar },
   { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings },
@@ -154,7 +159,8 @@ export const AdminDashboard: React.FC = () => {
     { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
     { id: 'core-team' as TabType, name: 'Core Team', icon: Users },
     { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
-    { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
+  { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
+  { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star },
     { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
     { id: 'memberships' as TabType, name: 'Memberships', icon: Users },
     { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings },
@@ -205,7 +211,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Settings className="w-8 h-8 text-yellow-500 mr-3" />
-              <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">Admin Dashboard <HealthBadge /></h1>
               {isTOTPEnabled && (
                 <div className="ml-4 flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
                   <Shield size={12} className="mr-1" />
@@ -498,12 +504,14 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'core-team' && <CoreTeamManagement />}
             {activeTab === 'band' && <BandManagement />}
             {activeTab === 'guest-artists' && <GuestArtistManagement />}
+            {activeTab === 'chief-guests' && <ChiefGuestManagement />}
             {activeTab === 'auditions' && <AuditionManagement />}
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
+            {activeTab === 'about' && <AboutSettings />}
           </div>
         </div>
       </div>

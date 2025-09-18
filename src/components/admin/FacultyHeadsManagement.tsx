@@ -48,11 +48,10 @@ export const FacultyHeadsManagement: React.FC = () => {
   };
 
   const handleAdd = async () => {
-    if (!form.name || !form.title || !form.image || !form.description) {
-      alert('Please fill in all required fields (name, title, image, and description)');
+    if (!form.name.trim()) {
+      alert('Name is required');
       return;
     }
-    
     try {
       // Build optional social_links only when present
       const social_links: Record<string, string> = {};
@@ -75,11 +74,10 @@ export const FacultyHeadsManagement: React.FC = () => {
   };
 
   const handleUpdate = async (id: number) => {
-    if (!form.name || !form.title || !form.image || !form.description) {
-      alert('Please fill in all required fields (name, title, image, and description)');
+    if (!form.name.trim()) {
+      alert('Name is required');
       return;
     }
-    
     try {
       const payload: any = { ...form };
       delete payload.instagram;
@@ -212,7 +210,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title/Position *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Title/Position</label>
                 <input
                   type="text"
                   value={form.title}
@@ -222,7 +220,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
@@ -330,7 +328,7 @@ export const FacultyHeadsManagement: React.FC = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
                 <ImageUpload
                   onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
                   currentImage={form.image}

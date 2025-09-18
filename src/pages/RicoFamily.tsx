@@ -31,6 +31,17 @@ export const RicoFamily: React.FC = () => {
     .filter(committee => committee.enabled)
     .sort((a, b) => a.order_position - b.order_position);
 
+  // Track expanded member cards (non-head)
+  const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
+
+  const toggleMemberExpanded = (id: number) => {
+    setExpandedMembers(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   // Group members by committee
   const membersByCommittee = (coreTeamMembers || []).reduce((acc, member) => {
     if (member.enabled && member.committee_id) {
@@ -394,59 +405,63 @@ export const RicoFamily: React.FC = () => {
                       <>
                         <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">Team Members</h4>
                         <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {regularMembers.map((member, memberIndex) => (
+                          {regularMembers.map((member, memberIndex) => {
+                            const isExpanded = expandedMembers.has(member.id);
+                            return (
                             <div
                               key={member.id}
-                              className="scroll-animate opacity-0 transform translate-y-20 hover-float team-card"
+                              className={`scroll-animate opacity-0 transform translate-y-20 team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
                               style={{ animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` }}
                             >
-                              <div className="cyberpunk-card group h-full overflow-hidden">
-                                {/* Member Image */}
-                                <div className="relative h-80 overflow-hidden">
+                              <div className={`cyberpunk-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
+                                {/* Member Image (always visible) */}
+                                <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
                                   <img
                                     src={member.image}
                                     alt={member.name}
-                                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110 team-member-image"
+                                    className={`w-full h-full object-cover object-top transition-transform duration-700 ${isExpanded ? 'scale-105' : 'group-hover:scale-110'} team-member-image`}
                                   />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                                  
-                                  {/* Specialty Badge */}
-                                  <div className="absolute top-2 left-2">
-                                    <span 
-                                      className="text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg pulse-glow"
-                                      style={{ backgroundColor: committee.color }}
+                                  {/* Specialty Badge (overlay) */}
+                                  {member.specialty && (
+                                    <div
+                                      className={`absolute top-2 left-2 animate-badge-enter`}
+                                      title={member.specialty}
                                     >
-                                      {member.specialty}
-                                    </span>
-                                  </div>
-                                  
+                                      <span
+                                        className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg pulse-glow"
+                                        style={{
+                                          backgroundColor: committee.color + 'CC',
+                                          borderColor: committee.color,
+                                          boxShadow: `0 0 6px ${committee.color}, 0 0 14px ${committee.color}55`
+                                        }}
+                                      >
+                                        {member.specialty}
+                                      </span>
+                                    </div>
+                                  )}
                                   {/* Floating Icon */}
                                   <div className="absolute top-2 right-2 floating-icon">
                                     <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
                                   </div>
                                 </div>
-                                
-                                {/* Member Info */}
+
+                                {/* Collapsed Basic Info */}
                                 <div className="p-4">
-                                  <h4 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors member-name">
+                                  <h4 className="text-base font-bold text-white mb-0.5 member-name">
                                     {member.name}
                                   </h4>
-                                  <p className="text-blue-400 font-semibold mb-2 text-sm">
+                                  <p className="text-blue-400 font-semibold mb-2 text-xs">
                                     {member.role}
                                   </p>
-                                  <p className="text-gray-300 text-xs leading-relaxed mb-3 line-clamp-2">
-                                    {member.description}
-                                  </p>
-                                  
-                                  {/* Social Links */}
-                                  {member.social_links && Object.values(member.social_links).some(link => link) && (
+                                  {/* Social Links + More/Less button row */}
+                                  {member.social_links && Object.values(member.social_links).some(link => link) ? (
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
-                                      <span className="text-[10px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
                                       {member.social_links.instagram && (
-                                        <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={38} ariaLabel={`Instagram of ${member.name}`} />
+                                        <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
                                       )}
                                       {member.social_links.youtube && (
-                                        <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={36} ariaLabel={`YouTube of ${member.name}`} />
+                                        <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
                                       )}
                                       {member.social_links.spotify && (
                                         <a
@@ -455,49 +470,75 @@ export const RicoFamily: React.FC = () => {
                                           rel="noopener noreferrer"
                                           className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
                                         >
-                                          <Spotify size={18} />
+                                          <Spotify size={22} />
                                         </a>
+                                      )}
+                                      {/* Spacer pushes button to right */}
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleMemberExpanded(member.id)}
+                                        className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:brightness-110 shadow-md shadow-blue-500/30 transition-all"
+                                        aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
+                                      >
+                                        {isExpanded ? 'Less' : 'More'}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center mb-3">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleMemberExpanded(member.id)}
+                                        className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:brightness-110 shadow-md shadow-blue-500/30 transition-all"
+                                        aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
+                                      >
+                                        {isExpanded ? 'Less' : 'More'}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Expanded Details */}
+                                  {isExpanded && (
+                                    <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
+                                      {member.description && (
+                                        <p className="leading-relaxed">{member.description}</p>
+                                      )}
+                                      {member.specialty && (
+                                        <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
+                                      )}
+                                      {(Boolean((member as any).phone) || Boolean((member as any).email)) && (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          {Boolean((member as any).email) && (
+                                            <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
+                                          )}
+                                          {Boolean((member as any).phone) && (
+                                            <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
+                                          )}
+                                        </div>
+                                      )}
+                                      {member.achievements.length > 0 && (
+                                        <div>
+                                          <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
+                                            Achievements
+                                          </p>
+                                          <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-400">
+                                            {member.achievements.map((ach, i) => (
+                                              <li key={i}>{ach}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
                                       )}
                                     </div>
                                   )}
-                                  
-                                  {/* Achievements */}
-                                  {member.achievements.length > 0 && (
-                                    <div className="mb-3">
-                                      <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
-                                        {member.achievements.length} Achievement{member.achievements.length !== 1 ? 's' : ''}
-                                      </p>
-                                      <div className="text-xs text-gray-500">
-                                        {member.achievements.slice(0, 1).map((achievement, index) => (
-                                          <div key={index} className="truncate">• {achievement}</div>
-                                        ))}
-                                        {member.achievements.length > 1 && (
-                                          <div>+{member.achievements.length - 1} more</div>
-                                        )}
-                                      </div>
-                                    </div>
+
+                                  {/* Button moved into social row above; keeping slight top spacing when expanded for visual balance */}
+                                  {isExpanded && (
+                                    <div className="mt-0.5" />
                                   )}
-                                  {/* Contact Icons */}
-                                  {(Boolean((member as any).phone) || Boolean((member as any).email)) && (
-                                    <div className="mb-2">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[10px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
-                                        {Boolean((member as any).email) && (
-                                          <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
-                                        )}
-                                        {Boolean((member as any).phone) && (
-                                          <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
-                                        )}
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Animated Underline */}
-                                  <div className="mt-2 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500"></div>
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </>
                     )}
@@ -541,6 +582,10 @@ export const RicoFamily: React.FC = () => {
 
       {/* All Styles */}
       <style>{`
+        .animate-badge-enter { animation: badgeEnter 0.5s ease-out; }
+        @keyframes badgeEnter { from { opacity:0; transform: translateY(-6px) scale(.9);} to { opacity:1; transform: translateY(0) scale(1);} }
+        .animate-fade-in { animation: fadeIn 0.35s ease-out; }
+        @keyframes fadeIn { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform: translateY(0);} }
         .committee-title {
           text-shadow: 
             0 0 10px currentColor,

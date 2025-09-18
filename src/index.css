@@ -30,6 +30,30 @@
 
 /* Global responsive utilities */
 @layer utilities {
+  /* Offscreen rendering optimization */
+  .content-auto { content-visibility: auto; contain-intrinsic-size: 1000px 800px; }
+  /* Fluid responsive type scale (use with text-[size] for fine control) */
+  .text-fluid { font-size: clamp(0.95rem, 0.85rem + 0.6vw, 1.125rem); }
+
+  /* Prefer-reduced-motion: soft-disable global animations/transitions */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+
+  /* Coarse pointers (most touch devices): tone down heavy visual effects */
+  @media (pointer: coarse) {
+    .logo-glow::after { opacity: 0.6; filter: blur(7px); }
+    .card-glow-hover::before { opacity: 0.7; filter: blur(9px); }
+    .sponsor-zoom-card > *:first-child { transition-duration: 180ms; }
+  }
+
+  /* Small screens: reduce paddings and glow sizes to avoid overflow */
+  @media (max-width: 480px) {
+    .gap-responsive { @apply gap-2; }
+    .padding-responsive { @apply p-2; }
+    .logo-glow::after { inset: -6px; border-radius: 14px; }
+    .card-3d::after { opacity: 0.72; }
+  }
   /* Reveal-on-scroll helpers */
   .scroll-animate {
     opacity: 0;
@@ -237,7 +261,7 @@
     inset: -8px; /* extend a bit beyond logo */
     border-radius: 18px;
     background: radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.18), rgba(255,255,255,0.06) 60%, rgba(255,255,255,0) 72%);
-    filter: blur(8px);
+  filter: blur(8px);
     opacity: 0.0;
     transform: scale(0.98);
     z-index: 0;
@@ -342,6 +366,44 @@
     .logo-tier-glow.tier-pulse::before { animation: none; }
   }
 
+  /* Unified interactive glow for Sponsors page cards (independent of home hero) */
+  .sponsor-interactive { position: relative; transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease; }
+  .sponsor-interactive::after {
+    content: '';
+    position: absolute; inset: -10px; pointer-events: none; border-radius: inherit;
+    background: radial-gradient(60% 60% at 50% 45%, rgba(255,255,255,0.45), rgba(236,72,153,0.28) 40%, rgba(147,51,234,0.22) 60%, rgba(0,0,0,0) 72%);
+    opacity: 0; filter: blur(14px) brightness(1.05); transform: scale(.9);
+    transition: opacity 260ms ease, filter 260ms ease, transform 320ms cubic-bezier(.2,.8,.2,1);
+    z-index: 0;
+  }
+  .sponsor-interactive:hover::after,
+  .sponsor-interactive:focus-within::after,
+  .sponsor-interactive:active::after { opacity:.9; filter: blur(18px) brightness(1.15); transform: scale(1); }
+  .sponsor-interactive:hover,
+  .sponsor-interactive:focus-within,
+  .sponsor-interactive:active { transform: translateY(-4px) scale(1.06); }
+  .sponsor-interactive img { position: relative; z-index: 1; }
+  .sponsor-interactive:focus-visible { outline:2px solid rgba(236,72,153,0.8); outline-offset:4px; border-radius:14px; }
+  @media (prefers-reduced-motion: reduce) {
+    .sponsor-interactive, .sponsor-interactive::after { transition:none; }
+    .sponsor-interactive:hover,
+    .sponsor-interactive:focus-within,
+    .sponsor-interactive:active { transform:none; }
+    .sponsor-interactive:hover::after,
+    .sponsor-interactive:focus-within::after,
+    .sponsor-interactive:active::after { filter:blur(14px); transform:none; }
+  }
+  /* Touch fallback (CSS media) */
+  @media (hover: none) and (pointer: coarse) {
+    /* No baseline glow; only on tap or when JS adds .tap-glow */
+    .sponsor-interactive { transform: translateY(0) scale(1); }
+    .sponsor-interactive:active { transform: translateY(-3px) scale(1.05); }
+  }
+  /* Runtime JS-assisted detection baseline: keep off until tapped */
+  html.touch-enabled .sponsor-interactive { transform: translateY(0) scale(1); }
+  html.touch-enabled .sponsor-interactive.tap-glow::after { opacity:.9; filter: blur(18px) brightness(1.15); transform: scale(1); }
+  html.touch-enabled .sponsor-interactive.tap-glow { transform: translateY(-3px) scale(1.05); }
+
   /* Home hero sponsor hover glow (keeps blend-only logos but adds subtle interactive feedback) */
   .home-sponsor-glow { position: relative; display: inline-flex; align-items: center; justify-content: center; border-radius: 18px; padding: 2px; transition: transform 220ms cubic-bezier(.2,.8,.2,1), filter 220ms ease; }
   .home-sponsor-glow::before {
@@ -364,7 +426,8 @@
   .home-sponsor-glow:hover,
   .home-sponsor-glow:focus-within,
   .home-sponsor-glow:active { transform: translateY(-3px) scale(1.05); }
-  .home-sponsor-glow a:focus-visible { outline: 2px solid rgba(236,72,153,0.8); outline-offset: 4px; border-radius: 14px; }
+  /* Accessible focus ring when the interactive element itself has the glow class */
+  .home-sponsor-glow:focus-visible { outline: 2px solid rgba(236,72,153,0.8); outline-offset: 4px; border-radius: 14px; }
   @media (prefers-reduced-motion: reduce) {
     .home-sponsor-glow { transition: none; }
     .home-sponsor-glow::before { transition: none; }
@@ -375,6 +438,15 @@
     .home-sponsor-glow:focus-within,
     .home-sponsor-glow:active { transform: none; }
   }
+
+  /* Touch devices (no hover, coarse pointer): show a subtle always-on glow & slight scale for discoverability */
+  @media (hover: none) and (pointer: coarse) {
+    .home-sponsor-glow { transform: translateY(0) scale(1); }
+    .home-sponsor-glow:active { transform: translateY(-2px) scale(1.04); }
+  }
+  /* JS-driven persistent tap glow */
+  html.touch-enabled .home-sponsor-glow.tap-glow::before { opacity:.9; filter: blur(18px) brightness(1.15); transform: scale(1); }
+  html.touch-enabled .home-sponsor-glow.tap-glow { transform: translateY(-2px) scale(1.04); }
 
   /* Soft white text glow for labels like "Powered by" */
   .text-glow-soft {

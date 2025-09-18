@@ -1,4 +1,6 @@
 import React, { useEffect, useRef } from 'react';
+import WatchLiveButton from './WatchLiveButton';
+import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import CountdownTimer from './CountdownTimer';
 import Sparkle3D from './Sparkle3D';
 import { Calendar, MapPin } from 'lucide-react';
@@ -21,6 +23,7 @@ export type GuestArtistDetail = {
   performance_at?: string | null;
   venue?: string | null;
   countdown_enabled?: boolean;
+  watch_live_url?: string | null; // new live stream link
 };
 
 // Extract YouTube video id from various URL formats
@@ -128,9 +131,20 @@ const GuestArtistDetailModal: React.FC<{
                         target={artist.performance_at}
                         endedText="LIVE NOW"
                         showEnded={(artist as any).live_now_enabled !== false}
-                        liveLink={artist.youtube_url as any}
                       />
                     </div>
+                    {/* Unified gated WatchLiveButton replacing legacy anchor (60m lead) */}
+                    {artist.watch_live_url && artist.performance_at && !isNaN(new Date(artist.performance_at).getTime()) && (
+                      <div className="mt-4">
+                        <WatchLiveButton
+                          url={artist.watch_live_url}
+                          startTime={artist.performance_at}
+                          leadMinutes={LIVE_LEAD_MINUTES}
+                          forceLive={(artist as any).live_now_enabled || (artist as any).is_featured}
+                          size="xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -147,8 +161,8 @@ const GuestArtistDetailModal: React.FC<{
               {/* Social media buttons */}
               {(artist.social_links && (artist.social_links.instagram || artist.social_links.youtube)) || artist.youtube_url ? (
                 <div className="mt-6">
-                  <h4 className="text-sm font-bold text-pink-300 mb-2">Social Media</h4>
-                  <div className="flex items-center gap-3">
+                  <h4 className="text-sm font-bold text-pink-300 mb-2">Social & Live</h4>
+                  <div className="flex items-center gap-3 flex-wrap">
                     {artist.social_links?.instagram && (
                       <Instagram3DButtonLink href={artist.social_links!.instagram} iconSize={28} buttonSize={44} ariaLabel={`Instagram of ${artist.name}`} />
                     )}

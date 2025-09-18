@@ -104,9 +104,15 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
   const pathD = buildPathD(viewWidth, effectiveHeight);
   const [activeIndex, setActiveIndex] = useState(0);
+  // Reveal state for each milestone (years + content)
+  const [revealed, setRevealed] = useState<boolean[]>([]);
+  const revealedRef = useRef<boolean[]>([]);
+  const prevProgressRef = useRef(0);
   const lengthRef = useRef(0);
   const startRef = useRef<number | null>(null);
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Animate only when in view
+  const [inView, setInView] = useState(false);
 
   // Helper to place vehicle at a specific progress (0..1) without animation loop
   const positionVehicle = (progress: number) => {
@@ -141,6 +147,10 @@ const Roadmap: React.FC<RoadmapProps> = ({
       arr.push({ x: pt.x, y: pt.y, angle });
     });
     setPositions(arr);
+    // initialize reveal state for new milestones
+    const init = Array(MILESTONES.length).fill(false) as boolean[];
+    revealedRef.current = init;
+    setRevealed(init);
   }, [pathD, MILESTONES.length]);
 
   // Track scaling between SVG viewBox and rendered size to keep vehicle & milestones centered on path
@@ -160,10 +170,34 @@ const Roadmap: React.FC<RoadmapProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [effectiveHeight]);
 
+  // Observe visibility to gate animation
+  useEffect(() => {
+    const el = containerRef.current; if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setInView(entry.isIntersecting);
+      },
+      { root: null, threshold: 0.25, rootMargin: '0px 0px -10% 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Vehicle animation
   useEffect(() => {
-    if (reducedMotion) { // place vehicle statically at start
+    if (reducedMotion) { // place vehicle statically at start and reveal everything
       positionVehicle(0);
+      const all = Array(MILESTONES.length).fill(true) as boolean[];
+      revealedRef.current = all;
+      setRevealed(all);
+      return;
+    }
+    // If not in view, pause and reset to start position
+    if (!inView) {
+      positionVehicle(0);
+      startRef.current = null;
+      prevProgressRef.current = 0;
       return;
     }
     const path = pathRef.current; if (!path) return;
@@ -174,14 +208,36 @@ const Roadmap: React.FC<RoadmapProps> = ({
       const elapsed = ts - startRef.current;
       const progress = (elapsed % durationMs) / durationMs; // 0..1
       positionVehicle(progress);
-      // activate milestones sequentially
+
+      // Track active milestone for pin highlighting
       const idx = Math.min(MILESTONES.length - 1, Math.floor(progress * MILESTONES.length));
       if (idx !== activeIndex) setActiveIndex(idx);
+
+      // Progressive reveal: reveal a milestone shortly after the vehicle passes its position
+      const current = revealedRef.current.slice();
+      let changed = false;
+      for (let i = 0; i < MILESTONES.length; i++) {
+        if (!current[i]) {
+          const threshold = (i + 0.2) / MILESTONES.length; // reveal when ~20% past the milestone boundary
+          if (progress >= threshold || prevProgressRef.current > progress) { // also reveal on loop wrap
+            current[i] = true;
+            changed = true;
+          }
+        }
+      }
+      if (changed) {
+        revealedRef.current = current;
+        setRevealed(current);
+      }
+
+      // Remember previous progress to detect loop wraparound
+      prevProgressRef.current = progress;
+
       raf = requestAnimationFrame(animate);
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [durationMs, reducedMotion, scale.x, scale.y, offsetAlong, offsetNormal, activeIndex]);
+  }, [durationMs, reducedMotion, inView, scale.x, scale.y, offsetAlong, offsetNormal, MILESTONES.length]);
 
   return (
   <section id="roadmap" className="relative w-full overflow-hidden py-24 bg-[#06121c]" aria-label="Ricorrenza Roadmap">
@@ -222,6 +278,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             const milestone = MILESTONES[i];
             const baseLeftSide = i % 2 === 0; // initial alternating preference
             const active = i === activeIndex;
+            const isRevealed = revealed[i];
             const sx = scale.x; const sy = scale.y;
             const px = pos.x * sx; const py = pos.y * sy;
             // Use path angle to compute a normal so text sits truly to the side of the road
@@ -273,18 +330,35 @@ const Roadmap: React.FC<RoadmapProps> = ({
               if (anchorX > maxX) anchorX = maxX;
             }
             return (
-              <div key={milestone.year} className="absolute" style={{ left: anchorX, top: anchorY, transform: 'translate(-50%, -50%)' }}>
+              <div
+                key={milestone.year}
+                className="absolute"
+                style={{ left: anchorX, top: anchorY, transform: 'translate(-50%, -50%)' }}
+              >
+                <div className={`transition-all duration-700 ease-out ${isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
                 {/* Pin positioned back toward the path center */}
                 <div className="absolute" style={{ left: leftSide ? '100%' : 'auto', right: leftSide ? 'auto' : '100%', top: 14 }}>
                   <MapPin className={`w-7 h-7 ${active ? 'text-yellow-300' : 'text-slate-300/70'} drop-shadow-[0_0_6px_rgba(255,255,255,0.3)] transition-colors`} />
                 </div>
-                <div style={{ width: milestoneWidth }} className={`${leftSide ? 'text-right pr-4 md:pr-6' : 'text-left pl-4 md:pl-6'} select-none`}>                  
-                  <h3 className={`font-black tracking-tight ${isMobile ? 'text-xl' : 'text-2xl'} mb-2 ${active ? 'text-yellow-300' : 'text-slate-200'}`}>{milestone.year}</h3>
+                <div style={{ width: milestoneWidth }} className={`${leftSide ? 'text-right pr-4 md:pr-6' : 'text-left pl-4 md:pl-6'} select-none`}>
+                  <h3
+                    className={`font-black tracking-tight ${isMobile ? 'text-xl' : 'text-2xl'} mb-2 ${active ? 'text-yellow-300' : 'text-slate-200'} transition-all duration-700`}
+                    style={{ transitionDelay: isRevealed ? '80ms' : '0ms' }}
+                  >
+                    {milestone.year}
+                  </h3>
                   <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300`}>
                     {milestone.lines.map((l, j) => (
-                      <li key={j} className={`${active ? 'opacity-100 translate-x-0' : 'opacity-70'} transition-all duration-500`}>{l}</li>
+                      <li
+                        key={j}
+                        className={`transition-all duration-500 ${active ? 'opacity-100' : 'opacity-80'} ${isRevealed ? 'translate-x-0 opacity-100' : (leftSide ? 'translate-x-2 opacity-0' : '-translate-x-2 opacity-0')}`}
+                        style={{ transitionDelay: isRevealed ? `${120 + j * 80}ms` : '0ms' }}
+                      >
+                        {l}
+                      </li>
                     ))}
                   </ul>
+                </div>
                 </div>
               </div>
             );

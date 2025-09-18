@@ -76,7 +76,7 @@ export const Footer: React.FC = () => {
         <div className="mt-4">
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
           <div className="py-4 text-center text-xs text-gray-300/80">
-            © {new Date().getFullYear()} RICORRENZA 2025 • All rights reserved
+            © {new Date().getFullYear()} RICORRENZA • All rights reserved to Ricorrenza Committee and Raaj
           </div>
         </div>
       </div>

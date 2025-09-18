@@ -167,6 +167,7 @@ export default function DomeGallery({
   const overlayRORef = useRef<ResizeObserver | null>(null);
   const overlayTransListenerRef = useRef<((e: TransitionEvent) => void) | null>(null);
   const windowOverlayUpdateRef = useRef<(() => void) | null>(null);
+  const secondPhaseDidRunRef = useRef(false);
   const [enlargedSrc, setEnlargedSrc] = useState<string | null>(null);
   const [enlargedAlt, setEnlargedAlt] = useState<string>('');
   const focusedElRef = useRef<HTMLElement | null>(null);
@@ -279,6 +280,8 @@ export default function DomeGallery({
       if (enlargedOverlay && frameRef.current && mainRef.current) {
         const frameR = frameRef.current.getBoundingClientRect();
         const mainR = mainRef.current.getBoundingClientRect();
+  const isFixedViewer = rootRef.current?.getAttribute('data-fixed-viewer') === 'true';
+  const viewerR = viewerRef.current!.getBoundingClientRect();
 
         const hasCustomSize = openedImageWidth && openedImageHeight;
         if (hasCustomSize) {
@@ -288,14 +291,14 @@ export default function DomeGallery({
           const tempRect = tempDiv.getBoundingClientRect();
           document.body.removeChild(tempDiv);
 
-          const centeredLeft = frameR.left - mainR.left + (frameR.width - tempRect.width) / 2;
-          const centeredTop = frameR.top - mainR.top + (frameR.height - tempRect.height) / 2;
+          const centeredLeft = (isFixedViewer ? frameR.left - viewerR.left : frameR.left - mainR.left) + (frameR.width - tempRect.width) / 2;
+          const centeredTop = (isFixedViewer ? frameR.top - viewerR.top : frameR.top - mainR.top) + (frameR.height - tempRect.height) / 2;
 
           enlargedOverlay.style.left = `${centeredLeft}px`;
           enlargedOverlay.style.top = `${centeredTop}px`;
         } else {
-          enlargedOverlay.style.left = `${frameR.left - mainR.left}px`;
-          enlargedOverlay.style.top = `${frameR.top - mainR.top}px`;
+          enlargedOverlay.style.left = `${isFixedViewer ? frameR.left - viewerR.left : frameR.left - mainR.left}px`;
+          enlargedOverlay.style.top = `${isFixedViewer ? frameR.top - viewerR.top : frameR.top - mainR.top}px`;
           enlargedOverlay.style.width = `${frameR.width}px`;
           enlargedOverlay.style.height = `${frameR.height}px`;
         }
@@ -480,8 +483,9 @@ export default function DomeGallery({
   const overlay = document.createElement('div');
     overlay.className = 'enlarge';
     overlay.style.position = 'absolute';
-      overlay.style.left = (rootRef.current?.getAttribute('data-fixed-viewer') === 'true' ? frameR.left : frameR.left - mainR.left) + 'px';
-      overlay.style.top = (rootRef.current?.getAttribute('data-fixed-viewer') === 'true' ? frameR.top : frameR.top - mainR.top) + 'px';
+      const viewerR0 = viewerRef.current!.getBoundingClientRect();
+      overlay.style.left = (rootRef.current?.getAttribute('data-fixed-viewer') === 'true' ? frameR.left - viewerR0.left : frameR.left - mainR.left) + 'px';
+      overlay.style.top = (rootRef.current?.getAttribute('data-fixed-viewer') === 'true' ? frameR.top - viewerR0.top : frameR.top - mainR.top) + 'px';
     overlay.style.width = frameR.width + 'px';
     overlay.style.height = frameR.height + 'px';
     overlay.style.opacity = '0';
@@ -553,12 +557,13 @@ export default function DomeGallery({
       window.addEventListener('scroll', onWinUpdate, { passive: true });
     });
 
-  const isCoarseViewer = rootRef.current?.getAttribute('data-fixed-viewer') === 'true';
-  const wantsResize = !isCoarseViewer && (openedImageWidth || openedImageHeight);
+  // Always center the opened image by performing the second-phase resize/position step
+  // on all devices (including coarse/touch). This ensures the image ends up in the middle
+  // of the page after the initial grow-from-tile animation.
+  const wantsResize = Boolean(openedImageWidth || openedImageHeight);
     if (wantsResize) {
-      const onFirstEnd = (ev: TransitionEvent) => {
-        if (ev.propertyName !== 'transform') return;
-        overlay.removeEventListener('transitionend', onFirstEnd);
+      const runSecondPhase = () => {
+        secondPhaseDidRunRef.current = true;
         const prevTransition = overlay.style.transition;
         overlay.style.transition = 'none';
         const tempWidth = openedImageWidth || `${frameR.width}px`;
@@ -570,9 +575,10 @@ export default function DomeGallery({
         overlay.style.height = frameR.height + 'px';
         void overlay.offsetWidth;
           overlay.style.transition = `left ${localTransitionMs}ms ease, top ${localTransitionMs}ms ease, width ${localTransitionMs}ms ease, height ${localTransitionMs}ms ease`;
-        const isFixedViewer2 = rootRef.current?.getAttribute('data-fixed-viewer') === 'true';
-        const centeredLeft = (isFixedViewer2 ? frameR.left : frameR.left - mainR.left) + (frameR.width - newRect.width) / 2;
-        const centeredTop = (isFixedViewer2 ? frameR.top : frameR.top - mainR.top) + (frameR.height - newRect.height) / 2;
+  const isFixedViewer2 = rootRef.current?.getAttribute('data-fixed-viewer') === 'true';
+  const viewerR2 = viewerRef.current!.getBoundingClientRect();
+  const centeredLeft = (isFixedViewer2 ? frameR.left - viewerR2.left : frameR.left - mainR.left) + (frameR.width - newRect.width) / 2;
+  const centeredTop = (isFixedViewer2 ? frameR.top - viewerR2.top : frameR.top - mainR.top) + (frameR.height - newRect.height) / 2;
         requestAnimationFrame(() => {
           overlay.style.left = `${centeredLeft}px`;
           overlay.style.top = `${centeredTop}px`;
@@ -596,7 +602,19 @@ export default function DomeGallery({
           once: true
         });
       };
+      const onFirstEnd = (ev: TransitionEvent) => {
+        if (ev.propertyName !== 'transform') return;
+        overlay.removeEventListener('transitionend', onFirstEnd);
+        runSecondPhase();
+      };
       overlay.addEventListener('transitionend', onFirstEnd);
+      // Fallback: some mobile browsers might swallow the first transitionend.
+      // Kick the second phase after a small delay if we haven't run it yet.
+      setTimeout(() => {
+        if (!secondPhaseDidRunRef.current) {
+          runSecondPhase();
+        }
+      }, Math.min(320, localTransitionMs + 60));
     }
   };
 

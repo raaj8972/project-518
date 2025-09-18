@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, MapPin } from 'lucide-react';
+import React, { useState, useEffect, startTransition } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, MapPin, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
+import WatchLiveButton from '../components/WatchLiveButton';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
@@ -7,26 +9,29 @@ import LogoLoop from '../components/LogoLoop';
 import InfiniteMarquee from '../components/InfiniteMarquee';
 import { getDominantColor } from '../utils/getDominantColor';
 import CoverflowCarousel from '../components/CoverflowCarousel';
-import AutoCarousel from '../components/AutoCarousel';
-import FacultyProfileModal from '../components/FacultyProfileModal';
-import GuestArtistVideoModal from '../components/GuestArtistVideoModal';
-import GuestArtistDetailModal from '../components/GuestArtistDetailModal';
+const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
+const GuestArtistVideoModal = React.lazy(() => import('../components/GuestArtistVideoModal'));
+const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtistDetailModal'));
+const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
 import type { GuestArtist } from '../context/DataContext';
 import Roadmap from '../components/Roadmap';
 import CountdownTimer from '../components/CountdownTimer';
 import Sparkle3D from '../components/Sparkle3D';
 
 export const Home: React.FC = () => {
+  const location = useLocation();
   const { 
     events, 
     galleryImages, 
     sponsors,
-    guestArtists, 
+  guestArtists, 
+  chiefGuests,
   facultyHeads,
   coreTeamMembers,
     socialMediaSettings, 
     homepageSettings,
     formSettings,
+    aboutSettings,
     loading
   } = useData();
   
@@ -53,7 +58,11 @@ export const Home: React.FC = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   // Selected artist for the detail modal
   const [detailArtist, setDetailArtist] = useState<GuestArtist | null>(null);
-  const [glitchActive, setGlitchActive] = useState(false);
+  const [glitchActive] = useState(false);
+
+  // Prefetch lazy modals on hover to avoid input-time Suspense
+  const prefetchDetailModal = () => { import('../components/GuestArtistDetailModal'); };
+  const prefetchVideoModal = () => { import('../components/GuestArtistVideoModal'); };
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
   const [selectedType, setSelectedType] = useState<'faculty' | 'committee' | null>(null);
@@ -61,6 +70,9 @@ export const Home: React.FC = () => {
   const [clicked, setClicked] = useState<{ type: 'faculty' | 'committee'; id: number } | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
   const [committeePaused, setCommitteePaused] = useState(false);
+  // Chief Guest modal state
+  const [chiefGuestModalOpen, setChiefGuestModalOpen] = useState(false);
+  const [selectedChiefGuest, setSelectedChiefGuest] = useState<any | null>(null);
 
   // Heads data and memoized sorted lists (must be before any early return)
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
@@ -136,6 +148,23 @@ export const Home: React.FC = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // If navigated with #artist-<id>, try to find and scroll to the artist card and open the detail modal
+  useEffect(() => {
+    const hash = location.hash;
+    if (!hash || !hash.startsWith('#artist-')) return;
+    const idStr = hash.replace('#artist-', '');
+    const artistId = Number(idStr);
+    if (!artistId || !guestArtists?.length) return;
+    const artist = guestArtists.find(a => a.id === artistId);
+    if (artist) {
+      setDetailArtist(artist as any);
+      setDetailOpen(true);
+      // Try to scroll a tile into view if it has the anchor id
+      const tile = document.getElementById(`artist-${artistId}`);
+      if (tile) setTimeout(() => tile.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+    }
+  }, [location.hash, guestArtists?.length]);
 
   // Show loading state while data is being fetched
   if (loading) {
@@ -277,13 +306,13 @@ export const Home: React.FC = () => {
                       return key ? `${logo.logo_url}${sep}v=${encodeURIComponent(key)}` : logo.logo_url;
                     })();
                     return (
-                    <div key={`${logo.id}-${logo.logo_url}`} className="logo-no-bg home-sponsor-glow">
+                    <div key={`${logo.id}-${logo.logo_url}`} className="logo-no-bg">
                       {logo.website ? (
                         <a
                           href={logo.website}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block"
+                          className="block home-sponsor-glow"
                         >
                           <img
                             src={src}
@@ -294,13 +323,15 @@ export const Home: React.FC = () => {
                           />
                         </a>
                       ) : (
-                        <img
-                          src={src}
-                          alt={logo.name}
-                          className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
-                          loading="lazy"
-                          decoding="async"
-                        />
+                        <div className="home-sponsor-glow">
+                          <img
+                            src={src}
+                            alt={logo.name}
+                            className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </div>
                       )}
                     </div>
                   );})}
@@ -313,6 +344,7 @@ export const Home: React.FC = () => {
       
 
       {/* Featured Guest Artists */}
+
       {featuredGuestArtists.length > 0 && (
         <section className="py-14 md:py-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/30 to-pink-900/20"></div>
@@ -329,6 +361,7 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
+            <React.Suspense fallback={<div className="h-[420px] flex items-center justify-center text-gray-400">Loading artists…</div>}>
             <CoverflowCarousel<GuestArtist>
               items={featuredGuestArtists}
               intervalMs={3200}
@@ -336,11 +369,15 @@ export const Home: React.FC = () => {
               pauseOnHover={true}
               showArrows={true}
               showDots={false}
-              onItemClick={(artist) => { setDetailArtist(artist); setDetailOpen(true); }}
+              onItemClick={(artist) => { startTransition(() => { setDetailArtist(artist); setDetailOpen(true); }); }}
               className="mt-0 md:mt-2"
               stageHeight={'var(--featured-stage-height)'}
               renderItem={(artist) => (
-                <div className="cyberpunk-card group w-[310px] md:w-[360px] overflow-hidden">
+                <div
+                  id={`artist-${artist.id}`}
+                  className="cyberpunk-card group w-[310px] md:w-[360px] overflow-hidden"
+                  onMouseEnter={prefetchDetailModal}
+                >
                   <div className="relative h-64 overflow-hidden">
                     <img
                       src={artist.image}
@@ -362,7 +399,8 @@ export const Home: React.FC = () => {
                     {(artist.video_url || artist.youtube_url) && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setSelectedArtistForVideo(artist); setVideoModalOpen(true); }}
+                        onMouseEnter={prefetchVideoModal}
+                        onClick={(e) => { e.stopPropagation(); startTransition(() => { setSelectedArtistForVideo(artist); setVideoModalOpen(true); }); }}
                         className="absolute top-4 left-4 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg ring-1 ring-pink-400/40 hover:ring-pink-300/70 transition-all animate-pulse"
                         aria-label={`Play video for ${artist.name}`}
                       >
@@ -370,6 +408,20 @@ export const Home: React.FC = () => {
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </button>
+                    )}
+                    { (artist as any).watch_live_url && (artist as any).performance_at && (
+                      <div
+                        className="absolute top-4 left-14 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto transition-all duration-300"
+                        onClick={(e)=>e.stopPropagation()}
+                      >
+                        <WatchLiveButton
+                          url={(artist as any).watch_live_url}
+                          startTime={(artist as any).performance_at}
+                          leadMinutes={60}
+                          forceLive={(artist as any).live_now_enabled || (artist as any).is_featured}
+                          size="xs"
+                        />
+                      </div>
                     )}
                   </div>
 
@@ -401,13 +453,12 @@ export const Home: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          <div className="mt-2 self-start">
+                          <div className="mt-2 self-start opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                             <CountdownTimer
                               className="max-w-full"
                               target={(artist as any).performance_at as any}
                               endedText="LIVE NOW"
                               showEnded={(artist as any).live_now_enabled !== false}
-                              liveLink={(artist as any).youtube_url || (artist as any).social_links?.youtube || undefined}
                             />
                           </div>
                         </div>
@@ -417,7 +468,8 @@ export const Home: React.FC = () => {
                     <div className="mt-3">
                       <button
                         type="button"
-                        onClick={() => { setDetailArtist(artist as any); setDetailOpen(true); }}
+                        onMouseEnter={prefetchDetailModal}
+                        onClick={() => { startTransition(() => { setDetailArtist(artist as any); setDetailOpen(true); }); }}
                         className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
                         aria-label={`Read more about ${artist.name}`}
                       >
@@ -430,26 +482,178 @@ export const Home: React.FC = () => {
                 </div>
               )}
             />
+            </React.Suspense>
           </div>
         </section>
       )}
 
-      <GuestArtistVideoModal
-        isOpen={videoModalOpen}
-        onClose={() => { setVideoModalOpen(false); setSelectedArtistForVideo(null); }}
-        artist={selectedArtistForVideo}
-      />
-      <GuestArtistDetailModal
-        isOpen={detailOpen}
-        onClose={() => { setDetailOpen(false); setDetailArtist(null); }}
-        artist={detailArtist}
-      />
+      {/* Chief Guest Section (moved below Featured Artists) */}
+  {chiefGuests && chiefGuests.filter((c: any)=>c.enabled).length > 0 && (() => {
+        const enabledChiefs = chiefGuests.filter((c: any)=>c.enabled);
+        const multi = enabledChiefs.length > 1;
+        return (
+          <section className="py-16 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
+            <div className="container mx-auto px-0 relative z-10">
+              <div className="scroll-animate opacity-0 transform translate-y-20">
+                <div className="text-center mb-12">
+                  <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
+                    CHIEF <span className="neon-blue">GUEST{multi ? 'S' : ''}</span>
+                  </h2>
+                  <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-6 expand-width" />
+                  <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+                    {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for RICORRENZA 2025
+                  </p>
+                </div>
+              </div>
+              {multi ? (
+                <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading…</div>}>
+                <AutoCarousel intervalMs={5500} showArrows showDots className="pt-2">
+                  {enabledChiefs.map((cg: any) => (
+                    <div
+                      key={cg.id}
+                      onClick={() => { startTransition(() => { setSelectedChiefGuest(cg); setChiefGuestModalOpen(true); }); }}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); startTransition(() => { setSelectedChiefGuest(cg); setChiefGuestModalOpen(true); }); } }}
+                      className="cursor-pointer w-[260px] sm:w-[300px] md:w-[340px] flex flex-col bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md rounded-xl shadow-xl ring-1 ring-blue-500/30 overflow-hidden group relative hover:ring-blue-400/50 transition"
+                    >
+                      <div className="relative h-56 sm:h-60 overflow-hidden">
+                        <img src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        {cg.specialty && (
+                          <div className="absolute top-3 left-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
+                            <span>{cg.specialty}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 flex flex-col flex-1 space-y-3">
+                        <div>
+                          <h3 className="text-lg font-extrabold text-white mb-1 tracking-wide group-hover:text-blue-300 transition-colors line-clamp-2">{cg.name}</h3>
+                          <p className="text-xs font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2 line-clamp-1">{cg.title}</p>
+                          <p className="text-gray-300 leading-relaxed text-[11px] line-clamp-5">{cg.description}</p>
+                        </div>
+                        {cg.achievements && cg.achievements.length > 0 && (
+                          <div>
+                            <p className="uppercase text-[9px] tracking-wider font-bold text-blue-400 mb-1">Key Highlights</p>
+                            <ul className="space-y-1 text-[10px] text-gray-400 list-disc list-inside">
+                              {cg.achievements.slice(0, 4).map((a: string, i: number)=>(<li key={i}>{a}</li>))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap mt-auto pt-1">
+                          {cg.social_links?.instagram && (
+                            <a title="Instagram" href={cg.social_links.instagram} target="_blank" rel="noopener noreferrer" onClick={(e)=>e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-pink-600/70 hover:bg-pink-600 text-white transition-colors">
+                              <Instagram className="w-3 h-3" />
+                              <span className="hidden sm:inline">Insta</span>
+                            </a>
+                          )}
+                          {cg.social_links?.youtube && (
+                            <a title="YouTube" href={cg.social_links.youtube} target="_blank" rel="noopener noreferrer" onClick={(e)=>e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-red-600/70 hover:bg-red-600 text-white transition-colors">
+                              <Youtube className="w-3 h-3" />
+                              <span className="hidden sm:inline">YouTube</span>
+                            </a>
+                          )}
+                          {cg.social_links?.spotify && (
+                            <a title="Spotify" href={cg.social_links.spotify} target="_blank" rel="noopener noreferrer" onClick={(e)=>e.stopPropagation()} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-green-600/70 hover:bg-green-600 text-white transition-colors">
+                              <Music2 className="w-3 h-3" />
+                              <span className="hidden sm:inline">Spotify</span>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </AutoCarousel>
+                </React.Suspense>
+              ) : (
+                <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-center">
+                  {enabledChiefs.map((cg: any) => (
+                    <React.Fragment key={cg.id}>
+                      <div className="relative group overflow-hidden rounded-xl shadow-xl ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md">
+                        <div className="relative h-80 overflow-hidden">
+                          <img src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                          {cg.specialty && (
+                            <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
+                              <span>{cg.specialty}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-5">
+                        <div>
+                          <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-2 tracking-wide">
+                            {cg.name}
+                          </h3>
+                          <p className="text-lg font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
+                            {cg.title}
+                          </p>
+                          <p className="text-gray-300 leading-relaxed text-sm md:text-base line-clamp-6 md:line-clamp-none">
+                            {cg.description}
+                          </p>
+                        </div>
+                        {cg.achievements && cg.achievements.length > 0 && (
+                          <div>
+                            <p className="uppercase text-[11px] tracking-wider font-bold text-blue-400 mb-2">Key Highlights</p>
+                            <ul className="space-y-1.5 text-xs text-gray-400 list-disc list-inside">
+                              {cg.achievements.slice(0,6).map((a: string, i: number)=>(<li key={i}>{a}</li>))}
+                            </ul>
+                          </div>
+                        )}
+                        <div className="flex gap-3">
+                          {cg.social_links?.instagram && (
+                            <a href={cg.social_links.instagram} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full text-xs font-semibold bg-pink-600/70 hover:bg-pink-600 text-white transition-colors inline-flex items-center gap-1">
+                              <Instagram className="w-4 h-4" /> Instagram
+                            </a>
+                          )}
+                          {cg.social_links?.youtube && (
+                            <a href={cg.social_links.youtube} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-600/70 hover:bg-red-600 text-white transition-colors inline-flex items-center gap-1">
+                              <Youtube className="w-4 h-4" /> YouTube
+                            </a>
+                          )}
+                          {cg.social_links?.spotify && (
+                            <a href={cg.social_links.spotify} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-full text-xs font-semibold bg-green-600/70 hover:bg-green-600 text-white transition-colors inline-flex items-center gap-1">
+                              <Music2 className="w-4 h-4" /> Spotify
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        );
+      })()}
 
-      {/* Featured Events */}
+      {videoModalOpen && (
+        <React.Suspense fallback={null}>
+          <GuestArtistVideoModal
+            isOpen={videoModalOpen}
+            onClose={() => { startTransition(() => { setVideoModalOpen(false); setSelectedArtistForVideo(null); }); }}
+            artist={selectedArtistForVideo}
+          />
+        </React.Suspense>
+      )}
+      {detailOpen && (
+        <React.Suspense fallback={null}>
+          <GuestArtistDetailModal
+            isOpen={detailOpen}
+            onClose={() => { startTransition(() => { setDetailOpen(false); setDetailArtist(null); }); }}
+            artist={detailArtist}
+          />
+        </React.Suspense>
+      )}
+
+    {/* Featured Events */}
       {featuredEvents.length > 0 && (
   <section className="py-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
-          <div className="container mx-auto px-4 relative z-10">
+      <div className="container mx-auto px-0 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-10">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
@@ -470,13 +674,14 @@ export const Home: React.FC = () => {
             </div>
 
             {/* 2D Slider for events using AutoCarousel */}
-            <AutoCarousel
-              intervalMs={4200}
-              pauseOnHover
-              showArrows
-              showDots
-              className="mt-4"
-            >
+            <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading events…</div>}>
+              <AutoCarousel
+                intervalMs={4200}
+                pauseOnHover
+                showArrows
+                showDots
+                className="mt-4"
+              >
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
@@ -524,7 +729,8 @@ export const Home: React.FC = () => {
                   </div>
                 </div>
               ))}
-            </AutoCarousel>
+              </AutoCarousel>
+            </React.Suspense>
 
             {/* Removed bottom navigation button for Events section as per request */}
           </div>
@@ -847,14 +1053,16 @@ export const Home: React.FC = () => {
   <Roadmap vehicleImage="/rickshaw.svg" vehicleSize={110} offsetAlong={12} offsetNormal={-8} />
 
   {/* About Section */}
-
-      <section className="py-20 relative overflow-hidden">
+    {aboutSettings?.enabled === true && (
+    <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-blue-900/30 to-purple-900/20"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="text-center mb-16">
               <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                ABOUT <span className="neon-cyan">RICORRENZA</span>
+                {(aboutSettings?.hero_title) ? aboutSettings.hero_title : (<>
+                  ABOUT <span className="neon-cyan">RICORRENZA</span>
+                </>)}
               </h2>
               <div className="w-32 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 mx-auto mb-8 expand-width"></div>
             </div>
@@ -866,23 +1074,25 @@ export const Home: React.FC = () => {
               <div className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: '0.2s' }}>
                 <div className="cyberpunk-card p-8">
                   <h3 className="text-2xl md:text-3xl font-bold mb-6 neon-cyan">
-                    THE FUTURE IS NOW
+                    {aboutSettings?.hero_heading || 'THE FUTURE IS NOW'}
                   </h3>
                   <div className="space-y-4 text-gray-300 leading-relaxed">
-                    <p>
-                      RICORRENZA 2025 is not just a festival—it's a <span className="neon-pink font-semibold"> revolution</span> that 
-                      merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.
-                    </p>
-                    <p>
-                      Born from the vision of creating a platform where <span className="neon-blue font-semibold">digital dreams</span> meet 
-                      reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, 
-                      innovators, and creators from across the digital landscape.
-                    </p>
-                    <p>
-                      Our festival celebrates the <span className="neon-purple font-semibold">convergence of disciplines</span>—where medical 
-                      students become tech innovators, where artists code their creativity, and where the future of human potential 
-                      is explored through immersive experiences.
-                    </p>
+                    {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
+                      ? aboutSettings.hero_paragraphs
+                      : [
+                        "RICORRENZA 2025 is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
+                        'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
+                        'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
+                      ]).map((para, i) => {
+                        // Lazy import dompurify to keep bundle size in check; fall back to raw if unavailable
+                        let html = para;
+                        try {
+                          // eslint-disable-next-line @typescript-eslint/no-var-requires
+                          const DOMPurify = require('dompurify');
+                          html = DOMPurify.sanitize(para, { USE_PROFILES: { html: true } });
+                        } catch {}
+                        return (<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
+                      })}
                   </div>
                   
                   {/* Key Features */}
@@ -890,12 +1100,9 @@ export const Home: React.FC = () => {
                     <div className="space-y-3">
                       <h4 className="text-lg font-bold text-cyan-400 mb-3">INNOVATION TRACKS</h4>
                       <div className="space-y-2">
-                        {[
-                          'Healthcare Technology',
-                          'Digital Arts & Media',
-                          'Music',
-                          'Interactive Experiences'
-                        ].map((track, index) => (
+                        {(aboutSettings?.tracks?.length ? aboutSettings.tracks : [
+                          'Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences'
+                        ]).map((track, index) => (
                           <div
                             key={index}
                             className="flex items-center space-x-2 achievement-item"
@@ -911,12 +1118,9 @@ export const Home: React.FC = () => {
                     <div className="space-y-3">
                       <h4 className="text-lg font-bold text-pink-400 mb-3">EXPERIENCE ZONES</h4>
                       <div className="space-y-2">
-                        {[
-                          'Virtual Reality Labs',
-                          'AI Demonstration Pods',
-                          'Art Galleries',
-                          'Future Tech Showcases'
-                        ].map((zone, index) => (
+                        {(aboutSettings?.zones?.length ? aboutSettings.zones : [
+                          'Virtual Reality Labs','AI Demonstration Pods','Art Galleries','Future Tech Showcases'
+                        ]).map((zone, index) => (
                           <div
                             key={index}
                             className="flex items-center space-x-2 achievement-item"
@@ -938,29 +1142,24 @@ export const Home: React.FC = () => {
                   <div className="relative">
                     {/* Animated Stats */}
                     <div className="grid grid-cols-2 gap-6 mb-8">
-                      <div className="text-center">
-                        <div className="text-4xl font-black neon-cyan mb-2 counter-animation">2025</div>
-                        <div className="text-gray-400 text-sm">FESTIVAL YEAR</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-black neon-pink mb-2 counter-animation">3+</div>
-                        <div className="text-gray-400 text-sm">DAYS OF EVENTS</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-black neon-purple mb-2 counter-animation">1000+</div>
-                        <div className="text-gray-400 text-sm">PARTICIPANTS</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-4xl font-black neon-blue mb-2 counter-animation">∞</div>
-                        <div className="text-gray-400 text-sm">POSSIBILITIES</div>
-                      </div>
+                      {(aboutSettings?.stats?.length ? aboutSettings.stats : [
+                        { value: '2025', label: 'FESTIVAL YEAR' },
+                        { value: '3+', label: 'DAYS OF EVENTS' },
+                        { value: '1000+', label: 'PARTICIPANTS' },
+                        { value: '∞', label: 'POSSIBILITIES' }
+                      ]).map((s, i) => (
+                        <div key={i} className="text-center">
+                          <div className={`text-4xl font-black mb-2 counter-animation ${i===0?'neon-cyan':i===1?'neon-pink':i===2?'neon-purple':'neon-blue'}`}>{s.value}</div>
+                          <div className="text-gray-400 text-sm">{s.label}</div>
+                        </div>
+                      ))}
                     </div>
                     
                     {/* Mission Statement */}
                     <div className="border-t border-cyan-500/30 pt-6">
                       <h4 className="text-xl font-bold mb-4 cyberpunk-title">OUR MISSION</h4>
                       <p className="text-gray-300 text-sm leading-relaxed">
-                       Merging medicine  ,      Tech & culture to inspire, innovate and shape the future of healthcare
+                        {aboutSettings?.hero_heading || 'Merging medicine, tech & culture to inspire, innovate and shape the future of healthcare'}
                       </p>
                     </div>
                   </div>
@@ -969,7 +1168,8 @@ export const Home: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+  </section>
+  )}
 
       {/* Call to Action */}
       <section className="py-20 relative overflow-hidden">
@@ -997,7 +1197,7 @@ export const Home: React.FC = () => {
               
               {formSettings?.membership_form_enabled && (
                 <button 
-                  onClick={() => setMembershipModal(true)}
+                  onClick={() => startTransition(() => setMembershipModal(true))}
                   className="cyberpunk-btn cyberpunk-btn-secondary group text-lg px-8 py-4 hover-float"
                 >
                   <span className="relative z-10 flex items-center">
@@ -1016,7 +1216,7 @@ export const Home: React.FC = () => {
       {formSettings?.membership_form_enabled && (
         <MembershipModal
           isOpen={membershipModal}
-          onClose={() => setMembershipModal(false)}
+          onClose={() => startTransition(() => setMembershipModal(false))}
         />
       )}
 
@@ -1375,7 +1575,7 @@ export const Home: React.FC = () => {
         }
 
         .achievement-item {
-          opacity: 0;
+                   opacity: 0;
           animation: achievementSlideIn 0.6s ease-out forwards;
         }
 
@@ -1446,6 +1646,73 @@ export const Home: React.FC = () => {
           }
         }
       `}</style>
+      {chiefGuestModalOpen && selectedChiefGuest && (
+        <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>{ startTransition(() => { setChiefGuestModalOpen(false); setSelectedChiefGuest(null); }); }} />
+          <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950/90 via-black/80 to-purple-950/90 ring-1 ring-blue-500/30 shadow-2xl flex flex-col">
+            <div className="flex items-start gap-4 p-5 border-b border-white/10">
+              <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-1 ring-blue-400/40 flex-shrink-0">
+                <img src={selectedChiefGuest.image} alt={selectedChiefGuest.name} className="w-full h-full object-cover" />
+                {selectedChiefGuest.specialty && (
+                  <div className="absolute bottom-2 left-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
+                    <span>{selectedChiefGuest.specialty}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-2xl font-extrabold text-white tracking-wide mb-1">{selectedChiefGuest.name}</h3>
+                {selectedChiefGuest.title && <p className="text-sm font-semibold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent mb-3">{selectedChiefGuest.title}</p>}
+                {selectedChiefGuest.description && (
+                  <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
+                    {selectedChiefGuest.description}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={()=>{ startTransition(() => { setChiefGuestModalOpen(false); setSelectedChiefGuest(null); }); }}
+                aria-label="Close"
+                className="ml-2 text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 rounded-full p-2 transition"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto custom-scrollbar space-y-6">
+              {selectedChiefGuest.achievements && selectedChiefGuest.achievements.length > 0 && (
+                <div>
+                  <h4 className="uppercase text-[11px] tracking-wider font-bold text-blue-300 mb-2">All Highlights</h4>
+                  <ul className="space-y-1.5 text-xs text-gray-300 list-disc list-inside">
+                    {selectedChiefGuest.achievements.map((a: string, i: number)=>(<li key={i}>{a}</li>))}
+                  </ul>
+                </div>
+              )}
+              {(selectedChiefGuest.social_links?.instagram || selectedChiefGuest.social_links?.youtube || selectedChiefGuest.social_links?.spotify) && (
+                <div>
+                  <h4 className="uppercase text-[11px] tracking-wider font-bold text-blue-300 mb-2">Connect</h4>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedChiefGuest.social_links?.instagram && (
+                      <a href={selectedChiefGuest.social_links.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-pink-600/70 hover:bg-pink-600 text-white transition-colors">
+                        <Instagram className="w-4 h-4" /> Instagram
+                      </a>
+                    )}
+                    {selectedChiefGuest.social_links?.youtube && (
+                      <a href={selectedChiefGuest.social_links.youtube} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-red-600/70 hover:bg-red-600 text-white transition-colors">
+                        <Youtube className="w-4 h-4" /> YouTube
+                      </a>
+                    )}
+                    {selectedChiefGuest.social_links?.spotify && (
+                      <a href={selectedChiefGuest.social_links.spotify} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-600/70 hover:bg-green-600 text-white transition-colors">
+                        <Music2 className="w-4 h-4" /> Spotify
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

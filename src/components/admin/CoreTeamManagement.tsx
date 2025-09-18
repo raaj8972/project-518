@@ -97,10 +97,8 @@ export const CoreTeamManagement: React.FC = () => {
 
   // Committee Management
   const handleAddCommittee = async () => {
-    if (!committeeForm.name || !committeeForm.description) {
-      alert('Please fill in all required fields (name and description)');
-      return;
-    }
+    // Inline validation handles UI feedback; function guard keeps safety.
+    if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
       await addCoreCommittee(committeeForm);
@@ -114,10 +112,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateCommittee = async (id: number) => {
-    if (!committeeForm.name || !committeeForm.description) {
-      alert('Please fill in all required fields (name and description)');
-      return;
-    }
+    if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
       await updateCoreCommittee(id, committeeForm);
@@ -163,6 +158,8 @@ export const CoreTeamManagement: React.FC = () => {
 
   // Member Management
   const handleAddMember = async () => {
+    // Name & image required (per new requirement); other fields optional.
+    if (!memberForm.name || !memberForm.name.trim() || !memberForm.image) return;
     // Prepare payload with optional fields; treat 0 as "no committee"
     const payload = {
       ...memberForm,
@@ -181,6 +178,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateMember = async (id: number) => {
+    if (!memberForm.name || !memberForm.name.trim() || !memberForm.image) return;
     const payload = {
       ...memberForm,
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
@@ -339,7 +337,7 @@ export const CoreTeamManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
                     <textarea
                       value={committeeForm.description}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
@@ -429,12 +427,20 @@ export const CoreTeamManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddCommittee}
-                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center"
+                  disabled={!committeeForm.name.trim()}
+                  className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+                    committeeForm.name.trim()
+                      ? 'bg-yellow-400 text-black hover:bg-yellow-300'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   <Save size={16} className="mr-1" />
                   Add Committee
                 </button>
               </div>
+              {!committeeForm.name.trim() && (
+                <p className="mt-2 text-sm text-red-600">Committee name is required.</p>
+              )}
             </div>
           )}
 
@@ -510,12 +516,20 @@ export const CoreTeamManagement: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleUpdateCommittee(committee.id)}
-                        className="px-3 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center"
+                        disabled={!committeeForm.name.trim()}
+                        className={`px-3 py-1 rounded flex items-center transition-colors ${
+                          committeeForm.name.trim()
+                            ? 'bg-yellow-400 text-black hover:bg-yellow-300'
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
                       >
                         <Save size={14} className="mr-1" />
                         Save
                       </button>
                     </div>
+                    {!committeeForm.name.trim() && (
+                      <p className="mt-1 text-xs text-red-600">Committee name is required.</p>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -651,7 +665,7 @@ export const CoreTeamManagement: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name (optional)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
                       <input
                         type="text"
                         value={memberForm.name}
@@ -813,7 +827,7 @@ export const CoreTeamManagement: React.FC = () => {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo (optional)</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
                     <ImageUpload
                       onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
                       currentImage={memberForm.image}
@@ -821,6 +835,9 @@ export const CoreTeamManagement: React.FC = () => {
                       folder="core-team"
                       cropAspect={1}
                     />
+                    {!memberForm.image && (
+                      <p className="mt-1 text-xs text-red-600">Profile photo is required.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -839,12 +856,23 @@ export const CoreTeamManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAddMember}
-                  className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center"
+                  disabled={!memberForm.name.trim() || !memberForm.image}
+                  className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+                    memberForm.name.trim() && memberForm.image
+                      ? 'bg-yellow-400 text-black hover:bg-yellow-300'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   <Save size={16} className="mr-1" />
                   Add Member
                 </button>
               </div>
+              {(!memberForm.name.trim() || !memberForm.image) && (
+                <p className="mt-2 text-sm text-red-600 flex flex-col space-y-1">
+                  {!memberForm.name.trim() && <span>Member full name is required.</span>}
+                  {!memberForm.image && <span>Profile photo is required.</span>}
+                </p>
+              )}
             </div>
           )}
 
@@ -991,12 +1019,23 @@ export const CoreTeamManagement: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleUpdateMember(member.id)}
-                              className="px-3 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center"
+                              disabled={!memberForm.name.trim() || !memberForm.image}
+                              className={`px-3 py-1 rounded flex items-center transition-colors ${
+                                memberForm.name.trim() && memberForm.image
+                                  ? 'bg-yellow-400 text-black hover:bg-yellow-300'
+                                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                              }`}
                             >
                               <Save size={12} className="mr-1" />
                               Save
                             </button>
                           </div>
+                          {(!memberForm.name.trim() || !memberForm.image) && (
+                            <p className="mt-1 text-xs text-red-600 flex flex-col space-y-0.5">
+                              {!memberForm.name.trim() && <span>Member name is required.</span>}
+                              {!memberForm.image && <span>Profile photo is required.</span>}
+                            </p>
+                          )}
                         </div>
                       ) : (
                         <div>

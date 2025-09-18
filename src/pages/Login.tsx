@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Mail, Zap, Terminal } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Mail, Zap } from 'lucide-react';
+import BrandLogo3D from '../components/BrandLogo3D';
+import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
 export const Login: React.FC = () => {
@@ -14,6 +16,7 @@ export const Login: React.FC = () => {
   
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { homepageSettings } = useData();
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -108,8 +111,70 @@ export const Login: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="cyberpunk-icon-container">
-                    <Terminal className="h-16 w-16 text-yellow-400" />
+                  <div className="flex items-center justify-center">
+                    {(() => {
+                      const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
+                      const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
+                      // helper to convert hex/rgb(a) to rgba with desired alpha
+                      const toRgba = (c?: string, a: number = 1) => {
+                        if (!c) return `rgba(0,255,255,${a})`;
+                        const s = c.trim();
+                        if (s.startsWith('rgba(')) return s.replace(/rgba\(([^)]+)\)/, (_m, inner) => `rgba(${inner.split(',').slice(0,3).join(',')}, ${a})`);
+                        if (s.startsWith('rgb(')) return s.replace(/rgb\(([^)]+)\)/, (_m, inner) => `rgba(${inner}, ${a})`);
+                        if (s.startsWith('#')) {
+                          let r = 0, g = 255, b = 255;
+                          const hex = s.slice(1);
+                          if (hex.length === 3) {
+                            r = parseInt(hex[0] + hex[0], 16);
+                            g = parseInt(hex[1] + hex[1], 16);
+                            b = parseInt(hex[2] + hex[2], 16);
+                          } else if (hex.length >= 6) {
+                            r = parseInt(hex.slice(0,2), 16);
+                            g = parseInt(hex.slice(2,4), 16);
+                            b = parseInt(hex.slice(4,6), 16);
+                          }
+                          return `rgba(${r}, ${g}, ${b}, ${a})`;
+                        }
+                        // default cyan
+                        return `rgba(0,255,255,${a})`;
+                      };
+                      if (!raw) {
+                        return (
+                          <div className="cyberpunk-icon-container">
+                            {/* Fallback small ring if no brand logo configured */}
+                            <div className="h-16 w-16 rounded-full" style={{
+                              borderWidth: 2,
+                              borderColor: toRgba(accent, 0.4),
+                              background: toRgba(accent, 0.10),
+                              boxShadow: `inset 0 0 20px ${toRgba(accent, 0.20)}`
+                            }} />
+                          </div>
+                        );
+                      }
+                      let u = String(raw).trim();
+                      if (u.startsWith('//')) u = 'https:' + u;
+                      if (u.startsWith('http://')) u = 'https://' + u.slice(7);
+                      const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
+                      const sep = u.includes('?') ? '&' : '?';
+                      const src = ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
+                      const size = Math.max(40, Number((homepageSettings as any)?.brand_logo_size_px) || 72);
+                      const glowStrength = Math.max(0.5, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
+                      return (
+                        <div className="relative p-4 rounded-full" style={{
+                          borderWidth: 2,
+                          borderColor: toRgba(accent, 0.30),
+                          background: toRgba(accent, 0.06),
+                          boxShadow: `inset 0 0 20px ${toRgba(accent, 0.15)}`
+                        }}>
+                          <BrandLogo3D
+                            src={src}
+                            size={size}
+                            glowStrength={glowStrength}
+                            glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -358,12 +423,7 @@ export const Login: React.FC = () => {
           position: relative;
           display: inline-block;
           padding: 20px;
-          border: 2px solid rgba(255, 255, 0, 0.3);
           border-radius: 50%;
-          background: rgba(255, 255, 0, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 255, 0, 0.2),
-            inset 0 0 20px rgba(255, 255, 0, 0.1);
         }
 
         .cyberpunk-card {
