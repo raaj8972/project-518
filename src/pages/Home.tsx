@@ -110,7 +110,7 @@ export const Home: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [facultyModalOpen, selectedType, selectedIndex, sortedFacultyHeads, sortedCommitteeHeads]);
 
-  // Reveal-on-scroll observer
+  // Reveal-on-scroll observer (robust to lazy-loaded content)
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -121,16 +121,32 @@ export const Home: React.FC = () => {
       });
     }, { threshold: 0.12 });
 
-    const animatedElements = document.querySelectorAll('.scroll-animate');
-    animatedElements.forEach((el) => observer.observe(el));
+    // Attach observer to all current and future ".scroll-animate" nodes (best effort)
+    const attach = () => {
+      const nodes = document.querySelectorAll('.scroll-animate');
+      nodes.forEach((el) => {
+        const node = el as HTMLElement & { __observed?: boolean };
+        if (!node.__observed) {
+          observer.observe(node);
+          node.__observed = true;
+        }
+      });
+    };
 
-    // Safety fallback: ensure content becomes visible even if the observer doesn't fire
+    // Initial attach
+    attach();
+    // Re-attach shortly after mount to catch lazy/Suspense-loaded sections
+    const t1 = setTimeout(attach, 300);
+    const t2 = setTimeout(attach, 1200);
+
+    // Safety fallback: after a while, ensure any remaining elements become visible
     const safetyTimer = setTimeout(() => {
-      animatedElements.forEach((el) => (el as HTMLElement).classList.add('animate-in'));
-    }, 2000);
+      document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+    }, 4000);
 
-    return () => { clearTimeout(safetyTimer); observer.disconnect(); };
-  }, [loading]);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safetyTimer); observer.disconnect(); };
+  // Re-run when loading flips or data collections change size (new DOM nodes likely)
+  }, [loading, events.length, galleryImages.length, sponsors.length, guestArtists.length]);
 
   // Parallax effect
   useEffect(() => {

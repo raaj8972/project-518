@@ -5,6 +5,7 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { Sponsor, SponsorshipPackage, ContactSection } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 type SubTabType = 'sponsors' | 'packages' | 'settings';
 
@@ -26,6 +27,7 @@ export const SponsorsManagement: React.FC = () => {
     updateContactSection,
     deleteContactSection
   } = useData();
+  const savingProgress = useSavingProgress();
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('sponsors');
   const [isAdding, setIsAdding] = useState(false);
@@ -185,13 +187,18 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateSponsor(id, form);
+      steps.next('Finalizing');
       setEditing(null);
       resetForm();
       try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsor:', error);
       alert('Failed to update sponsor. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -252,13 +259,18 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateSponsorshipPackage(id, packageForm);
+      steps.next('Finalizing');
       setEditingPackage(null);
       resetPackageForm();
       try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsorship package:', error);
       alert('Failed to update sponsorship package. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -298,13 +310,18 @@ export const SponsorsManagement: React.FC = () => {
 
   const handleSaveSettings = async () => {
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateSponsorshipSettings(settingsForm);
+      steps.next('Finalizing');
       setIsEditingSettings(false);
       alert('Sponsorship settings updated successfully!');
       try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
     } catch (error) {
       console.error('Error updating sponsorship settings:', error);
       alert('Failed to update sponsorship settings. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -342,13 +359,18 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateContactSection(id, contactForm);
+      steps.next('Finalizing');
       setEditingContact(null);
       resetContactForm();
       try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
     } catch (error) {
       console.error('Error updating contact section:', error);
       alert('Failed to update contact section. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -808,7 +830,7 @@ export const SponsorsManagement: React.FC = () => {
                             folder="sponsors"
                             className="h-32"
                           />
-                          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                             <button
                               type="button"
                               onClick={() => {
@@ -1268,7 +1290,7 @@ export const SponsorsManagement: React.FC = () => {
                           <span className="text-sm">Enabled</span>
                         </label>
                       </div>
-                      <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                      <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                         <button
                           type="button"
                           onClick={() => {

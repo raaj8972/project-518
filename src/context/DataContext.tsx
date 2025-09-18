@@ -186,6 +186,25 @@ interface DataContextType {
   toggleRoadmapMilestoneEnabled: (id: number) => Promise<void>;
   fetchHeroMedia: (pageKey: PageKey) => Promise<HeroMedia | null>;
   updateHeroMedia: (pageKey: PageKey, patch: Partial<HeroMedia>) => Promise<void>;
+  // Best-effort detection of registration photo feature readiness
+  schemaCapabilities?: {
+    events_registration_photo_required: boolean;
+    events_registration_photo_label: boolean;
+    registrations_photo_url: boolean;
+    storage_registration_photos_bucket: boolean;
+  };
+  // Storage management (registration photos)
+  getRegistrationPhotos: (page?: number, pageSize?: number) => Promise<{ items: Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>; total: number }>;
+  computeRegistrationPhotosUsage: () => Promise<{ totalBytes: number; count: number }>;
+  deleteRegistrationPhoto: (name: string) => Promise<{ ok: boolean; clearedRefs: number }>;
+  // Generic storage management for any bucket
+  getBucketObjects: (bucket: string, page?: number, pageSize?: number) => Promise<{ items: Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>; total: number }>;
+  computeBucketUsage: (bucket: string) => Promise<{ totalBytes: number; count: number }>;
+  deleteBucketObject: (bucket: string, name: string) => Promise<{ ok: boolean; clearedRefs: number }>;
+  // Buckets + aggregate usage + quota
+  listStorageBuckets: () => Promise<string[]>;
+  computeAllBucketsUsage: () => Promise<{ totalBytes: number; count: number }>;
+  storageQuotaBytes: number | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -220,6 +239,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [schemaCapabilities, setSchemaCapabilities] = useState({
+    events_registration_photo_required: true,
+    events_registration_photo_label: true,
+    registrations_photo_url: true,
+    storage_registration_photos_bucket: true,
+  });
   // Reconnection helpers
   const lastFetchAtRef = React.useRef<number>(0);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -237,6 +262,254 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return localStorage.getItem(key) === '1';
     } catch { return false; }
   };
+
+  // --- Storage helpers (generic + registration photos) ---
+  const REG_PHOTOS_BUCKET = 'registration-photos';
+  const publicUrlFor = (bucket: string, name: string) => {
+    try {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(name);
+      if (data && data.publicUrl) return data.publicUrl;
+    } catch {}
+    // Fallback: build absolute URL from host
+    const host = String(SUPABASE_HOST || '').trim();
+    const base = /^https?:\/\//.test(host) ? host : `https://${host}`;
+    return `${base}/storage/v1/object/public/${bucket}/${name}`;
+  };
+
+  // Optional storage quota from env (GB) for display: VITE_SUPABASE_STORAGE_QUOTA_GB or exact BYTES
+  const storageQuotaBytes: number | null = (() => {
+    try {
+      const gb = (import.meta as any)?.env?.VITE_SUPABASE_STORAGE_QUOTA_GB;
+      const by = (import.meta as any)?.env?.VITE_SUPABASE_STORAGE_QUOTA_BYTES;
+      if (by && !isNaN(Number(by))) return Number(by);
+      if (gb && !isNaN(Number(gb))) return Math.floor(Number(gb) * 1024 * 1024 * 1024);
+    } catch {}
+    return null;
+  })();
+
+  // Recursively list all files in a bucket using the Storage API. This works even when
+  // direct access to storage.objects is restricted by RLS, and includes nested folders.
+  function listAllObjectsViaStorageAPI(
+    bucket: string,
+    prefix: string
+  ): Promise<Array<{ fullPath: string; created_at: string | null; size: number; publicUrl: string }>> {
+    return new Promise(async (resolve) => {
+      const results: Array<{ fullPath: string; created_at: string | null; size: number; publicUrl: string }> = [];
+      const stack: string[] = [prefix];
+      const LIMIT = 1000;
+      while (stack.length > 0) {
+        const path = stack.pop() as string; // e.g. '' or 'folder/'
+        let offset = 0;
+        // Normalize: Supabase expects no leading slash; folder paths end with '/'
+        const normalized = path && !path.endsWith('/') ? path + '/' : path;
+        // Paginate through this level
+        while (true) {
+          const { data: list, error } = await supabase.storage.from(bucket).list(normalized, {
+            limit: LIMIT,
+            offset,
+            sortBy: { column: 'updated_at', order: 'desc' },
+          });
+          if (error || !list || list.length === 0) break;
+          for (const entry of list as any[]) {
+            const isFolder = !entry?.id; // folders have null id; files have id
+            if (isFolder) {
+              // Dive into subfolder (entry.name already excludes normalized prefix)
+              stack.push((normalized ?? '') + entry.name);
+            } else {
+              const fullPath = (normalized ?? '') + entry.name;
+              const created = (entry?.created_at ?? entry?.updated_at ?? entry?.last_accessed_at ?? null) as string | null;
+              const size = Number(entry?.metadata?.size ?? entry?.metadata?.ContentLength ?? 0) || 0;
+              results.push({
+                fullPath,
+                created_at: created,
+                size,
+                publicUrl: publicUrlFor(bucket, fullPath),
+              });
+            }
+          }
+          // paginate
+          if (list.length < LIMIT) break;
+          offset += list.length;
+        }
+      }
+      resolve(results);
+    });
+  }
+
+  // Ensure image previews work for private buckets by signing URLs when needed
+  async function ensurePreviewUrls(
+    bucket: string,
+    items: Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>
+  ): Promise<Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>> {
+    if (!items.length) return items;
+    // Try to detect if bucket is public; if not accessible, attempt signing anyway
+    let isPublic: boolean | null = null;
+    try {
+      const { data, error } = await supabase.from('storage.buckets' as any).select('id, public').eq('id', bucket).maybeSingle();
+      if (!error && data) isPublic = !!(data as any).public;
+    } catch {}
+    if (isPublic === true) return items; // public: normal public URLs will load
+    try {
+      const paths = items.map((i) => i.name);
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, 60 * 15); // 15 minutes
+      if (!error && Array.isArray(data)) {
+        const map = new Map<string, string>();
+        for (const r of data as any[]) {
+          const p = String(r?.path ?? r?.pathname ?? '');
+          const u = String(r?.signedUrl ?? r?.signedURL ?? '');
+          if (p && u) map.set(p, u);
+        }
+        return items.map((i) => ({ ...i, publicUrl: map.get(i.name) || i.publicUrl }));
+      }
+    } catch {}
+    return items;
+  }
+
+  // Generic: list objects in a bucket with size when available.
+  const getBucketObjects = async (bucket: string, page = 1, pageSize = 50) => {
+    // Prefer storage.objects for richer metadata if accessible.
+    const from = (page - 1) * pageSize;
+      const to = from + pageSize;
+    try {
+      const { data, error, count } = await supabase
+        .from('storage.objects')
+        .select('name, created_at, metadata', { count: 'exact' })
+        .eq('bucket_id', bucket)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      if (!error && data) {
+          let items = (data || []).map((row: any) => ({
+          name: row.name as string,
+          created_at: row.created_at as string | null,
+          size: Number(row?.metadata?.size ?? row?.metadata?.ContentLength ?? 0) || 0,
+          publicUrl: publicUrlFor(bucket, row.name as string),
+        }));
+          items = await ensurePreviewUrls(bucket, items);
+        return { items, total: count ?? items.length };
+      }
+    } catch {}
+    // Fallback: recursively list via Storage API (supports nested folders) and use metadata.size when available
+    const all = await listAllObjectsViaStorageAPI(bucket, '');
+    // Sort by created_at desc then name
+    all.sort((a, b) => {
+      const at = (a.created_at ? new Date(a.created_at).getTime() : 0);
+      const bt = (b.created_at ? new Date(b.created_at).getTime() : 0);
+      if (bt !== at) return bt - at;
+      return a.fullPath.localeCompare(b.fullPath);
+    });
+    const total = all.length;
+    const slice = all.slice(from, from + pageSize);
+    let items = slice.map((f) => ({
+      name: f.fullPath,
+      created_at: f.created_at,
+      size: f.size,
+      publicUrl: f.publicUrl,
+    }));
+    items = await ensurePreviewUrls(bucket, items);
+    return { items, total };
+  };
+
+  const computeBucketUsage = async (bucket: string) => {
+    // Use storage.objects in pages to sum sizes.
+    const pageSize = 1000;
+    let page = 1;
+    let totalBytes = 0;
+    let count = 0;
+    while (true) {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      try {
+        const { data, error } = await supabase
+          .from('storage.objects')
+          .select('metadata')
+          .eq('bucket_id', bucket)
+          .range(from, to);
+        if (error) break;
+        const rows = data || [];
+        if (rows.length === 0) break;
+        for (const r of rows as any[]) {
+          const sz = Number(r?.metadata?.size ?? r?.metadata?.ContentLength ?? 0) || 0;
+          if (sz > 0) totalBytes += sz;
+          count += 1;
+        }
+        if (rows.length < pageSize) break;
+        page += 1;
+      } catch {
+        break;
+      }
+    }
+    // If storage.objects was inaccessible or empty, fall back to Storage API recursive listing
+    if (count === 0 && totalBytes === 0) {
+      try {
+        const all = await listAllObjectsViaStorageAPI(bucket, '');
+        let sum = 0;
+        for (const f of all) sum += (Number(f.size) || 0);
+        return { totalBytes: sum, count: all.length };
+      } catch {
+        // keep zeros
+      }
+    }
+    return { totalBytes, count };
+  };
+
+  // List all storage buckets, prefer storage.buckets
+  const listStorageBuckets = async (): Promise<string[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('storage.buckets' as any)
+        .select('id')
+        .order('id', { ascending: true });
+      if (!error && data) {
+        const ids = (data as any[]).map((r) => r.id as string).filter(Boolean);
+        // Ensure uniqueness and stable order
+        return Array.from(new Set(ids));
+      }
+    } catch {}
+    // Fallback to known buckets we operate with
+    return Array.from(new Set(KNOWN_BUCKETS));
+  };
+
+  const computeAllBucketsUsage = async (): Promise<{ totalBytes: number; count: number }> => {
+    const buckets = await listStorageBuckets();
+    let totalBytes = 0;
+    let count = 0;
+    for (const b of buckets) {
+      try {
+        const u = await computeBucketUsage(b);
+        totalBytes += u.totalBytes;
+        count += u.count;
+      } catch {}
+    }
+    return { totalBytes, count };
+  };
+
+
+  const deleteBucketObject = async (bucket: string, name: string) => {
+    const publicUrl = publicUrlFor(bucket, name);
+    // Best-effort: clear references we control (registrations.photo_url, sponsors.logo, gallery_images.src, etc.)
+    let clearedRefs = 0;
+    try {
+      // registrations.photo_url
+      const { data: r1, error: e1 } = await supabase.from('registrations').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
+      if (!e1) clearedRefs += (r1?.length || 0);
+      // sponsors.logo
+      const { data: r2, error: e2 } = await supabase.from('sponsors').update({ logo: null } as any).eq('logo', publicUrl).select('id');
+      if (!e2) clearedRefs += (r2?.length || 0);
+      // gallery_images.src
+      const { data: r3, error: e3 } = await supabase.from('gallery_images').update({ src: null } as any).eq('src', publicUrl).select('id');
+      if (!e3) clearedRefs += (r3?.length || 0);
+    } catch (e) {
+      console.warn('Failed to clear some references for', publicUrl, e);
+    }
+    const { error: delErr } = await supabase.storage.from(bucket).remove([name]);
+    if (delErr) return { ok: false, clearedRefs };
+    return { ok: true, clearedRefs };
+  };
+
+  // Registration-specific thin wrappers
+  const getRegistrationPhotos = (page = 1, pageSize = 50) => getBucketObjects(REG_PHOTOS_BUCKET, page, pageSize);
+  const computeRegistrationPhotosUsage = () => computeBucketUsage(REG_PHOTOS_BUCKET);
+  const deleteRegistrationPhoto = (name: string) => deleteBucketObject(REG_PHOTOS_BUCKET, name);
   const markAutoOpened = (id: number, openAtIso: string) => {
     const key = autoOpenKey(id, openAtIso);
     autoOpenedRef.current.add(key);
@@ -372,6 +645,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!pingError) setLatencyMs(Math.round(dt));
         if (pingError) markErr('Supabase ping failed', pingError);
       } catch (e) { markErr('Supabase ping threw', e); }
+      // Schema/bucket detection for registration photo feature
+      try {
+        const trySelectHead = async (table: string, column: string) => {
+          const { error } = await supabase.from(table as any).select(column as any, { head: true, count: 'exact' });
+          return !error;
+        };
+        const [reqOk, labelOk, photoUrlOk] = await Promise.all([
+          trySelectHead('events', 'registration_photo_required'),
+          trySelectHead('events', 'registration_photo_label'),
+          trySelectHead('registrations', 'photo_url'),
+        ]);
+        let bucketOk = true;
+        try {
+          const { error: bErr } = await supabase.storage.from('registration-photos').list('', { limit: 1 });
+          if (bErr) bucketOk = false;
+        } catch {
+          bucketOk = false;
+        }
+        setSchemaCapabilities({
+          events_registration_photo_required: !!reqOk,
+          events_registration_photo_label: !!labelOk,
+          registrations_photo_url: !!photoUrlOk,
+          storage_registration_photos_bucket: !!bucketOk,
+        });
+      } catch (e) {
+        console.warn('Schema detection failed', e);
+      }
       // Fetch Events (use * to avoid selecting explicit new columns that may not exist yet)
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
@@ -806,6 +1106,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => { try { supabase.removeChannel(channel); } catch {} };
   }, []);
 
+  // Realtime: keep registrations list in sync (insert/update/delete)
+  useEffect(() => {
+    const channel = supabase
+      .channel('ctx-registrations')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, (payload: any) => {
+        setRegistrations((cur) => {
+          const row = (payload.new || payload.old) as Registration;
+          if (payload.eventType === 'INSERT') {
+            if (cur.find((r) => r.id === row.id)) return cur; // avoid dup
+            return [row, ...cur];
+          }
+          if (payload.eventType === 'UPDATE') {
+            return cur.map((r) => (r.id === row.id ? { ...r, ...row } : r));
+          }
+          if (payload.eventType === 'DELETE') {
+            return cur.filter((r) => r.id !== row.id);
+          }
+          return cur;
+        });
+      })
+      .subscribe();
+    return () => { try { supabase.removeChannel(channel); } catch {} };
+  }, []);
+
   // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
   useEffect(() => {
     const channel = supabase
@@ -914,6 +1238,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
         delete safe.map_url;
+        // Also strip registration photo feature fields if schema not yet migrated
+        delete safe.registration_photo_required;
+        delete safe.registration_photo_label;
         const retry = await supabase.from('events').insert(safe);
         if (retry.error) throw retry.error;
       } else {
@@ -942,6 +1269,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
         delete safe.map_url;
+        delete safe.registration_photo_required;
+        delete safe.registration_photo_label;
         const retry = await supabase
           .from('events')
           .insert(safe)
@@ -983,6 +1312,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
         delete safe.map_url;
+        delete safe.registration_photo_required;
+        delete safe.registration_photo_label;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
@@ -1023,7 +1354,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Tracks objects already attempted this session to avoid duplicate removal if multiple rows used same image
   const removedObjectsRef = React.useRef<Set<string>>(new Set());
   const KNOWN_BUCKETS = [
-    'gallery-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
+    'registration-photos','gallery-images','sponsor-logos','team-images','band-images','guest-artist-images','faculty-images','event-images',
     'artists','members','uploads','hero-media','hero-videos','hero-video','guest-artist-videos','pdf','documents'
   ];
   // Normalize a storage/public URL for reliable equality checks
@@ -1446,7 +1777,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setRegistrations((prev) => [{ ...(registration as Registration), status: 'pending' } as Registration, ...prev]);
     } catch {}
     // Prefer server-side RPC to bypass RLS via SECURITY DEFINER
-  const { error: rpcError } = await supabase.rpc('register_for_event', {
+    // New signature supports p_photo_url; fall back to legacy if not available
+    const rpcPayloadNew: Record<string, any> = {
       p_id: registration.id ?? null,
       p_event_id: registration.event_id as number,
       p_event_title: registration.event_title as string,
@@ -1454,18 +1786,54 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       p_full_name: registration.full_name as string,
       p_email: registration.email as string,
       p_phone: registration.phone as string,
-  p_college: (registration.college as string) ?? '',
+      p_college: (registration.college as string) ?? '',
       p_motivation: (registration as any).motivation ?? '',
       p_registration_date: (registration as any).registration_date ?? null,
       p_is_team_registration: registration.is_team_registration as boolean,
       p_team_name: (registration as any).team_name ?? null,
       p_team_members: (registration as any).team_members ? JSON.stringify((registration as any).team_members) : null,
       p_total_members: (registration as any).total_members ?? 1,
-    });
+      p_photo_url: (registration as any).photo_url ?? null,
+    };
+    let rpcError: any | null = null;
+    try {
+      const { error } = await supabase.rpc('register_for_event', rpcPayloadNew);
+      rpcError = error;
+    } catch (e: any) {
+      rpcError = e;
+    }
     if (rpcError) {
+      // Retry with legacy signature (without p_photo_url)
+      const { error: legacyError } = await supabase.rpc('register_for_event', {
+        p_id: registration.id ?? null,
+        p_event_id: registration.event_id as number,
+        p_event_title: registration.event_title as string,
+        p_participant_type: registration.participant_type as string,
+        p_full_name: registration.full_name as string,
+        p_email: registration.email as string,
+        p_phone: registration.phone as string,
+        p_college: (registration.college as string) ?? '',
+        p_motivation: (registration as any).motivation ?? '',
+        p_registration_date: (registration as any).registration_date ?? null,
+        p_is_team_registration: registration.is_team_registration as boolean,
+        p_team_name: (registration as any).team_name ?? null,
+        p_team_members: (registration as any).team_members ? JSON.stringify((registration as any).team_members) : null,
+        p_total_members: (registration as any).total_members ?? 1,
+      });
+      if (legacyError) {
       // Fallback to direct insert in case RPC is not yet deployed
       const { error } = await supabase.from('registrations').insert(registration);
       if (error) throw error;
+      }
+    }
+    // Best-effort: if the table has photo_url but the RPC path didn't set it, patch it in by id
+    try {
+      if ((registration as any).photo_url && registration.id) {
+        await supabase.from('registrations').update({ photo_url: (registration as any).photo_url } as any).eq('id', registration.id as string);
+      }
+    } catch (e) {
+      // ignore if column not present yet or RLS blocks it; export will still work once migrations are applied
+      console.warn('Post-insert photo_url patch failed (expected if schema not migrated yet):', e);
     }
     // Avoid blocking the UI on a full refresh; trigger background refresh instead
     // Counts and related views will sync shortly after
@@ -2397,6 +2765,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   toggleRoadmapMilestoneEnabled,
         fetchHeroMedia,
         updateHeroMedia,
+        schemaCapabilities,
+        // Storage helpers
+        getRegistrationPhotos,
+        computeRegistrationPhotosUsage,
+        deleteRegistrationPhoto,
+        getBucketObjects,
+        computeBucketUsage,
+        deleteBucketObject,
+        // Buckets + aggregate usage + quota
+        listStorageBuckets,
+        computeAllBucketsUsage,
+        storageQuotaBytes,
       }}
     >
       {children}

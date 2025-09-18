@@ -4,8 +4,10 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { FacultyHead } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const FacultyHeadsManagement: React.FC = () => {
+  const savingProgress = useSavingProgress();
   const { 
     facultyHeads, 
     addFacultyHead, 
@@ -53,6 +55,8 @@ export const FacultyHeadsManagement: React.FC = () => {
       return;
     }
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       // Build optional social_links only when present
       const social_links: Record<string, string> = {};
       if (form.instagram?.trim()) social_links.instagram = form.instagram.trim();
@@ -61,7 +65,7 @@ export const FacultyHeadsManagement: React.FC = () => {
       delete payload.instagram;
       delete payload.youtube;
       if (Object.keys(social_links).length > 0) payload.social_links = social_links;
-
+      steps.next('Saving to database');
       await addFacultyHead(payload);
       setIsAdding(false);
       resetForm();
@@ -70,6 +74,8 @@ export const FacultyHeadsManagement: React.FC = () => {
       console.error('Error adding faculty head:', error);
       const msg = (error as any)?.message || String(error);
       alert(`Failed to add faculty head. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -79,6 +85,8 @@ export const FacultyHeadsManagement: React.FC = () => {
       return;
     }
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       const payload: any = { ...form };
       delete payload.instagram;
       delete payload.youtube;
@@ -99,7 +107,7 @@ export const FacultyHeadsManagement: React.FC = () => {
         // Omit the property entirely to avoid unknown-column updates when DB lacks social_links
         delete payload.social_links;
       }
-
+      steps.next('Saving to database');
       await updateFacultyHead(id, payload);
       setEditing(null);
       resetForm();
@@ -108,26 +116,36 @@ export const FacultyHeadsManagement: React.FC = () => {
       console.error('Error updating faculty head:', error);
       const msg = (error as any)?.message || String(error);
       alert(`Failed to update faculty head. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this faculty head? This action cannot be undone.')) {
       try {
+        const steps = savingProgress.withSteps(2, 'Preparing…');
+        steps.next('Deleting');
         await deleteFacultyHead(id);
       } catch (error) {
         console.error('Error deleting faculty head:', error);
         alert('Failed to delete faculty head. Please try again.');
+      } finally {
+        savingProgress.done();
       }
     }
   };
 
   const handleToggleEnabled = async (id: number) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Updating');
       await toggleFacultyHeadEnabled(id);
     } catch (error) {
       console.error('Error toggling faculty head status:', error);
       alert('Failed to update faculty head status. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -484,7 +502,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   className="h-32"
                   cropAspect={1}
                 />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"
                     onClick={() => {

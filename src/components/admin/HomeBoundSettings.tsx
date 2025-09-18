@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Instagram, Save, X, ExternalLink, Eye, EyeOff } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const HomeBoundSettings: React.FC = () => {
   const { homeboundSettings, updateHomeboundSettings } = useData();
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingProgress = useSavingProgress();
   const [form, setForm] = useState({
     instagram_url: homeboundSettings?.instagram_url || '',
     instagram_enabled: homeboundSettings?.instagram_enabled !== false,
@@ -34,17 +36,23 @@ export const HomeBoundSettings: React.FC = () => {
   const handleSave = async () => {
     if (form.instagram_url && !validateInstagram(form.instagram_url)) return;
     setSaving(true);
+    const steps = savingProgress.withSteps(3, 'Preparing…');
     try {
+      steps.next('Validating');
       const normalizedUrl = form.instagram_url ? ensureHttps(form.instagram_url) : null;
+      steps.next('Updating settings');
       await updateHomeboundSettings({
         instagram_url: normalizedUrl,
         instagram_enabled: form.instagram_enabled,
       } as any);
+      steps.next('Finalizing');
       setIsEditing(false);
       alert('HomeBound settings updated');
+      steps.done();
     } catch (e: any) {
       console.error('Failed to update HomeBound settings:', e);
       alert(`Failed to update HomeBound settings: ${e?.message || e}`);
+      savingProgress.done();
     } finally {
       setSaving(false);
     }

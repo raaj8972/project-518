@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useData, RoadmapMilestone } from '../../context/DataContext';
 import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown, Power } from 'lucide-react';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 // Clean rebuilt component – light theme
 // Features: CRUD, enable toggle, duplicate year validation, drag & drop reorder + up/down buttons,
@@ -18,6 +19,7 @@ const DEFAULT_FALLBACK: { year: number; title: string | null; points: string[]; 
 ];
 
 export const RoadmapMilestonesAdmin: React.FC = () => {
+  const savingProgress = useSavingProgress();
   const { roadmapMilestones, addRoadmapMilestone, updateRoadmapMilestone, deleteRoadmapMilestone, toggleRoadmapMilestoneEnabled } = useData();
   const [form, setForm] = useState(emptyForm);
   const [side, setSide] = useState<'auto'|'left'|'right'>('auto');
@@ -55,6 +57,8 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     const payload = { year: form.year, title: form.title || null, points: pts, side };
     setSubmitting(true);
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       if (editingId) await updateRoadmapMilestone(editingId, payload);
       else await addRoadmapMilestone(payload);
       setNotice(editingId ? 'Milestone updated.' : 'Milestone added.');
@@ -66,19 +70,21 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
       } else {
         setError(msg);
       }
-    } finally { setSubmitting(false); }
+    } finally { setSubmitting(false); savingProgress.done(); }
   };
 
   const deleteCurrent = async () => {
     if (!editingId) return;
     setError(null); setNotice(null); setSubmitting(true);
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Deleting');
       await deleteRoadmapMilestone(editingId);
       setNotice('Milestone deleted.');
       resetForm(false); setConfirmFormDelete(false);
     } catch (e:any) {
       const msg = e?.message || 'Delete failed.'; if (/permission/i.test(msg)) setError('Permission denied: login required.'); else setError(msg);
-    } finally { setSubmitting(false); }
+    } finally { setSubmitting(false); savingProgress.done(); }
   };
 
   const startEdit = (m: RoadmapMilestone) => {
@@ -125,13 +131,15 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     if (dragIndex === null) return;
     setSavingOrder(true);
     try {
+      const steps = savingProgress.withSteps(list.length || 2, 'Preparing…');
       for (let i=0;i<list.length;i++) {
         const item = list[i];
         if (item.order_position !== i+1) {
+          steps.next('Reordering…');
           await updateRoadmapMilestone(item.id,{ order_position: i+1 });
         }
       }
-    } finally { setDragIndex(null); setSavingOrder(false); }
+    } finally { setDragIndex(null); setSavingOrder(false); savingProgress.done(); }
   };
 
   // --- Fallback import ---
@@ -142,27 +150,31 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
     const title = editing ? (form.title || null) : f.title;
     setError(null); setNotice(null); setSubmitting(true);
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Importing');
       await addRoadmapMilestone({ year: editing ? form.year : f.year, title, points, side: editing ? side : f.side, order_position: index+1, enabled: true });
       setNotice('Milestone added.');
       if (editing) resetForm(false);
     } catch (e: any) {
       const msg = e?.message || 'Failed to add.';
       if (/permission/i.test(msg)) setError('Permission denied: login required.'); else setError(msg);
-    } finally { setSubmitting(false); }
+    } finally { setSubmitting(false); savingProgress.done(); }
   };
 
   const importAllDefaults = async () => {
     setError(null); setNotice(null); setSubmitting(true);
     try {
+      const steps = savingProgress.withSteps(DEFAULT_FALLBACK.length + 1, 'Preparing…');
       for (let i=0;i<DEFAULT_FALLBACK.length;i++) {
         const f = DEFAULT_FALLBACK[i];
+        steps.next(`Importing ${f.year}`);
         await addRoadmapMilestone({ year: f.year, title: f.title, points: f.points, side: f.side, order_position: i+1, enabled: true });
       }
       setNotice('Default milestones imported.');
     } catch (e: any) {
       const msg = e?.message || 'Import failed.';
       if (/permission/i.test(msg)) setError('Permission denied: login required.'); else setError(msg);
-    } finally { setSubmitting(false); }
+    } finally { setSubmitting(false); savingProgress.done(); }
   };
 
   // --- Bulk selection helpers ---

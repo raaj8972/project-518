@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, Star, Calendar } from 
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GalleryImage } from '../../context/DataContext';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const GalleryManagement: React.FC = () => {
   const { 
@@ -15,6 +16,7 @@ export const GalleryManagement: React.FC = () => {
     gallerySettings,
     updateGallerySettings
   } = useData();
+  const savingProgress = useSavingProgress();
 
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
@@ -68,11 +70,15 @@ export const GalleryManagement: React.FC = () => {
   const handleSaveSettings = async () => {
     try {
       setSaving(true);
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateGallerySettings({ ...settingsForm });
+      steps.next('Finalizing');
       setDirty(false);
       setSavedAt(Date.now());
     } finally {
       setSaving(false);
+      savingProgress.done();
       // Clear success note after a short delay
       setTimeout(() => setSavedAt(null), 2000);
     }
@@ -111,12 +117,17 @@ export const GalleryManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Uploading/validating');
       await updateGalleryImage(id, form);
+      steps.next('Finalizing');
       setEditing(null);
       resetForm();
     } catch (error) {
       console.error('Error updating gallery image:', error);
       alert('Failed to update image. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -462,7 +473,7 @@ export const GalleryManagement: React.FC = () => {
                   folder="gallery"
                   className="h-32"
                 />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"
                     onClick={() => {

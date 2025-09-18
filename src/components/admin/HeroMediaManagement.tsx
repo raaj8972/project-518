@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, Save, X } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 type PageKey = 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors';
 
@@ -17,6 +18,7 @@ const PAGE_LABELS: Record<PageKey, string> = {
 
 export const HeroMediaManagement: React.FC = () => {
   const { heroMedia, fetchHeroMedia, updateHeroMedia } = useData();
+  const savingProgress = useSavingProgress();
   const [selectedPage, setSelectedPage] = useState<PageKey>('home');
   const current = heroMedia?.[selectedPage] || null;
 
@@ -51,8 +53,18 @@ export const HeroMediaManagement: React.FC = () => {
   }, [current]);
 
   const handleSave = async () => {
-    await updateHeroMedia(selectedPage, form as any);
-    alert('Hero media saved');
+    const steps = savingProgress.withSteps(3, 'Preparing…');
+    try {
+      steps.next('Uploading/validating');
+      await updateHeroMedia(selectedPage, form as any);
+      steps.next('Finalizing');
+      alert('Hero media saved');
+      steps.done();
+    } catch (e) {
+      console.error(e);
+      savingProgress.done();
+      alert('Failed to save hero media');
+    }
   };
 
   const clearField = (key: 'image_url' | 'video_url' | 'poster_url') => {

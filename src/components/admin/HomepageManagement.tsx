@@ -9,6 +9,7 @@ import InfiniteMarquee from '../InfiniteMarquee';
 import { ImageUpload } from '../ImageUpload';
 // Removed dev-only Branding preview
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const HomepageManagement: React.FC = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
@@ -19,7 +20,29 @@ export const HomepageManagement: React.FC = () => {
   const [savingBranding, setSavingBranding] = useState(false);
   const [savingPage, setSavingPage] = useState(false);
   // Removed dev-only preview breakpoint state and window width tracking
+  const savingProgress = useSavingProgress();
   
+  // Normalize potentially problematic image/asset URLs so they render in admin previews
+  const sanitizeUrl = (u: string | null | undefined): string => {
+    if (!u) return '';
+    let s = String(u).trim();
+    if (!s) return '';
+    // Prefix relative Supabase storage paths with our Supabase origin
+    if (s.startsWith('/storage/')) {
+      const origin = `https://${SUPABASE_HOST}`;
+      s = origin + s;
+    }
+    // Avoid mixed content if admin is served over https in prod
+    try {
+      const url = new URL(s);
+      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
+        url.protocol = 'https:';
+        s = url.toString();
+      }
+    } catch {}
+    return s;
+  };
+
   type SponsorLogo = {
     id: string;
     name: string;
@@ -151,6 +174,8 @@ export const HomepageManagement: React.FC = () => {
     try {
       if (savingPage || savingBranding) return;
       setSavingPage(true);
+      const steps = savingProgress.withSteps(4, 'Preparing…');
+      steps.next('Validating');
       // Normalize numeric fields before saving (convert '' to defaults)
       const payload = {
         ...form,
@@ -182,7 +207,7 @@ export const HomepageManagement: React.FC = () => {
           ? Math.min(800, Math.max(1, form.committee_marquee_speed_px_per_sec))
           : 75,
       } as const;
-
+      steps.next('Saving to database');
       await updateHomepageSettings(payload as any);
       // Sync the form state to the normalized payload so UI reflects saved values immediately
       setForm(payload as unknown as FormState);
@@ -197,6 +222,7 @@ export const HomepageManagement: React.FC = () => {
       setTimeout(() => setMessage(null), 5000);
     } finally {
       setSavingPage(false);
+      savingProgress.done();
     }
   };
 
@@ -300,6 +326,8 @@ export const HomepageManagement: React.FC = () => {
     try {
       if (savingBranding || savingPage) return;
       setSavingBranding(true);
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
       const brandingPayload: any = {
         brand_logo_url: (form as any).brand_logo_url || null,
@@ -317,6 +345,7 @@ export const HomepageManagement: React.FC = () => {
         brand_logo_offset_x_lg_px: (typeof (form as any).brand_logo_offset_x_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_x_lg_px)) ? clamp((form as any).brand_logo_offset_x_lg_px, -400, 400) : null,
         brand_logo_offset_y_lg_px: (typeof (form as any).brand_logo_offset_y_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_y_lg_px)) ? clamp((form as any).brand_logo_offset_y_lg_px, -400, 400) : null,
       };
+      steps.next('Saving to database');
       await updateHomepageSettings(brandingPayload);
       setMessage({ type: 'success', text: 'Branding saved' });
       setTimeout(() => setMessage(null), 2000);
@@ -326,6 +355,7 @@ export const HomepageManagement: React.FC = () => {
       setTimeout(() => setMessage(null), 5000);
     } finally {
       setSavingBranding(false);
+      savingProgress.done();
     }
   };
 
@@ -808,7 +838,7 @@ export const HomepageManagement: React.FC = () => {
                               .map((logo: SponsorLogo) => (
                                 <img
                                   key={logo.id}
-                                  src={logo.logo_url}
+                                  src={sanitizeUrl(logo.logo_url)}
                                   alt={logo.name}
                                   className="h-8 opacity-80"
                                 />
@@ -1229,7 +1259,7 @@ export const HomepageManagement: React.FC = () => {
                             .map((logo: SponsorLogo) => (
                               <div key={logo.id} className="flex flex-col items-center">
                                 <img
-                                  src={logo.logo_url}
+                                  src={sanitizeUrl(logo.logo_url)}
                                   alt={logo.name}
                                   className="h-8 opacity-80 mb-1"
                                 />

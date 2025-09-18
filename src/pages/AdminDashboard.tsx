@@ -41,12 +41,13 @@ import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
 import { AboutSettings } from '../components/admin/AboutSettings';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HealthBadge } from '../components/admin/HealthBadge';
+import { StorageOverview } from '../components/admin/StorageOverview';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading } = useAuth();
-  const { events, registrations, galleryImages, sponsors, coreCommittees, coreTeamMembers, bandMembers, guestArtists, auditions, memberships } = useData();
+  const { events, registrations, galleryImages, sponsors, coreCommittees, coreTeamMembers, bandMembers, guestArtists, auditions, memberships, schemaCapabilities } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
@@ -242,6 +243,26 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
+        {/* Schema/Bucket readiness banner */}
+        {schemaCapabilities && (
+          (() => {
+            const missing: string[] = [];
+            if (!schemaCapabilities.events_registration_photo_required) missing.push('events.registration_photo_required');
+            if (!schemaCapabilities.events_registration_photo_label) missing.push('events.registration_photo_label');
+            if (!schemaCapabilities.registrations_photo_url) missing.push('registrations.photo_url');
+            if (!schemaCapabilities.storage_registration_photos_bucket) missing.push('storage bucket "registration-photos"');
+            if (missing.length === 0) return null;
+            return (
+              <div className="mb-6 p-4 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-900">
+                <div className="font-semibold mb-1">Registration photo feature not fully enabled</div>
+                <div className="text-sm">Missing: {missing.join(', ')}</div>
+                <div className="text-xs mt-2 text-yellow-800">
+                  Apply the latest SQL migrations in Supabase and run NOTIFY pgrst,'reload schema'. Then refresh this page.
+                </div>
+              </div>
+            );
+          })()
+        )}
         <div className="flex flex-col lg:flex-row gap-8 min-w-0">
           {/* Sidebar */}
           <div className="lg:w-64 flex-shrink-0">
@@ -312,6 +333,9 @@ export const AdminDashboard: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Storage Overview */}
+                <StorageOverview />
 
                 {/* Security Status */}
                 <div className="bg-white rounded-lg shadow-md p-6">

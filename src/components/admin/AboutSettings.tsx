@@ -14,9 +14,11 @@ const sanitize = (html: string) => {
 };
 import { useData } from '../../context/DataContext';
 import { Plus, Trash, Save } from 'lucide-react';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const AboutSettings: React.FC = () => {
   const { aboutSettings, updateAboutSettings } = useData();
+  const savingProgress = useSavingProgress();
 
   const [enabled, setEnabled] = useState<boolean>(aboutSettings?.enabled ?? true);
   const [heroTitle, setHeroTitle] = useState<string>(aboutSettings?.hero_title ?? 'ABOUT RICORRENZA');
@@ -59,7 +61,9 @@ export const AboutSettings: React.FC = () => {
     setSaving(true);
     setSaveOk(null);
     setSaveErr(null);
+    const steps = savingProgress.withSteps(4, 'Preparing…');
     try {
+      steps.next('Sanitizing');
       await updateAboutSettings({
         enabled,
         hero_title: heroTitle,
@@ -69,7 +73,10 @@ export const AboutSettings: React.FC = () => {
         zones: zones.filter(Boolean),
         stats: stats.filter(s => s.value || s.label),
       } as any);
+      steps.next('Saving to database');
+      steps.next('Finalizing');
       setSaveOk('Saved');
+      steps.done();
     } finally {
       setSaving(false);
     }

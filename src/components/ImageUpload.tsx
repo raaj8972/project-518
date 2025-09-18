@@ -1,13 +1,14 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Image as ImageIcon, AlertCircle, FileText, Play } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
+import { useSavingProgress } from '../context/SavingProgressContext';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video';
+  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
@@ -16,6 +17,10 @@ interface ImageUploadProps {
   cropAspect?: number; // e.g., 1 for square avatar, 4/3, 16/9, etc.
   // if true, immediately calls onImageSelect after a successful upload (skip extra Save click)
   autoSave?: boolean;
+  // hide all action controls (Change/Save/Delete) and just display the image; intended for registration flow
+  hideControls?: boolean;
+  // optional override for image size limit (bytes). If not provided, defaults to 5MB for images
+  maxImageBytes?: number;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -28,11 +33,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   fileTypeLabel = 'PNG, JPG, GIF up to 5MB',
   enableCropper = true,
   cropAspect,
-  autoSave = false
+  autoSave = false,
+  hideControls = false,
+  maxImageBytes
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [error, setError] = useState<string>('');
   const [pendingImage, setPendingImage] = useState<string>('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -44,9 +52,80 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
+  const savingProgress = useSavingProgress();
 
   const isPdfUpload = acceptedTypes.includes('pdf');
   const isVideoUpload = acceptedTypes.includes('video');
+
+  // Helper: read a File into an HTMLImageElement
+  const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Helper: draw image to canvas with max dimensions
+  const drawImageToCanvas = (img: HTMLImageElement, maxW: number, maxH: number): HTMLCanvasElement => {
+    const scale = Math.min(1, Math.min(maxW / (img.naturalWidth || img.width), maxH / (img.naturalHeight || img.height)));
+    const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
+    const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas;
+  };
+
+  // Attempt to compress an image under a target byte size. Returns a File if successful; null if not achievable.
+  const compressImageToTarget = async (file: File, targetBytes: number): Promise<File | null> => {
+    try {
+      const img = await loadImageFromFile(file);
+      // Start with modest bounds; we'll reduce progressively
+      let maxW = Math.min(img.naturalWidth || img.width, 1280);
+      let maxH = Math.min(img.naturalHeight || img.height, 1280);
+      let quality = 0.82; // good starting point for photos
+
+      let lastBlob: Blob | null = null;
+      for (let i = 0; i < 10; i++) {
+        const canvas = drawImageToCanvas(img, maxW, maxH);
+        const blob: Blob = await new Promise((resolve, reject) => {
+          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality);
+        });
+        lastBlob = blob;
+        if (blob.size <= targetBytes) {
+          return new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+        }
+        // Alternate lowering quality and dimensions
+        if (i % 2 === 0 && quality > 0.5) {
+          quality = Math.max(0.5, quality * 0.85);
+        } else {
+          maxW = Math.max(320, Math.round(maxW * 0.85));
+          maxH = Math.max(320, Math.round(maxH * 0.85));
+        }
+      }
+      // After attempts, if still too large, give up
+      if (lastBlob && lastBlob.size <= targetBytes * 1.1) {
+        // If within 10% over, allow as a pragmatic fallback
+        return new File([lastBlob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      }
+      return null;
+    } catch (e) {
+      console.warn('Compression failed:', e);
+      return null;
+    }
+  };
 
   // Utility: race a promise against a timeout
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label = 'operation'): Promise<T> => {
@@ -62,43 +141,67 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
-  const uploadToSupabase = async (file: File): Promise<string> => {
+  const uploadToSupabase = async (file: File, onProgress?: (p: number) => void): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
     // Dynamic timeout based on file type: videos can be large, images smaller
     const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : 120_000;
-    const { error } = await withTimeout(
-      supabase.storage
-        .from(bucket)
-        .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined }),
-      timeoutMs,
-      'upload'
-    );
+    // Try XHR path to surface real upload progress.
+    const tryXHR = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access = sessionData?.session?.access_token;
+      if (!access) throw new Error('no-session');
+      const base = `https://${SUPABASE_HOST}`;
+      const endpoint = `${base}/storage/v1/object/${bucket}/${encodeURIComponent(fileName)}`;
+      await withTimeout(new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const killer = setTimeout(() => { try { xhr.abort(); } catch {} reject(new Error('upload timed out')); }, timeoutMs);
+        xhr.open('POST', endpoint, true);
+        xhr.setRequestHeader('Authorization', `Bearer ${access}`);
+        try { xhr.setRequestHeader('apikey', (supabase as any).supabaseKey || ''); } catch {}
+        xhr.setRequestHeader('x-upsert', 'false');
+        if (file.type) xhr.setRequestHeader('Content-Type', file.type);
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable && onProgress) {
+            onProgress((evt.loaded / evt.total) * 100);
+          }
+        };
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            clearTimeout(killer);
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(`Upload failed (HTTP ${xhr.status}): ${xhr.responseText || 'unknown error'}`));
+          }
+        };
+        xhr.onerror = () => { clearTimeout(killer); reject(new Error('Network error during upload')); };
+        xhr.send(file);
+      }), timeoutMs, 'upload');
+    };
 
-    if (error) {
-      const status = (error as any)?.status as number | undefined;
-      const msgRaw = error.message || '';
-      const msg = msgRaw.toLowerCase();
-      // Auth/permission issues (common when not logged in to Supabase auth)
-      if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
-        throw new Error(
-          `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
-        );
+    const trySDK = async () => {
+      const { error } = await withTimeout(
+        supabase.storage
+          .from(bucket)
+          .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined }),
+        timeoutMs,
+        'upload'
+      );
+      if (error) throw error as any;
+    };
+
+    try {
+      await tryXHR();
+    } catch (e: any) {
+      // Fallback to SDK if no session or XHR unsupported
+      if ((e?.message || '').includes('no-session')) {
+        await trySDK();
+      } else {
+        // Try SDK once more in case of other XHR errors
+        try {
+          await trySDK();
+        } catch (ee) { throw e; }
       }
-      // Missing bucket in this Supabase project
-      if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
-        setMissingBucket(bucket);
-        throw new Error(
-          `Storage bucket '${bucket}' not found in this Supabase project. Run the SQL shown below to create it, then retry.`
-        );
-      }
-      // Network issues
-      if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
-        throw new Error('Network error during upload. Check your internet connection or try a smaller image.');
-      }
-      // Generic fallback with status code if present
-      throw new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
     }
 
     // Get public URL
@@ -107,6 +210,25 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       .getPublicUrl(fileName);
 
     return publicUrl;
+  };
+
+  const mapUploadError = (error: any): Error => {
+    const status = (error as any)?.status as number | undefined;
+    const msgRaw = (error && (error as any).message) ? (error as any).message : String(error);
+    const msg = msgRaw.toLowerCase();
+    if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
+      return new Error(
+        `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
+      );
+    }
+    if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
+      setMissingBucket(bucket);
+      return new Error(`Storage bucket '${bucket}' not found in this Supabase project. Run the SQL shown below to create it, then retry.`);
+    }
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
+      return new Error('Network error during upload. Check your internet connection or try a smaller image.');
+    }
+    return new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
   };
 
   const handleFileSelect = async (file: File) => {
@@ -127,11 +249,31 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       }
     }
 
-    // Check file size (max 50MB for videos, 10MB for PDFs, 5MB for images)
-    const maxSize = isVideoUpload ? 50 * 1024 * 1024 : isPdfUpload ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Check file size (max 50MB for videos, 10MB for PDFs, default 5MB for images unless overridden)
+    const maxSize = isVideoUpload
+      ? 50 * 1024 * 1024
+      : isPdfUpload
+        ? 10 * 1024 * 1024
+        : (typeof maxImageBytes === 'number' && maxImageBytes > 0 ? maxImageBytes : 5 * 1024 * 1024);
     if (file.size > maxSize) {
-      setError(`File size must be less than ${isVideoUpload ? '50MB' : isPdfUpload ? '10MB' : '5MB'}`);
-      return;
+      // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
+      if (!isVideoUpload && !isPdfUpload && maxImageBytes) {
+        const compressed = await compressImageToTarget(file, maxImageBytes);
+        if (!compressed || compressed.size > maxImageBytes * 1.1) {
+          setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
+          return;
+        }
+        // Replace the file with compressed version and proceed
+        file = compressed as File;
+      } else {
+        const sizeLabel = isVideoUpload
+          ? '50MB'
+          : isPdfUpload
+            ? '10MB'
+            : (typeof maxImageBytes === 'number' && maxImageBytes > 0 ? `${Math.ceil(maxImageBytes / 1024)}KB` : '5MB');
+        setError(`File size must be less than ${sizeLabel}`);
+        return;
+      }
     }
 
     // For images, optionally open cropper instead of immediate upload
@@ -153,13 +295,21 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     // Default path: direct upload (videos/PDFs or cropper disabled)
     setUploading(true);
   setUploadHint('');
+  setUploadPercent(0);
+  // Start global overlay for uploads
+  try { savingProgress.start('Uploading…', 1); } catch {}
   let hintTimer: ReturnType<typeof setTimeout> | undefined;
   hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
     setError('');
     try {
-      const fileUrl = await uploadToSupabase(file);
+      const fileUrl = await uploadToSupabase(file, (p) => {
+        const pct = Math.round(p);
+        setUploadPercent(pct);
+        try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
+      });
+      try { savingProgress.set(100); } catch {}
       setPendingImage(fileUrl);
-      if (autoSave) {
+      if (autoSave || hideControls) {
         onImageSelect(fileUrl);
         setHasUnsavedChanges(false);
       } else {
@@ -170,13 +320,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       if (err instanceof Error && /mime type/i.test(err.message)) {
         setError('Upload failed: this file type is not allowed in the bucket. Allowed: PNG, JPG, WEBP, GIF, MP4, MOV');
       } else if (err instanceof Error) {
-        setError(err.message);
+        setError(mapUploadError(err).message);
       } else {
         setError('Upload failed');
       }
     } finally {
       if (hintTimer) clearTimeout(hintTimer);
       setUploading(false);
+      setUploadHint('');
+      setUploadPercent(0);
+      try { savingProgress.done(); } catch {}
     }
   };
 
@@ -274,16 +427,23 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     if (!cropSrc) return;
   let hintTimer: ReturnType<typeof setTimeout> | undefined;
   try {
-    setUploading(true);
-    setUploadHint('');
+  setUploading(true);
+  setUploadHint('');
+  setUploadPercent(0);
+  try { savingProgress.start('Uploading…', 1); } catch {}
     hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
     // Allow full-image fallback when croppedAreaPixels is not yet set
   const fmt = chooseOutputFormat();
   const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels, fmt.mime);
   const file = new File([blob], `crop_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
-    const fileUrl = await uploadToSupabase(file);
+    const fileUrl = await uploadToSupabase(file, (p) => {
+      const pct = Math.round(p);
+      setUploadPercent(pct);
+      try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
+    });
+    try { savingProgress.set(100); } catch {}
     setPendingImage(fileUrl);
-    if (autoSave) {
+    if (autoSave || hideControls) {
       onImageSelect(fileUrl);
       setHasUnsavedChanges(false);
     } else {
@@ -292,11 +452,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setCropSrc(null);
   } catch (err) {
     console.error('Crop upload failed:', err);
-    setError(err instanceof Error ? err.message : 'Crop upload failed');
+    setError(mapUploadError(err).message);
   } finally {
     if (hintTimer) clearTimeout(hintTimer);
     setUploadHint('');
     setUploading(false);
+    setUploadPercent(0);
+    try { savingProgress.done(); } catch {}
   }
   };
 
@@ -305,15 +467,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     if (!cropSrc) return;
     let hintTimer: ReturnType<typeof setTimeout> | undefined;
     try {
-      setUploading(true);
-      setUploadHint('');
+  setUploading(true);
+  setUploadHint('');
+  setUploadPercent(0);
+  try { savingProgress.start('Uploading…', 1); } catch {}
       hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
   const fmt = chooseOutputFormat();
   const blob = await getCroppedImgBlob(cropSrc, null, fmt.mime);
   const file = new File([blob], `full_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
-      const fileUrl = await uploadToSupabase(file);
+      const fileUrl = await uploadToSupabase(file, (p) => {
+        const pct = Math.round(p);
+        setUploadPercent(pct);
+        try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
+      });
+      try { savingProgress.set(100); } catch {}
       setPendingImage(fileUrl);
-      if (autoSave) {
+      if (autoSave || hideControls) {
         onImageSelect(fileUrl);
         setHasUnsavedChanges(false);
       } else {
@@ -322,11 +491,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setCropSrc(null);
     } catch (err) {
       console.error('Full image upload failed:', err);
-      setError(err instanceof Error ? err.message : 'Full image upload failed');
+      setError(mapUploadError(err).message);
     } finally {
       if (hintTimer) clearTimeout(hintTimer);
       setUploadHint('');
       setUploading(false);
+      setUploadPercent(0);
+      try { savingProgress.done(); } catch {}
     }
   };
 
@@ -410,7 +581,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   // Display the pending image if available, otherwise show current image
   const displayImage = pendingImage || currentImage;
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative mb-3 ${className}`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -500,17 +671,36 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
              className="w-full h-24 object-cover rounded-lg border-2 border-gray-300"
             />
           )}
-          <div className="mt-2 flex items-center justify-center space-x-2">
-            <button
-              type="button"
-              onClick={handleClick}
-              disabled={uploading}
-             className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
-            >
-              Change
-            </button>
-            {hasUnsavedChanges ? (
-              <>
+          {!hideControls && (
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={handleClick}
+                disabled={uploading}
+                className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                Change
+              </button>
+              {hasUnsavedChanges ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveImage}
+                    disabled={uploading}
+                    className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDiscardChanges}
+                    disabled={uploading}
+                    className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
+                  >
+                    Discard
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
                   onClick={handleSaveImage}
@@ -519,34 +709,17 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                 >
                   Save
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDiscardChanges}
-                  disabled={uploading}
-                  className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
-                >
-                  Discard
-                </button>
-              </>
-            ) : (
+              )}
               <button
                 type="button"
-                onClick={handleSaveImage}
+                onClick={removeFile}
                 disabled={uploading}
-                className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
+                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
               >
-                Save
+                Delete
               </button>
-            )}
-            <button
-              type="button"
-              onClick={removeFile}
-             disabled={uploading}
-              className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
-            >
-              Delete
-            </button>
-          </div>
+            </div>
+          )}
         </div>
       ) : (
         <div
@@ -562,8 +735,27 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
         >
           {uploading ? (
             <div className="flex flex-col items-center">
-              <div className="w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin mb-2"></div>
-              <p className="text-gray-600">Uploading to Supabase...</p>
+              {/* Circular progress ring */}
+              <div className="relative mb-2" style={{ width: 72, height: 72 }}>
+                <svg className="transform -rotate-90" width="72" height="72" viewBox="0 0 72 72">
+                  <circle cx="36" cy="36" r="32" stroke="#e5e7eb" strokeWidth="6" fill="none" />
+                  <circle
+                    cx="36"
+                    cy="36"
+                    r="32"
+                    stroke="#f59e0b"
+                    strokeWidth="6"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 32}
+                    strokeDashoffset={(1 - (uploadPercent || 0) / 100) * (2 * Math.PI * 32)}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-sm font-semibold text-gray-700">{Math.max(0, Math.min(100, Math.round(uploadPercent || 0)))}%</span>
+                </div>
+              </div>
+              <p className="text-gray-600">Uploading to Supabase…</p>
               {uploadHint && <p className="text-xs text-gray-500 mt-1">{uploadHint}</p>}
             </div>
           ) : (

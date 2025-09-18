@@ -41,3 +41,7 @@ This is a React + Vite + Tailwind SPA deployed on Netlify with Supabase as the b
 - If you see `Missing Supabase environment variables`, set them in Netlify env and redeploy.
 - 404 on refresh: ensure the SPA fallback is present (it is).
 - Admin page overlap: public Navbar is hidden on `/admin` by route check in `src/App.tsx`.
+
+## Documentation
+- Schedule linking: `docs/schedule-linking.md`
+- Admin Storage Overview and quota: `docs/storage-overview.md`

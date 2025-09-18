@@ -4,8 +4,10 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GuestArtist } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const GuestArtistManagement: React.FC = () => {
+  const savingProgress = useSavingProgress();
   const { 
     guestArtists,
     addGuestArtist,
@@ -80,11 +82,14 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(4, 'Preparing…');
+      steps.next('Validating');
       let performance_at: string | null = null;
       if (form.performance_date && form.performance_time) {
         const local = new Date(`${form.performance_date}T${form.performance_time}`);
         performance_at = isNaN(local.getTime()) ? null : local.toISOString();
       }
+      steps.next('Saving to database');
       await addGuestArtist({
         name: form.name,
         title: form.title,
@@ -111,6 +116,8 @@ export const GuestArtistManagement: React.FC = () => {
     } catch (error) {
       console.error('Error adding guest artist:', error);
       alert('Failed to add guest artist. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -121,6 +128,8 @@ export const GuestArtistManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(4, 'Preparing…');
+      steps.next('Validating');
       let performance_at: string | null = null;
       if (form.performance_date && form.performance_time) {
         const local = new Date(`${form.performance_date}T${form.performance_time}`);
@@ -128,6 +137,7 @@ export const GuestArtistManagement: React.FC = () => {
       } else {
         performance_at = null;
       }
+      steps.next('Saving to database');
       await updateGuestArtist(id, {
         name: form.name,
         title: form.title,
@@ -158,37 +168,51 @@ export const GuestArtistManagement: React.FC = () => {
         ? '\nHint: Database migration for watch_live_url may not be applied yet.'
         : '';
       alert(`Failed to update guest artist. ${msg}${hint}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this guest artist? This action cannot be undone.')) {
       try {
+        const steps = savingProgress.withSteps(2, 'Preparing…');
+        steps.next('Deleting');
         await deleteGuestArtist(id);
       } catch (error) {
         console.error('Error deleting guest artist:', error);
         alert('Failed to delete guest artist. Please try again.');
+      } finally {
+        savingProgress.done();
       }
     }
   };
 
   const handleToggleEnabled = async (id: number) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Updating');
       await toggleGuestArtistEnabled(id);
     } catch (error) {
       console.error('Error toggling guest artist status:', error);
       const msg = (error as any)?.message || String(error);
       alert(`Failed to update guest artist status. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleToggleFeatured = async (id: number) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Updating');
       await toggleGuestArtistFeatured(id);
     } catch (error) {
       console.error('Error toggling featured status:', error);
       const msg = (error as any)?.message || String(error);
       alert(`Failed to update featured status. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -734,7 +758,7 @@ export const GuestArtistManagement: React.FC = () => {
                   className="h-32"
                   cropAspect={4/5}
                 />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"
                     onClick={() => {

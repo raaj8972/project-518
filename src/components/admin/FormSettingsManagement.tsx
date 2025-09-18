@@ -3,12 +3,14 @@ import { Save, X, ToggleLeft, ToggleRight, MessageSquare, Music, Users, AlertCir
 import { useData } from '../../context/DataContext';
 import { SUPABASE_HOST } from '../../lib/supabase';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const FormSettingsManagement: React.FC = () => {
   const { formSettings, updateFormSettings } = useData();
   const [isEditing, setIsEditing] = useState(false);
   // const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const savingProgress = useSavingProgress();
   
   const [form, setForm] = useLocalStorage('admin_form_settings_draft', {
     audition_form_enabled: formSettings?.audition_form_enabled ?? true,
@@ -31,16 +33,21 @@ export const FormSettingsManagement: React.FC = () => {
   const handleSave = async () => {
     try {
       // setSaving(true);
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateFormSettings(form);
+      steps.next('Saving');
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Form settings updated successfully!' });
       try { localStorage.removeItem('admin_form_settings_draft'); } catch {}
       setTimeout(() => setMessage(null), 5000);
+      steps.done();
     } catch (error) {
       console.error('Error updating form settings:', error);
       const errText = (error as any)?.message || String(error);
       setMessage({ type: 'error', text: `Failed to update form settings: ${errText}` });
       setTimeout(() => setMessage(null), 5000);
+      savingProgress.done();
     } finally {
       // setSaving(false);
     }

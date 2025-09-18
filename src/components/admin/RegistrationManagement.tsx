@@ -176,7 +176,7 @@ export const RegistrationManagement: React.FC = () => {
     }
     setPdfExporting(true);
     try {
-      await exportPdf(filteredRegistrations, selectedColumns, { splitThreshold: splitThreshold || undefined, baseFileName: `registrations-${new Date().toISOString().slice(0,10)}` });
+  await exportPdf(filteredRegistrations, selectedColumns, { splitThreshold: splitThreshold || undefined, baseFileName: `registrations-${new Date().toISOString().slice(0,10)}`, photoThumbSize: 20 });
       push({ message: 'PDF export complete.', type: 'success' });
     } catch (err:any) {
       console.error(err);
@@ -461,6 +461,20 @@ export const RegistrationManagement: React.FC = () => {
                   <tr className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
+                        <div className="mr-3">
+                          {((registration as any).photo_url) ? (
+                            <img
+                              src={(registration as any).photo_url as any}
+                              alt={`${registration.full_name} photo`}
+                              className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gray-200 border border-gray-200 flex items-center justify-center text-[10px] text-gray-500">
+                              N/A
+                            </div>
+                          )}
+                        </div>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {registration.full_name}
@@ -567,6 +581,25 @@ export const RegistrationManagement: React.FC = () => {
                                 <div><strong>Registration Date:</strong> {new Date(registration.registration_date).toLocaleString()}</div>
                               </div>
                             </div>
+                            {((registration as any).photo_url) && (
+                              <div>
+                                <h4 className="font-semibold text-gray-900 mb-2">Photo</h4>
+                                <div className="flex items-center space-x-3">
+                                  <img
+                                    src={(registration as any).photo_url as any}
+                                    alt={`${registration.full_name} photo`}
+                                    className="w-24 h-24 rounded-lg object-cover border border-gray-200"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                  <a
+                                    href={(registration as any).photo_url as any}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 text-sm"
+                                  >Open full</a>
+                                </div>
+                              </div>
+                            )}
                             
                             {registration.motivation && (
                               <div>

@@ -3,8 +3,8 @@ import { Registration } from '../context/DataContext';
 
 export const exportRegistrationsToExcel = (registrations: Registration[], filename: string = 'registrations.xlsx') => {
   // Prepare data for Excel export
-  const excelData = registrations.map(reg => {
-    const baseData = {
+  const excelData: Record<string, any>[] = registrations.map((reg) => {
+    const baseData: Record<string, any> = {
       'Registration ID': reg.id,
       'Event Title': reg.event_title,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
@@ -14,6 +14,7 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
       'Leader/Participant Type': reg.participant_type,
       'Leader/Participant Email': reg.email,
       'Leader/Participant Phone': reg.phone,
+      'Photo URL': (reg as any).photo_url || '—',
       'College/Institution': reg.college,
       'Motivation': reg.motivation || 'Not provided',
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
@@ -22,10 +23,10 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
 
     // Add team members if it's a team registration
     if (reg.is_team_registration && reg.team_members && reg.team_members.length > 0) {
-      reg.team_members.forEach((member, index) => {
-        baseData[`Member ${index + 1} Name`] = member.name;
-        baseData[`Member ${index + 1} Email`] = member.email;
-        baseData[`Member ${index + 1} Phone`] = member.phone;
+      reg.team_members.forEach((member: any, index: number) => {
+        baseData[`Member ${index + 1} Name`] = member?.name || '';
+        baseData[`Member ${index + 1} Email`] = member?.email || '';
+        baseData[`Member ${index + 1} Phone`] = member?.phone || '';
       });
     }
 
@@ -37,13 +38,13 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
   const ws = XLSX.utils.json_to_sheet(excelData);
 
   // Auto-size columns
-  const colWidths = [];
-  const headers = Object.keys(excelData[0] || {});
+  const colWidths: any[] = [];
+  const headers: string[] = Object.keys(excelData[0] || {});
   
   headers.forEach((header, index) => {
     const maxLength = Math.max(
       header.length,
-      ...excelData.map(row => String(row[header] || '').length)
+      ...excelData.map((row) => String((row as any)[header] || '').length)
     );
     colWidths[index] = { wch: Math.min(maxLength + 2, 50) };
   });
@@ -85,7 +86,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
 
   // Create a sheet for each event
   Object.entries(groupedByEvent).forEach(([eventTitle, eventRegistrations]) => {
-    const excelData = eventRegistrations.map(reg => ({
+    const excelData: Record<string, any>[] = eventRegistrations.map((reg) => ({
       'Registration ID': reg.id,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
       'Team Name': reg.team_name || 'N/A',
@@ -94,25 +95,26 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
       'Participant Type': reg.participant_type,
       'Email': reg.email,
       'Phone': reg.phone,
+      'Photo URL': (reg as any).photo_url || '—',
       'College': reg.college,
       'Motivation': reg.motivation || 'Not provided',
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Status': reg.status.toUpperCase(),
       'Team Members': reg.is_team_registration && reg.team_members 
-        ? reg.team_members.map(m => `${m.name} (${m.email})`).join('; ')
+        ? reg.team_members.map((m: any) => `${m.name} (${m.email})`).join('; ')
         : 'N/A'
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
     
     // Auto-size columns
-    const colWidths = [];
-    const headers = Object.keys(excelData[0] || {});
+    const colWidths: any[] = [];
+    const headers: string[] = Object.keys(excelData[0] || {});
     
     headers.forEach((header, index) => {
       const maxLength = Math.max(
         header.length,
-        ...excelData.map(row => String(row[header] || '').length)
+        ...excelData.map((row) => String((row as any)[header] || '').length)
       );
       colWidths[index] = { wch: Math.min(maxLength + 2, 50) };
     });
@@ -144,7 +146,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
 
   // Create a sheet for each status
   Object.entries(groupedByStatus).forEach(([status, statusRegistrations]) => {
-    const excelData = statusRegistrations.map(reg => ({
+    const excelData: Record<string, any>[] = statusRegistrations.map((reg) => ({
       'Registration ID': reg.id,
       'Event Title': reg.event_title,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
@@ -154,23 +156,24 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
       'Participant Type': reg.participant_type,
       'Email': reg.email,
       'Phone': reg.phone,
+      'Photo URL': (reg as any).photo_url || '—',
       'College': reg.college,
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Team Members': reg.is_team_registration && reg.team_members 
-        ? reg.team_members.map(m => `${m.name} (${m.email})`).join('; ')
+        ? reg.team_members.map((m: any) => `${m.name} (${m.email})`).join('; ')
         : 'N/A'
     }));
 
     const ws = XLSX.utils.json_to_sheet(excelData);
     
     // Auto-size columns
-    const colWidths = [];
-    const headers = Object.keys(excelData[0] || {});
+    const colWidths: any[] = [];
+    const headers: string[] = Object.keys(excelData[0] || {});
     
     headers.forEach((header, index) => {
       const maxLength = Math.max(
         header.length,
-        ...excelData.map(row => String(row[header] || '').length)
+        ...excelData.map((row) => String((row as any)[header] || '').length)
       );
       colWidths[index] = { wch: Math.min(maxLength + 2, 50) };
     });
@@ -206,13 +209,13 @@ export const exportAuditionsToExcel = (auditions: any[], filename: string = 'aud
   const ws = XLSX.utils.json_to_sheet(excelData);
 
   // Auto-size columns
-  const colWidths = [];
-  const headers = Object.keys(excelData[0] || {});
+  const colWidths: any[] = [];
+  const headers: string[] = Object.keys(excelData[0] || {});
   
   headers.forEach((header, index) => {
     const maxLength = Math.max(
       header.length,
-      ...excelData.map(row => String(row[header] || '').length)
+      ...excelData.map((row) => String((row as any)[header] || '').length)
     );
     colWidths[index] = { wch: Math.min(maxLength + 2, 50) };
   });
@@ -245,13 +248,13 @@ export const exportMembershipsToExcel = (memberships: any[], filename: string = 
   const ws = XLSX.utils.json_to_sheet(excelData);
 
   // Auto-size columns
-  const colWidths = [];
-  const headers = Object.keys(excelData[0] || {});
+  const colWidths: any[] = [];
+  const headers: string[] = Object.keys(excelData[0] || {});
   
   headers.forEach((header, index) => {
     const maxLength = Math.max(
       header.length,
-      ...excelData.map(row => String(row[header] || '').length)
+      ...excelData.map((row) => String((row as any)[header] || '').length)
     );
     colWidths[index] = { wch: Math.min(maxLength + 2, 50) };
   });

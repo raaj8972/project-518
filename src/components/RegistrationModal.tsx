@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield } from 'lucide-react';
+import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { ImageUpload } from './ImageUpload';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -34,7 +35,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   eventTitle,
   eventId
 }) => {
-  const { addRegistration } = useData();
+  const { addRegistration, events } = useData();
+  // Photo requirement is configured per-event; read from window-scoped preload or extend props in future
+  const [photoRequired, setPhotoRequired] = useState<boolean>(false);
   type ErrorsMap = Record<string, string | undefined>;
   const [formData, setFormData] = useState<RegistrationData>({
     participant_type: '1st Year',
@@ -54,6 +57,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [registrationId, setRegistrationId] = useState('');
   const [errors, setErrors] = useState<ErrorsMap>({});
   const [glitchActive, setGlitchActive] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string>('');
 
   // Precompute spark vectors when success state appears
   const sparkVectors = useMemo(() => {
@@ -74,16 +78,20 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     'PG (Post Graduate)'
   ];
 
-  // Glitch effect trigger
+  // Glitch effect trigger and derive per-event photo requirement from events data
   useEffect(() => {
     if (isOpen) {
+      try {
+        const ev = events.find(e => e.id === eventId) as any;
+        setPhotoRequired(!!(ev && ev.registration_photo_required));
+      } catch {}
       const glitchTimer = setInterval(() => {
         setGlitchActive(true);
         setTimeout(() => setGlitchActive(false), 200);
       }, 12000);
       return () => clearInterval(glitchTimer);
     }
-  }, [isOpen]);
+  }, [isOpen, events, eventId]);
 
   const validateForm = (): boolean => {
     const newErrors: ErrorsMap = {};
@@ -102,6 +110,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       newErrors.phone = 'Phone number is required';
   } else if (!/^\+?[\d\s\-()]{10,}$/.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
+    }
+
+    // Optional/Required photo per-event
+    if (photoRequired && !photoUrl) {
+      newErrors['photo'] = 'Participant photo is required for this event';
     }
 
     // Institution name is optional
@@ -164,7 +177,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         is_team_registration: formData.is_team_registration,
         team_name: formData.is_team_registration ? formData.team_name : null,
         team_members: formData.is_team_registration ? formData.team_members : null,
-        total_members: formData.is_team_registration ? formData.total_members : 1
+        total_members: formData.is_team_registration ? formData.total_members : 1,
+        photo_url: photoUrl || null
       };
 
       console.log('Submitting registration data:', registrationData);
@@ -499,6 +513,36 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   {errors.phone && (
                     <p className="cyberpunk-error">{errors.phone}</p>
                   )}
+                </div>
+              </div>
+
+              {/* Optional/Required Participant Photo */}
+              <div className="cyberpunk-section">
+                {(() => {
+                  const ev = events.find(e => e.id === eventId) as any;
+                  const custom = (ev && ev.registration_photo_label) ? String(ev.registration_photo_label) : '';
+                  const labelText = custom.trim() || 'PARTICIPANT_PHOTO';
+                  return (
+                    <label className="cyberpunk-label flex items-center">
+                      <ImageIcon className="w-5 h-5 text-cyan-400 mr-2" /> {labelText} {photoRequired ? '*' : <span className="text-xs text-gray-400 ml-2">(optional)</span>}
+                    </label>
+                  );
+                })()}
+                <div className="bg-gray-900/30 p-3 rounded border border-cyan-500/20">
+                  <ImageUpload
+                    onImageSelect={(url) => setPhotoUrl(url)}
+                    currentImage={photoUrl}
+                    bucket="registration-photos"
+                    folder={`registrations/${eventId}`}
+                    acceptedTypes="image/*"
+                    fileTypeLabel="PNG/JPG/WebP up to 60KB"
+                    enableCropper={false}
+                    autoSave
+                    hideControls
+                    maxImageBytes={60 * 1024}
+                  />
+                  {errors['photo'] && <p className="cyberpunk-error mt-2">{errors['photo']}</p>}
+                  <p className="text-xs text-gray-400 mt-2">Upload a clear headshot (max 60KB). This will be attached to admin exports.</p>
                 </div>
               </div>
 

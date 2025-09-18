@@ -5,6 +5,7 @@ import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 // Spotify icon component since it's not in lucide-react
 const Spotify = ({ className }: { className?: string }) => (
@@ -15,6 +16,7 @@ const Spotify = ({ className }: { className?: string }) => (
 
 export const CoreTeamManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const savingProgress = useSavingProgress();
   const { 
     coreCommittees,
     coreTeamMembers,
@@ -101,6 +103,9 @@ export const CoreTeamManagement: React.FC = () => {
     if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await addCoreCommittee(committeeForm);
       setIsAddingCommittee(false);
       resetCommitteeForm();
@@ -108,6 +113,8 @@ export const CoreTeamManagement: React.FC = () => {
     } catch (error) {
       console.error('Error adding committee:', error);
       alert('Failed to add committee. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -115,6 +122,9 @@ export const CoreTeamManagement: React.FC = () => {
     if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await updateCoreCommittee(id, committeeForm);
       setEditingCommittee(null);
       resetCommitteeForm();
@@ -122,6 +132,8 @@ export const CoreTeamManagement: React.FC = () => {
     } catch (error) {
       console.error('Error updating committee:', error);
       alert('Failed to update committee. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -137,10 +149,14 @@ export const CoreTeamManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Deleting');
       await deleteCoreCommittee(id);
     } catch (error) {
       console.error('Error deleting committee:', error);
       alert('Failed to delete committee. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -167,6 +183,9 @@ export const CoreTeamManagement: React.FC = () => {
     } as any;
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await addCoreTeamMember(payload);
       setIsAddingMember(false);
       resetMemberForm();
@@ -174,6 +193,8 @@ export const CoreTeamManagement: React.FC = () => {
     } catch (error) {
       console.error('Error adding team member:', error);
       alert('Failed to add team member. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -185,6 +206,9 @@ export const CoreTeamManagement: React.FC = () => {
     } as any;
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await updateCoreTeamMember(id, payload);
       setEditingMember(null);
       resetMemberForm();
@@ -192,16 +216,22 @@ export const CoreTeamManagement: React.FC = () => {
     } catch (error) {
       console.error('Error updating team member:', error);
       alert('Failed to update team member. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleDeleteMember = async (id: number) => {
     if (confirm('Are you sure you want to delete this team member? This action cannot be undone.')) {
       try {
+        const steps = savingProgress.withSteps(2, 'Preparing…');
+        steps.next('Deleting');
         await deleteCoreTeamMember(id);
       } catch (error) {
         console.error('Error deleting team member:', error);
         alert('Failed to delete team member. Please try again.');
+      } finally {
+        savingProgress.done();
       }
     }
   };
@@ -1004,7 +1034,7 @@ export const CoreTeamManagement: React.FC = () => {
                             className="h-24"
                             cropAspect={1}
                           />
-                          <div className="flex justify-end space-x-2">
+                          <div className="w-full flex justify-end space-x-2 mt-2 pt-4 border-t border-gray-200">
                             <button
                               type="button"
                               onClick={() => {

@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, ChevronDown, Chev
 import { useData } from '../../context/DataContext';
 import type { ScheduleDay, ScheduleEvent } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const ScheduleManagement: React.FC = () => {
   const { 
@@ -17,6 +18,7 @@ export const ScheduleManagement: React.FC = () => {
     updateScheduleEvent, 
     deleteScheduleEvent 
   } = useData();
+  const savingProgress = useSavingProgress();
 
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
@@ -124,7 +126,10 @@ export const ScheduleManagement: React.FC = () => {
     
     try {
       setLoading(prev => ({ ...prev, updateDay: true }));
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateScheduleDay(id, dayForm);
+      steps.next('Finalizing');
       setEditingDay(null);
       resetDayForm();
       try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
@@ -134,6 +139,7 @@ export const ScheduleManagement: React.FC = () => {
       setBanner({ type: 'error', message: 'Failed to update schedule day. Please try again.' });
     } finally {
       setLoading(prev => ({ ...prev, updateDay: false }));
+      savingProgress.done();
     }
   };
 
@@ -187,7 +193,10 @@ export const ScheduleManagement: React.FC = () => {
     
     try {
       setLoading(prev => ({ ...prev, updateEvent: true }));
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateScheduleEvent(eventId, eventForm);
+      steps.next('Finalizing');
       setEditingEvent(null);
       resetEventForm();
       try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
@@ -197,6 +206,7 @@ export const ScheduleManagement: React.FC = () => {
       setBanner({ type: 'error', message: 'Failed to update schedule event. Please try again.' });
     } finally {
       setLoading(prev => ({ ...prev, updateEvent: false }));
+      savingProgress.done();
     }
   };
 

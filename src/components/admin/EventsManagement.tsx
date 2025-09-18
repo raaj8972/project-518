@@ -5,6 +5,7 @@ import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const EventsManagement: React.FC = () => {
   const { 
@@ -21,6 +22,7 @@ export const EventsManagement: React.FC = () => {
     updateEventCoordinator,
     deleteEventCoordinator
   } = useData();
+  const savingProgress = useSavingProgress();
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
@@ -51,7 +53,9 @@ export const EventsManagement: React.FC = () => {
     rules: [] as string[],
     registration_open: true,
     registration_timer_enabled: false as boolean,
-    registration_opens_at: '' as string | null,
+  registration_opens_at: '' as string | null,
+  registration_photo_required: false as boolean,
+  registration_photo_label: '' as string | null,
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
@@ -141,7 +145,9 @@ export const EventsManagement: React.FC = () => {
       rules: [],
       registration_open: true,
       registration_timer_enabled: false,
-      registration_opens_at: '',
+  registration_opens_at: '',
+  registration_photo_required: false,
+    registration_photo_label: '',
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -164,8 +170,10 @@ export const EventsManagement: React.FC = () => {
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
+        registration_photo_required: !!(eventForm as any).registration_photo_required,
+        registration_photo_label: (eventForm as any).registration_photo_label || null,
         current_registrations: 0
-      }, draftCoordinators);
+      } as any, draftCoordinators);
       setIsAddingEvent(false);
       resetEventForm();
       setDraftCoordinators([]);
@@ -183,17 +191,24 @@ export const EventsManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
       await updateEvent(id, {
         ...eventForm,
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
+        registration_photo_required: !!(eventForm as any).registration_photo_required,
+        registration_photo_label: (eventForm as any).registration_photo_label || null,
       } as any);
+      steps.next('Finalizing');
       setEditingEvent(null);
       resetEventForm();
       try { localStorage.removeItem('admin_events_form_draft'); } catch {}
     } catch (error: any) {
       console.error('Error updating event:', error);
       alert(error?.message || 'Failed to update event. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -252,7 +267,9 @@ export const EventsManagement: React.FC = () => {
       rules: event.rules || [],
       registration_open: event.registration_open,
       registration_timer_enabled: (event as any).registration_timer_enabled ?? false,
-      registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
+  registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
+  registration_photo_required: (event as any).registration_photo_required ?? false,
+    registration_photo_label: (event as any).registration_photo_label || '',
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
@@ -275,7 +292,13 @@ export const EventsManagement: React.FC = () => {
   };
 
   const updateCoordinatorField = async (id: number, field: 'name' | 'phone', value: string) => {
-    await updateEventCoordinator(id, { [field]: value } as any);
+    const steps = savingProgress.withSteps(2, 'Preparing…');
+    steps.next('Saving');
+    try {
+      await updateEventCoordinator(id, { [field]: value } as any);
+    } finally {
+      savingProgress.done();
+    }
   };
 
   const moveCoordinator = async (eventId: number, id: number, delta: -1 | 1) => {
@@ -286,13 +309,18 @@ export const EventsManagement: React.FC = () => {
     const a = list[i];
     const b = list[j];
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Reordering');
       await Promise.all([
         updateEventCoordinator(a.id, { order_position: b.order_position }),
         updateEventCoordinator(b.id, { order_position: a.order_position })
       ]);
+      steps.next('Finalizing');
     } catch (e) {
       console.error('Failed to reorder coordinators', e);
       alert('Could not reorder right now. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -310,10 +338,14 @@ export const EventsManagement: React.FC = () => {
 
   const handleSetRegistrationOpen = async (id: number, open: boolean) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Saving');
       await updateEvent(id, { registration_open: open } as any);
     } catch (error) {
       console.error('Error setting registration_open:', error);
       alert('Failed to update live status. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -659,6 +691,15 @@ export const EventsManagement: React.FC = () => {
                 <label className="flex items-center">
                   <input
                     type="checkbox"
+                    checked={!!(eventForm as any).registration_photo_required}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_required: e.target.checked } as any))}
+                    className="mr-2"
+                  />
+                  Require Photo During Registration
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
                     checked={eventForm.featured}
                     onChange={(e) => setEventForm(prev => ({ ...prev, featured: e.target.checked }))}
                     className="mr-2"
@@ -674,6 +715,18 @@ export const EventsManagement: React.FC = () => {
                   />
                   Visible to Public
                 </label>
+              </div>
+              {/* Registration Photo Label (optional) */}
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Registration Photo Label (optional)</label>
+                <input
+                  type="text"
+                  value={(eventForm as any).registration_photo_label || ''}
+                  onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_label: e.target.value } as any))}
+                  placeholder="e.g., Participant Photo, College ID Photo, etc."
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                />
+                <p className="text-xs text-gray-500 mt-1">Shown to users on the registration form. Leave blank to use default.</p>
               </div>
               {eventForm.registration_timer_enabled && (
                 <div className="mt-3">
@@ -878,6 +931,15 @@ export const EventsManagement: React.FC = () => {
                     />
                     Enable Timer (optional)
                   </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={!!(eventForm as any).registration_photo_required}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_required: e.target.checked } as any))}
+                      className="mr-2"
+                    />
+                    Require Photo During Registration
+                  </label>
                   {eventForm.registration_timer_enabled && (
                     <div className="w-full">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At</label>
@@ -890,8 +952,19 @@ export const EventsManagement: React.FC = () => {
                     </div>
                   )}
                 </div>
+                {/* Registration Photo Label (edit) */}
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Registration Photo Label (optional)</label>
+                  <input
+                    type="text"
+                    value={(eventForm as any).registration_photo_label || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_label: e.target.value } as any))}
+                    placeholder="e.g., Participant Photo, College ID Photo, etc."
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"
                     onClick={() => {

@@ -5,9 +5,11 @@ import { ImageUpload } from '../ImageUpload';
 import type { BandMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const BandManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const savingProgress = useSavingProgress();
   const { 
     bandMembers,
     addBandMember,
@@ -65,6 +67,9 @@ export const BandManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await addBandMember(form);
       setIsAdding(false);
       resetForm();
@@ -73,6 +78,8 @@ export const BandManagement: React.FC = () => {
       console.error('Error adding band member:', error);
       const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
       alert(`Failed to add band member. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -83,6 +90,9 @@ export const BandManagement: React.FC = () => {
     }
     
     try {
+      const steps = savingProgress.withSteps(3, 'Preparing…');
+      steps.next('Validating');
+      steps.next('Saving to database');
       await updateBandMember(id, form);
       setEditing(null);
       resetForm();
@@ -91,35 +101,49 @@ export const BandManagement: React.FC = () => {
       console.error('Error updating band member:', error);
       const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
       alert(`Failed to update band member. ${msg}`);
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this band member? This action cannot be undone.')) {
       try {
+        const steps = savingProgress.withSteps(2, 'Preparing…');
+        steps.next('Deleting');
         await deleteBandMember(id);
       } catch (error) {
         console.error('Error deleting band member:', error);
         alert('Failed to delete band member. Please try again.');
+      } finally {
+        savingProgress.done();
       }
     }
   };
 
   const handleToggleEnabled = async (id: number) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Updating');
       await toggleBandMemberEnabled(id);
     } catch (error) {
       console.error('Error toggling band member status:', error);
       alert('Failed to update band member status. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
   const handleToggleFeatured = async (id: number) => {
     try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Updating');
       await toggleBandMemberFeatured(id);
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -531,7 +555,7 @@ export const BandManagement: React.FC = () => {
                   cropAspect={4/5}
                   autoSave
                 />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"
                     onClick={() => {

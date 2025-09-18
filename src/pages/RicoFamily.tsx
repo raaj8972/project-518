@@ -425,11 +425,11 @@ export const RicoFamily: React.FC = () => {
                                   {/* Specialty Badge (overlay) */}
                                   {member.specialty && (
                                     <div
-                                      className={`absolute top-2 left-2 animate-badge-enter`}
+                                      className="absolute top-2 left-2 opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto"
                                       title={member.specialty}
                                     >
                                       <span
-                                        className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg pulse-glow"
+                                        className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg"
                                         style={{
                                           backgroundColor: committee.color + 'CC',
                                           borderColor: committee.color,
@@ -455,15 +455,15 @@ export const RicoFamily: React.FC = () => {
                                     {member.role}
                                   </p>
                                   {/* Social Links + More/Less button row */}
-                                  {member.social_links && Object.values(member.social_links).some(link => link) ? (
+                                  {((member.social_links && Object.values(member.social_links).some(link => Boolean(link))) || Boolean((member as any).phone)) ? (
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
-                                      {member.social_links.instagram && (
+                                      {member.social_links?.instagram && (
                                         <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
                                       )}
-                                      {member.social_links.youtube && (
+                                      {member.social_links?.youtube && (
                                         <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
                                       )}
-                                      {member.social_links.spotify && (
+                                      {member.social_links?.spotify && (
                                         <a
                                           href={member.social_links.spotify}
                                           target="_blank"
@@ -472,6 +472,9 @@ export const RicoFamily: React.FC = () => {
                                         >
                                           <Spotify size={22} />
                                         </a>
+                                      )}
+                                      {Boolean((member as any).phone) && (
+                                        <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
                                       )}
                                       {/* Spacer pushes button to right */}
                                       <button
@@ -505,14 +508,9 @@ export const RicoFamily: React.FC = () => {
                                       {member.specialty && (
                                         <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
                                       )}
-                                      {(Boolean((member as any).phone) || Boolean((member as any).email)) && (
+                                      {Boolean((member as any).email) && (
                                         <div className="flex flex-wrap items-center gap-2">
-                                          {Boolean((member as any).email) && (
-                                            <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
-                                          )}
-                                          {Boolean((member as any).phone) && (
-                                            <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
-                                          )}
+                                          <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
                                         </div>
                                       )}
                                       {member.achievements.length > 0 && (
