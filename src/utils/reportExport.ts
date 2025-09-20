@@ -298,9 +298,10 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     const idxMembers = colIndex('team_members');
     const idxPhones = colIndex('team_phones');
     const baseColStyles: Record<number, any> = {};
-    if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 36 };
-    if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 52 };
-    if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 40 };
+    // Keep these conservative so the table fits without crushing other columns
+    if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 28 };
+    if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 42 };
+    if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 32 };
     if (photoKeyIncluded && photoColIndex >= 0) baseColStyles[photoColIndex] = { cellWidth: Math.max(thumbPx + 6, 18) };
 
     autoTable(doc as any, {
@@ -309,9 +310,12 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       styles: {
         fontSize,
         minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined,
-        overflow: 'linebreak' // allow wrapping to avoid overlap
+        overflow: 'linebreak', // allow wrapping to avoid overlap
+        cellWidth: 'wrap',
+        cellPadding: 1
       },
-      headStyles: { fillColor: [30,30,30] },
+      headStyles: { fillColor: [30,30,30], cellPadding: 1, fontSize: Math.max(8, fontSize) },
+      tableWidth: 'auto',
       columnStyles: Object.keys(baseColStyles).length ? baseColStyles : undefined,
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
