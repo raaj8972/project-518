@@ -123,11 +123,16 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
             const fmt = (m: any) => {
               const name = m?.name || '';
               const email = m?.email || '';
-              const phone = m?.phone || '';
-              const meta = [email, phone].filter(Boolean).join(' • ');
-              return meta ? `${name} (${meta})` : (name || '');
+              return email ? `${name} (${email})` : (name || '');
             };
             return list.map(fmt).join('; ');
+          })()
+        : 'N/A',
+      'Team Member Phones': reg.is_team_registration 
+        ? (() => {
+            const list = safeTeamMembers(reg);
+            const phones = list.map((m: any) => m?.phone || '').filter(Boolean);
+            return phones.length ? phones.join(', ') : 'N/A';
           })()
         : 'N/A'
     }));
@@ -193,11 +198,16 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
             const fmt = (m: any) => {
               const name = m?.name || '';
               const email = m?.email || '';
-              const phone = m?.phone || '';
-              const meta = [email, phone].filter(Boolean).join(' • ');
-              return meta ? `${name} (${meta})` : (name || '');
+              return email ? `${name} (${email})` : (name || '');
             };
             return list.map(fmt).join('; ');
+          })()
+        : 'N/A'
+      , 'Team Member Phones': reg.is_team_registration 
+        ? (() => {
+            const list = safeTeamMembers(reg);
+            const phones = list.map((m: any) => m?.phone || '').filter(Boolean);
+            return phones.length ? phones.join(', ') : 'N/A';
           })()
         : 'N/A'
     }));

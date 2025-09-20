@@ -19,7 +19,7 @@ const safeTeamMembers = (r: any): any[] => {
 export type RegistrationColumnKey =
   | 'id' | 'event_title' | 'is_team_registration' | 'team_name' | 'total_members'
   | 'full_name' | 'participant_type' | 'email' | 'phone' | 'college' | 'motivation'
-  | 'registration_date' | 'status' | 'team_members' | 'photo_url';
+  | 'registration_date' | 'status' | 'team_members' | 'team_phones' | 'photo_url';
 
 export interface ColumnDefinition {
   key: RegistrationColumnKey;
@@ -50,11 +50,15 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
     const fmt = (m: any) => {
       const name = m?.name || '';
       const email = m?.email || '';
-      const phone = m?.phone || '';
-      const meta = [email, phone].filter(Boolean).join(' • ');
-      return meta ? `${name} (${meta})` : (name || '');
+      return email ? `${name} (${email})` : (name || '');
     };
     return list.length ? list.map(fmt).join('; ') : 'N/A';
+  } },
+  { key: 'team_phones', header: 'Team Member Phones', accessor: r => {
+    if (!r.is_team_registration) return 'N/A';
+    const list = safeTeamMembers(r);
+    const phones = list.map((m: any) => m?.phone || '').filter(Boolean);
+    return phones.length ? phones.join(', ') : 'N/A';
   } }
 ];
 
@@ -62,7 +66,7 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
 export const EXPORT_PRESETS: Record<string, RegistrationColumnKey[]> = {
   minimal: ['full_name','email','phone','event_title','status'],
   full: REGISTRATION_COLUMNS.map(c => c.key),
-  'team-only': ['team_name','total_members','team_members','event_title','status']
+  'team-only': ['team_name','total_members','team_members','team_phones','event_title','status']
 };
 
 export interface BuildMatrixOptions {
