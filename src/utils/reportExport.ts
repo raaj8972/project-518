@@ -235,76 +235,9 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   }
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
-  const fontSize = opts.fontSize || 8; // slightly larger for readability
+  const fontSize = opts.fontSize || 7;
   const base = opts.baseFileName || 'registrations';
-  const thumbPx = Math.max(12, Math.min(opts.photoThumbSize || 18, 64));
-
-  // Build column style hints to prevent squished text when custom columns are selected
-  const widthHints: Partial<Record<RegistrationColumnKey, number>> = {
-    id: 36,
-    event_title: 26,
-    is_team_registration: 18,
-    team_name: 24,
-    total_members: 14,
-    full_name: 24,
-    participant_type: 22,
-    email: 30,
-    phone: 22,
-    college: 30,
-    motivation: 36,
-    registration_date: 28,
-    status: 18,
-    team_members: 40,
-    team_phones: 28,
-    photo_url: Math.max(thumbPx + 6, 18)
-  };
-
-  // Compute dynamic widths that fill the available page width
-  const margin = { top: 14, left: 10, right: 10, bottom: 12 } as const;
-  const pageWidth = (new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' }) as any).internal.pageSize.getWidth();
-  const availableWidth = Math.max(10, pageWidth - margin.left - margin.right);
-  const getWeight = (k: RegistrationColumnKey) => widthHints[k] || 22;
-  const minWidth: Partial<Record<RegistrationColumnKey, number>> = {
-    id: 26,
-    event_title: 24,
-    is_team_registration: 16,
-    team_name: 18,
-    total_members: 12,
-    full_name: 20,
-    participant_type: 18,
-    email: 22,
-    phone: 18,
-    college: 22,
-    motivation: 24,
-    registration_date: 24,
-    status: 16,
-    team_members: 30,
-    team_phones: 22,
-    photo_url: Math.max(thumbPx + 6, 18)
-  };
-
-  const weights = selectedDefs.map(d => getWeight(d.key as RegistrationColumnKey));
-  const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
-  let widths = selectedDefs.map((d, i) => Math.max(minWidth[d.key as RegistrationColumnKey] || 16, Math.floor(availableWidth * (weights[i] / totalWeight))));
-  // Distribute leftover space to flexible columns
-  const currentTotal = widths.reduce((a, b) => a + b, 0);
-  let leftover = Math.max(0, Math.floor(availableWidth - currentTotal));
-  const flexKeys: RegistrationColumnKey[] = ['team_members', 'motivation', 'college', 'email', 'event_title'];
-  while (leftover > 0) {
-    let progressed = false;
-    for (let i = 0; i < selectedDefs.length && leftover > 0; i++) {
-      const k = selectedDefs[i].key as RegistrationColumnKey;
-      if (flexKeys.includes(k)) {
-        widths[i] += 1; leftover -= 1; progressed = true;
-      }
-    }
-    if (!progressed) break;
-  }
-
-  const columnStyles: Record<number, any> = {};
-  selectedDefs.forEach((_, idx) => {
-    columnStyles[idx] = { cellWidth: widths[idx], overflow: 'linebreak' };
-  });
+  const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
 
   // Helper: fetch an image URL and return data URL + format compatible with jsPDF
   const fetchImageDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> => {
@@ -362,17 +295,9 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     autoTable(doc as any, {
       head: [headers],
       body: sliceBody,
-      margin,
-  tableWidth: availableWidth,
-      styles: {
-        fontSize,
-        overflow: 'linebreak',
-        cellPadding: 1.2,
-        minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined,
-        valign: 'middle'
-      },
+      styles: { fontSize, minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined },
       headStyles: { fillColor: [30,30,30] },
-      columnStyles: columnStyles,
+      columnStyles: photoKeyIncluded && photoColIndex >= 0 ? { [photoColIndex]: { cellWidth: Math.max(thumbPx + 6, 18) } } : undefined,
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
         if (data.section !== 'body') return;
