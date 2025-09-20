@@ -1,4 +1,4 @@
--- Remove motivation from registrations and update RPC signature
+  -- Remove motivation from registrations and update RPC signature
 -- Safe and idempotent where possible
 
 -- 1) Drop column if exists
