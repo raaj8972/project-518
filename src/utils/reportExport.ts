@@ -235,7 +235,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   }
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
-  const fontSize = opts.fontSize || 7;
+  const fontSize = opts.fontSize || 6;
   const base = opts.baseFileName || 'registrations';
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
 
@@ -293,29 +293,36 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       while (preloaded.length < sliceRows.length) preloaded.push(null);
     }
     // Compute column widths for problem columns
-    const colIndex = (k: RegistrationColumnKey) => selectedDefs.findIndex(d => d.key === k);
+  const colIndex = (k: RegistrationColumnKey) => selectedDefs.findIndex(d => d.key === k);
     const idxEvent = colIndex('event_title');
     const idxMembers = colIndex('team_members');
     const idxPhones = colIndex('team_phones');
+  const idxRegDate = colIndex('registration_date');
+  const idxCollege = colIndex('college');
+  const idxStatus = colIndex('status');
     const baseColStyles: Record<number, any> = {};
     // Keep these conservative so the table fits without crushing other columns
     if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 28 };
     if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 42 };
     if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 32 };
-    if (photoKeyIncluded && photoColIndex >= 0) baseColStyles[photoColIndex] = { cellWidth: Math.max(thumbPx + 6, 18) };
+  if (idxRegDate >= 0) baseColStyles[idxRegDate] = { cellWidth: 32 };
+  if (idxCollege >= 0) baseColStyles[idxCollege] = { cellWidth: 34 };
+  if (idxStatus >= 0) baseColStyles[idxStatus] = { cellWidth: 18 };
+  if (photoKeyIncluded && photoColIndex >= 0) baseColStyles[photoColIndex] = { cellWidth: Math.max(thumbPx + 4, 16) };
 
     autoTable(doc as any, {
       head: [headers],
       body: sliceBody,
       styles: {
         fontSize,
-        minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined,
+        minCellHeight: photoKeyIncluded ? Math.max(thumbPx + 3, 12) : undefined,
         overflow: 'linebreak', // allow wrapping to avoid overlap
         cellWidth: 'wrap',
         cellPadding: 1
       },
       headStyles: { fillColor: [30,30,30], cellPadding: 1, fontSize: Math.max(8, fontSize) },
       tableWidth: 'auto',
+      margin: { top: 12, bottom: 10, left: 8, right: 8 },
       columnStyles: Object.keys(baseColStyles).length ? baseColStyles : undefined,
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
