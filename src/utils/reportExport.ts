@@ -1,6 +1,21 @@
 // Centralized report export utility (Excel, PDF, CSV) with column presets and splitting
 import type { Registration } from '../context/DataContext';
 
+// Defensive helpers to normalize team member shape coming from DB/UI
+const safeTeamMembers = (r: any): any[] => {
+  const tm = (r as any)?.team_members;
+  if (Array.isArray(tm)) return tm;
+  if (typeof tm === 'string') {
+    try {
+      const parsed = JSON.parse(tm);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 export type RegistrationColumnKey =
   | 'id' | 'event_title' | 'is_team_registration' | 'team_name' | 'total_members'
   | 'full_name' | 'participant_type' | 'email' | 'phone' | 'college' | 'motivation'
@@ -29,7 +44,11 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
   { key: 'motivation', header: 'Motivation', accessor: r => r.motivation || 'Not provided' },
   { key: 'registration_date', header: 'Registration Date', accessor: r => new Date(r.registration_date).toLocaleString() },
   { key: 'status', header: 'Status', accessor: r => r.status.toUpperCase() },
-  { key: 'team_members', header: 'Team Members', accessor: r => (r.is_team_registration && r.team_members) ? r.team_members.map((m: any) => `${m.name} (${m.email})`).join('; ') : 'N/A' }
+  { key: 'team_members', header: 'Team Members', accessor: r => {
+    if (!r.is_team_registration) return 'N/A';
+    const list = safeTeamMembers(r);
+    return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A';
+  } }
 ];
 
 // Presets: Minimal, Full, Team-only detail
@@ -45,9 +64,14 @@ export interface BuildMatrixOptions {
 }
 
 export const buildMatrix = ({ rows, columns }: BuildMatrixOptions) => {
+  // Normalize rows defensively so downstream code and accessors are stable
+  const normRows = rows.map(r => ({
+    ...(r as any),
+    team_members: safeTeamMembers(r)
+  })) as Registration[];
   const selectedDefs = columns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
   const headers = selectedDefs.map(c => c.header);
-  const body = rows.map(r => selectedDefs.map(col => col.accessor ? col.accessor(r) : (r as any)[col.key]));
+  const body = normRows.map(r => selectedDefs.map(col => col.accessor ? col.accessor(r) : (r as any)[col.key]));
   return { headers, body };
 };
 

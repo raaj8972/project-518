@@ -1,6 +1,21 @@
 import * as XLSX from 'xlsx';
 import { Registration } from '../context/DataContext';
 
+// Defensive helper: parse team_members that might be null/string/json
+const safeTeamMembers = (r: any): any[] => {
+  const tm = (r as any)?.team_members;
+  if (Array.isArray(tm)) return tm;
+  if (typeof tm === 'string') {
+    try {
+      const parsed = JSON.parse(tm);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 export const exportRegistrationsToExcel = (registrations: Registration[], filename: string = 'registrations.xlsx') => {
   // Prepare data for Excel export
   const excelData: Record<string, any>[] = registrations.map((reg) => {
@@ -22,8 +37,9 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
     };
 
     // Add team members if it's a team registration
-    if (reg.is_team_registration && reg.team_members && reg.team_members.length > 0) {
-      reg.team_members.forEach((member: any, index: number) => {
+    if (reg.is_team_registration) {
+      const list = safeTeamMembers(reg);
+      list.forEach((member: any, index: number) => {
         baseData[`Member ${index + 1} Name`] = member?.name || '';
         baseData[`Member ${index + 1} Email`] = member?.email || '';
         baseData[`Member ${index + 1} Phone`] = member?.phone || '';
@@ -100,8 +116,8 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
       'Motivation': reg.motivation || 'Not provided',
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Status': reg.status.toUpperCase(),
-      'Team Members': reg.is_team_registration && reg.team_members 
-        ? reg.team_members.map((m: any) => `${m.name} (${m.email})`).join('; ')
+      'Team Members': reg.is_team_registration 
+        ? (() => { const list = safeTeamMembers(reg); return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A'; })()
         : 'N/A'
     }));
 
@@ -159,8 +175,8 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
       'Photo URL': (reg as any).photo_url || '—',
       'College': reg.college,
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
-      'Team Members': reg.is_team_registration && reg.team_members 
-        ? reg.team_members.map((m: any) => `${m.name} (${m.email})`).join('; ')
+      'Team Members': reg.is_team_registration 
+        ? (() => { const list = safeTeamMembers(reg); return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A'; })()
         : 'N/A'
     }));
 

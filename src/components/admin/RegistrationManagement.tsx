@@ -7,6 +7,19 @@ import { exportRegistrationsToExcel, exportRegistrationsByEvent, exportRegistrat
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, exportPdf, RegistrationColumnKey } from '../../utils/reportExport';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
 
+// Defensive helper: some old rows may store team_members as JSON string or null
+const safeTeamMembers = (r: any): any[] => {
+  const tm = (r as any)?.team_members;
+  if (Array.isArray(tm)) return tm;
+  if (typeof tm === 'string') {
+    try {
+      const parsed = JSON.parse(tm);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+};
+
 export const RegistrationManagement: React.FC = () => {
   const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations } = useData();
   const { push } = useToast();
@@ -680,13 +693,13 @@ export const RegistrationManagement: React.FC = () => {
                           </div>
                           
                           {/* Team Members */}
-                          {registration.is_team_registration && registration.team_members && (
+                          {registration.is_team_registration && (
                             <div>
                               <h4 className="font-semibold text-gray-900 mb-2">
                                 Team Members ({registration.total_members})
                               </h4>
                               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {registration.team_members.map((member: any, index: number) => (
+                                {safeTeamMembers(registration).map((member: any, index: number) => (
                                   <div key={index} className="bg-white p-3 rounded border">
                                     <div className="font-medium text-sm">{member.name}</div>
                                     <div className="text-xs text-gray-600">{member.email}</div>
