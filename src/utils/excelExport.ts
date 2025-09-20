@@ -117,7 +117,18 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Status': reg.status.toUpperCase(),
       'Team Members': reg.is_team_registration 
-        ? (() => { const list = safeTeamMembers(reg); return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A'; })()
+        ? (() => { 
+            const list = safeTeamMembers(reg);
+            if (!list.length) return 'N/A';
+            const fmt = (m: any) => {
+              const name = m?.name || '';
+              const email = m?.email || '';
+              const phone = m?.phone || '';
+              const meta = [email, phone].filter(Boolean).join(' • ');
+              return meta ? `${name} (${meta})` : (name || '');
+            };
+            return list.map(fmt).join('; ');
+          })()
         : 'N/A'
     }));
 
@@ -176,7 +187,18 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
       'College': reg.college,
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Team Members': reg.is_team_registration 
-        ? (() => { const list = safeTeamMembers(reg); return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A'; })()
+        ? (() => { 
+            const list = safeTeamMembers(reg);
+            if (!list.length) return 'N/A';
+            const fmt = (m: any) => {
+              const name = m?.name || '';
+              const email = m?.email || '';
+              const phone = m?.phone || '';
+              const meta = [email, phone].filter(Boolean).join(' • ');
+              return meta ? `${name} (${meta})` : (name || '');
+            };
+            return list.map(fmt).join('; ');
+          })()
         : 'N/A'
     }));
 

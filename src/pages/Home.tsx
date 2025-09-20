@@ -510,7 +510,7 @@ export const Home: React.FC = () => {
         return (
           <section className="py-16 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
-            <div className="container mx-auto px-0 relative z-10">
+            <div className="container mx-auto px-4 relative z-10">
               <div className="scroll-animate opacity-0 transform translate-y-20">
                 <div className="text-center mb-12">
                   <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
@@ -524,6 +524,7 @@ export const Home: React.FC = () => {
               </div>
               {multi ? (
                 <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading…</div>}>
+                <div className="max-w-6xl mx-auto">
                 <AutoCarousel intervalMs={5500} showArrows showDots className="pt-2">
                   {enabledChiefs.map((cg: any) => (
                     <div
@@ -582,6 +583,7 @@ export const Home: React.FC = () => {
                     </div>
                   ))}
                 </AutoCarousel>
+                </div>
                 </React.Suspense>
               ) : (
                 <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-center">

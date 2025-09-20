@@ -47,7 +47,14 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
   { key: 'team_members', header: 'Team Members', accessor: r => {
     if (!r.is_team_registration) return 'N/A';
     const list = safeTeamMembers(r);
-    return list.length ? list.map((m: any) => `${m?.name || ''} (${m?.email || ''})`).join('; ') : 'N/A';
+    const fmt = (m: any) => {
+      const name = m?.name || '';
+      const email = m?.email || '';
+      const phone = m?.phone || '';
+      const meta = [email, phone].filter(Boolean).join(' • ');
+      return meta ? `${name} (${meta})` : (name || '');
+    };
+    return list.length ? list.map(fmt).join('; ') : 'N/A';
   } }
 ];
 
