@@ -259,10 +259,51 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     photo_url: Math.max(thumbPx + 6, 18)
   };
 
+  // Compute dynamic widths that fill the available page width
+  const margin = { top: 14, left: 10, right: 10, bottom: 12 } as const;
+  const pageWidth = (new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' }) as any).internal.pageSize.getWidth();
+  const availableWidth = Math.max(10, pageWidth - margin.left - margin.right);
+  const getWeight = (k: RegistrationColumnKey) => widthHints[k] || 22;
+  const minWidth: Partial<Record<RegistrationColumnKey, number>> = {
+    id: 26,
+    event_title: 24,
+    is_team_registration: 16,
+    team_name: 18,
+    total_members: 12,
+    full_name: 20,
+    participant_type: 18,
+    email: 22,
+    phone: 18,
+    college: 22,
+    motivation: 24,
+    registration_date: 24,
+    status: 16,
+    team_members: 30,
+    team_phones: 22,
+    photo_url: Math.max(thumbPx + 6, 18)
+  };
+
+  const weights = selectedDefs.map(d => getWeight(d.key as RegistrationColumnKey));
+  const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
+  let widths = selectedDefs.map((d, i) => Math.max(minWidth[d.key as RegistrationColumnKey] || 16, Math.floor(availableWidth * (weights[i] / totalWeight))));
+  // Distribute leftover space to flexible columns
+  const currentTotal = widths.reduce((a, b) => a + b, 0);
+  let leftover = Math.max(0, Math.floor(availableWidth - currentTotal));
+  const flexKeys: RegistrationColumnKey[] = ['team_members', 'motivation', 'college', 'email', 'event_title'];
+  while (leftover > 0) {
+    let progressed = false;
+    for (let i = 0; i < selectedDefs.length && leftover > 0; i++) {
+      const k = selectedDefs[i].key as RegistrationColumnKey;
+      if (flexKeys.includes(k)) {
+        widths[i] += 1; leftover -= 1; progressed = true;
+      }
+    }
+    if (!progressed) break;
+  }
+
   const columnStyles: Record<number, any> = {};
-  selectedDefs.forEach((def, idx) => {
-    const w = widthHints[def.key as RegistrationColumnKey];
-    if (w) columnStyles[idx] = { cellWidth: w, overflow: 'linebreak' };
+  selectedDefs.forEach((_, idx) => {
+    columnStyles[idx] = { cellWidth: widths[idx], overflow: 'linebreak' };
   });
 
   // Helper: fetch an image URL and return data URL + format compatible with jsPDF
@@ -321,7 +362,8 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     autoTable(doc as any, {
       head: [headers],
       body: sliceBody,
-      margin: { top: 14, left: 10, right: 10, bottom: 12 },
+      margin,
+  tableWidth: availableWidth,
       styles: {
         fontSize,
         overflow: 'linebreak',
