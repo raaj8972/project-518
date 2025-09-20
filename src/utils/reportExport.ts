@@ -235,7 +235,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   }
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
-  const fontSize = opts.fontSize || 6;
+  const fontSize = opts.fontSize || 5.5;
   const base = opts.baseFileName || 'registrations';
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 14, 64));
 
@@ -312,7 +312,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     const baseColStyles: Record<number, any> = {};
     // Keep these conservative so the table fits without crushing other columns
   if (idxId >= 0) baseColStyles[idxId] = { cellWidth: 30 };
-  if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 24 };
+  if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 22 };
   if (idxRegType >= 0) baseColStyles[idxRegType] = { cellWidth: 18 };
   if (idxTeamName >= 0) baseColStyles[idxTeamName] = { cellWidth: 18 };
   if (idxTotal >= 0) baseColStyles[idxTotal] = { cellWidth: 12 };
@@ -320,9 +320,9 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   if (idxLeaderType >= 0) baseColStyles[idxLeaderType] = { cellWidth: 16 };
   if (idxEmail >= 0) baseColStyles[idxEmail] = { cellWidth: 34 };
   if (idxPhone >= 0) baseColStyles[idxPhone] = { cellWidth: 22 };
-    if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 42 };
-    if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 32 };
-  if (idxRegDate >= 0) baseColStyles[idxRegDate] = { cellWidth: 32 };
+  if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 38 };
+  if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 28 };
+  if (idxRegDate >= 0) baseColStyles[idxRegDate] = { cellWidth: 28 };
   if (idxCollege >= 0) baseColStyles[idxCollege] = { cellWidth: 28 };
   if (idxStatus >= 0) baseColStyles[idxStatus] = { cellWidth: 18 };
   if (photoKeyIncluded && idxPhoto >= 0) baseColStyles[idxPhoto] = { cellWidth: Math.max(thumbPx + 4, 16) };
@@ -338,7 +338,8 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
         cellPadding: 1
       },
       headStyles: { fillColor: [30,30,30], cellPadding: 1, fontSize: Math.max(8, fontSize) },
-      tableWidth: 'auto',
+  tableWidth: 'auto',
+  horizontalPageBreak: true,
       margin: { top: 12, bottom: 10, left: 8, right: 8 },
       columnStyles: Object.keys(baseColStyles).length ? baseColStyles : undefined,
       didDrawCell: (data: any) => {
