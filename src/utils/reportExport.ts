@@ -292,12 +292,27 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       // In case tasks < preloaded due to chunking boundaries, pad
       while (preloaded.length < sliceRows.length) preloaded.push(null);
     }
+    // Compute column widths for problem columns
+    const colIndex = (k: RegistrationColumnKey) => selectedDefs.findIndex(d => d.key === k);
+    const idxEvent = colIndex('event_title');
+    const idxMembers = colIndex('team_members');
+    const idxPhones = colIndex('team_phones');
+    const baseColStyles: Record<number, any> = {};
+    if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 36 };
+    if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 52 };
+    if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 40 };
+    if (photoKeyIncluded && photoColIndex >= 0) baseColStyles[photoColIndex] = { cellWidth: Math.max(thumbPx + 6, 18) };
+
     autoTable(doc as any, {
       head: [headers],
       body: sliceBody,
-      styles: { fontSize, minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined },
+      styles: {
+        fontSize,
+        minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined,
+        overflow: 'linebreak' // allow wrapping to avoid overlap
+      },
       headStyles: { fillColor: [30,30,30] },
-      columnStyles: photoKeyIncluded && photoColIndex >= 0 ? { [photoColIndex]: { cellWidth: Math.max(thumbPx + 6, 18) } } : undefined,
+      columnStyles: Object.keys(baseColStyles).length ? baseColStyles : undefined,
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
         if (data.section !== 'body') return;
