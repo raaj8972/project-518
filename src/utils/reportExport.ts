@@ -227,62 +227,43 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const { headers, body } = buildMatrix({ rows, columns });
   const photoKeyIncluded = columns.includes('photo_url');
   const selectedDefs = columns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
-  let photoColIndex = photoKeyIncluded ? selectedDefs.findIndex(d => d.key === 'photo_url') : -1;
-  // Work on mutable copies
-  let H = headers.slice();
-  let B = body.map(r => r.slice());
+  const photoColIndex = photoKeyIncluded ? selectedDefs.findIndex(d => d.key === 'photo_url') : -1;
   if (photoKeyIncluded && photoColIndex >= 0) {
     // Hide raw URLs in the PDF table; we'll draw thumbs instead in didDrawCell
-    H[photoColIndex] = 'Photo';
-    for (const row of B) row[photoColIndex] = ' ';
-  }
-  // Auto-compact to one-page by collapsing trailing fields into a single Details column when many columns are selected
-  const COMPACT_THRESHOLD = 14;
-  if (columns.length >= COMPACT_THRESHOLD) {
-    const keysToMerge: RegistrationColumnKey[] = ['college','motivation','registration_date','status','team_members','team_phones'];
-    const mergeIdxs = keysToMerge
-      .map(k => selectedDefs.findIndex(d => d.key === k))
-      .filter(i => i >= 0)
-      .sort((a,b) => a - b);
-    if (mergeIdxs.length) {
-      // Build details text per row
-      const labels: Record<string,string> = {
-        'college': 'College',
-        'motivation': 'Motivation',
-        'registration_date': 'Registered',
-        'status': 'Status',
-        'team_members': 'Team Members',
-        'team_phones': 'Team Phones'
-      };
-      const detailsPerRow = B.map((row) => {
-        const lines: string[] = [];
-        mergeIdxs.forEach((idx) => {
-          const key = selectedDefs[idx]?.key as RegistrationColumnKey | undefined;
-          if (!key) return;
-          const label = labels[String(key)] || key;
-          const val = row[idx] == null || row[idx] === '' ? '—' : String(row[idx]);
-          lines.push(`${label}: ${val}`);
-        });
-        return lines.join('\n');
-      });
-      // Remove merged columns from H and B (remove from highest index to lowest)
-      for (let i = mergeIdxs.length - 1; i >= 0; i--) {
-        const idx = mergeIdxs[i];
-        H.splice(idx, 1);
-        B.forEach(r => r.splice(idx, 1));
-        if (photoColIndex >= 0 && idx < photoColIndex) photoColIndex -= 1;
-      }
-      // Insert Details column just before Photo if present, else at the end
-      const insertAt = photoColIndex >= 0 ? photoColIndex : H.length;
-      H.splice(insertAt, 0, 'Details');
-      B.forEach((r, i) => { r.splice(insertAt, 0, detailsPerRow[i]); });
-    }
+    headers[photoColIndex] = 'Photo';
+    for (const row of body) row[photoColIndex] = ' ';
   }
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
-  const fontSize = opts.fontSize || 6;
+  const fontSize = opts.fontSize || 8; // slightly larger for readability
   const base = opts.baseFileName || 'registrations';
-  const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 14, 64));
+  const thumbPx = Math.max(12, Math.min(opts.photoThumbSize || 18, 64));
+
+  // Build column style hints to prevent squished text when custom columns are selected
+  const widthHints: Partial<Record<RegistrationColumnKey, number>> = {
+    id: 36,
+    event_title: 26,
+    is_team_registration: 18,
+    team_name: 24,
+    total_members: 14,
+    full_name: 24,
+    participant_type: 22,
+    email: 30,
+    phone: 22,
+    college: 30,
+    motivation: 36,
+    registration_date: 28,
+    status: 18,
+    team_members: 40,
+    team_phones: 28,
+    photo_url: Math.max(thumbPx + 6, 18)
+  };
+
+  const columnStyles: Record<number, any> = {};
+  selectedDefs.forEach((def, idx) => {
+    const w = widthHints[def.key as RegistrationColumnKey];
+    if (w) columnStyles[idx] = { cellWidth: w, overflow: 'linebreak' };
+  });
 
   // Helper: fetch an image URL and return data URL + format compatible with jsPDF
   const fetchImageDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> => {
@@ -320,7 +301,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const saveDoc = async (sliceBody: any[][], sliceRows: Registration[], index: number, total: number) => {
     const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' });
     // Preload photos for this slice to keep hooks synchronous
-    const preloaded: Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> = [];
+  const preloaded: Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> = [];
     if (photoKeyIncluded && photoColIndex >= 0) {
       // Limit concurrency to avoid blocking UI
       const CONC = 6;
@@ -337,47 +318,23 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       // In case tasks < preloaded due to chunking boundaries, pad
       while (preloaded.length < sliceRows.length) preloaded.push(null);
     }
-    // Column styles will be mapped strictly against final headers (H) below
-
     autoTable(doc as any, {
-  head: [H],
-  body: sliceBody, // sliceBody is already aligned with the final headers (H)
+      head: [headers],
+      body: sliceBody,
+      margin: { top: 14, left: 10, right: 10, bottom: 12 },
       styles: {
         fontSize,
-        minCellHeight: photoKeyIncluded ? Math.max(thumbPx + 2, 10) : undefined,
         overflow: 'linebreak',
-        cellWidth: 'wrap',
-        cellPadding: 0.8,
+        cellPadding: 1.2,
+        minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined,
+        valign: 'middle'
       },
-  headStyles: { fillColor: [30,30,30], cellPadding: 0.9, fontSize: Math.max(8, fontSize) },
-      tableWidth: 'auto',
-      // Keep everything on one horizontal page
-      horizontalPageBreak: false,
-      margin: { top: 12, bottom: 10, left: 8, right: 8 },
-      columnStyles: (() => {
-        // Build styles against final headers (H)
-        const map: Record<number, any> = {};
-        const iEvent = H.indexOf('Event Title');
-        const iMembers = H.indexOf('Team Members');
-        const iPhones = H.indexOf('Team Member Phones');
-        const iRegDate = H.indexOf('Registration Date');
-        const iStatus = H.indexOf('Status');
-        const iPhoto = H.indexOf('Photo');
-        const iDetails = H.indexOf('Details');
-  if (iEvent >= 0) map[iEvent] = { cellWidth: 26 };
-  if (iMembers >= 0) map[iMembers] = { cellWidth: 40 };
-  if (iPhones >= 0) map[iPhones] = { cellWidth: 28 };
-  if (iRegDate >= 0) map[iRegDate] = { cellWidth: 28 };
-  if (iStatus >= 0) map[iStatus] = { cellWidth: 18 };
-  if (iPhoto >= 0) map[iPhoto] = { cellWidth: Math.max(thumbPx + 4, 14) };
-  if (iDetails >= 0) map[iDetails] = { cellWidth: 58 };
-        return Object.keys(map).length ? map : undefined;
-      })(),
+      headStyles: { fillColor: [30,30,30] },
+      columnStyles: columnStyles,
       didDrawCell: (data: any) => {
-        if (!photoKeyIncluded) return;
+        if (!photoKeyIncluded || photoColIndex < 0) return;
         if (data.section !== 'body') return;
-        const iPhotoNow = H.indexOf('Photo');
-        if (iPhotoNow < 0 || data.column.index !== iPhotoNow) return;
+        if (data.column.index !== photoColIndex) return;
         const rowIdx = data.row.index;
         const img = preloaded[rowIdx] || null;
         if (!img) return;
@@ -411,13 +368,13 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     doc.save(name);
   };
 
-  if (!split || B.length <= split) {
-    await saveDoc(B, rows, 0, 1);
+  if (!split || body.length <= split) {
+    await saveDoc(body, rows, 0, 1);
     return;
   }
-  const totalParts = Math.ceil(B.length / split);
-  for (let i = 0; i < B.length; i += split) {
-    const slice = B.slice(i, i + split);
+  const totalParts = Math.ceil(body.length / split);
+  for (let i = 0; i < body.length; i += split) {
+    const slice = body.slice(i, i + split);
     const sliceRows = rows.slice(i, i + split);
     await saveDoc(slice, sliceRows, i / split, totalParts);
   }
