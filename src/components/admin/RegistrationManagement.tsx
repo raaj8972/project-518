@@ -684,12 +684,7 @@ export const RegistrationManagement: React.FC = () => {
                               </div>
                             )}
                             
-                            {registration.motivation && (
-                              <div>
-                                <h4 className="font-semibold text-gray-900 mb-2">Motivation</h4>
-                                <p className="text-sm text-gray-700">{registration.motivation}</p>
-                              </div>
-                            )}
+                            {/* Motivation removed from registration details */}
                           </div>
                           
                           {/* Team Members */}

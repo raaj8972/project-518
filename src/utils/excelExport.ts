@@ -31,7 +31,6 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
       'Leader/Participant Phone': reg.phone,
       'Photo URL': (reg as any).photo_url || '—',
       'College/Institution': reg.college,
-      'Motivation': reg.motivation || 'Not provided',
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Status': reg.status.toUpperCase(),
     };
@@ -113,7 +112,6 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
       'Phone': reg.phone,
       'Photo URL': (reg as any).photo_url || '—',
       'College': reg.college,
-      'Motivation': reg.motivation || 'Not provided',
       'Registration Date': new Date(reg.registration_date).toLocaleDateString(),
       'Status': reg.status.toUpperCase(),
       'Team Members': reg.is_team_registration 

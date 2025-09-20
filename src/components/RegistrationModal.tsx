@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon } from 'lucide-react';
+import { X, User, Mail, Phone, Building, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { ImageUpload } from './ImageUpload';
 
@@ -22,7 +22,6 @@ interface RegistrationData {
   email: string;
   phone: string;
   college: string;
-  motivation: string;
   is_team_registration: boolean;
   team_name: string;
   team_members: TeamMember[];
@@ -46,7 +45,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     email: '',
     phone: '',
     college: '',
-    motivation: '',
     is_team_registration: false,
     team_name: '',
     team_members: [{ name: '', email: '', phone: '' }],
@@ -175,7 +173,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         email: formData.email,
         phone: formData.phone,
         college: formData.college,
-        motivation: formData.motivation || '',
         registration_date: new Date().toISOString(),
         status: 'pending' as const,
         is_team_registration: formData.is_team_registration,
@@ -267,7 +264,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       email: '',
       phone: '',
       college: '',
-      motivation: '',
       is_team_registration: false,
       team_name: '',
       team_members: [{ name: '', email: '', phone: '' }],
@@ -655,23 +651,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               )}
 
-              {/* Motivation */}
-              <div className="cyberpunk-section">
-                <label className="cyberpunk-label">
-                  MOTIVATION_PROTOCOL (OPTIONAL)
-                </label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 md:top-1/2 md:-translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
-                  <textarea
-                    value={formData.motivation}
-                    onChange={(e) => handleInputChange('motivation', e.target.value)}
-                    placeholder="Enter your motivation for participating in this event..."
-                    rows={4}
-                    className="cyberpunk-textarea pl-12"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your motivation protocol</p>
-              </div>
+              {/* Motivation removed from form */}
 
               {/* Submit Button */}
               <div className="pt-4 border-t border-cyan-500/30">

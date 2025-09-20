@@ -421,13 +421,13 @@ export interface Database {
           email: string
           phone: string
           college: string
-          motivation: string
           registration_date: string
           status: 'pending' | 'approved' | 'rejected'
           is_team_registration: boolean
           team_name: string | null
           team_members: any | null
           total_members: number
+          photo_url: string | null
           created_at: string
         }
         Insert: {
@@ -439,13 +439,13 @@ export interface Database {
           email: string
           phone: string
           college: string
-          motivation: string
           registration_date: string
           status?: 'pending' | 'approved' | 'rejected'
           is_team_registration: boolean
           team_name?: string | null
           team_members?: any | null
           total_members: number
+          photo_url?: string | null
           created_at?: string
         }
         Update: {
@@ -457,13 +457,13 @@ export interface Database {
           email?: string
           phone?: string
           college?: string
-          motivation?: string
           registration_date?: string
           status?: 'pending' | 'approved' | 'rejected'
           is_team_registration?: boolean
           team_name?: string | null
           team_members?: any | null
           total_members?: number
+          photo_url?: string | null
           created_at?: string
         }
       }

@@ -18,7 +18,7 @@ const safeTeamMembers = (r: any): any[] => {
 
 export type RegistrationColumnKey =
   | 'id' | 'event_title' | 'is_team_registration' | 'team_name' | 'total_members'
-  | 'full_name' | 'participant_type' | 'email' | 'phone' | 'college' | 'motivation'
+  | 'full_name' | 'participant_type' | 'email' | 'phone' | 'college'
   | 'registration_date' | 'status' | 'team_members' | 'team_phones' | 'photo_url';
 
 export interface ColumnDefinition {
@@ -41,7 +41,6 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
   { key: 'phone', header: 'Leader/Participant Phone' },
   { key: 'photo_url', header: 'Photo URL', accessor: r => (r as any).photo_url || '—' },
   { key: 'college', header: 'College/Institution' },
-  { key: 'motivation', header: 'Motivation', accessor: r => r.motivation || 'Not provided' },
   { key: 'registration_date', header: 'Registration Date', accessor: r => new Date(r.registration_date).toLocaleString() },
   { key: 'status', header: 'Status', accessor: r => r.status.toUpperCase() },
   { key: 'team_members', header: 'Team Members', accessor: r => {
