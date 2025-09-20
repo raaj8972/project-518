@@ -237,7 +237,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const landscape = opts.landscape !== false; // default landscape
   const fontSize = opts.fontSize || 6;
   const base = opts.baseFileName || 'registrations';
-  const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
+  const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 14, 64));
 
   // Helper: fetch an image URL and return data URL + format compatible with jsPDF
   const fetchImageDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> => {
@@ -294,21 +294,38 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     }
     // Compute column widths for problem columns
   const colIndex = (k: RegistrationColumnKey) => selectedDefs.findIndex(d => d.key === k);
-    const idxEvent = colIndex('event_title');
+  const idxId = colIndex('id');
+  const idxEvent = colIndex('event_title');
     const idxMembers = colIndex('team_members');
     const idxPhones = colIndex('team_phones');
   const idxRegDate = colIndex('registration_date');
   const idxCollege = colIndex('college');
   const idxStatus = colIndex('status');
+  const idxRegType = colIndex('is_team_registration');
+  const idxTeamName = colIndex('team_name');
+  const idxTotal = colIndex('total_members');
+  const idxLeader = colIndex('full_name');
+  const idxLeaderType = colIndex('participant_type');
+  const idxEmail = colIndex('email');
+  const idxPhone = colIndex('phone');
+  const idxPhoto = photoColIndex;
     const baseColStyles: Record<number, any> = {};
     // Keep these conservative so the table fits without crushing other columns
-    if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 28 };
+  if (idxId >= 0) baseColStyles[idxId] = { cellWidth: 30 };
+  if (idxEvent >= 0) baseColStyles[idxEvent] = { cellWidth: 24 };
+  if (idxRegType >= 0) baseColStyles[idxRegType] = { cellWidth: 18 };
+  if (idxTeamName >= 0) baseColStyles[idxTeamName] = { cellWidth: 18 };
+  if (idxTotal >= 0) baseColStyles[idxTotal] = { cellWidth: 12 };
+  if (idxLeader >= 0) baseColStyles[idxLeader] = { cellWidth: 26 };
+  if (idxLeaderType >= 0) baseColStyles[idxLeaderType] = { cellWidth: 16 };
+  if (idxEmail >= 0) baseColStyles[idxEmail] = { cellWidth: 34 };
+  if (idxPhone >= 0) baseColStyles[idxPhone] = { cellWidth: 22 };
     if (idxMembers >= 0) baseColStyles[idxMembers] = { cellWidth: 42 };
     if (idxPhones >= 0) baseColStyles[idxPhones] = { cellWidth: 32 };
   if (idxRegDate >= 0) baseColStyles[idxRegDate] = { cellWidth: 32 };
-  if (idxCollege >= 0) baseColStyles[idxCollege] = { cellWidth: 34 };
+  if (idxCollege >= 0) baseColStyles[idxCollege] = { cellWidth: 28 };
   if (idxStatus >= 0) baseColStyles[idxStatus] = { cellWidth: 18 };
-  if (photoKeyIncluded && photoColIndex >= 0) baseColStyles[photoColIndex] = { cellWidth: Math.max(thumbPx + 4, 16) };
+  if (photoKeyIncluded && idxPhoto >= 0) baseColStyles[idxPhoto] = { cellWidth: Math.max(thumbPx + 4, 16) };
 
     autoTable(doc as any, {
       head: [headers],
