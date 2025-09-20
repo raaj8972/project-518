@@ -386,7 +386,12 @@ export const HomepageManagement: React.FC = () => {
           <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
           <div>
             <div className="font-semibold text-yellow-800">Supabase is not configured</div>
-            <div className="text-sm text-yellow-700">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local (for local) and in Netlify Env Vars (for deploy), then rebuild. Current host: {String(SUPABASE_HOST)}</div>
+            <div className="text-sm text-yellow-700">
+              Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env.local (for local) and in Netlify Env Vars (for deploy), then rebuild.
+              {((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1') && (
+                <> Current host: {String(SUPABASE_HOST)}</>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -398,10 +403,12 @@ export const HomepageManagement: React.FC = () => {
         </div>
         <div className="flex items-center gap-3">
           {/* Connection/Auth status chips */}
-          <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs border ${SUPABASE_ENV_OK ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-yellow-200 bg-yellow-50 text-yellow-700'}`} title={`Supabase host: ${String(SUPABASE_HOST)}`}>
-            <span className={`inline-block w-2 h-2 rounded-full ${SUPABASE_ENV_OK ? 'bg-emerald-500' : 'bg-yellow-500'}`}></span>
-            <span>{SUPABASE_ENV_OK ? `Supabase: ${String(SUPABASE_HOST)}` : 'Supabase not configured'}</span>
-          </div>
+          {((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1') && (
+            <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs border ${SUPABASE_ENV_OK ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-yellow-200 bg-yellow-50 text-yellow-700'}`} title={`Supabase host: ${String(SUPABASE_HOST)}`}>
+              <span className={`inline-block w-2 h-2 rounded-full ${SUPABASE_ENV_OK ? 'bg-emerald-500' : 'bg-yellow-500'}`}></span>
+              <span>{SUPABASE_ENV_OK ? `Supabase: ${String(SUPABASE_HOST)}` : 'Supabase not configured'}</span>
+            </div>
+          )}
           <div className={`hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full text-xs border ${authLoading ? 'border-gray-200 bg-gray-50 text-gray-600' : isAuthenticated ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
             <span className={`inline-block w-2 h-2 rounded-full ${authLoading ? 'bg-gray-400' : isAuthenticated ? 'bg-blue-500' : 'bg-red-500'}`}></span>
             <span>

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
@@ -231,26 +231,19 @@ export const Events: React.FC = () => {
   };
   const canRegisterNow = (e: any): boolean => {
     // Allow registration if either:
-    // 1) Admin has opened registration (registration_open true) and the timer hasn't blocked it, OR
+    // 1) Admin has opened registration (registration_open true) — overrides timer immediately, OR
     // 2) The timer has reached/passed the open time (immediate open at boundary even if flag hasn't toggled yet)
+    if (e?.registration_open) return true;
     const openAt = getOpenAtMs(e);
     const isTimerOpenWithGrace = openAt != null ? Date.now() + OPEN_GRACE_MS >= openAt : false;
-    return (!!e?.registration_open && !isBeforeOpen(e)) || isTimerOpenWithGrace;
+    return isTimerOpenWithGrace;
   };
 
   // mapsUrlFor helper removed (we compute inline where needed)
 
   return (
     <div className="cyberpunk-theme min-h-screen">
-      {connectionStatus !== 'ok' && (
-        <div className={`w-full z-50 ${connectionStatus === 'offline' ? 'bg-red-600' : 'bg-yellow-600'} text-white px-4 py-2 text-sm flex items-center justify-between`}>
-          <span>
-            {connectionStatus === 'offline' ? 'Offline: Unable to reach data service.' : 'Degraded: Some data failed to load.'}
-            {lastError ? ` — ${lastError}` : ''}
-          </span>
-          <button onClick={() => refreshAll(true)} className="ml-4 px-3 py-1 rounded bg-white/10 hover:bg-white/20 border border-white/20">Retry</button>
-        </div>
-      )}
+      {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
 
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
@@ -403,28 +396,6 @@ export const Events: React.FC = () => {
                             <div className="flex items-center text-sm text-gray-400">
                               <MapPin size={16} className="mr-2 text-purple-400" />
                               <span>{event.venue}</span>
-                              {(() => {
-                                // Map link: prefer event.map_url; fallback to Google Maps search
-                                const explicit = (event as any).map_url;
-                                const url = ((): string | null => {
-                                  if (explicit && String(explicit).trim()) return String(explicit);
-                                  if (!event.venue || !String(event.venue).trim()) return null;
-                                  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(String(event.venue))}`;
-                                })();
-                                return url ? (
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="ml-3 map-3d-btn"
-                                    title="Open map"
-                                    aria-label="Open map"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </a>
-                                ) : null;
-                              })()}
                             </div>
                             <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{event.participants} participants</div>
                             {getCoordinators(event.id).length > 0 ? (
@@ -843,35 +814,7 @@ export const Events: React.FC = () => {
         @keyframes glowTextSweep { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
         @media (prefers-reduced-motion: reduce) { .glow-text-animated { animation: none; } }
 
-        /* 3D animated icon button for Map link (parity with Schedule) */
-        .map-3d-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 9999px;
-          color: #93c5fd; /* tailwind text-blue-300 */
-          background: radial-gradient(50% 50% at 50% 50%, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 60%, transparent 100%);
-          border: 1px solid rgba(59,130,246,0.35);
-          box-shadow:
-            0 2px 8px rgba(0,0,0,0.4),
-            inset 0 0 12px rgba(59,130,246,0.15);
-          transform: perspective(600px) rotateX(8deg) rotateY(-8deg);
-          transition: transform 180ms ease, box-shadow 180ms ease, color 180ms ease, border-color 180ms ease;
-        }
-        .map-3d-btn:hover {
-          color: #fff;
-          border-color: rgba(147,197,253,0.7);
-          box-shadow:
-            0 6px 18px rgba(0,0,0,0.35),
-            0 0 18px rgba(147,197,253,0.25),
-            inset 0 0 16px rgba(147,197,253,0.25);
-          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(-2px) scale(1.05);
-        }
-        .map-3d-btn:active {
-          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0) scale(0.98);
-        }
+        /* Map button styles removed */
 
         @media (max-width: 768px) {
           .cyberpunk-title { font-size: 2rem; }

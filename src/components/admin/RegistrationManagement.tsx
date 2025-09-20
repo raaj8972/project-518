@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, FileText, Ban } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
+import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel, exportRegistrationsByEvent, exportRegistrationsByStatus } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, exportPdf, RegistrationColumnKey } from '../../utils/reportExport';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
@@ -13,7 +14,17 @@ export const RegistrationManagement: React.FC = () => {
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+    // Allow other admin panels to pre-fill the search via localStorage key
+    const [searchTerm, setSearchTerm] = useState(() => {
+      try {
+        const raw = localStorage.getItem('admin_registrations_search');
+        if (raw) {
+          localStorage.removeItem('admin_registrations_search');
+          return raw;
+        }
+      } catch {}
+      return '';
+    });
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [pdfExporting, setPdfExporting] = useState(false);
@@ -22,6 +33,65 @@ export const RegistrationManagement: React.FC = () => {
   const [exportPreset, setExportPreset] = useState<string>('full');
   const [splitThreshold, setSplitThreshold] = useState<number>(0);
   const [exportingGeneric, setExportingGeneric] = useState<boolean>(false);
+
+  // Map registration.id -> preview URL (signed if bucket is private)
+  const [photoPreviewMap, setPhotoPreviewMap] = useState<Record<string, string>>({});
+
+  // Compute current page rows used for signing (filtered)
+  const rowsNeedingPreview = useMemo(() => {
+    return registrations
+      .filter(r => !!(r as any).photo_url)
+      .map(r => ({ id: r.id as string, url: String((r as any).photo_url) }))
+  }, [registrations]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Determine if registration-photos bucket is public; if public, no need to sign
+      let isPublic: boolean | null = null;
+      try {
+        const { data } = await supabase.from('storage.buckets' as any).select('id, public').eq('id', 'registration-photos').maybeSingle();
+        if (data) isPublic = !!(data as any).public;
+      } catch {}
+      const next: Record<string, string> = {};
+      if (isPublic === true) {
+        // Public: use stored URLs directly
+        for (const r of rowsNeedingPreview) next[r.id] = r.url;
+        if (!cancelled) setPhotoPreviewMap(next);
+        return;
+      }
+      // Private: attempt to sign each path when possible
+      const tasks = rowsNeedingPreview.map(async (r) => {
+        // Try to derive the object path from a stored public-style URL
+        // Accept patterns .../storage/v1/object/public/registration-photos/<name>
+        let name = '';
+        try {
+          const m = r.url.match(/\/storage\/v1\/object\/public\/registration-photos\/(.+)$/);
+          if (m && m[1]) name = decodeURIComponent(m[1]);
+        } catch {}
+        // If not matched, try to find after the bucket name directly
+        if (!name) {
+          const idx = r.url.indexOf('registration-photos/');
+          if (idx >= 0) name = decodeURIComponent(r.url.slice(idx + 'registration-photos/'.length));
+        }
+        if (!name) {
+          // Fallback: use original URL
+          next[r.id] = r.url;
+          return;
+        }
+        try {
+          const { data, error } = await supabase.storage.from('registration-photos').createSignedUrl(name, 60 * 60 * 24); // 24h
+          if (!error && data?.signedUrl) next[r.id] = data.signedUrl;
+          else next[r.id] = r.url;
+        } catch {
+          next[r.id] = r.url;
+        }
+      });
+      await Promise.all(tasks);
+      if (!cancelled) setPhotoPreviewMap(next);
+    })();
+    return () => { cancelled = true; };
+  }, [rowsNeedingPreview]);
 
   // Filter registrations based on selected filters
   const filteredRegistrations = registrations.filter(registration => {
@@ -464,7 +534,7 @@ export const RegistrationManagement: React.FC = () => {
                         <div className="mr-3">
                           {((registration as any).photo_url) ? (
                             <img
-                              src={(registration as any).photo_url as any}
+                              src={(photoPreviewMap[registration.id] || (registration as any).photo_url) as any}
                               alt={`${registration.full_name} photo`}
                               className="w-10 h-10 rounded-full object-cover border border-gray-200"
                               referrerPolicy="no-referrer"

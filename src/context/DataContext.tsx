@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase, SUPABASE_ENV_OK, SUPABASE_HOST } from '../lib/supabase';
+import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 
 // Define types for your data based on Supabase schema
@@ -15,6 +15,7 @@ export type ContactSection = Database['public']['Tables']['contact_sections']['R
 export type EventCategory = Database['public']['Tables']['event_categories']['Row'];
 export type FacultyHead = Database['public']['Tables']['faculty_heads']['Row'];
 export type CoreCommittee = Database['public']['Tables']['core_committees']['Row'];
+export type AdminPermission = Database['public']['Tables']['admin_permissions']['Row'];
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
 export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
@@ -26,6 +27,7 @@ export type FormSettings = Database['public']['Tables']['form_settings']['Row'];
 export type SocialMediaSettings = Database['public']['Tables']['social_media_settings']['Row'];
 export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'];
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
+export type SiteSettings = Database['public']['Tables']['site_settings']['Row'];
 export type AboutSettings = {
   id: number;
   enabled: boolean;
@@ -87,6 +89,7 @@ interface DataContextType {
   socialMediaSettings: SocialMediaSettings | null;
   homepageSettings: HomepageSettings | null;
   homeboundSettings: HomeboundSettings | null;
+  siteSettings: SiteSettings | null;
   aboutSettings: AboutSettings | null;
   gallerySettings: GallerySettings | null;
   roadmapMilestones: RoadmapMilestone[];
@@ -96,7 +99,9 @@ interface DataContextType {
   connectionStatus: 'ok' | 'degraded' | 'offline';
   lastError: string | null;
   latencyMs?: number | null;
+  supabaseHost?: string;
   refreshAll: (silent?: boolean) => Promise<void>;
+  resubscribeRealtime: () => void;
   addEvent: (event: Partial<Event>) => Promise<void>;
   addEventWithCoordinators: (
     event: Partial<Event>,
@@ -178,6 +183,7 @@ interface DataContextType {
   updateFormSettings: (settings: Partial<FormSettings>) => Promise<void>;
   updateHomepageSettings: (settings: Partial<HomepageSettings>) => Promise<void>;
   updateHomeboundSettings: (settings: Partial<HomeboundSettings>) => Promise<void>;
+  updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
   updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
   addRoadmapMilestone: (m: Partial<RoadmapMilestone>) => Promise<void>;
@@ -205,6 +211,32 @@ interface DataContextType {
   listStorageBuckets: () => Promise<string[]>;
   computeAllBucketsUsage: () => Promise<{ totalBytes: number; count: number }>;
   storageQuotaBytes: number | null;
+  // Diagnostics
+  pingNow?: () => Promise<void>;
+  // Admin users management
+  adminUsers?: Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>;
+  refreshAdminUsers?: () => Promise<void>;
+  addAdminUser?: (userId: string, email: string) => Promise<void>;
+  removeAdminUser?: (userId: string) => Promise<void>;
+  addAdminByEmail?: (email: string) => Promise<void>;
+  // Owner-only: create a new auth user (email+password) and add as admin via serverless function
+  createAdminAccount?: (email: string, password: string) => Promise<{ user_id: string; email: string } | null>;
+  // Permissions
+  myPermissions?: {
+    can_events?: boolean;
+    can_schedule?: boolean;
+    can_gallery?: boolean;
+    can_sponsors?: boolean;
+    can_registrations?: boolean;
+    can_registration_photos?: boolean;
+    can_faculty?: boolean;
+    can_core_team?: boolean;
+    can_guest_artists?: boolean;
+    can_chief_guests?: boolean;
+    can_homebound?: boolean;
+  } | null;
+  listAdminPermissions?: () => Promise<Array<AdminPermission>>;
+  setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -231,8 +263,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(null);
+  const [myPermissions, setMyPermissions] = useState<{
+    can_events?: boolean;
+    can_schedule?: boolean;
+    can_gallery?: boolean;
+    can_sponsors?: boolean;
+    can_registrations?: boolean;
+    can_registration_photos?: boolean;
+    can_faculty?: boolean;
+    can_core_team?: boolean;
+    can_guest_artists?: boolean;
+    can_chief_guests?: boolean;
+    can_homebound?: boolean;
+  } | null>(null);
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
@@ -245,6 +291,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     registrations_photo_url: true,
     storage_registration_photos_bucket: true,
   });
+  // Admin users list (optional convenience for admin panel)
+  const [adminUsers, setAdminUsers] = useState<Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>>([]);
   // Reconnection helpers
   const lastFetchAtRef = React.useRef<number>(0);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -253,6 +301,43 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const timersSupportedRef = React.useRef<boolean>(true);
   // Auto-open guard: ensure we only auto-open an event once per openAt timestamp
   const autoOpenedRef = React.useRef<Set<string>>(new Set());
+  // Track realtime channels to support resubscription on demand
+  const realtimeChannelsRef = React.useRef<Set<any>>(new Set());
+  // Debounce resubscribe if multiple channels error/close at once
+  const resubscribePendingRef = React.useRef<boolean>(false);
+  // Warm-up window: suppress degraded/offline banner for brief startup hiccups
+  // Configurable via VITE_CONNECTION_WARMUP_MS (defaults to 40s) to avoid initial degraded/Load failed flash on cold start
+  const warmupMs = (() => {
+    try {
+      const v = (import.meta as any)?.env?.VITE_CONNECTION_WARMUP_MS;
+      const n = Number(v);
+      if (!Number.isNaN(n) && n > 0) return Math.min(n, 120_000); // cap at 2 minutes for safety
+    } catch {}
+    return 40_000; // default 40s
+  })();
+  const warmupUntilRef = React.useRef<number>(Date.now() + warmupMs);
+  const withinWarmup = () => Date.now() < warmupUntilRef.current;
+  const scheduleResubscribe = (reason?: string) => {
+    try {
+      if (reason && !lastError) setLastError(reason);
+      if (connectionStatus === 'ok' && !withinWarmup()) setConnectionStatus('degraded');
+    } catch {}
+    if (resubscribePendingRef.current) return;
+    resubscribePendingRef.current = true;
+    setTimeout(() => {
+      resubscribePendingRef.current = false;
+      resubscribeRealtime();
+    }, 500);
+  };
+  const resubscribeRealtime = () => {
+    try {
+      for (const ch of Array.from(realtimeChannelsRef.current)) {
+        try { supabase.removeChannel(ch); } catch {}
+      }
+      realtimeChannelsRef.current.clear();
+      fetchData(true).catch(() => {});
+    } catch {}
+  };
 
   const autoOpenKey = (id: number, openAtIso: string) => `event:auto-opened:${id}:${openAtIso}`;
   const hasAutoOpened = (id: number, openAtIso: string): boolean => {
@@ -335,6 +420,74 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       resolve(results);
     });
   }
+
+  // --- Admin users helpers ---
+  const refreshAdminUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_users' as any)
+        .select('user_id,email,created_at,role,is_primary')
+        .order('created_at', { ascending: true });
+      if (!error && Array.isArray(data)) {
+        setAdminUsers(data as any);
+      }
+    } catch {}
+  };
+
+  const listAdminPermissions = async () => {
+    const { data, error } = await supabase
+      .from('admin_permissions' as any)
+      .select('*');
+    if (error) throw new Error(error.message);
+    return (data || []) as any;
+  };
+
+  const setAdminPermission = async (userId: string, patch: Partial<AdminPermission>) => {
+    // Owner-only: server-side RLS enforces this
+    const payload: any = { user_id: userId, ...patch };
+    const { error } = await supabase.from('admin_permissions' as any).upsert(payload, { onConflict: 'user_id' });
+    if (error) throw new Error(error.message);
+  };
+
+  const addAdminUser = async (userId: string, email: string) => {
+    if (!userId || !email) throw new Error('User ID and email are required');
+    const { error } = await supabase.from('admin_users' as any).insert([{ user_id: userId, email }]);
+    if (error) throw new Error(error.message || 'Failed to add admin');
+    await refreshAdminUsers();
+  };
+
+  const removeAdminUser = async (userId: string) => {
+    const { error } = await supabase.from('admin_users' as any).delete().eq('user_id', userId);
+    if (error) throw new Error(error.message || 'Failed to remove admin');
+    await refreshAdminUsers();
+  };
+
+  const addAdminByEmail = async (email: string) => {
+    if (!email) throw new Error('Email is required');
+    const { error } = await supabase.rpc('add_admin_by_email', { p_email: email });
+    if (error) throw new Error(error.message || 'Failed to add admin by email');
+    await refreshAdminUsers();
+  };
+
+  const createAdminAccount = async (email: string, password: string) => {
+    if (!email || !password) throw new Error('Email and password are required');
+    // Requires the caller to be OWNER; server will validate using the current access token
+    const session = (await supabase.auth.getSession()).data.session;
+    const token = session?.access_token;
+    if (!token) throw new Error('Not authenticated');
+    const resp = await fetch('/.netlify/functions/create-admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!resp.ok) {
+      const msg = await resp.text();
+      throw new Error(msg || 'Failed to create admin');
+    }
+    const json = await resp.json();
+    await refreshAdminUsers();
+    return json;
+  };
 
   // Ensure image previews work for private buckets by signing URLs when needed
   async function ensurePreviewUrls(
@@ -557,12 +710,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return s;
   };
 
-  // Immediately surface configuration issues so UX is explanatory instead of a hard crash
+  // Configuration issues are handled in supabase.ts; avoid marking degraded solely due to env, since defaults are provided.
   useEffect(() => {
-    if (!SUPABASE_ENV_OK) {
-      setConnectionStatus('degraded');
-      setLastError('Missing Supabase environment variables. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Netlify.');
-    }
+    // no-op: DataContext relies on actual network errors to set connectionStatus
   }, []);
 
   // Auto-open registration after timer passes (optional behavior)
@@ -605,6 +755,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return () => { stopped = true; clearInterval(interval); };
   }, [events]);
 
+  // Keepalive ping: periodically perform a cheap HEAD-like select to keep the connection warm
+  useEffect(() => {
+    let stopped = false;
+    const interval = setInterval(async () => {
+      try {
+        // Skip background tabs to save resources
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+        const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (!error && !stopped) setLatencyMs(Math.round(t1 - t0));
+      } catch {
+        // ignore: keepalive is best-effort
+      }
+    }, 20_000); // 20s for faster recovery indication
+    return () => { stopped = true; clearInterval(interval); };
+  }, []);
+
   const scheduleRetry = () => {
     clearRetryTimer();
     // Exponential backoff: 2s, 4s, 8s ... capped at 60s
@@ -621,6 +789,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
     }, delay);
+  };
+
+  // Manual ping to quickly measure latency and hint reconnection
+  const pingNow = async () => {
+    try {
+      const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+      const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if (!error) {
+        setLatencyMs(Math.round(t1 - t0));
+        // If degraded/offline but ping succeeded, move to degraded (will go ok after next fetch)
+        if (connectionStatus !== 'ok' && !withinWarmup()) setConnectionStatus('degraded');
+      } else {
+        setLastError(`Ping error: ${error.message || String(error)}`);
+        if (!withinWarmup()) setConnectionStatus('degraded');
+      }
+    } catch (e: any) {
+      setLastError(`Ping threw: ${e?.message || String(e)}`);
+      if (!withinWarmup()) setConnectionStatus('degraded');
+    }
   };
 
   const fetchData = async (silent: boolean = false) => {
@@ -679,12 +867,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (eventsError) markErr('Error fetching events', eventsError);
       else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
 
-  // Fetch Gallery Images
+      // Fetch Gallery Images (non-critical; tolerate missing table/permission/transient network)
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
         .from('gallery_images')
         .select('*');
-      if (galleryImagesError) markErr('Error fetching gallery images', galleryImagesError);
-      else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
+      if (galleryImagesError) {
+        const rawMsg = (galleryImagesError as any)?.message || (galleryImagesError as any)?.toString?.() || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (galleryImagesError as any)?.code;
+        const isMissingTable = (
+          code === 'PGRST205' ||
+          msg.includes("relation 'public.gallery_images' does not exist") ||
+          (msg.includes('could not find the table') && msg.includes('gallery_images'))
+        );
+        const isTransientNetwork = (
+          msg.includes('load failed') ||
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network error')
+        );
+        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] gallery_images fetch non-critical issue; using empty list:', rawMsg);
+          setGalleryImages([]);
+        } else {
+          markErr('Error fetching gallery images', galleryImagesError);
+        }
+      } else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
 
   // Fetch Sponsors
       // Fetch Event Coordinators
@@ -755,8 +964,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .select('*, contact_sections (id, type, title, content, icon, enabled, "order")')
         .eq('id', 1)
         .single();
-      if (sponsorshipSettingsError) markErr('Error fetching sponsorship settings', sponsorshipSettingsError);
-      else {
+      if (sponsorshipSettingsError) {
+        const rawMsg = (sponsorshipSettingsError as any)?.message || (sponsorshipSettingsError as any)?.toString?.() || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (sponsorshipSettingsError as any)?.code;
+        // Treat missing table/permission/transient network as non-critical so we don't flash a degraded banner on load
+        const isMissingTable = (
+          code === 'PGRST205' ||
+          msg.includes("relation 'public.sponsorship_settings' does not exist") ||
+          (msg.includes('could not find the table') && msg.includes('sponsorship_settings'))
+        );
+        const isTransientNetwork = (
+          msg.includes('load failed') ||
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network error')
+        );
+        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] sponsorship_settings fetch non-critical issue; using defaults:', rawMsg);
+          setSponsorshipSettings(null);
+        } else {
+          markErr('Error fetching sponsorship settings', sponsorshipSettingsError);
+        }
+      } else {
         const settingsWithContactSections = {
           ...sponsorshipSettingsData,
           contactSections: sponsorshipSettingsData?.contact_sections || []
@@ -830,12 +1061,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (auditionsError) markErr('Error fetching auditions', auditionsError);
       else setAuditions(auditionsData || []);
 
-      // Fetch Memberships
+      // Fetch Memberships (non-critical; show empty on missing table/permission/network hiccups)
       const { data: membershipsData, error: membershipsError } = await supabase
         .from('memberships')
         .select('*');
-      if (membershipsError) markErr('Error fetching memberships', membershipsError);
-      else setMemberships(membershipsData || []);
+      if (membershipsError) {
+        const rawMsg = (membershipsError as any)?.message || (membershipsError as any)?.toString?.() || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (membershipsError as any)?.code;
+        const isMissingTable = (
+          code === 'PGRST205' ||
+          msg.includes("relation 'public.memberships' does not exist") ||
+          (msg.includes('could not find the table') && msg.includes('memberships'))
+        );
+        const isTransientNetwork = (
+          msg.includes('load failed') ||
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network error')
+        );
+        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] memberships fetch non-critical issue; using empty list:', rawMsg);
+          setMemberships([]);
+        } else {
+          markErr('Error fetching memberships', membershipsError);
+        }
+      } else setMemberships(membershipsData || []);
 
       // Fetch Form Settings
       const { data: formSettingsData, error: formSettingsError } = await supabase
@@ -889,6 +1142,69 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (hbSettingsError) markErr('Error fetching homebound settings', hbSettingsError);
       else setHomeboundSettings(hbSettingsData || null);
 
+      // Fetch Site Settings (non-critical; missing table/network/permission tolerated)
+      // Fetch my permissions (non-critical)
+      try {
+        const { data: permRow } = await supabase
+          .from('admin_permissions' as any)
+          .select('*')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '')
+          .maybeSingle();
+        if (permRow) {
+          const p: any = permRow as any;
+          setMyPermissions({
+            can_events: !!p.can_events,
+            can_schedule: !!p.can_schedule,
+            can_gallery: !!p.can_gallery,
+            can_sponsors: !!p.can_sponsors,
+            can_registrations: !!p.can_registrations,
+            can_registration_photos: !!p.can_registration_photos,
+            can_faculty: !!p.can_faculty,
+            can_core_team: !!p.can_core_team,
+            can_guest_artists: !!p.can_guest_artists,
+            can_chief_guests: !!p.can_chief_guests,
+            can_homebound: !!p.can_homebound,
+          });
+        } else {
+          setMyPermissions({});
+        }
+      } catch { setMyPermissions({}); }
+      try {
+        const { data: ssData, error: ssErr } = await supabase
+          .from('site_settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        if (ssErr) {
+          const raw = (ssErr as any)?.message || String(ssErr);
+          const msg = String(raw).toLowerCase();
+          const code = (ssErr as any)?.code;
+          const isMissingTable = (
+            code === 'PGRST205' ||
+            msg.includes("relation 'public.site_settings' does not exist") ||
+            (msg.includes('could not find the table') && msg.includes('site_settings'))
+          );
+          const isTransientNetwork = (
+            msg.includes('load failed') ||
+            msg.includes('failed to fetch') ||
+            msg.includes('networkerror') ||
+            msg.includes('network error')
+          );
+          const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+          if (isMissingTable || isTransientNetwork || isPermissionish) {
+            console.warn('[Data] site_settings non-critical issue; using null:', raw);
+            setSiteSettings(null);
+          } else {
+            markErr('Error fetching site settings', ssErr);
+          }
+        } else {
+          setSiteSettings(ssData || null);
+        }
+      } catch (e) {
+        console.warn('[Data] site_settings fetch threw (non-critical)', e);
+        setSiteSettings(null);
+      }
+
       // Fetch About Settings (resilient: empty if table missing)
       try {
         const { data: aboutData, error: aboutErr } = await supabase
@@ -939,26 +1255,45 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       } else setGallerySettings(gallerySettingsData || null);
 
-      // Fetch Roadmap Milestones
+      // Fetch Roadmap Milestones (non-critical; failures should not degrade connection)
       const { data: roadmapData, error: roadmapError } = await supabase
         .from('roadmap_milestones')
         .select('*')
         .order('order_position', { ascending: true });
       if (roadmapError) {
-        const msg = String((roadmapError as any)?.message || '').toLowerCase();
+        const rawMsg = (roadmapError as any)?.message || (roadmapError as any)?.toString?.() || '';
+        const msg = String(rawMsg).toLowerCase();
         const code = (roadmapError as any)?.code;
-        // If the table isn't created yet in this Supabase project, don't degrade connection – just show empty roadmap
-        if (
+        // If the table isn't created yet in this Supabase project OR the network hiccups (Safari: "TypeError: Load failed")
+        // or there are permission/RLS issues, we treat it as optional and fall back to an empty roadmap without degrading.
+        const isMissingTable = (
           code === 'PGRST205' ||
           msg.includes("relation 'public.roadmap_milestones' does not exist") ||
           (msg.includes('could not find the table') && msg.includes('roadmap_milestones'))
-        ) {
-          console.warn('[Data] roadmap_milestones table missing; using empty list');
+        );
+        const isTransientNetwork = (
+          msg.includes('load failed') ||
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network error')
+        );
+        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] roadmap_milestones fetch non-critical issue; using empty list:', rawMsg);
           setRoadmapMilestones([]);
         } else {
+          // Unknown error – still surface as degraded so we can investigate
           markErr('Error fetching roadmap milestones', roadmapError);
         }
       } else setRoadmapMilestones(roadmapData || []);
+
+      // Best-effort: fetch admin_users list if permitted (authenticated). Non-critical.
+      try {
+        await refreshAdminUsers();
+      } catch (e) {
+        // ignore; RLS may block for anon
+      }
 
     } catch (error) {
       markErr('Error in fetchData', error);
@@ -966,11 +1301,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Determine connection status from aggregated errors
       if (hadErrors) {
         const offlineSignals = (lastError || '').toLowerCase();
-        if (/failed to fetch|network|fetcherror|timeout|abort/.test(offlineSignals)) {
-          setConnectionStatus('offline');
-        } else {
-          setConnectionStatus('degraded');
-        }
+        if (!withinWarmup()) {
+          if (/failed to fetch|load failed|network|fetcherror|timeout|abort/.test(offlineSignals)) {
+            setConnectionStatus('offline');
+          } else {
+            setConnectionStatus('degraded');
+          }
+        } // during warm-up keep status at 'ok' but still record lastError
       } else {
         setConnectionStatus('ok');
         setLastError(null);
@@ -1096,14 +1433,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (payload.eventType === 'UPDATE') {
             return cur.map(r => r.id === row.id ? { ...r, ...row } : r).sort((a,b) => a.order_position - b.order_position);
           }
-            if (payload.eventType === 'DELETE') {
+          if (payload.eventType === 'DELETE') {
             return cur.filter(r => r.id !== row.id).sort((a,b) => a.order_position - b.order_position);
           }
           return cur;
         });
       })
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) roadmap_milestones`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
   // Realtime: keep registrations list in sync (insert/update/delete)
@@ -1126,8 +1469,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return cur;
         });
       })
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) registrations`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
+  }, []);
+
+  // Realtime: admin_users updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('ctx-admin-users')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, async (_payload: any) => {
+        // Refresh list on any change; small table
+        try { await refreshAdminUsers(); } catch {}
+      })
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) admin_users`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
   // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
@@ -1152,8 +1519,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return cur;
         });
       })
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) sponsors`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
   // Realtime: keep sponsorship packages in sync so category chips and grouping update immediately
@@ -1178,8 +1551,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           return cur;
         });
       })
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) sponsorship_packages`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
   // Realtime: keep form_settings in sync so enable/disable reflects instantly
@@ -1193,7 +1572,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           else if (payload.new) setFormSettings(payload.new as FormSettings);
         }
       })
-      .subscribe();
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) form_settings`);
+        }
+      });
 
     const homepageChannel = supabase
       .channel('ctx-homepage-settings')
@@ -1204,7 +1588,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           else if (payload.new) setHomepageSettings(payload.new as HomepageSettings);
         }
       })
-      .subscribe();
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) homepage_settings`);
+        }
+      });
 
     const homeboundChannel = supabase
       .channel('ctx-homebound-settings')
@@ -1215,12 +1604,40 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           else if (payload.new) setHomeboundSettings(payload.new as HomeboundSettings);
         }
       })
-      .subscribe();
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) homebound_settings`);
+        }
+      });
 
+    const siteSettingsChannel = supabase
+      .channel('ctx-site-settings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload: any) => {
+        const row = (payload.new || payload.old) as Partial<SiteSettings> | undefined;
+        if (row && (row as any).id === 1) {
+          if (payload.eventType === 'DELETE') setSiteSettings(null);
+          else if (payload.new) setSiteSettings(payload.new as SiteSettings);
+        }
+      })
+      .subscribe((status: any) => {
+        const s = String(status);
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) site_settings`);
+        }
+      });
+
+    try {
+      realtimeChannelsRef.current.add(formChannel);
+      realtimeChannelsRef.current.add(homepageChannel);
+      realtimeChannelsRef.current.add(homeboundChannel);
+      realtimeChannelsRef.current.add(siteSettingsChannel);
+    } catch {}
     return () => {
-      try { supabase.removeChannel(formChannel); } catch {}
-      try { supabase.removeChannel(homepageChannel); } catch {}
-      try { supabase.removeChannel(homeboundChannel); } catch {}
+      try { supabase.removeChannel(formChannel); realtimeChannelsRef.current.delete(formChannel); } catch {}
+      try { supabase.removeChannel(homepageChannel); realtimeChannelsRef.current.delete(homepageChannel); } catch {}
+      try { supabase.removeChannel(homeboundChannel); realtimeChannelsRef.current.delete(homeboundChannel); } catch {}
+      try { supabase.removeChannel(siteSettingsChannel); realtimeChannelsRef.current.delete(siteSettingsChannel); } catch {}
     };
   }, []);
 
@@ -1230,14 +1647,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let { error } = await supabase.from('events').insert(event);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache')) {
         // Backend likely hasn't been migrated yet; strip newer fields and retry once
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
-        delete safe.map_url;
         // Also strip registration photo feature fields if schema not yet migrated
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
@@ -1262,13 +1678,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .single();
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
-        delete safe.map_url;
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
         const retry = await supabase
@@ -1305,13 +1720,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('map_url')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
-        delete safe.map_url;
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
         const retry = await supabase.from('events').update(safe).eq('id', id);
@@ -1686,15 +2100,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Backward-compat: If columns are not present in DB, omit keys entirely to avoid PostgREST schema errors
     if (payload.event_id === null) delete payload.event_id;
     if (payload.guest_artist_id === null) delete payload.guest_artist_id;
-    // If map_url empty string, set to null for cleanliness
-    if (payload.map_url === '') payload.map_url = null;
     let { error } = await supabase.from('schedule_events').insert(payload);
     if (error) {
       // Graceful fallback: if new columns aren't in schema cache yet, strip offending keys and retry once
   const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
       const safe: any = { ...payload };
       let shouldRetry = false;
-      if (msg.includes('map_url') || msg.includes('schema cache')) { delete safe.map_url; shouldRetry = true; }
       if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
       if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
       if (shouldRetry) {
@@ -1743,14 +2154,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } else if ('guest_artist_id' in payload && payload.guest_artist_id) {
       if (!('event_id' in payload)) payload.event_id = null;
     }
-    // If map_url empty string, set to null for cleanliness
-    if (payload.map_url === '') payload.map_url = null;
     let { error } = await supabase.from('schedule_events').update(payload).eq('id', id);
     if (error) {
   const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
       const safe: any = { ...payload };
       let shouldRetry = false;
-      if (msg.includes('map_url') || msg.includes('schema cache')) { delete safe.map_url; shouldRetry = true; }
       if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
       if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
       if (shouldRetry) {
@@ -2589,6 +2997,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   await fetchData(true);
   };
 
+  const updateSiteSettings = async (settings: Partial<SiteSettings>) => {
+    const payload: Partial<SiteSettings> & { id: number } = { id: 1, ...settings } as any;
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    // Lightweight refetch to avoid full churn
+    try {
+      const { data, error: refErr } = await supabase
+        .from('site_settings')
+        .select('*')
+        .eq('id', 1)
+        .maybeSingle();
+      if (!refErr) setSiteSettings(data || null);
+    } catch {
+      fetchData(true).catch(() => {});
+    }
+  };
+
   const updateAboutSettings = async (settings: Partial<AboutSettings>) => {
     // Upsert singleton row id=1
     // Ensure json arrays are arrays
@@ -2670,6 +3097,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         formSettings,
         socialMediaSettings,
         homepageSettings,
+  siteSettings,
   aboutSettings,
   homeboundSettings,
   gallerySettings,
@@ -2679,7 +3107,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         connectionStatus,
         lastError,
   latencyMs,
+    supabaseHost: SUPABASE_HOST,
         refreshAll: fetchData,
+    resubscribeRealtime,
         addEvent,
   addEventWithCoordinators,
         updateEvent,
@@ -2757,6 +3187,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         updateFormSettings,
         updateHomepageSettings,
   updateHomeboundSettings,
+  updateSiteSettings,
   updateAboutSettings,
   updateGallerySettings,
   addRoadmapMilestone,
@@ -2777,6 +3208,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         listStorageBuckets,
         computeAllBucketsUsage,
         storageQuotaBytes,
+        // Diagnostics
+        pingNow,
+        // Admin users
+        adminUsers,
+        refreshAdminUsers,
+        addAdminUser,
+        removeAdminUser,
+      addAdminByEmail,
+      createAdminAccount,
+          // Permissions
+          myPermissions,
+          listAdminPermissions,
+          setAdminPermission,
       }}
     >
       {children}

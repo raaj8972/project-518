@@ -116,7 +116,9 @@ export const FormSettingsManagement: React.FC = () => {
           {/* Diagnostics */}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
             <div className="font-semibold mb-1">Diagnostics</div>
-            <div>Supabase project: <span className="font-mono">{SUPABASE_HOST}</span></div>
+            {(import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1' && (
+              <div>Supabase project: <span className="font-mono">{SUPABASE_HOST}</span></div>
+            )}
             <div className="mt-1">Audition enabled: <span className="font-mono">{String(!!formSettings?.audition_form_enabled)}</span></div>
             <div>Membership enabled: <span className="font-mono">{String(!!formSettings?.membership_form_enabled)}</span></div>
           </div>

@@ -17,25 +17,29 @@ WHERE NOT EXISTS (
 
 -- Policies
 -- Public can read objects from this bucket
-CREATE POLICY IF NOT EXISTS "Public read registration-photos"
+DROP POLICY IF EXISTS "Public read registration-photos" ON storage.objects;
+CREATE POLICY "Public read registration-photos"
   ON storage.objects FOR SELECT
   TO public
   USING (bucket_id = 'registration-photos');
 
 -- Anonymous (and authenticated) users can upload to this bucket
-CREATE POLICY IF NOT EXISTS "Anon insert registration-photos"
+DROP POLICY IF EXISTS "Anon insert registration-photos" ON storage.objects;
+CREATE POLICY "Anon insert registration-photos"
   ON storage.objects FOR INSERT
   TO anon, authenticated
   WITH CHECK (bucket_id = 'registration-photos');
 
 -- Allow only owners (broadly) to update/delete if authenticated; public shouldn't update/delete
-CREATE POLICY IF NOT EXISTS "Auth update registration-photos"
+DROP POLICY IF EXISTS "Auth update registration-photos" ON storage.objects;
+CREATE POLICY "Auth update registration-photos"
   ON storage.objects FOR UPDATE
   TO authenticated
   USING (bucket_id = 'registration-photos')
   WITH CHECK (bucket_id = 'registration-photos');
 
-CREATE POLICY IF NOT EXISTS "Auth delete registration-photos"
+DROP POLICY IF EXISTS "Auth delete registration-photos" ON storage.objects;
+CREATE POLICY "Auth delete registration-photos"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (bucket_id = 'registration-photos');

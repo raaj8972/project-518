@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -19,6 +19,8 @@ import { Sponsors } from './pages/Sponsors';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ParticlesCursor } from './components/ParticlesCursor';
+import { ComingSoon } from './pages/ComingSoon';
+import { useData } from './context/DataContext';
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -75,7 +77,40 @@ function App() {
   // Inner shell to use routing hooks (must be inside <Router>)
   const AppShell: React.FC = () => {
     const location = useLocation();
-  const isAdminRoute = location.pathname.startsWith('/admin');
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    // Allow /login and /login/ (trailing slash) so Coming Soon never blocks login access
+    const isLoginRoute = location.pathname === '/login' || location.pathname.startsWith('/login/');
+    const { siteSettings } = useData();
+    // Ticking clock to re-evaluate Coming Soon routing in real time
+    const [nowTs, setNowTs] = React.useState<number>(Date.now());
+    React.useEffect(() => {
+      if (isAdminRoute || isLoginRoute) return; // no need to tick on admin/login
+      let id: number | null = null;
+      id = window.setInterval(() => setNowTs(Date.now()), 1000);
+      return () => { if (id) window.clearInterval(id); };
+    }, [isAdminRoute, isLoginRoute]);
+    const hardClosed = !!siteSettings?.site_closed;
+    const soonEnabled = !!siteSettings?.coming_soon_enabled;
+    const untilTs = siteSettings?.coming_soon_until ? new Date(siteSettings.coming_soon_until).getTime() : null;
+    // New rule: if Coming Soon is enabled and a timer exists, we honor the timer and go live when it ends,
+    // even if site_closed is still true. Hard close only blocks when no timer is configured.
+    const hardCloseBlocks = hardClosed && (!soonEnabled || !untilTs);
+    const showComingSoon = !isAdminRoute && !isLoginRoute && (
+      hardCloseBlocks || (soonEnabled && (untilTs == null || nowTs < untilTs))
+    );
+
+    // Exit overlay animation when we transition from Coming Soon -> Live
+    const [overlay, setOverlay] = React.useState<'none' | 'exit'>('none');
+    const prevShowRef = React.useRef<boolean>(showComingSoon);
+    React.useEffect(() => {
+      const prev = prevShowRef.current;
+      if (prev && !showComingSoon && !isAdminRoute) {
+        setOverlay('exit');
+        const id = window.setTimeout(() => setOverlay('none'), 1200);
+        return () => window.clearTimeout(id);
+      }
+      prevShowRef.current = showComingSoon;
+    }, [showComingSoon, isAdminRoute]);
 
     return (
       <RouteErrorBoundary>
@@ -83,23 +118,39 @@ function App() {
           {/* Global particles cursor layer */}
           <ParticlesCursor />
           <GlobalErrorBanner />
-          <ConnectionStatusBanner />
+          {isAdminRoute && <ConnectionStatusBanner />}
           {/* Hide public site chrome on admin pages to avoid overlap */}
-          {!isAdminRoute && <Navbar />}
+          {!isAdminRoute && !showComingSoon && <Navbar />}
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/home-bound" element={<HomeBound />} />
-            <Route path="/rico-family" element={<RicoFamily />} />
-            <Route path="/sponsors" element={<Sponsors />} />
+            <Route path="/" element={showComingSoon ? <ComingSoon /> : <Home />} />
+            <Route path="/events" element={showComingSoon ? <ComingSoon /> : <Events />} />
+            <Route path="/schedule" element={showComingSoon ? <ComingSoon /> : <Schedule />} />
+            <Route path="/gallery" element={showComingSoon ? <ComingSoon /> : <Gallery />} />
+            <Route path="/home-bound" element={showComingSoon ? <ComingSoon /> : <HomeBound />} />
+            <Route path="/rico-family" element={showComingSoon ? <ComingSoon /> : <RicoFamily />} />
+            <Route path="/sponsors" element={showComingSoon ? <ComingSoon /> : <Sponsors />} />
             <Route path="/login" element={<Login />} />
+            {/* Convenience redirect for users who try /admin/login */}
+            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
             <Route path="/admin" element={<AdminDashboard />} />
             {/* Catch all route for 404 handling */}
-            <Route path="*" element={<Home />} />
+            <Route path="*" element={showComingSoon ? <ComingSoon /> : <Home />} />
           </Routes>
-          {!isAdminRoute && <Footer />}
+          {!isAdminRoute && !showComingSoon && <Footer />}
+
+          {/* Coming Soon -> Live exit overlay animation */}
+          {!isAdminRoute && overlay === 'exit' && (
+            <div className="pointer-events-none fixed inset-0 z-[9999]">
+              <div className="absolute inset-0 bg-black animate-[csExit_1.2s_ease-out_forwards]" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-[40vw] h-[40vw] max-w-[560px] max-h-[560px] rounded-full bg-gradient-to-r from-pink-500/30 via-white/20 to-cyan-400/30 blur-3xl animate-[ripple_1.2s_ease-out_forwards]" />
+              </div>
+              <style>{`
+                @keyframes csExit { from { opacity: 1 } to { opacity: 0 } }
+                @keyframes ripple { from { transform: scale(0.9); opacity: 0.9 } to { transform: scale(1.1); opacity: 0 } }
+              `}</style>
+            </div>
+          )}
         </div>
       </RouteErrorBoundary>
     );

@@ -42,12 +42,37 @@ import { AboutSettings } from '../components/admin/AboutSettings';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HealthBadge } from '../components/admin/HealthBadge';
 import { StorageOverview } from '../components/admin/StorageOverview';
+import { RegistrationPhotosPanel } from '../components/admin/RegistrationPhotosPanel';
+import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
+import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
 
 export const AdminDashboard: React.FC = () => {
-  const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading } = useAuth();
-  const { events, registrations, galleryImages, sponsors, coreCommittees, coreTeamMembers, bandMembers, guestArtists, auditions, memberships, schemaCapabilities } = useData();
+  const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
+  const {
+    events,
+    registrations,
+    galleryImages,
+    sponsors,
+    coreCommittees,
+    coreTeamMembers,
+    bandMembers,
+    guestArtists,
+    auditions,
+    memberships,
+    schemaCapabilities,
+    // Diagnostics
+    connectionStatus,
+    lastError,
+    latencyMs,
+    supabaseHost,
+    resubscribeRealtime,
+    pingNow,
+    // Permissions
+    myPermissions,
+    adminUsers,
+  } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
@@ -146,6 +171,8 @@ export const AdminDashboard: React.FC = () => {
 
   const tabs = [
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
+    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
+    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
   { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
   { id: 'about' as TabType, name: 'About', icon: Info },
     { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
@@ -155,6 +182,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'gallery' as TabType, name: 'Gallery', icon: Image },
     { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building },
     { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck },
+    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image },
     { id: 'categories' as TabType, name: 'Categories', icon: Palette },
     { id: 'social' as TabType, name: 'Social Media', icon: Share2 },
     { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
@@ -168,6 +196,57 @@ export const AdminDashboard: React.FC = () => {
   { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
   { id: 'security' as TabType, name: 'Security', icon: Shield },
   ];
+
+  // Determine if current user is the OWNER
+  const isOwner = (() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
+    } catch {
+      return false;
+    }
+  })();
+
+  // Filter visible tabs based on permissions (owner sees all)
+  const visibleTabs = (() => {
+    if (isOwner) return tabs;
+    // Non-owners: do NOT show Overview or Security by default
+    const allowedIds = new Set<TabType>();
+    if (myPermissions?.can_events) allowedIds.add('events');
+    if (myPermissions?.can_schedule) {
+      allowedIds.add('schedule');
+      // Schedule may include hero-media or categories associations, keep minimal here
+    }
+    if (myPermissions?.can_gallery) allowedIds.add('gallery');
+    if (myPermissions?.can_sponsors) {
+      allowedIds.add('sponsors');
+      // sponsorship settings/packages are separate tabs? kept under SponsorsManagement tab
+    }
+    if (myPermissions?.can_registrations) allowedIds.add('registrations');
+    if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
+    if (myPermissions?.can_faculty) allowedIds.add('faculty');
+    if (myPermissions?.can_core_team) allowedIds.add('core-team');
+    if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
+    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
+    if (myPermissions?.can_homebound) {
+      allowedIds.add('homebound');
+      allowedIds.add('band');
+    }
+    // Only show tabs explicitly allowed (others hidden for non-owners)
+    return tabs.filter((t) => allowedIds.has(t.id));
+  })();
+
+  // Ensure activeTab is always one of the visible tabs for current user
+  useEffect(() => {
+    const ids = new Set(visibleTabs.map((t) => t.id));
+    // If non-owner has no tabs, leave activeTab as-is; main content will show a guidance panel
+    if (!isOwner && visibleTabs.length === 0) return;
+    if (!ids.has(activeTab)) {
+      setActiveTab(visibleTabs[0]?.id || 'overview');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myPermissions, isOwner]);
 
   const stats = [
     {
@@ -212,7 +291,20 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Settings className="w-8 h-8 text-yellow-500 mr-3" />
-              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">Admin Dashboard <HealthBadge /></h1>
+              <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                Admin Dashboard <HealthBadge />
+                <span
+                  className={
+                    'ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ' +
+                    (isOwner
+                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200')
+                  }
+                  title={isOwner ? 'You are the Owner' : 'You are an Admin'}
+                >
+                  {isOwner ? 'Owner' : 'Admin'}
+                </span>
+              </h1>
               {isTOTPEnabled && (
                 <div className="ml-4 flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
                   <Shield size={12} className="mr-1" />
@@ -238,6 +330,37 @@ export const AdminDashboard: React.FC = () => {
                 Logout
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+      {/* Diagnostics badge */}
+      <div className="sticky top-0 z-[1001] w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 text-xs text-gray-700 shadow-sm">
+            {/* Hide Supabase host unless explicitly enabled via env for debugging */}
+            {((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1') && (
+              <>
+                <span className="font-medium">Supabase:</span>
+                <span className="truncate">{supabaseHost || 'unknown-host'}</span>
+              </>
+            )}
+            <span className="ml-2">•</span>
+            <span>Status: <span className={connectionStatus === 'ok' ? 'text-green-600' : connectionStatus === 'offline' ? 'text-rose-600' : 'text-amber-600'}>{connectionStatus}</span></span>
+            <span className="ml-2">•</span>
+            <span>Ping: {typeof latencyMs === 'number' ? `${latencyMs} ms` : '—'}</span>
+            {lastError && (
+              <span className="ml-2 truncate max-w-[40ch] text-rose-700" title={lastError}>Err: {lastError}</span>
+            )}
+            <button
+              onClick={() => resubscribeRealtime()}
+              className="ml-auto rounded bg-gray-900 text-white px-2 py-1 hover:bg-black active:scale-[0.99]"
+              title="Force resubscribe to realtime channels"
+            >Resubscribe</button>
+            <button
+              onClick={() => pingNow && pingNow()}
+              className="rounded bg-gray-700 text-white px-2 py-1 hover:bg-gray-800 active:scale-[0.99]"
+              title="Measure latency and nudge reconnection"
+            >Ping now</button>
           </div>
         </div>
       </div>
@@ -268,7 +391,12 @@ export const AdminDashboard: React.FC = () => {
           <div className="lg:w-64 flex-shrink-0">
             <nav className="bg-white rounded-lg shadow-md p-4">
               <ul className="space-y-2">
-                {tabs.map((tab) => {
+                {visibleTabs.length === 0 && !isOwner && (
+                  <li className="text-sm text-gray-600 p-2 rounded bg-gray-50">
+                    No sections assigned yet. Ask the owner to grant you access.
+                  </li>
+                )}
+                {visibleTabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
                     <li key={tab.id}>
@@ -312,7 +440,13 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">
-            {activeTab === 'overview' && (
+            {!isOwner && visibleTabs.length === 0 && (
+              <div className="bg-white rounded-lg shadow-md p-8">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No admin sections available</h3>
+                <p className="text-gray-600">Your account is authenticated but doesn’t have access to any admin sections yet. Please contact the owner to grant permissions.</p>
+              </div>
+            )}
+            {isOwner && activeTab === 'overview' && (
               <div className="space-y-8">
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -448,7 +582,20 @@ export const AdminDashboard: React.FC = () => {
                         <div key={registration.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div>
                             <div className="font-medium text-gray-900">{registration.full_name}</div>
-                            <div className="text-sm text-gray-600">{registration.email}</div>
+                            <div className="text-sm text-gray-600 flex items-center gap-2">
+                              {registration.email}
+                              <span
+                                className={
+                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ' +
+                                  (isOwner
+                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200')
+                                }
+                                title={isOwner ? 'You are the Owner' : 'You are an Admin'}
+                              >
+                                {isOwner ? 'Owner' : 'Admin'}
+                              </span>
+                            </div>
                           </div>
                           <div className="text-right">
                             <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -514,6 +661,12 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             )}
+            {activeTab === 'site-settings' && (
+              <SiteSettingsPanel />
+            )}
+            {activeTab === 'admin-users' && (
+              <AdminUsersPanel />
+            )}
 
             {activeTab === 'homepage' && <HomepageManagement />}
             {activeTab === 'events' && <EventsManagement />}
@@ -522,6 +675,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'gallery' && <GalleryManagement />}
             {activeTab === 'sponsors' && <SponsorsManagement />}
             {activeTab === 'registrations' && <RegistrationManagement />}
+            {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
             {activeTab === 'categories' && <EventCategoriesManagement />}
             {activeTab === 'social' && <SocialMediaManagement />}
             {activeTab === 'faculty' && <FacultyHeadsManagement />}
@@ -532,7 +686,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'auditions' && <AuditionManagement />}
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
-            {activeTab === 'security' && <SecuritySettings />}
+            {isOwner && activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
             {activeTab === 'about' && <AboutSettings />}

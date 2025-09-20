@@ -61,7 +61,6 @@ export const EventsManagement: React.FC = () => {
     visible: true,
     artist_id: undefined as number | undefined,
     watch_live_url: '' as string | null,
-    map_url: '' as string | null,
   });
 
   // Admin-side live countdown support so you can see the timer ticking here too
@@ -153,7 +152,6 @@ export const EventsManagement: React.FC = () => {
       visible: true,
       artist_id: undefined,
       watch_live_url: '',
-      map_url: '',
     });
   };
 
@@ -275,7 +273,6 @@ export const EventsManagement: React.FC = () => {
       visible: event.visible !== false,
       artist_id: event.artist_id ?? undefined,
       watch_live_url: (event as any).watch_live_url || '',
-      map_url: (event as any).map_url || '',
     });
     setEditingEvent(event.id);
   };
@@ -439,18 +436,7 @@ export const EventsManagement: React.FC = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
               </div>
-              {/* Map URL (optional) */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Map URL (optional)</label>
-                <input
-                  type="url"
-                  value={eventForm.map_url || ''}
-                  onChange={(e) => setEventForm((prev: any) => ({ ...prev, map_url: e.target.value }))}
-                  placeholder="https://maps.google.com/..."
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500"
-                />
-                <p className="text-xs text-gray-500 mt-1">Paste a Google Maps or Apple Maps link. If empty, the site will use a search link from the venue.</p>
-              </div>
+              {/* Map URL removed */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Watch Live URL</label>
                 <input

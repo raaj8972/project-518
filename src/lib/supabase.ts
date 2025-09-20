@@ -1,27 +1,35 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase Cloud configuration
-// Require env vars; avoid hard-coded fallbacks so we never hit the wrong project in prod
+// Prefer Vite env vars, but provide safe project defaults as a fallback so the app never "disconnects" if env is missing.
+// Note: The anon key is safe to expose on the client; RLS still protects your data.
+const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDAxNDEsImV4cCI6MjA3MzA3NjE0MX0.0akCpqYDlGgEenU4fPzDQorsvygcviBpfk4iluSm9Vs';
+
 const { VITE_SUPABASE_URL: VITE_URL_RAW, VITE_SUPABASE_ANON_KEY: VITE_KEY_RAW } = import.meta.env as any;
 const rawUrl = (VITE_URL_RAW || '').trim();
 // Normalize URL: remove trailing slashes and trailing dots which can break DNS/TLS or CORS
 const normalizedUrl = rawUrl.replace(/\/+$/, '').replace(/\.+$/, '');
-const supabaseUrl = normalizedUrl;
-const supabaseAnonKey = (VITE_KEY_RAW || '').trim();
+const supabaseUrl = normalizedUrl || DEFAULT_SUPABASE_URL;
+const supabaseAnonKey = ((VITE_KEY_RAW || '') as string).trim() || DEFAULT_SUPABASE_ANON_KEY;
 
 if (import.meta.env.DEV) {
   // Minimal diagnostics without leaking secrets
   const keyLen = supabaseAnonKey ? supabaseAnonKey.length : 0;
   // eslint-disable-next-line no-console
-  console.info('[Supabase] env present:', { urlSet: !!supabaseUrl, keyLen });
+  if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
+    console.info('[Supabase] env present:', { urlSet: !!supabaseUrl, keyLen });
+  }
 }
 
+// Mark env as OK if either Vite env or safe defaults resolved a usable config
 export const SUPABASE_ENV_OK = !!(supabaseUrl && supabaseAnonKey);
-if (!SUPABASE_ENV_OK) {
-  // Common causes: .env missing, wrong variable names, dev server not restarted, or Netlify env not set at build time
-  // Do not crash the entire app in production; run in degraded mode instead and surface via ConnectionStatusBanner.
+// If using defaults (i.e., Vite env missing), log an info once in dev for visibility
+if (import.meta.env.DEV && (!VITE_URL_RAW || !VITE_KEY_RAW)) {
   // eslint-disable-next-line no-console
-  console.error('[Supabase] Missing environment variables: VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY. Running in degraded mode.');
+  if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
+    console.info('[Supabase] Using built-in defaults for URL/key. Configure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to override.');
+  }
 }
 
 // Basic sanity checks to catch malformed inputs early in dev/prod logs
@@ -29,22 +37,31 @@ try {
   const url = new URL(supabaseUrl)
   if (!/^https?:$/.test(url.protocol)) {
     // eslint-disable-next-line no-console
-    console.warn('[Supabase] Unexpected protocol in VITE_SUPABASE_URL:', url.protocol)
+    if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
+      console.warn('[Supabase] Unexpected protocol in VITE_SUPABASE_URL:', url.protocol)
+    }
   }
   if (!/\.supabase\.(co|in)$/.test(url.host)) {
     // eslint-disable-next-line no-console
-    console.warn('[Supabase] Host does not look like a Supabase domain:', url.host)
+    if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
+      console.warn('[Supabase] Host does not look like a Supabase domain:', url.host)
+    }
   }
 } catch (e) {
   // eslint-disable-next-line no-console
-  console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot.', e)
+  if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
+    console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot.', e)
+  }
 }
 
-// Use provided values when present; otherwise, create a noop client pointed at a placeholder domain.
-// This keeps the app mountable; data fetching will fail gracefully and surface via connection status.
-const effectiveUrl = supabaseUrl || 'https://example.supabase.co';
-const effectiveKey = supabaseAnonKey || 'public-anon-key';
-export const supabase = createClient(effectiveUrl, effectiveKey)
+// Create the client from resolved values (env or safe defaults)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+})
 
 // Helpful for diagnostics
 export const SUPABASE_HOST = (() => {
@@ -55,6 +72,56 @@ export const SUPABASE_HOST = (() => {
 export interface Database {
   public: {
     Tables: {
+      admin_permissions: {
+        Row: {
+          user_id: string
+          can_events: boolean
+          can_schedule: boolean
+          can_gallery: boolean
+          can_sponsors: boolean
+          can_registrations: boolean
+          can_registration_photos: boolean
+          can_faculty: boolean
+          can_core_team: boolean
+          can_guest_artists: boolean
+          can_chief_guests: boolean
+          can_homebound: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          can_events?: boolean
+          can_schedule?: boolean
+          can_gallery?: boolean
+          can_sponsors?: boolean
+          can_registrations?: boolean
+          can_registration_photos?: boolean
+          can_faculty?: boolean
+          can_core_team?: boolean
+          can_guest_artists?: boolean
+          can_chief_guests?: boolean
+          can_homebound?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          can_events?: boolean
+          can_schedule?: boolean
+          can_gallery?: boolean
+          can_sponsors?: boolean
+          can_registrations?: boolean
+          can_registration_photos?: boolean
+          can_faculty?: boolean
+          can_core_team?: boolean
+          can_guest_artists?: boolean
+          can_chief_guests?: boolean
+          can_homebound?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       event_categories: {
         Row: {
           id: number
@@ -793,6 +860,41 @@ export interface Database {
           committee_marquee_speed_px_per_sec?: number
           sponsors_belt_direction?: 'left' | 'right'
           committee_marquee_direction?: 'left' | 'right'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      site_settings: {
+        Row: {
+          id: number
+          site_closed: boolean
+          coming_soon_enabled: boolean
+          coming_soon_until: string | null
+          coming_soon_title: string | null
+          coming_soon_message: string | null
+          coming_soon_ended_text: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          site_closed?: boolean
+          coming_soon_enabled?: boolean
+          coming_soon_until?: string | null
+          coming_soon_title?: string | null
+          coming_soon_message?: string | null
+          coming_soon_ended_text?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          site_closed?: boolean
+          coming_soon_enabled?: boolean
+          coming_soon_until?: string | null
+          coming_soon_title?: string | null
+          coming_soon_message?: string | null
+          coming_soon_ended_text?: string | null
           created_at?: string
           updated_at?: string
         }

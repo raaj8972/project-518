@@ -20,7 +20,10 @@ export const CountdownTimer: React.FC<{
   hideAfterMs?: number; // when ended, render nothing after this elapsed time
   liveLink?: string; // optional link to show next to endedText (e.g., Watch live)
   liveLinkText?: string;
-}> = ({ target, className = '', onDone, endedText = 'LIVE NOW', showEnded = true, hideAfterMs = 0, liveLink, liveLinkText = 'Watch live' }) => {
+  // visual tweaks
+  neon?: boolean;
+  size?: 'md' | 'lg' | 'xl';
+}> = ({ target, className = '', onDone, endedText = 'LIVE NOW', showEnded = true, hideAfterMs = 0, liveLink, liveLinkText = 'Watch live', neon = false, size = 'md' }) => {
   const [msLeft, setMsLeft] = React.useState<number>(0);
   const endTsRef = React.useRef<number | null>(null);
   const doneRef = React.useRef<boolean>(false);
@@ -58,6 +61,18 @@ export const CountdownTimer: React.FC<{
 
   const { days, hours, minutes, seconds } = formatTime(msLeft);
 
+  // Size presets
+  const sizeCfg = ((): { num: string; label: string; pad: string; colon: string } => {
+    switch (size) {
+      case 'lg':
+        return { num: 'text-2xl md:text-3xl lg:text-3xl', label: 'text-[11px] md:text-[12px] lg:text-[11px]', pad: 'px-3 py-2 md:px-4 md:py-2.5 lg:px-4 lg:py-2', colon: 'text-2xl md:text-3xl lg:text-3xl' };
+      case 'xl':
+        return { num: 'text-3xl md:text-4xl lg:text-5xl', label: 'text-xs md:text-sm lg:text-sm', pad: 'px-4 py-2.5 md:px-5 md:py-3 lg:px-6 lg:py-3', colon: 'text-3xl md:text-4xl lg:text-5xl' };
+      default:
+        return { num: 'text-lg md:text-xl lg:text-xl', label: 'text-[10px] md:text-[11px] lg:text-[10px]', pad: 'px-2 py-1 md:px-3 md:py-2 lg:px-2.5 lg:py-1.5', colon: 'text-xl md:text-xl lg:text-lg' };
+    }
+  })();
+
   if (msLeft === 0) {
     const end = endTsRef.current;
     const sinceEnd = end == null ? 0 : Date.now() - end;
@@ -66,7 +81,7 @@ export const CountdownTimer: React.FC<{
     }
     if (showEnded) {
     return (
-        <div className={`inline-flex items-center gap-3 font-mono ${className}`} aria-live="polite">
+        <div className={`inline-flex items-center gap-3 font-mono ${neon ? 'drop-shadow-[0_0_16px_rgba(236,72,153,0.35)]' : ''} ${className}`} aria-live="polite">
           <span className="px-2 py-1 rounded-md bg-pink-500/20 text-pink-300 border border-pink-400/40 text-sm font-semibold ring-1 ring-pink-400/40 animate-pulse">
             {endedText}
           </span>
@@ -75,7 +90,7 @@ export const CountdownTimer: React.FC<{
               href={liveLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-2 py-1 rounded-md bg-white/10 text-white border border-white/20 text-xs hover:bg-white/15 hover:border-white/30 transition-colors"
+                className="px-2 py-1 rounded-md bg-white/10 text-white border border-white/20 text-xs hover:bg-white/15 hover:border-white/30 transition-colors"
             >
               {liveLinkText}
             </a>
@@ -87,27 +102,32 @@ export const CountdownTimer: React.FC<{
 
   return (
     // Group into two no-wrap pairs so the colon never dangles at the line end when wrapping
-  <div className={`flex flex-nowrap items-center gap-x-3 lg:gap-x-3 font-mono lg:scale-95 ${className}`} aria-live="polite">
+  <div className={`flex flex-nowrap items-center gap-x-3 lg:gap-x-3 font-mono lg:scale-95 ${neon ? 'drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]' : ''} ${className}`} aria-live="polite">
       <div className="flex items-center gap-2 lg:gap-2 whitespace-nowrap">
-        <TimeBlock label="D" value={days} highlight={days <= 1} />
-        <span className="opacity-60 text-xl md:text-xl lg:text-lg leading-none">:</span>
-        <TimeBlock label="H" value={hours} />
+        <TimeBlock label="D" value={days} highlight={days <= 1} neon={neon} sizeCfg={sizeCfg} />
+        <span className={`opacity-70 leading-none ${sizeCfg.colon} ${neon ? 'drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : ''}`}>:</span>
+        <TimeBlock label="H" value={hours} neon={neon} sizeCfg={sizeCfg} />
       </div>
       <div className="flex items-center gap-2 lg:gap-2 whitespace-nowrap">
-        <TimeBlock label="M" value={minutes} />
-        <span className="opacity-60 text-xl md:text-xl lg:text-lg leading-none">:</span>
-        <TimeBlock label="S" value={seconds} />
+        <TimeBlock label="M" value={minutes} neon={neon} sizeCfg={sizeCfg} />
+        <span className={`opacity-70 leading-none ${sizeCfg.colon} ${neon ? 'drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : ''}`}>:</span>
+        <TimeBlock label="S" value={seconds} neon={neon} sizeCfg={sizeCfg} />
       </div>
     </div>
   );
 };
 
-const TimeBlock: React.FC<{ label: string; value: number; highlight?: boolean }> = ({ label, value, highlight }) => (
-  <div className={`px-2 py-1 md:px-3 md:py-2 lg:px-2.5 lg:py-1.5 rounded-lg md:rounded-xl bg-black/40 border border-white/10 text-white shadow ${highlight ? 'ring-1 ring-pink-400/50' : ''}`}>
-    <div className="text-lg md:text-xl lg:text-xl tabular-nums tracking-wider">
+const TimeBlock: React.FC<{ label: string; value: number; highlight?: boolean; neon?: boolean; sizeCfg: { num: string; label: string; pad: string } }> = ({ label, value, highlight, neon, sizeCfg }) => (
+  <div className={`${sizeCfg.pad} rounded-lg md:rounded-xl text-white shadow 
+    ${neon
+      ? 'bg-gradient-to-b from-pink-500/10 via-white/5 to-cyan-400/10 border border-white/15 ring-1 ring-white/10 shadow-[0_0_20px_rgba(236,72,153,0.2),0_0_28px_rgba(34,211,238,0.18)]'
+      : 'bg-black/40 border border-white/10'} 
+    ${highlight ? (neon ? 'ring-2 ring-pink-400/40' : 'ring-1 ring-pink-400/50') : ''}
+  `}>
+    <div className={`${sizeCfg.num} tabular-nums tracking-wider ${neon ? 'drop-shadow-[0_0_10px_rgba(255,255,255,0.45)]' : ''}`}>
       {pad(value)}
     </div>
-    <div className="text-[10px] md:text-[11px] lg:text-[10px] uppercase opacity-70 text-center -mt-0.5">{label}</div>
+    <div className={`${sizeCfg.label} uppercase opacity-80 text-center -mt-0.5`}>{label}</div>
   </div>
 );
 

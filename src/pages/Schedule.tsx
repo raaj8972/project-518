@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, ChevronDown, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { computeLiveStatus, formatPreLiveCountdown } from '../utils/eventTime';
 import WatchLiveButton from '../components/WatchLiveButton';
@@ -8,7 +8,7 @@ import HeroBackground from '../components/HeroBackground';
 // Registration is disabled on Schedule; users will open the event card instead.
 
 export const Schedule: React.FC = () => {
-  const { schedule, loading, connectionStatus, events, guestArtists, eventCoordinators } = useData() as any;
+  const { schedule, loading, events, guestArtists, eventCoordinators } = useData() as any;
   const [selectedDay, setSelectedDay] = useState(0);
   const [openIndices, setOpenIndices] = useState<Record<number, boolean>>({});
   const toggleOpen = (idx: number) => setOpenIndices((prev) => ({ ...prev, [idx]: !prev[idx] }));
@@ -120,11 +120,7 @@ export const Schedule: React.FC = () => {
 
   // Registration gating helpers removed; Schedule no longer offers registration UI.
 
-  const mapsUrlFor = (venue: string | undefined | null, explicit?: string | null | undefined): string | null => {
-    if (explicit && explicit.trim()) return explicit;
-    if (!venue || !venue.trim()) return null;
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
-  };
+  // Map link helper removed
 
   const renderLiveBadge = (evt: any, dayDate: string) => {
     let watch_live_url: string | null | undefined = null;
@@ -293,11 +289,7 @@ export const Schedule: React.FC = () => {
                 {/* Connection status note when empty */}
                 {(!loading && schedule.length === 0) && (
                   <div className="px-4 pb-3 pt-2 text-center text-sm text-gray-400">
-                    {connectionStatus !== 'ok' ? (
-                      <span>Unable to load schedule while {connectionStatus}. Please check your connection.</span>
-                    ) : (
-                      <span>Schedule will be published soon. Please check back later.</span>
-                    )}
+                    <span>Schedule will be published soon. Please check back later.</span>
                   </div>
                 )}
               </div>
@@ -362,25 +354,6 @@ export const Schedule: React.FC = () => {
                             <div className="flex items-center text-gray-400 mb-2 text-sm">
                               <MapPin size={16} className="mr-2 text-purple-400" />
                               <span>{event.venue}</span>
-                              {/* Prefer explicit schedule map_url; if missing and linked to an event, fallback to linked event.map_url */}
-                              {(() => {
-                                const linkedEv = event.event_id ? (events?.find((e: any) => e.id === event.event_id) as any) : null;
-                                const explicit = (event as any).map_url || (linkedEv ? (linkedEv as any).map_url : undefined);
-                                const url = mapsUrlFor(event.venue, explicit);
-                                return url ? (
-                                <a
-                                  href={url as string}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="ml-3 map-3d-btn"
-                                  title="Open map"
-                                  aria-label="Open map"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <ExternalLink className="w-3.5 h-3.5" />
-                                </a>
-                                ) : null;
-                              })()}
                             </div>
                             
                             {/* Event Type Indicator */}
@@ -489,10 +462,11 @@ export const Schedule: React.FC = () => {
                                             <a
                                               href={`/events#event-${linkedEvent.id}`}
                                               onClick={(e) => e.stopPropagation()}
-                                              className="cyberpunk-btn cyberpunk-btn-primary text-xs px-3 py-2"
+                                              className="cyberpunk-btn cyberpunk-btn-primary btn-xs whitespace-nowrap text-xs px-2 py-1 sm:text-base sm:px-4 sm:py-2 flex flex-col items-center justify-center"
                                               title="Open event card"
                                             >
-                                              OPEN EVENT
+                                              <span className="sm:inline hidden">OPEN EVENT</span>
+                                              <span className="inline sm:hidden">OPEN</span>
                                             </a>
                                           </div>
                                         )}
@@ -739,34 +713,7 @@ export const Schedule: React.FC = () => {
         }
 
         /* 3D animated icon button for Map link */
-        .map-3d-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 28px;
-          height: 28px;
-          border-radius: 9999px;
-          color: #93c5fd; /* tailwind text-blue-300 */
-          background: radial-gradient(50% 50% at 50% 50%, rgba(59,130,246,0.15) 0%, rgba(59,130,246,0.05) 60%, transparent 100%);
-          border: 1px solid rgba(59,130,246,0.35);
-          box-shadow:
-            0 2px 8px rgba(0,0,0,0.4),
-            inset 0 0 12px rgba(59,130,246,0.15);
-          transform: perspective(600px) rotateX(8deg) rotateY(-8deg);
-          transition: transform 180ms ease, box-shadow 180ms ease, color 180ms ease, border-color 180ms ease;
-        }
-        .map-3d-btn:hover {
-          color: #fff;
-          border-color: rgba(147,197,253,0.7);
-          box-shadow:
-            0 6px 18px rgba(0,0,0,0.35),
-            0 0 18px rgba(147,197,253,0.25),
-            inset 0 0 16px rgba(147,197,253,0.25);
-          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(-2px) scale(1.05);
-        }
-        .map-3d-btn:active {
-          transform: perspective(600px) rotateX(0deg) rotateY(0deg) translateY(0) scale(0.98);
-        }
+        /* Map button styles removed */
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
@@ -815,6 +762,15 @@ export const Schedule: React.FC = () => {
             font-size: 0.8rem;
             clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
           }
+        }
+
+        /* Tiny button variant for tight layouts (e.g., Schedule "Open Event") */
+        .btn-xs { padding: 6px 10px; font-size: 0.72rem; line-height: 1; }
+        @media (max-width: 768px) {
+          .btn-xs { padding: 6px 10px; font-size: 0.7rem; }
+        }
+        @media (max-width: 480px) {
+          .btn-xs { padding: 4px 8px; font-size: 0.66rem; }
         }
         `}
       </style>

@@ -94,7 +94,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) {
         console.error('Supabase auth error:', error);
-        return { success: false, error: 'Invalid credentials' };
+        let msg = (error as any)?.message || 'Invalid credentials';
+        const low = String(msg).toLowerCase();
+        // Friendlier guidance for network/CORS/env issues often surfaced as "TypeError: Load failed" or "Failed to fetch"
+        if (low.includes('load failed') || low.includes('failed to fetch')) {
+          msg = 'Network error: Could not reach Supabase. Check internet, ad blockers, or that the Supabase URL/key match this environment.';
+        }
+        return { success: false, error: msg };
       }
 
       if (data.user) {

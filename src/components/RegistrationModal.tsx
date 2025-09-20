@@ -36,8 +36,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   eventId
 }) => {
   const { addRegistration, events } = useData();
-  // Photo requirement is configured per-event; read from window-scoped preload or extend props in future
+  // Photo requirement is configured per-event; photo can also be optionally enabled via custom label
   const [photoRequired, setPhotoRequired] = useState<boolean>(false);
+  const [photoEnabled, setPhotoEnabled] = useState<boolean>(false);
   type ErrorsMap = Record<string, string | undefined>;
   const [formData, setFormData] = useState<RegistrationData>({
     participant_type: '1st Year',
@@ -78,12 +79,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     'PG (Post Graduate)'
   ];
 
-  // Glitch effect trigger and derive per-event photo requirement from events data
+  // Glitch effect trigger and derive per-event photo requirement/enabled from events data
   useEffect(() => {
     if (isOpen) {
       try {
         const ev = events.find(e => e.id === eventId) as any;
-        setPhotoRequired(!!(ev && ev.registration_photo_required));
+        const required = !!(ev && ev.registration_photo_required);
+        const hasLabel = !!(ev && typeof ev.registration_photo_label === 'string' && String(ev.registration_photo_label).trim().length > 0);
+        setPhotoRequired(required);
+        setPhotoEnabled(required || hasLabel);
       } catch {}
       const glitchTimer = setInterval(() => {
         setGlitchActive(true);
@@ -516,35 +520,37 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               </div>
 
-              {/* Optional/Required Participant Photo */}
-              <div className="cyberpunk-section">
-                {(() => {
-                  const ev = events.find(e => e.id === eventId) as any;
-                  const custom = (ev && ev.registration_photo_label) ? String(ev.registration_photo_label) : '';
-                  const labelText = custom.trim() || 'PARTICIPANT_PHOTO';
-                  return (
-                    <label className="cyberpunk-label flex items-center">
-                      <ImageIcon className="w-5 h-5 text-cyan-400 mr-2" /> {labelText} {photoRequired ? '*' : <span className="text-xs text-gray-400 ml-2">(optional)</span>}
-                    </label>
-                  );
-                })()}
-                <div className="bg-gray-900/30 p-3 rounded border border-cyan-500/20">
-                  <ImageUpload
-                    onImageSelect={(url) => setPhotoUrl(url)}
-                    currentImage={photoUrl}
-                    bucket="registration-photos"
-                    folder={`registrations/${eventId}`}
-                    acceptedTypes="image/*"
-                    fileTypeLabel="PNG/JPG/WebP up to 60KB"
-                    enableCropper={false}
-                    autoSave
-                    hideControls
-                    maxImageBytes={60 * 1024}
-                  />
-                  {errors['photo'] && <p className="cyberpunk-error mt-2">{errors['photo']}</p>}
-                  <p className="text-xs text-gray-400 mt-2">Upload a clear headshot (max 60KB). This will be attached to admin exports.</p>
+              {/* Participant Photo (shown when required OR when a custom label exists). Required validation applies only when required. */}
+              {photoEnabled && (
+                <div className="cyberpunk-section">
+                  {(() => {
+                    const ev = events.find(e => e.id === eventId) as any;
+                    const custom = (ev && ev.registration_photo_label) ? String(ev.registration_photo_label) : '';
+                    const labelText = custom.trim() || 'PARTICIPANT_PHOTO';
+                    return (
+                      <label className="cyberpunk-label flex items-center">
+                        <ImageIcon className="w-5 h-5 text-cyan-400 mr-2" /> {labelText} {photoRequired ? '*' : ''}
+                      </label>
+                    );
+                  })()}
+                  <div className="bg-gray-900/30 p-3 rounded border border-cyan-500/20">
+                    <ImageUpload
+                      onImageSelect={(url) => setPhotoUrl(url)}
+                      currentImage={photoUrl}
+                      bucket="registration-photos"
+                      folder={`registrations/${eventId}`}
+                      acceptedTypes="image/*"
+                      fileTypeLabel="PNG/JPG/WebP up to 60KB"
+                      enableCropper={false}
+                      autoSave
+                      hideControls
+                      maxImageBytes={60 * 1024}
+                    />
+                    {errors['photo'] && <p className="cyberpunk-error mt-2">{errors['photo']}</p>}
+                    <p className="text-xs text-gray-400 mt-2">Upload a clear headshot (max 60KB). This will be attached to admin exports.</p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* College/Institution (Optional) */}
               <div className="cyberpunk-section">

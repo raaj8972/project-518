@@ -17,6 +17,9 @@ export const Login: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const { homepageSettings } = useData();
+  // Pull host for quick env diagnostics
+  const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
+  const SHOW_SUPABASE = ((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1');
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -187,6 +190,9 @@ export const Login: React.FC = () => {
                   : 'Access the RICORRENZA 2025 dashboard'
                 }
               </p>
+              {SHOW_SUPABASE && supabaseHost && (
+                <p className="mt-2 text-xs text-gray-400">Supabase: {supabaseHost}</p>
+              )}
             </div>
 
             {/* Login Form */}
