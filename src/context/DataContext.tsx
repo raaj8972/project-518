@@ -2665,12 +2665,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Sports Team Members Management
   const addSportsTeamMember = async (member: Partial<SportsTeamMember>) => {
-    const { error } = await supabase.from('sports_team_members' as any).insert(member as any);
+    // Strip fields not guaranteed to exist in older schemas
+    const { specialty, ...safeMember } = (member as any) || {};
+    const { error } = await supabase.from('sports_team_members' as any).insert(safeMember as any);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
-      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      const unknownColumn = (
+        (msg.includes('column') && msg.includes('does not exist')) ||
+        (msg.includes('could not find') && msg.includes('schema cache'))
+      );
       if (unknownColumn && (msg.includes('phone') || msg.includes('social_links') || msg.includes('specialty'))) {
-        const { phone, social_links, specialty, ...rest } = (member as any) || {};
+        const { phone, social_links, specialty: _s, ...rest } = (member as any) || {};
         const { error: e2 } = await supabase.from('sports_team_members' as any).insert(rest as any);
         if (e2) throw e2;
       } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
@@ -2684,12 +2689,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const updateSportsTeamMember = async (id: number, member: Partial<SportsTeamMember>) => {
     const prev = sportsTeamMembers.find(m => m.id === id) || null;
-    const { error } = await supabase.from('sports_team_members' as any).update(member as any).eq('id', id);
+    const { specialty, ...safeMember } = (member as any) || {};
+    const { error } = await supabase.from('sports_team_members' as any).update(safeMember as any).eq('id', id);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
-      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      const unknownColumn = (
+        (msg.includes('column') && msg.includes('does not exist')) ||
+        (msg.includes('could not find') && msg.includes('schema cache'))
+      );
       if (unknownColumn && (msg.includes('phone') || msg.includes('social_links') || msg.includes('specialty'))) {
-        const { phone, social_links, specialty, ...rest } = (member as any) || {};
+        const { phone, social_links, specialty: _s, ...rest } = (member as any) || {};
         const { error: e2 } = await supabase.from('sports_team_members' as any).update(rest as any).eq('id', id);
         if (e2) throw e2;
       } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
