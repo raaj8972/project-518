@@ -622,7 +622,7 @@ export const RicoFamily: React.FC = () => {
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
                 <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                  SPORTS <span className="neon-green">COMMITTEES</span>
+                  SPORT <span className="neon-green">COMMITTEE</span>
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mb-8 expand-width"></div>
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
@@ -636,7 +636,7 @@ export const RicoFamily: React.FC = () => {
               <div className="scroll-animate opacity-0 transform translate-y-20 mb-16">
                 <div className="text-center mb-10">
                   <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
-                    <Shield className="w-4 h-4 mr-2" /> SPORTS ORGANISING COMMITTEE
+                    <Shield className="w-4 h-4 mr-2" /> SPORT ORGANISING COMMITTEE
                   </div>
                   <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: organisingCommittee.color }}>
                     {String(organisingCommittee.name || '').toUpperCase()}
@@ -725,7 +725,7 @@ export const RicoFamily: React.FC = () => {
                   <div key={committee.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${committeeIndex * 0.25}s` }}>
                     <div className="text-center mb-12">
                       <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
-                        <Shield className="w-4 h-4 mr-2" /> SPORTS COMMITTEE
+                        <Shield className="w-4 h-4 mr-2" /> SPORT COMMITTEE
                       </div>
                       <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
                         {committee.name.toUpperCase()}

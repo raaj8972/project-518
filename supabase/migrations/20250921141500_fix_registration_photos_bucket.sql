@@ -33,6 +33,14 @@ DROP POLICY IF EXISTS "Anon insert registration-photos" ON storage.objects;
 DROP POLICY IF EXISTS "Auth update registration-photos" ON storage.objects;
 DROP POLICY IF EXISTS "Auth delete registration-photos" ON storage.objects;
 
+-- 2b) Remove any conflicting fallback policies to avoid over-broad access
+-- These may have been created by earlier iterations/migrations.
+DROP POLICY IF EXISTS regphotos_select_authenticated ON storage.objects;
+DROP POLICY IF EXISTS regphotos_insert_authenticated ON storage.objects;
+DROP POLICY IF EXISTS regphotos_update_authenticated ON storage.objects;
+DROP POLICY IF EXISTS regphotos_delete_authenticated ON storage.objects;
+DROP POLICY IF EXISTS regphotos_select_anon ON storage.objects;
+
 -- 3) Create admin/owner-gated policies (prefer granular permission helpers if present)
 DO $$
 DECLARE
