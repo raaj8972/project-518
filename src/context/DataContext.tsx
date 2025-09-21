@@ -17,6 +17,8 @@ export type FacultyHead = Database['public']['Tables']['faculty_heads']['Row'];
 export type CoreCommittee = Database['public']['Tables']['core_committees']['Row'];
 export type AdminPermission = Database['public']['Tables']['admin_permissions']['Row'];
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
+export type SportsCommittee = Database['public']['Tables']['sports_committees']['Row'];
+export type SportsTeamMember = Database['public']['Tables']['sports_team_members']['Row'];
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
 export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
 export type ChiefGuest = Database['public']['Tables']['chief_guests']['Row'];
@@ -79,6 +81,8 @@ interface DataContextType {
   facultyHeads: FacultyHead[];
   coreCommittees: CoreCommittee[];
   coreTeamMembers: CoreTeamMember[];
+  sportsCommittees: SportsCommittee[];
+  sportsTeamMembers: SportsTeamMember[];
   bandMembers: BandMember[];
   guestArtists: GuestArtist[];
   chiefGuests: ChiefGuest[];
@@ -155,6 +159,17 @@ interface DataContextType {
   deleteCoreTeamMember: (id: number) => Promise<void>;
   toggleCoreTeamMemberEnabled: (id: number) => Promise<void>;
   toggleCoreTeamMemberIsHead: (id: number) => Promise<void>;
+  // Sports Committees
+  addSportsCommittee: (committee: Partial<SportsCommittee>) => Promise<void>;
+  updateSportsCommittee: (id: number, committee: Partial<SportsCommittee>) => Promise<void>;
+  deleteSportsCommittee: (id: number) => Promise<void>;
+  toggleSportsCommitteeEnabled: (id: number) => Promise<void>;
+  // Sports Team Members
+  addSportsTeamMember: (member: Partial<SportsTeamMember>) => Promise<void>;
+  updateSportsTeamMember: (id: number, member: Partial<SportsTeamMember>) => Promise<void>;
+  deleteSportsTeamMember: (id: number) => Promise<void>;
+  toggleSportsTeamMemberEnabled: (id: number) => Promise<void>;
+  toggleSportsTeamMemberIsHead: (id: number) => Promise<void>;
   addBandMember: (member: Partial<BandMember>) => Promise<void>;
   updateBandMember: (id: number, member: Partial<BandMember>) => Promise<void>;
   deleteBandMember: (id: number) => Promise<void>;
@@ -231,6 +246,7 @@ interface DataContextType {
     can_registration_photos?: boolean;
     can_faculty?: boolean;
     can_core_team?: boolean;
+    can_sports?: boolean;
     can_guest_artists?: boolean;
     can_chief_guests?: boolean;
     can_homebound?: boolean;
@@ -253,6 +269,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [facultyHeads, setFacultyHeads] = useState<FacultyHead[]>([]);
   const [coreCommittees, setCoreCommittees] = useState<CoreCommittee[]>([]);
   const [coreTeamMembers, setCoreTeamMembers] = useState<CoreTeamMember[]>([]);
+  const [sportsCommittees, setSportsCommittees] = useState<SportsCommittee[]>([]);
+  const [sportsTeamMembers, setSportsTeamMembers] = useState<SportsTeamMember[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [guestArtists, setGuestArtists] = useState<GuestArtist[]>([]);
   const [chiefGuests, setChiefGuests] = useState<ChiefGuest[]>([]);
@@ -275,6 +293,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     can_registration_photos?: boolean;
     can_faculty?: boolean;
     can_core_team?: boolean;
+    can_sports?: boolean;
     can_guest_artists?: boolean;
     can_chief_guests?: boolean;
     can_homebound?: boolean;
@@ -1164,11 +1183,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             can_guest_artists: !!p.can_guest_artists,
             can_chief_guests: !!p.can_chief_guests,
             can_homebound: !!p.can_homebound,
+            can_sports: !!p.can_sports,
           });
+  // Fetch Form Settings
+  // Fetch HomeBound Settings
+      // Fetch Site Settings (non-critical; missing table/network/permission tolerated)
         } else {
           setMyPermissions({});
         }
       } catch { setMyPermissions({}); }
+
+      // Sports committees + members (tolerate missing) — always attempt, even if no permissions row exists
+      try {
+        const { data: scData } = await supabase
+          .from('sports_committees' as any)
+          .select('*')
+          .order('order_position', { ascending: true });
+        setSportsCommittees(Array.isArray(scData) ? (scData as any) : []);
+      } catch { setSportsCommittees([]); }
+      try {
+        const { data: smData } = await supabase
+          .from('sports_team_members' as any)
+          .select('*')
+          .order('order_position', { ascending: true });
+        setSportsTeamMembers(Array.isArray(smData) ? (smData as any) : []);
+      } catch { setSportsTeamMembers([]); }
+
+      // Continue with Site Settings (non-critical; missing table/network/permission tolerated)
       try {
         const { data: ssData, error: ssErr } = await supabase
           .from('site_settings')
@@ -2595,6 +2636,101 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await fetchData(true);
   };
 
+  // Sports Committees Management
+  const addSportsCommittee = async (committee: Partial<SportsCommittee>) => {
+    const { error } = await supabase.from('sports_committees' as any).insert(committee as any);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const updateSportsCommittee = async (id: number, committee: Partial<SportsCommittee>) => {
+    const { error } = await supabase.from('sports_committees' as any).update(committee as any).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const deleteSportsCommittee = async (id: number) => {
+    const { error } = await supabase.from('sports_committees' as any).delete().eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const toggleSportsCommitteeEnabled = async (id: number) => {
+    const committee = sportsCommittees.find(c => c.id === id);
+    if (!committee) return;
+    const { error } = await supabase.from('sports_committees' as any).update({ enabled: !committee.enabled } as any).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  // Sports Team Members Management
+  const addSportsTeamMember = async (member: Partial<SportsTeamMember>) => {
+    const { error } = await supabase.from('sports_team_members' as any).insert(member as any);
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      if (unknownColumn && (msg.includes('phone') || msg.includes('social_links') || msg.includes('specialty'))) {
+        const { phone, social_links, specialty, ...rest } = (member as any) || {};
+        const { error: e2 } = await supabase.from('sports_team_members' as any).insert(rest as any);
+        if (e2) throw e2;
+      } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
+        throw new Error('Invalid committee selected for sports member');
+      } else {
+        throw error;
+      }
+    }
+    await fetchData(true);
+  };
+
+  const updateSportsTeamMember = async (id: number, member: Partial<SportsTeamMember>) => {
+    const prev = sportsTeamMembers.find(m => m.id === id) || null;
+    const { error } = await supabase.from('sports_team_members' as any).update(member as any).eq('id', id);
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const unknownColumn = msg.includes('column') && msg.includes('does not exist');
+      if (unknownColumn && (msg.includes('phone') || msg.includes('social_links') || msg.includes('specialty'))) {
+        const { phone, social_links, specialty, ...rest } = (member as any) || {};
+        const { error: e2 } = await supabase.from('sports_team_members' as any).update(rest as any).eq('id', id);
+        if (e2) throw e2;
+      } else if (msg.includes('foreign key') && msg.includes('committee') && msg.includes('constraint')) {
+        throw new Error('Invalid committee selected for sports member');
+      } else {
+        throw error;
+      }
+    }
+    // Cleanup replaced image if changed
+    if (prev && (member as any)?.image && !urlsEqual((prev as any).image, (member as any).image)) {
+      if (!isUrlReferencedSomewhere((prev as any).image, { table: 'sports_team_members', id })) {
+        deleteStorageFileByPublicUrl((prev as any).image);
+      }
+    }
+    await fetchData(true);
+  };
+
+  const deleteSportsTeamMember = async (id: number) => {
+    const member = sportsTeamMembers.find(m => m.id === id) || null;
+    const { error } = await supabase.from('sports_team_members' as any).delete().eq('id', id);
+    if (error) throw error;
+    deleteStorageFileByPublicUrl((member as any)?.image);
+    await fetchData(true);
+  };
+
+  const toggleSportsTeamMemberEnabled = async (id: number) => {
+    const member = sportsTeamMembers.find(m => m.id === id);
+    if (!member) return;
+    const { error } = await supabase.from('sports_team_members' as any).update({ enabled: !member.enabled } as any).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const toggleSportsTeamMemberIsHead = async (id: number) => {
+    const member = sportsTeamMembers.find(m => m.id === id);
+    if (!member) return;
+    const { error } = await supabase.from('sports_team_members' as any).update({ is_head: !member.is_head } as any).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
   // Band Members Management
   const addBandMember = async (member: Partial<BandMember>) => {
     // Ensure the caller is authenticated (RLS requires authenticated role for insert)
@@ -3086,6 +3222,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         facultyHeads,
         coreCommittees,
         coreTeamMembers,
+    sportsCommittees,
+    sportsTeamMembers,
         bandMembers,
         guestArtists,
   chiefGuests,
@@ -3158,6 +3296,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         deleteCoreTeamMember,
         toggleCoreTeamMemberEnabled,
         toggleCoreTeamMemberIsHead,
+  // Sports
+  addSportsCommittee,
+  updateSportsCommittee,
+  deleteSportsCommittee,
+  toggleSportsCommitteeEnabled,
+  addSportsTeamMember,
+  updateSportsTeamMember,
+  deleteSportsTeamMember,
+  toggleSportsTeamMemberEnabled,
+  toggleSportsTeamMemberIsHead,
         addBandMember,
         updateBandMember,
         deleteBandMember,
