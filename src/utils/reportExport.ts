@@ -1,5 +1,6 @@
 // Centralized report export utility (Excel, PDF, CSV) with column presets and splitting
 import type { Registration } from '../context/DataContext';
+import { supabase, SUPABASE_HOST } from '../lib/supabase';
 
 // Defensive helpers to normalize team member shape coming from DB/UI
 const safeTeamMembers = (r: any): any[] => {
@@ -141,12 +142,57 @@ export const exportExcel = async (rows: Registration[], columns: RegistrationCol
   // Set base column widths
   ws.columns = headers.map((h, idx) => ({ width: idx + 1 === photoCol ? 12 : Math.min(Math.max(h.length + 4, 12), 40) }));
 
-  // Helper to fetch as data URL
-  const fetchDataUrl = async (url: string): Promise<{ base64: string; ext: 'png' | 'jpeg' } | null> => {
+  // Helper to obtain a Blob for a given image URL, supporting Supabase private storage
+  const downloadImageBlob = async (url: string): Promise<Blob | null> => {
+    if (!url) return null;
     try {
+      if (url.startsWith('data:')) {
+        // Convert data URL to Blob
+        const res = await fetch(url);
+        return await res.blob();
+      }
+      // If this looks like a Supabase Storage URL for this project, prefer authenticated download
+      let looksLikeSupabase = false;
+      try {
+        const u = new URL(url);
+        looksLikeSupabase = u.host.includes(SUPABASE_HOST);
+      } catch { /* ignore parse errors */ }
+
+      // Attempt to parse bucket/object name from common patterns
+      const parseStoragePath = (u: string): { bucket: string; name: string } | null => {
+        // Matches /storage/v1/object/(public|authenticated)/<bucket>/<path>
+        const m = u.match(/\/storage\/v1\/object\/(?:public|authenticated)\/([^/]+)\/(.+)$/);
+        if (m) return { bucket: decodeURIComponent(m[1]), name: decodeURIComponent(m[2]) };
+        // Fallback: find first occurrence of a known bucket
+        const knownBuckets = ['registration-photos'];
+        for (const b of knownBuckets) {
+          const idx = u.indexOf(`${b}/`);
+          if (idx >= 0) return { bucket: b, name: decodeURIComponent(u.slice(idx + b.length + 1)) };
+        }
+        return null;
+      };
+
+      if (looksLikeSupabase) {
+        const parsed = parseStoragePath(url);
+        if (parsed) {
+          const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.name);
+          if (!error && data) return data as any as Blob;
+        }
+      }
+      // Last resort: plain fetch (works for public/signed URLs)
       const res = await fetch(url);
       if (!res.ok) return null;
-      const blob = await res.blob();
+      return await res.blob();
+    } catch {
+      return null;
+    }
+  };
+
+  // Helper to fetch as data URL (uses downloadImageBlob above)
+  const fetchDataUrl = async (url: string): Promise<{ base64: string; ext: 'png' | 'jpeg' } | null> => {
+    try {
+      const blob = await downloadImageBlob(url);
+      if (!blob) return null;
       const type = (blob.type || '').toLowerCase();
       const ext: 'png' | 'jpeg' = type.includes('png') ? 'png' : 'jpeg';
       const dataUrl: string = await new Promise((resolve, reject) => {
@@ -242,19 +288,48 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const fetchImageDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> => {
     if (!url) return null;
     try {
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const blob = await res.blob();
+      let blob: Blob | null = null;
+      if (url.startsWith('data:')) {
+        blob = await (await fetch(url)).blob();
+      } else {
+        // Try authenticated download for Supabase Storage URLs of this project
+        let looksLikeSupabase = false;
+        try {
+          const u = new URL(url);
+          looksLikeSupabase = u.host.includes(SUPABASE_HOST);
+        } catch { /* ignore */ }
+        const parseStoragePath = (u: string): { bucket: string; name: string } | null => {
+          const m = u.match(/\/storage\/v1\/object\/(?:public|authenticated)\/([^/]+)\/(.+)$/);
+          if (m) return { bucket: decodeURIComponent(m[1]), name: decodeURIComponent(m[2]) };
+          const knownBuckets = ['registration-photos'];
+          for (const b of knownBuckets) {
+            const idx = u.indexOf(`${b}/`);
+            if (idx >= 0) return { bucket: b, name: decodeURIComponent(u.slice(idx + b.length + 1)) };
+          }
+          return null;
+        };
+        if (looksLikeSupabase) {
+          const parsed = parseStoragePath(url);
+          if (parsed) {
+            const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.name);
+            if (!error && data) blob = data as any as Blob;
+          }
+        }
+        if (!blob) {
+          // Fallback to public/signed URL fetch
+          const res = await fetch(url);
+          if (!res.ok) return null;
+          blob = await res.blob();
+        }
+      }
       const type = (blob.type || '').toLowerCase();
       const asFormat: 'PNG' | 'JPEG' = type.includes('png') ? 'PNG' : 'JPEG';
-      // Convert to data URL without canvas to avoid CORS taint issues
       const dataUrl: string = await new Promise((resolve, reject) => {
         const fr = new FileReader();
         fr.onerror = () => reject(new Error('file read error'));
         fr.onload = () => resolve(String(fr.result || ''));
-        fr.readAsDataURL(blob);
+        fr.readAsDataURL(blob!);
       });
-      // Determine intrinsic size to preserve aspect ratio
       const dims = await new Promise<{ w: number; h: number }>((resolve) => {
         try {
           const img = new Image();
