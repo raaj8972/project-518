@@ -77,15 +77,22 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     'PG (Post Graduate)'
   ];
 
-  // Glitch effect trigger and derive per-event photo requirement/enabled from events data
+  // Glitch effect trigger and derive per-event photo requirement from events data
   useEffect(() => {
     if (isOpen) {
       try {
         const ev = events.find(e => e.id === eventId) as any;
         const required = !!(ev && ev.registration_photo_required);
-        const hasLabel = !!(ev && typeof ev.registration_photo_label === 'string' && String(ev.registration_photo_label).trim().length > 0);
         setPhotoRequired(required);
-        setPhotoEnabled(required || hasLabel);
+        setPhotoEnabled(required); // only show when explicitly required
+        if (!required) {
+          // Clear any selected photo and related validation when feature is off
+          setPhotoUrl('');
+          setErrors(prev => {
+            const { photo, ...rest } = prev;
+            return rest as any;
+          });
+        }
       } catch {}
       const glitchTimer = setInterval(() => {
         setGlitchActive(true);
