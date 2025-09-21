@@ -24,6 +24,7 @@ export const AdminUsersPanel: React.FC = () => {
     can_guest_artists?: boolean;
     can_chief_guests?: boolean;
     can_homebound?: boolean;
+    can_sports?: boolean;
   }>>({});
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
   useEffect(() => {
@@ -45,6 +46,7 @@ export const AdminUsersPanel: React.FC = () => {
             can_guest_artists: !!r.can_guest_artists,
             can_chief_guests: !!r.can_chief_guests,
             can_homebound: !!r.can_homebound,
+            can_sports: !!(r as any).can_sports,
           };
         }
         setPerm(map);
@@ -192,6 +194,7 @@ export const AdminUsersPanel: React.FC = () => {
                         ['can_guest_artists', 'Guest Artists'],
                         ['can_chief_guests', 'Chief Guests'],
                         ['can_homebound', 'Homebound'],
+                        ['can_sports', 'Sports Team'],
                       ] as Array<[keyof typeof perm[string], string]>).map(([key, label]) => (
                         <button
                           key={String(key)}

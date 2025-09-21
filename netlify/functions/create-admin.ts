@@ -1,4 +1,4 @@
-import type { Handler } from '@netlify/functions'
+import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // This function lets the OWNER create an auth user (email+password) and add them to admin_users.
@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // Endpoint: POST /.netlify/functions/create-admin  { email, password }
 // Auth: requires a Supabase session JWT in Authorization: Bearer <access_token>
 
-export const handler: Handler = async (event, context) => {
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL

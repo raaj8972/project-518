@@ -28,6 +28,7 @@ import { SocialMediaManagement } from '../components/admin/SocialMediaManagement
 import { SecuritySettings } from '../components/admin/SecuritySettings';
 import { FacultyHeadsManagement } from '../components/admin/FacultyHeadsManagement';
 import { CoreTeamManagement } from '../components/admin/CoreTeamManagement';
+import { SportsTeamManagement } from '../components/admin/SportsTeamManagement';
 import { BandManagement } from '../components/admin/BandManagement';
 import { GuestArtistManagement } from '../components/admin/GuestArtistManagement';
 import { ChiefGuestManagement } from '../components/admin/ChiefGuestManagement';
@@ -46,7 +47,7 @@ import { RegistrationPhotosPanel } from '../components/admin/RegistrationPhotosP
 import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -187,7 +188,8 @@ export const AdminDashboard: React.FC = () => {
     { id: 'social' as TabType, name: 'Social Media', icon: Share2 },
     { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
     { id: 'core-team' as TabType, name: 'Core Team', icon: Users },
-    { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
+  { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
+  { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users },
   { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
   { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star },
     { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
@@ -227,6 +229,7 @@ export const AdminDashboard: React.FC = () => {
     if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
     if (myPermissions?.can_faculty) allowedIds.add('faculty');
     if (myPermissions?.can_core_team) allowedIds.add('core-team');
+  if (myPermissions?.can_sports) allowedIds.add('sports-team');
     if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
     if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
     if (myPermissions?.can_homebound) {
@@ -659,6 +662,11 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+            {(isOwner || myPermissions?.can_sports) && activeTab === 'sports-team' && (
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <SportsTeamManagement />
               </div>
             )}
             {activeTab === 'site-settings' && (

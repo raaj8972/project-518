@@ -32,16 +32,16 @@ CREATE TABLE IF NOT EXISTS public.sports_team_members (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- Deduplicate committees by exact name (keep the lowest id), reassign members, then delete duplicates
+-- Deduplicate committees by normalized name first (lower(trim(name))) to avoid conflicts during normalization
 WITH dupes AS (
-  SELECT name, MIN(id) AS keep_id
+  SELECT LOWER(TRIM(name)) AS norm, MIN(id) AS keep_id
   FROM public.sports_committees
-  GROUP BY name
+  GROUP BY LOWER(TRIM(name))
   HAVING COUNT(*) > 1
 ), to_fix AS (
   SELECT sc.id AS dup_id, d.keep_id
   FROM public.sports_committees sc
-  JOIN dupes d ON sc.name = d.name
+  JOIN dupes d ON LOWER(TRIM(sc.name)) = d.norm
   WHERE sc.id <> d.keep_id
 )
 UPDATE public.sports_team_members m
@@ -54,18 +54,35 @@ USING (
   SELECT sc.id
   FROM public.sports_committees sc
   JOIN (
-    SELECT name, MIN(id) AS keep_id
+    SELECT LOWER(TRIM(name)) AS norm, MIN(id) AS keep_id
     FROM public.sports_committees
-    GROUP BY name
+    GROUP BY LOWER(TRIM(name))
     HAVING COUNT(*) > 1
-  ) d ON sc.name = d.name
+  ) d ON LOWER(TRIM(sc.name)) = d.norm
   WHERE sc.id <> d.keep_id
 ) z
 WHERE sc.id = z.id;
 
 -- Normalize names to collapse whitespace/case variants, then enforce a case/space-insensitive unique constraint
-UPDATE public.sports_committees SET name = INITCAP(TRIM(LOWER(name))) WHERE name IS NOT NULL;
--- Replace any prior simple unique index with a functional unique index for robustness
+-- Drop any legacy UNIQUE constraint on the raw name column and the old index before normalization
+DO $$
+DECLARE con RECORD;
+BEGIN
+  FOR con IN
+    SELECT conname
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY (c.conkey)
+    WHERE n.nspname = 'public'
+      AND t.relname = 'sports_committees'
+      AND c.contype = 'u'
+      AND a.attname = 'name'
+  LOOP
+    EXECUTE format('ALTER TABLE public.sports_committees DROP CONSTRAINT IF EXISTS %I', con.conname);
+  END LOOP;
+END$$;
+
 DO $$
 BEGIN
   IF EXISTS (
@@ -78,6 +95,11 @@ BEGIN
     END;
   END IF;
 END$$;
+
+-- Normalize names now that legacy constraints are removed
+UPDATE public.sports_committees SET name = INITCAP(TRIM(LOWER(name))) WHERE name IS NOT NULL;
+
+-- Enforce a case/space-insensitive unique constraint via functional unique index
 CREATE UNIQUE INDEX IF NOT EXISTS idx_sports_committees_name_unique ON public.sports_committees ((LOWER(TRIM(name))));
 
 -- Upsert committees without relying on ON CONFLICT to bypass duplicate key edge-cases

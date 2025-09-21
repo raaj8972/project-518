@@ -83,6 +83,7 @@ export interface Database {
           can_registration_photos: boolean
           can_faculty: boolean
           can_core_team: boolean
+          can_sports: boolean
           can_guest_artists: boolean
           can_chief_guests: boolean
           can_homebound: boolean
@@ -99,6 +100,7 @@ export interface Database {
           can_registration_photos?: boolean
           can_faculty?: boolean
           can_core_team?: boolean
+          can_sports?: boolean
           can_guest_artists?: boolean
           can_chief_guests?: boolean
           can_homebound?: boolean
@@ -115,9 +117,92 @@ export interface Database {
           can_registration_photos?: boolean
           can_faculty?: boolean
           can_core_team?: boolean
+          can_sports?: boolean
           can_guest_artists?: boolean
           can_chief_guests?: boolean
           can_homebound?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_committees: {
+        Row: {
+          id: number
+          name: string
+          description: string
+          color: string
+          order_position: number
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string
+          color?: string
+          order_position?: number
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string
+          color?: string
+          order_position?: number
+          enabled?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_team_members: {
+        Row: {
+          id: number
+          committee_id: number | null
+          name: string
+          role: string
+          image: string
+          description: string
+          achievements: string[]
+          order_position: number
+          enabled: boolean
+          is_head: boolean
+          phone: string | null
+          social_links: any
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          committee_id?: number | null
+          name: string
+          role?: string
+          image: string
+          description?: string
+          achievements?: string[]
+          order_position?: number
+          enabled?: boolean
+          is_head?: boolean
+          phone?: string | null
+          social_links?: any
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          committee_id?: number | null
+          name?: string
+          role?: string
+          image?: string
+          description?: string
+          achievements?: string[]
+          order_position?: number
+          enabled?: boolean
+          is_head?: boolean
+          phone?: string | null
+          social_links?: any
           created_at?: string
           updated_at?: string
         }

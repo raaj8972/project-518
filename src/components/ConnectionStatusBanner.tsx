@@ -2,9 +2,9 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 
 export const ConnectionStatusBanner: React.FC = () => {
-  const { connectionStatus, lastError, refreshAll } = useData();
+  const { connectionStatus, lastError, refreshAll, showConnectionBanner } = useData();
 
-  if (connectionStatus === 'ok') return null;
+  if (connectionStatus === 'ok' || showConnectionBanner === false) return null;
 
   const color = connectionStatus === 'offline' ? 'bg-rose-600' : 'bg-amber-500';
   const label = connectionStatus === 'offline' ? 'Offline' : 'Degraded';

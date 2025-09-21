@@ -104,6 +104,8 @@ interface DataContextType {
   lastError: string | null;
   latencyMs?: number | null;
   supabaseHost?: string;
+  // Whether UI should display an offline/degraded banner right now (suppresses during warmup and single blips)
+  showConnectionBanner?: boolean;
   refreshAll: (silent?: boolean) => Promise<void>;
   resubscribeRealtime: () => void;
   addEvent: (event: Partial<Event>) => Promise<void>;
@@ -336,10 +338,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   })();
   const warmupUntilRef = React.useRef<number>(Date.now() + warmupMs);
   const withinWarmup = () => Date.now() < warmupUntilRef.current;
+  // Count consecutive failing fetch cycles to avoid flashing degraded/offline for single blips
+  const failStreakRef = React.useRef<number>(0);
   const scheduleResubscribe = (reason?: string) => {
     try {
       if (reason && !lastError) setLastError(reason);
-      if (connectionStatus === 'ok' && !withinWarmup()) setConnectionStatus('degraded');
+      // Do not force degraded here; let fetchData aggregate errors and apply thresholds
     } catch {}
     if (resubscribePendingRef.current) return;
     resubscribePendingRef.current = true;
@@ -818,15 +822,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!error) {
         setLatencyMs(Math.round(t1 - t0));
-        // If degraded/offline but ping succeeded, move to degraded (will go ok after next fetch)
-        if (connectionStatus !== 'ok' && !withinWarmup()) setConnectionStatus('degraded');
+        // Successful ping is a strong signal; move to OK (will be confirmed by next fetch)
+        if (!withinWarmup()) setConnectionStatus('ok');
+        failStreakRef.current = 0;
       } else {
         setLastError(`Ping error: ${error.message || String(error)}`);
-        if (!withinWarmup()) setConnectionStatus('degraded');
+        // Don't flip status on a single ping error; fetch cycle will decide using thresholds
       }
     } catch (e: any) {
       setLastError(`Ping threw: ${e?.message || String(e)}`);
-      if (!withinWarmup()) setConnectionStatus('degraded');
+      // Don't flip status on a single ping error; fetch cycle will decide
     }
   };
 
@@ -847,7 +852,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           throw new Error('Browser offline');
         }
         const t0 = performance.now();
-        const { error: pingError } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+        // Avoid HEAD requests which can trigger Safari "TypeError: Load failed"; do a tiny GET instead
+        const { error: pingError } = await supabase
+          .from('events')
+          .select('id', { count: 'exact' })
+          .range(0, 0); // fetch at most 1 row
         const dt = performance.now() - t0;
         if (!pingError) setLatencyMs(Math.round(dt));
         if (pingError) markErr('Supabase ping failed', pingError);
@@ -855,7 +864,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Schema/bucket detection for registration photo feature
       try {
         const trySelectHead = async (table: string, column: string) => {
-          const { error } = await supabase.from(table as any).select(column as any, { head: true, count: 'exact' });
+          // Use a minimal GET instead of HEAD to avoid Safari "Load failed" on HEAD
+          const { error } = await supabase
+            .from(table as any)
+            .select(column as any, { count: 'exact' })
+            .range(0, 0);
           return !error;
         };
         const [reqOk, labelOk, photoUrlOk] = await Promise.all([
@@ -1339,20 +1352,25 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch (error) {
       markErr('Error in fetchData', error);
     } finally {
-      // Determine connection status from aggregated errors
+      // Determine connection status from aggregated errors with hysteresis
       if (hadErrors) {
-        const offlineSignals = (lastError || '').toLowerCase();
         if (!withinWarmup()) {
-          if (/failed to fetch|load failed|network|fetcherror|timeout|abort/.test(offlineSignals)) {
-            setConnectionStatus('offline');
-          } else {
-            setConnectionStatus('degraded');
+          // Increment fail streak on real errors; cap to avoid overflow
+          failStreakRef.current = Math.min(failStreakRef.current + 1, 1000);
+          const signals = (lastError || '').toLowerCase();
+          const looksOffline = /failed to fetch|load failed|network|fetcherror|timeout|abort/.test(signals);
+          // Require at least 2 consecutive failing fetch cycles before surfacing degraded/offline
+          if (failStreakRef.current >= 2) {
+            setConnectionStatus(looksOffline ? 'offline' : 'degraded');
           }
-        } // during warm-up keep status at 'ok' but still record lastError
+          // else: keep current status (usually 'ok') to avoid flashing on single blips
+        }
+        // During warmup, keep status at 'ok' but still record lastError
       } else {
         setConnectionStatus('ok');
         setLastError(null);
-        // Reset retry attempts on success
+        // Reset fail streak and retry attempts on success
+        failStreakRef.current = 0;
         retryAttemptRef.current = 0;
         clearRetryTimer();
       }
@@ -3252,6 +3270,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         connectionStatus,
         lastError,
   latencyMs,
+  showConnectionBanner: connectionStatus !== 'ok' && !withinWarmup(),
     supabaseHost: SUPABASE_HOST,
         refreshAll: fetchData,
     resubscribeRealtime,

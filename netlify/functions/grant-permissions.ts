@@ -1,4 +1,4 @@
-import type { Handler } from '@netlify/functions'
+import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // POST /.netlify/functions/grant-permissions  { email, flags? or all:true }
@@ -14,12 +14,13 @@ type Flags = Partial<{
   can_registration_photos: boolean;
   can_faculty: boolean;
   can_core_team: boolean;
+  can_sports: boolean;
   can_guest_artists: boolean;
   can_chief_guests: boolean;
   can_homebound: boolean;
 }>;
 
-export const handler: Handler = async (event) => {
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
@@ -72,6 +73,7 @@ export const handler: Handler = async (event) => {
           can_registration_photos: true,
           can_faculty: true,
           can_core_team: true,
+          can_sports: true,
           can_guest_artists: true,
           can_chief_guests: true,
           can_homebound: true,

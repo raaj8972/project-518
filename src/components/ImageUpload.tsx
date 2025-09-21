@@ -8,7 +8,7 @@ interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos';
+  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
@@ -200,7 +200,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         // Try SDK once more in case of other XHR errors
         try {
           await trySDK();
-        } catch (ee) { throw e; }
+        } catch (ee) {
+          // Surface the SDK error which usually includes useful status/details (e.g., 401/403, bucket not found)
+          throw ee;
+        }
       }
     }
 
@@ -216,6 +219,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const status = (error as any)?.status as number | undefined;
     const msgRaw = (error && (error as any).message) ? (error as any).message : String(error);
     const msg = msgRaw.toLowerCase();
+    // Handle generic/opaque network errors (status 0) with actionable hints
+    if (status === 0 || msg.includes('http 0') || msg.includes('unknown error')) {
+      return new Error('Network/CORS error during upload (HTTP 0). Check your Supabase URL/key configuration, browser extensions (ad blockers), and retry. If this persists, try logging in to Admin and uploading from there.');
+    }
     if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
       return new Error(
         `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`

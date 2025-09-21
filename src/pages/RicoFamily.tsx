@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
 import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
@@ -10,16 +10,19 @@ import { MembershipModal } from '../components/MembershipModal';
 import InfiniteMarquee from '../components/InfiniteMarquee';
 import CoverflowCarousel from '../components/CoverflowCarousel';
 import FacultyProfileModal from '../components/FacultyProfileModal';
+// gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
 
 // Local FacultyHead type removed; rely on DataContext types instead
 
 export const RicoFamily: React.FC = () => {
-  const { facultyHeads, coreCommittees, coreTeamMembers, formSettings } = useData();
+  const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, formSettings, homepageSettings } = useData();
   const [glitchActive, setGlitchActive] = useState(false);
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
+  const committeeHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
+  const sportsHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
 
   // Filter enabled faculty heads and sort by order
   const enabledFacultyHeads = (facultyHeads || [])
@@ -30,6 +33,39 @@ export const RicoFamily: React.FC = () => {
   const enabledCommittees = (coreCommittees || [])
     .filter(committee => committee.enabled)
     .sort((a, b) => a.order_position - b.order_position);
+
+  // Sports committees section data
+  const enabledSportsCommittees = (sportsCommittees || [])
+    .filter(c => c.enabled)
+    .sort((a, b) => a.order_position - b.order_position);
+
+  // Detect the Organising/Organizing Committee with flexible matching
+  // Note: This runs only on sports committees, so we don't require the word "sports" in the name.
+  const isOrganisingName = (name?: string | null) => {
+    const s = String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!s) return false;
+    // Common variants and misspellings
+    const organKeywords = [
+      'organising',
+      'organizing',
+      'organisation',
+      'organization',
+      'organiser',
+      'organizer',
+      'organisers',
+      'organizers',
+      'org team',
+      'org. team',
+      'org committee',
+      'org. committee',
+    ];
+    // If it contains any of the above, consider it the organising committee
+    if (organKeywords.some(k => s.includes(k))) return true;
+    // Fallback: broad match on "organ" + (committee|team)
+    if (s.includes('organ') && (s.includes('committee') || s.includes('team'))) return true;
+    return false;
+  };
+  const organisingCommittee = enabledSportsCommittees.find(c => isOrganisingName(c.name)) || null;
 
   // Track expanded member cards (non-head)
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
@@ -56,6 +92,18 @@ export const RicoFamily: React.FC = () => {
   // Sort members within each committee by order position
   Object.keys(membersByCommittee).forEach(committee_id => {
     membersByCommittee[committee_id].sort((a, b) => a.order_position - b.order_position);
+  });
+
+  // Sports members grouped by sports committee
+  const sportsMembersByCommittee = (sportsTeamMembers || []).reduce((acc, m) => {
+    if (m.enabled && m.committee_id) {
+      if (!acc[m.committee_id]) acc[m.committee_id] = [];
+      acc[m.committee_id].push(m);
+    }
+    return acc;
+  }, {} as Record<string, typeof sportsTeamMembers>);
+  Object.keys(sportsMembersByCommittee).forEach(cid => {
+    sportsMembersByCommittee[cid].sort((a, b) => a.order_position - b.order_position);
   });
 
   // Committee heads across all committees (for marquee)
@@ -108,11 +156,22 @@ export const RicoFamily: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Stable, GPU-friendly marquee adornments (Safari-safe)
+  // We avoid animating CSS filter on the marquee container to prevent flicker.
+  // Scanline and neon glow are handled via CSS keyframes instead of JS timelines.
+  useEffect(() => {
+    // No imperative animation needed; styles handled in CSS.
+    // This effect is kept in case we later need to toggle classes or measure.
+  }, []);
+
   // Check if social media links should be shown
   // Social media settings available via context if needed
 
   return (
-    <div className="cyberpunk-theme min-h-screen">
+  <div className="neon-theme min-h-screen">
+      <style>{`
+        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      `}</style>
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="ricofamily" />
@@ -142,7 +201,7 @@ export const RicoFamily: React.FC = () => {
               <Users className="w-5 h-4 mr-2 animate-pulse" />
               Fest Architects
             </div>
-            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
+            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 neon-title ${glitchActive ? 'glitch-active' : ''}`}>
               RICO <span className="neon-blue">FAMILY</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
@@ -161,7 +220,7 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-8">
-                <h2 className="text-2xl md:text-4xl font-black mb-4 cyberpunk-title">
+                <h2 className="text-2xl md:text-4xl font-black mb-4 neon-title">
                   FACULTY <span className="neon-yellow">LEADERSHIP</span>
                 </h2>
                 <div className="w-24 h-1 bg-gradient-to-r from-yellow-300 to-orange-500 mx-auto mb-4 expand-width"></div>
@@ -190,7 +249,7 @@ export const RicoFamily: React.FC = () => {
               showArrows={true}
               className="py-6"
               renderItem={(head) => (
-                <div className="w-72 md:w-80 cyberpunk-card p-5">
+                <div className="w-72 md:w-80 neon-card p-5">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
                     <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
@@ -210,7 +269,7 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-8">
-                <h2 className="text-2xl md:text-4xl font-black mb-4 cyberpunk-title">
+                <h2 className="text-2xl md:text-4xl font-black mb-4 neon-title">
                   COMMITTEE <span className="neon-blue">HEADS</span>
                 </h2>
                 <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-4 expand-width"></div>
@@ -219,29 +278,36 @@ export const RicoFamily: React.FC = () => {
                 </p>
               </div>
             </div>
-
-            <InfiniteMarquee
-              items={committeeHeads}
-              direction="right"
-              speedPxPerSec={140}
-              glowOnPause
-              glowColor="rgba(255,255,255,0.14)"
-              adaptiveGlowOnPause
-              adaptiveGlowOpacity={0.26}
-              itemWrapperClassName="px-3"
-              className="py-2 -mx-4 sm:mx-0"
-              renderItem={(m) => (
-                <div className="w-64 cyberpunk-card p-4">
-                  <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                    <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            <div ref={committeeHeadsMarqueeRef} className="neon-marquee relative overflow-hidden w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
+              <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
+              <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+              <InfiniteMarquee
+                items={committeeHeads}
+                direction={homepageSettings?.committee_marquee_direction ?? 'right'}
+                speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                glowOnPause
+                glowColor="rgba(255,255,255,0.14)"
+                adaptiveGlowOnPause
+                adaptiveGlowOpacity={0.26}
+                itemWrapperClassName="px-3"
+                className="py-2"
+                renderItem={(m) => (
+                  <div className="w-64 neon-card borderless p-4">
+                    <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
+                      <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="font-bold text-white flex items-center">
+                      <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                    </div>
+                    <div className="text-sm text-gray-300">{m.role}</div>
                   </div>
-                  <div className="font-bold text-white flex items-center">
-                    <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
-                  </div>
-                  <div className="text-sm text-gray-300">{m.role}</div>
-                </div>
-              )}
-            />
+                )}
+              />
+              {/* edge fades to hide seams and reduce perceived flicker */}
+              {/* Hide edge fades on small screens to avoid a visible inner border */}
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+            </div>
           </div>
         </section>
       )}
@@ -253,7 +319,7 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
-                <h2 className="text-5xl md:text-6xl font-black mb-6 cyberpunk-title">
+                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
                   CORE <span className="neon-blue">COMMITTEES</span>
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-8 expand-width"></div>
@@ -283,7 +349,7 @@ export const RicoFamily: React.FC = () => {
                         <Users className="w-4 h-4 mr-2" />
                         {committee.is_core ? 'CORE COMMITTEE' : 'SPECIALIZED TEAM'}
                       </div>
-                      <h3 className="text-4xl md:text-5xl font-black mb-4 cyberpunk-title committee-title" style={{ color: committee.color }}>
+                      <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
                         {committee.name.toUpperCase()}
                       </h3>
                       <p className="text-lg text-gray-300 max-w-2xl mx-auto">
@@ -300,7 +366,7 @@ export const RicoFamily: React.FC = () => {
                         </h4>
                         <div className="grid md:grid-cols-2 gap-8">
                           {allCommitteeMembers.filter(m => m.is_head).map((head) => (
-                            <div key={head.id} className="committee-head-card cyberpunk-card overflow-hidden faculty-spotlight">
+                            <div key={head.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
                               <div className="grid md:grid-cols-2 gap-0">
                                 {/* Image Section */}
                                 <div className="relative h-85 md:h-auto overflow-hidden">
@@ -413,7 +479,7 @@ export const RicoFamily: React.FC = () => {
                               className={`scroll-animate opacity-0 transform translate-y-20 team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
                               style={{ animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` }}
                             >
-                              <div className={`cyberpunk-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
+                              <div className={`neon-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
                                 {/* Member Image (always visible) */}
                                 <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
                                   <img
@@ -548,6 +614,190 @@ export const RicoFamily: React.FC = () => {
         </section>
       )}
 
+      {/* Sports Committees Section */}
+      {enabledSportsCommittees.length > 0 && (
+        <section className="py-20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="scroll-animate opacity-0 transform translate-y-20">
+              <div className="text-center mb-16">
+                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
+                  SPORTS <span className="neon-green">COMMITTEES</span>
+                </h2>
+                <div className="w-32 h-1 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mb-8 expand-width"></div>
+                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                  Fast-paced teams, electric energy — game on.
+                </p>
+              </div>
+            </div>
+
+            {/* Sports Organising Committee — always at the top if present */}
+            {organisingCommittee && (
+              <div className="scroll-animate opacity-0 transform translate-y-20 mb-16">
+                <div className="text-center mb-10">
+                  <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
+                    <Shield className="w-4 h-4 mr-2" /> SPORTS ORGANISING COMMITTEE
+                  </div>
+                  <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: organisingCommittee.color }}>
+                    {String(organisingCommittee.name || '').toUpperCase()}
+                  </h3>
+                  {organisingCommittee.description && (
+                    <p className="text-lg text-gray-300 max-w-2xl mx-auto">{organisingCommittee.description}</p>
+                  )}
+                </div>
+
+                {/* Heads marquee for Organising Committee */}
+                {(() => {
+                  const heads = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => m.is_head);
+                  return heads.length > 0 ? (
+                    <div className="mb-8">
+                      <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">
+                        <Crown className="w-5 h-5 text-yellow-500 inline mr-2" /> Heads
+                      </h4>
+                      <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative neon-marquee w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
+                        <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
+                        <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+                        <InfiniteMarquee
+                          items={heads}
+                          direction={homepageSettings?.committee_marquee_direction ?? 'right'}
+                          speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                          itemWrapperClassName="px-3"
+                          className="py-2"
+                          renderItem={(head) => (
+                            <div className="w-64 neon-card borderless p-4">
+                              <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
+                                <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
+                              <div className="text-sm text-gray-300">{head.role}</div>
+                            </div>
+                          )}
+                        />
+                        {/* gradient fades (hidden on mobile to remove inner border look) */}
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Regular members grid for Organising Committee */}
+                {(() => {
+                  const regularMembers = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => !m.is_head);
+                  return regularMembers.length > 0 ? (
+                    <>
+                      <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                        {regularMembers.map((member, idx) => (
+                          <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${idx * 0.12}s` }}>
+                            <div className="neon-card h-full overflow-hidden p-2">
+                              <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                                <img src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                <div className="absolute top-1.5 right-1.5">
+                                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />
+                                </div>
+                              </div>
+                              <div className="p-2 sm:p-3">
+                                <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
+                                <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : null;
+                })()}
+              </div>
+            )}
+
+            {/* Committees */}
+            <div className="space-y-16">
+              {enabledSportsCommittees
+                .filter(c => !organisingCommittee || c.id !== organisingCommittee.id)
+                .map((committee, committeeIndex) => {
+                const allCommitteeMembers = sportsMembersByCommittee[committee.id] || [];
+                const regularMembers = allCommitteeMembers.filter(member => !member.is_head);
+                if (allCommitteeMembers.length === 0) return null;
+
+                return (
+                  <div key={committee.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${committeeIndex * 0.25}s` }}>
+                    <div className="text-center mb-12">
+                      <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
+                        <Shield className="w-4 h-4 mr-2" /> SPORTS COMMITTEE
+                      </div>
+                      <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
+                        {committee.name.toUpperCase()}
+                      </h3>
+                      <p className="text-lg text-gray-300 max-w-2xl mx-auto">{committee.description}</p>
+                    </div>
+
+                    {/* Heads (marquee-like row) */}
+                    {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
+                      <div className="mb-8">
+                        <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">
+                          <Crown className="w-5 h-5 text-yellow-500 inline mr-2" /> Heads
+                        </h4>
+                        <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative neon-marquee w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
+                          <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
+                          <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+                          <InfiniteMarquee
+                            items={allCommitteeMembers.filter(m => m.is_head)}
+                            direction={homepageSettings?.committee_marquee_direction ?? 'right'}
+                            speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                            itemWrapperClassName="px-3"
+                            className="py-2"
+                            renderItem={(head) => (
+                              <div key={head.id} className="w-64 neon-card borderless p-4">
+                                <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
+                                  <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
+                                <div className="text-sm text-gray-300">{head.role}</div>
+                              </div>
+                            )}
+                          />
+                          {/* gradient fades (hidden on mobile to remove inner border look) */}
+                          <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Team grid */}
+                    {regularMembers.length > 0 && (
+                      <>
+                        <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                          {regularMembers.map((member, idx) => (
+                            <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
+                              <div className="neon-card h-full overflow-hidden p-2">
+                                <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
+                                  <img src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                                  <div className="absolute top-1.5 right-1.5">
+                                    <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />
+                                  </div>
+                                </div>
+                                <div className="p-2 sm:p-3">
+                                  <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
+                                  <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Legacy Core Team Section (fallback if no committees) */}
       {enabledCommittees.length === 0 && (
         <section className="py-20 relative overflow-hidden">
@@ -555,7 +805,7 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
-                <h2 className="text-5xl md:text-6xl font-black mb-6 cyberpunk-title">
+                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
                   CORE <span className="neon-blue">TEAM</span>
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-8 expand-width"></div>
@@ -566,7 +816,7 @@ export const RicoFamily: React.FC = () => {
             </div>
 
             <div className="text-center py-12">
-              <div className="cyberpunk-card max-w-md mx-auto p-8">
+              <div className="neon-card max-w-md mx-auto p-8">
                 <Users size={64} className="mx-auto mb-4 text-gray-400" />
                 <h3 className="text-xl font-semibold text-gray-300 mb-2">No Committees Yet</h3>
                 <p className="text-gray-500">
@@ -639,6 +889,50 @@ export const RicoFamily: React.FC = () => {
           }
         }
 
+        /* Neon marquee container styling */
+        .neon-marquee {
+          box-shadow:
+            0 0 0px rgba(0,255,200,0.0),
+            inset 0 0 0px rgba(0,255,200,0.0);
+          transition: box-shadow 0.3s ease;
+          backdrop-filter: blur(1px);
+          /* Safari flicker mitigation */
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          -webkit-transform: translateZ(0);
+          transform: translateZ(0);
+          contain: paint;
+          will-change: transform;
+        }
+        .neon-inner-glow {
+          box-shadow: inset 0 0 30px rgba(0,255,200,0.08), inset 0 0 60px rgba(0,180,255,0.06);
+          border-radius: inherit;
+          animation: neonPulse 4s ease-in-out infinite alternate;
+        }
+        @keyframes neonPulse {
+          from { opacity: 0.9; }
+          to { opacity: 0.7; }
+        }
+        .scanline-overlay {
+          background: repeating-linear-gradient(
+            90deg,
+            rgba(255,255,255,0.02) 0px,
+            rgba(255,255,255,0.02) 2px,
+            transparent 2px,
+            transparent 6px
+          );
+          mix-blend-mode: screen;
+          opacity: 0.28;
+          /* Avoid moving the element; animate background-position instead */
+          background-size: 8px 100%;
+          animation: scanlineMove 6s linear infinite;
+          will-change: background-position;
+        }
+        @keyframes scanlineMove {
+          0% { background-position: 0 0; }
+          100% { background-position: 100% 0; }
+        }
+
       `}</style>
 
       {/* Values Section */}
@@ -647,7 +941,7 @@ export const RicoFamily: React.FC = () => {
         <div className="container mx-auto px-4 relative z-10">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="text-center mb-16">
-              <h2 className="text-5xl md:text-6xl font-black mb-6 cyberpunk-title">
+              <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
                 OUR <span className="neon-pink">VALUES</span>
               </h2>
               <div className="w-32 h-1 bg-gradient-to-r from-purple-500 to-pink-500 mx-auto mb-8 expand-width"></div>
@@ -673,7 +967,7 @@ export const RicoFamily: React.FC = () => {
               }
             ].map((value, index) => (
               <div key={index} className="scroll-animate opacity-0 transform translate-y-20 hover-float" style={{ animationDelay: `${index * 0.2}s` }}>
-                <div className="cyberpunk-card group text-center p-8">
+                <div className="neon-card group text-center p-8">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 group-hover:scale-110 transition-transform pulse-ring">
                     <value.icon size={32} className="text-white" />
                   </div>
@@ -691,7 +985,7 @@ export const RicoFamily: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-br from-pink-900/40 via-purple-900/60 to-blue-900/40"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="scroll-animate opacity-0 transform translate-y-20">
-            <h2 className="text-5xl md:text-7xl font-black mb-6 cyberpunk-title">
+            <h2 className="text-5xl md:text-7xl font-black mb-6 neon-title">
               JOIN THE <span className="neon-pink">FAMILY</span>
             </h2>
             <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
@@ -702,7 +996,7 @@ export const RicoFamily: React.FC = () => {
               {formSettings?.membership_form_enabled ? (
                 <button 
                   onClick={() => setMembershipModal(true)}
-                  className="cyberpunk-btn cyberpunk-btn-primary group text-lg px-8 py-4 hover-float"
+                  className="neon-btn neon-btn-primary group text-lg px-8 py-4 hover-float"
                 >
                   <span className="relative z-10 flex items-center">
                     <Users className="mr-2 group-hover:animate-pulse" size={24} />
@@ -711,7 +1005,7 @@ export const RicoFamily: React.FC = () => {
                   </span>
                 </button>
               ) : (
-                <div className="cyberpunk-card p-6 text-center max-w-md">
+                <div className="neon-card p-6 text-center max-w-md">
                   <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <h3 className="text-lg font-semibold text-gray-300 mb-2">Membership Closed</h3>
                   <p className="text-gray-500 text-sm">
@@ -750,7 +1044,7 @@ export const RicoFamily: React.FC = () => {
       />
 
       <style>{`
-        .cyberpunk-theme {
+        .neon-theme {
           background: #0a0a0a;
           color: #ffffff;
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
@@ -762,7 +1056,7 @@ export const RicoFamily: React.FC = () => {
           background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         }
 
-        .cyberpunk-grid {
+        .neon-grid {
           background-image: 
             linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
             linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
@@ -810,7 +1104,7 @@ export const RicoFamily: React.FC = () => {
           }
         }
 
-        .cyberpunk-title {
+        .neon-title {
           background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
           background-size: 200% 200%;
           -webkit-background-clip: text;
@@ -905,7 +1199,7 @@ export const RicoFamily: React.FC = () => {
           100% { transform: translateX(100%); }
         }
 
-        .cyberpunk-btn {
+        .neon-btn {
           position: relative;
           padding: 12px 32px;
           font-weight: 700;
@@ -918,7 +1212,7 @@ export const RicoFamily: React.FC = () => {
           clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
         }
 
-        .cyberpunk-btn::before {
+        .neon-btn::before {
           content: '';
           position: absolute;
           top: 0;
@@ -929,11 +1223,11 @@ export const RicoFamily: React.FC = () => {
           transition: left 0.5s;
         }
 
-        .cyberpunk-btn:hover::before {
+        .neon-btn:hover::before {
           left: 100%;
         }
 
-        .cyberpunk-btn-primary {
+        .neon-btn-primary {
           border-color: #ff00ff;
           color: #ff00ff;
           box-shadow: 
@@ -941,7 +1235,7 @@ export const RicoFamily: React.FC = () => {
             inset 0 0 10px rgba(255, 0, 255, 0.05);
         }
 
-        .cyberpunk-btn-primary:hover {
+        .neon-btn-primary:hover {
           background: rgba(255, 0, 255, 0.1);
           box-shadow: 
             0 0 20px rgba(255, 0, 255, 0.4),
@@ -949,7 +1243,7 @@ export const RicoFamily: React.FC = () => {
           transform: translateY(-2px);
         }
 
-        .cyberpunk-btn-secondary {
+        .neon-btn-secondary {
           border-color: #00ffff;
           color: #00ffff;
           box-shadow: 
@@ -957,7 +1251,7 @@ export const RicoFamily: React.FC = () => {
             inset 0 0 10px rgba(0, 255, 255, 0.05);
         }
 
-        .cyberpunk-btn-secondary:hover {
+        .neon-btn-secondary:hover {
           background: rgba(0, 255, 255, 0.1);
           box-shadow: 
             0 0 20px rgba(0, 255, 255, 0.4),
@@ -965,7 +1259,7 @@ export const RicoFamily: React.FC = () => {
           transform: translateY(-2px);
         }
 
-        .cyberpunk-card {
+        .neon-card {
           background: rgba(20, 20, 40, 0.8);
           border: 1px solid rgba(0, 255, 255, 0.3);
           border-radius: 8px;
@@ -975,7 +1269,7 @@ export const RicoFamily: React.FC = () => {
           overflow: hidden;
         }
 
-        .cyberpunk-card::before {
+        .neon-card::before {
           content: '';
           position: absolute;
           top: 0;
@@ -987,16 +1281,30 @@ export const RicoFamily: React.FC = () => {
           transition: transform 0.5s ease;
         }
 
-        .cyberpunk-card:hover::before {
+        .neon-card:hover::before {
           transform: translateX(0);
         }
 
-        .cyberpunk-card:hover {
+        .neon-card:hover {
           border-color: rgba(255, 0, 255, 0.6);
           box-shadow: 
             0 10px 30px rgba(0, 0, 0, 0.5),
             0 0 15px rgba(255, 0, 255, 0.1);
           transform: translateY(-5px);
+        }
+
+        /* Borderless variant for marquee cards */
+        .neon-card.borderless {
+          border: none !important;
+          box-shadow: none !important;
+        }
+        .neon-card.borderless::before {
+          display: none !important;
+        }
+        .neon-card.borderless:hover {
+          border: none !important;
+          box-shadow: none !important;
+          transform: none !important;
         }
 
         .scroll-animate {
@@ -1207,7 +1515,7 @@ export const RicoFamily: React.FC = () => {
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
-          .cyberpunk-title {
+          .neon-title {
             font-size: 2rem;
           }
           
@@ -1223,13 +1531,13 @@ export const RicoFamily: React.FC = () => {
             display: none;
           }
           
-          .cyberpunk-btn {
+          .neon-btn {
             padding: 10px 24px;
             font-size: 0.9rem;
             clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 10px 100%);
           }
           
-          .cyberpunk-card {
+          .neon-card {
             margin: 0 4px;
           }
           
@@ -1240,7 +1548,7 @@ export const RicoFamily: React.FC = () => {
         }
         
         @media (max-width: 480px) {
-          .cyberpunk-title {
+          .neon-title {
             font-size: 1.5rem;
           }
           
@@ -1252,7 +1560,7 @@ export const RicoFamily: React.FC = () => {
             font-size: 0.9rem !important;
           }
           
-          .cyberpunk-btn {
+          .neon-btn {
             padding: 8px 16px;
             font-size: 0.8rem;
             clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
