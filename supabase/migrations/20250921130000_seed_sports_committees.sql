@@ -63,8 +63,22 @@ USING (
 ) z
 WHERE sc.id = z.id;
 
--- Ensure a unique index on name exists for ON CONFLICT to work even if the base table was created without UNIQUE
-CREATE UNIQUE INDEX IF NOT EXISTS idx_sports_committees_name_unique ON public.sports_committees(name);
+-- Normalize names to collapse whitespace/case variants, then enforce a case/space-insensitive unique constraint
+UPDATE public.sports_committees SET name = INITCAP(TRIM(LOWER(name))) WHERE name IS NOT NULL;
+-- Replace any prior simple unique index with a functional unique index for robustness
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='idx_sports_committees_name_unique'
+  ) THEN
+    BEGIN
+      EXECUTE 'DROP INDEX IF EXISTS public.idx_sports_committees_name_unique';
+    EXCEPTION WHEN undefined_object THEN
+      -- no-op
+    END;
+  END IF;
+END$$;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sports_committees_name_unique ON public.sports_committees ((LOWER(TRIM(name))));
 
 -- Upsert committees without relying on ON CONFLICT to bypass duplicate key edge-cases
 -- 1) UPDATE existing named committees to desired values
@@ -81,7 +95,7 @@ FROM (VALUES
   ('Badminton', 'Agile rackets and sharp reflexes', '#06B6D4', 3, true)
 ) AS v(name, description, color, order_position, enabled)
 WHERE NOT EXISTS (
-  SELECT 1 FROM public.sports_committees c WHERE c.name = v.name
+  SELECT 1 FROM public.sports_committees c WHERE LOWER(TRIM(c.name)) = LOWER(TRIM(v.name))
 );
 
 -- Grab committee IDs
@@ -107,7 +121,7 @@ FROM (
     ('Cricket','Nidhi Rao','Skipper','/auto.png','Opener with sharp field vision','["Ran inter-college 92*","Best fielder 2023"]',1,'+91-90000-22222','{"instagram":"https://instagr.am/nidhi"}'),
     ('Badminton','Ishaan Gupta','Lead','/auto.png','Lightning reflexes and net control','["Doubles inter-zonal gold"]',1,'+91-90000-33333','{"instagram":"https://instagr.am/ishaan"}')
 ) AS s(committee_name, name, role, image, description, achievements, order_position, phone, social_links)
-JOIN public.sports_committees c ON c.name = s.committee_name
+JOIN public.sports_committees c ON LOWER(TRIM(c.name)) = LOWER(TRIM(s.committee_name))
 WHERE NOT EXISTS (
   SELECT 1 FROM public.sports_team_members m WHERE m.name = s.name AND m.committee_id = c.id AND m.is_head = true
 );
@@ -121,7 +135,7 @@ FROM (
     ('Cricket','Kabir Shah','All-rounder','/auto.png','Balance of pace and batting',2),
     ('Badminton','Meera Iyer','Singles','/auto.png','Consistent baseline rallies',2)
 ) AS s(committee_name, name, role, image, description, order_position)
-JOIN public.sports_committees c ON c.name = s.committee_name
+JOIN public.sports_committees c ON LOWER(TRIM(c.name)) = LOWER(TRIM(s.committee_name))
 WHERE NOT EXISTS (
   SELECT 1 FROM public.sports_team_members m WHERE m.name = s.name AND m.committee_id = c.id AND m.is_head = false
 );
