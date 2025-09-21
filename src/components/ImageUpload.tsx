@@ -43,6 +43,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [uploadPercent, setUploadPercent] = useState<number>(0);
   const [error, setError] = useState<string>('');
   const [pendingImage, setPendingImage] = useState<string>('');
+  // Local, immediate preview (data URL) so users can see the selected image even if bucket is private
+  const [localPreview, setLocalPreview] = useState<string>('');
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [missingBucket, setMissingBucket] = useState<string | null>(null);
   const [uploadHint, setUploadHint] = useState<string>('');
@@ -289,6 +291,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       reader.onload = () => {
         const dataUrl = reader.result as string;
         setCropSrc(dataUrl);
+        // Show immediate preview behind the crop modal
+        setLocalPreview(dataUrl);
         setZoom(0.9); // start slightly zoomed-out for easier full-photo view
         setCrop({ x: 0, y: 0 });
         setError('');
@@ -297,6 +301,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setOriginalImageMime(file.type || null);
       // stash the original file object for later in input (not stored; we’ll recreate from canvas)
       return;
+    }
+
+    // If cropper is disabled but this is an image, still create a quick local preview
+    if (!isPdfUpload && !isVideoUpload && !enableCropper) {
+      try {
+        const r = new FileReader();
+        r.onload = () => setLocalPreview(r.result as string);
+        r.readAsDataURL(file);
+      } catch {}
     }
 
     // Default path: direct upload (videos/PDFs or cropper disabled)
@@ -586,7 +599,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   // Display the pending image if available, otherwise show current image
-  const displayImage = pendingImage || currentImage;
+  // Prefer local preview so that private buckets still show an image immediately after selection
+  const displayImage = localPreview || pendingImage || currentImage;
   return (
     <div className={`relative mb-3 ${className}`}>
       <input
@@ -640,7 +654,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
       )}
       
       {displayImage ? (
-        <div className="relative group">
+  <div className={`relative group ${hideControls ? 'cursor-pointer' : ''}`} onClick={hideControls ? handleClick : undefined}>
           {isVideoUpload ? (
             <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center">
               <Play className="w-16 h-16 text-blue-500 mb-2" />
@@ -677,6 +691,11 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               alt="Selected"
              className="w-full h-24 object-cover rounded-lg border-2 border-gray-300"
             />
+          )}
+          {hideControls && (
+            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-80 group-hover:opacity-100 select-none">
+              Change
+            </div>
           )}
           {!hideControls && (
             <div className="mt-2 flex flex-wrap items-center justify-center gap-2">

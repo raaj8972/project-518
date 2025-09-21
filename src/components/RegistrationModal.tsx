@@ -530,20 +530,37 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     );
                   })()}
                   <div className="bg-gray-900/30 p-3 rounded border border-cyan-500/20">
-                    <ImageUpload
-                      onImageSelect={(url) => setPhotoUrl(url)}
-                      currentImage={photoUrl}
-                      bucket="registration-photos"
-                      folder={`registrations/${eventId}`}
-                      acceptedTypes="image/*"
-                      fileTypeLabel="PNG/JPG/WebP up to 60KB"
-                      enableCropper={false}
-                      autoSave
-                      hideControls
-                      maxImageBytes={60 * 1024}
-                    />
+                    <div className="space-y-2">
+                      <ImageUpload
+                        onImageSelect={(url) => setPhotoUrl(url)}
+                        currentImage={photoUrl}
+                        bucket="registration-photos"
+                        folder={`registrations/${eventId}`}
+                        acceptedTypes="image/*"
+                        fileTypeLabel="PNG/JPG/WebP up to 60KB"
+                        enableCropper={false}
+                        autoSave
+                        hideControls
+                        maxImageBytes={60 * 1024}
+                      />
+                      {photoUrl && (
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-gray-400">Preview loaded. Tap the image to change.</div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Clear current selection to allow choosing a different photo
+                              setPhotoUrl('');
+                            }}
+                            className="cyberpunk-btn cyberpunk-btn-secondary px-3 py-1 text-xs"
+                          >
+                            CHANGE PHOTO
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     {errors['photo'] && <p className="cyberpunk-error mt-2">{errors['photo']}</p>}
-                    <p className="text-xs text-gray-400 mt-2">Upload a clear headshot (max 60KB). This will be attached to admin exports.</p>
+                    <p className="text-xs text-gray-400 mt-2">Upload a clear headshot (max 60KB).</p>
                   </div>
                 </div>
               )}
