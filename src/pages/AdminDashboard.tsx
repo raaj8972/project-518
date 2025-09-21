@@ -46,6 +46,7 @@ import { StorageOverview } from '../components/admin/StorageOverview';
 import { RegistrationPhotosPanel } from '../components/admin/RegistrationPhotosPanel';
 import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
+import { ConnectionOverview } from '../components/admin/ConnectionOverview';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
 
@@ -470,6 +471,9 @@ export const AdminDashboard: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Connection Overview */}
+                <ConnectionOverview />
 
                 {/* Storage Overview */}
                 <StorageOverview />
