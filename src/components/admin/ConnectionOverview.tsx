@@ -17,10 +17,11 @@ export const ConnectionOverview: React.FC = () => {
   const [funcError, setFuncError] = useState<string | null>(null);
 
   const [netOnline, setNetOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  const [dbCounts, setDbCounts] = useState<{ events?: number; registrations?: number; sponsors?: number } | null>(null);
+  const [dbCounts, setDbCounts] = useState<Record<string, number | null> | null>(null);
   const [dbChecking, setDbChecking] = useState<boolean>(false);
   const [dbError, setDbError] = useState<string | null>(null);
   const [heartbeatAt, setHeartbeatAt] = useState<string | null>(null);
+  const [heartbeatIso, setHeartbeatIso] = useState<string | null>(null);
   const [hbError, setHbError] = useState<string | null>(null);
   const [hbPending, setHbPending] = useState<boolean>(false);
 
@@ -56,20 +57,35 @@ export const ConnectionOverview: React.FC = () => {
     setDbChecking(true);
     setDbError(null);
     try {
-      const q = async (table: string) => {
-        const { count, error } = await supabase
-          .from(table as any)
-          .select('id', { count: 'exact' })
-          .range(0, 0);
-        if (error) throw error;
-        return count || 0;
-      };
-      const [events, registrations, sponsors] = await Promise.all([
-        q('events'),
-        q('registrations'),
-        q('sponsors'),
-      ]);
-      setDbCounts({ events, registrations, sponsors });
+      const tables = [
+        'events',
+        'registrations',
+        'sponsors',
+        'schedule_days',
+        'guest_artists',
+        'faculty_heads',
+        'sponsorship_packages',
+        'sponsorship_settings',
+      ];
+
+      const results = await Promise.all(
+        tables.map(async (t) => {
+          try {
+            const { count, error } = await supabase
+              .from(t as any)
+              .select('id', { count: 'exact' })
+              .range(0, 0);
+            if (error) throw error;
+            return [t, count ?? 0] as const;
+          } catch (e) {
+            return [t, null] as const;
+          }
+        })
+      );
+
+      const map: Record<string, number | null> = {};
+      for (const [t, c] of results) map[t] = c;
+      setDbCounts(map);
     } catch (e: any) {
       setDbError(e?.message || String(e));
       setDbCounts(null);
@@ -88,6 +104,7 @@ export const ConnectionOverview: React.FC = () => {
         .maybeSingle();
       if (error) throw error;
       const ts = (data as any)?.last_run || null;
+      setHeartbeatIso(ts);
       setHeartbeatAt(ts ? new Date(ts).toLocaleString() : null);
     } catch (e: any) {
       setHbError(e?.message || String(e));
@@ -119,6 +136,27 @@ export const ConnectionOverview: React.FC = () => {
 
   const supabaseState: 'ok' | 'warn' | 'err' = connectionStatus === 'ok' ? 'ok' : (connectionStatus === 'degraded' ? 'warn' : 'err');
   const storageOk = !!schemaCapabilities?.storage_registration_photos_bucket;
+
+  // Heartbeat freshness status
+  const heartbeatState: 'ok' | 'warn' | 'err' = (() => {
+    if (!heartbeatIso) return 'err';
+    const last = Date.parse(heartbeatIso);
+    if (Number.isNaN(last)) return 'err';
+    const mins = (Date.now() - last) / 60000;
+    if (mins <= 20) return 'ok';
+    if (mins <= 60) return 'warn';
+    return 'err';
+  })();
+  const heartbeatAgo = (() => {
+    if (!heartbeatIso) return null;
+    const last = Date.parse(heartbeatIso);
+    if (Number.isNaN(last)) return null;
+    const mins = Math.max(0, Math.floor((Date.now() - last) / 60000));
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    return `${hrs}h ago`;
+  })();
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -169,7 +207,20 @@ export const ConnectionOverview: React.FC = () => {
             <div>Latency: {funcLatency != null ? `${funcLatency} ms` : '—'}</div>
             {funcError && (<div className="text-rose-700 truncate" title={funcError}>Err: {funcError}</div>)}
             <div className="mt-3 flex items-center justify-between">
-              <div className="text-xs text-gray-600">Heartbeat last run: {heartbeatAt || '—'}</div>
+              <div className="text-xs text-gray-600 flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-[10px] font-medium"
+                  style={{
+                    borderColor: heartbeatState === 'ok' ? '#16a34a' : heartbeatState === 'warn' ? '#f59e0b' : '#e11d48',
+                    color: heartbeatState === 'ok' ? '#166534' : heartbeatState === 'warn' ? '#92400e' : '#9f1239',
+                    background: heartbeatState === 'ok' ? '#dcfce7' : heartbeatState === 'warn' ? '#fff7ed' : '#ffe4e6',
+                  }}
+                  title={heartbeatAt || undefined}
+                >
+                  {statusDot(heartbeatState)}
+                  <span className="ml-1">Heartbeat {heartbeatAgo ? `· ${heartbeatAgo}` : ''}</span>
+                </span>
+                <span className="text-gray-500">{heartbeatAt || '—'}</span>
+              </div>
               <button
                 onClick={triggerHeartbeat}
                 disabled={hbPending}
@@ -196,19 +247,22 @@ export const ConnectionOverview: React.FC = () => {
           <div className="mt-2 text-sm text-gray-700">
             {dbError && <div className="text-rose-700 truncate" title={dbError}>Err: {dbError}</div>}
             {dbCounts ? (
-              <div className="grid grid-cols-3 gap-2 text-center mt-1">
-                <div>
-                  <div className="text-xs text-gray-500">Events</div>
-                  <div className="font-semibold">{dbCounts.events}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Registrations</div>
-                  <div className="font-semibold">{dbCounts.registrations}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-gray-500">Sponsors</div>
-                  <div className="font-semibold">{dbCounts.sponsors}</div>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 text-center mt-1">
+                {[
+                  ['events','Events'],
+                  ['registrations','Registrations'],
+                  ['sponsors','Sponsors'],
+                  ['schedule_days','Schedule Days'],
+                  ['guest_artists','Guest Artists'],
+                  ['faculty_heads','Faculty'],
+                  ['sponsorship_packages','Sponsor Packages'],
+                  ['sponsorship_settings','Sponsor Settings'],
+                ].map(([key,label]) => (
+                  <div key={key as string} className="border rounded p-2">
+                    <div className="text-xs text-gray-500">{label}</div>
+                    <div className="font-semibold">{dbCounts[key as string] != null ? dbCounts[key as string] : '—'}</div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="text-xs text-gray-500">Press “Check DB” to fetch row counts</div>
