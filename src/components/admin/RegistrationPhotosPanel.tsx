@@ -192,17 +192,33 @@ export const RegistrationPhotosPanel: React.FC = () => {
 
   const bucketExists = schemaCapabilities?.storage_registration_photos_bucket !== false;
 
+  // Safe icon renderer to avoid React #310 if an icon import resolves incorrectly
+  const SafeIcon: React.FC<{ C: any; className?: string }> = ({ C, className }) => {
+    try {
+      let Comp = C;
+      if (!Comp) return <span className={className} />;
+      if (typeof Comp === 'object' && Comp && 'default' in Comp && typeof (Comp as any).default === 'function') {
+        Comp = (Comp as any).default;
+      }
+      const ok = typeof Comp === 'function' || (Comp && typeof Comp === 'object' && ((Comp as any).$$typeof || (Comp as any).render));
+      if (!ok) return <span className={className} />;
+      return <Comp className={className} />;
+    } catch {
+      return <span className={className} />;
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-purple-600" /> Registration Photos
+            <SafeIcon C={ImageIcon} className="w-5 h-5 text-purple-600" /> Registration Photos
           </h3>
           <div className="text-xs text-gray-500">Bucket: {BUCKET} {usage && <>· {usage.count} files · {formatBytes(usage.totalBytes)}</>}</div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => load()} className="px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200 flex items-center gap-1"><RefreshCcw className="w-4 h-4"/>Refresh</button>
+          <button onClick={() => load()} className="px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200 flex items-center gap-1"><SafeIcon C={RefreshCcw} className="w-4 h-4"/>Refresh</button>
           <button onClick={() => refreshUsage()} className="px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200">Recompute Usage</button>
         </div>
       </div>
@@ -246,14 +262,14 @@ export const RegistrationPhotosPanel: React.FC = () => {
       <div className="grid grid-cols-1 gap-6">
         {groupedByFolder.map(([folder, arr]) => (
           <div key={folder} className="border rounded-lg">
-            <div className="px-3 py-2 border-b bg-gray-50 text-sm font-medium flex items-center gap-2"><Folder className="w-4 h-4"/> {folder}</div>
+                <div className="px-3 py-2 border-b bg-gray-50 text-sm font-medium flex items-center gap-2"><SafeIcon C={Folder} className="w-4 h-4"/> {folder}</div>
             <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {loading && Array.from({ length: 10 }).map((_,i)=> (
                 <div key={i} className="aspect-square bg-gray-100 animate-pulse rounded" />
               ))}
               {!loading && arr.length === 0 && (
                 <div className="col-span-full text-center text-sm text-gray-600 py-4">
-                  <Info className="w-4 h-4 inline-block mr-1"/> No photos in this folder.
+                  <SafeIcon C={Info} className="w-4 h-4 inline-block mr-1"/> No photos in this folder.
                 </div>
               )}
               {!loading && arr.map((it) => (
@@ -271,16 +287,16 @@ export const RegistrationPhotosPanel: React.FC = () => {
                       <span>{it.created_at ? new Date(it.created_at).toLocaleDateString() : ''}</span>
                     </div>
                     {it.registration ? (
-                      <div className="mt-1 text-xs text-green-700 flex items-center gap-1"><CheckCircle className="w-3 h-3"/> {it.registration.full_name}{it.event_title?` · ${it.event_title}`:''}</div>
+                      <div className="mt-1 text-xs text-green-700 flex items-center gap-1"><SafeIcon C={CheckCircle} className="w-3 h-3"/> {it.registration.full_name}{it.event_title?` · ${it.event_title}`:''}</div>
                     ) : (
                       <div className="mt-1 text-xs text-yellow-700 flex items-center gap-1">
-                        <Folder className="w-3 h-3"/> Orphan{it.folderEventId ? ` · registrations/${it.folderEventId}` : ''}
+                        <SafeIcon C={Folder} className="w-3 h-3"/> Orphan{it.folderEventId ? ` · registrations/${it.folderEventId}` : ''}
                       </div>
                     )}
                     <div className="flex gap-2 mt-2">
-                      <button onClick={()=>openInNew(it.publicUrl)} className="flex-1 px-2 py-1 text-xs border rounded hover:bg-gray-100 flex items-center gap-1"><ExternalLink className="w-3 h-3"/>Open</button>
-                      <button onClick={()=>copy(it.publicUrl)} className="px-2 py-1 text-xs border rounded hover:bg-gray-100 flex items-center gap-1"><LinkIcon className="w-3 h-3"/>Copy</button>
-                      <button disabled={busyName===it.name} onClick={()=>handleDelete(it.name)} className={`px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-700 flex items-center gap-1 ${busyName===it.name?'opacity-60':''}`}><Trash2 className="w-3 h-3"/>Delete</button>
+                      <button onClick={()=>openInNew(it.publicUrl)} className="flex-1 px-2 py-1 text-xs border rounded hover:bg-gray-100 flex items-center gap-1"><SafeIcon C={ExternalLink} className="w-3 h-3"/>Open</button>
+                      <button onClick={()=>copy(it.publicUrl)} className="px-2 py-1 text-xs border rounded hover:bg-gray-100 flex items-center gap-1"><SafeIcon C={LinkIcon} className="w-3 h-3"/>Copy</button>
+                      <button disabled={busyName===it.name} onClick={()=>handleDelete(it.name)} className={`px-2 py-1 text-xs border rounded hover:bg-red-50 text-red-700 flex items-center gap-1 ${busyName===it.name?'opacity-60':''}`}><SafeIcon C={Trash2} className="w-3 h-3"/>Delete</button>
                     </div>
                     {it.registration && (
                       <button onClick={()=>deepLinkToRegistration(it)} className="mt-2 w-full px-2 py-1 text-xs border rounded bg-blue-50 text-blue-700 hover:bg-blue-100">View in Registrations</button>
