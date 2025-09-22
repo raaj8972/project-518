@@ -36,13 +36,40 @@ export const ConnectionOverview: React.FC = () => {
     return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
   }, []);
 
+  // Local fetch with timeout + minimal retry for Netlify function calls
+  const fetchWithTimeoutRetry = async (input: RequestInfo | URL, init?: RequestInit & { _timeoutMs?: number; _retries?: number }) => {
+    const timeoutMs = typeof init?._timeoutMs === 'number' ? init!._timeoutMs! : 20000;
+    const retries = typeof init?._retries === 'number' ? Math.max(0, Math.min(3, init!._retries!)) : 1;
+    let attempt = 0;
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const controller = new AbortController();
+      const t = timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
+      try {
+        const resp = await fetch(input as any, { ...(init || {}), signal: controller.signal });
+        if (t) clearTimeout(t);
+        return resp;
+      } catch (e: any) {
+        if (t) clearTimeout(t);
+        const isAbort = e?.name === 'AbortError';
+        const isTypeErr = e instanceof TypeError; // often network failure in browsers
+        if ((isAbort || isTypeErr) && attempt < retries) {
+          attempt += 1;
+          await new Promise(r => setTimeout(r, attempt === 1 ? 200 : 500));
+          continue;
+        }
+        throw e;
+      }
+    }
+  };
+
   const pingFunctions = async () => {
     setFuncError(null);
     setFuncOk(null);
     setFuncLatency(null);
     try {
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const res = await fetch('/.netlify/functions/health', ({ cache: 'no-store', _timeoutMs: 20000 } as any));
+      const res = await fetchWithTimeoutRetry('/.netlify/functions/health', { cache: 'no-store' as any, _timeoutMs: 20000, _retries: 1 });
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       setFuncLatency(Math.round(t1 - t0));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -118,10 +145,10 @@ export const ConnectionOverview: React.FC = () => {
     setHbPending(true);
     setHbError(null);
     try {
-      let res = await fetch('/.netlify/functions/heartbeat', ({ method: 'POST', _timeoutMs: 25000 } as any));
+      let res = await fetchWithTimeoutRetry('/.netlify/functions/heartbeat', ({ method: 'POST', _timeoutMs: 25000, _retries: 1 } as any));
       if (res.status === 404) {
         // Fallback endpoint name
-        res = await fetch('/.netlify/functions/heartbeat_fallback', ({ method: 'POST', _timeoutMs: 25000 } as any));
+        res = await fetchWithTimeoutRetry('/.netlify/functions/heartbeat_fallback', ({ method: 'POST', _timeoutMs: 25000, _retries: 1 } as any));
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();
@@ -144,10 +171,11 @@ export const ConnectionOverview: React.FC = () => {
       // Get current session token
       const { data: { session }, error: sessErr } = await supabase.auth.getSession();
       if (sessErr || !session?.access_token) throw new Error('Not authenticated');
-      const res = await fetch('/.netlify/functions/install-heartbeat', ({
+      const res = await fetchWithTimeoutRetry('/.netlify/functions/install-heartbeat', ({
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
-        _timeoutMs: 30000
+        _timeoutMs: 30000,
+        _retries: 1,
       } as any));
       const body = await res.text();
       if (!res.ok) {

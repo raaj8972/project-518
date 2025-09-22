@@ -821,7 +821,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Skip background tabs to save resources
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-        const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+        // Avoid HEAD requests which can trigger Safari "TypeError: Load failed"; do a tiny GET instead
+        const { error } = await supabase
+          .from('events')
+          .select('id', { count: 'exact' })
+          .range(0, 0);
         const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
         if (!error && !stopped) setLatencyMs(Math.round(t1 - t0));
       } catch {
@@ -853,7 +857,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const pingNow = async () => {
     try {
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
+      // Avoid HEAD here as well for maximum browser compatibility
+      const { error } = await supabase
+        .from('events')
+        .select('id', { count: 'exact' })
+        .range(0, 0);
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!error) {
         setLatencyMs(Math.round(t1 - t0));

@@ -81,6 +81,88 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
 
+  // Tabs and permissions: define BEFORE any early returns to keep hook order stable across renders
+  const tabs = [
+    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
+    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
+    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
+    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
+    { id: 'about' as TabType, name: 'About', icon: Info },
+    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
+    { id: 'events' as TabType, name: 'Events', icon: Calendar },
+    { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings },
+    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock },
+    { id: 'gallery' as TabType, name: 'Gallery', icon: Image },
+    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building },
+    { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck },
+    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image },
+    { id: 'categories' as TabType, name: 'Categories', icon: Palette },
+    { id: 'social' as TabType, name: 'Social Media', icon: Share2 },
+    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
+    { id: 'core-team' as TabType, name: 'Core Team', icon: Users },
+    { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
+    { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users },
+    { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
+    { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star },
+    { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
+    { id: 'memberships' as TabType, name: 'Memberships', icon: Users },
+    { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings },
+    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
+    { id: 'security' as TabType, name: 'Security', icon: Shield },
+  ];
+
+  // Determine if current user is the OWNER
+  const isOwner = (() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
+    } catch {
+      return false;
+    }
+  })();
+
+  // Filter visible tabs based on permissions (owner sees all)
+  const visibleTabs = (() => {
+    if (isOwner) return tabs;
+    // Non-owners: do NOT show Overview or Security by default
+    const allowedIds = new Set<TabType>();
+    if (myPermissions?.can_events) allowedIds.add('events');
+    if (myPermissions?.can_schedule) {
+      allowedIds.add('schedule');
+      // Schedule may include hero-media or categories associations, keep minimal here
+    }
+    if (myPermissions?.can_gallery) allowedIds.add('gallery');
+    if (myPermissions?.can_sponsors) {
+      allowedIds.add('sponsors');
+      // sponsorship settings/packages are separate tabs? kept under SponsorsManagement tab
+    }
+    if (myPermissions?.can_registrations) allowedIds.add('registrations');
+    if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
+    if (myPermissions?.can_faculty) allowedIds.add('faculty');
+    if (myPermissions?.can_core_team) allowedIds.add('core-team');
+    if (myPermissions?.can_sports) allowedIds.add('sports-team');
+    if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
+    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
+    if (myPermissions?.can_homebound) {
+      allowedIds.add('homebound');
+      allowedIds.add('band');
+    }
+    // Only show tabs explicitly allowed (others hidden for non-owners)
+    return tabs.filter((t) => allowedIds.has(t.id));
+  })();
+
+  // Ensure activeTab is always one of the visible tabs for current user
+  useEffect(() => {
+    const ids = new Set(visibleTabs.map((t) => t.id));
+    // If non-owner has no tabs, leave activeTab as-is; main content will show a guidance panel
+    if (!isOwner && visibleTabs.length === 0) return;
+    if (!ids.has(activeTab)) {
+      setActiveTab(visibleTabs[0]?.id || 'overview');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myPermissions, isOwner]);
+
   // Debounce redirect to handle transient auth events on tab focus
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -267,86 +349,6 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  const tabs = [
-    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
-    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
-    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
-  { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
-  { id: 'about' as TabType, name: 'About', icon: Info },
-    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
-  { id: 'events' as TabType, name: 'Events', icon: Calendar },
-  { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings },
-    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock },
-    { id: 'gallery' as TabType, name: 'Gallery', icon: Image },
-    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building },
-    { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck },
-    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image },
-    { id: 'categories' as TabType, name: 'Categories', icon: Palette },
-    { id: 'social' as TabType, name: 'Social Media', icon: Share2 },
-    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
-    { id: 'core-team' as TabType, name: 'Core Team', icon: Users },
-  { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
-  { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users },
-  { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
-  { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star },
-    { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
-    { id: 'memberships' as TabType, name: 'Memberships', icon: Users },
-    { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings },
-  { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
-  { id: 'security' as TabType, name: 'Security', icon: Shield },
-  ];
-
-  // Determine if current user is the OWNER
-  const isOwner = (() => {
-    try {
-      const uid = user?.id;
-      if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
-    } catch {
-      return false;
-    }
-  })();
-
-  // Filter visible tabs based on permissions (owner sees all)
-  const visibleTabs = (() => {
-    if (isOwner) return tabs;
-    // Non-owners: do NOT show Overview or Security by default
-    const allowedIds = new Set<TabType>();
-    if (myPermissions?.can_events) allowedIds.add('events');
-    if (myPermissions?.can_schedule) {
-      allowedIds.add('schedule');
-      // Schedule may include hero-media or categories associations, keep minimal here
-    }
-    if (myPermissions?.can_gallery) allowedIds.add('gallery');
-    if (myPermissions?.can_sponsors) {
-      allowedIds.add('sponsors');
-      // sponsorship settings/packages are separate tabs? kept under SponsorsManagement tab
-    }
-    if (myPermissions?.can_registrations) allowedIds.add('registrations');
-    if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
-    if (myPermissions?.can_faculty) allowedIds.add('faculty');
-    if (myPermissions?.can_core_team) allowedIds.add('core-team');
-  if (myPermissions?.can_sports) allowedIds.add('sports-team');
-    if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
-    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
-    if (myPermissions?.can_homebound) {
-      allowedIds.add('homebound');
-      allowedIds.add('band');
-    }
-    // Only show tabs explicitly allowed (others hidden for non-owners)
-    return tabs.filter((t) => allowedIds.has(t.id));
-  })();
-
-  // Ensure activeTab is always one of the visible tabs for current user
-  useEffect(() => {
-    const ids = new Set(visibleTabs.map((t) => t.id));
-    // If non-owner has no tabs, leave activeTab as-is; main content will show a guidance panel
-    if (!isOwner && visibleTabs.length === 0) return;
-    if (!ids.has(activeTab)) {
-      setActiveTab(visibleTabs[0]?.id || 'overview');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myPermissions, isOwner]);
 
   const stats = [
     {
