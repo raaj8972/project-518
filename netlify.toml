@@ -29,3 +29,4 @@
   # Increase timeout a bit for external calls
   node_bundler = "esbuild"
   included_files = []
+  directory = "netlify/functions"
