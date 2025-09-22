@@ -123,7 +123,10 @@ export const ConnectionOverview: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();
     } catch (e: any) {
-      setHbError(e?.message || String(e));
+      const msg = e?.message || String(e);
+      // Supabase PostgREST missing table often returns a message like:
+      // "Could not find the table 'public.health_heartbeats' in the schema cache"
+      setHbError(msg);
     } finally {
       setHbPending(false);
     }
