@@ -171,6 +171,75 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
+  // Preflight validation: ensure all components and icons we will render are valid to avoid React #310
+  const isRenderable = (C: any) => typeof C === 'function' || (C && typeof C === 'object' && ((C as any).$$typeof || (C as any).render));
+  const suspects: Array<{ label: string; value: any }> = [
+    // Icons used in this file
+    { label: 'Icon: Calendar', value: Calendar },
+    { label: 'Icon: Image', value: Image },
+    { label: 'Icon: Users', value: Users },
+    { label: 'Icon: Settings', value: Settings },
+    { label: 'Icon: LogOut', value: LogOut },
+    { label: 'Icon: BarChart3', value: BarChart3 },
+    { label: 'Icon: Clock', value: Clock },
+    { label: 'Icon: UserCheck', value: UserCheck },
+    { label: 'Icon: Building', value: Building },
+    { label: 'Icon: Palette', value: Palette },
+    { label: 'Icon: Share2', value: Share2 },
+    { label: 'Icon: Shield', value: Shield },
+    { label: 'Icon: Star', value: Star },
+    { label: 'Icon: Info', value: Info },
+    // Components referenced below
+    { label: 'HealthBadge', value: HealthBadge },
+    { label: 'ConnectionOverview', value: ConnectionOverview },
+    { label: 'StorageOverview', value: StorageOverview },
+    { label: 'SiteSettingsPanel', value: SiteSettingsPanel },
+    { label: 'AdminUsersPanel', value: AdminUsersPanel },
+    { label: 'HomepageManagement', value: HomepageManagement },
+    { label: 'EventsManagement', value: EventsManagement },
+    { label: 'HomeBoundSettings', value: HomeBoundSettings },
+    { label: 'ScheduleManagement', value: ScheduleManagement },
+    { label: 'GalleryManagement', value: GalleryManagement },
+    { label: 'SponsorsManagement', value: SponsorsManagement },
+    { label: 'RegistrationManagement', value: RegistrationManagement },
+    { label: 'RegistrationPhotosPanel', value: RegistrationPhotosPanel },
+    { label: 'EventCategoriesManagement', value: EventCategoriesManagement },
+    { label: 'SocialMediaManagement', value: SocialMediaManagement },
+    { label: 'FacultyHeadsManagement', value: FacultyHeadsManagement },
+    { label: 'CoreTeamManagement', value: CoreTeamManagement },
+    { label: 'BandManagement', value: BandManagement },
+    { label: 'GuestArtistManagement', value: GuestArtistManagement },
+    { label: 'ChiefGuestManagement', value: ChiefGuestManagement },
+    { label: 'AuditionManagement', value: AuditionManagement },
+    { label: 'MembershipManagement', value: MembershipManagement },
+    { label: 'FormSettingsManagement', value: FormSettingsManagement },
+    { label: 'SecuritySettings', value: SecuritySettings },
+    { label: 'RoadmapMilestonesAdmin', value: RoadmapMilestonesAdmin },
+    { label: 'HeroMediaManagement', value: HeroMediaManagement },
+    { label: 'AboutSettings', value: AboutSettings },
+  ];
+  const invalids = suspects.filter(s => !isRenderable(s.value));
+  if (invalids.length > 0) {
+    try {
+      console.error('[Admin] Preflight failed. Invalid components/icons:', invalids.map(i => i.label));
+    } catch {}
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="max-w-lg w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow">
+          <div className="font-semibold mb-2">Admin preflight detected missing components</div>
+          <div className="text-sm mb-3">Some UI modules didn’t load correctly. This can happen on a cold refresh. The page is kept safe instead of crashing.</div>
+          <ul className="list-disc pl-5 text-sm space-y-1 max-h-48 overflow-auto">
+            {invalids.slice(0, 10).map((s, idx) => (
+              <li key={idx}>{s.label}</li>
+            ))}
+            {invalids.length > 10 && <li>…and {invalids.length - 10} more</li>}
+          </ul>
+          <div className="text-xs text-amber-800 mt-3">Try a normal refresh in a few seconds. If this persists, we’ll fix the specific module listed above.</div>
+        </div>
+      </div>
+    );
+  }
+
   const tabs = [
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
@@ -342,6 +411,22 @@ export const AdminDashboard: React.FC = () => {
     );
   };
 
+  // Safe icon renderer to avoid React #310 if an icon import resolves incorrectly
+  const SafeIcon: React.FC<{ C: any; className?: string; size?: number }> = ({ C, className, size }) => {
+    try {
+      let Comp = C;
+      if (!Comp) return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
+      if (typeof Comp === 'object' && Comp && 'default' in Comp && typeof (Comp as any).default === 'function') {
+        Comp = (Comp as any).default;
+      }
+      const ok = typeof Comp === 'function' || (Comp && typeof Comp === 'object' && ((Comp as any).$$typeof || (Comp as any).render));
+      if (!ok) return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
+      return <Comp className={className} size={size} />;
+    } catch {
+      return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 admin-root">
       {/* Header */}
@@ -349,7 +434,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Settings className="w-8 h-8 text-yellow-500 mr-3" />
+              <SafeIcon C={Settings} className="w-8 h-8 text-yellow-500 mr-3" />
               <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
                 Admin Dashboard <HealthBadge />
                 <span
@@ -366,7 +451,7 @@ export const AdminDashboard: React.FC = () => {
               </h1>
               {isTOTPEnabled && (
                 <div className="ml-4 flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                  <Shield size={12} className="mr-1" />
+                  <SafeIcon C={Shield} size={12} className="mr-1" />
                   2FA Enabled
                 </div>
               )}
@@ -467,7 +552,7 @@ export const AdminDashboard: React.FC = () => {
                             : 'text-gray-600 hover:bg-gray-100'
                         }`}
                       >
-                        <Icon className="w-5 h-5 mr-3" />
+                        <SafeIcon C={Icon} className="w-5 h-5 mr-3" />
                         {tab.name}
                         {tab.id === 'registrations' && pendingRegistrations > 0 && (
                           <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
@@ -486,7 +571,7 @@ export const AdminDashboard: React.FC = () => {
                         )}
                         {tab.id === 'security' && isTOTPEnabled && (
                           <span className="ml-auto">
-                            <Shield className="w-4 h-4 text-green-600" />
+                            <SafeIcon C={Shield} className="w-4 h-4 text-green-600" />
                           </span>
                         )}
                       </button>
@@ -515,7 +600,7 @@ export const AdminDashboard: React.FC = () => {
                       <div key={stat.name} className="bg-white rounded-lg shadow-md p-6">
                         <div className="flex items-center">
                           <div className={`${stat.color} p-3 rounded-lg`}>
-                            <Icon className="w-6 h-6 text-white" />
+                            <SafeIcon C={Icon} className="w-6 h-6 text-white" />
                           </div>
                           <div className="ml-4">
                             <p className="text-sm font-medium text-gray-600">{stat.name}</p>
@@ -538,7 +623,7 @@ export const AdminDashboard: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Status</h3>
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
-                      <Shield className="w-6 h-6 text-blue-600 mr-3" />
+                      <SafeIcon C={Shield} className="w-6 h-6 text-blue-600 mr-3" />
                       <div>
                         <div className="font-medium text-gray-900">Two-Factor Authentication</div>
                         <div className="text-sm text-gray-600">
@@ -594,14 +679,14 @@ export const AdminDashboard: React.FC = () => {
                       onClick={() => setActiveTab('events')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <Calendar className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                      <SafeIcon C={Calendar} className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Manage Events</div>
                     </button>
                     <button
                       onClick={() => setActiveTab('registrations')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <UserCheck className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <SafeIcon C={UserCheck} className="w-8 h-8 text-green-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Review Registrations</div>
                       {pendingRegistrations > 0 && (
                         <div className="text-xs text-red-600 mt-1">{pendingRegistrations} pending</div>
@@ -611,14 +696,14 @@ export const AdminDashboard: React.FC = () => {
                       onClick={() => setActiveTab('gallery')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <Image className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                      <SafeIcon C={Image} className="w-8 h-8 text-purple-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Update Gallery</div>
                     </button>
                     <button
                       onClick={() => setActiveTab('security')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <SafeIcon C={Shield} className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Security Settings</div>
                       {!isTOTPEnabled && (
                         <div className="text-xs text-yellow-600 mt-1">Enable 2FA</div>
