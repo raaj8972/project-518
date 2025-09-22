@@ -19,10 +19,10 @@
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY
 
-# Netlify Scheduled Functions: run heartbeat every 15 minutes
-[[scheduled.functions]]
-  name = "heartbeat-schedule"
-  # Cron: every 15 minutes
+# Netlify Scheduled Function: run heartbeat every 15 minutes
+# Using per-function config block per official docs
+[functions."heartbeat-schedule"]
+  # Cron: every 15 minutes (UTC)
   schedule = "*/15 * * * *"
 
 [functions]
