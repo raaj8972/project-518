@@ -127,6 +127,22 @@ function App() {
       prevShowRef.current = showComingSoon;
     }, [showComingSoon, isAdminRoute]);
 
+    // Safe wrapper for Admin route to avoid React #310 on cold refresh
+    const AdminRouteWrapper: React.FC = () => {
+      const el = safeRender(AdminDashboard, 'AdminDashboard');
+      if (el) return el;
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <div className="max-w-md w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow">
+            <div className="font-semibold mb-2">Admin temporarily unavailable</div>
+            <div className="text-sm">
+              Modules are still loading. Please refresh in a moment. If this persists, try opening <span className="font-mono">/admin?tab=overview</span>.
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-white">
@@ -136,22 +152,6 @@ function App() {
           {isAdminRoute && safeRender(ConnectionStatusBanner, 'ConnectionStatusBanner')}
           {/* Hide public site chrome on admin pages to avoid overlap */}
           {!isAdminRoute && !showComingSoon && <Navbar />}
-          {/* Safe wrapper for Admin route to avoid React #310 on cold refresh */}
-          {(() => {
-            const AdminRouteWrapper: React.FC = () => {
-              const el = safeRender(AdminDashboard, 'AdminDashboard');
-              if (el) return el;
-              return (
-                <div className="min-h-[60vh] flex items-center justify-center">
-                  <div className="max-w-md w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow">
-                    <div className="font-semibold mb-2">Admin temporarily unavailable</div>
-                    <div className="text-sm">Modules are still loading. Please refresh in a moment. If this persists, try opening <span className="font-mono">/admin?tab=overview</span>.</div>
-                  </div>
-                </div>
-              );
-            };
-            return null;
-          })()}
 
           <Routes>
             <Route path="/" element={showComingSoon ? <ComingSoon /> : <Home />} />
@@ -164,7 +164,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             {/* Convenience redirect for users who try /admin/login */}
             <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-            <Route path="/admin" element={safeRender(AdminDashboard, 'AdminDashboard') || <div className="min-h-[60vh] flex items-center justify-center"><div className="max-w-md w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow"><div className="font-semibold mb-2">Admin temporarily unavailable</div><div className="text-sm">Modules are still loading. Please refresh in a moment. If this persists, try opening <span className="font-mono">/admin?tab=overview</span>.</div></div></div>} />
+            <Route path="/admin" element={<AdminRouteWrapper />} />
             {/* Catch all route for 404 handling */}
             <Route path="*" element={showComingSoon ? <ComingSoon /> : <Home />} />
           </Routes>
