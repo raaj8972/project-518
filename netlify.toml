@@ -18,3 +18,14 @@
 # Include environment variables for Supabase at build/runtime in Netlify UI (not in repo)
 # VITE_SUPABASE_URL
 # VITE_SUPABASE_ANON_KEY
+
+# Netlify Scheduled Functions: run heartbeat every 15 minutes
+[[scheduled.functions]]
+  name = "heartbeat-schedule"
+  # Cron: every 15 minutes
+  schedule = "*/15 * * * *"
+
+[functions]
+  # Increase timeout a bit for external calls
+  node_bundler = "esbuild"
+  included_files = []

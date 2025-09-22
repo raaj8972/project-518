@@ -104,6 +104,8 @@ interface DataContextType {
   lastError: string | null;
   latencyMs?: number | null;
   supabaseHost?: string;
+  // Realtime channels status map
+  realtimeStatus?: Record<string, string>;
   // Whether UI should display an offline/degraded banner right now (suppresses during warmup and single blips)
   showConnectionBanner?: boolean;
   refreshAll: (silent?: boolean) => Promise<void>;
@@ -306,6 +308,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [realtimeStatus, setRealtimeStatus] = useState<Record<string, string>>({});
   const [schemaCapabilities, setSchemaCapabilities] = useState({
     events_registration_photo_required: true,
     events_registration_photo_label: true,
@@ -358,6 +361,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try { supabase.removeChannel(ch); } catch {}
       }
       realtimeChannelsRef.current.clear();
+      // Mark all known channels as resubscribing
+      setRealtimeStatus((prev) => {
+        const next: Record<string, string> = { ...prev };
+        Object.keys(next).forEach((k) => {
+          next[k] = 'SUBSCRIBING';
+        });
+        return next;
+      });
       fetchData(true).catch(() => {});
     } catch {}
   };
@@ -1480,8 +1491,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime subscription for roadmap milestones so roadmap updates instantly
   useEffect(() => {
+    const channelName = 'ctx-roadmap-milestones';
     const channel = supabase
-      .channel('ctx-roadmap-milestones')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'roadmap_milestones' }, (payload: any) => {
         setRoadmapMilestones(cur => {
           const row = (payload.new || payload.old) as RoadmapMilestone;
@@ -1500,6 +1512,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) roadmap_milestones`);
         }
@@ -1510,8 +1523,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime: keep registrations list in sync (insert/update/delete)
   useEffect(() => {
+    const channelName = 'ctx-registrations';
     const channel = supabase
-      .channel('ctx-registrations')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, (payload: any) => {
         setRegistrations((cur) => {
           const row = (payload.new || payload.old) as Registration;
@@ -1530,6 +1544,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) registrations`);
         }
@@ -1540,14 +1555,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime: admin_users updates
   useEffect(() => {
+    const channelName = 'ctx-admin-users';
     const channel = supabase
-      .channel('ctx-admin-users')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, async (_payload: any) => {
         // Refresh list on any change; small table
         try { await refreshAdminUsers(); } catch {}
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) admin_users`);
         }
@@ -1558,8 +1575,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
   useEffect(() => {
+    const channelName = 'ctx-sponsors';
     const channel = supabase
-      .channel('ctx-sponsors')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, (payload: any) => {
         setSponsors((cur) => {
           const row = (payload.new || payload.old) as Sponsor;
@@ -1580,6 +1598,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsors`);
         }
@@ -1590,8 +1609,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime: keep sponsorship packages in sync so category chips and grouping update immediately
   useEffect(() => {
+    const channelName = 'ctx-sponsorship-packages';
     const channel = supabase
-      .channel('ctx-sponsorship-packages')
+      .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_packages' }, (payload: any) => {
         setSponsorshipPackages((cur) => {
           const row = (payload.new || payload.old) as SponsorshipPackage;
@@ -1612,6 +1632,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsorship_packages`);
         }
@@ -1622,8 +1643,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime: keep form_settings in sync so enable/disable reflects instantly
   useEffect(() => {
+    const formChannelName = 'ctx-form-settings';
     const formChannel = supabase
-      .channel('ctx-form-settings')
+      .channel(formChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'form_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<FormSettings> | undefined;
         if (row && (row as any).id === 1) {
@@ -1633,13 +1655,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [formChannelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) form_settings`);
         }
       });
 
+    const homepageChannelName = 'ctx-homepage-settings';
     const homepageChannel = supabase
-      .channel('ctx-homepage-settings')
+      .channel(homepageChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'homepage_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<HomepageSettings> | undefined;
         if (row && (row as any).id === 1) {
@@ -1649,13 +1673,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [homepageChannelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homepage_settings`);
         }
       });
 
+    const homeboundChannelName = 'ctx-homebound-settings';
     const homeboundChannel = supabase
-      .channel('ctx-homebound-settings')
+      .channel(homeboundChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'homebound_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<HomeboundSettings> | undefined;
         if (row && (row as any).id === 1) {
@@ -1665,13 +1691,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [homeboundChannelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homebound_settings`);
         }
       });
 
+    const siteSettingsChannelName = 'ctx-site-settings';
     const siteSettingsChannel = supabase
-      .channel('ctx-site-settings')
+      .channel(siteSettingsChannelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<SiteSettings> | undefined;
         if (row && (row as any).id === 1) {
@@ -1681,6 +1709,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       })
       .subscribe((status: any) => {
         const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [siteSettingsChannelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) site_settings`);
         }
@@ -3384,6 +3413,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         storageQuotaBytes,
         // Diagnostics
         pingNow,
+  realtimeStatus,
         // Admin users
         adminUsers,
         refreshAdminUsers,
