@@ -1,5 +1,5 @@
 functionsDirectory = "/Users/raaj/Downloads/RICO/project 518/netlify/functions"
-functionsDirectoryOrigin = "default"
+functionsDirectoryOrigin = "config"
 redirectsOrigin = "config"
 plugins = []
 headers = []
@@ -27,7 +27,12 @@ functions = "/Users/raaj/Downloads/RICO/project 518/netlify/functions"
 
 [functions]
 
+[functions.heartbeat-schedule]
+schedule = "*/15 * * * *"
+
 [functions."*"]
+included_files = []
+node_bundler = "esbuild"
 
 [[redirects]]
 from = "/api/*"

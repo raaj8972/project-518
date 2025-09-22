@@ -262,10 +262,19 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const [events, setEvents] = useState<Event[]>(() => {
+    try { const raw = localStorage.getItem('cache:events'); if (raw) return JSON.parse(raw); } catch {}
+    return [];
+  });
   const [eventCoordinators, setEventCoordinators] = useState<EventCoordinator[]>([]);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(() => {
+    try { const raw = localStorage.getItem('cache:gallery_images'); if (raw) return JSON.parse(raw); } catch {}
+    return [];
+  });
+  const [sponsors, setSponsors] = useState<Sponsor[]>(() => {
+    try { const raw = localStorage.getItem('cache:sponsors'); if (raw) return JSON.parse(raw); } catch {}
+    return [];
+  });
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
@@ -283,10 +292,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [formSettings, setFormSettings] = useState<FormSettings | null>(null);
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
-  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
+  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(() => {
+    try { const raw = localStorage.getItem('cache:homepage_settings'); if (raw) return JSON.parse(raw); } catch {}
+    return null;
+  });
   const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
-  const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(() => {
+    try { const raw = localStorage.getItem('cache:site_settings'); if (raw) return JSON.parse(raw); } catch {}
+    return null;
+  });
+  const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(() => {
+    try { const raw = localStorage.getItem('cache:about_settings'); if (raw) return JSON.parse(raw); } catch {}
+    return null;
+  });
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(null);
   const [myPermissions, setMyPermissions] = useState<{
     can_events?: boolean;
@@ -309,6 +327,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<Record<string, string>>({});
+  // Bump this to force all realtime subscription effects to re-run and recreate channels
+  const [realtimeGen, setRealtimeGen] = useState<number>(0);
   const [schemaCapabilities, setSchemaCapabilities] = useState({
     events_registration_photo_required: true,
     events_registration_photo_label: true,
@@ -369,6 +389,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         return next;
       });
+      // Trigger all subscription effects to re-run and recreate channels
+      setRealtimeGen((g) => g + 1);
+      // Optionally refresh data as well
       fetchData(true).catch(() => {});
     } catch {}
   };
@@ -908,7 +931,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('events')
         .select('*');
       if (eventsError) markErr('Error fetching events', eventsError);
-      else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
+      else {
+        const next = (eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) }));
+        setEvents(next);
+        try { localStorage.setItem('cache:events', JSON.stringify(next)); } catch {}
+      }
 
       // Fetch Gallery Images (non-critical; tolerate missing table/permission/transient network)
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
@@ -936,7 +963,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
           markErr('Error fetching gallery images', galleryImagesError);
         }
-      } else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
+      } else {
+        const next = (galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) }));
+        setGalleryImages(next);
+        try { localStorage.setItem('cache:gallery_images', JSON.stringify(next)); } catch {}
+      }
 
   // Fetch Sponsors
       // Fetch Event Coordinators
@@ -955,7 +986,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('sponsors')
         .select('*');
       if (sponsorsError) markErr('Error fetching sponsors', sponsorsError);
-      else setSponsors((sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) })));
+      else {
+        const next = (sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) }));
+        setSponsors(next);
+        try { localStorage.setItem('cache:sponsors', JSON.stringify(next)); } catch {}
+      }
 
       // Fetch Hero Media (all pages at once)
       const { data: heroMediaData, error: heroMediaError } = await supabase
@@ -1174,7 +1209,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .eq('id', 1)
         .maybeSingle();
       if (homepageSettingsError) markErr('Error fetching homepage settings', homepageSettingsError);
-      else setHomepageSettings(homepageSettingsData || null);
+      else {
+        setHomepageSettings(homepageSettingsData || null);
+        try { localStorage.setItem('cache:homepage_settings', JSON.stringify(homepageSettingsData || null)); } catch {}
+      }
+
+      // Early release: once core homepage content is available, allow UI to render
+      // Remaining datasets will continue loading in background without blocking first paint
+      if (!silent) {
+        try {
+          setLoading(false);
+        } catch {}
+      }
 
       // Fetch HomeBound Settings
       const { data: hbSettingsData, error: hbSettingsError } = await supabase
@@ -1240,7 +1286,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .select('*')
           .eq('id', 1)
           .maybeSingle();
-        if (ssErr) {
+  if (ssErr) {
           const raw = (ssErr as any)?.message || String(ssErr);
           const msg = String(raw).toLowerCase();
           const code = (ssErr as any)?.code;
@@ -1264,6 +1310,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         } else {
           setSiteSettings(ssData || null);
+          try { localStorage.setItem('cache:site_settings', JSON.stringify(ssData || null)); } catch {}
         }
       } catch (e) {
         console.warn('[Data] site_settings fetch threw (non-critical)', e);
@@ -1291,7 +1338,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             updated_at: (aboutData as any).updated_at ?? null,
           };
           setAboutSettings(normalized);
-        } else setAboutSettings(null);
+          try { localStorage.setItem('cache:about_settings', JSON.stringify(normalized)); } catch {}
+        } else {
+          setAboutSettings(null);
+          try { localStorage.setItem('cache:about_settings', 'null'); } catch {}
+        }
       } catch (e: any) {
         const msg = String(e?.message || '').toLowerCase();
         if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
@@ -1386,7 +1437,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         clearRetryTimer();
       }
       lastFetchAtRef.current = Date.now();
-      if (!silent) setLoading(false);
+      if (!silent) {
+        try {
+          // Avoid flicker if we already early-released loading earlier
+          setLoading((prev) => (prev ? false : prev));
+        } catch {}
+      }
     }
   };
 
@@ -1434,7 +1490,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    // Initial bootstrap should show loading state
+    // Initial bootstrap uses non-silent fetch to show loading until homepage settings arrive,
+    // then we early-release to render the shell while the rest continues in background.
     fetchData(false);
   }, []);
 
@@ -1491,6 +1548,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime subscription for roadmap milestones so roadmap updates instantly
   useEffect(() => {
+    void realtimeGen;
     const channelName = 'ctx-roadmap-milestones';
     const channel = supabase
       .channel(channelName)
@@ -1516,13 +1574,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) roadmap_milestones`);
         }
-      });
+      }, 10_000);
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  }, [realtimeGen]);
 
   // Realtime: keep registrations list in sync (insert/update/delete)
   useEffect(() => {
+    void realtimeGen;
     const channelName = 'ctx-registrations';
     const channel = supabase
       .channel(channelName)
@@ -1548,13 +1607,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) registrations`);
         }
-      });
+      }, 10_000);
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  }, [realtimeGen]);
 
   // Realtime: admin_users updates
   useEffect(() => {
+    void realtimeGen;
     const channelName = 'ctx-admin-users';
     const channel = supabase
       .channel(channelName)
@@ -1568,13 +1628,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) admin_users`);
         }
-      });
+      }, 10_000);
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  }, [realtimeGen]);
 
   // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
   useEffect(() => {
+    void realtimeGen;
     const channelName = 'ctx-sponsors';
     const channel = supabase
       .channel(channelName)
@@ -1602,13 +1663,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsors`);
         }
-      });
+      }, 10_000);
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  }, [realtimeGen]);
 
   // Realtime: keep sponsorship packages in sync so category chips and grouping update immediately
   useEffect(() => {
+    void realtimeGen;
     const channelName = 'ctx-sponsorship-packages';
     const channel = supabase
       .channel(channelName)
@@ -1636,13 +1698,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsorship_packages`);
         }
-      });
+      }, 10_000);
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  }, [realtimeGen]);
 
   // Realtime: keep form_settings in sync so enable/disable reflects instantly
   useEffect(() => {
+    void realtimeGen;
     const formChannelName = 'ctx-form-settings';
     const formChannel = supabase
       .channel(formChannelName)
@@ -1659,7 +1722,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) form_settings`);
         }
-      });
+      }, 10_000);
 
     const homepageChannelName = 'ctx-homepage-settings';
     const homepageChannel = supabase
@@ -1667,8 +1730,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .on('postgres_changes', { event: '*', schema: 'public', table: 'homepage_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<HomepageSettings> | undefined;
         if (row && (row as any).id === 1) {
-          if (payload.eventType === 'DELETE') setHomepageSettings(null);
-          else if (payload.new) setHomepageSettings(payload.new as HomepageSettings);
+          if (payload.eventType === 'DELETE') {
+            setHomepageSettings(null);
+            try { localStorage.setItem('cache:homepage_settings', 'null'); } catch {}
+          } else if (payload.new) {
+            setHomepageSettings(payload.new as HomepageSettings);
+            try { localStorage.setItem('cache:homepage_settings', JSON.stringify(payload.new)); } catch {}
+          }
         }
       })
       .subscribe((status: any) => {
@@ -1677,7 +1745,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homepage_settings`);
         }
-      });
+      }, 10_000);
 
     const homeboundChannelName = 'ctx-homebound-settings';
     const homeboundChannel = supabase
@@ -1695,7 +1763,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homebound_settings`);
         }
-      });
+      }, 10_000);
 
     const siteSettingsChannelName = 'ctx-site-settings';
     const siteSettingsChannel = supabase
@@ -1703,8 +1771,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<SiteSettings> | undefined;
         if (row && (row as any).id === 1) {
-          if (payload.eventType === 'DELETE') setSiteSettings(null);
-          else if (payload.new) setSiteSettings(payload.new as SiteSettings);
+          if (payload.eventType === 'DELETE') {
+            setSiteSettings(null);
+            try { localStorage.setItem('cache:site_settings', 'null'); } catch {}
+          } else if (payload.new) {
+            setSiteSettings(payload.new as SiteSettings);
+            try { localStorage.setItem('cache:site_settings', JSON.stringify(payload.new)); } catch {}
+          }
         }
       })
       .subscribe((status: any) => {
@@ -1713,7 +1786,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) site_settings`);
         }
-      });
+      }, 10_000);
 
     try {
       realtimeChannelsRef.current.add(formChannel);
@@ -1727,7 +1800,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try { supabase.removeChannel(homeboundChannel); realtimeChannelsRef.current.delete(homeboundChannel); } catch {}
       try { supabase.removeChannel(siteSettingsChannel); realtimeChannelsRef.current.delete(siteSettingsChannel); } catch {}
     };
-  }, []);
+  }, [realtimeGen]);
 
   // Event Management
   const addEvent = async (event: Partial<Event>) => {
@@ -3170,6 +3243,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .maybeSingle();
       if (!refetchErr) {
         setHomepageSettings(data || null);
+        try { localStorage.setItem('cache:homepage_settings', JSON.stringify(data || null)); } catch {}
       }
     } catch (e) {
       // Fallback: schedule a background full refresh if something odd happens
@@ -3200,7 +3274,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .select('*')
         .eq('id', 1)
         .maybeSingle();
-      if (!refErr) setSiteSettings(data || null);
+      if (!refErr) {
+        setSiteSettings(data || null);
+        try { localStorage.setItem('cache:site_settings', JSON.stringify(data || null)); } catch {}
+      }
     } catch {
       fetchData(true).catch(() => {});
     }

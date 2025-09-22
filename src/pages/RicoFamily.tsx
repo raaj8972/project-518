@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
 import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
@@ -9,7 +9,7 @@ import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
 import InfiniteMarquee from '../components/InfiniteMarquee';
 import CoverflowCarousel from '../components/CoverflowCarousel';
-import FacultyProfileModal from '../components/FacultyProfileModal';
+const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
 
 // Local FacultyHead type removed; rely on DataContext types instead
@@ -20,6 +20,9 @@ export const RicoFamily: React.FC = () => {
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
+  // Sports head detail modal state
+  const [sportsHeadModalOpen, setSportsHeadModalOpen] = useState(false);
+  const [selectedSportsHead, setSelectedSportsHead] = useState<any | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
   const committeeHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
   const sportsHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
@@ -661,6 +664,8 @@ export const RicoFamily: React.FC = () => {
                           items={heads}
                           direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                           speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                          pauseOnHover={true}
+                          pauseOnTouch={true}
                           itemWrapperClassName="px-3"
                           className="py-2"
                           renderItem={(head) => (
@@ -670,6 +675,16 @@ export const RicoFamily: React.FC = () => {
                               </div>
                               <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                               <div className="text-sm text-gray-300">{head.role}</div>
+                              <div className="mt-2 flex">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedSportsHead(head); setSportsHeadModalOpen(true); }}
+                                  className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold hover:brightness-110 shadow-md shadow-green-500/30 transition-all"
+                                  aria-label={`Show more about ${head.name}`}
+                                >
+                                  More
+                                </button>
+                              </div>
                             </div>
                           )}
                         />
@@ -746,6 +761,8 @@ export const RicoFamily: React.FC = () => {
                             items={allCommitteeMembers.filter(m => m.is_head)}
                             direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                             speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                            pauseOnHover={true}
+                            pauseOnTouch={true}
                             itemWrapperClassName="px-3"
                             className="py-2"
                             renderItem={(head) => (
@@ -755,6 +772,16 @@ export const RicoFamily: React.FC = () => {
                                 </div>
                                 <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                                 <div className="text-sm text-gray-300">{head.role}</div>
+                                <div className="mt-2 flex">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setSelectedSportsHead(head); setSportsHeadModalOpen(true); }}
+                                    className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-green-500 to-teal-600 text-white font-semibold hover:brightness-110 shadow-md shadow-green-500/30 transition-all"
+                                    aria-label={`Show more about ${head.name}`}
+                                  >
+                                    More
+                                  </button>
+                                </div>
                               </div>
                             )}
                           />
@@ -1027,21 +1054,42 @@ export const RicoFamily: React.FC = () => {
       )}
 
       {/* Faculty Profile Modal */}
-      <FacultyProfileModal
-        open={facultyModalOpen}
-        onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); }}
-        person={selectedFaculty ? {
-          name: selectedFaculty.name,
-          title: selectedFaculty.title,
-          image: selectedFaculty.image,
-          description: selectedFaculty.description,
-          specialty: (selectedFaculty as any).specialty,
-          email: (selectedFaculty as any).email,
-          phone: (selectedFaculty as any).phone,
-          achievements: selectedFaculty.achievements,
-          social_links: (selectedFaculty as any).social_links,
-        } : null}
-      />
+      <Suspense fallback={null}>
+        <FacultyProfileModal
+          open={facultyModalOpen}
+          onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); }}
+          person={selectedFaculty ? {
+            name: selectedFaculty.name,
+            title: selectedFaculty.title,
+            image: selectedFaculty.image,
+            description: selectedFaculty.description,
+            specialty: (selectedFaculty as any).specialty,
+            email: (selectedFaculty as any).email,
+            phone: (selectedFaculty as any).phone,
+            achievements: selectedFaculty.achievements,
+            social_links: (selectedFaculty as any).social_links,
+          } : null}
+        />
+      </Suspense>
+
+      {/* Sports Head Profile Modal */}
+      <Suspense fallback={null}>
+        <FacultyProfileModal
+          open={sportsHeadModalOpen}
+          onClose={() => { setSportsHeadModalOpen(false); setSelectedSportsHead(null); }}
+          person={selectedSportsHead ? {
+            name: selectedSportsHead.name,
+            title: (selectedSportsHead as any).role, // map role -> title display
+            image: selectedSportsHead.image,
+            description: selectedSportsHead.description,
+            specialty: (selectedSportsHead as any).specialty,
+            email: (selectedSportsHead as any).email,
+            phone: (selectedSportsHead as any).phone,
+            achievements: Array.isArray((selectedSportsHead as any).achievements) ? (selectedSportsHead as any).achievements : [],
+            social_links: (selectedSportsHead as any).social_links,
+          } : null}
+        />
+      </Suspense>
 
       <style>{`
         .neon-theme {

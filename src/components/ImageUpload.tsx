@@ -225,6 +225,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     if (status === 0 || msg.includes('http 0') || msg.includes('unknown error')) {
       return new Error('Network/CORS error during upload (HTTP 0). Check your Supabase URL/key configuration, browser extensions (ad blockers), and retry. If this persists, try logging in to Admin and uploading from there.');
     }
+    // Decode failures often surface as 'Load failed' from the browser Image element
+    if (msg.includes('load failed')) {
+      return new Error('Upload failed: This image format may not be supported by your browser (often HEIC/HEIF). Please convert to JPG or PNG and try again.');
+    }
     if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
       return new Error(
         `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
@@ -236,6 +240,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
     if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
       return new Error('Network error during upload. Check your internet connection or try a smaller image.');
+    }
+    if (msg.includes('toblob failed') || msg.includes('canvas')) {
+      return new Error('Upload failed: Could not process this image in the browser. Try a smaller image or convert it to JPG/PNG and retry.');
     }
     return new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
   };
@@ -254,6 +261,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     } else {
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
+        return;
+      }
+      // Proactively block formats the browser/canvas cannot decode (e.g., HEIC/HEIF from some iPhones)
+      const nameLc = (file.name || '').toLowerCase();
+      const typeLc = (file.type || '').toLowerCase();
+      if (nameLc.endsWith('.heic') || nameLc.endsWith('.heif') || typeLc.includes('heic') || typeLc.includes('heif')) {
+        setError('This image format (HEIC/HEIF) is not supported in browsers. Please convert to JPG or PNG and try again. Tip: On iPhone, Settings → Camera → Formats → "Most Compatible".');
         return;
       }
     }

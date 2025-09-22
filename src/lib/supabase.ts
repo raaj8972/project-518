@@ -54,12 +54,58 @@ try {
   }
 }
 
+// A short-timeout fetch with controllable retries to avoid long hangs on bad networks/ad-blockers
+const FETCH_TIMEOUT_MS = (() => {
+  const raw = (import.meta as any)?.env?.VITE_FETCH_TIMEOUT_MS;
+  const n = raw ? parseInt(String(raw), 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 5000; // default 5s
+})();
+
+const FETCH_MAX_RETRIES = (() => {
+  const raw = (import.meta as any)?.env?.VITE_FETCH_MAX_RETRIES;
+  const n = raw ? parseInt(String(raw), 10) : NaN;
+  // Retries are the number of extra attempts after the first try. Default 2 keeps prior behavior (~3 attempts total)
+  // Set to 0 for fastest fail, or 1 for a single retry. Clamp to [0, 5] to avoid runaway loops.
+  const val = Number.isFinite(n) && n >= 0 ? n : 2;
+  return Math.max(0, Math.min(5, val));
+})();
+
+async function fetchWithTimeoutRetry(input: RequestInfo | URL, init?: RequestInit, attempt = 0): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const resp = await fetch(input as any, { ...(init || {}), signal: (init?.signal ?? controller.signal) as any });
+    return resp;
+  } catch (err) {
+    // Retry once for network/timeout style errors
+    const isAbort = (err as any)?.name === 'AbortError';
+    const isTypeErr = (err as any) instanceof TypeError; // often network failure in browsers
+    if ((isAbort || isTypeErr)) {
+      // Only retry if we have remaining retries left (attempt counts from 0 for the first call)
+      const retriesSoFar = Math.max(0, attempt);
+      if (retriesSoFar < FETCH_MAX_RETRIES) {
+        // Simple backoff schedule (in ms)
+        const delays = [200, 500, 800, 1200, 1800];
+        const delay = delays[Math.min(retriesSoFar, delays.length - 1)];
+        await new Promise((r) => setTimeout(r, delay));
+        return fetchWithTimeoutRetry(input, init, attempt + 1);
+      }
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Create the client from resolved values (env or safe defaults)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+  },
+  global: {
+    fetch: (input: any, init?: any) => fetchWithTimeoutRetry(input, init),
   },
 })
 
