@@ -54,11 +54,12 @@ try {
   }
 }
 
-// A short-timeout fetch with controllable retries to avoid long hangs on bad networks/ad-blockers
+// A bounded-timeout fetch with controllable retries to avoid long hangs on bad networks/ad-blockers
+// Increase default to 15s to reduce spurious AbortError on slower networks; allow 0/negative to disable.
 const FETCH_TIMEOUT_MS = (() => {
   const raw = (import.meta as any)?.env?.VITE_FETCH_TIMEOUT_MS;
   const n = raw ? parseInt(String(raw), 10) : NaN;
-  return Number.isFinite(n) && n > 0 ? n : 5000; // default 5s
+  return Number.isFinite(n) ? n : 15000; // default 15s; <=0 disables timeout
 })();
 
 const FETCH_MAX_RETRIES = (() => {
@@ -66,15 +67,32 @@ const FETCH_MAX_RETRIES = (() => {
   const n = raw ? parseInt(String(raw), 10) : NaN;
   // Retries are the number of extra attempts after the first try. Default 2 keeps prior behavior (~3 attempts total)
   // Set to 0 for fastest fail, or 1 for a single retry. Clamp to [0, 5] to avoid runaway loops.
-  const val = Number.isFinite(n) && n >= 0 ? n : 2;
+  const val = Number.isFinite(n) && n >= 0 ? n : 1;
   return Math.max(0, Math.min(5, val));
 })();
 
-async function fetchWithTimeoutRetry(input: RequestInfo | URL, init?: RequestInit, attempt = 0): Promise<Response> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+type ExtendedInit = RequestInit & {
+  // Optional overrides (not part of fetch spec; ignored by native fetch)
+  _timeoutMs?: number; // per-request timeout in ms; <=0 disables
+  _skipTimeout?: boolean; // skip timeout entirely
+  _retries?: number; // per-request retries override (extra attempts after first)
+};
+
+async function fetchWithTimeoutRetry(input: RequestInfo | URL, init?: ExtendedInit, attempt = 0): Promise<Response> {
+  // Resolve effective settings (allow per-request overrides)
+  const effectiveRetries = typeof init?._retries === 'number' ? Math.max(0, Math.min(5, init!._retries!)) : FETCH_MAX_RETRIES;
+  const reqTimeoutMs = typeof init?._timeoutMs === 'number' ? init!._timeoutMs! : FETCH_TIMEOUT_MS;
+  const useTimeout = !(init?._skipTimeout) && (reqTimeoutMs == null ? true : reqTimeoutMs > 0);
+
+  // If the caller provides its own signal, we won't add our own timeout signal
+  // to avoid conflicting abort controllers. In that case, just forward their signal.
+  const hasCallerSignal = !!init?.signal;
+  const controller = useTimeout && !hasCallerSignal ? new AbortController() : null;
+  const timeout = useTimeout && !hasCallerSignal && Number.isFinite(reqTimeoutMs as number)
+    ? setTimeout(() => controller?.abort(), reqTimeoutMs as number)
+    : null;
   try {
-    const resp = await fetch(input as any, { ...(init || {}), signal: (init?.signal ?? controller.signal) as any });
+    const resp = await fetch(input as any, { ...(init || {}), signal: (init?.signal ?? controller?.signal) as any });
     return resp;
   } catch (err) {
     // Retry once for network/timeout style errors
@@ -83,7 +101,7 @@ async function fetchWithTimeoutRetry(input: RequestInfo | URL, init?: RequestIni
     if ((isAbort || isTypeErr)) {
       // Only retry if we have remaining retries left (attempt counts from 0 for the first call)
       const retriesSoFar = Math.max(0, attempt);
-      if (retriesSoFar < FETCH_MAX_RETRIES) {
+      if (retriesSoFar < effectiveRetries) {
         // Simple backoff schedule (in ms)
         const delays = [200, 500, 800, 1200, 1800];
         const delay = delays[Math.min(retriesSoFar, delays.length - 1)];
@@ -93,7 +111,7 @@ async function fetchWithTimeoutRetry(input: RequestInfo | URL, init?: RequestIni
     }
     throw err;
   } finally {
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
   }
 }
 

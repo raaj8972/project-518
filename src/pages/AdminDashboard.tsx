@@ -287,6 +287,54 @@ export const AdminDashboard: React.FC = () => {
 
   // loading already handled above
 
+  // Tiny error boundary to keep one bad panel from crashing the whole admin page
+  class PanelBoundary extends React.Component<React.PropsWithChildren<{ label: string }>, { hasError: boolean; err?: any }>{
+    constructor(props: React.PropsWithChildren<{ label: string }>) {
+      super(props);
+      this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(err: any) { return { hasError: true, err }; }
+    componentDidCatch(error: any, errorInfo: any) {
+      console.error(`[Admin] Panel '${this.props.label}' crashed:`, error, errorInfo);
+    }
+    render() {
+      if (this.state.hasError) {
+        return (
+          <div className="border border-red-200 bg-red-50 text-red-800 rounded p-4">
+            Failed to render panel: {this.props.label}
+          </div>
+        );
+      }
+      return this.props.children as React.ReactElement;
+    }
+  }
+
+  // Safe render helper to avoid React error #310 if a component import resolves to undefined
+  const renderPanel = (Component: any, label: string) => {
+    if (!Component) {
+      console.error(`[Admin] Panel component '${label}' is undefined at render time.`);
+      return (
+        <div className="border border-yellow-200 bg-yellow-50 text-yellow-800 rounded p-4">
+          Panel not available: {label}
+        </div>
+      );
+    }
+    const isRenderable = typeof Component === 'function' || (Component && typeof Component === 'object');
+    if (!isRenderable) {
+      console.error(`[Admin] Panel component '${label}' has invalid type:`, typeof Component, Component);
+      return (
+        <div className="border border-yellow-200 bg-yellow-50 text-yellow-800 rounded p-4">
+          Panel invalid: {label}
+        </div>
+      );
+    }
+    return (
+      <PanelBoundary label={label}>
+        <Component />
+      </PanelBoundary>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 admin-root">
       {/* Header */}
@@ -473,10 +521,10 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Connection Overview */}
-                <ConnectionOverview />
+                {renderPanel(ConnectionOverview, 'ConnectionOverview')}
 
                 {/* Storage Overview */}
-                <StorageOverview />
+                {renderPanel(StorageOverview, 'StorageOverview')}
 
                 {/* Security Status */}
                 <div className="bg-white rounded-lg shadow-md p-6">
@@ -670,38 +718,34 @@ export const AdminDashboard: React.FC = () => {
             )}
             {(isOwner || myPermissions?.can_sports) && activeTab === 'sports-team' && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <SportsTeamManagement />
+                {renderPanel(SportsTeamManagement, 'SportsTeamManagement')}
               </div>
             )}
-            {activeTab === 'site-settings' && (
-              <SiteSettingsPanel />
-            )}
-            {activeTab === 'admin-users' && (
-              <AdminUsersPanel />
-            )}
+            {activeTab === 'site-settings' && renderPanel(SiteSettingsPanel, 'SiteSettingsPanel')}
+            {activeTab === 'admin-users' && renderPanel(AdminUsersPanel, 'AdminUsersPanel')}
 
-            {activeTab === 'homepage' && <HomepageManagement />}
-            {activeTab === 'events' && <EventsManagement />}
-            {activeTab === 'homebound' && <HomeBoundSettings />}
-            {activeTab === 'schedule' && <ScheduleManagement />}
-            {activeTab === 'gallery' && <GalleryManagement />}
-            {activeTab === 'sponsors' && <SponsorsManagement />}
-            {activeTab === 'registrations' && <RegistrationManagement />}
-            {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
-            {activeTab === 'categories' && <EventCategoriesManagement />}
-            {activeTab === 'social' && <SocialMediaManagement />}
-            {activeTab === 'faculty' && <FacultyHeadsManagement />}
-            {activeTab === 'core-team' && <CoreTeamManagement />}
-            {activeTab === 'band' && <BandManagement />}
-            {activeTab === 'guest-artists' && <GuestArtistManagement />}
-            {activeTab === 'chief-guests' && <ChiefGuestManagement />}
-            {activeTab === 'auditions' && <AuditionManagement />}
-            {activeTab === 'memberships' && <MembershipManagement />}
-            {activeTab === 'form-settings' && <FormSettingsManagement />}
-            {isOwner && activeTab === 'security' && <SecuritySettings />}
-            {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
-            {activeTab === 'hero-media' && <HeroMediaManagement />}
-            {activeTab === 'about' && <AboutSettings />}
+            {activeTab === 'homepage' && renderPanel(HomepageManagement, 'HomepageManagement')}
+            {activeTab === 'events' && renderPanel(EventsManagement, 'EventsManagement')}
+            {activeTab === 'homebound' && renderPanel(HomeBoundSettings, 'HomeBoundSettings')}
+            {activeTab === 'schedule' && renderPanel(ScheduleManagement, 'ScheduleManagement')}
+            {activeTab === 'gallery' && renderPanel(GalleryManagement, 'GalleryManagement')}
+            {activeTab === 'sponsors' && renderPanel(SponsorsManagement, 'SponsorsManagement')}
+            {activeTab === 'registrations' && renderPanel(RegistrationManagement, 'RegistrationManagement')}
+            {activeTab === 'reg-photos' && renderPanel(RegistrationPhotosPanel, 'RegistrationPhotosPanel')}
+            {activeTab === 'categories' && renderPanel(EventCategoriesManagement, 'EventCategoriesManagement')}
+            {activeTab === 'social' && renderPanel(SocialMediaManagement, 'SocialMediaManagement')}
+            {activeTab === 'faculty' && renderPanel(FacultyHeadsManagement, 'FacultyHeadsManagement')}
+            {activeTab === 'core-team' && renderPanel(CoreTeamManagement, 'CoreTeamManagement')}
+            {activeTab === 'band' && renderPanel(BandManagement, 'BandManagement')}
+            {activeTab === 'guest-artists' && renderPanel(GuestArtistManagement, 'GuestArtistManagement')}
+            {activeTab === 'chief-guests' && renderPanel(ChiefGuestManagement, 'ChiefGuestManagement')}
+            {activeTab === 'auditions' && renderPanel(AuditionManagement, 'AuditionManagement')}
+            {activeTab === 'memberships' && renderPanel(MembershipManagement, 'MembershipManagement')}
+            {activeTab === 'form-settings' && renderPanel(FormSettingsManagement, 'FormSettingsManagement')}
+            {isOwner && activeTab === 'security' && renderPanel(SecuritySettings, 'SecuritySettings')}
+            {activeTab === 'roadmap' && renderPanel(RoadmapMilestonesAdmin, 'RoadmapMilestonesAdmin')}
+            {activeTab === 'hero-media' && renderPanel(HeroMediaManagement, 'HeroMediaManagement')}
+            {activeTab === 'about' && renderPanel(AboutSettings, 'AboutSettings')}
           </div>
         </div>
       </div>

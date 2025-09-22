@@ -42,7 +42,7 @@ export const ConnectionOverview: React.FC = () => {
     setFuncLatency(null);
     try {
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const res = await fetch('/.netlify/functions/health', { cache: 'no-store' });
+      const res = await fetch('/.netlify/functions/health', ({ cache: 'no-store', _timeoutMs: 20000 } as any));
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       setFuncLatency(Math.round(t1 - t0));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -118,10 +118,10 @@ export const ConnectionOverview: React.FC = () => {
     setHbPending(true);
     setHbError(null);
     try {
-      let res = await fetch('/.netlify/functions/heartbeat', { method: 'POST' });
+      let res = await fetch('/.netlify/functions/heartbeat', ({ method: 'POST', _timeoutMs: 25000 } as any));
       if (res.status === 404) {
         // Fallback endpoint name
-        res = await fetch('/.netlify/functions/heartbeat_fallback', { method: 'POST' });
+        res = await fetch('/.netlify/functions/heartbeat_fallback', ({ method: 'POST', _timeoutMs: 25000 } as any));
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();
@@ -144,10 +144,11 @@ export const ConnectionOverview: React.FC = () => {
       // Get current session token
       const { data: { session }, error: sessErr } = await supabase.auth.getSession();
       if (sessErr || !session?.access_token) throw new Error('Not authenticated');
-      const res = await fetch('/.netlify/functions/install-heartbeat', {
+      const res = await fetch('/.netlify/functions/install-heartbeat', ({
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
-      });
+        _timeoutMs: 30000
+      } as any));
       const body = await res.text();
       if (!res.ok) {
         try { const j = JSON.parse(body); throw new Error(j?.error || `HTTP ${res.status}`); } catch { throw new Error(body || `HTTP ${res.status}`); }

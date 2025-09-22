@@ -532,11 +532,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const session = (await supabase.auth.getSession()).data.session;
     const token = session?.access_token;
     if (!token) throw new Error('Not authenticated');
-    const resp = await fetch('/.netlify/functions/create-admin', {
+    const resp = await fetch('/.netlify/functions/create-admin', ({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ email, password }),
-    });
+      _timeoutMs: 30000,
+    } as any));
     if (!resp.ok) {
       const msg = await resp.text();
       throw new Error(msg || 'Failed to create admin');
