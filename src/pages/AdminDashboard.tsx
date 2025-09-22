@@ -310,7 +310,8 @@ export const AdminDashboard: React.FC = () => {
   }
 
   // Safe render helper to avoid React error #310 if a component import resolves to undefined
-  const renderPanel = (Component: any, label: string) => {
+  const renderPanel = (MaybeComponent: any, label: string) => {
+    let Component = MaybeComponent;
     if (!Component) {
       console.error(`[Admin] Panel component '${label}' is undefined at render time.`);
       return (
@@ -319,7 +320,13 @@ export const AdminDashboard: React.FC = () => {
         </div>
       );
     }
-    const isRenderable = typeof Component === 'function' || (Component && typeof Component === 'object');
+    // If we accidentally received a module namespace object, prefer its default export
+    if (typeof Component === 'object' && Component && 'default' in Component && typeof (Component as any).default === 'function') {
+      Component = (Component as any).default;
+    }
+    const isRenderable =
+      typeof Component === 'function' ||
+      (Component && typeof Component === 'object' && ((Component as any).$$typeof || (Component as any).render));
     if (!isRenderable) {
       console.error(`[Admin] Panel component '${label}' has invalid type:`, typeof Component, Component);
       return (

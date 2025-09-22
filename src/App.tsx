@@ -76,6 +76,21 @@ const GlobalErrorBanner: React.FC = () => {
 function App() {
   // Inner shell to use routing hooks (must be inside <Router>)
   const AppShell: React.FC = () => {
+    const safeRender = (MaybeComponent: any, label: string) => {
+      try {
+        let C = MaybeComponent;
+        if (!C) { console.error(`[App] Component '${label}' undefined at render.`); return null; }
+        if (typeof C === 'object' && C && 'default' in C && typeof (C as any).default === 'function') {
+          C = (C as any).default;
+        }
+        const ok = typeof C === 'function' || (C && typeof C === 'object' && ((C as any).$$typeof || (C as any).render));
+        if (!ok) { console.error(`[App] Component '${label}' invalid type:`, typeof C, C); return null; }
+        return <C />;
+      } catch (e) {
+        console.error(`[App] Failed to render '${label}':`, e);
+        return null;
+      }
+    };
     const location = useLocation();
     const isAdminRoute = location.pathname.startsWith('/admin');
     // Allow /login and /login/ (trailing slash) so Coming Soon never blocks login access
@@ -118,7 +133,7 @@ function App() {
           {/* Global particles cursor layer */}
           <ParticlesCursor />
           <GlobalErrorBanner />
-          {isAdminRoute && <ConnectionStatusBanner />}
+          {isAdminRoute && safeRender(ConnectionStatusBanner, 'ConnectionStatusBanner')}
           {/* Hide public site chrome on admin pages to avoid overlap */}
           {!isAdminRoute && !showComingSoon && <Navbar />}
           <Routes>
