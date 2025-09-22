@@ -213,12 +213,12 @@ DO $$ BEGIN
     WHERE p.proname = 'set_updated_at' AND n.nspname='public'
   ) THEN
     CREATE OR REPLACE FUNCTION public.set_updated_at()
-    RETURNS trigger AS $$
+    RETURNS trigger AS $fn$
     BEGIN
       NEW.updated_at = NOW();
       RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql;
+    $fn$ LANGUAGE plpgsql;
   END IF;
 END $$;
 

@@ -20,12 +20,12 @@ do $$ begin
     where p.proname = 'set_updated_at' and n.nspname='public'
   ) then
     create or replace function public.set_updated_at()
-    returns trigger as $$
+    returns trigger as $fn$
     begin
       new.updated_at = now();
       return new;
     end;
-    $$ language plpgsql;
+    $fn$ language plpgsql;
   end if;
 end $$;
 
