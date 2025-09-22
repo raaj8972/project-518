@@ -162,6 +162,18 @@ export const AdminDashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
+  // On hard refresh, reset to Overview to avoid auto-mounting a heavy/problematic tab from localStorage
+  useEffect(() => {
+    try {
+      const navs = (performance as any)?.getEntriesByType?.('navigation');
+      const navType = Array.isArray(navs) && navs[0] ? (navs[0] as any).type : (performance as any).navigation?.type;
+      if (navType === 'reload' || navType === (performance as any).navigation?.TYPE_RELOAD) {
+        setActiveTab('overview');
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Show loading state while authentication is initializing to avoid flicker/redirects
   if (authLoading) {
     return (
