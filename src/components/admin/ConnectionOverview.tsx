@@ -115,7 +115,11 @@ export const ConnectionOverview: React.FC = () => {
     setHbPending(true);
     setHbError(null);
     try {
-      const res = await fetch('/.netlify/functions/heartbeat', { method: 'POST' });
+      let res = await fetch('/.netlify/functions/heartbeat', { method: 'POST' });
+      if (res.status === 404) {
+        // Fallback endpoint name
+        res = await fetch('/.netlify/functions/heartbeat_fallback', { method: 'POST' });
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();
     } catch (e: any) {
