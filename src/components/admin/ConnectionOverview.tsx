@@ -24,6 +24,9 @@ export const ConnectionOverview: React.FC = () => {
   const [heartbeatIso, setHeartbeatIso] = useState<string | null>(null);
   const [hbError, setHbError] = useState<string | null>(null);
   const [hbPending, setHbPending] = useState<boolean>(false);
+  const [copiedHB, setCopiedHB] = useState<boolean>(false);
+  const [installingHB, setInstallingHB] = useState<boolean>(false);
+  const [installErr, setInstallErr] = useState<string | null>(null);
 
   useEffect(() => {
     const on = () => setNetOnline(true);
@@ -134,6 +137,29 @@ export const ConnectionOverview: React.FC = () => {
 
   useEffect(() => { fetchHeartbeat(); }, []);
 
+  const autoInstallHeartbeat = async () => {
+    setInstallingHB(true);
+    setInstallErr(null);
+    try {
+      // Get current session token
+      const { data: { session }, error: sessErr } = await supabase.auth.getSession();
+      if (sessErr || !session?.access_token) throw new Error('Not authenticated');
+      const res = await fetch('/.netlify/functions/install-heartbeat', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+      const body = await res.text();
+      if (!res.ok) {
+        try { const j = JSON.parse(body); throw new Error(j?.error || `HTTP ${res.status}`); } catch { throw new Error(body || `HTTP ${res.status}`); }
+      }
+      await fetchHeartbeat();
+    } catch (e: any) {
+      setInstallErr(e?.message || String(e));
+    } finally {
+      setInstallingHB(false);
+    }
+  };
+
   const statusDot = (state: 'ok' | 'warn' | 'err') => (
     <span className={
       'inline-block w-2.5 h-2.5 rounded-full mr-2 ' +
@@ -164,6 +190,70 @@ export const ConnectionOverview: React.FC = () => {
     const hrs = Math.floor(mins / 60);
     return `${hrs}h ago`;
   })();
+
+  // Helper SQL to create health_heartbeats table if missing
+  const heartbeatInstallSql = `-- Create health_heartbeats table for Netlify heartbeat diagnostics
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='health_heartbeats'
+  ) THEN
+    CREATE TABLE public.health_heartbeats (
+      id INTEGER PRIMARY KEY,
+      last_run timestamptz,
+      updated_by text,
+      created_at timestamptz NOT NULL DEFAULT NOW(),
+      updated_at timestamptz NOT NULL DEFAULT NOW()
+    );
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'set_updated_at' AND n.nspname='public'
+  ) THEN
+    CREATE OR REPLACE FUNCTION public.set_updated_at()
+    RETURNS trigger AS $$
+    BEGIN
+      NEW.updated_at = NOW();
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger t JOIN pg_class c ON t.tgrelid=c.oid JOIN pg_namespace n ON c.relnamespace=n.oid
+    WHERE t.tgname='health_heartbeats_set_updated_at' AND n.nspname='public' AND c.relname='health_heartbeats'
+  ) THEN
+    CREATE TRIGGER health_heartbeats_set_updated_at
+    BEFORE UPDATE ON public.health_heartbeats
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+  END IF;
+END $$;
+
+ALTER TABLE public.health_heartbeats ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='health_heartbeats' AND policyname='read_health_heartbeats'
+  ) THEN
+    CREATE POLICY read_health_heartbeats ON public.health_heartbeats
+    FOR SELECT USING (auth.role() = 'authenticated' OR (SELECT current_setting('request.jwt.claims', true)) IS NULL);
+  END IF;
+END $$;
+
+INSERT INTO public.health_heartbeats (id, last_run, updated_by)
+VALUES (1, NOW(), 'migration-seed')
+ON CONFLICT (id) DO UPDATE SET last_run = EXCLUDED.last_run, updated_by = EXCLUDED.updated_by;`;
+
+  const copyHeartbeatSql = async () => {
+    try {
+      await navigator.clipboard.writeText(heartbeatInstallSql);
+      setCopiedHB(true);
+      setTimeout(() => setCopiedHB(false), 1500);
+    } catch {}
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -236,6 +326,25 @@ export const ConnectionOverview: React.FC = () => {
               >{hbPending ? 'Running…' : 'Run Heartbeat'}</button>
             </div>
             {hbError && (<div className="text-rose-700 truncate mt-1" title={hbError}>HB Err: {hbError}</div>)}
+            {hbError && /health_heartbeats/.test(hbError) && (
+              <div className="mt-3 border rounded p-2 bg-amber-50 text-amber-900">
+                <div className="text-xs font-medium mb-1">Heartbeat table missing</div>
+                <div className="text-xs mb-2">Run this SQL in your Supabase project's SQL editor, then retry:</div>
+                <div className="text-[11px] bg-white border rounded p-2 overflow-auto max-h-36" style={{fontFamily:'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}}>
+                  <pre className="whitespace-pre-wrap">{heartbeatInstallSql}</pre>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <button onClick={copyHeartbeatSql} className="rounded bg-gray-800 text-white px-2 py-1 text-xs hover:bg-black active:scale-[0.99]">
+                    {copiedHB ? 'Copied!' : 'Copy SQL'}
+                  </button>
+                  <a href="https://app.supabase.com/" target="_blank" rel="noreferrer" className="text-xs underline">Open Supabase</a>
+                  <button onClick={autoInstallHeartbeat} disabled={installingHB} className={`rounded px-2 py-1 text-xs ${installingHB ? 'bg-gray-200 text-gray-400' : 'bg-amber-700 text-white hover:bg-amber-800'} active:scale-[0.99]`} title="Attempt automatic install via serverless function (owner only)">
+                    {installingHB ? 'Installing…' : 'Auto-install (owner)'}
+                  </button>
+                </div>
+                {installErr && (<div className="text-rose-700 text-xs mt-1 truncate" title={installErr}>Install Err: {installErr}</div>)}
+              </div>
+            )}
           </div>
         </div>
 
