@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Calendar, 
   Image, 
@@ -76,6 +76,7 @@ export const AdminDashboard: React.FC = () => {
     adminUsers,
   } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
+  const location = useLocation();
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
@@ -146,6 +147,20 @@ export const AdminDashboard: React.FC = () => {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
+
+  // Accept a query param (?tab=overview) to force tab on load, helpful for safe recovery after a crash
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(location.search);
+      const q = params.get('tab');
+      if (q) {
+        const id = q as TabType;
+        const exists = tabs.some(t => t.id === id);
+        if (exists) setActiveTab(id);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   // Show loading state while authentication is initializing to avoid flicker/redirects
   if (authLoading) {
