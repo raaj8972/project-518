@@ -146,8 +146,8 @@ function App() {
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-white">
-          {/* Global particles cursor layer */}
-          <ParticlesCursor />
+          {/* Global particles cursor layer (disabled on admin to avoid any pointer interference) */}
+          {!isAdminRoute && <ParticlesCursor />}
           <GlobalErrorBanner />
           {isAdminRoute && safeRender(ConnectionStatusBanner, 'ConnectionStatusBanner')}
           {/* Hide public site chrome on admin pages to avoid overlap */}
