@@ -18,13 +18,15 @@
 alter table if exists public.social_media_settings enable row level security;
 
 -- Allow everyone (anon/auth) to SELECT
-create policy if not exists "social_media_settings_public_select"
+drop policy if exists "social_media_settings_public_select" on public.social_media_settings;
+create policy "social_media_settings_public_select"
   on public.social_media_settings
   for select
   using (true);
 
 -- Allow authenticated admins to UPDATE the singleton row (id = 1)
-create policy if not exists "social_media_settings_admin_update"
+drop policy if exists "social_media_settings_admin_update" on public.social_media_settings;
+create policy "social_media_settings_admin_update"
   on public.social_media_settings
   for update
   to authenticated
@@ -56,7 +58,8 @@ create policy if not exists "social_media_settings_admin_update"
   );
 
 -- Allow authenticated admins to INSERT the singleton row if missing (id = 1)
-create policy if not exists "social_media_settings_admin_insert"
+drop policy if exists "social_media_settings_admin_insert" on public.social_media_settings;
+create policy "social_media_settings_admin_insert"
   on public.social_media_settings
   for insert
   to authenticated
@@ -83,12 +86,14 @@ create policy if not exists "social_media_settings_admin_insert"
 
 alter table if exists public.event_coordinators enable row level security;
 
-create policy if not exists "event_coordinators_public_select"
+drop policy if exists "event_coordinators_public_select" on public.event_coordinators;
+create policy "event_coordinators_public_select"
   on public.event_coordinators
   for select
   using (true);
 
-create policy if not exists "event_coordinators_admin_write"
+drop policy if exists "event_coordinators_admin_write" on public.event_coordinators;
+create policy "event_coordinators_admin_write"
   on public.event_coordinators
   for all
   to authenticated
