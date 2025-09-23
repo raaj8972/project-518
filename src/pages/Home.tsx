@@ -534,7 +534,7 @@ export const Home: React.FC = () => {
         return (
           <section className="py-16 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
-            <div className="container mx-auto px-4 relative z-10">
+            <div className="container mx-auto px-0 relative z-10">
               <div className="scroll-animate opacity-0 transform translate-y-20">
                 <div className="text-center mb-12">
                   <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
@@ -700,7 +700,7 @@ export const Home: React.FC = () => {
   <section className="py-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
       <div className="container mx-auto px-0 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
+            <div className="scroll-animate animate-in">
               <div className="text-center mb-10">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
                   FEATURED <span className="neon-blue">EVENTS</span>
@@ -732,7 +732,7 @@ export const Home: React.FC = () => {
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float w-72 md:w-96"
+                  className="hover-float w-72 md:w-96 scroll-animate animate-in"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
                   <div className="cyberpunk-card group h-full overflow-hidden">
@@ -790,7 +790,7 @@ export const Home: React.FC = () => {
   <section className="pt-20 pb-0 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
+            <div className="scroll-animate animate-in">
               <div className="text-center mb-16">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
                   DIGITAL <span className="neon-green">MEMORIES</span>
