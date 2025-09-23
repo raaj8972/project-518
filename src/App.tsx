@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home'; // keep Home eager for fast first paint
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { useData } from './context/DataContext';
 import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
@@ -18,9 +19,8 @@ import { RicoFamily } from './pages/RicoFamily';
 import { Sponsors } from './pages/Sponsors';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { ParticlesCursor } from './components/ParticlesCursor';
 import { ComingSoon } from './pages/ComingSoon';
-import { useData } from './context/DataContext';
+import { ParticlesCursor } from './components/ParticlesCursor';
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -76,112 +76,60 @@ const GlobalErrorBanner: React.FC = () => {
 function App() {
   // Inner shell to use routing hooks (must be inside <Router>)
   const AppShell: React.FC = () => {
-    const safeRender = (MaybeComponent: any, label: string) => {
-      try {
-        let C = MaybeComponent;
-        if (!C) { console.error(`[App] Component '${label}' undefined at render.`); return null; }
-        if (typeof C === 'object' && C && 'default' in C && typeof (C as any).default === 'function') {
-          C = (C as any).default;
-        }
-        const ok = typeof C === 'function' || (C && typeof C === 'object' && ((C as any).$$typeof || (C as any).render));
-        if (!ok) { console.error(`[App] Component '${label}' invalid type:`, typeof C, C); return null; }
-        return <C />;
-      } catch (e) {
-        console.error(`[App] Failed to render '${label}':`, e);
-        return null;
-      }
-    };
     const location = useLocation();
     const isAdminRoute = location.pathname.startsWith('/admin');
-    // Allow /login and /login/ (trailing slash) so Coming Soon never blocks login access
-    const isLoginRoute = location.pathname === '/login' || location.pathname.startsWith('/login/');
+    const isLoginRoute = location.pathname === '/login';
+    const isHealthRoute = location.pathname === '/health';
     const { siteSettings } = useData();
-    // Ticking clock to re-evaluate Coming Soon routing in real time
-    const [nowTs, setNowTs] = React.useState<number>(Date.now());
+    // Tick so time-based Coming Soon auto-lifts when time passes
+    const [now, setNow] = React.useState<number>(Date.now());
     React.useEffect(() => {
-      if (isAdminRoute || isLoginRoute) return; // no need to tick on admin/login
-      let id: number | null = null;
-      id = window.setInterval(() => setNowTs(Date.now()), 1000);
-      return () => { if (id) window.clearInterval(id); };
-    }, [isAdminRoute, isLoginRoute]);
-    const hardClosed = !!siteSettings?.site_closed;
-    const soonEnabled = !!siteSettings?.coming_soon_enabled;
-    const untilTs = siteSettings?.coming_soon_until ? new Date(siteSettings.coming_soon_until).getTime() : null;
-    // New rule: if Coming Soon is enabled and a timer exists, we honor the timer and go live when it ends,
-    // even if site_closed is still true. Hard close only blocks when no timer is configured.
-    const hardCloseBlocks = hardClosed && (!soonEnabled || !untilTs);
-    const showComingSoon = !isAdminRoute && !isLoginRoute && (
-      hardCloseBlocks || (soonEnabled && (untilTs == null || nowTs < untilTs))
-    );
-
-    // Exit overlay animation when we transition from Coming Soon -> Live
-    const [overlay, setOverlay] = React.useState<'none' | 'exit'>('none');
-    const prevShowRef = React.useRef<boolean>(showComingSoon);
-    React.useEffect(() => {
-      const prev = prevShowRef.current;
-      if (prev && !showComingSoon && !isAdminRoute) {
-        setOverlay('exit');
-        const id = window.setTimeout(() => setOverlay('none'), 1200);
-        return () => window.clearTimeout(id);
-      }
-      prevShowRef.current = showComingSoon;
-    }, [showComingSoon, isAdminRoute]);
-
-    // Safe wrapper for Admin route to avoid React #310 on cold refresh
-    const AdminRouteWrapper: React.FC = () => {
-      const el = safeRender(AdminDashboard, 'AdminDashboard');
-      if (el) return el;
-      return (
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="max-w-md w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow">
-            <div className="font-semibold mb-2">Admin temporarily unavailable</div>
-            <div className="text-sm">
-              Modules are still loading. Please refresh in a moment. If this persists, try opening <span className="font-mono">/admin?tab=overview</span>.
-            </div>
-          </div>
-        </div>
-      );
-    };
+      const hasTimer = !!siteSettings?.coming_soon_enabled && !!siteSettings?.coming_soon_until;
+      if (!hasTimer) return;
+      const id = setInterval(() => setNow(Date.now()), 30_000);
+      return () => clearInterval(id);
+    }, [siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until]);
+    const gateActive = React.useMemo(() => {
+      const closed = !!siteSettings?.site_closed;
+      if (closed) return true;
+      if (!siteSettings?.coming_soon_enabled) return false;
+      const untilStr = siteSettings?.coming_soon_until as any;
+      if (!untilStr) return true; // enabled with no end time => gate stays on
+      const untilMs = new Date(untilStr).getTime();
+      if (Number.isNaN(untilMs)) return true; // malformed date => be safe and gate
+      return now < untilMs;
+    }, [siteSettings?.site_closed, siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until, now]);
 
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-white">
-          {/* Global particles cursor layer (disabled on admin to avoid any pointer interference) */}
-          {!isAdminRoute && <ParticlesCursor />}
+          {/* Global particles cursor layer */}
+          <ParticlesCursor />
           <GlobalErrorBanner />
-          {isAdminRoute && safeRender(ConnectionStatusBanner, 'ConnectionStatusBanner')}
-          {/* Hide public site chrome on admin pages to avoid overlap */}
-          {!isAdminRoute && !showComingSoon && <Navbar />}
-
+          <ConnectionStatusBanner />
+          {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
+          {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute ? (
+            <ComingSoon />
+          ) : (
+            <>
+              {/* Hide public site chrome on admin pages to avoid overlap */}
+              {!isAdminRoute && <Navbar />}
           <Routes>
-            <Route path="/" element={showComingSoon ? <ComingSoon /> : <Home />} />
-            <Route path="/events" element={showComingSoon ? <ComingSoon /> : <Events />} />
-            <Route path="/schedule" element={showComingSoon ? <ComingSoon /> : <Schedule />} />
-            <Route path="/gallery" element={showComingSoon ? <ComingSoon /> : <Gallery />} />
-            <Route path="/home-bound" element={showComingSoon ? <ComingSoon /> : <HomeBound />} />
-            <Route path="/rico-family" element={showComingSoon ? <ComingSoon /> : <RicoFamily />} />
-            <Route path="/sponsors" element={showComingSoon ? <ComingSoon /> : <Sponsors />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/schedule" element={<Schedule />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/home-bound" element={<HomeBound />} />
+            <Route path="/rico-family" element={<RicoFamily />} />
+            <Route path="/sponsors" element={<Sponsors />} />
             <Route path="/login" element={<Login />} />
-            {/* Convenience redirect for users who try /admin/login */}
-            <Route path="/admin/login" element={<Navigate to="/login" replace />} />
-            <Route path="/admin" element={<AdminRouteWrapper />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/health" element={<Home />} />
             {/* Catch all route for 404 handling */}
-            <Route path="*" element={showComingSoon ? <ComingSoon /> : <Home />} />
+            <Route path="*" element={<Home />} />
           </Routes>
-          {!isAdminRoute && !showComingSoon && <Footer />}
-
-          {/* Coming Soon -> Live exit overlay animation */}
-          {!isAdminRoute && overlay === 'exit' && (
-            <div className="pointer-events-none fixed inset-0 z-[9999]">
-              <div className="absolute inset-0 bg-black animate-[csExit_1.2s_ease-out_forwards]" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-[40vw] h-[40vw] max-w-[560px] max-h-[560px] rounded-full bg-gradient-to-r from-pink-500/30 via-white/20 to-cyan-400/30 blur-3xl animate-[ripple_1.2s_ease-out_forwards]" />
-              </div>
-              <style>{`
-                @keyframes csExit { from { opacity: 1 } to { opacity: 0 } }
-                @keyframes ripple { from { transform: scale(0.9); opacity: 0.9 } to { transform: scale(1.1); opacity: 0 } }
-              `}</style>
-            </div>
+              {!isAdminRoute && <Footer />}
+            </>
           )}
         </div>
       </RouteErrorBoundary>

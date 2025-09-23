@@ -19,6 +19,30 @@ import CountdownTimer from '../components/CountdownTimer';
 import Sparkle3D from '../components/Sparkle3D';
 
 export const Home: React.FC = () => {
+  // Error boundary to catch dynamic-import chunk load failures and offer a reload
+  class ChunkErrorBoundary extends React.Component<{ fallback?: React.ReactNode; children: React.ReactNode }, { hasError: boolean; error: any }>{
+    constructor(props: any) {
+      super(props);
+      this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: any) { return { hasError: true, error }; }
+    componentDidCatch(error: any) { try { console.error('Chunk load failed:', error); } catch {}
+    }
+    render() {
+      if (this.state.hasError) {
+        return this.props.fallback || (
+          <div className="p-4 text-sm text-red-300 bg-red-900/30 border border-red-800 rounded">
+            Failed to load module. This can happen after a rebuild. Please reload the page.
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-3 inline-flex items-center px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-white"
+            >Reload</button>
+          </div>
+        );
+      }
+      return this.props.children as any;
+    }
+  }
   const location = useLocation();
   const { 
     events, 
@@ -469,7 +493,7 @@ export const Home: React.FC = () => {
                               </div>
                             )}
                           </div>
-                          <div className="mt-2 self-start opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                          <div className="mt-2 self-start">
                             <CountdownTimer
                               className="max-w-full"
                               target={(artist as any).performance_at as any}
@@ -649,22 +673,26 @@ export const Home: React.FC = () => {
       })()}
 
       {videoModalOpen && (
-        <React.Suspense fallback={null}>
-          <GuestArtistVideoModal
-            isOpen={videoModalOpen}
-            onClose={() => { startTransition(() => { setVideoModalOpen(false); setSelectedArtistForVideo(null); }); }}
-            artist={selectedArtistForVideo}
-          />
-        </React.Suspense>
+        <ChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <GuestArtistVideoModal
+              isOpen={videoModalOpen}
+              onClose={() => { startTransition(() => { setVideoModalOpen(false); setSelectedArtistForVideo(null); }); }}
+              artist={selectedArtistForVideo}
+            />
+          </React.Suspense>
+        </ChunkErrorBoundary>
       )}
       {detailOpen && (
-        <React.Suspense fallback={null}>
-          <GuestArtistDetailModal
-            isOpen={detailOpen}
-            onClose={() => { startTransition(() => { setDetailOpen(false); setDetailArtist(null); }); }}
-            artist={detailArtist}
-          />
-        </React.Suspense>
+        <ChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <GuestArtistDetailModal
+              isOpen={detailOpen}
+              onClose={() => { startTransition(() => { setDetailOpen(false); setDetailArtist(null); }); }}
+              artist={detailArtist}
+            />
+          </React.Suspense>
+        </ChunkErrorBoundary>
       )}
 
     {/* Featured Events */}
@@ -692,14 +720,15 @@ export const Home: React.FC = () => {
             </div>
 
             {/* 2D Slider for events using AutoCarousel */}
-            <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading events…</div>}>
-              <AutoCarousel
+            <ChunkErrorBoundary fallback={<div className="h-[200px] flex items-center justify-center text-red-300 bg-red-900/30 border border-red-800 rounded">Failed to load slider. <button onClick={() => window.location.reload()} className="ml-2 underline">Reload</button></div>}>
+              <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading events…</div>}>
+                <AutoCarousel
                 intervalMs={4200}
                 pauseOnHover
                 showArrows
                 showDots
                 className="mt-4"
-              >
+                >
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
@@ -748,7 +777,8 @@ export const Home: React.FC = () => {
                 </div>
               ))}
               </AutoCarousel>
-            </React.Suspense>
+              </React.Suspense>
+            </ChunkErrorBoundary>
 
             {/* Removed bottom navigation button for Events section as per request */}
           </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
   Image, 
@@ -43,7 +43,7 @@ import { AboutSettings } from '../components/admin/AboutSettings';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HealthBadge } from '../components/admin/HealthBadge';
 import { StorageOverview } from '../components/admin/StorageOverview';
-import { RegistrationPhotosPanel } from '../components/admin/RegistrationPhotosPanel';
+import RegistrationPhotosPanel from '../components/admin/RegistrationPhotosPanel';
 import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
@@ -76,12 +76,78 @@ export const AdminDashboard: React.FC = () => {
     adminUsers,
   } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
-  const location = useLocation();
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
 
-  // Tabs and permissions: define BEFORE any early returns to keep hook order stable across renders
+  // Debounce redirect to handle transient auth events on tab focus
+  const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (logoutTimer.current) {
+      clearTimeout(logoutTimer.current);
+      logoutTimer.current = null;
+    }
+    if (!authLoading && !isAuthenticated) {
+      // Keep UI mounted briefly to avoid flicker while auth stabilizes
+      setAuthGrace(true);
+      logoutTimer.current = setTimeout(() => {
+        // Double-check before redirect in case auth stabilized
+        if (!isAuthenticated) navigate('/login');
+        setAuthGrace(false);
+  }, 1500);
+    }
+    if (isAuthenticated) {
+      setAuthGrace(false);
+    }
+    return () => {
+      if (logoutTimer.current) clearTimeout(logoutTimer.current);
+    };
+  }, [authLoading, isAuthenticated, navigate]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/');
+  };
+
+  // Optional inactivity/visibility auto-logout with generous thresholds
+  useEffect(() => {
+    if (!autoLogoutEnabled || !isAuthenticated) return;
+
+    let lastActivity = Date.now();
+    const ACTIVITY_TIMEOUT_MS = 1000 * 60 * 60; // 60 minutes inactivity
+    const VISIBILITY_TIMEOUT_MS = 1000 * 60 * 120; // 120 minutes tab hidden
+    let visibilityHiddenAt: number | null = document.visibilityState === 'hidden' ? Date.now() : null;
+
+    const onActivity = () => { lastActivity = Date.now(); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') visibilityHiddenAt = Date.now();
+      else visibilityHiddenAt = null;
+    };
+
+    window.addEventListener('mousemove', onActivity);
+    window.addEventListener('keydown', onActivity);
+    window.addEventListener('click', onActivity);
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const interval = setInterval(async () => {
+      const now = Date.now();
+      const inactive = now - lastActivity > ACTIVITY_TIMEOUT_MS;
+      const hiddenTooLong = visibilityHiddenAt ? (now - visibilityHiddenAt > VISIBILITY_TIMEOUT_MS) : false;
+      if ((inactive || hiddenTooLong) && isAuthenticated) {
+        try { await logout(); } finally { navigate('/'); }
+      }
+    }, 30_000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('mousemove', onActivity);
+      window.removeEventListener('keydown', onActivity);
+      window.removeEventListener('click', onActivity);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
+
+  // Tabs and visibility/permissions (computed early so hooks can follow)
   const tabs = [
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
@@ -163,99 +229,6 @@ export const AdminDashboard: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myPermissions, isOwner]);
 
-  // Debounce redirect to handle transient auth events on tab focus
-  const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (logoutTimer.current) {
-      clearTimeout(logoutTimer.current);
-      logoutTimer.current = null;
-    }
-    if (!authLoading && !isAuthenticated) {
-      // Keep UI mounted briefly to avoid flicker while auth stabilizes
-      setAuthGrace(true);
-      logoutTimer.current = setTimeout(() => {
-        // Double-check before redirect in case auth stabilized
-        if (!isAuthenticated) navigate('/login');
-        setAuthGrace(false);
-  }, 1500);
-    }
-    if (isAuthenticated) {
-      setAuthGrace(false);
-    }
-    return () => {
-      if (logoutTimer.current) clearTimeout(logoutTimer.current);
-    };
-  }, [authLoading, isAuthenticated, navigate]);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
-
-  // Optional inactivity/visibility auto-logout with generous thresholds
-  useEffect(() => {
-    if (!autoLogoutEnabled || !isAuthenticated) return;
-
-    let lastActivity = Date.now();
-    const ACTIVITY_TIMEOUT_MS = 1000 * 60 * 60; // 60 minutes inactivity
-    const VISIBILITY_TIMEOUT_MS = 1000 * 60 * 120; // 120 minutes tab hidden
-    let visibilityHiddenAt: number | null = document.visibilityState === 'hidden' ? Date.now() : null;
-
-    const onActivity = () => { lastActivity = Date.now(); };
-    const onVisibility = () => {
-      if (document.visibilityState === 'hidden') visibilityHiddenAt = Date.now();
-      else visibilityHiddenAt = null;
-    };
-
-    window.addEventListener('mousemove', onActivity);
-    window.addEventListener('keydown', onActivity);
-    window.addEventListener('click', onActivity);
-    document.addEventListener('visibilitychange', onVisibility);
-
-    const interval = setInterval(async () => {
-      const now = Date.now();
-      const inactive = now - lastActivity > ACTIVITY_TIMEOUT_MS;
-      const hiddenTooLong = visibilityHiddenAt ? (now - visibilityHiddenAt > VISIBILITY_TIMEOUT_MS) : false;
-      if ((inactive || hiddenTooLong) && isAuthenticated) {
-        try { await logout(); } finally { navigate('/'); }
-      }
-    }, 30_000);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('mousemove', onActivity);
-      window.removeEventListener('keydown', onActivity);
-      window.removeEventListener('click', onActivity);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
-
-  // Accept a query param (?tab=overview) to force tab on load, helpful for safe recovery after a crash
-  useEffect(() => {
-    try {
-      const params = new URLSearchParams(location.search);
-      const q = params.get('tab');
-      if (q) {
-        const id = q as TabType;
-        const exists = tabs.some(t => t.id === id);
-        if (exists) setActiveTab(id);
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
-
-  // On hard refresh, reset to Overview to avoid auto-mounting a heavy/problematic tab from localStorage
-  useEffect(() => {
-    try {
-      const navs = (performance as any)?.getEntriesByType?.('navigation');
-      const navType = Array.isArray(navs) && navs[0] ? (navs[0] as any).type : (performance as any).navigation?.type;
-      if (navType === 'reload' || navType === (performance as any).navigation?.TYPE_RELOAD) {
-        setActiveTab('overview');
-      }
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Show loading state while authentication is initializing to avoid flicker/redirects
   if (authLoading) {
     return (
@@ -275,75 +248,6 @@ export const AdminDashboard: React.FC = () => {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
           <p className="text-gray-600 text-sm">Checking authentication…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Preflight validation: ensure all components and icons we will render are valid to avoid React #310
-  const isRenderable = (C: any) => typeof C === 'function' || (C && typeof C === 'object' && ((C as any).$$typeof || (C as any).render));
-  const suspects: Array<{ label: string; value: any }> = [
-    // Icons used in this file
-    { label: 'Icon: Calendar', value: Calendar },
-    { label: 'Icon: Image', value: Image },
-    { label: 'Icon: Users', value: Users },
-    { label: 'Icon: Settings', value: Settings },
-    { label: 'Icon: LogOut', value: LogOut },
-    { label: 'Icon: BarChart3', value: BarChart3 },
-    { label: 'Icon: Clock', value: Clock },
-    { label: 'Icon: UserCheck', value: UserCheck },
-    { label: 'Icon: Building', value: Building },
-    { label: 'Icon: Palette', value: Palette },
-    { label: 'Icon: Share2', value: Share2 },
-    { label: 'Icon: Shield', value: Shield },
-    { label: 'Icon: Star', value: Star },
-    { label: 'Icon: Info', value: Info },
-    // Components referenced below
-    { label: 'HealthBadge', value: HealthBadge },
-    { label: 'ConnectionOverview', value: ConnectionOverview },
-    { label: 'StorageOverview', value: StorageOverview },
-    { label: 'SiteSettingsPanel', value: SiteSettingsPanel },
-    { label: 'AdminUsersPanel', value: AdminUsersPanel },
-    { label: 'HomepageManagement', value: HomepageManagement },
-    { label: 'EventsManagement', value: EventsManagement },
-    { label: 'HomeBoundSettings', value: HomeBoundSettings },
-    { label: 'ScheduleManagement', value: ScheduleManagement },
-    { label: 'GalleryManagement', value: GalleryManagement },
-    { label: 'SponsorsManagement', value: SponsorsManagement },
-    { label: 'RegistrationManagement', value: RegistrationManagement },
-    { label: 'RegistrationPhotosPanel', value: RegistrationPhotosPanel },
-    { label: 'EventCategoriesManagement', value: EventCategoriesManagement },
-    { label: 'SocialMediaManagement', value: SocialMediaManagement },
-    { label: 'FacultyHeadsManagement', value: FacultyHeadsManagement },
-    { label: 'CoreTeamManagement', value: CoreTeamManagement },
-    { label: 'BandManagement', value: BandManagement },
-    { label: 'GuestArtistManagement', value: GuestArtistManagement },
-    { label: 'ChiefGuestManagement', value: ChiefGuestManagement },
-    { label: 'AuditionManagement', value: AuditionManagement },
-    { label: 'MembershipManagement', value: MembershipManagement },
-    { label: 'FormSettingsManagement', value: FormSettingsManagement },
-    { label: 'SecuritySettings', value: SecuritySettings },
-    { label: 'RoadmapMilestonesAdmin', value: RoadmapMilestonesAdmin },
-    { label: 'HeroMediaManagement', value: HeroMediaManagement },
-    { label: 'AboutSettings', value: AboutSettings },
-  ];
-  const invalids = suspects.filter(s => !isRenderable(s.value));
-  if (invalids.length > 0) {
-    try {
-      console.error('[Admin] Preflight failed. Invalid components/icons:', invalids.map(i => i.label));
-    } catch {}
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full border border-amber-200 bg-amber-50 text-amber-900 rounded-lg p-5 shadow">
-          <div className="font-semibold mb-2">Admin preflight detected missing components</div>
-          <div className="text-sm mb-3">Some UI modules didn’t load correctly. This can happen on a cold refresh. The page is kept safe instead of crashing.</div>
-          <ul className="list-disc pl-5 text-sm space-y-1 max-h-48 overflow-auto">
-            {invalids.slice(0, 10).map((s, idx) => (
-              <li key={idx}>{s.label}</li>
-            ))}
-            {invalids.length > 10 && <li>…and {invalids.length - 10} more</li>}
-          </ul>
-          <div className="text-xs text-amber-800 mt-3">Try a normal refresh in a few seconds. If this persists, we’ll fix the specific module listed above.</div>
         </div>
       </div>
     );
@@ -385,77 +289,6 @@ export const AdminDashboard: React.FC = () => {
 
   // loading already handled above
 
-  // Tiny error boundary to keep one bad panel from crashing the whole admin page
-  class PanelBoundary extends React.Component<React.PropsWithChildren<{ label: string }>, { hasError: boolean; err?: any }>{
-    constructor(props: React.PropsWithChildren<{ label: string }>) {
-      super(props);
-      this.state = { hasError: false };
-    }
-    static getDerivedStateFromError(err: any) { return { hasError: true, err }; }
-    componentDidCatch(error: any, errorInfo: any) {
-      console.error(`[Admin] Panel '${this.props.label}' crashed:`, error, errorInfo);
-    }
-    render() {
-      if (this.state.hasError) {
-        return (
-          <div className="border border-red-200 bg-red-50 text-red-800 rounded p-4">
-            Failed to render panel: {this.props.label}
-          </div>
-        );
-      }
-      return this.props.children as React.ReactElement;
-    }
-  }
-
-  // Safe render helper to avoid React error #310 if a component import resolves to undefined
-  const renderPanel = (MaybeComponent: any, label: string) => {
-    let Component = MaybeComponent;
-    if (!Component) {
-      console.error(`[Admin] Panel component '${label}' is undefined at render time.`);
-      return (
-        <div className="border border-yellow-200 bg-yellow-50 text-yellow-800 rounded p-4">
-          Panel not available: {label}
-        </div>
-      );
-    }
-    // If we accidentally received a module namespace object, prefer its default export
-    if (typeof Component === 'object' && Component && 'default' in Component && typeof (Component as any).default === 'function') {
-      Component = (Component as any).default;
-    }
-    const isRenderable =
-      typeof Component === 'function' ||
-      (Component && typeof Component === 'object' && ((Component as any).$$typeof || (Component as any).render));
-    if (!isRenderable) {
-      console.error(`[Admin] Panel component '${label}' has invalid type:`, typeof Component, Component);
-      return (
-        <div className="border border-yellow-200 bg-yellow-50 text-yellow-800 rounded p-4">
-          Panel invalid: {label}
-        </div>
-      );
-    }
-    return (
-      <PanelBoundary label={label}>
-        <Component />
-      </PanelBoundary>
-    );
-  };
-
-  // Safe icon renderer to avoid React #310 if an icon import resolves incorrectly
-  const SafeIcon: React.FC<{ C: any; className?: string; size?: number }> = ({ C, className, size }) => {
-    try {
-      let Comp = C;
-      if (!Comp) return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
-      if (typeof Comp === 'object' && Comp && 'default' in Comp && typeof (Comp as any).default === 'function') {
-        Comp = (Comp as any).default;
-      }
-      const ok = typeof Comp === 'function' || (Comp && typeof Comp === 'object' && ((Comp as any).$$typeof || (Comp as any).render));
-      if (!ok) return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
-      return <Comp className={className} size={size} />;
-    } catch {
-      return <span className={className} style={size ? { width: size, height: size, display: 'inline-block' } : undefined} />;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 admin-root">
       {/* Header */}
@@ -463,7 +296,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <SafeIcon C={Settings} className="w-8 h-8 text-yellow-500 mr-3" />
+              <Settings className="w-8 h-8 text-yellow-500 mr-3" />
               <h1 className="text-xl font-bold text-gray-900 flex items-center gap-3">
                 Admin Dashboard <HealthBadge />
                 <span
@@ -480,7 +313,7 @@ export const AdminDashboard: React.FC = () => {
               </h1>
               {isTOTPEnabled && (
                 <div className="ml-4 flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                  <SafeIcon C={Shield} size={12} className="mr-1" />
+                  <Shield size={12} className="mr-1" />
                   2FA Enabled
                 </div>
               )}
@@ -499,7 +332,7 @@ export const AdminDashboard: React.FC = () => {
                 onClick={handleLogout}
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <SafeIcon C={LogOut} className="w-5 h-5 mr-2" />
+                <LogOut className="w-5 h-5 mr-2" />
                 Logout
               </button>
             </div>
@@ -581,7 +414,7 @@ export const AdminDashboard: React.FC = () => {
                             : 'text-gray-600 hover:bg-gray-100'
                         }`}
                       >
-                        <SafeIcon C={Icon} className="w-5 h-5 mr-3" />
+                        <Icon className="w-5 h-5 mr-3" />
                         {tab.name}
                         {tab.id === 'registrations' && pendingRegistrations > 0 && (
                           <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
@@ -600,7 +433,7 @@ export const AdminDashboard: React.FC = () => {
                         )}
                         {tab.id === 'security' && isTOTPEnabled && (
                           <span className="ml-auto">
-                            <SafeIcon C={Shield} className="w-4 h-4 text-green-600" />
+                            <Shield className="w-4 h-4 text-green-600" />
                           </span>
                         )}
                       </button>
@@ -629,7 +462,7 @@ export const AdminDashboard: React.FC = () => {
                       <div key={stat.name} className="bg-white rounded-lg shadow-md p-6">
                         <div className="flex items-center">
                           <div className={`${stat.color} p-3 rounded-lg`}>
-                            <SafeIcon C={Icon} className="w-6 h-6 text-white" />
+                            <Icon className="w-6 h-6 text-white" />
                           </div>
                           <div className="ml-4">
                             <p className="text-sm font-medium text-gray-600">{stat.name}</p>
@@ -642,17 +475,17 @@ export const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Connection Overview */}
-                {renderPanel(ConnectionOverview, 'ConnectionOverview')}
+                <ConnectionOverview />
 
                 {/* Storage Overview */}
-                {renderPanel(StorageOverview, 'StorageOverview')}
+                <StorageOverview />
 
                 {/* Security Status */}
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Status</h3>
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
-                      <SafeIcon C={Shield} className="w-6 h-6 text-blue-600 mr-3" />
+                      <Shield className="w-6 h-6 text-blue-600 mr-3" />
                       <div>
                         <div className="font-medium text-gray-900">Two-Factor Authentication</div>
                         <div className="text-sm text-gray-600">
@@ -708,14 +541,14 @@ export const AdminDashboard: React.FC = () => {
                       onClick={() => setActiveTab('events')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <SafeIcon C={Calendar} className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                      <Calendar className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Manage Events</div>
                     </button>
                     <button
                       onClick={() => setActiveTab('registrations')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <SafeIcon C={UserCheck} className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <UserCheck className="w-8 h-8 text-green-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Review Registrations</div>
                       {pendingRegistrations > 0 && (
                         <div className="text-xs text-red-600 mt-1">{pendingRegistrations} pending</div>
@@ -725,14 +558,14 @@ export const AdminDashboard: React.FC = () => {
                       onClick={() => setActiveTab('gallery')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <SafeIcon C={Image} className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                      <Image className="w-8 h-8 text-purple-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Update Gallery</div>
                     </button>
                     <button
                       onClick={() => setActiveTab('security')}
                       className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
                     >
-                      <SafeIcon C={Shield} className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
                       <div className="text-sm font-medium">Security Settings</div>
                       {!isTOTPEnabled && (
                         <div className="text-xs text-yellow-600 mt-1">Enable 2FA</div>
@@ -839,34 +672,38 @@ export const AdminDashboard: React.FC = () => {
             )}
             {(isOwner || myPermissions?.can_sports) && activeTab === 'sports-team' && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                {renderPanel(SportsTeamManagement, 'SportsTeamManagement')}
+                <SportsTeamManagement />
               </div>
             )}
-            {activeTab === 'site-settings' && renderPanel(SiteSettingsPanel, 'SiteSettingsPanel')}
-            {activeTab === 'admin-users' && renderPanel(AdminUsersPanel, 'AdminUsersPanel')}
+            {activeTab === 'site-settings' && (
+              <SiteSettingsPanel />
+            )}
+            {activeTab === 'admin-users' && (
+              <AdminUsersPanel />
+            )}
 
-            {activeTab === 'homepage' && renderPanel(HomepageManagement, 'HomepageManagement')}
-            {activeTab === 'events' && renderPanel(EventsManagement, 'EventsManagement')}
-            {activeTab === 'homebound' && renderPanel(HomeBoundSettings, 'HomeBoundSettings')}
-            {activeTab === 'schedule' && renderPanel(ScheduleManagement, 'ScheduleManagement')}
-            {activeTab === 'gallery' && renderPanel(GalleryManagement, 'GalleryManagement')}
-            {activeTab === 'sponsors' && renderPanel(SponsorsManagement, 'SponsorsManagement')}
-            {activeTab === 'registrations' && renderPanel(RegistrationManagement, 'RegistrationManagement')}
-            {activeTab === 'reg-photos' && renderPanel(RegistrationPhotosPanel, 'RegistrationPhotosPanel')}
-            {activeTab === 'categories' && renderPanel(EventCategoriesManagement, 'EventCategoriesManagement')}
-            {activeTab === 'social' && renderPanel(SocialMediaManagement, 'SocialMediaManagement')}
-            {activeTab === 'faculty' && renderPanel(FacultyHeadsManagement, 'FacultyHeadsManagement')}
-            {activeTab === 'core-team' && renderPanel(CoreTeamManagement, 'CoreTeamManagement')}
-            {activeTab === 'band' && renderPanel(BandManagement, 'BandManagement')}
-            {activeTab === 'guest-artists' && renderPanel(GuestArtistManagement, 'GuestArtistManagement')}
-            {activeTab === 'chief-guests' && renderPanel(ChiefGuestManagement, 'ChiefGuestManagement')}
-            {activeTab === 'auditions' && renderPanel(AuditionManagement, 'AuditionManagement')}
-            {activeTab === 'memberships' && renderPanel(MembershipManagement, 'MembershipManagement')}
-            {activeTab === 'form-settings' && renderPanel(FormSettingsManagement, 'FormSettingsManagement')}
-            {isOwner && activeTab === 'security' && renderPanel(SecuritySettings, 'SecuritySettings')}
-            {activeTab === 'roadmap' && renderPanel(RoadmapMilestonesAdmin, 'RoadmapMilestonesAdmin')}
-            {activeTab === 'hero-media' && renderPanel(HeroMediaManagement, 'HeroMediaManagement')}
-            {activeTab === 'about' && renderPanel(AboutSettings, 'AboutSettings')}
+            {activeTab === 'homepage' && <HomepageManagement />}
+            {activeTab === 'events' && <EventsManagement />}
+            {activeTab === 'homebound' && <HomeBoundSettings />}
+            {activeTab === 'schedule' && <ScheduleManagement />}
+            {activeTab === 'gallery' && <GalleryManagement />}
+            {activeTab === 'sponsors' && <SponsorsManagement />}
+            {activeTab === 'registrations' && <RegistrationManagement />}
+            {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
+            {activeTab === 'categories' && <EventCategoriesManagement />}
+            {activeTab === 'social' && <SocialMediaManagement />}
+            {activeTab === 'faculty' && <FacultyHeadsManagement />}
+            {activeTab === 'core-team' && <CoreTeamManagement />}
+            {activeTab === 'band' && <BandManagement />}
+            {activeTab === 'guest-artists' && <GuestArtistManagement />}
+            {activeTab === 'chief-guests' && <ChiefGuestManagement />}
+            {activeTab === 'auditions' && <AuditionManagement />}
+            {activeTab === 'memberships' && <MembershipManagement />}
+            {activeTab === 'form-settings' && <FormSettingsManagement />}
+            {isOwner && activeTab === 'security' && <SecuritySettings />}
+            {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
+            {activeTab === 'hero-media' && <HeroMediaManagement />}
+            {activeTab === 'about' && <AboutSettings />}
           </div>
         </div>
       </div>

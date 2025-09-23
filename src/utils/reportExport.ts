@@ -106,154 +106,29 @@ export const exportCsv = (rows: Registration[], columns: RegistrationColumnKey[]
 // Lazy loaders to avoid initial bundle weight
 export const exportExcel = async (rows: Registration[], columns: RegistrationColumnKey[], filename: string) => {
   const photoIncluded = columns.includes('photo_url');
-  if (!photoIncluded) {
-    // Fast path using xlsx (no images)
-    const XLSX = await import('xlsx');
-    const { headers, body } = buildMatrix({ rows, columns });
-    const json = body.map(row => {
-      const obj: Record<string, any> = {};
-      headers.forEach((h, i) => { obj[h] = row[i]; });
-      return obj;
-    });
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(json);
-    const colWidths: any[] = [];
-    headers.forEach((h, idx) => {
-      const maxLength = Math.max(h.length, ...json.map(r => String(r[h] || '').length));
-      colWidths[idx] = { wch: Math.min(maxLength + 2, 50) };
-    });
-    ws['!cols'] = colWidths;
-    XLSX.utils.book_append_sheet(wb, ws, 'Registrations');
-    XLSX.writeFile(wb, filename);
-    return;
-  }
-
-  // Image path using exceljs (browser build)
-  const ExcelJS: any = await import('exceljs');
-  const wb = new (ExcelJS as any).Workbook();
-  const ws = wb.addWorksheet('Registrations');
-
-  const selectedDefs = columns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
-  const headers = selectedDefs.map(c => (c.key === 'photo_url' ? 'Photo' : c.header));
-  const photoColIndex = selectedDefs.findIndex(d => d.key === 'photo_url');
-  const photoCol = photoColIndex >= 0 ? photoColIndex + 1 : -1; // 1-based
-
-  ws.addRow(headers);
-  // Set base column widths
-  ws.columns = headers.map((h, idx) => ({ width: idx + 1 === photoCol ? 12 : Math.min(Math.max(h.length + 4, 12), 40) }));
-
-  // Helper to obtain a Blob for a given image URL, supporting Supabase private storage
-  const downloadImageBlob = async (url: string): Promise<Blob | null> => {
-    if (!url) return null;
-    try {
-      if (url.startsWith('data:')) {
-        // Convert data URL to Blob
-        const res = await fetch(url);
-        return await res.blob();
-      }
-      // If this looks like a Supabase Storage URL for this project, prefer authenticated download
-      let looksLikeSupabase = false;
-      try {
-        const u = new URL(url);
-        looksLikeSupabase = u.host.includes(SUPABASE_HOST);
-      } catch { /* ignore parse errors */ }
-
-      // Attempt to parse bucket/object name from common patterns
-      const parseStoragePath = (u: string): { bucket: string; name: string } | null => {
-        // Matches /storage/v1/object/(public|authenticated)/<bucket>/<path>
-        const m = u.match(/\/storage\/v1\/object\/(?:public|authenticated)\/([^/]+)\/(.+)$/);
-        if (m) return { bucket: decodeURIComponent(m[1]), name: decodeURIComponent(m[2]) };
-        // Fallback: find first occurrence of a known bucket
-        const knownBuckets = ['registration-photos'];
-        for (const b of knownBuckets) {
-          const idx = u.indexOf(`${b}/`);
-          if (idx >= 0) return { bucket: b, name: decodeURIComponent(u.slice(idx + b.length + 1)) };
-        }
-        return null;
-      };
-
-      if (looksLikeSupabase) {
-        const parsed = parseStoragePath(url);
-        if (parsed) {
-          const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.name);
-          if (!error && data) return data as any as Blob;
-        }
-      }
-      // Last resort: plain fetch (works for public/signed URLs)
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      return await res.blob();
-    } catch {
-      return null;
-    }
-  };
-
-  // Helper to fetch as data URL (uses downloadImageBlob above)
-  const fetchDataUrl = async (url: string): Promise<{ base64: string; ext: 'png' | 'jpeg' } | null> => {
-    try {
-      const blob = await downloadImageBlob(url);
-      if (!blob) return null;
-      const type = (blob.type || '').toLowerCase();
-      const ext: 'png' | 'jpeg' = type.includes('png') ? 'png' : 'jpeg';
-      const dataUrl: string = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onerror = () => reject(new Error('file read error'));
-        fr.onload = () => resolve(String(fr.result || ''));
-        fr.readAsDataURL(blob);
-      });
-      const base64 = dataUrl.split(',')[1] || '';
-      return { base64, ext };
-    } catch {
-      return null;
-    }
-  };
-
-  // Add rows and track image requests
-  const imageRequests: Array<Promise<{ row: number; imgId: number | null }>> = [];
-  rows.forEach((r, idx) => {
-    const values: any[] = selectedDefs.map(def => {
-      if (def.key === 'photo_url') return '';
-      return def.accessor ? def.accessor(r) : (r as any)[def.key];
-    });
-    ws.addRow(values);
-    if (photoCol > 0) {
-      const url = (r as any).photo_url as string | undefined;
-      if (url) {
-        const p = fetchDataUrl(url).then((data) => {
-          if (!data) return { row: idx + 2, imgId: null };
-          const imgId = wb.addImage({ base64: data.base64, extension: data.ext });
-          return { row: idx + 2, imgId };
-        });
-        imageRequests.push(p);
-      }
-    }
+  // Single-path using xlsx for both cases; when photos are included we keep the URL in a column
+  const XLSX = await import('xlsx');
+  const { headers, body } = buildMatrix({ rows, columns });
+  const json = body.map(row => {
+    const obj: Record<string, any> = {};
+    headers.forEach((h, i) => { obj[h] = row[i]; });
+    return obj;
   });
-
-  // Increase row heights for image visibility
-  const rowHeightPx = 32; // about 24pt
-  for (let i = 2; i <= rows.length + 1; i++) {
-    ws.getRow(i).height = Math.round(rowHeightPx * 0.75); // exceljs uses points
+  // If photos are included, rename the column to Photo URL for clarity
+  if (photoIncluded) {
+    const idx = headers.findIndex(h => h.toLowerCase().includes('photo'));
+    if (idx >= 0) headers[idx] = 'Photo URL';
   }
-
-  // Place images after all rows are present
-  const results = await Promise.all(imageRequests);
-  const thumbW = 24; const thumbH = 24; // pixels
-  results.forEach(({ row, imgId }) => {
-    if (!imgId || photoCol <= 0) return;
-    try {
-      ws.addImage(imgId, {
-        tl: { col: photoCol - 1 + 0.15, row: row - 1 + 0.15 },
-        ext: { width: thumbW, height: thumbH },
-      });
-    } catch {/* ignore */}
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(json);
+  const colWidths: any[] = [];
+  headers.forEach((h, idx) => {
+    const maxLength = Math.max(h.length, ...json.map(r => String(r[h] || '').length));
+    colWidths[idx] = { wch: Math.min(maxLength + 2, 50) };
   });
-
-  const buf = await wb.xlsx.writeBuffer();
-  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  ws['!cols'] = colWidths;
+  XLSX.utils.book_append_sheet(wb, ws, 'Registrations');
+  XLSX.writeFile(wb, filename);
 };
 
 export interface PdfExportOptions {

@@ -31,34 +31,50 @@ export const EventCategoriesManagement: React.FC = () => {
   };
 
   const handleAddCategory = async () => {
-    if (!categoryForm.name || !categoryForm.description) {
+    // Basic validation + trimming
+    const name = (categoryForm.name || '').trim();
+    const description = (categoryForm.description || '').trim();
+    const color = (categoryForm.color || '').trim() || '#6B7280';
+    if (!name || !description) {
       setError('Name and description are required');
       return;
     }
     
     try {
-      await addEventCategory(categoryForm);
+      await addEventCategory({ name, description, color });
       setIsAdding(false);
       resetForm();
-    } catch (error) {
-      console.error('Error adding category:', error);
-      setError('Failed to add category. Please try again.');
+    } catch (error: any) {
+      // Log full structure for diagnostics and show meaningful message
+      console.error('Error adding category:', error?.message || error, error);
+      const msg =
+        (typeof error?.message === 'string' && error.message) ||
+        (typeof error?.toString === 'function' && error.toString()) ||
+        'Failed to add category. Please try again.';
+      setError(msg);
     }
   };
 
   const handleUpdateCategory = async (id: number) => {
-    if (!categoryForm.name || !categoryForm.description) {
+    const name = (categoryForm.name || '').trim();
+    const description = (categoryForm.description || '').trim();
+    const color = (categoryForm.color || '').trim() || '#6B7280';
+    if (!name || !description) {
       setError('Name and description are required');
       return;
     }
     
     try {
-      await updateEventCategory(id, categoryForm);
+      await updateEventCategory(id, { name, description, color });
       setEditingCategory(null);
       resetForm();
-    } catch (error) {
-      console.error('Error updating category:', error);
-      setError('Failed to update category. Please try again.');
+    } catch (error: any) {
+      console.error('Error updating category:', error?.message || error, error);
+      const msg =
+        (typeof error?.message === 'string' && error.message) ||
+        (typeof error?.toString === 'function' && error.toString()) ||
+        'Failed to update category. Please try again.';
+      setError(msg);
     }
   };
 
@@ -67,8 +83,11 @@ export const EventCategoriesManagement: React.FC = () => {
       try {
         await deleteEventCategory(id);
       } catch (error: any) {
-        console.error('Error deleting category:', error);
-        setError(error.message || 'Failed to delete category. Please try again.');
+        console.error('Error deleting category:', error?.message || error, error);
+        setError(
+          (typeof error?.message === 'string' && error.message) ||
+          'Failed to delete category. Please try again.'
+        );
       }
     }
   };

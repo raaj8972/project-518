@@ -148,8 +148,28 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       }
   setIsSubmitted(true);
     } catch (error) {
-      console.error('Audition submission error:', error);
-      setErrors({ submit: 'Failed to submit audition. Please try again.' });
+      // Normalize and surface a clear error message
+      const toMessage = (err: any): string => {
+        if (!err) return 'Unknown error';
+        if (typeof err === 'string') return err;
+        if (err instanceof Error) return err.message || 'Unexpected error';
+        // Supabase often returns a PostgrestError-like object
+        const msg = err.message || err.error || err.reason;
+        const code = err.code;
+        const details = err.details || err.hint;
+        const parts = [msg, details].filter(Boolean).join(' — ');
+        return parts || (code ? `Error ${code}` : 'Unexpected error');
+      };
+      const msg = toMessage(error);
+      console.error('Audition submission error:', { error, message: msg });
+      // Map RLS/permission error to a friendly message
+      const lower = String(msg).toLowerCase();
+      const closed = lower.includes('rls') || lower.includes('policy') || lower.includes('not allowed') || lower.includes('permission');
+      setErrors({
+        submit: closed
+          ? 'Auditions are currently closed. Please try again later.'
+          : msg || 'Failed to submit audition. Please try again.'
+      });
     } finally {
       setIsSubmitting(false);
     }

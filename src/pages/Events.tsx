@@ -363,6 +363,25 @@ export const Events: React.FC = () => {
                       })()}
                     </button>
 
+                    {/* Always-visible countdown pill on front face (when timer-gated and no Watch Live button) */}
+                    {(() => {
+                      const wlu = (event as any).watch_live_url;
+                      const countdown = getCountdown(event);
+                      const showCountdown = !wlu && countdown; // avoid duplicate with WatchLiveButton which has its own countdown
+                      const isOpen = canRegisterNow(event);
+                      if (!showCountdown) return null;
+                      return (
+                        <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-10 pointer-events-none">
+                          <div
+                            className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur border ${countdown === 'now' || isOpen ? 'bg-green-600/80 text-white border-white/30' : 'bg-blue-600/80 text-white border-white/20'}`}
+                            title={getOpensAtTooltip(event)}
+                          >
+                            {countdown === 'now' || isOpen ? 'Open now' : `Opens in ${countdown}`}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
                       {/* Back face Watch Live button (mirrors front face, 60m pre-live gating) */}
                       {(() => {
@@ -470,7 +489,7 @@ export const Events: React.FC = () => {
                             </button>
                           ) : getCountdown(event) ? (
                             getCountdown(event) === 'now' ? (
-                              <div className="w-full py-3 px-4 rounded-lg bg-green-600/20 text-green-300 text-center font-medium" title="Opening now">Opening now…</div>
+                              <div className="w-full py-3 px-4 rounded-lg bg-green-600/20 text-green-300 text-center font-medium" title="Open now">Open now</div>
                             ) : (
                               (() => {
                                 const secs = getSecondsToOpen(event);

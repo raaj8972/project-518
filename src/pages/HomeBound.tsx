@@ -477,6 +477,17 @@ export const HomeBound: React.FC = () => {
     .flip-3d-back { transform: rotateY(180deg) translateZ(0.02px); }
     @media (max-width: 480px) { .flip-3d { min-height: 18rem; } }
 
+        /* Readability tweaks: reduce neon glow on member names within Home Bound */
+        .cyberpunk-theme .artist-name,
+        .cyberpunk-theme .member-name {
+          /* Remove heavy neon glow that hurts legibility on darker panels */
+          text-shadow: none !important;
+          filter: none !important;
+        }
+        /* Provide a very subtle glow only (optional) */
+        .cyberpunk-theme .artist-name::selection,
+        .cyberpunk-theme .member-name::selection { background: rgba(255, 255, 255, 0.18); }
+
         /* Hover flip behavior only on hover-capable devices */
         @media (hover: hover) and (pointer: fine) {
           .hover-flip .flip-3d-inner { transition: transform 600ms cubic-bezier(.2,.8,.2,1); }

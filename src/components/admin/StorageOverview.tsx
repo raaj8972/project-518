@@ -218,15 +218,13 @@ export const StorageOverview: React.FC = () => {
 
   const onCopyLink = async (name: string, publicUrl: string, forBucket?: string) => {
     try {
-      let isPublic: boolean | null = null;
-      try {
-        const { data } = await supabase.from('storage.buckets' as any).select('id, public').eq('id', forBucket ?? bucket).maybeSingle();
-        if (data) isPublic = !!(data as any).public;
-      } catch {}
       let urlToCopy = publicUrl;
-      if (isPublic !== true) {
+      try {
         const { data, error } = await supabase.storage.from(forBucket ?? bucket).createSignedUrl(name, 60 * 60 * 24 * 7);
         if (!error && data?.signedUrl) urlToCopy = data.signedUrl;
+      } catch {
+        // If signing fails (public bucket or no permission), fall back to the provided public URL
+        urlToCopy = publicUrl;
       }
       await navigator.clipboard.writeText(urlToCopy);
       push({ type: 'success', message: 'Link copied', ttl: 2000 });
@@ -275,28 +273,12 @@ export const StorageOverview: React.FC = () => {
     }
   };
 
-  // Safe icon renderer to avoid React #310 if an icon import resolves incorrectly
-  const SafeIcon: React.FC<{ C: any; className?: string }> = ({ C, className }) => {
-    try {
-      let Comp = C;
-      if (!Comp) return <span className={className} />;
-      if (typeof Comp === 'object' && Comp && 'default' in Comp && typeof (Comp as any).default === 'function') {
-        Comp = (Comp as any).default;
-      }
-      const ok = typeof Comp === 'function' || (Comp && typeof Comp === 'object' && ((Comp as any).$$typeof || (Comp as any).render));
-      if (!ok) return <span className={className} />;
-      return <Comp className={className} />;
-    } catch {
-      return <span className={className} />;
-    }
-  };
-
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
-  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><SafeIcon C={HardDrive} className="w-5 h-5 text-gray-700"/> Storage Overview</h3>
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><HardDrive className="w-5 h-5 text-gray-700"/> Storage Overview</h3>
         <button onClick={refresh} className={`inline-flex items-center px-3 py-1 text-sm rounded-md border border-gray-300 hover:bg-gray-50 ${refreshing ? 'opacity-60 pointer-events-none' : ''}`}>
-          <SafeIcon C={RefreshCw} className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
+          <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
 
@@ -316,7 +298,7 @@ export const StorageOverview: React.FC = () => {
             }}
             className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
           >
-            {topOpen ? <SafeIcon C={ChevronUp} className="w-4 h-4"/> : <SafeIcon C={ChevronDown} className="w-4 h-4"/>}
+            {topOpen ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
             Top 10 largest files
           </button>
           {topOpen && (
@@ -339,7 +321,7 @@ export const StorageOverview: React.FC = () => {
                 onClick={loadTop}
                 className={`text-xs inline-flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-50 ${loadingTop ? 'opacity-60 pointer-events-none' : ''}`}
               >
-                <SafeIcon C={RefreshCw} className={`w-3 h-3 ${loadingTop ? 'animate-spin' : ''}`}/> Recalculate
+                <RefreshCw className={`w-3 h-3 ${loadingTop ? 'animate-spin' : ''}`}/> Recalculate
               </button>
               {loadingTop && <span className="text-xs text-gray-500">Loading…</span>}
             </>
@@ -376,13 +358,13 @@ export const StorageOverview: React.FC = () => {
                         onClick={() => onCopyLink(it.name, it.publicUrl, it.bucket)}
                         className="inline-flex items-center px-2.5 py-1 text-xs rounded-md bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 mr-2"
                       >
-                        <SafeIcon C={Clipboard} className="w-4 h-4 mr-1.5"/> Copy
+                        <Clipboard className="w-4 h-4 mr-1.5"/> Copy
                       </button>
                       <button
                         onClick={() => onDeleteFor(it.bucket, it.name)}
                         className={`inline-flex items-center px-2.5 py-1 text-xs rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 ${busyName === `${it.bucket}/${it.name}` ? 'opacity-60 pointer-events-none' : ''}`}
                       >
-                        <SafeIcon C={Trash2} className="w-4 h-4 mr-1.5"/> Delete
+                        <Trash2 className="w-4 h-4 mr-1.5"/> Delete
                       </button>
                     </td>
                   </tr>
@@ -421,17 +403,17 @@ export const StorageOverview: React.FC = () => {
             <div className="text-xs text-gray-500">{totalUsage.count} files across all buckets</div>
             <div className="flex items-center gap-3">
               <div className="text-[11px] text-gray-500 inline-flex items-center gap-1" title={lastTotalUpdatedMs ? new Date(lastTotalUpdatedMs).toLocaleString() : ''}>
-                <SafeIcon C={Clock} className="w-3 h-3"/>
+                <Clock className="w-3 h-3"/>
                 {lastTotalUpdatedMs ? `Updated ${new Date(lastTotalUpdatedMs).toLocaleTimeString()}` : '—'}
               </div>
               <button onClick={() => Promise.all([loadTotalUsage(), loadBreakdown()])} className="text-xs inline-flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded hover:bg-gray-50">
-                <SafeIcon C={RefreshCw} className="w-3 h-3"/> Recalculate
+                <RefreshCw className="w-3 h-3"/> Recalculate
               </button>
             </div>
           </div>
         </div>
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="text-xs text-gray-500 mb-1 flex items-center gap-2"><SafeIcon C={Layers} className="w-4 h-4"/> Bucket</div>
+          <div className="text-xs text-gray-500 mb-1 flex items-center gap-2"><Layers className="w-4 h-4"/> Bucket</div>
           <select
             value={bucket}
             onChange={(e) => setBucket(e.target.value)}
@@ -459,7 +441,7 @@ export const StorageOverview: React.FC = () => {
           onClick={() => setBreakdownOpen(v => !v)}
           className="inline-flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900"
         >
-          {breakdownOpen ? <SafeIcon C={ChevronUp} className="w-4 h-4"/> : <SafeIcon C={ChevronDown} className="w-4 h-4"/>}
+          {breakdownOpen ? <ChevronUp className="w-4 h-4"/> : <ChevronDown className="w-4 h-4"/>}
           Per-bucket breakdown
           {loadingBreakdown && <span className="text-xs text-gray-500 ml-2">(loading...)</span>}
         </button>
@@ -535,13 +517,13 @@ export const StorageOverview: React.FC = () => {
                     onClick={() => onCopyLink(it.name, it.publicUrl)}
                     className="inline-flex items-center px-3 py-1 text-sm rounded-md bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 mr-2"
                   >
-                    <SafeIcon C={Clipboard} className="w-4 h-4 mr-2"/> Copy Link
+                    <Clipboard className="w-4 h-4 mr-2"/> Copy Link
                   </button>
                   <button
                     onClick={() => onDelete(it.name)}
                     className={`inline-flex items-center px-3 py-1 text-sm rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 ${busyName === it.name ? 'opacity-60 pointer-events-none' : ''}`}
                   >
-                    <SafeIcon C={Trash2} className="w-4 h-4 mr-2"/> Delete
+                    <Trash2 className="w-4 h-4 mr-2"/> Delete
                   </button>
                 </td>
               </tr>

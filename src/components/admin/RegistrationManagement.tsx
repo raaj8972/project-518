@@ -60,20 +60,8 @@ export const RegistrationManagement: React.FC = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Determine if registration-photos bucket is public; if public, no need to sign
-      let isPublic: boolean | null = null;
-      try {
-        const { data } = await supabase.from('storage.buckets' as any).select('id, public').eq('id', 'registration-photos').maybeSingle();
-        if (data) isPublic = !!(data as any).public;
-      } catch {}
       const next: Record<string, string> = {};
-      if (isPublic === true) {
-        // Public: use stored URLs directly
-        for (const r of rowsNeedingPreview) next[r.id] = r.url;
-        if (!cancelled) setPhotoPreviewMap(next);
-        return;
-      }
-      // Private: attempt to sign each path when possible
+      // Attempt to sign each URL; if signing fails (public bucket or no access), fall back to original URL
       const tasks = rowsNeedingPreview.map(async (r) => {
         // Try to derive the object path from a stored public-style URL
         // Accept patterns .../storage/v1/object/public/registration-photos/<name>
@@ -674,12 +662,19 @@ export const RegistrationManagement: React.FC = () => {
                                     className="w-24 h-24 rounded-lg object-cover border border-gray-200"
                                     referrerPolicy="no-referrer"
                                   />
-                                  <a
-                                    href={(registration as any).photo_url as any}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 text-sm"
-                                  >Open full</a>
+                                  <div className="flex items-center gap-3">
+                                    <a
+                                      href={(registration as any).photo_url as any}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >Open full</a>
+                                    <a
+                                      href={(registration as any).photo_url as any}
+                                      download
+                                      className="text-gray-700 hover:text-gray-900 text-sm"
+                                    >Download</a>
+                                  </div>
                                 </div>
                               </div>
                             )}

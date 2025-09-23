@@ -176,9 +176,32 @@ export const HomepageManagement: React.FC = () => {
       setSavingPage(true);
       const steps = savingProgress.withSteps(4, 'Preparing…');
       steps.next('Validating');
-      // Normalize numeric fields before saving (convert '' to defaults)
+      // Normalize numeric fields before saving (convert '' to sane numbers or null)
+      const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
       const payload = {
-        ...form,
+        // Hero
+        hero_media_url: (form.hero_media_url || '').trim() || null,
+        hero_media_type: (form.hero_media_type === 'video' ? 'video' : 'image') as 'image' | 'video',
+        hero_title: (form.hero_title || 'RICORRENZA').toString(),
+        hero_subtitle: (form.hero_subtitle || 'Experience the Future').toString(),
+        hero_description: (form.hero_description || 'Experience the future of Healthcare, Technology, and Creativity').toString(),
+        // Sponsor logos (ensure numeric order)
+        sponsor_logos: Array.isArray(form.sponsor_logos)
+          ? form.sponsor_logos.map((L, i) => ({
+              id: L.id,
+              name: L.name,
+              logo_url: L.logo_url,
+              website: L.website || undefined,
+              enabled: !!L.enabled,
+              order: typeof L.order === 'number' && !isNaN(L.order) ? L.order : i + 1,
+            }))
+          : [],
+        sponsor_section_enabled: !!form.sponsor_section_enabled,
+        sponsor_section_text: (form.sponsor_section_text || 'Powered by').toString(),
+        featured_partners_enabled: !!form.featured_partners_enabled,
+        show_faculty_heads: !!form.show_faculty_heads,
+        show_committee_heads: !!form.show_committee_heads,
+        // Branding
         brand_logo_url: (form as any).brand_logo_url || null,
         brand_year: typeof (form as any).brand_year === 'number' && !isNaN((form as any).brand_year)
           ? (form as any).brand_year
@@ -197,6 +220,26 @@ export const HomepageManagement: React.FC = () => {
         brand_logo_offset_y_px: typeof (form as any).brand_logo_offset_y_px === 'number' && !isNaN((form as any).brand_logo_offset_y_px)
           ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_y_px))
           : 0,
+        // Responsive overrides: coerce to number within bounds or null
+        brand_logo_offset_x_sm_px: (typeof (form as any).brand_logo_offset_x_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_x_sm_px))
+          ? clamp((form as any).brand_logo_offset_x_sm_px, -400, 400)
+          : null,
+        brand_logo_offset_y_sm_px: (typeof (form as any).brand_logo_offset_y_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_y_sm_px))
+          ? clamp((form as any).brand_logo_offset_y_sm_px, -400, 400)
+          : null,
+        brand_logo_offset_x_md_px: (typeof (form as any).brand_logo_offset_x_md_px === 'number' && !isNaN((form as any).brand_logo_offset_x_md_px))
+          ? clamp((form as any).brand_logo_offset_x_md_px, -400, 400)
+          : null,
+        brand_logo_offset_y_md_px: (typeof (form as any).brand_logo_offset_y_md_px === 'number' && !isNaN((form as any).brand_logo_offset_y_md_px))
+          ? clamp((form as any).brand_logo_offset_y_md_px, -400, 400)
+          : null,
+        brand_logo_offset_x_lg_px: (typeof (form as any).brand_logo_offset_x_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_x_lg_px))
+          ? clamp((form as any).brand_logo_offset_x_lg_px, -400, 400)
+          : null,
+        brand_logo_offset_y_lg_px: (typeof (form as any).brand_logo_offset_y_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_y_lg_px))
+          ? clamp((form as any).brand_logo_offset_y_lg_px, -400, 400)
+          : null,
+        // Animation speeds + directions
         leadership_carousel_speed_ms: typeof form.leadership_carousel_speed_ms === 'number' && !isNaN(form.leadership_carousel_speed_ms)
           ? Math.max(1000, form.leadership_carousel_speed_ms)
           : 2500,
@@ -206,6 +249,8 @@ export const HomepageManagement: React.FC = () => {
         committee_marquee_speed_px_per_sec: typeof form.committee_marquee_speed_px_per_sec === 'number' && !isNaN(form.committee_marquee_speed_px_per_sec)
           ? Math.min(800, Math.max(1, form.committee_marquee_speed_px_per_sec))
           : 75,
+        sponsors_belt_direction: (form.sponsors_belt_direction === 'right' ? 'right' : 'left') as 'left' | 'right',
+        committee_marquee_direction: (form.committee_marquee_direction === 'left' ? 'left' : 'right') as 'left' | 'right',
       } as const;
       steps.next('Saving to database');
       await updateHomepageSettings(payload as any);

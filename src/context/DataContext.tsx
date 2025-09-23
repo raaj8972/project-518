@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 
@@ -240,6 +240,9 @@ interface DataContextType {
   addAdminByEmail?: (email: string) => Promise<void>;
   // Owner-only: create a new auth user (email+password) and add as admin via serverless function
   createAdminAccount?: (email: string, password: string) => Promise<{ user_id: string; email: string } | null>;
+  // Admin permissions helpers
+  listAdminPermissions?: () => Promise<any[]>;
+  setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
   // Permissions
   myPermissions?: {
     can_events?: boolean;
@@ -255,26 +258,18 @@ interface DataContextType {
     can_chief_guests?: boolean;
     can_homebound?: boolean;
   } | null;
-  listAdminPermissions?: () => Promise<Array<AdminPermission>>;
-  setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
 }
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+// React context + provider
+const DataContext = React.createContext<DataContextType | undefined>(undefined);
 
-export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [events, setEvents] = useState<Event[]>(() => {
-    try { const raw = localStorage.getItem('cache:events'); if (raw) return JSON.parse(raw); } catch {}
-    return [];
-  });
+export const DataProvider = ({ children }: { children: ReactNode }) => {
+  
+  // Primary collections
+  const [events, setEvents] = useState<Event[]>([]);
   const [eventCoordinators, setEventCoordinators] = useState<EventCoordinator[]>([]);
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(() => {
-    try { const raw = localStorage.getItem('cache:gallery_images'); if (raw) return JSON.parse(raw); } catch {}
-    return [];
-  });
-  const [sponsors, setSponsors] = useState<Sponsor[]>(() => {
-    try { const raw = localStorage.getItem('cache:sponsors'); if (raw) return JSON.parse(raw); } catch {}
-    return [];
-  });
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
@@ -286,25 +281,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sportsTeamMembers, setSportsTeamMembers] = useState<SportsTeamMember[]>([]);
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [guestArtists, setGuestArtists] = useState<GuestArtist[]>([]);
+
   const [chiefGuests, setChiefGuests] = useState<ChiefGuest[]>([]);
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [auditions, setAuditions] = useState<Audition[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [formSettings, setFormSettings] = useState<FormSettings | null>(null);
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
-  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(() => {
-    try { const raw = localStorage.getItem('cache:homepage_settings'); if (raw) return JSON.parse(raw); } catch {}
-    return null;
-  });
+  const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
-  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(() => {
-    try { const raw = localStorage.getItem('cache:site_settings'); if (raw) return JSON.parse(raw); } catch {}
-    return null;
-  });
-  const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(() => {
-    try { const raw = localStorage.getItem('cache:about_settings'); if (raw) return JSON.parse(raw); } catch {}
-    return null;
-  });
+  const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
+  const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(null);
   const [myPermissions, setMyPermissions] = useState<{
     can_events?: boolean;
@@ -327,8 +314,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<Record<string, string>>({});
-  // Bump this to force all realtime subscription effects to re-run and recreate channels
-  const [realtimeGen, setRealtimeGen] = useState<number>(0);
   const [schemaCapabilities, setSchemaCapabilities] = useState({
     events_registration_photo_required: true,
     events_registration_photo_label: true,
@@ -389,9 +374,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         return next;
       });
-      // Trigger all subscription effects to re-run and recreate channels
-      setRealtimeGen((g) => g + 1);
-      // Optionally refresh data as well
       fetchData(true).catch(() => {});
     } catch {}
   };
@@ -428,6 +410,44 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {}
     return null;
   })();
+
+  // Detect once whether PostgREST exposes the `storage` schema (storage.buckets/objects).
+  // To prevent repeated 404s in environments where `storage` schema is hidden, we DISABLE the probe by default.
+  // Set VITE_ENABLE_STORAGE_CAPABILITY_PROBE=true to run a single cached probe.
+  const storageTablesExposedRef = React.useRef<boolean | null>(null);
+  const storageTablesProbePromiseRef = React.useRef<Promise<boolean> | null>(null);
+  const storageProbeEnabled = (() => {
+    try {
+      const v = (import.meta as any)?.env?.VITE_ENABLE_STORAGE_CAPABILITY_PROBE;
+      return v === 'true' || v === '1';
+    } catch {}
+    return false; // default: disabled to avoid 404 noise
+  })();
+  const areStorageTablesExposed = async (): Promise<boolean> => {
+    if (!storageProbeEnabled) {
+      storageTablesExposedRef.current = false;
+      return false;
+    }
+    if (storageTablesExposedRef.current !== null) return storageTablesExposedRef.current as boolean;
+    if (storageTablesProbePromiseRef.current) return storageTablesProbePromiseRef.current;
+    storageTablesProbePromiseRef.current = (async () => {
+      try {
+        const { error } = await supabase
+          .from('storage.buckets' as any)
+          .select('id', { count: 'exact' })
+          .range(0, 0);
+        storageTablesExposedRef.current = !error;
+        return storageTablesExposedRef.current as boolean;
+      } catch {
+        storageTablesExposedRef.current = false;
+        return false;
+      } finally {
+        // clear promise holder; keep the cached boolean
+        setTimeout(() => { storageTablesProbePromiseRef.current = null; }, 0);
+      }
+    })();
+    return storageTablesProbePromiseRef.current;
+  };
 
   // Recursively list all files in a bucket using the Storage API. This works even when
   // direct access to storage.objects is restricted by RLS, and includes nested folders.
@@ -481,17 +501,30 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // --- Admin users helpers ---
   const refreshAdminUsers = async () => {
     try {
+      // Skip if unauthenticated or table not available
+      try {
+        const u = (await supabase.auth.getUser()).data.user;
+        if (!u) { setAdminUsers([]); return; }
+      } catch { setAdminUsers([]); return; }
       const { data, error } = await supabase
         .from('admin_users' as any)
         .select('user_id,email,created_at,role,is_primary')
         .order('created_at', { ascending: true });
       if (!error && Array.isArray(data)) {
         setAdminUsers(data as any);
+      } else if (error) {
+        // tolerate missing table/permission
+        setAdminUsers([]);
       }
-    } catch {}
+    } catch { setAdminUsers([]); }
   };
 
   const listAdminPermissions = async () => {
+    // Skip when unauthenticated to avoid 400s from RLS or bad filters
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) return [] as any[];
+    } catch { return [] as any[]; }
     const { data, error } = await supabase
       .from('admin_permissions' as any)
       .select('*');
@@ -532,12 +565,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const session = (await supabase.auth.getSession()).data.session;
     const token = session?.access_token;
     if (!token) throw new Error('Not authenticated');
-    const resp = await fetch('/.netlify/functions/create-admin', ({
+    const resp = await fetch('/.netlify/functions/create-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ email, password }),
-      _timeoutMs: 30000,
-    } as any));
+    });
     if (!resp.ok) {
       const msg = await resp.text();
       throw new Error(msg || 'Failed to create admin');
@@ -553,13 +585,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     items: Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>
   ): Promise<Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>> {
     if (!items.length) return items;
-    // Try to detect if bucket is public; if not accessible, attempt signing anyway
-    let isPublic: boolean | null = null;
-    try {
-      const { data, error } = await supabase.from('storage.buckets' as any).select('id, public').eq('id', bucket).maybeSingle();
-      if (!error && data) isPublic = !!(data as any).public;
-    } catch {}
-    if (isPublic === true) return items; // public: normal public URLs will load
+    // Always try to create signed URLs; if the call fails (e.g., no permission), fall back to original URLs.
     try {
       const paths = items.map((i) => i.name);
       const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, 60 * 15); // 15 minutes
@@ -578,10 +604,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Generic: list objects in a bucket with size when available.
   const getBucketObjects = async (bucket: string, page = 1, pageSize = 50) => {
-    // Prefer storage.objects for richer metadata if accessible.
+    // Prefer storage.objects for richer metadata if accessible; gate behind capability check
     const from = (page - 1) * pageSize;
       const to = from + pageSize;
     try {
+      if (!(await areStorageTablesExposed())) throw new Error('storage schema not exposed');
       const { data, error, count } = await supabase
         .from('storage.objects')
         .select('name, created_at, metadata', { count: 'exact' })
@@ -621,7 +648,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const computeBucketUsage = async (bucket: string) => {
-    // Use storage.objects in pages to sum sizes.
+    // Use storage.objects in pages to sum sizes when available; fallback to Storage API
     const pageSize = 1000;
     let page = 1;
     let totalBytes = 0;
@@ -630,6 +657,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       try {
+        if (!(await areStorageTablesExposed())) break;
         const { data, error } = await supabase
           .from('storage.objects')
           .select('metadata')
@@ -666,14 +694,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // List all storage buckets, prefer storage.buckets
   const listStorageBuckets = async (): Promise<string[]> => {
     try {
-      const { data, error } = await supabase
-        .from('storage.buckets' as any)
-        .select('id')
-        .order('id', { ascending: true });
-      if (!error && data) {
-        const ids = (data as any[]).map((r) => r.id as string).filter(Boolean);
-        // Ensure uniqueness and stable order
-        return Array.from(new Set(ids));
+      if (await areStorageTablesExposed()) {
+        const { data, error } = await supabase
+          .from('storage.buckets' as any)
+          .select('id')
+          .order('id', { ascending: true });
+        if (!error && data) {
+          const ids = (data as any[]).map((r) => r.id as string).filter(Boolean);
+          return Array.from(new Set(ids));
+        }
       }
     } catch {}
     // Fallback to known buckets we operate with
@@ -773,6 +802,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // no-op: DataContext relies on actual network errors to set connectionStatus
   }, []);
 
+  // Realtime: keep auditions list in sync (insert/update/delete)
+  useEffect(() => {
+    const channelName = 'ctx-auditions';
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'auditions' }, (payload: any) => {
+        setAuditions((cur) => {
+          const row = (payload.new || payload.old) as Audition;
+          if (payload.eventType === 'INSERT') {
+            if (cur.find((r) => r.id === row.id)) return cur; // avoid dup
+            // Keep newest first
+            return [row, ...cur];
+          }
+          if (payload.eventType === 'UPDATE') {
+            return cur.map((r) => (r.id === row.id ? { ...r, ...row } : r));
+          }
+          if (payload.eventType === 'DELETE') {
+            return cur.filter((r) => r.id !== row.id);
+          }
+          return cur;
+        });
+      })
+      .subscribe((status: any) => {
+        const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) auditions`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
+  }, []);
+
   // Auto-open registration after timer passes (optional behavior)
   useEffect(() => {
     if (!events || events.length === 0) return;
@@ -821,11 +883,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Skip background tabs to save resources
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
         const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-        // Avoid HEAD requests which can trigger Safari "TypeError: Load failed"; do a tiny GET instead
-        const { error } = await supabase
-          .from('events')
-          .select('id', { count: 'exact' })
-          .range(0, 0);
+        const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
         const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
         if (!error && !stopped) setLatencyMs(Math.round(t1 - t0));
       } catch {
@@ -857,11 +915,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const pingNow = async () => {
     try {
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      // Avoid HEAD here as well for maximum browser compatibility
-      const { error } = await supabase
-        .from('events')
-        .select('id', { count: 'exact' })
-        .range(0, 0);
+      const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!error) {
         setLatencyMs(Math.round(t1 - t0));
@@ -940,11 +994,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('events')
         .select('*');
       if (eventsError) markErr('Error fetching events', eventsError);
-      else {
-        const next = (eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) }));
-        setEvents(next);
-        try { localStorage.setItem('cache:events', JSON.stringify(next)); } catch {}
-      }
+      else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
 
       // Fetch Gallery Images (non-critical; tolerate missing table/permission/transient network)
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
@@ -972,11 +1022,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } else {
           markErr('Error fetching gallery images', galleryImagesError);
         }
-      } else {
-        const next = (galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) }));
-        setGalleryImages(next);
-        try { localStorage.setItem('cache:gallery_images', JSON.stringify(next)); } catch {}
-      }
+      } else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
 
   // Fetch Sponsors
       // Fetch Event Coordinators
@@ -995,18 +1041,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .from('sponsors')
         .select('*');
       if (sponsorsError) markErr('Error fetching sponsors', sponsorsError);
-      else {
-        const next = (sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) }));
-        setSponsors(next);
-        try { localStorage.setItem('cache:sponsors', JSON.stringify(next)); } catch {}
-      }
+      else setSponsors((sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) })));
 
-      // Fetch Hero Media (all pages at once)
+      // Fetch Hero Media (all pages at once) – treat missing/permission/transient as non-critical
       const { data: heroMediaData, error: heroMediaError } = await supabase
         .from('hero_media')
         .select('*');
       if (heroMediaError) {
-        markErr('Error fetching hero media', heroMediaError);
+        const rawMsg = (heroMediaError as any)?.message || (heroMediaError as any)?.toString?.() || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (heroMediaError as any)?.code;
+        const isMissingTable = (
+          code === 'PGRST205' ||
+          msg.includes("relation 'public.hero_media' does not exist") ||
+          (msg.includes('could not find the table') && msg.includes('hero_media'))
+        );
+        const isTransientNetwork = (
+          msg.includes('load failed') ||
+          msg.includes('failed to fetch') ||
+          msg.includes('networkerror') ||
+          msg.includes('network error')
+        );
+        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] hero_media fetch non-critical issue; using empty set:', rawMsg);
+          setHeroMedia({});
+        } else {
+          markErr('Error fetching hero media', heroMediaError);
+        }
       } else {
         const map: Partial<Record<PageKey, HeroMedia | null>> = {};
         (heroMediaData || []).forEach((row) => {
@@ -1110,11 +1172,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (coreTeamMembersError) markErr('Error fetching core team members', coreTeamMembersError);
       else setCoreTeamMembers((coreTeamMembersData || []).map(m => ({ ...m, image: sanitizeUrl((m as any).image) })));
 
-      // Fetch Band Members (public-visible only)
+      // Fetch Band Members (ALL for admin; public pages filter by enabled)
       const { data: bandMembersData, error: bandMembersError } = await supabase
         .from('band_members')
         .select('*')
-        .eq('enabled', true)
         .order('order_position', { ascending: true });
       if (bandMembersError) markErr('Error fetching band members', bandMembersError);
       else setBandMembers((bandMembersData || []).map(b => ({ ...b, image: sanitizeUrl((b as any).image) })));
@@ -1144,7 +1205,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Fetch Auditions
       const { data: auditionsData, error: auditionsError } = await supabase
         .from('auditions')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
       if (auditionsError) markErr('Error fetching auditions', auditionsError);
       else setAuditions(auditionsData || []);
 
@@ -1218,18 +1280,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .eq('id', 1)
         .maybeSingle();
       if (homepageSettingsError) markErr('Error fetching homepage settings', homepageSettingsError);
-      else {
-        setHomepageSettings(homepageSettingsData || null);
-        try { localStorage.setItem('cache:homepage_settings', JSON.stringify(homepageSettingsData || null)); } catch {}
-      }
-
-      // Early release: once core homepage content is available, allow UI to render
-      // Remaining datasets will continue loading in background without blocking first paint
-      if (!silent) {
-        try {
-          setLoading(false);
-        } catch {}
-      }
+      else setHomepageSettings(homepageSettingsData || null);
 
       // Fetch HomeBound Settings
       const { data: hbSettingsData, error: hbSettingsError } = await supabase
@@ -1240,15 +1291,18 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (hbSettingsError) markErr('Error fetching homebound settings', hbSettingsError);
       else setHomeboundSettings(hbSettingsData || null);
 
-      // Fetch Site Settings (non-critical; missing table/network/permission tolerated)
-      // Fetch my permissions (non-critical)
+      // Fetch my permissions (non-critical). Skip when unauthenticated to avoid 400 on eq filter with empty user_id.
       try {
-        const { data: permRow } = await supabase
-          .from('admin_permissions' as any)
-          .select('*')
-          .eq('user_id', (await supabase.auth.getUser()).data.user?.id || '')
-          .maybeSingle();
-        if (permRow) {
+        const userId = (await supabase.auth.getUser()).data.user?.id || null;
+        if (!userId) {
+          setMyPermissions({});
+        } else {
+          const { data: permRow } = await supabase
+            .from('admin_permissions' as any)
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (permRow) {
           const p: any = permRow as any;
           setMyPermissions({
             can_events: !!p.can_events,
@@ -1264,11 +1318,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             can_homebound: !!p.can_homebound,
             can_sports: !!p.can_sports,
           });
-  // Fetch Form Settings
-  // Fetch HomeBound Settings
-      // Fetch Site Settings (non-critical; missing table/network/permission tolerated)
-        } else {
-          setMyPermissions({});
+          } else {
+            setMyPermissions({});
+          }
         }
       } catch { setMyPermissions({}); }
 
@@ -1295,7 +1347,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .select('*')
           .eq('id', 1)
           .maybeSingle();
-  if (ssErr) {
+        if (ssErr) {
           const raw = (ssErr as any)?.message || String(ssErr);
           const msg = String(raw).toLowerCase();
           const code = (ssErr as any)?.code;
@@ -1319,7 +1371,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         } else {
           setSiteSettings(ssData || null);
-          try { localStorage.setItem('cache:site_settings', JSON.stringify(ssData || null)); } catch {}
         }
       } catch (e) {
         console.warn('[Data] site_settings fetch threw (non-critical)', e);
@@ -1347,11 +1398,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             updated_at: (aboutData as any).updated_at ?? null,
           };
           setAboutSettings(normalized);
-          try { localStorage.setItem('cache:about_settings', JSON.stringify(normalized)); } catch {}
-        } else {
-          setAboutSettings(null);
-          try { localStorage.setItem('cache:about_settings', 'null'); } catch {}
-        }
+        } else setAboutSettings(null);
       } catch (e: any) {
         const msg = String(e?.message || '').toLowerCase();
         if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
@@ -1446,29 +1493,66 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         clearRetryTimer();
       }
       lastFetchAtRef.current = Date.now();
-      if (!silent) {
-        try {
-          // Avoid flicker if we already early-released loading earlier
-          setLoading((prev) => (prev ? false : prev));
-        } catch {}
-      }
+      if (!silent) setLoading(false);
     }
   };
 
+  // Single-flight + cooldown for hero media fetches to avoid console spam and tight loops
+  const heroFetchInFlight = React.useRef<Map<PageKey, Promise<HeroMedia | null>>>(new Map());
+  const heroFetchLastErrorAt = React.useRef<Map<PageKey, number>>(new Map());
+  const HERO_FETCH_COOLDOWN_MS = 30_000; // 30s per pageKey after an error
+
   const fetchHeroMedia = async (pageKey: PageKey): Promise<HeroMedia | null> => {
-    const { data, error } = await supabase
-      .from('hero_media')
-      .select('*')
-      .eq('page_key', pageKey)
-      .maybeSingle();
-    if (error) {
-      console.error('fetchHeroMedia error:', error);
-      return null;
+    // If we already have a value (including null), return it without refetch
+    const existing = heroMedia[pageKey];
+    if (typeof existing !== 'undefined') return existing as HeroMedia | null;
+
+    // If a fetch is already in-flight for this page, reuse it
+    const inflight = heroFetchInFlight.current.get(pageKey);
+    if (inflight) return inflight;
+
+    // Respect cooldown after recent error
+    const lastErrAt = heroFetchLastErrorAt.current.get(pageKey) || 0;
+    if (Date.now() - lastErrAt < HERO_FETCH_COOLDOWN_MS) {
+      return existing ?? null;
     }
-    if (data) {
-      setHeroMedia((prev) => ({ ...prev, [pageKey]: data as HeroMedia }));
-    }
-    return (data as HeroMedia) ?? null;
+
+    const p = (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('hero_media')
+          .select('*')
+          .eq('page_key', pageKey)
+          .maybeSingle();
+        if (error) {
+          const rawMsg = (error as any)?.message || (error as any)?.toString?.() || '';
+          // Throttle log to warning and mark cooldown
+          heroFetchLastErrorAt.current.set(pageKey, Date.now());
+          console.warn(`[Data] fetchHeroMedia(${pageKey}) non-critical error:`, rawMsg);
+          // Cache null to avoid repeated attempts in components
+          setHeroMedia((prev) => ({ ...prev, [pageKey]: null }));
+          return null;
+        }
+        if (data) {
+          const patched = {
+            ...data,
+            image_url: sanitizeUrl((data as any).image_url),
+            video_url: sanitizeUrl((data as any).video_url),
+          } as HeroMedia;
+          setHeroMedia((prev) => ({ ...prev, [pageKey]: patched }));
+          return patched;
+        }
+        // No row present: cache null to avoid tight refetch loops
+        setHeroMedia((prev) => ({ ...prev, [pageKey]: null }));
+        return null;
+      } finally {
+        // Clear single-flight marker when complete
+        heroFetchInFlight.current.delete(pageKey);
+      }
+    })();
+
+    heroFetchInFlight.current.set(pageKey, p);
+    return p;
   };
 
   const updateHeroMedia = async (pageKey: PageKey, patch: Partial<HeroMedia>) => {
@@ -1499,8 +1583,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   useEffect(() => {
-    // Initial bootstrap uses non-silent fetch to show loading until homepage settings arrive,
-    // then we early-release to render the shell while the rest continues in background.
+    // Initial bootstrap should show loading state
     fetchData(false);
   }, []);
 
@@ -1557,7 +1640,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Realtime subscription for roadmap milestones so roadmap updates instantly
   useEffect(() => {
-    void realtimeGen;
     const channelName = 'ctx-roadmap-milestones';
     const channel = supabase
       .channel(channelName)
@@ -1583,14 +1665,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) roadmap_milestones`);
         }
-      }, 10_000);
+      });
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, [realtimeGen]);
+  }, []);
 
   // Realtime: keep registrations list in sync (insert/update/delete)
   useEffect(() => {
-    void realtimeGen;
     const channelName = 'ctx-registrations';
     const channel = supabase
       .channel(channelName)
@@ -1616,14 +1697,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) registrations`);
         }
-      }, 10_000);
+      });
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, [realtimeGen]);
+  }, []);
 
   // Realtime: admin_users updates
   useEffect(() => {
-    void realtimeGen;
     const channelName = 'ctx-admin-users';
     const channel = supabase
       .channel(channelName)
@@ -1637,14 +1717,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) admin_users`);
         }
-      }, 10_000);
+      });
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, [realtimeGen]);
+  }, []);
 
   // Realtime: keep sponsors in sync so add/update/delete reflects instantly across Admin and public pages
   useEffect(() => {
-    void realtimeGen;
     const channelName = 'ctx-sponsors';
     const channel = supabase
       .channel(channelName)
@@ -1672,14 +1751,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsors`);
         }
-      }, 10_000);
+      });
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, [realtimeGen]);
+  }, []);
 
   // Realtime: keep sponsorship packages in sync so category chips and grouping update immediately
   useEffect(() => {
-    void realtimeGen;
     const channelName = 'ctx-sponsorship-packages';
     const channel = supabase
       .channel(channelName)
@@ -1707,14 +1785,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) sponsorship_packages`);
         }
-      }, 10_000);
+      });
     try { realtimeChannelsRef.current.add(channel); } catch {}
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, [realtimeGen]);
+  }, []);
 
   // Realtime: keep form_settings in sync so enable/disable reflects instantly
   useEffect(() => {
-    void realtimeGen;
     const formChannelName = 'ctx-form-settings';
     const formChannel = supabase
       .channel(formChannelName)
@@ -1731,7 +1808,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) form_settings`);
         }
-      }, 10_000);
+      });
 
     const homepageChannelName = 'ctx-homepage-settings';
     const homepageChannel = supabase
@@ -1739,13 +1816,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .on('postgres_changes', { event: '*', schema: 'public', table: 'homepage_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<HomepageSettings> | undefined;
         if (row && (row as any).id === 1) {
-          if (payload.eventType === 'DELETE') {
-            setHomepageSettings(null);
-            try { localStorage.setItem('cache:homepage_settings', 'null'); } catch {}
-          } else if (payload.new) {
-            setHomepageSettings(payload.new as HomepageSettings);
-            try { localStorage.setItem('cache:homepage_settings', JSON.stringify(payload.new)); } catch {}
-          }
+          if (payload.eventType === 'DELETE') setHomepageSettings(null);
+          else if (payload.new) setHomepageSettings(payload.new as HomepageSettings);
         }
       })
       .subscribe((status: any) => {
@@ -1754,7 +1826,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homepage_settings`);
         }
-      }, 10_000);
+      });
 
     const homeboundChannelName = 'ctx-homebound-settings';
     const homeboundChannel = supabase
@@ -1772,7 +1844,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) homebound_settings`);
         }
-      }, 10_000);
+      });
 
     const siteSettingsChannelName = 'ctx-site-settings';
     const siteSettingsChannel = supabase
@@ -1780,13 +1852,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .on('postgres_changes', { event: '*', schema: 'public', table: 'site_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<SiteSettings> | undefined;
         if (row && (row as any).id === 1) {
-          if (payload.eventType === 'DELETE') {
-            setSiteSettings(null);
-            try { localStorage.setItem('cache:site_settings', 'null'); } catch {}
-          } else if (payload.new) {
-            setSiteSettings(payload.new as SiteSettings);
-            try { localStorage.setItem('cache:site_settings', JSON.stringify(payload.new)); } catch {}
-          }
+          if (payload.eventType === 'DELETE') setSiteSettings(null);
+          else if (payload.new) setSiteSettings(payload.new as SiteSettings);
         }
       })
       .subscribe((status: any) => {
@@ -1795,7 +1862,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) site_settings`);
         }
-      }, 10_000);
+      });
 
     try {
       realtimeChannelsRef.current.add(formChannel);
@@ -1809,7 +1876,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try { supabase.removeChannel(homeboundChannel); realtimeChannelsRef.current.delete(homeboundChannel); } catch {}
       try { supabase.removeChannel(siteSettingsChannel); realtimeChannelsRef.current.delete(siteSettingsChannel); } catch {}
     };
-  }, [realtimeGen]);
+  }, []);
 
   // Event Management
   const addEvent = async (event: Partial<Event>) => {
@@ -3101,11 +3168,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('Auditions are currently closed');
     }
     // Optimistic add for instant feedback
-    try { setAuditions((prev) => [{ ...(audition as Audition), status: 'pending' } as Audition, ...prev]); } catch {}
-    const { error } = await supabase.from('auditions').insert(audition);
-    if (error) throw error;
-    // Background refresh; don't block UI
-    fetchData(true).catch((e) => console.warn('[Data] background refresh after audition add failed', e));
+    let rollback: (() => void) | null = null;
+    try {
+      // Insert and return the created row so we get id/created_at reliably
+      const insertQuery = supabase.from('auditions').insert(audition).select('*');
+      const { data, error } = await insertQuery.single();
+      if (error) {
+        const err = new Error(error.message || 'Failed to submit audition');
+        (err as any).code = (error as any).code;
+        (err as any).details = (error as any).details;
+        (err as any).hint = (error as any).hint;
+        throw err;
+      }
+      if (data) {
+        // Prepend the actual row
+        setAuditions((prev) => [data as Audition, ...prev.filter((a) => (a as any).__optimistic !== true)]);
+        return;
+      }
+      // Fallback: if no row returned, optimistic + background refresh
+      rollback = (() => setAuditions((prev) => prev.filter((a) => (a as any).__optimistic !== true)));
+      setAuditions((prev) => [{ ...(audition as Audition), status: 'pending', __optimistic: true } as any, ...prev]);
+      fetchData(true).catch((e) => console.warn('[Data] background refresh after audition add failed', e));
+    } catch (e) {
+      if (rollback) try { rollback(); } catch {}
+      throw e;
+    }
   };
 
   const updateAuditionStatus = async (id: string, status: 'pending' | 'reviewed' | 'contacted') => {
@@ -3148,11 +3235,73 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   // Form Settings Management
   const updateFormSettings = async (settings: Partial<FormSettings>) => {
-    const { error } = await supabase
+    // Ensure singleton row (id=1) exists and is updated
+    const payload = { id: 1, ...settings } as Partial<FormSettings> & { id: number };
+    let { error } = await supabase
       .from('form_settings')
-      .update(settings)
-      .eq('id', 1);
-    if (error) throw error;
+      .upsert(payload, { onConflict: 'id' });
+    // Fallback path: if RLS blocks the write, delegate to Netlify function using service role
+    if (error) {
+      const msg = String((error as any)?.message || '').toLowerCase();
+      const rlsBlocked = msg.includes('rls') || msg.includes('policy') || msg.includes('permission') || msg.includes('not allowed');
+      if (rlsBlocked) {
+        // First try RPC which can bypass RLS via SECURITY DEFINER on Supabase
+        try {
+          const { data: row, error: rpcErr } = await supabase.rpc('update_form_settings', {
+            p_audition_form_enabled: (settings as any).audition_form_enabled ?? null,
+            p_audition_form_message: (settings as any).audition_form_message ?? null,
+            p_membership_form_enabled: (settings as any).membership_form_enabled ?? null,
+            p_membership_form_message: (settings as any).membership_form_message ?? null,
+          });
+          if (!rpcErr && row) {
+            await fetchData(true);
+            return;
+          }
+          // If RPC missing or still blocked, fall back to Netlify function if available
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          if (!token) throw (rpcErr || error);
+          let resp = await fetch('/.netlify/functions/update-form-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(settings),
+          });
+          if (!resp.ok) {
+            // Try Netlify redirect style /api route as a fallback
+            try {
+              resp = await fetch('/api/update-form-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(settings),
+              });
+            } catch {}
+          }
+          if (!resp.ok) {
+            const ct = resp.headers.get('content-type') || '';
+            let msg2 = '';
+            try {
+              if (ct.includes('application/json')) {
+                const j = await resp.json();
+                msg2 = (j && (j.message || j.error || j.body)) || '';
+              } else {
+                msg2 = await resp.text();
+              }
+            } catch {}
+            if (resp.status === 404) {
+              throw new Error('Admin API missing. Start Netlify dev or deploy to use this action.');
+            }
+            throw new Error(msg2 || `Failed to update form settings (HTTP ${resp.status})`);
+          }
+        } catch (e) {
+          throw e;
+        }
+      } else if (msg.includes('does not exist') || msg.includes('not found')) {
+        const { error: insErr } = await supabase.from('form_settings').insert(payload as any);
+        if (insErr) throw insErr;
+      } else {
+        throw error;
+      }
+    }
   await fetchData(true);
   };
 
@@ -3252,7 +3401,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .maybeSingle();
       if (!refetchErr) {
         setHomepageSettings(data || null);
-        try { localStorage.setItem('cache:homepage_settings', JSON.stringify(data || null)); } catch {}
       }
     } catch (e) {
       // Fallback: schedule a background full refresh if something odd happens
@@ -3283,10 +3431,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         .select('*')
         .eq('id', 1)
         .maybeSingle();
-      if (!refErr) {
-        setSiteSettings(data || null);
-        try { localStorage.setItem('cache:site_settings', JSON.stringify(data || null)); } catch {}
-      }
+      if (!refErr) setSiteSettings(data || null);
     } catch {
       fetchData(true).catch(() => {});
     }

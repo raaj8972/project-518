@@ -242,7 +242,12 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      await addSponsorshipPackage(packageForm);
+      // Sanitize: trim and drop empty benefits
+      const sanitized = {
+        ...packageForm,
+        benefits: (packageForm.benefits || []).map((b) => (b || '').trim()).filter(Boolean),
+      };
+      await addSponsorshipPackage(sanitized);
       setIsAddingPackage(false);
       resetPackageForm();
       try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
@@ -261,7 +266,12 @@ export const SponsorsManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
-      await updateSponsorshipPackage(id, packageForm);
+      // Sanitize: trim and drop empty benefits
+      const sanitized = {
+        ...packageForm,
+        benefits: (packageForm.benefits || []).map((b) => (b || '').trim()).filter(Boolean),
+      };
+      await updateSponsorshipPackage(id, sanitized);
       steps.next('Finalizing');
       setEditingPackage(null);
       resetPackageForm();
@@ -300,7 +310,7 @@ export const SponsorsManagement: React.FC = () => {
       price: pkg.price,
       color: pkg.color,
       icon: pkg.icon,
-      benefits: pkg.benefits,
+      benefits: (pkg.benefits as any) && Array.isArray(pkg.benefits) ? pkg.benefits : [],
       order_position: pkg.order_position,
       enabled: pkg.enabled
     });
@@ -1270,6 +1280,38 @@ export const SponsorsManagement: React.FC = () => {
                         {!packageIconTouched && packageForm.tier && (
                           <p className="text-xs text-gray-500 mt-2">Suggested icon based on tier: {defaultIconForTier(packageForm.tier)}</p>
                         )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Benefits</label>
+                        <div className="space-y-2">
+                          {packageForm.benefits.map((benefit, index) => (
+                            <div key={index} className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={benefit}
+                                onChange={(e) => updateBenefit(index, e.target.value)}
+                                placeholder="Package benefit"
+                                className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeBenefit(index)}
+                                className="text-red-600 hover:text-red-800 p-1"
+                                title="Remove benefit"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={addBenefit}
+                            className="text-yellow-600 hover:text-yellow-700 text-sm flex items-center"
+                          >
+                            <Plus size={16} className="mr-1" />
+                            Add Benefit
+                          </button>
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <input
