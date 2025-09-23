@@ -8,6 +8,7 @@ import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
 import InfiniteMarquee from '../components/InfiniteMarquee';
+import SportsProfileModal from '../components/SportsProfileModal';
 import CoverflowCarousel from '../components/CoverflowCarousel';
 import FacultyProfileModal from '../components/FacultyProfileModal';
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
@@ -166,6 +167,10 @@ export const RicoFamily: React.FC = () => {
 
   // Check if social media links should be shown
   // Social media settings available via context if needed
+
+  // Sports profile modal state
+  const [sportsModalOpen, setSportsModalOpen] = useState(false);
+  const [selectedSportsPerson, setSelectedSportsPerson] = useState<any | null>(null);
 
   return (
   <div className="neon-theme min-h-screen">
@@ -661,6 +666,9 @@ export const RicoFamily: React.FC = () => {
                           items={heads}
                           direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                           speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                          pauseOnHover={true}
+                          glowOnPause={true}
+                          adaptiveGlowOnPause={false}
                           itemWrapperClassName="px-3"
                           className="py-2"
                           renderItem={(head) => (
@@ -670,6 +678,14 @@ export const RicoFamily: React.FC = () => {
                               </div>
                               <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                               <div className="text-sm text-gray-300">{head.role}</div>
+                              <div className="mt-3 text-center">
+                                <button
+                                  className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                  onClick={() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }}
+                                >
+                                  More
+                                </button>
+                              </div>
                             </div>
                           )}
                         />
@@ -746,6 +762,9 @@ export const RicoFamily: React.FC = () => {
                             items={allCommitteeMembers.filter(m => m.is_head)}
                             direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                             speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                            pauseOnHover={true}
+                            glowOnPause={true}
+                            adaptiveGlowOnPause={false}
                             itemWrapperClassName="px-3"
                             className="py-2"
                             renderItem={(head) => (
@@ -755,6 +774,14 @@ export const RicoFamily: React.FC = () => {
                                 </div>
                                 <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                                 <div className="text-sm text-gray-300">{head.role}</div>
+                                <div className="mt-3 text-center">
+                                  <button
+                                    className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                    onClick={() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }}
+                                  >
+                                    More
+                                  </button>
+                                </div>
                               </div>
                             )}
                           />
@@ -799,6 +826,8 @@ export const RicoFamily: React.FC = () => {
       )}
 
       {/* Legacy Core Team Section (fallback if no committees) */}
+  {/* Sports profile modal */}
+  <SportsProfileModal open={sportsModalOpen} onClose={() => setSportsModalOpen(false)} person={selectedSportsPerson} />
       {enabledCommittees.length === 0 && (
         <section className="py-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
