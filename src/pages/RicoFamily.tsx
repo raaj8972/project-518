@@ -717,6 +717,15 @@ export const RicoFamily: React.FC = () => {
                               <div className="p-2 sm:p-3">
                                 <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
                                 <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
+                                <div className="mt-2 text-center">
+                                  <button
+                                    className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                    onClick={() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }}
+                                    aria-label={`More about ${member.name}`}
+                                  >
+                                    More
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -810,6 +819,15 @@ export const RicoFamily: React.FC = () => {
                                 <div className="p-2 sm:p-3">
                                   <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
                                   <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
+                                  <div className="mt-2 text-center">
+                                    <button
+                                      className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                      onClick={() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }}
+                                      aria-label={`More about ${member.name}`}
+                                    >
+                                      More
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
