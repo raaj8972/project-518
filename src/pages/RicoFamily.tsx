@@ -667,6 +667,8 @@ export const RicoFamily: React.FC = () => {
                           direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                           speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
                           pauseOnHover={true}
+                          pauseOnTouch={true}
+                          sideGutterPx={8}
                           glowOnPause={true}
                           adaptiveGlowOnPause={false}
                           itemWrapperClassName="px-3"
@@ -772,6 +774,8 @@ export const RicoFamily: React.FC = () => {
                             direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                             speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
                             pauseOnHover={true}
+                            pauseOnTouch={true}
+                            sideGutterPx={8}
                             glowOnPause={true}
                             adaptiveGlowOnPause={false}
                             itemWrapperClassName="px-3"

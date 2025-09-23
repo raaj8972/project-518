@@ -28,6 +28,8 @@ interface InfiniteMarqueeProps<T> {
   getGlowColor?: (item: T, index: number) => string;
   // Optional: intensity multiplier for the glow overlay
   glowIntensity?: number;
+  // If true, a tap on touch devices toggles pause state. Default false to avoid conflicts with item clicks.
+  tapToTogglePause?: boolean;
 }
 
 function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
@@ -48,18 +50,29 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
     adaptiveGlowOnPause = false,
     adaptiveGlowOpacity = 0.22,
     getGlowColor,
-    glowIntensity = 1
+    glowIntensity = 1,
+    tapToTogglePause = false
   } = props;
   // React hooks and refs
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [durationSec, setDurationSec] = useState<number>(30);
   const [runDistancePx, setRunDistancePx] = useState<number>(0);
   const [isHovering, setIsHovering] = useState(false);
+  const [manualPaused, setManualPaused] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const itemRefs = useRef<Array<HTMLDivElement | null>>([]);
   const colorCacheByUrl = useRef<Map<string, string>>(new Map());
   const colorByIndex = useRef<Map<number, string>>(new Map());
     const containerRef = useRef<HTMLDivElement | null>(null);
+  const isCoarsePointer = useRef<boolean>(false);
+
+  useEffect(() => {
+    try {
+      const coarse = (typeof window !== 'undefined' && (navigator as any)?.maxTouchPoints > 0) ||
+        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+      isCoarsePointer.current = !!coarse;
+    } catch {}
+  }, []);
 
   useEffect(() => {
     const measure = () => {
@@ -85,7 +98,7 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
 
   if (!items || items.length === 0) return null;
 
-  const isPaused = paused || isHovering;
+  const isPaused = paused || isHovering || manualPaused;
 
   // Removed stray lines
     const computeDominantColor = async (url: string) => {
@@ -154,12 +167,37 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
         // Keep items off the very edges and away from safe areas. Apply to non-animated container to avoid seam jitter.
         paddingLeft: sideGutterPx ? `calc(env(safe-area-inset-left) + ${sideGutterPx}px)` : undefined,
         paddingRight: sideGutterPx ? `calc(env(safe-area-inset-right) + ${sideGutterPx}px)` : undefined,
-        WebkitMaskImage: undefined // placeholder to prevent style merging issues
+        WebkitMaskImage: undefined, // placeholder to prevent style merging issues
+        // Improve mobile touch behavior: allow vertical scroll and pinch-zoom while enabling press-to-pause
+        touchAction: 'pan-y pinch-zoom',
+        WebkitUserSelect: 'none',
+        userSelect: 'none'
       }}
       onMouseEnter={() => pauseOnHover && setIsHovering(true)}
       onMouseLeave={() => pauseOnHover && setIsHovering(false)}
-      onTouchStart={() => pauseOnTouch && setIsHovering(true)}
+      onTouchStart={() => {
+        if (!pauseOnTouch) return;
+        setIsHovering(true);
+        // Ensure we always resume even if the pointer events get cancelled due to scrolling
+        const clear = () => setIsHovering(false);
+        // Use capture to be early and once to auto-cleanup; passive true for performance
+        window.addEventListener('touchend', clear, { once: true, passive: true, capture: true } as any);
+        window.addEventListener('touchcancel', clear, { once: true, passive: true, capture: true } as any);
+      }}
       onTouchEnd={() => pauseOnTouch && setIsHovering(false)}
+      onPointerDown={() => setIsHovering(true)}
+      onPointerUp={() => setIsHovering(false)}
+      onPointerCancel={() => setIsHovering(false)}
+      tabIndex={0}
+      onFocus={() => setIsHovering(true)}
+      onBlur={() => setIsHovering(false)}
+      onClick={(e) => {
+        // Optional: only toggle when explicitly enabled and not clicking an item card/button/link
+        if (!tapToTogglePause) return;
+        const target = e.target as HTMLElement | null;
+        if (target && (target.closest('[data-im-item]') || target.closest('a,button,[role="button"]'))) return;
+        if (pauseOnTouch && isCoarsePointer.current) setManualPaused((p) => !p);
+      }}
     >
       {/* Soft overlay glow shown only when paused */}
       {glowOnPause && (
@@ -238,6 +276,7 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
               key={`a-${idx}`}
               ref={(el) => { itemRefs.current[idx] = el; }}
               className={`relative inline-flex ${itemWrapperClassName}`}
+              data-im-item
               style={{ minWidth: `${minItemWidthPx}px` }}
               onMouseEnter={() => { setHoveredIndex(idx); if (adaptiveGlowOnPause) { ensureIndexColor(idx); } }}
               onMouseLeave={() => setHoveredIndex((h) => (h === idx ? null : h))}
@@ -257,6 +296,7 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
             <div
               key={`b-${idx}`}
               className={`inline-flex ${itemWrapperClassName}`}
+              data-im-item
               style={{ minWidth: `${minItemWidthPx}px` }}
             >
               {renderItem(item, idx)}
