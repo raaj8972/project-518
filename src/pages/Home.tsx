@@ -1146,7 +1146,7 @@ export const Home: React.FC = () => {
                   {/* Key Features */}
                   <div className="mt-8 grid md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <h4 className="text-lg font-bold text-cyan-400 mb-3">INNOVATION TRACKS</h4>
+                      <h4 className="text-lg font-bold text-cyan-400 mb-3">FESTIVAL TRACKS</h4>
                       <div className="space-y-2">
                         {(aboutSettings?.tracks?.length ? aboutSettings.tracks : [
                           'Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences'
