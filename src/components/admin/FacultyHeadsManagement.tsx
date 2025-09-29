@@ -28,6 +28,7 @@ export const FacultyHeadsManagement: React.FC = () => {
     phone: '',
     instagram: '',
     youtube: '',
+    facebook: '',
     achievements: [] as string[],
     order_position: 1,
     enabled: true
@@ -41,8 +42,9 @@ export const FacultyHeadsManagement: React.FC = () => {
       description: '',
       email: '',
       phone: '',
-      instagram: '',
+        instagram: '',
       youtube: '',
+        facebook: '',
       achievements: [],
       order_position: facultyHeads.length + 1,
       enabled: true
@@ -61,9 +63,11 @@ export const FacultyHeadsManagement: React.FC = () => {
       const social_links: Record<string, string> = {};
       if (form.instagram?.trim()) social_links.instagram = form.instagram.trim();
       if (form.youtube?.trim()) social_links.youtube = form.youtube.trim();
+  if ((form as any).facebook?.trim()) social_links.facebook = (form as any).facebook.trim();
       const payload: any = { ...form };
       delete payload.instagram;
       delete payload.youtube;
+  delete payload.facebook;
       if (Object.keys(social_links).length > 0) payload.social_links = social_links;
       steps.next('Saving to database');
       await addFacultyHead(payload);
@@ -90,6 +94,7 @@ export const FacultyHeadsManagement: React.FC = () => {
       const payload: any = { ...form };
       delete payload.instagram;
       delete payload.youtube;
+      delete payload.facebook;
       // Merge with existing social_links, but allow clearing by empty field
       const existing = facultyHeads.find(f => f.id === id) as any;
       const merged: Record<string, string> = { ...(existing?.social_links || {}) };
@@ -100,6 +105,10 @@ export const FacultyHeadsManagement: React.FC = () => {
       if (form.youtube !== undefined) {
         if (form.youtube.trim()) merged.youtube = form.youtube.trim();
         else delete merged.youtube;
+      }
+      if ((form as any).facebook !== undefined) {
+        if ((form as any).facebook.trim()) merged.facebook = (form as any).facebook.trim();
+        else delete merged.facebook;
       }
       if (Object.keys(merged).length > 0) {
         payload.social_links = merged;
@@ -159,6 +168,7 @@ export const FacultyHeadsManagement: React.FC = () => {
       phone: (facultyHead as any).phone || '',
       instagram: ((facultyHead as any).social_links?.instagram) || '',
       youtube: ((facultyHead as any).social_links?.youtube) || '',
+      facebook: ((facultyHead as any).social_links?.facebook) || '',
       achievements: facultyHead.achievements,
       order_position: facultyHead.order_position,
       enabled: facultyHead.enabled
@@ -272,7 +282,7 @@ export const FacultyHeadsManagement: React.FC = () => {
               {/* Social Links */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Social Links (optional)</label>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <input
                     type="url"
                     value={form.instagram}
@@ -286,6 +296,13 @@ export const FacultyHeadsManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
                     placeholder="YouTube URL (e.g., https://youtube.com/@yourchannel)"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                  <input
+                    type="url"
+                    value={(form as any).facebook}
+                    onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
+                    placeholder="Facebook URL (e.g., https://facebook.com/yourpage)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
               </div>
@@ -418,7 +435,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   />
                 </div>
                 {/* Social links for edit */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <input
                     type="url"
                     value={form.instagram}
@@ -432,6 +449,13 @@ export const FacultyHeadsManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
                     placeholder="YouTube URL (optional)"
                     className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400"
+                  />
+                  <input
+                    type="url"
+                    value={(form as any).facebook}
+                    onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
+                    placeholder="Facebook URL (optional)"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
                   />
                 </div>
                 <textarea

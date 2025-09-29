@@ -260,7 +260,11 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
         className="flex items-stretch whitespace-nowrap"
         style={{
           // Animate by the exact measured width of the first group to avoid 50% rounding seams
-          animation: `im-scroll-var ${durationSec}s linear infinite`,
+          // Use longhand animation properties to avoid conflicting with animationDirection/animationPlayState
+          animationName: 'im-scroll-var',
+          animationDuration: `${durationSec}s`,
+          animationTimingFunction: 'linear',
+          animationIterationCount: 'infinite',
           animationPlayState: isPaused ? ('paused' as const) : ('running' as const),
           animationDirection: direction === 'right' ? ('reverse' as const) : ('normal' as const),
           willChange: 'transform',

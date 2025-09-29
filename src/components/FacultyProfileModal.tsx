@@ -2,6 +2,7 @@ import React from 'react';
 // Instagram replaced by text pill labeled 'Social'
 import Instagram3DButtonLink from './Instagram3DButtonLink';
 import YouTube3DButtonLink from './YouTube3DButtonLink';
+import Facebook3DButtonLink from './Facebook3DButtonLink';
 import Email3DButtonLink from './Email3DButtonLink';
 import Phone3DButtonLink from './Phone3DButtonLink';
 
@@ -125,6 +126,12 @@ const FacultyProfileModal: React.FC<FacultyProfileModalProps> = ({ open, onClose
                         </a>
                       )}
                     </span>
+                  );
+                }
+                if (k.toLowerCase() === 'facebook') {
+                  // Render only the 3D Facebook icon (no text label) to avoid wrapping and alignment issues on small screens
+                  return (
+                    <Facebook3DButtonLink key={k} href={v} iconSize={32} buttonSize={48} ariaLabel="Facebook profile" />
                   );
                 }
                 return (

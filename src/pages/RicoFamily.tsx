@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
+import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
 import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
 import Phone3DButtonLink from '../components/Phone3DButtonLink';
 import Email3DButtonLink from '../components/Email3DButtonLink';
@@ -417,6 +418,9 @@ export const RicoFamily: React.FC = () => {
                                       )}
                                       {head.social_links.youtube && (
                                         <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />
+                                      )}
+                                      {head.social_links.facebook && (
+                                        <Facebook3DButtonLink href={head.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${head.name}`} />
                                       )}
                                       {head.social_links.spotify && (
                                         <a

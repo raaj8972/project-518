@@ -38,6 +38,8 @@ export type AboutSettings = {
   hero_paragraphs: string[]; // jsonb
   tracks: string[]; // jsonb
   zones: string[]; // jsonb
+  tracksLabel?: string | null;
+  zonesLabel?: string | null;
   stats: Array<{ value: string; label: string }>; // jsonb
   updated_at: string | null;
 };
@@ -205,6 +207,9 @@ interface DataContextType {
   updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
   updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
+  // Prefetch helpers to warm important pages' data without toggling global loading
+  prefetchEvents?: () => Promise<void>;
+  prefetchGalleryImages?: () => Promise<void>;
   addRoadmapMilestone: (m: Partial<RoadmapMilestone>) => Promise<void>;
   updateRoadmapMilestone: (id: number, m: Partial<RoadmapMilestone>) => Promise<void>;
   deleteRoadmapMilestone: (id: number) => Promise<void>;
@@ -1393,7 +1398,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             hero_heading: (aboutData as any).hero_heading ?? null,
             hero_paragraphs: Array.isArray((aboutData as any).hero_paragraphs) ? (aboutData as any).hero_paragraphs : [],
             tracks: Array.isArray((aboutData as any).tracks) ? (aboutData as any).tracks : [],
+            tracksLabel: (aboutData as any).tracksLabel ?? null,
             zones: Array.isArray((aboutData as any).zones) ? (aboutData as any).zones : [],
+            zonesLabel: (aboutData as any).zonesLabel ?? null,
             stats: Array.isArray((aboutData as any).stats) ? (aboutData as any).stats : [],
             updated_at: (aboutData as any).updated_at ?? null,
           };
@@ -1497,6 +1504,30 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Lightweight prefetch helpers - fetch specific collections in parallel without flipping global loading
+  const prefetchEvents = async () => {
+    try {
+      const [{ data: eventsData }, { data: eventCoordinatorsData }] = await Promise.all([
+        supabase.from('events').select('*'),
+        supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true })
+      ] as any);
+      if (eventsData) setEvents((eventsData || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) })));
+      if (eventCoordinatorsData) setEventCoordinators(eventCoordinatorsData || []);
+    } catch (e) {
+      // ignore — prefetch best-effort
+      // console.debug('prefetchEvents failed', e);
+    }
+  };
+
+  const prefetchGalleryImages = async () => {
+    try {
+      const { data: galleryImagesData } = await supabase.from('gallery_images').select('*');
+      if (galleryImagesData) setGalleryImages((galleryImagesData || []).map((g: any) => ({ ...g, src: sanitizeUrl(g.src) })));
+    } catch (e) {
+      // ignore — best-effort
+    }
+  };
+
   // Single-flight + cooldown for hero media fetches to avoid console spam and tight loops
   const heroFetchInFlight = React.useRef<Map<PageKey, Promise<HeroMedia | null>>>(new Map());
   const heroFetchLastErrorAt = React.useRef<Map<PageKey, number>>(new Map());
@@ -1584,6 +1615,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Initial bootstrap should show loading state
+    // Kick off fetching hero media for the homepage as early as possible so
+    // the hero video URL is available quickly (helps autoplay start sooner).
+    // Fire-and-forget; fetchHeroMedia will cache the result and is single-flight.
+    try { fetchHeroMedia('home').catch(() => {}); } catch {}
     fetchData(false);
   }, []);
 
@@ -2239,14 +2274,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       ...sponsor,
       description: sponsor.description ?? '',
     } as Partial<Sponsor>;
-    const prev = sponsors.find(s => s.id === id) || null;
-    const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
+  const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
     if (error) throw error;
-    if (prev && payload.logo && !urlsEqual((prev as any).logo, payload.logo)) {
-      if (!isUrlReferencedSomewhere((prev as any).logo, { table: 'sponsors', id })) {
-        deleteStorageFileByPublicUrl((prev as any).logo);
-      }
-    }
+    // NOTE: Previously we attempted to automatically delete the previous sponsor logo
+    // from storage when it appeared to be unreferenced. This has caused cases where
+    // logos disappear from the UI due to subtle URL-normalization or reference-check
+    // mismatches. To avoid accidental removal of assets, we no longer auto-delete
+    // previous sponsor logos here. If you want automatic cleanup, implement a
+    // manual garbage-collection job that verifies references server-side before
+    // deleting storage objects.
     await fetchData(true);
   };
 
@@ -3453,6 +3489,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (payload.stats && !Array.isArray(payload.stats)) {
       try { payload.stats = JSON.parse(String(payload.stats)); } catch { payload.stats = []; }
     }
+    // tracksLabel and zonesLabel are simple strings, no conversion needed
     const { error } = await supabase
       .from('about_settings')
       .upsert(payload, { onConflict: 'id' });
@@ -3532,8 +3569,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   latencyMs,
   showConnectionBanner: connectionStatus !== 'ok' && !withinWarmup(),
     supabaseHost: SUPABASE_HOST,
-        refreshAll: fetchData,
-    resubscribeRealtime,
+    refreshAll: fetchData,
+  resubscribeRealtime,
+  prefetchEvents,
+  prefetchGalleryImages,
         addEvent,
   addEventWithCoordinators,
         updateEvent,

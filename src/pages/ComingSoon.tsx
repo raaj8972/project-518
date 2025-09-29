@@ -8,7 +8,9 @@ export const ComingSoon: React.FC = () => {
   const enabled = !!siteSettings?.coming_soon_enabled;
   const hardClosed = !!siteSettings?.site_closed;
   const endedText = (siteSettings as any)?.coming_soon_ended_text || "We'll be back soon";
-  
+  const csTitle = (siteSettings as any)?.coming_soon_title || null;
+  const csMessage = (siteSettings as any)?.coming_soon_message || null;
+  const showTimer = enabled && !!until;
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden">
@@ -39,19 +41,34 @@ export const ComingSoon: React.FC = () => {
           </div>
         </div>
 
-        {/* Intentionally no subheading/message: show only Ricorrenza and the timer */}
+        {/* Optional owner-configured title/message */}
+        {(csTitle || csMessage) && (
+          <div className="mt-6">
+            {csTitle && <h2 className="text-2xl md:text-4xl font-semibold tracking-tight">{csTitle}</h2>}
+            {csMessage && <p className="mt-3 text-lg text-white/80 max-w-3xl mx-auto">{csMessage}</p>}
+          </div>
+        )}
 
-        {/* Owner-configured timer */}
-        {enabled && until && (
+        {/* Owner-configured timer (when an end time is set) */}
+        {showTimer && (
           <div className="mt-8 animate-[fadeInUp_600ms_ease-out_100ms_both]">
             <CountdownTimer
-              target={until}
+              target={until as Date}
               neon
               size="xl"
               className="scale-110"
               endedText={hardClosed ? endedText : 'We\'re live!'}
               showEnded
             />
+          </div>
+        )}
+
+        {/* If there's no timer but the site is gated (enabled) or hard-closed, show the configured message/ended text */}
+        {!showTimer && (enabled || hardClosed) && (
+          <div className="mt-8 animate-[fadeInUp_600ms_ease-out_100ms_both]">
+            <div className="text-lg md:text-2xl font-medium text-white/90">
+              {csMessage || endedText}
+            </div>
           </div>
         )}
 

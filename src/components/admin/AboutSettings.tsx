@@ -26,6 +26,8 @@ export const AboutSettings: React.FC = () => {
   const [paragraphs, setParagraphs] = useState<string[]>(aboutSettings?.hero_paragraphs ?? []);
   const [tracks, setTracks] = useState<string[]>(aboutSettings?.tracks ?? ['Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences']);
   const [zones, setZones] = useState<string[]>(aboutSettings?.zones ?? ['Virtual Reality Labs','AI Demonstration Pods','Art Galleries','Future Tech Showcases']);
+  const [tracksLabel, setTracksLabel] = useState<string>(aboutSettings?.tracksLabel ?? 'Innovation Tracks');
+  const [zonesLabel, setZonesLabel] = useState<string>(aboutSettings?.zonesLabel ?? 'Experience Zones');
   const [stats, setStats] = useState<Array<{ value: string; label: string }>>(aboutSettings?.stats ?? [
     { value: '2025', label: 'FESTIVAL YEAR' },
     { value: '3+', label: 'DAYS OF EVENTS' },
@@ -44,8 +46,10 @@ export const AboutSettings: React.FC = () => {
     setHeroTitle(aboutSettings.hero_title ?? 'ABOUT RICORRENZA');
     setHeroHeading(aboutSettings.hero_heading ?? 'THE FUTURE IS NOW');
     setParagraphs(Array.isArray(aboutSettings.hero_paragraphs) ? aboutSettings.hero_paragraphs : []);
-    setTracks(Array.isArray(aboutSettings.tracks) ? aboutSettings.tracks : []);
-    setZones(Array.isArray(aboutSettings.zones) ? aboutSettings.zones : []);
+  setTracks(Array.isArray(aboutSettings.tracks) ? aboutSettings.tracks : []);
+  setZones(Array.isArray(aboutSettings.zones) ? aboutSettings.zones : []);
+  setTracksLabel(aboutSettings?.tracksLabel ?? 'Innovation Tracks');
+  setZonesLabel(aboutSettings?.zonesLabel ?? 'Experience Zones');
     setStats(Array.isArray(aboutSettings.stats) ? aboutSettings.stats : []);
   }, [aboutSettings?.id, aboutSettings?.updated_at]);
 
@@ -71,6 +75,8 @@ export const AboutSettings: React.FC = () => {
         hero_paragraphs: paragraphs.filter(Boolean),
         tracks: tracks.filter(Boolean),
         zones: zones.filter(Boolean),
+        tracksLabel,
+        zonesLabel,
         stats: stats.filter(s => s.value || s.label),
       } as any);
       steps.next('Saving to database');
@@ -143,7 +149,8 @@ export const AboutSettings: React.FC = () => {
 
         <div className="grid md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Innovation Tracks</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Section Name</label>
+            <input value={tracksLabel} onChange={e => setTracksLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2" placeholder="Innovation Tracks" />
             <div className="space-y-2">
               {tracks.map((t, i) => (
                 <div key={i} className="flex gap-2">
@@ -159,7 +166,8 @@ export const AboutSettings: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Experience Zones</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Section Name</label>
+            <input value={zonesLabel} onChange={e => setZonesLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2" placeholder="Experience Zones" />
             <div className="space-y-2">
               {zones.map((z, i) => (
                 <div key={i} className="flex gap-2">
@@ -208,7 +216,7 @@ export const AboutSettings: React.FC = () => {
             </div>
             <div className="grid md:grid-cols-2 gap-4 mt-4">
               <div>
-                <div className="text-sm font-medium text-gray-600 mb-1">Innovation Tracks</div>
+                <div className="text-sm font-medium text-gray-600 mb-1">{tracksLabel || 'Innovation Tracks'}</div>
                 <ul className="list-disc list-inside text-sm text-gray-700">
                   {(tracks.length ? tracks : ['']).map((t, i) => (
                     <li key={i}>{t}</li>
@@ -216,7 +224,7 @@ export const AboutSettings: React.FC = () => {
                 </ul>
               </div>
               <div>
-                <div className="text-sm font-medium text-gray-600 mb-1">Experience Zones</div>
+                <div className="text-sm font-medium text-gray-600 mb-1">{zonesLabel || 'Experience Zones'}</div>
                 <ul className="list-disc list-inside text-sm text-gray-700">
                   {(zones.length ? zones : ['']).map((z, i) => (
                     <li key={i}>{z}</li>

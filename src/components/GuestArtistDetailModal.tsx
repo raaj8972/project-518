@@ -6,6 +6,7 @@ import Sparkle3D from './Sparkle3D';
 import { Calendar, MapPin } from 'lucide-react';
 import Instagram3DButtonLink from './Instagram3DButtonLink';
 import YouTube3DButtonLink from './YouTube3DButtonLink';
+import Facebook3DButtonLink from './Facebook3DButtonLink';
 
 type SocialLinks = Record<string, string> | null | undefined;
 
@@ -165,6 +166,9 @@ const GuestArtistDetailModal: React.FC<{
                   <div className="flex items-center gap-3 flex-wrap">
                     {artist.social_links?.instagram && (
                       <Instagram3DButtonLink href={artist.social_links!.instagram} iconSize={28} buttonSize={44} ariaLabel={`Instagram of ${artist.name}`} />
+                    )}
+                    {artist.social_links?.facebook && (
+                      <Facebook3DButtonLink href={artist.social_links!.facebook} iconSize={28} buttonSize={44} ariaLabel={`Facebook of ${artist.name}`} />
                     )}
                     {(artist.social_links?.youtube || artist.youtube_url) && (
                       <YouTube3DButtonLink href={(artist.social_links?.youtube || artist.youtube_url)!} iconSize={28} buttonSize={44} ariaLabel={`YouTube of ${artist.name}`} />

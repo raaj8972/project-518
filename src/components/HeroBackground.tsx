@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useData } from '../context/DataContext';
 
 type Props = {
@@ -9,12 +9,27 @@ type Props = {
 export const HeroBackground: React.FC<Props> = ({ pageKey, className = '' }) => {
   const { heroMedia, fetchHeroMedia } = useData();
   const media = heroMedia?.[pageKey];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     // lazy fetch if missing
     if (!media) fetchHeroMedia(pageKey).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageKey]);
+
+  // Intentionally do NOT attempt to autoplay or call play().
+  // We'll attempt a muted programmatic play when the video URL arrives so that
+  // browsers that allow muted autoplay will start playback immediately. If the
+  // browser blocks autoplay the video will remain paused and we will NOT show
+  // a play button (per request).
+  useEffect(() => {
+    if (!media?.video_url) return;
+    const v = videoRef.current;
+    if (!v) return;
+    // Try to play; ignore failures (browser may block autoplay).
+    v.muted = true;
+    v.play?.().catch(() => {});
+  }, [media?.video_url]);
 
   // Apply page theme to <html data-theme="..."> so CSS vars switch
   useEffect(() => {
@@ -40,11 +55,9 @@ export const HeroBackground: React.FC<Props> = ({ pageKey, className = '' }) => 
         // Support explicit modes and auto mode: prefer video when available, otherwise image
         ((media?.background_type === 'video' || media?.background_type === 'auto') && media.video_url) ? (
           <video
+            ref={videoRef}
             src={media.video_url}
-            autoPlay
-            muted
             playsInline
-            loop
             preload="metadata"
             poster={media.poster_url || undefined}
             className="w-full h-full object-cover"

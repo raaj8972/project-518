@@ -1,6 +1,7 @@
 import React from 'react';
 import Instagram3DButtonLink from './Instagram3DButtonLink';
 import YouTube3DButtonLink from './YouTube3DButtonLink';
+import Facebook3DButtonLink from './Facebook3DButtonLink';
 import Email3DButtonLink from './Email3DButtonLink';
 import Phone3DButtonLink from './Phone3DButtonLink';
 
@@ -106,6 +107,11 @@ const SportsProfileModal: React.FC<SportsProfileModalProps> = ({ open, onClose, 
                         <a href={v} target="_blank" rel="noopener noreferrer" className="text-sm text-red-300 hover:text-red-200">{handle}</a>
                       )}
                     </span>
+                  );
+                }
+                if (k.toLowerCase() === 'facebook') {
+                  return (
+                    <Facebook3DButtonLink key={k} href={v} iconSize={32} buttonSize={48} />
                   );
                 }
                 return (

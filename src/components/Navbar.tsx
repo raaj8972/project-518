@@ -10,6 +10,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { homepageSettings } = useData();
+  const { prefetchEvents, prefetchGalleryImages } = useData();
 
   // Compute responsive offsets with fallback to base values
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -65,9 +66,9 @@ export const Navbar: React.FC = () => {
 
   const navItems = [
     { name: 'Home', path: '/', icon: null },
-    { name: 'Events', path: '/events', icon: Calendar },
+    { name: 'Events', path: '/events', icon: Calendar, onHover: prefetchEvents },
     { name: 'Schedule', path: '/schedule', icon: Clock },
-    { name: 'Gallery', path: '/gallery', icon: Image },
+    { name: 'Gallery', path: '/gallery', icon: Image, onHover: prefetchGalleryImages },
     { name: 'Home Bound', path: '/home-bound', icon: Users },
     { name: 'Rico Family', path: '/rico-family', icon: Users },
     { name: 'Sponsors', path: '/sponsors', icon: Users },
@@ -146,6 +147,7 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onMouseEnter={() => item.onHover && item.onHover()}
                   onClick={(e)=>handleNavClick(e, item.path)}
                   className={`cyberpunk-nav-item group ${
                     isActive(item.path) ? 'active' : ''
