@@ -1175,7 +1175,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         .from('core_team_members')
         .select('*');
       if (coreTeamMembersError) markErr('Error fetching core team members', coreTeamMembersError);
-      else setCoreTeamMembers((coreTeamMembersData || []).map(m => ({ ...m, image: sanitizeUrl((m as any).image) })));
+      else setCoreTeamMembers((coreTeamMembersData || []).map(m => ({
+        ...m,
+        image: sanitizeUrl((m as any).image),
+        // Map snake_case DB column to camelCase used in UI. If column absent, default false.
+        isCouncil: ((m as any).is_council ?? false) as boolean,
+      }) as any));
 
       // Fetch Band Members (ALL for admin; public pages filter by enabled)
       const { data: bandMembersData, error: bandMembersError } = await supabase
@@ -2802,7 +2807,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // Core Team Members Management
   const addCoreTeamMember = async (member: Partial<CoreTeamMember>) => {
-    const { error } = await supabase.from('core_team_members').insert(member);
+    // Translate camelCase UI fields to DB snake_case when present
+    const payload: any = { ...member };
+    if (Object.prototype.hasOwnProperty.call(payload, 'isCouncil')) {
+      payload.is_council = (payload.isCouncil as any) ?? false;
+      delete payload.isCouncil;
+    }
+    const { error } = await supabase.from('core_team_members').insert(payload);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
       // Fallback if optional columns aren't in schema yet
@@ -2822,7 +2833,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const updateCoreTeamMember = async (id: number, member: Partial<CoreTeamMember>) => {
     const prev = coreTeamMembers.find(m => m.id === id) || null;
-    const { error } = await supabase.from('core_team_members').update(member).eq('id', id);
+    // Translate camelCase UI fields to DB snake_case for update
+    const payload: any = { ...member };
+    if (Object.prototype.hasOwnProperty.call(payload, 'isCouncil')) {
+      payload.is_council = (payload.isCouncil as any) ?? false;
+      delete payload.isCouncil;
+    }
+    const { error } = await supabase.from('core_team_members').update(payload).eq('id', id);
     if (error) {
       const msg = String((error as any)?.message || '').toLowerCase();
       const unknownColumn = msg.includes('column') && msg.includes('does not exist');
@@ -2863,7 +2880,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const toggleCoreTeamMemberIsHead = async (id: number) => {
     const member = coreTeamMembers.find(m => m.id === id);
     if (!member) return;
-    const { error } = await supabase.from('core_team_members').update({ is_head: !member.is_head }).eq('id', id);
+    // If we're turning on is_head, ensure is_council is turned off to enforce mutual exclusivity
+    const payload: any = { is_head: !member.is_head };
+    if (!member.is_head) {
+      payload.is_council = false;
+    }
+    const { error } = await supabase.from('core_team_members').update(payload).eq('id', id);
     if (error) throw error;
     await fetchData(true);
   };

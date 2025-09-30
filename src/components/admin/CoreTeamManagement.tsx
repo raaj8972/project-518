@@ -56,7 +56,8 @@ export const CoreTeamManagement: React.FC = () => {
     achievements: [] as string[],
     order_position: 1,
     enabled: true,
-    is_head: false,
+  is_head: false,
+  isCouncil: false,
     phone: '',
     social_links: {
       instagram: '',
@@ -88,6 +89,7 @@ export const CoreTeamManagement: React.FC = () => {
       order_position: coreTeamMembers.length + 1,
       enabled: true,
       is_head: false,
+      isCouncil: false,
       phone: '',
       social_links: {
         instagram: '',
@@ -247,7 +249,8 @@ export const CoreTeamManagement: React.FC = () => {
       achievements: member.achievements,
       order_position: member.order_position,
       enabled: member.enabled,
-      is_head: member.is_head,
+  is_head: member.is_head,
+  isCouncil: ((member as any).isCouncil ?? false) || false,
       phone: (member as any).phone || '',
       social_links: member.social_links || { instagram: '', youtube: '', spotify: '' }
     });
@@ -292,6 +295,24 @@ export const CoreTeamManagement: React.FC = () => {
     acc[member.committee_id].push(member);
     return acc;
   }, {} as Record<number, CoreTeamMember[]>);
+
+  const toggleMemberCouncil = async (id: number) => {
+    try {
+      const member = coreTeamMembers.find(m => m.id === id);
+      const current = (member as any)?.isCouncil ?? false;
+      if (typeof updateCoreTeamMember === 'function') {
+        const payload: any = { isCouncil: !current };
+        if (!current) {
+          // turning council on -> ensure member is not a committee head
+          payload.is_head = false;
+        }
+        await updateCoreTeamMember(id, payload as any);
+      }
+    } catch (e) {
+      console.error('Failed to toggle council flag', e);
+      alert('Failed to toggle council flag. Please try again.');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -768,14 +789,25 @@ export const CoreTeamManagement: React.FC = () => {
                       </label>
                     </div>
                   </div>
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={memberForm.is_head}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Committee Head</span>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={memberForm.is_head}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked, ...(e.target.checked ? { isCouncil: false } : {}) }))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Committee Head</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={memberForm.isCouncil}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, isCouncil: e.target.checked, ...(e.target.checked ? { is_head: false } : {}) }))}
+                        className="mr-2"
+                      />
+                      <span className="text-sm font-medium text-red-600">Council (shows red)</span>
+                    </label>
                   </div>
                   
                   {/* Social Links */}
@@ -1077,7 +1109,7 @@ export const CoreTeamManagement: React.FC = () => {
                             />
                             <div className="flex-grow">
                               <h5 className="font-semibold text-sm">{member.name}</h5>
-                              <p className="text-xs text-gray-600">{member.role}</p>
+                              <p className={(member as any).isCouncil ? "text-xs text-red-600" : "text-xs text-yellow-600"}>{member.role}</p>
                               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
                                 {member.specialty}
                               </span>
@@ -1138,6 +1170,18 @@ export const CoreTeamManagement: React.FC = () => {
                                 title={member.is_head ? 'Remove as head' : 'Make committee head'}
                               >
                                 <Crown size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleMemberCouncil(member.id)}
+                                className={`p-1 rounded transition-colors ${
+                                  (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                                } hover:bg-red-200 ml-1`}
+                                title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="12" cy="12" r="10" />
+                                </svg>
                               </button>
                               <button
                                 type="button"

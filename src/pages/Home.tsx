@@ -100,7 +100,8 @@ export const Home: React.FC = () => {
 
   // Heads data and memoized sorted lists (must be before any early return)
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head);
+  // Include council members in marquee display so both heads and council are visible
+  const committeeHeads = coreTeamMembers.filter(m => m.enabled && (m.is_head || (m as any).isCouncil));
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
   // Sorted full list of heads for display and navigation
   const sortedCommitteeHeads = React.useMemo(() => (
@@ -170,7 +171,50 @@ export const Home: React.FC = () => {
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safetyTimer); observer.disconnect(); };
   // Re-run when loading flips or data collections change size (new DOM nodes likely)
-  }, [loading, events.length, galleryImages.length, sponsors.length, guestArtists.length]);
+  }, [loading, events.length, galleryImages.length, sponsors.length, guestArtists.length, facultyHeads.length, coreTeamMembers.length]);
+
+  // Removed the short timeout-based reveal approach and replaced with a more robust
+  // navigation-time immediate-check below that uses requestAnimationFrame and a
+  // small retry loop so elements that mount just after navigation are still caught.
+
+  // Ensure sections that should be visible are revealed immediately when navigating here
+  useEffect(() => {
+    // Attempt to position at top immediately so viewport calculations are stable
+    try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); } catch {}
+
+    let cancelled = false;
+    let attempts = 0;
+    const maxAttempts = 12; // will cover ~200ms at 60fps
+
+    const revealPass = () => {
+      if (cancelled) return;
+      attempts += 1;
+
+      const nodes = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+      nodes.forEach((el) => {
+        if (el.classList.contains('animate-in')) return;
+        try {
+          const r = el.getBoundingClientRect();
+          if (r.top < window.innerHeight && r.bottom > 0) {
+            el.classList.add('animate-in');
+          }
+        } catch (e) {
+          // ignore transient DOM errors
+        }
+      });
+
+      // If we still have elements not revealed and attempts remain, retry on next frame
+      const remaining = Array.from(document.querySelectorAll('.scroll-animate')).some(el => !el.classList.contains('animate-in'));
+      if (remaining && attempts < maxAttempts) {
+        requestAnimationFrame(revealPass);
+      }
+    };
+
+    // Start checking on the next frame so layout has a chance to settle, but retry a few frames
+    requestAnimationFrame(revealPass);
+
+    return () => { cancelled = true; };
+  }, [location]);
 
   // Parallax effect
   useEffect(() => {
@@ -1050,7 +1094,9 @@ export const Home: React.FC = () => {
                           }, [m.image]);
                           return (
                             <div
-                              className={`w-[232px] sm:w-[262px] md:w-80 cyberpunk-card p-4 sm:p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
+                              onMouseEnter={() => setCommitteePaused(true)}
+                              onMouseLeave={() => setCommitteePaused(false)}
+                              className={`w-[232px] sm:w-[262px] md:w-80 cyberpunk-card p-4 sm:p-5 cursor-pointer transition-shadow duration-150 group relative ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
                               onClick={() => {
                                 setClicked({ type: 'committee', id: m.id });
                                 const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
@@ -1065,11 +1111,17 @@ export const Home: React.FC = () => {
                                 }, 180);
                               }}
                             >
+                              {/* Hover badge - becomes visible when parent .group is hovered */}
+                              <div className="absolute top-3 left-3 opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none z-20">
+                                <div className={`px-2 py-1 rounded-full text-[11px] font-semibold ${ (m as any).isCouncil ? 'bg-red-500 text-white' : 'bg-yellow-400 text-black' }`}> 
+                                  { (m as any).isCouncil ? 'COUNCIL' : 'COMMITTEE HEAD' }
+                                </div>
+                              </div>
                               <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 sm:mb-4 bg-black/30 flex items-center justify-center">
                                 <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                               </div>
                               <div className="font-bold text-white flex items-center text-sm sm:text-base md:text-lg">
-                                <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                                <Crown className={`${(m as any).isCouncil ? 'w-5 h-5 text-red-400 crown-glow' : 'w-4 h-4 text-yellow-400'} mr-1`} /> {m.name}
                               </div>
                               <div className="text-xs sm:text-sm md:text-base text-gray-300">{m.role}</div>
                               {/* Pass the dynamic glow color to InfiniteMarquee via a custom prop */}
