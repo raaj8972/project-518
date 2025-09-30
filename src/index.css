@@ -287,18 +287,6 @@
   }
   .logo-3d-stage { animation: glowLoop 3.4s ease-in-out infinite; border-radius: 16px; }
 
-  /* Crown icon glow & pulse for council items */
-  .crown-glow {
-    transform-origin: center center;
-    animation: crownPulse 1.6s ease-in-out infinite;
-    filter: drop-shadow(0 0 6px rgba(255,77,77,0.95)) drop-shadow(0 0 12px rgba(255,77,77,0.6));
-  }
-  @keyframes crownPulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.12); }
-    100% { transform: scale(1); }
-  }
-
   /* Force dark logo box: disable glow overlays and stage animation */
   .logo-dark { background-color: #000 !important; }
   .logo-dark.logo-3d-stage { animation: none !important; box-shadow: none !important; }

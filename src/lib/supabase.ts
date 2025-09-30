@@ -322,6 +322,38 @@ export interface Database {
           created_at?: string
         }
       }
+      event_winners: {
+        Row: {
+          id: number
+          event_id: number | null
+          category: string | null
+          registration_id: string | null
+          position: number
+          name: string
+          photo_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          event_id?: number | null
+          category?: string | null
+          registration_id?: string | null
+          position?: number
+          name: string
+          photo_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          event_id?: number | null
+          category?: string | null
+          registration_id?: string | null
+          position?: number
+          name?: string
+          photo_url?: string | null
+          created_at?: string
+        }
+      }
       event_coordinators: {
         Row: {
           id: number

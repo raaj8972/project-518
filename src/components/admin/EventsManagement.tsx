@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOf
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
+import EventWinnersEditor from './EventWinnersEditor';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
@@ -20,12 +21,15 @@ export const EventsManagement: React.FC = () => {
     eventCoordinators,
     addEventCoordinator,
     updateEventCoordinator,
-    deleteEventCoordinator
-  } = useData();
+    deleteEventCoordinator,
+    myPermissions,
+    eventWinners: _eventWinners,
+  } = useData() as any;
   const savingProgress = useSavingProgress();
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
+  const [activeWinnersFor, setActiveWinnersFor] = useState<number | null>(null);
   const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   // Draft coordinators when creating a brand new event (before it has an id)
   const [draftCoordinators, setDraftCoordinators] = useState<Array<{ name: string; phone?: string | null }>>([]);
@@ -277,7 +281,7 @@ export const EventsManagement: React.FC = () => {
     setEditingEvent(event.id);
   };
 
-  const coordinatorsFor = (eventId: number): EventCoordinator[] => eventCoordinators.filter(c => c.event_id === eventId).sort((a,b)=>a.order_position - b.order_position);
+  const coordinatorsFor = (eventId: number): EventCoordinator[] => (eventCoordinators as EventCoordinator[]).filter((c: EventCoordinator) => c.event_id === eventId).sort((a: EventCoordinator, b: EventCoordinator) => a.order_position - b.order_position);
   const addCoordinator = async (eventId: number) => {
     if (!newCoordinator.name.trim() && !newCoordinator.phone.trim()) return;
     await addEventCoordinator({ event_id: eventId, name: newCoordinator.name.trim() || '—', phone: newCoordinator.phone.trim() || null, order_position: (coordinatorsFor(eventId).slice(-1)[0]?.order_position ?? 0) + 1 });
@@ -287,6 +291,8 @@ export const EventsManagement: React.FC = () => {
   const removeCoordinator = async (id: number) => {
     await deleteEventCoordinator(id);
   };
+
+  // Winners helpers
 
   const updateCoordinatorField = async (id: number, field: 'name' | 'phone', value: string) => {
     const steps = savingProgress.withSteps(2, 'Preparing…');
@@ -456,7 +462,7 @@ export const EventsManagement: React.FC = () => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 >
                   <option value="">Select Category</option>
-                  {eventCategories.map(category => (
+                    {eventCategories.map((category: any) => (
                     <option key={category.id} value={category.name}>{category.name}</option>
                   ))}
                 </select>
@@ -789,7 +795,7 @@ export const EventsManagement: React.FC = () => {
 
       {/* Events List */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {events.map((event) => (
+  {events.map((event: any) => (
           <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
             {editingEvent === event.id ? (
               <div className="p-4 space-y-4">
@@ -806,7 +812,7 @@ export const EventsManagement: React.FC = () => {
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 >
                   <option value="">Select Category</option>
-                  {eventCategories.map(category => (
+                  {eventCategories.map((category: any) => (
                     <option key={category.id} value={category.name}>{category.name}</option>
                   ))}
                 </select>
@@ -992,6 +998,12 @@ export const EventsManagement: React.FC = () => {
                     <input className="col-span-5 p-1 text-sm border rounded" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
                     <button type="button" onClick={()=>addCoordinator(event.id)} className="col-span-2 bg-green-600 text-white rounded text-xs px-2">Add</button>
                   </div>
+
+                  {/* Winners management (show once per event) */}
+                  <div className="mt-4 border-t pt-3">
+                    <div className="text-sm font-semibold mb-2">Winners</div>
+                    <EventWinnersEditor eventId={event.id} />
+                  </div>
                 </div>
               </div>
             ) : (
@@ -1037,6 +1049,13 @@ export const EventsManagement: React.FC = () => {
                       <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
                         Hidden
                       </span>
+                    )}
+                    {/* Quick winners preview + manage button */}
+                    {(myPermissions?.can_events || true) && (
+                      <div className="ml-2 flex items-center gap-2">
+                        <div className="text-xs text-gray-300">{((_eventWinners || []) as any[]).filter((w:any) => w.event_id === event.id).length} winners</div>
+                        <button onClick={() => setActiveWinnersFor((cur) => cur === event.id ? null : event.id)} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Manage Winners</button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1094,6 +1113,12 @@ export const EventsManagement: React.FC = () => {
 
                   <div className="flex justify-between items-center mt-4">
                     <div className="flex space-x-1">
+                      {/* Inline winners editor: show below card when toggled */}
+                      {activeWinnersFor === event.id && (
+                        <div className="col-span-12 mt-4">
+                          <EventWinnersEditor eventId={event.id} />
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleToggleFeatured(event.id)}

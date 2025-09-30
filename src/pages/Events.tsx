@@ -9,8 +9,8 @@ import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 
 export const Events: React.FC = () => {
-  const { events, eventCoordinators, connectionStatus, lastError, refreshAll } = useData();
-  const getCoordinators = (eventId: number) => eventCoordinators?.filter(c => c.event_id === eventId) || [];
+  const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll } = useData() as any;
+  const getCoordinators = (eventId: number) => (eventCoordinators as any)?.filter((c: any) => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const [registrationModal, setRegistrationModal] = useState<{ isOpen: boolean; eventId: number; eventTitle: string }>(
@@ -22,9 +22,9 @@ export const Events: React.FC = () => {
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
-  const visibleEvents = events.filter((e) => e.visible !== false);
-  const categories = ['All', ...Array.from(new Set(visibleEvents.map((e) => e.category)))];
-  const filteredEvents = selectedCategory === 'All' ? visibleEvents : visibleEvents.filter((e) => e.category === selectedCategory);
+  const visibleEvents = (events as any[]).filter((e: any) => e.visible !== false);
+  const categories = ['All', ...Array.from(new Set(visibleEvents.map((e: any) => String(e.category))))];
+  const filteredEvents = selectedCategory === 'All' ? visibleEvents : visibleEvents.filter((e: any) => e.category === selectedCategory);
   const categoriesKey = categories.join('|');
 
   // If current selection disappears due to data refresh, fallback to All so cards render
@@ -56,7 +56,7 @@ export const Events: React.FC = () => {
     }
     // If target not found, switch category to include it
     const idNum = Number(idStr);
-    const ev = events.find(e => e.id === idNum);
+  const ev = events.find((e: any) => e.id === idNum);
     if (ev && selectedCategory !== 'All' && selectedCategory !== ev.category) {
       setSelectedCategory(ev.category);
       // After category update, effect will re-run and scroll
@@ -81,7 +81,7 @@ export const Events: React.FC = () => {
   // Stable key for dependency to re-run observer when filteredEvents set changes
   function filteredRulesKey(list: typeof filteredEvents) {
     // use ids + length to avoid heavy deps, and ensure change when category toggles
-    return list.length + ':' + list.map((e) => e.id).join(',');
+    return list.length + ':' + list.map((e: any) => e.id).join(',');
   }
 
   // Soft perspective tilt on hover for desktop/fine pointers
@@ -134,6 +134,67 @@ export const Events: React.FC = () => {
     };
     cards.forEach((el) => el.addEventListener('click', handler, { passive: true }));
     return () => cards.forEach((el) => el.removeEventListener('click', handler as EventListener));
+  }, []);
+
+  // Auto-scroll marquee for winners rows on small screens
+  useEffect(() => {
+    // Respect users who prefer reduced motion
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const rows = Array.from(document.querySelectorAll('.winners-row-mobile')) as HTMLElement[];
+    if (!rows.length) return;
+
+    let raf = 0 as number;
+    const speed = 0.45; // pixels per frame (tweak for faster/slower)
+
+    const step = () => {
+      // Only auto-scroll on narrow viewports (mobile)
+      if (window.innerWidth > 768) {
+        raf = requestAnimationFrame(step);
+        return;
+      }
+      rows.forEach((row) => {
+        if (row.dataset.marqueePaused === 'true') return;
+        const max = row.scrollWidth - row.clientWidth;
+        if (max <= 0) return;
+        let next = row.scrollLeft + speed;
+        if (next > max) {
+          // smooth wrap to start
+          next = 0;
+        }
+        row.scrollLeft = next;
+      });
+      raf = requestAnimationFrame(step);
+    };
+
+    const pause = (ev: Event) => { const el = ev.currentTarget as HTMLElement; if (el) el.dataset.marqueePaused = 'true'; };
+    const resume = (ev: Event) => { const el = ev.currentTarget as HTMLElement; if (el) el.dataset.marqueePaused = 'false'; };
+
+    rows.forEach((r) => {
+      r.dataset.marqueePaused = 'false';
+      r.addEventListener('mouseenter', pause);
+      r.addEventListener('mouseleave', resume);
+      r.addEventListener('touchstart', pause, { passive: true } as EventListenerOptions);
+      r.addEventListener('touchend', resume);
+    });
+
+    raf = requestAnimationFrame(step);
+
+    const onResize = () => { /* keep running, step checks width */ };
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      rows.forEach((r) => {
+        r.removeEventListener('mouseenter', pause);
+        r.removeEventListener('mouseleave', resume);
+        // Note: removeEventListener for passive listener still works
+        r.removeEventListener('touchstart', pause as EventListener);
+        r.removeEventListener('touchend', resume);
+      });
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   const openRegistration = (eventId: number, eventTitle: string) => setRegistrationModal({ isOpen: true, eventId, eventTitle });
@@ -246,10 +307,10 @@ export const Events: React.FC = () => {
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
 
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 z-0">
           <HeroBackground pageKey="events" />
           <div className="particles-container">
-            {[...Array(50)].map((_, i) => (
+            {[...Array(50)].map((_: any, i: number) => (
               <div key={i} className="particle" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 20}s`, animationDuration: `${15 + Math.random() * 10}s` }} />
             ))}
           </div>
@@ -278,13 +339,15 @@ export const Events: React.FC = () => {
         </div>
       </section>
 
+      {/* Winners Section moved below the events grid */}
+
       <section className="py-12 relative">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-10">
             <div className="flex justify-center mb-8">
               <div className="cyberpunk-card w-full md:max-w-5xl lg:max-w-6xl xl:max-w-7xl p-3 md:p-4">
                 <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
-                  {categories.map((category) => (
+                  {categories.map((category: string) => (
                     <button
                       key={category}
                       onClick={() => setSelectedCategory(category)}
@@ -302,8 +365,8 @@ export const Events: React.FC = () => {
 
       <section className="py-12 relative">
         <div className="container mx-auto px-4" ref={eventsRef}>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredEvents.map((event, index) => (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredEvents.map((event: any, index: number) => (
               <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
@@ -390,7 +453,7 @@ export const Events: React.FC = () => {
                           const dt = parseEventDateTime(event.date as any, event.time as any);
                           if (dt) {
                             return (
-                              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 pointer-events-auto" onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}>
                                 <WatchLiveButton
                                   url={wlu}
                                   startTime={dt.toISOString()}
@@ -407,7 +470,7 @@ export const Events: React.FC = () => {
                       })()}
                       <div className="h-full overflow-hidden flex flex-col">
                         <div className="p-6 overflow-y-auto flex-1">
-                          <h3 className="text-xl font-bold text-white mb-3">{event.title}</h3>
+                          <h3 className="text-xl font-bold text-white mb-3" style={{ transform: 'translateX(16px)' }}>{event.title}</h3>
                           <p className="text-gray-300 mb-4">{event.description}</p>
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center text-sm text-gray-400"><Calendar size={16} className="mr-2 text-blue-400" />{event.date}</div>
@@ -421,7 +484,7 @@ export const Events: React.FC = () => {
                               <div className="mt-2 text-sm text-gray-300">
                                 <div className="font-semibold text-gray-200">Coordinators</div>
                                 <div className="text-gray-400 space-y-0.5">
-                                  {getCoordinators(event.id).map(c => (
+                                  {getCoordinators(event.id).map((c: any) => (
                                     <div key={c.id}>{c.name}{c.phone ? ` • ${c.phone}` : ''}</div>
                                   ))}
                                 </div>
@@ -451,18 +514,46 @@ export const Events: React.FC = () => {
                               </div>
                             </div>
                           ) : null}
+                          {/* Per-event winners (render as a single horizontal row) */}
+                          {(() => {
+                            const evWinners = (eventWinners || []).filter((w: any) => w.event_id === event.id).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                            if (!evWinners || evWinners.length === 0) return null;
+                            return (
+                              <div className="mb-4 per-event-winners">
+                                <h4 className="font-semibold text-gray-200 mb-2">Winners</h4>
+                                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar winners-row-mobile">
+                                  {evWinners.map((w: any) => (
+                                    <div key={w.id} className="flex-shrink-0 flex flex-col items-center gap-1 bg-gray-900/40 py-0.5 px-1 rounded mr-2">
+                                      <div className="relative w-28 h-28 md:w-32 md:h-32 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
+                                        {w.photo_url ? <img src={w.photo_url} alt={w.name} className="w-full h-full object-cover" /> : <div className="text-xs text-gray-500">No photo</div>}
+                                        {/* Medal badge (use the winner's position) */}
+                                        {(() => {
+                                          const pos = Number(w.position || 0) || 0;
+                                          const medalColor = pos === 1 ? 'bg-yellow-400 text-black' : pos === 2 ? 'bg-gray-300 text-black' : pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white';
+                                          return <div className={`absolute -bottom-3 -right-3 w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-sm md:text-base font-bold border-2 border-black ${medalColor}`}>{pos}</div>;
+                                        })()}
+                                      </div>
+                                      <div className="text-center mt-2">
+                                        <div className="font-semibold text-white truncate" style={{ maxWidth: 140 }}>{w.name}</div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           {event.rules && event.rules.length > 0 && (
                             <div className="mb-4">
-                              <button onClick={(e) => { e.stopPropagation(); toggleRules(event.id); }} className="flex items-center justify-between w-full text-left font-semibold text-gray-300 mb-2 hover:text-pink-400 transition-colors">
+                              <button onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); toggleRules(event.id); }} className="flex items-center justify-between w-full text-left font-semibold text-gray-300 mb-2 hover:text-pink-400 transition-colors">
                                 <div className="flex items-center"><FileText size={16} className="mr-2" />Event Rules ({event.rules.length})</div>
                                 {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
                               {expandedRules.has(event.id) && (
                                 <div
                                   className="rules-panel rounded-xl p-4 space-y-3 max-h-56 overflow-y-auto rules-zoom-in"
-                                  onClick={(e) => e.stopPropagation()}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+                                  onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+                                  onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => e.stopPropagation()}
                                 >
                                   {event.rules.map((rule: string, i: number) => (
                                     <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
@@ -472,10 +563,10 @@ export const Events: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <div className="p-6 pt-0">
+                            <div className="p-6 pt-0">
                           {canRegisterNow(event) ? (
                             <button
-                              onClick={(e) => { e.stopPropagation(); openRegistration(event.id, event.title); }}
+                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); openRegistration(event.id, event.title); }}
                               disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
                               className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
                             >
@@ -546,6 +637,73 @@ export const Events: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Winners Section (placed below the events grid) */}
+      <section className="py-12 relative">
+        <div className="max-w-full mx-0 px-0">
+          <div className="cyberpunk-card py-6 px-0">
+            <h2 className="text-2xl font-bold mb-4">Event Winners</h2>
+            {(!eventWinners || eventWinners.length === 0) ? (
+              <div className="text-gray-400">No winners announced yet.</div>
+            ) : (
+              (() => {
+                // Filter winners according to the selectedCategory (fall back to the event's category if winner row lacks one)
+                const filteredWinners = (eventWinners || []).filter((w: any) => {
+                  const cat = w.category || events.find((e: any) => e.id === w.event_id)?.category || 'Uncategorized';
+                  return selectedCategory === 'All' ? true : cat === selectedCategory;
+                });
+
+                if (!filteredWinners || filteredWinners.length === 0) {
+                  return <div className="text-gray-400">No winners announced for the "{selectedCategory}" category.</div>;
+                }
+
+                // Group winners by the event they belong to and render a row of winners per event
+                const eventsWithWinners = Array.from(new Set(filteredWinners.map((w: any) => w.event_id))).map((id) => events.find((e: any) => e.id === id)).filter(Boolean);
+
+                return (
+                  <div className="space-y-6">
+                    {eventsWithWinners.map((ev: any) => {
+                      const list = filteredWinners.filter((w: any) => w.event_id === ev.id).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                      if (!list.length) return null;
+                      // group winners by position so multiple winners for same rank show together
+                      const byPos: Record<number, any[]> = {};
+                      list.forEach((w: any) => {
+                        const p = Number(w.position || 0) || 0;
+                        byPos[p] = byPos[p] || [];
+                        byPos[p].push(w);
+                      });
+                      
+                      return (
+                        <div key={ev.id} className="bg-black/60 py-4 px-0 rounded-md">
+                          <div className="font-semibold text-lg text-white mb-3 text-center w-full">{ev.title}</div>
+                          <div className="flex gap-6 flex-nowrap md:flex-wrap overflow-x-auto no-scrollbar winners-row-mobile px-4">
+                            {list.map((w: any) => {
+                              const pos = Number(w.position || 0) || 0;
+                              const medalColor = pos === 1 ? 'bg-yellow-400 text-black' : pos === 2 ? 'bg-gray-300 text-black' : pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white';
+                              return (
+                                <div key={w.id} className="w-40 md:w-44 flex-shrink-0 flex flex-col items-center bg-gray-900/40 py-0.5 px-1 rounded">
+                                  <div className="relative w-28 h-28 md:w-32 md:h-32 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
+                                    {w.photo_url ? <img src={w.photo_url} alt={w.name} className="w-full h-full object-cover" /> : <div className="text-sm text-gray-600">No photo</div>}
+                                    <div className={`absolute -bottom-3 -right-3 w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-sm md:text-base font-bold border-2 border-black ${medalColor}`}>{pos}</div>
+                                  </div>
+                                  <div className="text-center mt-2">
+                                    <div className="font-semibold text-white truncate">{w.name}</div>
+                                    <div className="text-xs text-gray-400">{ev.title}</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            )}
+          </div>
         </div>
       </section>
 
@@ -723,6 +881,8 @@ export const Events: React.FC = () => {
           .tilt-card.sheen .flip-face::before { background-position: 150% 150%; opacity: 0.35; transition-duration: 600ms; }
           .tilt-card:active { transform: translateY(-2px); }
         }
+        /* When the card is flipped, hide per-event winners on the card face */
+        .flip-3d.is-flipped .per-event-winners { display: none !important; }
         @media (min-width: 768px) {
           .neon-anim-border::before { padding: 3px; }
         }
@@ -843,6 +1003,10 @@ export const Events: React.FC = () => {
           .filter-row { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
           .filter-row::-webkit-scrollbar { display: none; }
           .filter-btn { font-size: 0.85rem; }
+          /* Winners mobile marquee/scroll */
+          .winners-row-mobile { -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+          .winners-row-mobile::-webkit-scrollbar { display: none; }
+          .winners-row-mobile > * { scroll-snap-align: center; }
           /* Ensure grid spacing and card content have breathing room */
           .container .grid { gap: 16px; }
           /* Reserve space at top of front face for badges/buttons */
@@ -851,8 +1015,11 @@ export const Events: React.FC = () => {
           .flip-back .p-6 { padding: 16px; }
           .flip-back .p-6.pt-0 { padding-top: 8px; }
           /* Make badges and watch button smaller on mobile via inherited positions updated above */
-        }
-        }
+  }
+  }
+  /* Utility to hide scrollbars */
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
       `}</style>
     </div>
   );

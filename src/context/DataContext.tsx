@@ -117,6 +117,11 @@ interface DataContextType {
     event: Partial<Event>,
     coordinators: Array<{ name: string; phone?: string | null }>
   ) => Promise<void>;
+  // Winners
+  eventWinners?: Array<any>;
+  addEventWinner?: (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; photo_url?: string | null }) => Promise<void>;
+  updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
+  deleteEventWinner?: (id: number) => Promise<void>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   deleteEvent: (id: number) => Promise<void>;
   addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -125,6 +130,7 @@ interface DataContextType {
   toggleEventFeatured: (id: number) => Promise<void>;
   toggleEventVisibility: (id: number) => Promise<void>;
   toggleEventRegistration: (id: number) => Promise<void>;
+  // Included in runtime
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
   deleteGalleryImage: (id: number) => Promise<void>;
@@ -279,6 +285,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
   const [eventCategories, setEventCategories] = useState<EventCategory[]>([]);
+  const [eventWinners, setEventWinners] = useState<Array<{
+    id: number;
+    event_id: number | null;
+    category: string | null;
+    position: number;
+    name: string;
+    photo_url: string | null;
+    created_at: string;
+  }>>([]);
   const [facultyHeads, setFacultyHeads] = useState<FacultyHead[]>([]);
   const [coreCommittees, setCoreCommittees] = useState<CoreCommittee[]>([]);
   const [coreTeamMembers, setCoreTeamMembers] = useState<CoreTeamMember[]>([]);
@@ -743,6 +758,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // gallery_images.src
       const { data: r3, error: e3 } = await supabase.from('gallery_images').update({ src: null } as any).eq('src', publicUrl).select('id');
       if (!e3) clearedRefs += (r3?.length || 0);
+      // event_winners.photo_url (clear winner image references)
+      try {
+        const { data: r4, error: e4 } = await supabase.from('event_winners').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
+        if (!e4) clearedRefs += (r4?.length || 0);
+      } catch (e) {
+        // swallow per-table errors to keep deletion best-effort
+      }
     } catch (e) {
       console.warn('Failed to clear some references for', publicUrl, e);
     }
@@ -1155,6 +1177,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         .select('*');
       if (eventCategoriesError) markErr('Error fetching event categories', eventCategoriesError);
       else setEventCategories(eventCategoriesData || []);
+
+      // Fetch Event Winners (non-critical; allow missing table)
+      try {
+        const { data: winnersData, error: winnersError } = await supabase
+          .from('event_winners')
+          .select('*')
+          .order('event_id', { ascending: true })
+          .order('position', { ascending: true });
+        if (winnersError) {
+          const raw = (winnersError as any)?.message || '';
+          const msg = String(raw).toLowerCase();
+          const code = (winnersError as any)?.code;
+          const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.event_winners' does not exist") || msg.includes('could not find the table') && msg.includes('event_winners');
+          if (isMissingTable) {
+            console.warn('[Data] event_winners table missing; skipping winners load');
+            setEventWinners([]);
+          } else {
+            markErr('Error fetching event winners', winnersError);
+          }
+        } else setEventWinners((winnersData || []).map((w:any)=>({ ...w, photo_url: sanitizeUrl(w.photo_url) })));
+      } catch (e) {
+        // Non-fatal
+        console.warn('Event winners fetch threw', e);
+        setEventWinners([]);
+      }
 
       // Fetch Faculty Heads
       const { data: facultyHeadsData, error: facultyHeadsError } = await supabase
@@ -2037,6 +2084,56 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (prev) {
       deleteStorageFileByPublicUrl((prev as any)?.image);
       deleteStorageFileByPublicUrl((prev as any)?.motion_poster_url);
+    }
+    await fetchData(true);
+  };
+
+  // Event Winners CRUD (optional table)
+  const addEventWinner = async (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; photo_url?: string | null }) => {
+    // Ensure category defaults to the event's category when not explicitly provided
+    const payload = { ...winner } as any;
+    if (!payload.category && payload.event_id) {
+      const ev = events.find(e => e.id === payload.event_id);
+      if (ev) payload.category = ev.category || null;
+    }
+    const { error } = await supabase.from('event_winners').insert(payload as any);
+    if (error) {
+      const msg = (error as any)?.message || '';
+      const lower = String(msg).toLowerCase();
+      if (lower.includes('relation') || lower.includes('does not exist')) {
+        // table missing; ignore
+        console.warn('event_winners table likely missing; cannot add winner yet');
+        return;
+      }
+      throw error;
+    }
+    await fetchData(true);
+  };
+
+  const updateEventWinner = async (id: number, patch: Partial<any>) => {
+    const { error } = await supabase.from('event_winners').update(patch).eq('id', id);
+    if (error) {
+      const msg = (error as any)?.message || '';
+      const lower = String(msg).toLowerCase();
+      if (lower.includes('relation') || lower.includes('does not exist')) {
+        console.warn('event_winners table likely missing; cannot update winner');
+        return;
+      }
+      throw error;
+    }
+    await fetchData(true);
+  };
+
+  const deleteEventWinner = async (id: number) => {
+    const { error } = await supabase.from('event_winners').delete().eq('id', id);
+    if (error) {
+      const msg = (error as any)?.message || '';
+      const lower = String(msg).toLowerCase();
+      if (lower.includes('relation') || lower.includes('does not exist')) {
+        console.warn('event_winners table likely missing; cannot delete winner');
+        return;
+      }
+      throw error;
     }
     await fetchData(true);
   };
@@ -3597,6 +3694,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   prefetchGalleryImages,
         addEvent,
   addEventWithCoordinators,
+    eventWinners,
+    addEventWinner,
+    updateEventWinner,
+    deleteEventWinner,
         updateEvent,
         deleteEvent,
   addEventCoordinator,

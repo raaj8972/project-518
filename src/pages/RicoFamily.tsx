@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
 import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
@@ -25,7 +24,6 @@ export const RicoFamily: React.FC = () => {
   const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
   const committeeHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
-  const [committeePaused, setCommitteePaused] = useState(false);
   const sportsHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
 
   // Filter enabled faculty heads and sort by order
@@ -112,7 +110,7 @@ export const RicoFamily: React.FC = () => {
 
   // Committee heads across all committees (for marquee)
   const committeeHeads = (coreTeamMembers || [])
-    .filter(m => m.enabled && (m.is_head || (m as any).isCouncil))
+    .filter(m => m.enabled && m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
   // Glitch effect trigger
@@ -142,21 +140,6 @@ export const RicoFamily: React.FC = () => {
 
     return () => observer.disconnect();
   }, [enabledFacultyHeads, enabledCommittees]); // Re-run when faculty heads or committees change
-
-  // Reveal immediately on navigation to this page
-  const location = useLocation();
-  useEffect(() => {
-    try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); } catch {}
-    const t = setTimeout(() => {
-      document.querySelectorAll('.scroll-animate').forEach((el) => {
-        const r = (el as HTMLElement).getBoundingClientRect();
-        if (r.top < window.innerHeight && r.bottom > 0) {
-          el.classList.add('animate-in');
-        }
-      });
-    }, 80);
-    return () => clearTimeout(t);
-  }, [location]);
 
   // Parallax effect
   useEffect(() => {
@@ -314,25 +297,13 @@ export const RicoFamily: React.FC = () => {
                 adaptiveGlowOpacity={0.26}
                 itemWrapperClassName="px-3"
                 className="py-2"
-                pauseOnHover
-                paused={committeePaused}
                 renderItem={(m) => (
-                  <div
-                    onMouseEnter={() => setCommitteePaused(true)}
-                    onMouseLeave={() => setCommitteePaused(false)}
-                    className="w-64 neon-card borderless p-4 group relative"
-                  >
-                    {/* Hover badge */}
-                    <div className="absolute top-3 left-3 opacity-0 translate-y-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none z-20">
-                      <div className={`px-2 py-1 rounded-full text-[11px] font-semibold ${ (m as any).isCouncil ? 'bg-red-500 text-white' : 'bg-yellow-400 text-black' }`}>
-                        { (m as any).isCouncil ? 'COUNCIL' : 'COMMITTEE HEAD' }
-                      </div>
-                    </div>
+                  <div className="w-64 neon-card borderless p-4">
                     <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
                       <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </div>
                     <div className="font-bold text-white flex items-center">
-                      <Crown className={`${(m as any).isCouncil ? 'w-5 h-5 text-red-400 crown-glow' : 'w-4 h-4 text-yellow-400'} mr-1`} /> {m.name}
+                      <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
                     </div>
                     <div className="text-sm text-gray-300">{m.role}</div>
                   </div>
@@ -368,8 +339,7 @@ export const RicoFamily: React.FC = () => {
             <div className="space-y-16">
               {enabledCommittees.map((committee, committeeIndex) => {
                 const allCommitteeMembers = membersByCommittee[committee.id] || [];
-                // Exclude committee heads and council members from the regular members grid
-                const regularMembers = allCommitteeMembers.filter(member => !member.is_head && !(member as any).isCouncil);
+                const regularMembers = allCommitteeMembers.filter(member => !member.is_head);
                 
                 if (allCommitteeMembers.length === 0) return null;
 
@@ -392,85 +362,6 @@ export const RicoFamily: React.FC = () => {
                         {committee.description}
                       </p>
                     </div>
-
-                    {/* Council (higher priority than heads) */}
-                    {allCommitteeMembers.filter((m: any) => (m as any).isCouncil).length > 0 && (
-                      <div className="mb-8">
-                        <h4 className="text-lg font-semibold text-gray-300 mb-4 flex items-center justify-center">
-                          <Crown className="w-5 h-5 text-red-400 mr-2" />
-                          Council ({allCommitteeMembers.filter((m: any) => (m as any).isCouncil).length})
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-8">
-                          {allCommitteeMembers.filter((m: any) => (m as any).isCouncil).map((councilMember: any) => (
-                            <div key={councilMember.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
-                              <div className="grid md:grid-cols-2 gap-0">
-                                {/* Image Section */}
-                                <div className="relative h-85 md:h-auto overflow-hidden">
-                                  <img
-                                    src={councilMember.image}
-                                    alt={councilMember.name}
-                                    className="w-full h-full object-cover faculty-image"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                                  <div className="absolute top-4 right-4">
-                                    <Crown className="w-6 h-6 text-red-400 animate-pulse pulse-ring" />
-                                  </div>
-                                  <div className="absolute bottom-4 left-4 right-4">
-                                    <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-1 rounded-full text-sm font-bold inline-block">
-                                      COUNCIL
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Content Section */}
-                                <div className="p-6 flex flex-col justify-center">
-                                  <h5 className="text-2xl font-bold text-white mb-2 neon-red faculty-name">
-                                    {councilMember.name}
-                                  </h5>
-                                  <p className="text-lg text-red-400 mb-3 font-semibold">
-                                    {councilMember.role}
-                                  </p>
-                                  <p className="text-gray-300 mb-4 leading-relaxed text-sm">
-                                    {councilMember.description}
-                                  </p>
-                                  <div className="mb-4">
-                                    <span className="inline-block bg-red-500/10 text-red-400 px-2 py-1 rounded-full text-xs font-medium border border-red-500/30">
-                                      {councilMember.specialty}
-                                    </span>
-                                  </div>
-
-                                  {/* Social Links (same as head layout) */}
-                                  {councilMember.social_links && Object.values(councilMember.social_links).some(link => link) && (
-                                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                                      <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
-                                      {councilMember.social_links.instagram && (
-                                        <Instagram3DButtonLink href={councilMember.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${councilMember.name}`} />
-                                      )}
-                                      {councilMember.social_links.youtube && (
-                                        <YouTube3DButtonLink href={councilMember.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${councilMember.name}`} />
-                                      )}
-                                      {councilMember.social_links.facebook && (
-                                        <Facebook3DButtonLink href={councilMember.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${councilMember.name}`} />
-                                      )}
-                                      {councilMember.social_links.spotify && (
-                                        <a
-                                          href={councilMember.social_links.spotify}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                                        >
-                                          <Spotify size={30} />
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
 
                     {/* Committee Head */}
                     {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
@@ -500,7 +391,7 @@ export const RicoFamily: React.FC = () => {
                                     </div>
                                   </div>
                                 </div>
-
+                                
                                 {/* Content Section */}
                                 <div className="p-6 flex flex-col justify-center">
                                   <h5 className="text-2xl font-bold text-white mb-2 neon-yellow faculty-name">
@@ -543,6 +434,39 @@ export const RicoFamily: React.FC = () => {
                                       )}
                                     </div>
                                   )}
+                                  {/* Contact Icons */}
+                                  {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
+                                    <div className="mb-4">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
+                                        {Boolean((head as any).email) && (
+                                          <Email3DButtonLink href={`mailto:${(head as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${head.name}`} />
+                                        )}
+                                        {Boolean((head as any).phone) && (
+                                          <Phone3DButtonLink href={`tel:${(head as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${head.name}`} />
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Achievements */}
+                                  {head.achievements.length > 0 && (
+                                    <div>
+                                      <h6 className="text-sm font-bold text-cyan-400 mb-3">KEY ACHIEVEMENTS</h6>
+                                      <div className="space-y-2">
+                                        {head.achievements.map((achievement, achievementIndex) => (
+                                          <div
+                                            key={achievementIndex}
+                                            className="flex items-start space-x-2 achievement-item"
+                                            style={{ animationDelay: `${achievementIndex * 0.2}s` }}
+                                          >
+                                            <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
+                                            <span className="text-gray-300 text-xs">{achievement}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -564,15 +488,7 @@ export const RicoFamily: React.FC = () => {
                               className={`scroll-animate opacity-0 transform translate-y-20 team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
                               style={{ animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` }}
                             >
-                              <div className={`neon-card group relative h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
-                                {/* Council badge for viewers (non-head members) */}
-                                {(member as any).isCouncil && (
-                                  <div className="absolute bottom-3 left-3 z-10">
-                                    <div className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-semibold shadow-md">
-                                      COUNCIL
-                                    </div>
-                                  </div>
-                                )}
+                              <div className={`neon-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
                                 {/* Member Image (always visible) */}
                                 <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
                                   <img
@@ -900,15 +816,7 @@ export const RicoFamily: React.FC = () => {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                           {regularMembers.map((member, idx) => (
                             <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
-                              <div className="neon-card h-full overflow-hidden p-2 relative">
-                                {/* Council badge for viewers (sports regular members) */}
-                                {(member as any).isCouncil && (
-                                  <div className="absolute bottom-3 left-3 z-10">
-                                    <div className="bg-red-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-semibold shadow-md">
-                                      COUNCIL
-                                    </div>
-                                  </div>
-                                )}
+                              <div className="neon-card h-full overflow-hidden p-2">
                                 <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                                   <img src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
@@ -1300,13 +1208,6 @@ export const RicoFamily: React.FC = () => {
             0 0 4px #ffff00;
         }
 
-        .neon-red {
-          color: #ff4d4d;
-          text-shadow:
-            0 0 3px #ff4d4d,
-            0 0 8px rgba(255, 77, 77, 0.8);
-        }
-
         .glow-text {
           text-shadow: 
             0 0 2px currentColor,
@@ -1560,14 +1461,14 @@ export const RicoFamily: React.FC = () => {
         @keyframes nameGlow {
           from {
             text-shadow: 
-              0 0 2px currentColor,
-              0 0 4px currentColor;
+              0 0 2px #ffff00,
+              0 0 4px #ffff00;
           }
           to {
             text-shadow: 
-              0 0 4px currentColor,
-              0 0 8px currentColor,
-              0 0 12px currentColor;
+              0 0 4px #ffff00,
+              0 0 8px #ffff00,
+              0 0 12px #ffff00;
           }
         }
 
