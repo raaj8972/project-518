@@ -306,7 +306,7 @@ export const Schedule: React.FC = () => {
               {/* Day Header */}
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-7 text-white">
                 <div className="scroll-animate opacity-0 transform translate-y-20">
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-black mb-4 cyberpunk-title">{schedule[selectedDay].title}</h2>
+                  <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold uppercase mb-4 cyberpunk-title leading-tight tracking-tight">{String(schedule[selectedDay].title || '').toUpperCase()}</h2>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-2 sm:space-y-0 text-sm sm:text-lg opacity-90">
                     <div className="flex items-center">
                       <Calendar size={14} className="mr-2" />

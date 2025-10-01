@@ -322,7 +322,7 @@ export const Events: React.FC = () => {
               <Zap className="w-4 h-4 mr-2 animate-pulse" /> EVENTS 2025
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
-              DIGITAL <span className="neon-pink">EVENTS</span>
+              <span className="neon-pink">EVENTS</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
               Experience the <span className="neon-blue glow-text">future</span> of innovation through our

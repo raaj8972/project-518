@@ -43,8 +43,22 @@ export const ParticlesCursor: React.FC = () => {
       const s = document.createElement('script');
       s.src = 'https://unpkg.com/threejs-toys@0.0.8/build/threejs-toys.umd.cdn.min.js';
       s.async = true;
-      s.onload = () => resolve();
-      s.onerror = (e) => reject(e);
+      const onLoad = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (ev?: Event | string | any) => {
+        cleanup();
+        const msg = ev && typeof ev === 'object' ? (ev.type || (ev as any).message || String(ev)) : String(ev);
+        reject(new Error(`Failed to load threejs-toys script: ${msg}`));
+      };
+      const cleanup = () => {
+        s.removeEventListener('load', onLoad);
+        s.removeEventListener('error', onError as any);
+      };
+
+      s.addEventListener('load', onLoad);
+      s.addEventListener('error', onError as any);
       document.head.appendChild(s);
     });
 

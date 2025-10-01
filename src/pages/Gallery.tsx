@@ -10,9 +10,14 @@ export const Gallery: React.FC = () => {
 
   const categories = ['All', ...eventCategories.map((cat: any) => cat.name as string)];
 
-  const filteredImages = selectedCategory === 'All' 
-    ? galleryImages 
-    : galleryImages.filter((image: any) => image.category === selectedCategory);
+  const selectedCategoryNormalized = (selectedCategory || '').toString().trim().toLowerCase();
+
+  const filteredImages = selectedCategory === 'All'
+    ? galleryImages
+    : galleryImages.filter((image: any) => {
+        const imgCat = (image?.category || '').toString().trim().toLowerCase();
+        return imgCat === selectedCategoryNormalized;
+      });
 
   // Build images for DomeGallery. Never pass undefined to avoid demo/default images.
   const domeImages = filteredImages.map((img: any) => ({ src: img.src as string, alt: (img.title as string) || '' }));
@@ -90,7 +95,7 @@ export const Gallery: React.FC = () => {
               DIGITAL MEMORIES
             </div>
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title">
-              CYBER <span className="neon-purple">GALLERY</span>
+              <span className="neon-purple">GALLERY</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
               Relive the <span className="neon-pink">magic</span> of RICORRENZA through our 
@@ -135,6 +140,7 @@ export const Gallery: React.FC = () => {
               </div>
             </div>
           </div>
+          {/* dev debug panel removed */}
         </div>
       </section>
 

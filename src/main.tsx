@@ -1,36 +1,7 @@
+import './shims/envShims';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-
-// Detect touch capability early and mark the document for CSS overrides.
-// Some mobile browsers may still report (hover: hover) incorrectly; this is a more reliable runtime signal.
-(() => {
-  try {
-    const isTouch = (('ontouchstart' in window) || navigator.maxTouchPoints > 0 || (navigator as any).msMaxTouchPoints > 0);
-    if (isTouch) {
-      document.documentElement.classList.add('touch-enabled');
-      // Persistent tap glow handler: adds .tap-glow for ~850ms after touch
-      let lastTapEl: HTMLElement | null = null;
-      window.addEventListener('touchstart', (e) => {
-        const target = (e.target as HTMLElement).closest('.home-sponsor-glow, .sponsor-interactive') as HTMLElement | null;
-        if (!target) return;
-        if (lastTapEl && lastTapEl !== target) {
-          lastTapEl.classList.remove('tap-glow');
-        }
-        target.classList.add('tap-glow');
-        lastTapEl = target;
-        const persistFor = 850; // ms (adjust if needed)
-        setTimeout(() => {
-          // Only remove if it hasn't been tapped again meantime
-            if (target === lastTapEl) {
-              target.classList.remove('tap-glow');
-              if (lastTapEl === target) lastTapEl = null;
-            }
-        }, persistFor);
-      }, { passive: true });
-    }
-  } catch { /* no-op */ }
-})();
 
 const rootEl = document.getElementById('root')!;
 
