@@ -1019,7 +1019,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Fetch Events (use * to avoid selecting explicit new columns that may not exist yet)
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
-        .select('*');
+        .select('*')
+        // Show latest created events first
+        .order('created_at', { ascending: false });
       if (eventsError) markErr('Error fetching events', eventsError);
       else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
 
@@ -1560,7 +1562,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const prefetchEvents = async () => {
     try {
       const [{ data: eventsData }, { data: eventCoordinatorsData }] = await Promise.all([
-        supabase.from('events').select('*'),
+        // Order events newest first so recently created events appear at the top in UI
+        supabase.from('events').select('*').order('created_at', { ascending: false }),
         supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true })
       ] as any);
       if (eventsData) setEvents((eventsData || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) })));

@@ -22,7 +22,13 @@ export const RicoFamily: React.FC = () => {
   const webDevPhraseList = (homepageSettings as any)?.web_dev_role_phrases && Array.isArray((homepageSettings as any).web_dev_role_phrases) && (homepageSettings as any).web_dev_role_phrases.length > 0
     ? (homepageSettings as any).web_dev_role_phrases.map((p: string) => String(p).toLowerCase())
     : ['web developer','lead developer','web design & maintenance','web design and maintenance','web design','developer'];
-  const isWebDevRole = (role?: string | null) => {
+  // Refined developer role detection: only show cyan styling for lead developer tier
+  const isLeadWebDevRole = (role?: string | null) => {
+    const rl = String(role || '').toLowerCase();
+    if (!rl) return false;
+    return ['lead developer','lead web developer','principal developer','principal engineer'].some(p => rl.includes(p));
+  };
+  const isAnyWebDevRole = (role?: string | null) => {
     const rl = String(role || '').toLowerCase();
     if (!rl) return false;
     return webDevPhraseList.some((p: string) => rl.includes(p));
@@ -301,35 +307,35 @@ export const RicoFamily: React.FC = () => {
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-10">
-              {councilMembers.map((member, idx) => { const wd = isWebDevRole(member.role); return (
+              {councilMembers.map((member, idx) => { const lead = isLeadWebDevRole(member.role); const anyDev = !lead && isAnyWebDevRole(member.role); return (
                 <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${idx * 0.15}s` }}>
-                  <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${wd ? 'ring-1 ring-cyan-500/40' : ''}`}> 
+                  <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${lead ? 'ring-1 ring-cyan-500/40' : ''}`}> 
                     {/* Image */}
                     <div className="relative h-80 md:h-full overflow-hidden">
                       <img src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
                       <div className="absolute top-4 right-4 flex items-center gap-2">
-                        <Crown className={`w-7 h-7 ${wd ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
+                        <Crown className={`w-7 h-7 ${lead ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
                       </div>
                       <div className="absolute bottom-4 left-4">
-                        <div className={`px-4 py-1 rounded-full text-sm font-bold tracking-wide inline-block shadow-md ${wd ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black' : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-black'}`}>COUNCIL</div>
+                        <div className={`px-4 py-1 rounded-full text-sm font-bold tracking-wide inline-block shadow-md ${lead ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black' : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-black'}`}>COUNCIL</div>
                       </div>
                     </div>
                     {/* Content */}
                     <div className="p-6 flex flex-col justify-center">
-                      <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${wd ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
-                      <p className={`text-lg font-semibold mb-4 ${wd ? 'text-cyan-400' : 'text-red-400'}`}>{member.role || 'Member'}</p>
+                      <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${lead ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
+                      <p className={`text-lg font-semibold mb-4 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>{member.role || 'Member'}</p>
                       {member.description && (
                         <p className="text-gray-300 mb-4 leading-relaxed text-sm">{member.description}</p>
                       )}
                       {member.specialty && (
                         <div className="mb-4">
-                          <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium border tracking-wide ${wd ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-red-500/15 text-red-300 border-red-500/40'}`}>{member.specialty}</span>
+                          <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium border tracking-wide ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : anyDev ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-red-500/15 text-red-300 border-red-500/40'}`}>{member.specialty}</span>
                         </div>
                       )}
                       {member.social_links && Object.values(member.social_links).some(l => l) && (
                         <div className="flex flex-wrap items-center gap-2 mb-4">
-                          <span className="text-[11px] uppercase tracking-wide text-red-400 font-semibold mr-1">Social Media:</span>
+                          <span className={`text-[11px] uppercase tracking-wide ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'} font-semibold mr-1`}>Social Media:</span>
                           {member.social_links.instagram && (
                             <Instagram3DButtonLink href={member.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${member.name}`} />
                           )}
@@ -347,7 +353,7 @@ export const RicoFamily: React.FC = () => {
                       {(Boolean((member as any).email) || Boolean((member as any).phone)) && (
                         <div className="mb-4">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] uppercase tracking-wide text-red-400 font-semibold">Contact:</span>
+                            <span className={`text-[11px] uppercase tracking-wide ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'} font-semibold`}>Contact:</span>
                             {Boolean((member as any).email) && (
                               <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${member.name}`} />
                             )}
@@ -359,11 +365,11 @@ export const RicoFamily: React.FC = () => {
                       )}
                       {member.achievements && member.achievements.length > 0 && (
                         <div>
-                          <h6 className={`text-sm font-bold mb-3 ${wd ? 'text-cyan-400' : 'text-red-400'}`}>KEY ACHIEVEMENTS</h6>
+                          <h6 className={`text-sm font-bold mb-3 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>KEY ACHIEVEMENTS</h6>
                           <div className="space-y-2">
                             {member.achievements.map((a, i2) => (
                               <div key={i2} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${i2 * 0.18}s` }}>
-                                <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${wd ? 'bg-cyan-400' : 'bg-red-400'}`}></div>
+                                <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${lead ? 'bg-cyan-400' : anyDev ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
                                 <span className="text-gray-300 text-xs">{a}</span>
                               </div>
                             ))}
@@ -408,6 +414,7 @@ export const RicoFamily: React.FC = () => {
                 adaptiveGlowOpacity={0.26}
                 itemWrapperClassName="px-3"
                 className="py-2"
+                instantPause={true}
                 renderItem={(m) => (
                   <div className="w-64 neon-card borderless p-4">
                     <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
@@ -484,7 +491,8 @@ export const RicoFamily: React.FC = () => {
                         </h4>
                         <div className="grid md:grid-cols-2 gap-8">
                           {allCommitteeMembers.filter(m => m.is_head).map(head => {
-                            const wd = isWebDevRole(head.role);
+                            const lead = isLeadWebDevRole(head.role);
+                            const anyDev = !lead && isAnyWebDevRole(head.role);
                             return (
                               <div key={head.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
                                 <div className="grid md:grid-cols-2 gap-0">
@@ -493,10 +501,10 @@ export const RicoFamily: React.FC = () => {
                                     <img src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                                     <div className="absolute top-4 right-4">
-                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${wd ? 'text-cyan-300' : 'text-yellow-400'}`} />
+                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${lead ? 'text-cyan-300' : 'text-yellow-400'}`} />
                                     </div>
                                     <div className="absolute bottom-4 left-4 right-4">
-                                      {wd ? (
+                                      {lead ? (
                                         <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
                                       ) : (
                                         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
@@ -505,12 +513,12 @@ export const RicoFamily: React.FC = () => {
                                   </div>
                                   {/* Content Section */}
                                   <div className="p-6 flex flex-col justify-center">
-                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${wd ? 'webdev text-cyan-300' : 'text-white'}`}>{head.name}</h5>
-                                    <p className={`text-lg mb-3 font-semibold ${wd ? 'text-cyan-400' : 'text-yellow-400'}`}>{head.role}</p>
+                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : 'text-white'}`}>{head.name}</h5>
+                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{head.role}</p>
                                     <p className="text-gray-300 mb-4 leading-relaxed text-sm">{head.description}</p>
                                     {head.specialty && (
                                       <div className="mb-4">
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${wd ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
                                       </div>
                                     )}
                                     {head.social_links && Object.values(head.social_links).some(link => link) && (
@@ -541,7 +549,7 @@ export const RicoFamily: React.FC = () => {
                                         <div className="space-y-2">
                                           {head.achievements.map((achievement, achievementIndex) => (
                                             <div key={achievementIndex} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
-                                              <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${wd ? 'bg-cyan-400' : 'bg-yellow-400'}`}></div>
+                                              <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${lead ? 'bg-cyan-400' : 'bg-yellow-400'}`}></div>
                                               <span className="text-gray-300 text-xs">{achievement}</span>
                                             </div>
                                           ))}
@@ -753,6 +761,7 @@ export const RicoFamily: React.FC = () => {
                           speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
                           pauseOnHover={true}
                           pauseOnTouch={true}
+                          instantPause={true}
                           sideGutterPx={8}
                           glowOnPause={true}
                           adaptiveGlowOnPause={false}
@@ -860,6 +869,7 @@ export const RicoFamily: React.FC = () => {
                             speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
                             pauseOnHover={true}
                             pauseOnTouch={true}
+                            instantPause={true}
                             sideGutterPx={8}
                             glowOnPause={true}
                             adaptiveGlowOnPause={false}

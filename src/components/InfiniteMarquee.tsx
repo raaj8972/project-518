@@ -30,6 +30,10 @@ interface InfiniteMarqueeProps<T> {
   glowIntensity?: number;
   // If true, a tap on touch devices toggles pause state. Default false to avoid conflicts with item clicks.
   tapToTogglePause?: boolean;
+  // If true, pause is applied immediately at pointer/touch start by imperatively pausing animation (improves perceived responsiveness)
+  instantPause?: boolean;
+  // Respect user's OS/browser reduced motion setting by disabling auto-scroll animation (default true)
+  respectReducedMotion?: boolean;
 }
 
 function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
@@ -51,7 +55,9 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
     adaptiveGlowOpacity = 0.22,
     getGlowColor,
     glowIntensity = 1,
-    tapToTogglePause = false
+    tapToTogglePause = false,
+    instantPause = false,
+    respectReducedMotion = true
   } = props;
   // React hooks and refs
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -67,6 +73,26 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
   const isCoarsePointer = useRef<boolean>(false);
   // Track if we imperatively forced a pause due to a touch (for snappier mobile UX)
   const touchForcedPauseRef = useRef<boolean>(false);
+  const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+
+  // Detect prefers-reduced-motion
+  useEffect(() => {
+    if (!respectReducedMotion) return;
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    try {
+      const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const apply = () => setReducedMotion(mq.matches);
+      apply();
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', apply);
+      else if (typeof mq.addListener === 'function') mq.addListener(apply);
+      return () => {
+        try {
+          if (typeof mq.removeEventListener === 'function') mq.removeEventListener('change', apply);
+          else if (typeof mq.removeListener === 'function') mq.removeListener(apply);
+        } catch {}
+      };
+    } catch {}
+  }, [respectReducedMotion]);
 
   useEffect(() => {
     try {
@@ -99,6 +125,36 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
   }, [items, speedPxPerSec]);
 
   if (!items || items.length === 0) return null;
+
+  // Static fallback when reduced motion is requested: no animation, single copy, optionally horizontally scrollable
+  if (reducedMotion) {
+    return (
+      <div
+        ref={containerRef}
+        className={`relative overflow-x-auto overflow-y-hidden ${className}`}
+        style={{
+          paddingLeft: sideGutterPx ? `calc(env(safe-area-inset-left) + ${sideGutterPx}px)` : undefined,
+          paddingRight: sideGutterPx ? `calc(env(safe-area-inset-right) + ${sideGutterPx}px)` : undefined,
+          touchAction: 'pan-y pinch-zoom',
+          WebkitUserSelect: 'none',
+          userSelect: 'none'
+        }}
+      >
+        <div className="flex items-stretch whitespace-nowrap" style={{ gap: 0 }}>
+          {items.map((item, idx) => (
+            <div
+              key={idx}
+              className={`relative inline-flex ${itemWrapperClassName}`}
+              data-im-item
+              style={{ minWidth: `${minItemWidthPx}px` }}
+            >
+              {renderItem(item, idx)}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isPaused = paused || isHovering || manualPaused;
 
@@ -175,9 +231,23 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
         WebkitUserSelect: 'none',
         userSelect: 'none'
       }}
-      onMouseEnter={() => pauseOnHover && setIsHovering(true)}
-      onMouseLeave={() => pauseOnHover && setIsHovering(false)}
-      onTouchStart={(e) => {
+      onMouseEnter={() => {
+        if (pauseOnHover) {
+          if (instantPause && trackRef.current) {
+            try { trackRef.current.style.animationPlayState = 'paused'; } catch {}
+          }
+          setIsHovering(true);
+        }
+      }}
+      onMouseLeave={() => {
+        if (pauseOnHover) {
+          setIsHovering(false);
+          if (instantPause && trackRef.current && !(paused)) {
+            try { trackRef.current.style.animationPlayState = 'running'; } catch {}
+          }
+        }
+      }}
+  onTouchStart={() => {
         if (!pauseOnTouch) return;
         setIsHovering(true);
         // Imperatively pause immediately for responsiveness before React state flush
@@ -213,9 +283,24 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
           }
         }
       }}
-      onPointerDown={() => setIsHovering(true)}
-      onPointerUp={() => setIsHovering(false)}
-      onPointerCancel={() => setIsHovering(false)}
+      onPointerDown={() => {
+        setIsHovering(true);
+        if (instantPause && trackRef.current) {
+          try { trackRef.current.style.animationPlayState = 'paused'; } catch {}
+        }
+      }}
+      onPointerUp={() => {
+        setIsHovering(false);
+        if (instantPause && trackRef.current && !paused) {
+          try { trackRef.current.style.animationPlayState = 'running'; } catch {}
+        }
+      }}
+      onPointerCancel={() => {
+        setIsHovering(false);
+        if (instantPause && trackRef.current && !paused) {
+          try { trackRef.current.style.animationPlayState = 'running'; } catch {}
+        }
+      }}
       tabIndex={0}
       onFocus={() => setIsHovering(true)}
       onBlur={() => setIsHovering(false)}

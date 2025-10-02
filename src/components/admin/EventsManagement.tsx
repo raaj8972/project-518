@@ -159,6 +159,27 @@ export const EventsManagement: React.FC = () => {
     });
   };
 
+  // Sort toggle: default to newest-first (matches DataContext default). Persist preference.
+  const [sortNewestFirst, setSortNewestFirst] = useState<boolean>(() => {
+    try { return localStorage.getItem('admin_events_sort_newest_first') !== 'false'; } catch { return true; }
+  });
+  const toggleSortOrder = () => {
+    setSortNewestFirst(prev => {
+      const next = !prev;
+      try { localStorage.setItem('admin_events_sort_newest_first', next ? 'true' : 'false'); } catch {}
+      return next;
+    });
+  };
+  const sortedEvents = React.useMemo(() => {
+    const list = [...(events || [])];
+    list.sort((a: any, b: any) => {
+      const ca = new Date(a.created_at || 0).getTime();
+      const cb = new Date(b.created_at || 0).getTime();
+      return sortNewestFirst ? (cb - ca) : (ca - cb);
+    });
+    return list;
+  }, [events, sortNewestFirst]);
+
   const handleAddEvent = async () => {
     if (!eventForm.title || !eventForm.description || !eventForm.image) {
       alert('Please fill in all required fields (title, description, and image)');
@@ -794,8 +815,23 @@ export const EventsManagement: React.FC = () => {
       )}
 
       {/* Events List */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Events</h3>
+        <button
+          type="button"
+          onClick={toggleSortOrder}
+          className="text-xs px-3 py-1 rounded-full border border-gray-300 hover:border-yellow-400 transition flex items-center gap-1 bg-white shadow-sm"
+          title={sortNewestFirst ? 'Showing newest first. Click to show oldest first.' : 'Showing oldest first. Click to show newest first.'}
+        >
+          {sortNewestFirst ? <>
+            <ArrowDown size={14} /> Newest
+          </> : <>
+            <ArrowUp size={14} /> Oldest
+          </>}
+        </button>
+      </div>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {events.map((event: any) => (
+  {sortedEvents.map((event: any) => (
           <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
             {editingEvent === event.id ? (
               <div className="p-4 space-y-4">
