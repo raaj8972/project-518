@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
 // Add explicit extension for consistency with AuthContext import.
-import { getClientIP, getCachedIP } from '../lib/clientIp.ts';
+import { getClientIP, getCachedIP, ensureClientIP } from '../lib/clientIp.ts';
 import { useAuth } from '../context/AuthContext';
 
 export interface AdminPresenceSessionMeta {
@@ -188,26 +188,24 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
             console.error('[presence track error]', e);
             setError(String(e));
           });
-          // If IP was not immediately available, retry after a short delay and update presence & history once obtained.
+          // If IP missing, schedule progressive retries (background) until acquired or attempts exhausted.
           if (!ipRef) {
-            setTimeout(async () => {
-              if (ipRef) return; // already resolved in meantime
-              try {
-                const retryIp = await getClientIP();
-                if (retryIp) {
-                  ipRef = retryIp;
-                  channel.track({ ...baseMeta, ip: ipRef, ts: Date.now() }).catch(()=>{});
-                  // Attempt to enrich existing historical session row if it lacks IP
-                  try {
-                    await supabase
-                      .from('admin_device_sessions')
-                      .update({ ip_address: ipRef })
-                      .eq('fingerprint', baseMeta.device_fingerprint)
-                      .is('ip_address', null);
-                  } catch {}
-                }
-              } catch {}
-            }, 2000);
+            (async () => {
+              const resolved = await ensureClientIP(5, 4000);
+              if (resolved && !ipRef) {
+                ipRef = resolved;
+                channel.track({ ...baseMeta, ip: ipRef, ts: Date.now() }).catch(()=>{});
+                try {
+                  await supabase
+                    .from('admin_device_sessions')
+                    .update({ ip_address: ipRef })
+                    .eq('fingerprint', baseMeta.device_fingerprint)
+                    .is('ip_address', null);
+                } catch {}
+                // After enrichment, refresh history so offline list shows IP where applicable.
+                try { refreshHistoryRef.current?.(true); } catch {}
+              }
+            })();
           }
         }
       });
@@ -278,10 +276,19 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     };
   }, [enable, isAuthenticated, user?.id]);
 
+  const prevSessionCountRef = useRef<number>(0);
   const byDevice: Record<string, number> = sessions.reduce((acc, s) => {
     acc[s.device_type] = (acc[s.device_type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
+
+  // If active session count decreases (logout from another tab/device), refresh history immediately.
+  useEffect(() => {
+    if (prevSessionCountRef.current && sessions.length < prevSessionCountRef.current) {
+      refreshHistoryRef.current?.(true);
+    }
+    prevSessionCountRef.current = sessions.length;
+  }, [sessions.length]);
 
   const uniqueUsers = new Set(sessions.map(s => s.user_id)).size;
 

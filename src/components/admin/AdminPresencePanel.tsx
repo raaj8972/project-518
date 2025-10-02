@@ -114,7 +114,7 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
                   <td className="py-2 pr-4 text-gray-600 capitalize">{s.device_type}</td>
                   <td className="py-2 pr-4 text-gray-600">{s.platform || '—'}</td>
                   <td className="py-2 pr-4 text-gray-600">{s.browser || '—'}</td>
-                  <td className="py-2 pr-4 font-mono text-[11px] text-gray-500 truncate max-w-[110px]" title={s.ip || ''}>{s.ip || '—'}</td>
+                  <td className="py-2 pr-4 font-mono text-[11px] text-gray-500 truncate max-w-[110px]" title={s.ip || ''}>{s.ip ? s.ip : 'resolving…'}</td>
                   <td className="py-2 pr-4 text-gray-500 flex items-center gap-1"><Activity className="w-3 h-3 text-green-500" /> {new Date(s.ts).toLocaleTimeString()}</td>
                   {canForce && (
                     <td className="py-2 pr-4 text-right space-x-2">
