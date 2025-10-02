@@ -472,26 +472,22 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
         if (!ip) ip = await getClientIP();
         const payload: any = {
           device_id,
-          ip_address: ip || null,
-          ip_only: blockMode === 'ip'
+            ip_address: ip || null,
+            ip_only: blockMode === 'ip',
+            fingerprint // always store fingerprint so unblock works uniformly
         };
-        if (blockMode === 'device') payload.fingerprint = fingerprint; else payload.fingerprint = null;
-        await supabase.from('admin_blocked_devices').insert(payload);
-        // If we blocked by device but we still want to enforce across *other browsers* on same machine, also insert a pure ip_only row if not present.
-        if (blockMode === 'device' && ip) {
+        // Migrate any legacy ip_only rows with null fingerprint for this ip to current fingerprint for consistent unblocking.
+        if (blockMode === 'ip' && ip) {
           try {
-            const { data: existing } = await supabase
+            await supabase
               .from('admin_blocked_devices')
-              .select('id')
+              .update({ fingerprint })
               .eq('ip_address', ip)
               .is('fingerprint', null)
-              .eq('ip_only', true)
-              .limit(1);
-            if (!existing || existing.length === 0) {
-              await supabase.from('admin_blocked_devices').insert({ ip_address: ip, ip_only: true, fingerprint: null, device_id: device_id });
-            }
+              .eq('ip_only', true);
           } catch {}
         }
+        await supabase.from('admin_blocked_devices').insert(payload);
         // If we still don't have an IP (network delay / blocked), schedule a late enrichment.
         if (!ip) {
           setTimeout(async () => {
@@ -521,7 +517,10 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     if (!blockedFingerprints.includes(fingerprint)) return false;
     persistBlocked(blockedFingerprints.filter(f => f !== fingerprint));
     (async () => {
-      try { await supabase.from('admin_blocked_devices').delete().eq('fingerprint', fingerprint); } catch {}
+      try {
+        // Delete rows with this fingerprint
+        await supabase.from('admin_blocked_devices').delete().eq('fingerprint', fingerprint);
+      } catch {}
     })();
     // Broadcast to others
   try { channelRef.current?.send({ type: 'broadcast', event: 'block_update', payload: { action: 'unblock', fingerprint, code: '9693', device_id: getStableDeviceId(), ip: getCachedIP() || undefined } }); } catch {}

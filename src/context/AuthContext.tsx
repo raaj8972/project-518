@@ -303,9 +303,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (blockedRows && blockedRows.length > 0) {
             // Determine if there exists a row that represents a global IP block or a block for another fingerprint.
             const blockAffectsMe = blockedRows.some(r => {
-              // Global ip_only row always applies
-              if ((r as any).ip_only) return true;
-              // Device row with different fingerprint applies
+              const ipOnly = (r as any).ip_only;
+              if (ipOnly) {
+                // If ip_only row has my fingerprint, treat as self-block (owner likely set it) -> still enforce to lock out this session.
+                return true;
+              }
               if (r.fingerprint && r.fingerprint !== myFingerprint) return true;
               return false;
             });
