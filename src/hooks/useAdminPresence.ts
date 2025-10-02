@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
 // Add explicit extension for consistency with AuthContext import.
-import { getClientIP, getCachedIP, ensureClientIP } from '../lib/clientIp.ts';
+import { getClientIP, getCachedIP, ensureClientIP, forceRetryClientIP } from '../lib/clientIp.ts';
 import { useAuth } from '../context/AuthContext';
 
 export interface AdminPresenceSessionMeta {
@@ -38,6 +38,7 @@ export interface AdminPresenceStats {
   blockedFingerprints: string[];
   offlineSessions: AdminPresenceSessionMeta[]; // historical (not currently active)
   refreshHistory?: (force?: boolean) => Promise<void>;
+  resolveMissingIPs?: () => Promise<void>;
 }
 
 function classifyDevice(ua: string): 'desktop' | 'mobile' | 'tablet' | 'unknown' {
@@ -208,7 +209,7 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
           // If IP missing, schedule progressive retries (background) until acquired or attempts exhausted.
           if (!ipRef) {
             (async () => {
-              const resolved = await ensureClientIP(5, 4000);
+              const resolved = await ensureClientIP(6, 4000);
               if (resolved && !ipRef) {
                 ipRef = resolved;
                 channel.track({ ...baseMeta, ip: ipRef, ts: Date.now() }).catch(()=>{});
@@ -457,7 +458,7 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     // Remove any active sessions with that fingerprint immediately client-side
     setSessions(prev => prev.filter(s => s.device_fingerprint !== fingerprint));
     // Broadcast to others
-    try { channelRef.current?.send({ type: 'broadcast', event: 'block_update', payload: { action: 'block', fingerprint, code: '9693', device_id: getStableDeviceId() } }); } catch {}
+  try { channelRef.current?.send({ type: 'broadcast', event: 'block_update', payload: { action: 'block', fingerprint, code: '9693', device_id: getStableDeviceId(), ip: getCachedIP() || undefined } }); } catch {}
     return true;
   };
 
@@ -470,13 +471,38 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
       try { await supabase.from('admin_blocked_devices').delete().eq('fingerprint', fingerprint); } catch {}
     })();
     // Broadcast to others
-    try { channelRef.current?.send({ type: 'broadcast', event: 'block_update', payload: { action: 'unblock', fingerprint, code: '9693', device_id: getStableDeviceId() } }); } catch {}
+  try { channelRef.current?.send({ type: 'broadcast', event: 'block_update', payload: { action: 'unblock', fingerprint, code: '9693', device_id: getStableDeviceId(), ip: getCachedIP() || undefined } }); } catch {}
     return true;
   };
 
   const isBlocked = (fingerprint?: string): boolean => {
     if (!fingerprint) return false;
     return blockedFingerprints.includes(fingerprint);
+  };
+
+  const resolveMissingIPs = async () => {
+    // Only attempt if at least one active session has blank ip
+    if (!sessions.some(s => !s.ip)) return;
+    try {
+      forceRetryClientIP();
+      const resolved = await ensureClientIP(4, 2500);
+      if (resolved) {
+        const mine = sessions.find(s => s.presence_key === trackedKeyRef.current);
+        if (mine && channelRef.current) {
+          channelRef.current.track({ ...mine, ip: resolved, ts: Date.now() }).catch(()=>{});
+        }
+        try {
+          if (mine?.device_fingerprint) {
+            await supabase
+              .from('admin_device_sessions')
+              .update({ ip_address: resolved })
+              .eq('fingerprint', mine.device_fingerprint)
+              .is('ip_address', null);
+          }
+        } catch {}
+        refreshHistoryRef.current?.(true);
+      }
+    } catch {}
   };
 
   return {
@@ -497,5 +523,6 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     blockedFingerprints,
     offlineSessions,
     refreshHistory,
+    resolveMissingIPs,
   };
 }

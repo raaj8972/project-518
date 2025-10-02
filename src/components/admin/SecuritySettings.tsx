@@ -3,7 +3,7 @@ import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff } 
 import { useAuth } from '../../context/AuthContext';
 
 export const SecuritySettings: React.FC = () => {
-  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated } = useAuth();
+  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated, logoutScope, setLogoutScope } = useAuth();
   const [isSettingUpTOTP, setIsSettingUpTOTP] = useState(false);
   const [totpSecret, setTotpSecret] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -151,6 +151,27 @@ export const SecuritySettings: React.FC = () => {
               </div>
             </div>
             <CheckCircle className="w-5 h-5 text-green-500" />
+          </div>
+
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-start md:items-center">
+              <div className="mr-3">
+                <div className="font-medium text-gray-900">Logout Scope</div>
+                <div className="text-sm text-gray-600 max-w-md">
+                  Choose whether clicking Logout only ends this browser session (Local) or invalidates all active sessions across browsers/devices (Global).
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-start md:self-auto">
+              <button
+                onClick={() => setLogoutScope('local')}
+                className={`px-3 py-1.5 rounded border text-sm font-medium transition ${logoutScope === 'local' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-gray-100 border-gray-300 text-gray-700'}`}
+              >Local</button>
+              <button
+                onClick={() => setLogoutScope('global')}
+                className={`px-3 py-1.5 rounded border text-sm font-medium transition ${logoutScope === 'global' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-gray-100 border-gray-300 text-gray-700'}`}
+              >Global</button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

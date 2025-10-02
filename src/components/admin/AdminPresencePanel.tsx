@@ -22,7 +22,8 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
     isBlocked,
     blockedFingerprints,
     offlineSessions,
-    refreshHistory
+    refreshHistory,
+    resolveMissingIPs
   } = presence;
   const SECURITY_CODE = '9693';
   const canForce = true; // Owner panel only renders this component currently; could add prop later.
@@ -99,7 +100,12 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
               <th className="py-2 pr-4">Device</th>
               <th className="py-2 pr-4">Platform</th>
               <th className="py-2 pr-4">Browser</th>
-              <th className="py-2 pr-4">IP</th>
+              <th className="py-2 pr-4">IP {sessions.some(s => !s.ip) && (
+                <button
+                  onClick={() => resolveMissingIPs && resolveMissingIPs()}
+                  className="ml-1 text-[10px] px-1.5 py-0.5 border rounded bg-gray-100 hover:bg-gray-200 text-gray-600"
+                >Resolve</button>
+              )}</th>
               <th className="py-2 pr-4">Last Seen</th>
               {canForce && <th className="py-2 pr-4 text-right">Actions</th>}
             </tr>
@@ -114,7 +120,7 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
                   <td className="py-2 pr-4 text-gray-600 capitalize">{s.device_type}</td>
                   <td className="py-2 pr-4 text-gray-600">{s.platform || '—'}</td>
                   <td className="py-2 pr-4 text-gray-600">{s.browser || '—'}</td>
-                  <td className="py-2 pr-4 font-mono text-[11px] text-gray-500 truncate max-w-[110px]" title={s.ip || ''}>{s.ip ? s.ip : 'resolving…'}</td>
+                  <td className="py-2 pr-4 font-mono text-[11px] text-gray-500 truncate max-w-[140px]" title={s.ip || ''}>{s.ip || 'resolving…'}</td>
                   <td className="py-2 pr-4 text-gray-500 flex items-center gap-1"><Activity className="w-3 h-3 text-green-500" /> {new Date(s.ts).toLocaleTimeString()}</td>
                   {canForce && (
                     <td className="py-2 pr-4 text-right space-x-2">
