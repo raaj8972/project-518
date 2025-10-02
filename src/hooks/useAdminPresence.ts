@@ -135,10 +135,7 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
       device_id: deviceId,
     };
 
-    // If this device is blocked, do not establish presence (silent). Owner panel will show blocked list.
-    if (blockedFingerprints.includes(fingerprint)) {
-      return; // do not subscribe or track heartbeat
-    }
+    // If this device is blocked, still allow presence so it is visible; we'll visually indicate blocked instead of hiding self.
 
     // Attempt one-time remote sync of blocked list (owner side effect) - non-blocking.
     (async () => {
@@ -177,8 +174,12 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
           const now = Date.now();
           const fresh = flat.filter(s => now - s.ts < STALE_WINDOW_MS)
             .map(s => ({ ...s, device_fingerprint: s.device_fingerprint }));
-          // Exclude any sessions with blocked fingerprints (real-time purge)
-          const unblocked = fresh.filter(s => !blockedFingerprints.includes(s.device_fingerprint || ''));
+          // Exclude blocked sessions except if it's *this* blocked device (so user can see they are blocked)
+          const unblocked = fresh.filter(s => {
+            if (!blockedFingerprints.includes(s.device_fingerprint || '')) return true;
+            if (s.device_fingerprint === fingerprint) return true; // show self even if blocked
+            return false;
+          });
           setSessions(unblocked);
           setLastSync(Date.now());
           setPresenceDiagnostics({ raw: flat.length, fresh: unblocked.length, staleWindowMs: STALE_WINDOW_MS });
@@ -476,6 +477,21 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
         };
         if (blockMode === 'device') payload.fingerprint = fingerprint; else payload.fingerprint = null;
         await supabase.from('admin_blocked_devices').insert(payload);
+        // If we blocked by device but we still want to enforce across *other browsers* on same machine, also insert a pure ip_only row if not present.
+        if (blockMode === 'device' && ip) {
+          try {
+            const { data: existing } = await supabase
+              .from('admin_blocked_devices')
+              .select('id')
+              .eq('ip_address', ip)
+              .is('fingerprint', null)
+              .eq('ip_only', true)
+              .limit(1);
+            if (!existing || existing.length === 0) {
+              await supabase.from('admin_blocked_devices').insert({ ip_address: ip, ip_only: true, fingerprint: null, device_id: device_id });
+            }
+          } catch {}
+        }
         // If we still don't have an IP (network delay / blocked), schedule a late enrichment.
         if (!ip) {
           setTimeout(async () => {

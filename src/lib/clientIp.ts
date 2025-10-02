@@ -108,16 +108,43 @@ async function tryPublicFallback(): Promise<string> {
 }
 
 export async function getClientIP(): Promise<string> {
-  if (cachedIp !== null) return cachedIp; // only return if we have a resolved value
+  if (cachedIp !== null) return cachedIp;
   if (inFlight) return inFlight;
   inFlight = (async () => {
     attempts += 1;
-    let ip = await tryNetlifyFunction();
-  if (!ip) ip = await trySupabaseEdge();
-  if (!ip) ip = await tryWebRTC();
-  if (!ip) ip = await tryPublicFallback();
-    if (ip) cachedIp = ip; // only cache non-empty
-    return ip || '';
+    let resolved: string | null = null;
+
+    const settle = (val: string) => {
+      if (val && !resolved) {
+        resolved = val;
+        cachedIp = val;
+      }
+    };
+
+    // Phase 1: quick parallel (Netlify + Supabase Edge + ipify json)
+    await Promise.all([
+      (async () => { try { const v = await tryNetlifyFunction(); settle(v); } catch {} })(),
+      (async () => { try { const v = await trySupabaseEdge(); settle(v); } catch {} })(),
+      (async () => { try {
+        const r = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+        if (r.ok) { const data = await r.json().catch(()=>({} as any)); const ip = (data.ip||'').trim(); settle(ip); }
+      } catch(e){ lastError = e; } })(),
+    ]);
+    if (resolved) return resolved;
+
+    // Phase 2: WebRTC attempt (may succeed when HTTP providers blocked)
+    try { const rtc = await tryWebRTC(); settle(rtc); } catch {}
+    if (resolved) return resolved;
+
+    // Phase 3: sequential public providers (remaining)
+    try {
+      const seq = await tryPublicFallback();
+      settle(seq);
+    } catch {}
+
+    // Cache even if empty? We choose NOT to cache empty so future ensureClientIP can retry.
+    if (!resolved) cachedIp = null; // keep as unresolved for subsequent calls
+    return resolved || '';
   })().finally(() => { inFlight = null; });
   return inFlight;
 }

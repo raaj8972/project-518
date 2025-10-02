@@ -117,6 +117,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (data.user) {
+        // Fire-and-forget server-assisted IP capture immediately (Option B)
+        (async () => { try { const fp = getDeviceFingerprint(); await supabase.rpc('capture_admin_ip', { p_fingerprint: fp }); } catch {} })();
         // IP-only block check (after initial sign-in)
         try {
           const ip = await getClientIP();
@@ -153,6 +155,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         setUser(data.user);
+        // Second attempt after potential TOTP path to ensure capture persisted
+        (async () => { try { const fp2 = getDeviceFingerprint(); await supabase.rpc('capture_admin_ip', { p_fingerprint: fp2 }); } catch {} })();
         setIsAuthenticated(true);
         setIsTOTPEnabled(totpEnabled);
         return { success: true };
@@ -293,12 +297,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!ipCache) return; // wait until IP resolved
         const { data: blockedRows, error: blockedErr } = await supabase
           .from('admin_blocked_devices')
-          .select('ip_address,fingerprint')
+          .select('ip_address,fingerprint,ip_only')
           .eq('ip_address', ipCache);
         if (!cancelled || !blockedErr) {
           if (blockedRows && blockedRows.length > 0) {
             // Determine if there exists a row that represents a global IP block or a block for another fingerprint.
-            const blockAffectsMe = blockedRows.some(r => !r.fingerprint || r.fingerprint !== myFingerprint);
+            const blockAffectsMe = blockedRows.some(r => {
+              // Global ip_only row always applies
+              if ((r as any).ip_only) return true;
+              // Device row with different fingerprint applies
+              if (r.fingerprint && r.fingerprint !== myFingerprint) return true;
+              return false;
+            });
             if (blockAffectsMe) {
               await supabase.auth.signOut();
               if (!cancelled) {

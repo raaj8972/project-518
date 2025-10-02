@@ -134,6 +134,11 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
           <div className="text-2xl font-bold text-yellow-700">{(byDevice.mobile || 0) + (byDevice.tablet || 0)}</div>
         </div>
       </div>
+      {presenceDiagnostics && presenceDiagnostics.raw !== presenceDiagnostics.fresh && (
+        <div className="mb-4 p-3 border rounded bg-yellow-50 text-[11px] text-yellow-800">
+          Some sessions filtered (blocked or stale). Raw: {presenceDiagnostics.raw} / Visible: {presenceDiagnostics.fresh}. Stale window: {Math.round(presenceDiagnostics.staleWindowMs/60000)}m.
+        </div>
+      )}
       <div className="overflow-x-auto -mx-4 px-4">
         <table className="min-w-full text-sm">
           <thead>
