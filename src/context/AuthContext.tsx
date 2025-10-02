@@ -281,13 +281,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const channel = supabase.channel('admin_dashboard_presence');
     channel.on('broadcast', { event: 'block_update' }, async (payload: any) => {
       try {
-        const { fingerprint: bf, action } = payload?.payload || {};
-        if (action === 'block' && bf === fp) {
-          await supabase.auth.signOut();
-          if (!cancelled) {
-            setUser(null);
-            setIsAuthenticated(false);
-            setIsTOTPEnabled(false);
+        const { fingerprint: bf, action, ip: bip } = payload?.payload || {};
+        if (action === 'block') {
+          const matchByFingerprint = bf && bf === fp;
+          const matchByIp = bip && ipCache && bip === ipCache;
+          if (matchByFingerprint || matchByIp) {
+            await supabase.auth.signOut();
+            if (!cancelled) {
+              setUser(null);
+              setIsAuthenticated(false);
+              setIsTOTPEnabled(false);
+            }
           }
         }
       } catch {}
