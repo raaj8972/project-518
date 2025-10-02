@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
+import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
+import { getClientIP } from '../lib/clientIp';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -104,6 +106,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (data.user) {
+        // Device/IP block check (after initial sign-in)
+        try {
+          const fp = getDeviceFingerprint();
+          const did = getStableDeviceId();
+          const ip = await getClientIP();
+          const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
+          if (ip) clauses.push(`ip_address.eq.${ip}`);
+          let blockedRows: any[] | null = null;
+          let blockedErr: any = null;
+          try {
+            const resp = await supabase
+              .from('admin_blocked_devices')
+              .select('fingerprint, device_id, ip_address')
+              .or(clauses.join(','));
+            blockedRows = resp.data as any[] | null;
+            blockedErr = resp.error;
+          } catch (inner) {
+            blockedErr = inner;
+          }
+          if (blockedErr && (blockedErr as any).code === '42703') {
+            // Fallback: older schema without device_id/ip_address
+            try {
+              const resp2 = await supabase
+                .from('admin_blocked_devices')
+                .select('fingerprint')
+                .eq('fingerprint', fp);
+              blockedRows = resp2.data as any[] | null;
+              blockedErr = resp2.error;
+            } catch {}
+          }
+          if (!blockedErr && blockedRows && blockedRows.length > 0) {
+            try { await supabase.auth.signOut(); } catch {}
+            return { success: false, error: 'This device/IP is blocked by owner.' };
+          }
+        } catch {
+          // ignore firewall / table absence entirely
+        }
         // Check if TOTP is enabled
         const totpEnabled = data.user.user_metadata?.totp_enabled || false;
         const totpSecret = data.user.user_metadata?.totp_secret;
@@ -227,6 +266,72 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return false;
     }
   };
+
+  // Periodic check in case device is blocked after session established.
+  useEffect(() => {
+    if (!isAuthenticated || !user) return;
+    let cancelled = false;
+  const fp = getDeviceFingerprint();
+  const did = getStableDeviceId();
+  let ipCache: string | null = null;
+  getClientIP().then((ip: string) => { ipCache = ip; }).catch(()=>{});
+    // Realtime channel for instant block logout
+    const channel = supabase.channel('admin_dashboard_presence');
+    channel.on('broadcast', { event: 'block_update' }, async (payload: any) => {
+      try {
+        const { fingerprint: bf, action } = payload?.payload || {};
+        if (action === 'block' && bf === fp) {
+          await supabase.auth.signOut();
+          if (!cancelled) {
+            setUser(null);
+            setIsAuthenticated(false);
+            setIsTOTPEnabled(false);
+          }
+        }
+      } catch {}
+    }).subscribe();
+    const check = async () => {
+      try {
+  const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
+        if (ipCache) clauses.push(`ip_address.eq.${ipCache}`);
+        let blockedRows: any[] | null = null;
+        let blockedErr: any = null;
+        try {
+          const resp = await supabase
+            .from('admin_blocked_devices')
+            .select('fingerprint, device_id, ip_address')
+            .or(clauses.join(','));
+          blockedRows = resp.data as any[] | null;
+          blockedErr = resp.error;
+        } catch (inner) {
+          blockedErr = inner;
+        }
+        if (blockedErr && (blockedErr as any).code === '42703') {
+          // Fallback to legacy fingerprint-only schema
+            try {
+              const resp2 = await supabase
+                .from('admin_blocked_devices')
+                .select('fingerprint')
+                .eq('fingerprint', fp);
+              blockedRows = resp2.data as any[] | null;
+              blockedErr = resp2.error;
+            } catch {}
+        }
+        if (!cancelled && !blockedErr && blockedRows && blockedRows.length > 0) {
+          await supabase.auth.signOut();
+          if (!cancelled) {
+            setUser(null);
+            setIsAuthenticated(false);
+            setIsTOTPEnabled(false);
+          }
+        }
+      } catch {}
+    };
+    // Initial + interval
+    check();
+    const interval = setInterval(check, 60_000); // every 1 min
+    return () => { cancelled = true; clearInterval(interval); supabase.removeChannel(channel); };
+  }, [isAuthenticated, user?.id]);
 
   return (
     <AuthContext.Provider value={{ 
