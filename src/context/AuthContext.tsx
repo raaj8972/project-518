@@ -112,6 +112,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const fp = getDeviceFingerprint();
           const did = getStableDeviceId();
           const ip = await getClientIP();
+          // Device-scoped block only (fingerprint/device_id/ip). Do not include user_id so other devices stay logged in.
           const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
           if (ip) clauses.push(`ip_address.eq.${ip}`);
           let blockedRows: any[] | null = null;
@@ -293,6 +294,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }).subscribe();
     const check = async () => {
       try {
+  // Device level block check only; omit user_id to avoid cross-device logout on sign-out.
   const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
         if (ipCache) clauses.push(`ip_address.eq.${ipCache}`);
         let blockedRows: any[] | null = null;
