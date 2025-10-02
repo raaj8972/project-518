@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
-import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
 // Explicit .ts extension to satisfy bundler/NodeNext style module resolution when TS can't locate the file without it.
 import { getClientIP } from '../lib/clientIp.ts';
 
@@ -107,44 +106,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (data.user) {
-        // Device/IP block check (after initial sign-in)
+        // IP-only block check (after initial sign-in)
         try {
-          const fp = getDeviceFingerprint();
-          const did = getStableDeviceId();
           const ip = await getClientIP();
-          // Device-scoped block only (fingerprint/device_id/ip). Do not include user_id so other devices stay logged in.
-          const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
-          if (ip) clauses.push(`ip_address.eq.${ip}`);
-          let blockedRows: any[] | null = null;
-          let blockedErr: any = null;
-          try {
-            const resp = await supabase
+          if (ip) {
+            const { data: blockedRows, error: blockedErr } = await supabase
               .from('admin_blocked_devices')
-              .select('fingerprint, device_id, ip_address')
-              .or(clauses.join(','));
-            blockedRows = resp.data as any[] | null;
-            blockedErr = resp.error;
-          } catch (inner) {
-            blockedErr = inner;
+              .select('ip_address')
+              .eq('ip_address', ip);
+            if (!blockedErr && blockedRows && blockedRows.length > 0) {
+              try { await supabase.auth.signOut(); } catch {}
+              return { success: false, error: 'This IP is blocked by owner.' };
+            }
           }
-          if (blockedErr && (blockedErr as any).code === '42703') {
-            // Fallback: older schema without device_id/ip_address
-            try {
-              const resp2 = await supabase
-                .from('admin_blocked_devices')
-                .select('fingerprint')
-                .eq('fingerprint', fp);
-              blockedRows = resp2.data as any[] | null;
-              blockedErr = resp2.error;
-            } catch {}
-          }
-          if (!blockedErr && blockedRows && blockedRows.length > 0) {
-            try { await supabase.auth.signOut(); } catch {}
-            return { success: false, error: 'This device/IP is blocked by owner.' };
-          }
-        } catch {
-          // ignore firewall / table absence entirely
-        }
+        } catch {}
         // Check if TOTP is enabled
         const totpEnabled = data.user.user_metadata?.totp_enabled || false;
         const totpSecret = data.user.user_metadata?.totp_secret;
@@ -273,19 +248,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     let cancelled = false;
-  const fp = getDeviceFingerprint();
-  const did = getStableDeviceId();
+  // IP-only enforcement per request: remove device fingerprint/device_id criteria.
   let ipCache: string | null = null;
   getClientIP().then((ip: string) => { ipCache = ip; }).catch(()=>{});
     // Realtime channel for instant block logout
     const channel = supabase.channel('admin_dashboard_presence');
     channel.on('broadcast', { event: 'block_update' }, async (payload: any) => {
       try {
-        const { fingerprint: bf, action, ip: bip } = payload?.payload || {};
+        const { action, ip: bip } = payload?.payload || {};
         if (action === 'block') {
-          const matchByFingerprint = bf && bf === fp;
           const matchByIp = bip && ipCache && bip === ipCache;
-          if (matchByFingerprint || matchByIp) {
+          if (matchByIp) {
             await supabase.auth.signOut();
             if (!cancelled) {
               setUser(null);
@@ -298,32 +271,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }).subscribe();
     const check = async () => {
       try {
-  // Device level block check only; omit user_id to avoid cross-device logout on sign-out.
-  const clauses = [`fingerprint.eq.${fp}`, `device_id.eq.${did}`];
-        if (ipCache) clauses.push(`ip_address.eq.${ipCache}`);
-        let blockedRows: any[] | null = null;
-        let blockedErr: any = null;
-        try {
-          const resp = await supabase
-            .from('admin_blocked_devices')
-            .select('fingerprint, device_id, ip_address')
-            .or(clauses.join(','));
-          blockedRows = resp.data as any[] | null;
-          blockedErr = resp.error;
-        } catch (inner) {
-          blockedErr = inner;
-        }
-        if (blockedErr && (blockedErr as any).code === '42703') {
-          // Fallback to legacy fingerprint-only schema
-            try {
-              const resp2 = await supabase
-                .from('admin_blocked_devices')
-                .select('fingerprint')
-                .eq('fingerprint', fp);
-              blockedRows = resp2.data as any[] | null;
-              blockedErr = resp2.error;
-            } catch {}
-        }
+        if (!ipCache) return; // wait until IP resolved
+        const { data: blockedRows, error: blockedErr } = await supabase
+          .from('admin_blocked_devices')
+          .select('ip_address')
+          .eq('ip_address', ipCache);
         if (!cancelled && !blockedErr && blockedRows && blockedRows.length > 0) {
           await supabase.auth.signOut();
           if (!cancelled) {

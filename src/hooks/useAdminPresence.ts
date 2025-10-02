@@ -188,6 +188,27 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
             console.error('[presence track error]', e);
             setError(String(e));
           });
+          // If IP was not immediately available, retry after a short delay and update presence & history once obtained.
+          if (!ipRef) {
+            setTimeout(async () => {
+              if (ipRef) return; // already resolved in meantime
+              try {
+                const retryIp = await getClientIP();
+                if (retryIp) {
+                  ipRef = retryIp;
+                  channel.track({ ...baseMeta, ip: ipRef, ts: Date.now() }).catch(()=>{});
+                  // Attempt to enrich existing historical session row if it lacks IP
+                  try {
+                    await supabase
+                      .from('admin_device_sessions')
+                      .update({ ip_address: ipRef })
+                      .eq('fingerprint', baseMeta.device_fingerprint)
+                      .is('ip_address', null);
+                  } catch {}
+                }
+              } catch {}
+            }, 2000);
+          }
         }
       });
 
