@@ -23,7 +23,10 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
     blockedFingerprints,
     offlineSessions,
     refreshHistory,
-    resolveMissingIPs
+    resolveMissingIPs,
+    blockMode,
+    setBlockMode,
+    ipDiagnostics
   } = presence;
   const SECURITY_CODE = '9693';
   const canForce = true; // Owner panel only renders this component currently; could add prop later.
@@ -72,6 +75,39 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
           {lastSync && (
             <span className="text-gray-500 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {new Date(lastSync).toLocaleTimeString()}</span>
           )}
+          <div className="hidden md:flex items-center ml-2">
+            <div className="flex border rounded overflow-hidden">
+              <button
+                className={`px-2 py-1 text-[10px] font-medium ${blockMode === 'device' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                onClick={() => setBlockMode && setBlockMode('device')}
+                title="Block only this device fingerprint (safer)"
+              >Device</button>
+              <button
+                className={`px-2 py-1 text-[10px] font-medium border-l ${blockMode === 'ip' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                onClick={() => setBlockMode && setBlockMode('ip')}
+                title="Block entire IP (all devices using that IP)"
+              >IP</button>
+            </div>
+          </div>
+          <div className="relative group ml-2">
+            <button className="text-[10px] px-2 py-1 border rounded bg-gray-50 hover:bg-gray-100 text-gray-600" title="IP diagnostics">Diag</button>
+            <div className="absolute right-0 top-full mt-1 hidden group-hover:block z-20 bg-white shadow-lg border rounded p-2 w-64 text-[11px] text-gray-700">
+              <div className="font-semibold text-gray-800 mb-1">IP Diagnostics</div>
+              <div>Cached: <span className="font-mono">{ipDiagnostics?.cachedIp || '—'}</span></div>
+              <div>Error: <span className="truncate inline-block max-w-[150px] align-bottom" title={ipDiagnostics?.lastError ? String(ipDiagnostics.lastError) : ''}>{ipDiagnostics?.lastError ? 'err' : '—'}</span></div>
+              <div className="mt-1 flex gap-1">
+                <button
+                  onClick={() => resolveMissingIPs && resolveMissingIPs()}
+                  className="text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100"
+                >Retry</button>
+                <button
+                  onClick={() => refreshHistory && refreshHistory(true)}
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100"
+                >History</button>
+              </div>
+              <p className="mt-1 text-[10px] leading-snug text-gray-500">Switch block mode to control scope. Device mode stores fingerprint; IP mode stores IP-only global block.</p>
+            </div>
+          </div>
         </div>
       </div>
       <div className="grid md:grid-cols-4 gap-4 mb-6">

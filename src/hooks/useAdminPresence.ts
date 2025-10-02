@@ -39,6 +39,9 @@ export interface AdminPresenceStats {
   offlineSessions: AdminPresenceSessionMeta[]; // historical (not currently active)
   refreshHistory?: (force?: boolean) => Promise<void>;
   resolveMissingIPs?: () => Promise<void>;
+  blockMode?: 'device' | 'ip';
+  setBlockMode?: (mode: 'device' | 'ip') => void;
+  ipDiagnostics?: { cachedIp: string | null; lastError?: any };
 }
 
 function classifyDevice(ua: string): 'desktop' | 'mobile' | 'tablet' | 'unknown' {
@@ -93,6 +96,13 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
   const historyFetchInFlight = useRef(false);
   const lastUpsertRef = useRef<number>(0);
   const refreshHistoryRef = useRef<(force?: boolean) => void | Promise<void>>();
+  const [blockMode, setBlockMode] = useState<'device' | 'ip'>(() => {
+    try { return (localStorage.getItem('admin_block_mode') as 'device' | 'ip') || 'device'; } catch { return 'device'; }
+  });
+  const persistBlockMode = (m: 'device' | 'ip') => {
+    setBlockMode(m);
+    try { localStorage.setItem('admin_block_mode', m); } catch {}
+  };
 
   useEffect(() => {
     if (!enable || !isAuthenticated || !user) return;
@@ -221,6 +231,18 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
                 } catch {}
                 // After enrichment, refresh history so offline list shows IP where applicable.
                 try { refreshHistoryRef.current?.(true); } catch {}
+              } else if (!resolved) {
+                // Attempt server-assisted capture if client methods all failed.
+                try {
+                  if (baseMeta.device_fingerprint) {
+                    const { data } = await supabase.rpc('capture_admin_ip', { p_fingerprint: baseMeta.device_fingerprint });
+                    if (data && (data as any).ip && !ipRef) {
+                      ipRef = (data as any).ip;
+                      channel.track({ ...baseMeta, ip: ipRef, ts: Date.now() }).catch(()=>{});
+                      try { refreshHistoryRef.current?.(true); } catch {}
+                    }
+                  }
+                } catch {}
               }
             })();
           }
@@ -437,7 +459,13 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
         const device_id = getStableDeviceId();
         let ip = getCachedIP();
         if (!ip) ip = await getClientIP();
-        await supabase.from('admin_blocked_devices').insert({ fingerprint, device_id, ip_address: ip || null });
+        const payload: any = {
+          device_id,
+          ip_address: ip || null,
+          ip_only: blockMode === 'ip'
+        };
+        if (blockMode === 'device') payload.fingerprint = fingerprint; else payload.fingerprint = null;
+        await supabase.from('admin_blocked_devices').insert(payload);
         // If we still don't have an IP (network delay / blocked), schedule a late enrichment.
         if (!ip) {
           setTimeout(async () => {
@@ -447,8 +475,7 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
                 await supabase
                   .from('admin_blocked_devices')
                   .update({ ip_address: lateIp })
-                  .eq('fingerprint', fingerprint)
-                  .is('ip_address', null);
+                  .is('ip_address', null); // update any newly created block rows lacking IP
               }
             } catch {}
           }, 2000);
@@ -524,5 +551,8 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     offlineSessions,
     refreshHistory,
     resolveMissingIPs,
+    blockMode,
+    setBlockMode: persistBlockMode,
+    ipDiagnostics: { cachedIp: getCachedIP(), lastError: undefined },
   };
 }
