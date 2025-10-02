@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
 import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
-import { getClientIP } from '../lib/clientIp';
+// Explicit .ts extension to satisfy bundler/NodeNext style module resolution when TS can't locate the file without it.
+import { getClientIP } from '../lib/clientIp.ts';
 
 interface AuthContextType {
   isAuthenticated: boolean;

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { getDeviceFingerprint, getStableDeviceId } from '../lib/deviceFingerprint';
-import { getClientIP, getCachedIP } from '../lib/clientIp';
+// Add explicit extension for consistency with AuthContext import.
+import { getClientIP, getCachedIP } from '../lib/clientIp.ts';
 import { useAuth } from '../context/AuthContext';
 
 export interface AdminPresenceSessionMeta {
