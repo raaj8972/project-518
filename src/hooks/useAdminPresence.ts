@@ -42,6 +42,7 @@ export interface AdminPresenceStats {
   blockMode?: 'device' | 'ip';
   setBlockMode?: (mode: 'device' | 'ip') => void;
   ipDiagnostics?: { cachedIp: string | null; lastError?: any };
+  presenceDiagnostics?: { raw: number; fresh: number; staleWindowMs: number };
 }
 
 function classifyDevice(ua: string): 'desktop' | 'mobile' | 'tablet' | 'unknown' {
@@ -103,6 +104,14 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     setBlockMode(m);
     try { localStorage.setItem('admin_block_mode', m); } catch {}
   };
+  // Stale window (extend from strict 2m to configurable with default 6m to handle background throttling)
+  const STALE_WINDOW_MS = (() => {
+    const raw = localStorage.getItem('admin_presence_stale_ms');
+    const v = raw ? parseInt(raw, 10) : 0;
+    if (v && v >= 60_000 && v <= 60 * 60 * 1000) return v; // 1m .. 60m
+    return 6 * 60 * 1000; // default 6 minutes
+  })();
+  const [presenceDiagnostics, setPresenceDiagnostics] = useState({ raw: 0, fresh: 0, staleWindowMs: STALE_WINDOW_MS });
 
   useEffect(() => {
     if (!enable || !isAuthenticated || !user) return;
@@ -166,12 +175,13 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
           });
           // Filter stale sessions older than 2 minutes (safety)
           const now = Date.now();
-          const fresh = flat.filter(s => now - s.ts < 2 * 60 * 1000)
+          const fresh = flat.filter(s => now - s.ts < STALE_WINDOW_MS)
             .map(s => ({ ...s, device_fingerprint: s.device_fingerprint }));
           // Exclude any sessions with blocked fingerprints (real-time purge)
           const unblocked = fresh.filter(s => !blockedFingerprints.includes(s.device_fingerprint || ''));
           setSessions(unblocked);
           setLastSync(Date.now());
+          setPresenceDiagnostics({ raw: flat.length, fresh: unblocked.length, staleWindowMs: STALE_WINDOW_MS });
         } catch (e: any) {
           console.error('[presence sync error]', e);
           setError(String(e));
@@ -554,5 +564,6 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
     blockMode,
     setBlockMode: persistBlockMode,
     ipDiagnostics: { cachedIp: getCachedIP(), lastError: undefined },
+    presenceDiagnostics,
   };
 }

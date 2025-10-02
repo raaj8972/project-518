@@ -27,6 +27,7 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
     blockMode,
     setBlockMode,
     ipDiagnostics
+    ,presenceDiagnostics
   } = presence;
   const SECURITY_CODE = '9693';
   const canForce = true; // Owner panel only renders this component currently; could add prop later.
@@ -109,6 +110,11 @@ export const AdminPresencePanel: React.FC<Props> = ({ enabled = true }) => {
             </div>
           </div>
         </div>
+        {presenceDiagnostics && (
+          <div className="text-[10px] text-gray-500 ml-2">
+            showing {totalSessions}/{presenceDiagnostics.raw} (window {Math.round(presenceDiagnostics.staleWindowMs/60000)}m)
+          </div>
+        )}
       </div>
       <div className="grid md:grid-cols-4 gap-4 mb-6">
         <div className="p-4 bg-indigo-50 rounded-lg">
