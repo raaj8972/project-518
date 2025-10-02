@@ -115,7 +115,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               .select('ip_address')
               .eq('ip_address', ip);
             if (!blockedErr && blockedRows && blockedRows.length > 0) {
-              try { await supabase.auth.signOut(); } catch {}
+              // Use local scope so other browsers/devices remain logged in; this is a failed login attempt only.
+              try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
               return { success: false, error: 'This IP is blocked by owner.' };
             }
           }
@@ -127,7 +128,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (totpEnabled && totpSecret) {
           if (!totpCode) {
             // Do not keep a session alive without 2FA
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             return { success: false, requiresTOTP: true };
           }
 
@@ -135,7 +136,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const ok = await verifyTOTP(totpCode, totpSecret);
           if (!ok) {
             // For safety, ensure no lingering session if code invalid
-            try { await supabase.auth.signOut(); } catch {}
+            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
             return { success: false, error: 'Invalid 2FA code' };
           }
         }
@@ -155,7 +156,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async (): Promise<void> => {
     try {
-      await supabase.auth.signOut();
+  // Explicit logout: only end this session (don't revoke others)
+  await supabase.auth.signOut({ scope: 'local' });
       setUser(null);
       setIsAuthenticated(false);
       setIsTOTPEnabled(false);
@@ -259,6 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (action === 'block') {
           const matchByIp = bip && ipCache && bip === ipCache;
           if (matchByIp) {
+            // Block enforcement: use global sign out to revoke all sessions on this token set / user
             await supabase.auth.signOut();
             if (!cancelled) {
               setUser(null);
@@ -277,6 +280,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           .select('ip_address')
           .eq('ip_address', ipCache);
         if (!cancelled && !blockedErr && blockedRows && blockedRows.length > 0) {
+          // Periodic block check should globally sign out if IP is blocked.
           await supabase.auth.signOut();
           if (!cancelled) {
             setUser(null);

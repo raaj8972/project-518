@@ -188,6 +188,23 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
             console.error('[presence track error]', e);
             setError(String(e));
           });
+          // Immediately persist (or update) this active session row for analytics (no 30s throttle delay)
+          (async () => {
+            try {
+              await supabase.from('admin_device_sessions').upsert({
+                fingerprint: baseMeta.device_fingerprint,
+                user_id: baseMeta.user_id,
+                email: baseMeta.email,
+                device_type: baseMeta.device_type,
+                platform: baseMeta.platform,
+                browser: baseMeta.browser,
+                ua: baseMeta.ua,
+                ip_address: ipRef || null,
+                last_seen: new Date().toISOString(),
+                ended_at: null,
+              }, { onConflict: 'fingerprint' });
+            } catch { /* ignore */ }
+          })();
           // If IP missing, schedule progressive retries (background) until acquired or attempts exhausted.
           if (!ipRef) {
             (async () => {
@@ -198,9 +215,8 @@ export function useAdminPresence(enable: boolean): AdminPresenceStats {
                 try {
                   await supabase
                     .from('admin_device_sessions')
-                    .update({ ip_address: ipRef })
-                    .eq('fingerprint', baseMeta.device_fingerprint)
-                    .is('ip_address', null);
+                    .update({ ip_address: ipRef, last_seen: new Date().toISOString(), ended_at: null })
+                    .eq('fingerprint', baseMeta.device_fingerprint);
                 } catch {}
                 // After enrichment, refresh history so offline list shows IP where applicable.
                 try { refreshHistoryRef.current?.(true); } catch {}
