@@ -18,6 +18,15 @@ import FacultyProfileModal from '../components/FacultyProfileModal';
 
 export const RicoFamily: React.FC = () => {
   const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, formSettings, homepageSettings } = useData();
+  // Minimal web dev role detection (fallback to config if present)
+  const webDevPhraseList = (homepageSettings as any)?.web_dev_role_phrases && Array.isArray((homepageSettings as any).web_dev_role_phrases) && (homepageSettings as any).web_dev_role_phrases.length > 0
+    ? (homepageSettings as any).web_dev_role_phrases.map((p: string) => String(p).toLowerCase())
+    : ['web developer','lead developer','web design & maintenance','web design and maintenance','web design','developer'];
+  const isWebDevRole = (role?: string | null) => {
+    const rl = String(role || '').toLowerCase();
+    if (!rl) return false;
+    return webDevPhraseList.some((p: string) => rl.includes(p));
+  };
   const [glitchActive, setGlitchActive] = useState(false);
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
@@ -111,6 +120,11 @@ export const RicoFamily: React.FC = () => {
   // Committee heads across all committees (for marquee)
   const committeeHeads = (coreTeamMembers || [])
     .filter(m => m.enabled && m.is_head)
+    .sort((a, b) => a.order_position - b.order_position);
+
+  // Council members (non-head)
+  const councilMembers = (coreTeamMembers || [])
+    .filter(m => m.enabled && (m as any).isCouncil && !m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
   // Glitch effect trigger
@@ -268,6 +282,103 @@ export const RicoFamily: React.FC = () => {
         </section>
       )}
 
+      {/* Council Section (restored) */}
+      {councilMembers.length > 0 && (
+        <section className="py-14 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-900/40 via-rose-900/50 to-orange-900/40"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="scroll-animate opacity-0 transform translate-y-20">
+              <div className="text-center mb-10 flex flex-col items-center translate-x-2 md:translate-x-4">
+                <h2 className="text-4xl md:text-5xl font-black mb-4 neon-title tracking-wide text-center">
+                  <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(56,189,248,0.55)]">
+                    COUNCIL
+                  </span>
+                </h2>
+                <div className="w-52 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 mx-auto mb-4 rounded-full shadow-[0_0_12px_rgba(255,120,60,0.65)]"></div>
+                <p className="text-lg text-gray-300 max-w-3xl mx-auto mt-4">
+                  Strategic leadership and executive oversight
+                </p>
+              </div>
+            </div>
+            <div className="grid md:grid-cols-2 gap-10">
+              {councilMembers.map((member, idx) => { const wd = isWebDevRole(member.role); return (
+                <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${idx * 0.15}s` }}>
+                  <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${wd ? 'ring-1 ring-cyan-500/40' : ''}`}> 
+                    {/* Image */}
+                    <div className="relative h-80 md:h-full overflow-hidden">
+                      <img src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
+                      <div className="absolute top-4 right-4 flex items-center gap-2">
+                        <Crown className={`w-7 h-7 ${wd ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
+                      </div>
+                      <div className="absolute bottom-4 left-4">
+                        <div className={`px-4 py-1 rounded-full text-sm font-bold tracking-wide inline-block shadow-md ${wd ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black' : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-black'}`}>COUNCIL</div>
+                      </div>
+                    </div>
+                    {/* Content */}
+                    <div className="p-6 flex flex-col justify-center">
+                      <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${wd ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
+                      <p className={`text-lg font-semibold mb-4 ${wd ? 'text-cyan-400' : 'text-red-400'}`}>{member.role || 'Member'}</p>
+                      {member.description && (
+                        <p className="text-gray-300 mb-4 leading-relaxed text-sm">{member.description}</p>
+                      )}
+                      {member.specialty && (
+                        <div className="mb-4">
+                          <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium border tracking-wide ${wd ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : 'bg-red-500/15 text-red-300 border-red-500/40'}`}>{member.specialty}</span>
+                        </div>
+                      )}
+                      {member.social_links && Object.values(member.social_links).some(l => l) && (
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                          <span className="text-[11px] uppercase tracking-wide text-red-400 font-semibold mr-1">Social Media:</span>
+                          {member.social_links.instagram && (
+                            <Instagram3DButtonLink href={member.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${member.name}`} />
+                          )}
+                          {member.social_links.youtube && (
+                            <YouTube3DButtonLink href={member.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${member.name}`} />
+                          )}
+                          {member.social_links.facebook && (
+                            <Facebook3DButtonLink href={member.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${member.name}`} />
+                          )}
+                          {member.social_links.spotify && (
+                            <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"><Spotify size={30} /></a>
+                          )}
+                        </div>
+                      )}
+                      {(Boolean((member as any).email) || Boolean((member as any).phone)) && (
+                        <div className="mb-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] uppercase tracking-wide text-red-400 font-semibold">Contact:</span>
+                            {Boolean((member as any).email) && (
+                              <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${member.name}`} />
+                            )}
+                            {Boolean((member as any).phone) && (
+                              <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${member.name}`} />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {member.achievements && member.achievements.length > 0 && (
+                        <div>
+                          <h6 className={`text-sm font-bold mb-3 ${wd ? 'text-cyan-400' : 'text-red-400'}`}>KEY ACHIEVEMENTS</h6>
+                          <div className="space-y-2">
+                            {member.achievements.map((a, i2) => (
+                              <div key={i2} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${i2 * 0.18}s` }}>
+                                <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${wd ? 'bg-cyan-400' : 'bg-red-400'}`}></div>
+                                <span className="text-gray-300 text-xs">{a}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ); })}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Committee Heads marquee — opposite direction */}
       {committeeHeads.length > 0 && (
         <section className="py-13 relative overflow-hidden">
@@ -339,7 +450,8 @@ export const RicoFamily: React.FC = () => {
             <div className="space-y-16">
               {enabledCommittees.map((committee, committeeIndex) => {
                 const allCommitteeMembers = membersByCommittee[committee.id] || [];
-                const regularMembers = allCommitteeMembers.filter(member => !member.is_head);
+                // Exclude council members so they don't appear twice (in Council section + their committee)
+                const regularMembers = allCommitteeMembers.filter(member => !member.is_head && !(member as any).isCouncil);
                 
                 if (allCommitteeMembers.length === 0) return null;
 
@@ -371,106 +483,75 @@ export const RicoFamily: React.FC = () => {
                           Committee Heads ({allCommitteeMembers.filter(m => m.is_head).length})
                         </h4>
                         <div className="grid md:grid-cols-2 gap-8">
-                          {allCommitteeMembers.filter(m => m.is_head).map((head) => (
-                            <div key={head.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
-                              <div className="grid md:grid-cols-2 gap-0">
-                                {/* Image Section */}
-                                <div className="relative h-85 md:h-auto overflow-hidden">
-                                  <img
-                                    src={head.image}
-                                    alt={head.name}
-                                    className="w-full h-full object-cover faculty-image"
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                                  <div className="absolute top-4 right-4">
-                                    <Crown className="w-6 h-6 text-yellow-400 animate-pulse pulse-ring" />
-                                  </div>
-                                  <div className="absolute bottom-4 left-4 right-4">
-                                    <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">
-                                      COMMITTEE HEAD
+                          {allCommitteeMembers.filter(m => m.is_head).map(head => {
+                            const wd = isWebDevRole(head.role);
+                            return (
+                              <div key={head.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
+                                <div className="grid md:grid-cols-2 gap-0">
+                                  {/* Image Section */}
+                                  <div className="relative h-85 md:h-auto overflow-hidden">
+                                    <img src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                                    <div className="absolute top-4 right-4">
+                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${wd ? 'text-cyan-300' : 'text-yellow-400'}`} />
+                                    </div>
+                                    <div className="absolute bottom-4 left-4 right-4">
+                                      {wd ? (
+                                        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
+                                      ) : (
+                                        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
+                                      )}
                                     </div>
                                   </div>
-                                </div>
-                                
-                                {/* Content Section */}
-                                <div className="p-6 flex flex-col justify-center">
-                                  <h5 className="text-2xl font-bold text-white mb-2 neon-yellow faculty-name">
-                                    {head.name}
-                                  </h5>
-                                  <p className="text-lg text-yellow-400 mb-3 font-semibold">
-                                    {head.role}
-                                  </p>
-                                  <p className="text-gray-300 mb-4 leading-relaxed text-sm">
-                                    {head.description}
-                                  </p>
-                                  <div className="mb-4">
-                                    <span className="inline-block bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded-full text-xs font-medium border border-yellow-500/30">
-                                      {head.specialty}
-                                    </span>
-                                  </div>
-                                  
-                                  {/* Social Links */}
-                                  {head.social_links && Object.values(head.social_links).some(link => link) && (
-                                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                                      <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
-                                      {head.social_links.instagram && (
-                                        <Instagram3DButtonLink href={head.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${head.name}`} />
-                                      )}
-                                      {head.social_links.youtube && (
-                                        <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />
-                                      )}
-                                      {head.social_links.facebook && (
-                                        <Facebook3DButtonLink href={head.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${head.name}`} />
-                                      )}
-                                      {head.social_links.spotify && (
-                                        <a
-                                          href={head.social_links.spotify}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                                        >
-                                          <Spotify size={30} />
-                                        </a>
-                                      )}
-                                    </div>
-                                  )}
-                                  {/* Contact Icons */}
-                                  {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
-                                    <div className="mb-4">
-                                      <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
-                                        {Boolean((head as any).email) && (
-                                          <Email3DButtonLink href={`mailto:${(head as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${head.name}`} />
-                                        )}
-                                        {Boolean((head as any).phone) && (
-                                          <Phone3DButtonLink href={`tel:${(head as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${head.name}`} />
+                                  {/* Content Section */}
+                                  <div className="p-6 flex flex-col justify-center">
+                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${wd ? 'webdev text-cyan-300' : 'text-white'}`}>{head.name}</h5>
+                                    <p className={`text-lg mb-3 font-semibold ${wd ? 'text-cyan-400' : 'text-yellow-400'}`}>{head.role}</p>
+                                    <p className="text-gray-300 mb-4 leading-relaxed text-sm">{head.description}</p>
+                                    {head.specialty && (
+                                      <div className="mb-4">
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${wd ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
+                                      </div>
+                                    )}
+                                    {head.social_links && Object.values(head.social_links).some(link => link) && (
+                                      <div className="flex flex-wrap items-center gap-2 mb-4">
+                                        <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
+                                        {head.social_links.instagram && <Instagram3DButtonLink href={head.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${head.name}`} />}
+                                        {head.social_links.youtube && <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />}
+                                        {head.social_links.facebook && <Facebook3DButtonLink href={head.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${head.name}`} />}
+                                        {head.social_links.spotify && (
+                                          <a href={head.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors hover:scale-110">
+                                            <Spotify size={30} />
+                                          </a>
                                         )}
                                       </div>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Achievements */}
-                                  {head.achievements.length > 0 && (
-                                    <div>
-                                      <h6 className="text-sm font-bold text-cyan-400 mb-3">KEY ACHIEVEMENTS</h6>
-                                      <div className="space-y-2">
-                                        {head.achievements.map((achievement, achievementIndex) => (
-                                          <div
-                                            key={achievementIndex}
-                                            className="flex items-start space-x-2 achievement-item"
-                                            style={{ animationDelay: `${achievementIndex * 0.2}s` }}
-                                          >
-                                            <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 pulse-ring flex-shrink-0"></div>
-                                            <span className="text-gray-300 text-xs">{achievement}</span>
-                                          </div>
-                                        ))}
+                                    )}
+                                    {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
+                                      <div className="mb-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
+                                          {Boolean((head as any).email) && <Email3DButtonLink href={`mailto:${(head as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${head.name}`} />}
+                                          {Boolean((head as any).phone) && <Phone3DButtonLink href={`tel:${(head as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${head.name}`} />}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
+                                    {head.achievements.length > 0 && (
+                                      <div>
+                                        <h6 className="text-sm font-bold text-cyan-400 mb-3">KEY ACHIEVEMENTS</h6>
+                                        <div className="space-y-2">
+                                          {head.achievements.map((achievement, achievementIndex) => (
+                                            <div key={achievementIndex} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
+                                              <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${wd ? 'bg-cyan-400' : 'bg-yellow-400'}`}></div>
+                                              <span className="text-gray-300 text-xs">{achievement}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            );})}
                         </div>
                       </div>
                     )}
@@ -1454,22 +1535,23 @@ export const RicoFamily: React.FC = () => {
           transform: scale(1.05);
         }
 
-        .faculty-name {
-          animation: nameGlow 3s ease-in-out infinite alternate;
+        .faculty-name { animation: nameGlowYellow 3s ease-in-out infinite alternate; }
+        .faculty-name.webdev { animation: nameGlowCyan 3s ease-in-out infinite alternate; }
+
+        @keyframes nameGlowYellow {
+          from { text-shadow: 0 0 2px #ffff00, 0 0 4px #ffff00; }
+          to { text-shadow: 0 0 4px #ffff00, 0 0 8px #ffff00, 0 0 12px #ffff00; }
+        }
+        @keyframes nameGlowCyan {
+          from { text-shadow: 0 0 2px #22d3ee, 0 0 4px #22d3ee; }
+          to { text-shadow: 0 0 4px #22d3ee, 0 0 8px #06b6d4, 0 0 14px #0891b2; }
         }
 
-        @keyframes nameGlow {
-          from {
-            text-shadow: 
-              0 0 2px #ffff00,
-              0 0 4px #ffff00;
-          }
-          to {
-            text-shadow: 
-              0 0 4px #ffff00,
-              0 0 8px #ffff00,
-              0 0 12px #ffff00;
-          }
+        /* Council red glow */
+        .council-name { animation: nameGlowRed 3s ease-in-out infinite alternate; }
+        @keyframes nameGlowRed {
+          from { text-shadow: 0 0 2px #f87171, 0 0 4px #f87171; }
+          to { text-shadow: 0 0 4px #f87171, 0 0 8px #ef4444, 0 0 14px #dc2626; }
         }
 
         .achievement-item {

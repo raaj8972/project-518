@@ -65,6 +65,8 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
   const colorByIndex = useRef<Map<number, string>>(new Map());
     const containerRef = useRef<HTMLDivElement | null>(null);
   const isCoarsePointer = useRef<boolean>(false);
+  // Track if we imperatively forced a pause due to a touch (for snappier mobile UX)
+  const touchForcedPauseRef = useRef<boolean>(false);
 
   useEffect(() => {
     try {
@@ -175,16 +177,42 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
       }}
       onMouseEnter={() => pauseOnHover && setIsHovering(true)}
       onMouseLeave={() => pauseOnHover && setIsHovering(false)}
-      onTouchStart={() => {
+      onTouchStart={(e) => {
         if (!pauseOnTouch) return;
         setIsHovering(true);
-        // Ensure we always resume even if the pointer events get cancelled due to scrolling
-        const clear = () => setIsHovering(false);
-        // Use capture to be early and once to auto-cleanup; passive true for performance
+        // Imperatively pause immediately for responsiveness before React state flush
+        if (trackRef.current) {
+          try {
+            trackRef.current.style.animationPlayState = 'paused';
+            touchForcedPauseRef.current = true;
+          } catch {}
+        }
+        // Ensure we always resume even if pointer events get cancelled due to scrolling / navigation
+        const clear = () => {
+          setIsHovering(false);
+          if (trackRef.current && touchForcedPauseRef.current) {
+            // Only resume if not otherwise paused by external props or manual toggle
+            const stillShouldPause = paused || manualPaused;
+            if (!stillShouldPause) {
+              try { trackRef.current.style.animationPlayState = 'running'; } catch {}
+              touchForcedPauseRef.current = false;
+            }
+          }
+        };
         window.addEventListener('touchend', clear, { once: true, passive: true, capture: true } as any);
         window.addEventListener('touchcancel', clear, { once: true, passive: true, capture: true } as any);
       }}
-      onTouchEnd={() => pauseOnTouch && setIsHovering(false)}
+      onTouchEnd={() => {
+        if (!pauseOnTouch) return;
+        setIsHovering(false);
+        if (trackRef.current && touchForcedPauseRef.current) {
+          const stillShouldPause = paused || manualPaused;
+          if (!stillShouldPause) {
+            try { trackRef.current.style.animationPlayState = 'running'; } catch {}
+            touchForcedPauseRef.current = false;
+          }
+        }
+      }}
       onPointerDown={() => setIsHovering(true)}
       onPointerUp={() => setIsHovering(false)}
       onPointerCancel={() => setIsHovering(false)}

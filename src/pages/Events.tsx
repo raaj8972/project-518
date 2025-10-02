@@ -22,12 +22,32 @@ export const Events: React.FC = () => {
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
+  // Events that are actually shown (respecting visibility flag)
   const visibleEvents = (events as any[]).filter((e: any) => e.visible !== false);
-  const categories = ['All', ...Array.from(new Set(visibleEvents.map((e: any) => String(e.category))))];
-  const filteredEvents = selectedCategory === 'All' ? visibleEvents : visibleEvents.filter((e: any) => e.category === selectedCategory);
-  const categoriesKey = categories.join('|');
 
-  // If current selection disappears due to data refresh, fallback to All so cards render
+  // Build the full category list from ALL events (even hidden) so owner-created
+  // categories appear in the filter even if no event is currently visible.
+  // - Trim whitespace
+  // - De-duplicate in a case-insensitive way while preserving first-seen casing
+  const allCategoriesMap = new Map<string, string>();
+  (events as any[]).forEach((e: any) => {
+    const raw = e?.category;
+    if (raw == null) return;
+    const trimmed = String(raw).trim();
+    if (!trimmed) return;
+    const key = trimmed.toLowerCase();
+    if (!allCategoriesMap.has(key)) allCategoriesMap.set(key, trimmed);
+  });
+  const allCategories = Array.from(allCategoriesMap.values());
+  const categories = ['All', ...allCategories];
+
+  // Filtered list only uses visible events, but selection may be a category that currently has zero visible events
+  const filteredEvents = selectedCategory === 'All'
+    ? visibleEvents
+    : visibleEvents.filter((e: any) => String(e.category).trim().toLowerCase() === selectedCategory.toLowerCase());
+  const categoriesKey = categories.join('|'); // includes hidden categories too
+
+  // If current selection disappears entirely (removed category), fallback to All so cards render
   useEffect(() => {
     if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
       setSelectedCategory('All');
