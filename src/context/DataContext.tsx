@@ -123,6 +123,8 @@ interface DataContextType {
   updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
   deleteEventWinner?: (id: number) => Promise<void>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
+  // Manual ordering for events (display_order ascending)
+  reorderEvents: (orderedIds: number[]) => Promise<boolean>;
   deleteEvent: (id: number) => Promise<void>;
   addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
@@ -269,6 +271,8 @@ interface DataContextType {
     can_chief_guests?: boolean;
     can_homebound?: boolean;
   } | null;
+  // Diagnostics for event reordering failures
+  lastEventReorderError?: { phase: string; message?: string; details?: string; hint?: string } | null;
 }
 
 // React context + provider
@@ -333,6 +337,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
+  const [lastEventReorderError, setLastEventReorderError] = useState<null | { phase: string; message?: string; details?: string; hint?: string }>(null);
   const [realtimeStatus, setRealtimeStatus] = useState<Record<string, string>>({});
   const [schemaCapabilities, setSchemaCapabilities] = useState({
     events_registration_photo_required: true,
@@ -1016,14 +1021,41 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         console.warn('Schema detection failed', e);
       }
-      // Fetch Events (use * to avoid selecting explicit new columns that may not exist yet)
-      const { data: eventsData, error: eventsError } = await supabase
-        .from('events')
-        .select('*')
-        // Show latest created events first
-        .order('created_at', { ascending: false });
+      // Fetch Events ordered by display_order if column exists; fallback gracefully if not migrated
+      let eventsData: any[] | null = null;
+      let eventsError: any = null;
+      try {
+        const res = await supabase
+          .from('events')
+          .select('*')
+          .order('display_order', { ascending: true }); // secondary ordering handled client-side to avoid multi-column order 400
+        eventsData = res.data as any[] | null;
+        eventsError = res.error;
+        // Some PostgREST versions error on ordering by missing column; detect and retry
+        if (eventsError && String(eventsError.message || '').toLowerCase().includes('display_order')) {
+          const retry = await supabase.from('events').select('*');
+          eventsData = retry.data as any[] | null;
+          eventsError = retry.error;
+        }
+      } catch (e: any) {
+        eventsError = e;
+      }
       if (eventsError) markErr('Error fetching events', eventsError);
-      else setEvents((eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) })));
+      else {
+        const mapped = (eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) }));
+        // Ensure stable ordering client-side if display_order present; otherwise leave as returned
+        mapped.sort((a: any, b: any) => {
+          const da = (a.display_order ?? Infinity);
+          const db = (b.display_order ?? Infinity);
+          if (da !== db) return da - db;
+          // fallback secondary by created_at then id
+          const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+          if (ca !== cb) return ca - cb;
+          return a.id - b.id;
+        });
+        setEvents(mapped);
+      }
 
       // Fetch Gallery Images (non-critical; tolerate missing table/permission/transient network)
       const { data: galleryImagesData, error: galleryImagesError } = await supabase
@@ -1562,8 +1594,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const prefetchEvents = async () => {
     try {
       const [{ data: eventsData }, { data: eventCoordinatorsData }] = await Promise.all([
-        // Order events newest first so recently created events appear at the top in UI
-        supabase.from('events').select('*').order('created_at', { ascending: false }),
+        supabase.from('events').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true }),
         supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true })
       ] as any);
       if (eventsData) setEvents((eventsData || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) })));
@@ -1624,6 +1655,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             ...data,
             image_url: sanitizeUrl((data as any).image_url),
             video_url: sanitizeUrl((data as any).video_url),
+            mobile_video_url: sanitizeUrl((data as any).mobile_video_url),
+            mobile_poster_url: sanitizeUrl((data as any).mobile_poster_url),
+            desktop_zoom: (data as any).desktop_zoom ?? 1,
+            desktop_offset_x: (data as any).desktop_offset_x ?? 0,
+            desktop_offset_y: (data as any).desktop_offset_y ?? 0,
+            mobile_zoom: (data as any).mobile_zoom ?? 1,
+            mobile_offset_x: (data as any).mobile_offset_x ?? 0,
+            mobile_offset_y: (data as any).mobile_offset_y ?? 0,
           } as HeroMedia;
           setHeroMedia((prev) => ({ ...prev, [pageKey]: patched }));
           return patched;
@@ -1642,16 +1681,44 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateHeroMedia = async (pageKey: PageKey, patch: Partial<HeroMedia>) => {
-    // Do not allow updating page_key via patch
+    // Allow creating or updating in a single call (first-save fix)
     const payload = { ...patch } as Partial<HeroMedia>;
     delete (payload as any).page_key;
+    try {
+      if (typeof window !== 'undefined') {
+        // Lightweight debug trace to verify outgoing framing values
+        console.debug('[updateHeroMedia] outgoing', pageKey, {
+          mobile_zoom: (payload as any).mobile_zoom,
+          mobile_offset_x: (payload as any).mobile_offset_x,
+          mobile_offset_y: (payload as any).mobile_offset_y,
+          desktop_zoom: (payload as any).desktop_zoom,
+          desktop_offset_x: (payload as any).desktop_offset_x,
+          desktop_offset_y: (payload as any).desktop_offset_y,
+        });
+      }
+    } catch {}
     const prev = heroMedia[pageKey] || null;
-    const { error } = await supabase
+    let { data: rows, error } = await supabase
       .from('hero_media')
-      .update(payload)
-      .eq('page_key', pageKey);
+      .upsert([{ page_key: pageKey, ...payload }], { onConflict: 'page_key' })
+      .select();
+    // Fallback if remote schema missing new columns
+    if (error && (error.message || '').toLowerCase().includes('column') && ((error.message.includes('mobile_video_url')) || (error.message.includes('mobile_poster_url')))) {
+      console.warn('[Data:updateHeroMedia] Remote schema missing mobile columns, retrying without them. Run migration to add mobile_video_url/mobile_poster_url.');
+      const fallback = { ...payload } as any;
+      delete fallback.mobile_video_url;
+      delete fallback.mobile_poster_url;
+      const retry = await supabase
+        .from('hero_media')
+        .upsert([{ page_key: pageKey, ...fallback }], { onConflict: 'page_key' })
+        .select();
+      if (retry.error) throw retry.error;
+      rows = retry.data;
+      error = null as any;
+    }
     if (error) throw error;
-    // If media URL changed, delete the previous asset where safe
+    const updated = rows?.[0] as HeroMedia | undefined;
+    // Cleanup old assets only when replacing existing row
     if (prev) {
       if (payload.image_url && !urlsEqual(prev.image_url, payload.image_url)) {
         if (!isUrlReferencedSomewhere(prev.image_url, { table: 'hero_media', id: String(pageKey) })) {
@@ -1663,9 +1730,51 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           deleteStorageFileByPublicUrl(prev.video_url);
         }
       }
+      if ((payload as any).mobile_video_url && !urlsEqual((prev as any).mobile_video_url, (payload as any).mobile_video_url)) {
+        const oldMobile = (prev as any).mobile_video_url;
+        if (oldMobile && !isUrlReferencedSomewhere(oldMobile, { table: 'hero_media', id: String(pageKey) })) {
+          deleteStorageFileByPublicUrl(oldMobile);
+        }
+      }
+      if ((payload as any).mobile_poster_url && !urlsEqual((prev as any).mobile_poster_url, (payload as any).mobile_poster_url)) {
+        const oldMobilePoster = (prev as any).mobile_poster_url;
+        if (oldMobilePoster && !isUrlReferencedSomewhere(oldMobilePoster, { table: 'hero_media', id: String(pageKey) })) {
+          deleteStorageFileByPublicUrl(oldMobilePoster);
+        }
+      }
     }
-    // Refresh local cache
-    await fetchHeroMedia(pageKey);
+    if (updated) {
+      const patched = {
+        ...updated,
+        image_url: sanitizeUrl((updated as any).image_url),
+        video_url: sanitizeUrl((updated as any).video_url),
+        mobile_video_url: sanitizeUrl((updated as any).mobile_video_url),
+        mobile_poster_url: sanitizeUrl((updated as any).mobile_poster_url),
+        desktop_zoom: (updated as any).desktop_zoom ?? 1,
+        desktop_offset_x: (updated as any).desktop_offset_x ?? 0,
+        desktop_offset_y: (updated as any).desktop_offset_y ?? 0,
+        mobile_zoom: (updated as any).mobile_zoom ?? 1,
+        mobile_offset_x: (updated as any).mobile_offset_x ?? 0,
+        mobile_offset_y: (updated as any).mobile_offset_y ?? 0,
+      } as HeroMedia;
+      try {
+        if (typeof window !== 'undefined') {
+          const pAny: any = patched;
+          console.debug('[updateHeroMedia] returned row', pageKey, {
+            mobile_zoom: pAny.mobile_zoom,
+            mobile_offset_x: pAny.mobile_offset_x,
+            mobile_offset_y: pAny.mobile_offset_y,
+            desktop_zoom: pAny.desktop_zoom,
+            desktop_offset_x: pAny.desktop_offset_x,
+            desktop_offset_y: pAny.desktop_offset_y,
+          });
+        }
+      } catch {}
+      setHeroMedia((prevMap) => ({ ...prevMap, [pageKey]: patched }));
+    } else {
+      // Fallback: refetch if select somehow returned empty
+      await fetchHeroMedia(pageKey);
+    }
   };
 
   useEffect(() => {
@@ -1754,6 +1863,50 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) roadmap_milestones`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
+  }, []);
+
+  // Realtime subscription for hero_media so hero background framing updates propagate across tabs
+  useEffect(() => {
+    const channelName = 'ctx-hero-media';
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hero_media' }, (payload: any) => {
+        try {
+          const row = (payload.new || payload.old);
+          if (!row?.page_key) return;
+          if (payload.eventType === 'DELETE') {
+            setHeroMedia(prev => {
+              const next = { ...prev } as any; delete next[row.page_key]; return next;
+            });
+            return;
+          }
+          const patched: HeroMedia = {
+            ...(row as any),
+            image_url: sanitizeUrl((row as any).image_url),
+            video_url: sanitizeUrl((row as any).video_url),
+            mobile_video_url: sanitizeUrl((row as any).mobile_video_url),
+            mobile_poster_url: sanitizeUrl((row as any).mobile_poster_url),
+            desktop_zoom: (row as any).desktop_zoom ?? 1,
+            desktop_offset_x: (row as any).desktop_offset_x ?? 0,
+            desktop_offset_y: (row as any).desktop_offset_y ?? 0,
+            mobile_zoom: (row as any).mobile_zoom ?? 1,
+            mobile_offset_x: (row as any).mobile_offset_x ?? 0,
+            mobile_offset_y: (row as any).mobile_offset_y ?? 0,
+          } as HeroMedia;
+          setHeroMedia(prev => ({ ...prev, [row.page_key]: patched }));
+        } catch (e) {
+          console.warn('[DataContext] hero_media realtime handling error', e);
+        }
+      })
+      .subscribe((status: any) => {
+        const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) hero_media`);
         }
       });
     try { realtimeChannelsRef.current.add(channel); } catch {}
@@ -2077,6 +2230,103 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     await fetchData(true);
+  };
+
+  // Batch reorder events (drag & drop UI). orderedIds is the new top-to-bottom list.
+const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return false;
+  setLastEventReorderError(null);
+    // If current in-memory events lack the display_order property entirely, abort with guidance
+    if (events.length && !Object.prototype.hasOwnProperty.call(events[0] as any, 'display_order')) {
+      const msg = "display_order column not present in fetched events (migration not applied or API cache stale)";
+      console.warn('[reorderEvents] aborting:', msg);
+      setLastEventReorderError({ phase: 'precheck', message: msg, details: 'Apply migration & Reset API cache in Supabase Dashboard > Database > Settings', hint: 'Run ALTER TABLE and then Reset cache' });
+      return false;
+    }
+    // Sanitize + validate ids (must be distinct positive integers)
+    const seen = new Set<number>();
+    const cleanIds: number[] = [];
+    for (const raw of orderedIds) {
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n <= 0) {
+        console.warn('[reorderEvents] skipping invalid id value', raw);
+        continue;
+      }
+      if (seen.has(n)) continue;
+      seen.add(n);
+      cleanIds.push(n);
+    }
+    if (!cleanIds.length) {
+      console.warn('[reorderEvents] no valid ids after validation');
+      return false;
+    }
+    // Preflight: ensure every id still exists in current in-memory set (avoids upserts attempting insert for deleted rows)
+    const existingIdSet = new Set(events.map(e => e.id));
+    const missingIds = cleanIds.filter(id => !existingIdSet.has(id));
+    let effectiveIds = cleanIds.filter(id => existingIdSet.has(id));
+    if (missingIds.length) {
+      const msg = `Some reordered event ids no longer exist: [${missingIds.join(', ')}] (likely deleted or from stale UI state)`;
+      console.warn('[reorderEvents] missing ids, will skip them', missingIds);
+      setLastEventReorderError({ phase: 'preflight-missing', message: msg, details: 'Skipped missing ids; remaining events will still be ordered.', hint: 'Refresh the page if many are missing.' });
+    }
+    if (!effectiveIds.length) {
+      console.warn('[reorderEvents] no remaining existing ids after filtering');
+      return false;
+    }
+    // Optimistic local ordering
+    setEvents(prev => {
+      const byId = new Map(prev.map(e => [e.id, e] as const));
+      const ordered: Event[] = [];
+      effectiveIds.forEach((id, idx) => {
+        const row = byId.get(id);
+        if (row) ordered.push({ ...row, display_order: idx + 1 } as any);
+      });
+      // Append any events not included (safety) preserving their existing order after the ordered list
+      prev.forEach(e => { if (!effectiveIds.includes(e.id)) ordered.push(e); });
+      return ordered;
+    });
+    try {
+      const updates = effectiveIds.map((id, idx) => ({ id, display_order: idx + 1 }));
+      console.debug('[reorderEvents] applying per-row updates (no bulk upsert)', updates);
+      const failed: { id: number; message: string }[] = [];
+      for (const u of updates) {
+        try {
+          const { error: rowErr, data: rowData } = await supabase
+            .from('events')
+            .update({ display_order: u.display_order })
+            .eq('id', u.id)
+            .select('id,display_order,title')
+            .maybeSingle();
+          if (rowErr) {
+            failed.push({ id: u.id, message: rowErr.message });
+            console.warn('[reorderEvents] row update failed', u.id, rowErr.message, rowErr.details, rowErr.hint);
+          } else if (!rowData) {
+            failed.push({ id: u.id, message: 'No row returned' });
+            console.warn('[reorderEvents] row update returned no data', u.id);
+          }
+        } catch (th) {
+          failed.push({ id: u.id, message: (th as any)?.message || String(th) });
+          console.warn('[reorderEvents] row update threw', u.id, th);
+        }
+      }
+      if (failed.length) {
+        setLastEventReorderError({
+          phase: 'row-updates',
+          message: `Failed ${failed.length} of ${updates.length} updates`,
+          details: failed.map(f => `${f.id}:${f.message}`).join('; '),
+          hint: failed.some(f => /null value/.test(f.message)) ? 'Check NOT NULL columns and ensure we are only updating existing rows.' : undefined,
+        });
+        // Refresh to ensure consistency
+        await fetchData(true);
+        return failed.length < updates.length; // partial success
+      }
+      return true;
+    } catch (e) {
+      console.warn('[reorderEvents] threw, refetching', e);
+      setLastEventReorderError({ phase: 'throw', message: (e as any)?.message || String(e) });
+      await fetchData(true);
+      return false;
+    }
   };
 
   const deleteEvent = async (id: number) => {
@@ -3702,6 +3952,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     updateEventWinner,
     deleteEventWinner,
         updateEvent,
+  reorderEvents,
         deleteEvent,
   addEventCoordinator,
   updateEventCoordinator,
@@ -3821,6 +4072,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           myPermissions,
           listAdminPermissions,
           setAdminPermission,
+    // Diagnostics for event reorder
+    lastEventReorderError,
       }}
     >
       {children}

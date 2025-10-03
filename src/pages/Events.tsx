@@ -23,7 +23,30 @@ export const Events: React.FC = () => {
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
   // Events that are actually shown (respecting visibility flag)
-  const visibleEvents = (events as any[]).filter((e: any) => e.visible !== false);
+  // Visible events (public view). If manual ordering (display_order) exists, prefer that ordering ascending.
+  const visibleEvents = React.useMemo(() => {
+    const base = (events as any[]).filter((e: any) => e.visible !== false);
+    const hasManual = base.some((e: any) => e.display_order != null);
+    if (hasManual) {
+      return [...base].sort((a: any, b: any) => {
+        const da = a.display_order ?? Number.MAX_SAFE_INTEGER;
+        const db = b.display_order ?? Number.MAX_SAFE_INTEGER;
+        if (da !== db) return da - db;
+        // Stable fallback by created_at then id
+        const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+        if (ca !== cb) return ca - cb;
+        return a.id - b.id;
+      });
+    }
+    // No manual order yet → show newest first (created_at descending)
+    return [...base].sort((a: any, b: any) => {
+      const at = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (at !== bt) return bt - at; // descending
+      return b.id - a.id; // newer id first as tie-breaker
+    });
+  }, [events]);
 
   // Build the full category list from ALL events (even hidden) so owner-created
   // categories appear in the filter even if no event is currently visible.
@@ -42,9 +65,28 @@ export const Events: React.FC = () => {
   const categories = ['All', ...allCategories];
 
   // Filtered list only uses visible events, but selection may be a category that currently has zero visible events
-  const filteredEvents = selectedCategory === 'All'
-    ? visibleEvents
-    : visibleEvents.filter((e: any) => String(e.category).trim().toLowerCase() === selectedCategory.toLowerCase());
+  const filteredEvents = React.useMemo(() => {
+    const list = selectedCategory === 'All'
+      ? visibleEvents
+      : visibleEvents.filter((e: any) => String(e.category).trim().toLowerCase() === selectedCategory.toLowerCase());
+    // If manual ordering active overall, visibleEvents already sorted; for safety, re-apply if subset contains manual ids.
+    const hasManual = list.some((e: any) => e.display_order != null);
+    if (hasManual) {
+      return [...list].sort((a: any, b: any) => {
+        const da = a.display_order ?? Number.MAX_SAFE_INTEGER;
+        const db = b.display_order ?? Number.MAX_SAFE_INTEGER;
+        if (da !== db) return da - db;
+        return a.id - b.id;
+      });
+    }
+    // Otherwise chronological newest-first inside category
+    return [...list].sort((a: any, b: any) => {
+      const at = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (at !== bt) return bt - at;
+      return b.id - a.id;
+    });
+  }, [visibleEvents, selectedCategory]);
   const categoriesKey = categories.join('|'); // includes hidden categories too
 
   // If current selection disappears entirely (removed category), fallback to All so cards render

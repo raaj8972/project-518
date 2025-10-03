@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, GripVertical, Loader2, Check } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -12,7 +12,8 @@ export const EventsManagement: React.FC = () => {
   const { 
     events, 
     eventCategories,
-  addEventWithCoordinators,
+      addEventWithCoordinators,
+      lastEventReorderError,
     updateEvent, 
     deleteEvent,
     toggleEventFeatured,
@@ -24,6 +25,7 @@ export const EventsManagement: React.FC = () => {
     deleteEventCoordinator,
     myPermissions,
     eventWinners: _eventWinners,
+    reorderEvents,
   } = useData() as any;
   const savingProgress = useSavingProgress();
 
@@ -158,27 +160,6 @@ export const EventsManagement: React.FC = () => {
       watch_live_url: '',
     });
   };
-
-  // Sort toggle: default to newest-first (matches DataContext default). Persist preference.
-  const [sortNewestFirst, setSortNewestFirst] = useState<boolean>(() => {
-    try { return localStorage.getItem('admin_events_sort_newest_first') !== 'false'; } catch { return true; }
-  });
-  const toggleSortOrder = () => {
-    setSortNewestFirst(prev => {
-      const next = !prev;
-      try { localStorage.setItem('admin_events_sort_newest_first', next ? 'true' : 'false'); } catch {}
-      return next;
-    });
-  };
-  const sortedEvents = React.useMemo(() => {
-    const list = [...(events || [])];
-    list.sort((a: any, b: any) => {
-      const ca = new Date(a.created_at || 0).getTime();
-      const cb = new Date(b.created_at || 0).getTime();
-      return sortNewestFirst ? (cb - ca) : (ca - cb);
-    });
-    return list;
-  }, [events, sortNewestFirst]);
 
   const handleAddEvent = async () => {
     if (!eventForm.title || !eventForm.description || !eventForm.image) {
@@ -415,6 +396,86 @@ export const EventsManagement: React.FC = () => {
     }));
   };
 
+  // --- Event ordering (newest vs oldest) ---
+  const [eventOrder, setEventOrder] = useState<'newest' | 'oldest'>(() => {
+    try { return (localStorage.getItem('admin_events_order') as any) === 'oldest' ? 'oldest' : 'newest'; } catch { return 'newest'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('admin_events_order', eventOrder); } catch {}
+  }, [eventOrder]);
+  const sortedEvents = useMemo(() => {
+    const arr = [...events];
+    const hasManual = arr.some(e => e.display_order != null);
+    if (hasManual) {
+      // Prefer persisted manual ordering (ascending display_order)
+      arr.sort((a: any, b: any) => {
+        const da = a.display_order ?? Number.MAX_SAFE_INTEGER;
+        const db = b.display_order ?? Number.MAX_SAFE_INTEGER;
+        if (da !== db) return da - db;
+        return a.id - b.id; // tie-breaker for stability
+      });
+      return arr;
+    }
+    // Fallback to chronological ordering when no manual order exists yet
+    arr.sort((a: any, b: any) => {
+      const aT = a.created_at ? new Date(a.created_at).getTime() : a.id;
+      const bT = b.created_at ? new Date(b.created_at).getTime() : b.id;
+      if (aT === bT) return 0;
+      return aT < bT ? -1 : 1;
+    });
+    if (eventOrder === 'newest') arr.reverse();
+    return arr;
+  }, [events, eventOrder]);
+
+  // Manual reorder mode state
+  const [reorderMode, setReorderMode] = useState(false);
+  const [manualIds, setManualIds] = useState<number[]>([]);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  useEffect(() => {
+    if (reorderMode) {
+      const ordered = [...events].sort((a: any, b: any) => {
+        const da = a.display_order ?? 999999;
+        const db = b.display_order ?? 999999;
+        if (da !== db) return da - db;
+        return a.id - b.id;
+      });
+      setManualIds(ordered.map(e => e.id));
+    }
+  }, [reorderMode, events]);
+  const manualIdsRef = React.useRef(manualIds);
+  useEffect(()=>{ manualIdsRef.current = manualIds; }, [manualIds]);
+  const listToRender = (reorderMode ? manualIds.map(id => events.find((e: any) => e.id === id)).filter(Boolean) : sortedEvents) as any[];
+  const performLocalReorder = (drag: number, target: number) => {
+    if (drag === target) return;
+    setManualIds(prev => {
+      const next = [...prev];
+      const from = next.indexOf(drag);
+      const to = next.indexOf(target);
+      if (from === -1 || to === -1) return prev;
+      next.splice(from, 1); next.splice(to, 0, drag);
+      return next;
+    });
+  };
+  const persistOrder = async (ids: number[]) => {
+    if (!ids.length) return;
+    setSavingOrder(true); setSavedFlash(false);
+    try {
+      const ok = await reorderEvents(ids);
+      if (ok) {
+        setSavedFlash(true); setTimeout(()=>setSavedFlash(false), 1800);
+      } else {
+        console.warn('Reorder persistence reported failure; order may have been reset by refetch');
+      }
+    }
+    catch(e){ console.warn('Reorder failed', e); }
+    finally { setSavingOrder(false); }
+  };
+  const onDragStart = (e: React.DragEvent, id: number) => { setDragId(id); try { e.dataTransfer.setData('text/plain', String(id)); } catch {}; e.dataTransfer.effectAllowed='move'; };
+  const onDragOver = (e: React.DragEvent, _id: number) => { if (!reorderMode) return; e.preventDefault(); e.dataTransfer.dropEffect='move'; };
+  const onDrop = (e: React.DragEvent, id: number) => { if (!reorderMode) return; e.preventDefault(); const dragged = dragId ?? Number(e.dataTransfer.getData('text/plain')); if (!dragged) return; performLocalReorder(dragged, id); setDragId(null); setTimeout(()=>persistOrder(manualIdsRef.current), 40); };
+
   return (
     <div className="space-y-6">
       {/* Backend schema compatibility notice */}
@@ -428,8 +489,38 @@ export const EventsManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Events Management</h2>
           <p className="text-gray-600">Manage festival events and registrations</p>
+          {lastEventReorderError && (
+            <div className="mt-2 text-xs rounded bg-red-50 border border-red-300 text-red-700 px-3 py-2 max-w-lg">
+              <strong className="font-semibold">Reorder save issue:</strong> {lastEventReorderError.message || 'Bad Request'}
+              {lastEventReorderError.details && <><br/>Details: {lastEventReorderError.details}</>}
+              {lastEventReorderError.hint && <><br/>Hint: {lastEventReorderError.hint}</>}
+              <br/>
+              <span className="opacity-80">Check that the events table has a numeric display_order column and RLS policy allows update of display_order for admin users. After fixing, drag again.</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
+          {!reorderMode && !events.some((e: any) => e.display_order != null) && (
+            <div className="flex items-center gap-1 text-xs bg-white border rounded px-2 py-1">
+              <span className="text-gray-500">Order:</span>
+              <button type="button" onClick={() => setEventOrder(o => o === 'newest' ? 'oldest' : 'newest')} className="px-2 py-0.5 rounded border text-[11px] hover:border-yellow-400 transition" title="Toggle chronological ordering">{eventOrder === 'newest' ? 'Newest → Oldest' : 'Oldest → Newest'}</button>
+            </div>
+          )}
+          {!reorderMode && events.some((e: any) => e.display_order != null) && (
+            <div className="flex items-center gap-1 text-xs bg-white border rounded px-2 py-1" title="Manual ordering active (drag via Reorder)">
+              <span className="text-gray-500">Manual order</span>
+            </div>
+          )}
+          {reorderMode && (
+            <div className="flex items-center gap-2 text-xs bg-white border rounded px-2 py-1">
+              <span className="text-gray-500">Drag to reorder</span>
+              {savingOrder && <span className="flex items-center gap-1 text-blue-600"><Loader2 size={14} className="animate-spin"/>Saving…</span>}
+              {!savingOrder && savedFlash && <span className="flex items-center gap-1 text-green-600"><Check size={14}/>Saved</span>}
+            </div>
+          )}
+          <button type="button" onClick={()=>{ if (reorderMode) persistOrder(manualIds); setReorderMode(m=>!m); }} className={`px-3 py-1 rounded text-xs font-medium border flex items-center gap-1 transition ${reorderMode ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500' : 'bg-white border-gray-300 text-gray-700 hover:border-yellow-400'}`} title="Manual reorder mode">
+            {reorderMode ? <><GripVertical size={14}/>Done</> : <><GripVertical size={14}/>Reorder</>}
+          </button>
           <label className="flex items-center text-sm text-gray-700">
             <input type="checkbox" className="mr-2" checked={autoOpenEnabled} onChange={(e)=>persistAutoOpen(e.target.checked)} />
             Auto-open after timer
@@ -815,24 +906,21 @@ export const EventsManagement: React.FC = () => {
       )}
 
       {/* Events List */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Events</h3>
-        <button
-          type="button"
-          onClick={toggleSortOrder}
-          className="text-xs px-3 py-1 rounded-full border border-gray-300 hover:border-yellow-400 transition flex items-center gap-1 bg-white shadow-sm"
-          title={sortNewestFirst ? 'Showing newest first. Click to show oldest first.' : 'Showing oldest first. Click to show newest first.'}
-        >
-          {sortNewestFirst ? <>
-            <ArrowDown size={14} /> Newest
-          </> : <>
-            <ArrowUp size={14} /> Oldest
-          </>}
-        </button>
-      </div>
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {sortedEvents.map((event: any) => (
-          <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className={`grid md:grid-cols-2 lg:grid-cols-3 gap-6 ${reorderMode ? 'select-none' : ''}`}> 
+  {listToRender.map((event: any) => (
+          <div
+            key={event.id}
+            className={`bg-white rounded-lg shadow-md overflow-hidden relative group ${reorderMode ? 'ring-1 ring-yellow-400/50' : ''}`}
+            draggable={reorderMode}
+            onDragStart={(e)=>onDragStart(e, event.id)}
+            onDragOver={(e)=>onDragOver(e, event.id)}
+            onDrop={(e)=>onDrop(e, event.id)}
+          >
+            {reorderMode && (
+              <div className="absolute top-2 left-2 z-30 cursor-grab active:cursor-grabbing text-gray-600 bg-white/80 rounded px-2 py-1 flex items-center gap-1 text-[11px] shadow border border-gray-300">
+                <GripVertical size={14}/><span>{manualIds.indexOf(event.id)+1}</span>
+              </div>
+            )}
             {editingEvent === event.id ? (
               <div className="p-4 space-y-4">
                 <input
