@@ -2,9 +2,6 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
-// Explicit .ts extension to satisfy bundler/NodeNext style module resolution when TS can't locate the file without it.
-import { getClientIP } from '../lib/clientIp.ts';
-import { getDeviceFingerprint } from '../lib/deviceFingerprint';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -17,8 +14,6 @@ interface AuthContextType {
   enableTOTP: (token: string, secret: string) => Promise<boolean>;
   disableTOTP: () => Promise<boolean>;
   isTOTPEnabled: boolean;
-  logoutScope: 'local' | 'global';
-  setLogoutScope: (scope: 'local' | 'global') => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,14 +23,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTOTPEnabled, setIsTOTPEnabled] = useState(false);
-  const [logoutScope, setLogoutScope] = useState<'local' | 'global'>(() => {
-    try { return (localStorage.getItem('admin_logout_scope') as 'local' | 'global') || 'local'; } catch { return 'local'; }
-  });
-
-  const persistLogoutScope = (scope: 'local' | 'global') => {
-    setLogoutScope(scope);
-    try { localStorage.setItem('admin_logout_scope', scope); } catch {}
-  };
 
   useEffect(() => {
     // Check for existing session
@@ -117,23 +104,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       if (data.user) {
-        // Fire-and-forget server-assisted IP capture immediately (Option B)
-        (async () => { try { const fp = getDeviceFingerprint(); await supabase.rpc('capture_admin_ip', { p_fingerprint: fp }); } catch {} })();
-        // IP-only block check (after initial sign-in)
-        try {
-          const ip = await getClientIP();
-          if (ip) {
-            const { data: blockedRows, error: blockedErr } = await supabase
-              .from('admin_blocked_devices')
-              .select('ip_address')
-              .eq('ip_address', ip);
-            if (!blockedErr && blockedRows && blockedRows.length > 0) {
-              // Use local scope so other browsers/devices remain logged in; this is a failed login attempt only.
-              try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
-              return { success: false, error: 'This IP is blocked by owner.' };
-            }
-          }
-        } catch {}
         // Check if TOTP is enabled
         const totpEnabled = data.user.user_metadata?.totp_enabled || false;
         const totpSecret = data.user.user_metadata?.totp_secret;
@@ -141,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (totpEnabled && totpSecret) {
           if (!totpCode) {
             // Do not keep a session alive without 2FA
-            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+            try { await supabase.auth.signOut(); } catch {}
             return { success: false, requiresTOTP: true };
           }
 
@@ -149,14 +119,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const ok = await verifyTOTP(totpCode, totpSecret);
           if (!ok) {
             // For safety, ensure no lingering session if code invalid
-            try { await supabase.auth.signOut({ scope: 'local' }); } catch {}
+            try { await supabase.auth.signOut(); } catch {}
             return { success: false, error: 'Invalid 2FA code' };
           }
         }
 
         setUser(data.user);
-        // Second attempt after potential TOTP path to ensure capture persisted
-        (async () => { try { const fp2 = getDeviceFingerprint(); await supabase.rpc('capture_admin_ip', { p_fingerprint: fp2 }); } catch {} })();
         setIsAuthenticated(true);
         setIsTOTPEnabled(totpEnabled);
         return { success: true };
@@ -171,12 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async (): Promise<void> => {
     try {
-      // Respect configured scope; default is local.
-      if (logoutScope === 'global') {
-        await supabase.auth.signOut();
-      } else {
-        await supabase.auth.signOut({ scope: 'local' });
-      }
+      await supabase.auth.signOut();
       setUser(null);
       setIsAuthenticated(false);
       setIsTOTPEnabled(false);
@@ -265,70 +228,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Periodic check in case device is blocked after session established.
-  useEffect(() => {
-    if (!isAuthenticated || !user) return;
-    let cancelled = false;
-  // IP-only enforcement per request: remove device fingerprint/device_id criteria.
-  let ipCache: string | null = null;
-  const myFingerprint = getDeviceFingerprint();
-  getClientIP().then((ip: string) => { ipCache = ip; }).catch(()=>{});
-    // Realtime channel for instant block logout
-    const channel = supabase.channel('admin_dashboard_presence');
-    channel.on('broadcast', { event: 'block_update' }, async (payload: any) => {
-      try {
-        const { action, ip: bip, fingerprint: blockedFp } = payload?.payload || {};
-        if (action === 'block') {
-          const ipMatches = bip && ipCache && bip === ipCache;
-          // Only enforce if ip matches AND (blocked fingerprint is absent OR different from mine)
-          if (ipMatches && (!blockedFp || blockedFp !== myFingerprint)) {
-            await supabase.auth.signOut();
-            if (!cancelled) {
-              setUser(null);
-              setIsAuthenticated(false);
-              setIsTOTPEnabled(false);
-            }
-          }
-        }
-      } catch {}
-    }).subscribe();
-    const check = async () => {
-      try {
-        if (!ipCache) return; // wait until IP resolved
-        const { data: blockedRows, error: blockedErr } = await supabase
-          .from('admin_blocked_devices')
-          .select('ip_address,fingerprint,ip_only')
-          .eq('ip_address', ipCache);
-        if (!cancelled || !blockedErr) {
-          if (blockedRows && blockedRows.length > 0) {
-            // Determine if there exists a row that represents a global IP block or a block for another fingerprint.
-            const blockAffectsMe = blockedRows.some(r => {
-              const ipOnly = (r as any).ip_only;
-              if (ipOnly) {
-                // If ip_only row has my fingerprint, treat as self-block (owner likely set it) -> still enforce to lock out this session.
-                return true;
-              }
-              if (r.fingerprint && r.fingerprint !== myFingerprint) return true;
-              return false;
-            });
-            if (blockAffectsMe) {
-              await supabase.auth.signOut();
-              if (!cancelled) {
-                setUser(null);
-                setIsAuthenticated(false);
-                setIsTOTPEnabled(false);
-              }
-            }
-          }
-        }
-      } catch {}
-    };
-    // Initial + interval
-    check();
-    const interval = setInterval(check, 60_000); // every 1 min
-    return () => { cancelled = true; clearInterval(interval); supabase.removeChannel(channel); };
-  }, [isAuthenticated, user?.id]);
-
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -340,9 +239,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       verifyTOTP,
       enableTOTP,
       disableTOTP,
-      isTOTPEnabled,
-      logoutScope,
-      setLogoutScope: persistLogoutScope
+      isTOTPEnabled
     }}>
       {children}
     </AuthContext.Provider>

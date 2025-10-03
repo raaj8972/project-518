@@ -47,7 +47,6 @@ import RegistrationPhotosPanel from '../components/admin/RegistrationPhotosPanel
 import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
-import { AdminPresencePanel } from '../components/admin/AdminPresencePanel';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
 
@@ -477,9 +476,6 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Connection Overview */}
                 <ConnectionOverview />
-
-                {/* Real-time Admin Presence */}
-                <AdminPresencePanel />
 
                 {/* Storage Overview */}
                 <StorageOverview />

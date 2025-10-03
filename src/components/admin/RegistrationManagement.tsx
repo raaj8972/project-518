@@ -27,8 +27,6 @@ export const RegistrationManagement: React.FC = () => {
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
     // Allow other admin panels to pre-fill the search via localStorage key
     const [searchTerm, setSearchTerm] = useState(() => {
       try {
@@ -105,16 +103,8 @@ export const RegistrationManagement: React.FC = () => {
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.college.toLowerCase().includes(searchTerm.toLowerCase());
-    // Date range filter (inclusive). registration_date assumed ISO or yyyy-mm-dd.
-    let matchesDate = true;
-    if (startDate) {
-      try { matchesDate = matchesDate && (new Date(registration.registration_date) >= new Date(startDate)); } catch {}
-    }
-    if (endDate) {
-      try { const end = new Date(endDate); end.setHours(23,59,59,999); matchesDate = matchesDate && (new Date(registration.registration_date) <= end); } catch {}
-    }
     
-    return matchesEvent && matchesStatus && matchesSearch && matchesDate;
+    return matchesEvent && matchesStatus && matchesSearch;
   });
 
   // Get unique event titles for filter dropdown
@@ -414,32 +404,6 @@ export const RegistrationManagement: React.FC = () => {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="grid md:grid-cols-4 gap-4">
-          {/* Start Date Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">From Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-          </div>
-          {/* End Date Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">To Date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-          </div>
           {/* Event Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Event</label>
@@ -502,8 +466,6 @@ export const RegistrationManagement: React.FC = () => {
               setSelectedEvent('all');
               setSelectedStatus('all');
               setSearchTerm('');
-              setStartDate('');
-              setEndDate('');
             }}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
