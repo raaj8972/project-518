@@ -12,6 +12,7 @@ export const SiteSettingsPanel: React.FC = () => {
     coming_soon_title: '',
     coming_soon_message: '',
     coming_soon_ended_text: '',
+    events_poster_fit: 'contain' as 'contain' | 'cover',
   });
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
@@ -25,6 +26,7 @@ export const SiteSettingsPanel: React.FC = () => {
       coming_soon_title: siteSettings.coming_soon_title || '',
       coming_soon_message: siteSettings.coming_soon_message || '',
       coming_soon_ended_text: (siteSettings as any).coming_soon_ended_text || '',
+      events_poster_fit: ((siteSettings as any).events_poster_fit === 'cover' ? 'cover' : 'contain'),
     });
   }, [siteSettings]);
 
@@ -38,6 +40,7 @@ export const SiteSettingsPanel: React.FC = () => {
         coming_soon_title: local.coming_soon_title || null,
         coming_soon_message: local.coming_soon_message || null,
         coming_soon_ended_text: local.coming_soon_ended_text || null,
+        events_poster_fit: local.events_poster_fit,
       } as any);
       setSavedAt(Date.now());
     } finally {
@@ -89,6 +92,18 @@ export const SiteSettingsPanel: React.FC = () => {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-h-[96px]"
                 placeholder="We are preparing something amazing. Please check back soon."
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Events poster fit</label>
+              <select
+                value={local.events_poster_fit}
+                onChange={(e) => setLocal((s) => ({ ...s, events_poster_fit: (e.target.value === 'cover' ? 'cover' : 'contain') }))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="contain">Contain (no cropping)</option>
+                <option value="cover">Cover (fill card, may crop)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">Contain shows full image with letterboxing; Cover fills the card but may crop on some screens.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ended Text (after timer)</label>

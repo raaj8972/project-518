@@ -1,8 +1,9 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Image as ImageIcon, AlertCircle, FileText, Play } from 'lucide-react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
 import { useSavingProgress } from '../context/SavingProgressContext';
+import { useData } from '../context/DataContext';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -55,6 +56,75 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
   const savingProgress = useSavingProgress();
+  // Site setting: poster fit for accurate preview (Events card)
+  const { siteSettings } = (useData?.() || {}) as any;
+  const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
+  // Preview state for crop modal
+  const [previewMode, setPreviewMode] = useState<'full' | 'crop'>('full');
+  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
+  // Allow overriding preview fit mode to compare contain vs cover
+  const [previewFitMode, setPreviewFitMode] = useState<'site' | 'contain' | 'cover'>('site');
+  const effectivePosterFit: 'contain' | 'cover' = previewFitMode === 'site' ? posterFit : previewFitMode;
+  // Local aspect ratio toggle
+  const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
+  // Match Events card fixed heights by breakpoint: 440 (base), 500 (>=480px), 620 (>=768px)
+  const computeCardHeight = () => {
+    if (typeof window === 'undefined') return 500;
+    if (window.matchMedia('(min-width: 768px)').matches) return 620;
+    if (window.matchMedia('(min-width: 480px)').matches) return 500;
+    return 440;
+  };
+  const [previewCardHeight, setPreviewCardHeight] = useState<number>(computeCardHeight());
+  const computeIsMd = () => (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches);
+  const [previewIsMd, setPreviewIsMd] = useState<boolean>(computeIsMd());
+  useEffect(() => {
+    const onResize = () => {
+      setPreviewCardHeight(computeCardHeight());
+      setPreviewIsMd(computeIsMd());
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const FRONT_MEDIA_TOP = 42; // matches .flip-front { padding-top: 42px; }
+  // Cropper area height (taller on larger screens)
+  const cropperHeight = Math.max(440, Math.min(560, previewCardHeight));
+  const previewCardTaller = previewCardHeight > cropperHeight;
+  // Scale-to-fit option for preview card
+  const [previewCardScaleMode, setPreviewCardScaleMode] = useState<'actual' | 'fit'>('actual');
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const [fitScale, setFitScale] = useState<number>(1);
+  useEffect(() => {
+    if (previewCardScaleMode !== 'fit') { setFitScale(1); return; }
+    const measure = () => {
+      const el = previewViewportRef.current;
+      if (!el) return;
+      // Use clientHeight of viewport area; leave a tiny margin for borders/padding
+      const avail = Math.max(1, el.clientHeight - 8);
+      const s = Math.min(1, avail / Math.max(1, previewCardHeight));
+      setFitScale(s);
+    };
+    measure();
+    const t = setTimeout(measure, 0);
+    window.addEventListener('resize', measure);
+    return () => { window.removeEventListener('resize', measure); clearTimeout(t); };
+  }, [previewCardScaleMode, previewCardHeight, cropperHeight, previewIsMd]);
+
+  // Debounced live cropped preview when adjusting crop
+  useEffect(() => {
+    if (!cropSrc || !croppedAreaPixels || previewMode !== 'crop') return;
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels, 'image/jpeg');
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        if (croppedPreviewUrl) { try { URL.revokeObjectURL(croppedPreviewUrl); } catch {} }
+        setCroppedPreviewUrl(url);
+      } catch {}
+    }, 150);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cropSrc, croppedAreaPixels, previewMode]);
 
   const isPdfUpload = acceptedTypes.includes('pdf');
   const isVideoUpload = acceptedTypes.includes('video');
@@ -90,6 +160,34 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     return canvas;
   };
 
+  // Extract storage object path from a public URL for a given bucket
+  const extractObjectPathFromPublicUrl = (urlStr: string, bucketId: string): string => {
+    try {
+      const url = new URL(urlStr);
+      const publicPrefix = `/storage/v1/object/public/${bucketId}/`;
+      if (url.pathname.includes(publicPrefix)) {
+        return url.pathname.substring(url.pathname.indexOf(publicPrefix) + publicPrefix.length);
+      }
+      const parts = url.pathname.split('/');
+      const idx = parts.findIndex((p) => p === bucketId);
+      return idx >= 0 ? parts.slice(idx + 1).join('/') : '';
+    } catch {
+      return '';
+    }
+  };
+
+  // Best-effort deletion of a storage object by its public URL
+  const deleteFromStorageByPublicUrl = async (urlStr: string) => {
+    if (!urlStr || !urlStr.includes(bucket)) return;
+    const objectPath = extractObjectPathFromPublicUrl(urlStr, bucket);
+    if (!objectPath) return;
+    try {
+      await supabase.storage.from(bucket).remove([objectPath]);
+    } catch (e) {
+      console.warn('Unable to delete storage object', objectPath, e);
+    }
+  };
+
   // Attempt to compress an image under a target byte size. Returns a File if successful; null if not achievable.
   const compressImageToTarget = async (file: File, targetBytes: number): Promise<File | null> => {
     try {
@@ -117,14 +215,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           maxH = Math.max(320, Math.round(maxH * 0.85));
         }
       }
-      // After attempts, if still too large, give up
-      if (lastBlob && lastBlob.size <= targetBytes * 1.1) {
-        // If within 10% over, allow as a pragmatic fallback
-        return new File([lastBlob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-      }
-      return null;
-    } catch (e) {
-      console.warn('Compression failed:', e);
+      // If we never went under target, return the last attempt if it exists and is only slightly over, else null
+      return lastBlob ? new File([lastBlob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }) : null;
+    } catch {
       return null;
     }
   };
@@ -296,6 +389,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         setZoom(0.9); // start slightly zoomed-out for easier full-photo view
         setCrop({ x: 0, y: 0 });
         setError('');
+        setPreviewMode('full');
+        if (croppedPreviewUrl) {
+          try { URL.revokeObjectURL(croppedPreviewUrl); } catch {}
+          setCroppedPreviewUrl(null);
+        }
       };
       reader.readAsDataURL(file);
       setOriginalImageMime(file.type || null);
@@ -328,10 +426,18 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
       });
       try { savingProgress.set(100); } catch {}
+      // cleanup any previous pending (replaced before save)
+      if (pendingImage && pendingImage !== fileUrl) {
+        await deleteFromStorageByPublicUrl(pendingImage);
+      }
       setPendingImage(fileUrl);
       if (autoSave || hideControls) {
+        const prev = currentImage;
         onImageSelect(fileUrl);
         setHasUnsavedChanges(false);
+        if (prev && prev !== fileUrl) {
+          await deleteFromStorageByPublicUrl(prev);
+        }
       } else {
         setHasUnsavedChanges(true);
       }
@@ -353,15 +459,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
-  const handleSaveImage = () => {
+  const handleSaveImage = async () => {
     if (pendingImage) {
+      const prev = currentImage;
       onImageSelect(pendingImage);
       setHasUnsavedChanges(false);
       setError('');
+      if (prev && prev !== pendingImage) {
+        await deleteFromStorageByPublicUrl(prev);
+      }
     }
   };
 
-  const handleDiscardChanges = () => {
+  const handleDiscardChanges = async () => {
+    if (pendingImage && pendingImage !== currentImage) {
+      await deleteFromStorageByPublicUrl(pendingImage);
+    }
     setPendingImage('');
     setHasUnsavedChanges(false);
     setError('');
@@ -462,10 +575,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
     });
     try { savingProgress.set(100); } catch {}
+    if (pendingImage && pendingImage !== fileUrl) {
+      await deleteFromStorageByPublicUrl(pendingImage);
+    }
     setPendingImage(fileUrl);
     if (autoSave || hideControls) {
+      const prev = currentImage;
       onImageSelect(fileUrl);
       setHasUnsavedChanges(false);
+      if (prev && prev !== fileUrl) {
+        await deleteFromStorageByPublicUrl(prev);
+      }
     } else {
       setHasUnsavedChanges(true);
     }
@@ -501,13 +621,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
       });
       try { savingProgress.set(100); } catch {}
-      setPendingImage(fileUrl);
-      if (autoSave || hideControls) {
-        onImageSelect(fileUrl);
-        setHasUnsavedChanges(false);
-      } else {
-        setHasUnsavedChanges(true);
-      }
+        if (pendingImage && pendingImage !== fileUrl) {
+          await deleteFromStorageByPublicUrl(pendingImage);
+        }
+        setPendingImage(fileUrl);
+        if (autoSave || hideControls) {
+          const prev = currentImage;
+          onImageSelect(fileUrl);
+          setHasUnsavedChanges(false);
+          if (prev && prev !== fileUrl) {
+            await deleteFromStorageByPublicUrl(prev);
+          }
+        } else {
+          setHasUnsavedChanges(true);
+        }
       setCropSrc(null);
     } catch (err) {
       console.error('Full image upload failed:', err);
@@ -558,27 +685,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const removeFile = async () => {
     const imageToRemove = pendingImage || currentImage;
     if (imageToRemove && imageToRemove.includes(bucket)) {
-      try {
-        // Extract object path relative to the bucket from the public URL
-        const url = new URL(imageToRemove);
-        // Typical pathname: /storage/v1/object/public/<bucket>/<folder>/<filename>
-        const publicPrefix = `/storage/v1/object/public/${bucket}/`;
-        let objectPath = '';
-        if (url.pathname.includes(publicPrefix)) {
-          objectPath = url.pathname.substring(url.pathname.indexOf(publicPrefix) + publicPrefix.length);
-        } else {
-          // Fallback: find bucket segment and take the rest
-          const parts = url.pathname.split('/');
-          const idx = parts.findIndex((p) => p === bucket);
-          objectPath = idx >= 0 ? parts.slice(idx + 1).join('/') : parts[parts.length - 1];
-        }
-
-        if (objectPath) {
-          await supabase.storage.from(bucket).remove([objectPath]);
-        }
-      } catch (error) {
-        console.error('Error deleting file:', error);
-      }
+      await deleteFromStorageByPublicUrl(imageToRemove);
     }
     if (pendingImage) {
       setPendingImage('');
@@ -807,39 +914,98 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
       {/* Cropper Modal */}
       {cropSrc && !isPdfUpload && !isVideoUpload && enableCropper && (
         <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl overflow-hidden">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl overflow-hidden">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">Adjust & Crop</h3>
-              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. You can zoom out to see the full photo, or use the button to upload the entire image.</p>
+              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. Right panel shows how it will appear inside the Event card ({posterFit}).</p>
             </div>
-            <div className="relative" style={{ height: 420 }}>
-              <Cropper
-                image={cropSrc}
-                crop={crop}
-                zoom={zoom}
-                aspect={cropAspect}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-                restrictPosition={false}
-                objectFit="contain"
-                cropShape="rect"
-                showGrid={false}
-                minZoom={0.2}
-                maxZoom={8}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+              {/* Cropper area */}
+              <div className="relative" style={{ height: cropperHeight }}>
+                <Cropper
+                  image={cropSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={cropAspectLocal}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  restrictPosition={false}
+                  objectFit="contain"
+                  cropShape="rect"
+                  showGrid={false}
+                  minZoom={0.2}
+                  maxZoom={8}
+                />
+              </div>
+              {/* Event card live preview */}
+              <div className="border-l md:block hidden overflow-y-auto" style={{ height: cropperHeight }}>
+                <div className="h-full w-full flex flex-col">
+                  <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+                    <div className="text-sm text-gray-600">Event card preview</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className={`text-xs px-2 py-1 rounded ${previewMode === 'full' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        onClick={() => setPreviewMode('full')}
+                      >Full Photo</button>
+                      <button
+                        type="button"
+                        className={`text-xs px-2 py-1 rounded ${previewMode === 'crop' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`}
+                        onClick={() => setPreviewMode('crop')}
+                      >Cropped</button>
+                    </div>
+                  </div>
+                  {/* Preview fit toggle */}
+                  <div className="flex items-center justify-between px-4 py-2 border-b bg-white">
+                    <div className="text-[11px] text-gray-500">Site fit: {posterFit}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'site' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('site')}>Match site</button>
+                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'contain' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('contain')}>Fit (no crop)</button>
+                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'cover' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('cover')}>Cover (fill)</button>
+                      </div>
+                      <div className="flex gap-1 ml-1">
+                        <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'actual' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('actual')}>Actual</button>
+                        <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'fit' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('fit')}>Fit card</button>
+                      </div>
+                    </div>
+                  </div>
+                  {previewCardScaleMode === 'actual' && previewCardTaller && (
+                    <div className="px-4 py-1 text-[11px] text-gray-500 bg-white/60">Scroll to see the full card preview</div>
+                  )}
+                  <div className="p-4 flex-1 flex items-center justify-center bg-white" ref={previewViewportRef}>
+                    <div className="w-full max-w-[560px] rounded-md shadow-inner overflow-hidden border border-gray-200 bg-black" style={{ borderRadius: 12, padding: previewIsMd ? 3 : 0, transform: `scale(${fitScale})`, transformOrigin: 'top center' }}>
+                      {/* Simulate the card's top reserved area for badges/watch live */}
+                      <div className="w-full bg-black" style={{ height: FRONT_MEDIA_TOP }} />
+                      {/* Visible media area exactly like flip-front-media (fills below the top padding) */}
+                      <div
+                        className="w-full"
+                        style={{
+                          height: Math.max(0, previewCardHeight - FRONT_MEDIA_TOP),
+                          backgroundImage: `url(${previewMode === 'crop' && croppedPreviewUrl ? croppedPreviewUrl : cropSrc})`,
+                          backgroundSize: effectivePosterFit,
+                          backgroundPosition: 'center',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundColor: '#000',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="px-4 pb-3 text-[11px] text-gray-500">Preview matches Events card height ({previewCardHeight}px) and reserves the same top area ({FRONT_MEDIA_TOP}px). Mode: {effectivePosterFit}.</div>
+                </div>
+              </div>
             </div>
             <div className="flex items-center justify-between p-4 border-t bg-gray-50">
               <div className="flex items-center gap-3">
                 <label className="text-sm text-gray-600">Zoom</label>
-                <input
-                  type="range"
-                  min={0.2}
-                  max={8}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(parseFloat(e.target.value))}
-                />
+                <input type="range" min={0.2} max={8} step={0.01} value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
+                {/* Aspect ratio toggle */}
+                <div className="ml-4 flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Aspect</span>
+                  <button type="button" className={`text-xs px-2 py-1 rounded ${Math.abs(cropAspectLocal - 16/9) < 0.001 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => { setCropAspectLocal(16/9); setPreviewMode('full'); }}>16:9</button>
+                  <button type="button" className={`text-xs px-2 py-1 rounded ${Math.abs(cropAspectLocal - 9/16) < 0.001 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => { setCropAspectLocal(9/16); setPreviewMode('full'); }}>9:16</button>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>

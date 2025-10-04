@@ -9,7 +9,7 @@ import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 
 export const Events: React.FC = () => {
-  const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll } = useData() as any;
+  const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings } = useData() as any;
   const getCoordinators = (eventId: number) => (eventCoordinators as any)?.filter((c: any) => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -265,6 +265,9 @@ export const Events: React.FC = () => {
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const getCategoryColor = (c: string) => ({ Cultural: 'from-purple-500 to-pink-500', Technical: 'from-blue-500 to-cyan-500', Sports: 'from-green-500 to-emerald-500', default: 'from-gray-500 to-gray-600' } as Record<string, string>)[c] || 'from-gray-500 to-gray-600';
 
+  // Site-wide poster fit preference: 'contain' (default) or 'cover'
+  const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
+
 
   // Reset UI state when category changes to avoid empty-looking UI due to flipped/expanded states
   useEffect(() => {
@@ -433,10 +436,10 @@ export const Events: React.FC = () => {
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
                     <button className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`} onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
-                      <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})` }} />
+                      <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
                       {event.motion_poster_url ? (
                         <video
-                          className="absolute inset-0 w-full h-full object-cover opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden"
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
                           src={event.motion_poster_url}
                           autoPlay
                           muted
@@ -780,14 +783,16 @@ export const Events: React.FC = () => {
         .flip-3d.is-flipped .flip-3d-inner { transform: rotateY(180deg); }
         /* Remove hover flip so hover can reveal motion poster video on the front; flip via click only */
         @media (hover: hover) and (pointer: fine) {
-          .tilt-card:hover .flip-front-media { transform: scale(1.08); }
+          /* For contain mode, avoid scaling to prevent showing empty bars clipping */
+          .tilt-card:hover .flip-front-media { transform: translateZ(20px); }
         }
           .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
         .flip-front { z-index: 2; }
           /* Parallax depth for media on the front */
-          .flip-front-media { position: absolute; inset: 0; background-size: cover; background-position: center; transform: translateZ(18px) scale(1.03); transition: transform 400ms ease; }
+          /* Use contain so posters are never cropped; letterbox with black background if aspect differs */
+          .flip-front-media { position: absolute; inset: 0; background-size: contain; background-repeat: no-repeat; background-position: center; background-color: #000; transform: translateZ(18px); transition: transform 400ms ease; }
           @media (hover: hover) and (pointer: fine) {
-            .tilt-card:hover .flip-front-media { transform: translateZ(22px) scale(1.06); }
+            .tilt-card:hover .flip-front-media { transform: translateZ(24px); }
           }
           /* Dramatic countdown animation */
           @keyframes countdownScalePulse {
