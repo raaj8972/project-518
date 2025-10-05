@@ -151,6 +151,7 @@ interface DataContextType {
   updateRegistrationStatus: (id: string, status: 'approved' | 'rejected') => Promise<void>;
   bulkApproveRegistrations?: (ids: string[]) => Promise<void>;
   bulkRejectRegistrations?: (ids: string[]) => Promise<void>;
+  bulkDeleteRegistrations?: (ids: string[]) => Promise<void>;
   deleteRegistration: (id: string) => Promise<void>;
   updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
@@ -2916,11 +2917,52 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   const deleteRegistration = async (id: string) => {
     const { error, data: deletedReg } = await supabase.from('registrations').delete().eq('id', id).select('*').single();
     if (error) throw error;
+    // Best-effort: free storage if photo exists
+    try { if ((deletedReg as any)?.photo_url) await deleteStorageFileByPublicUrl((deletedReg as any).photo_url); } catch(e){ console.warn('[Data] reg photo cleanup failed', e); }
     if (deletedReg && deletedReg.event_id) {
       const event = events.find(e => e.id === deletedReg.event_id);
       if (event) {
         const newCount = Math.max(0, (event.current_registrations || 0) - (deletedReg.total_members || 1));
         await supabase.from('events').update({ current_registrations: newCount }).eq('id', event.id);
+      }
+    }
+    await fetchData(true);
+  };
+
+  const bulkDeleteRegistrations = async (ids: string[]) => {
+    if (!ids?.length) return;
+    const CHUNK = 100;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      // Delete and return rows so we can cleanup photos and adjust counts
+      const { data: rows, error } = await supabase
+        .from('registrations')
+        .delete()
+        .in('id', slice)
+        .select('id, event_id, total_members, photo_url');
+      if (error) throw error;
+      // Clean photos
+      try {
+        for (const r of rows || []) {
+          const url = (r as any)?.photo_url;
+          if (url) await deleteStorageFileByPublicUrl(url);
+        }
+      } catch (e) {
+        console.warn('[Data] bulk reg photo cleanup issues', e);
+      }
+      // Adjust event counts best-effort (use current events state)
+      const byEvent: Record<string, number> = {};
+      for (const r of rows || []) {
+        const eid = (r as any)?.event_id;
+        const mem = (r as any)?.total_members || 1;
+        if (eid) byEvent[eid] = (byEvent[eid] || 0) + mem;
+      }
+      for (const [eid, dec] of Object.entries(byEvent)) {
+        const event = events.find(e => String(e.id) === String(eid));
+        if (event) {
+          const newCount = Math.max(0, (event.current_registrations || 0) - dec);
+          await supabase.from('events').update({ current_registrations: newCount }).eq('id', event.id);
+        }
       }
     }
     await fetchData(true);
@@ -3988,6 +4030,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         updateRegistrationStatus,
   bulkApproveRegistrations,
   bulkRejectRegistrations,
+  bulkDeleteRegistrations,
         deleteRegistration,
         updateSponsorshipSettings,
   addContactSection,

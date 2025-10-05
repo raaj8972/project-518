@@ -31,7 +31,7 @@ export interface ColumnDefinition {
 
 // Base column definitions
 export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
-  { key: 'id', header: 'Registration ID' },
+  { key: 'id', header: 'Registration ID', width: 22 },
   { key: 'event_title', header: 'Event Title' },
   { key: 'is_team_registration', header: 'Registration Type', accessor: r => r.is_team_registration ? 'Team' : 'Individual' },
   { key: 'team_name', header: 'Team Name', accessor: r => r.team_name || 'N/A' },
@@ -144,18 +144,71 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     import('jspdf'),
     import('jspdf-autotable')
   ]);
-  const { headers, body } = buildMatrix({ rows, columns });
-  const photoKeyIncluded = columns.includes('photo_url');
-  const selectedDefs = columns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
+  // If both Team Members and Team Member Phones are selected, drop the separate phones column
+  // because PDF now shows phone below each member name inside Team Members column.
+  const pdfColumns: RegistrationColumnKey[] = (() => {
+    if (columns.includes('team_members') && columns.includes('team_phones')) {
+      return columns.filter(c => c !== 'team_phones');
+    }
+    return columns.slice();
+  })();
+
+  const { headers, body } = buildMatrix({ rows, columns: pdfColumns });
+  const photoKeyIncluded = pdfColumns.includes('photo_url');
+  const selectedDefs = pdfColumns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
   const photoColIndex = photoKeyIncluded ? selectedDefs.findIndex(d => d.key === 'photo_url') : -1;
+  const teamMembersColIndex = selectedDefs.findIndex(d => d.key === 'team_members');
+  // Additional columns placeholders (kept for future tuning of widths)
+  // If a photo column is included, we render a thumbnail, not the raw URL
   if (photoKeyIncluded && photoColIndex >= 0) {
-    // Hide raw URLs in the PDF table; we'll draw thumbs instead in didDrawCell
     headers[photoColIndex] = 'Photo';
     for (const row of body) row[photoColIndex] = ' ';
   }
+  // Use shorter headers when many columns are selected to avoid vertical wrapping
+  const printableHeaders = headers.slice();
+  const manyCols = selectedDefs.length > 10;
+  if (manyCols) {
+    selectedDefs.forEach((d, i) => {
+      switch (d.key) {
+        case 'event_title': printableHeaders[i] = 'Event'; break;
+        case 'is_team_registration': printableHeaders[i] = 'Type'; break;
+        case 'team_name': printableHeaders[i] = 'Team'; break;
+        case 'total_members': printableHeaders[i] = 'Members'; break;
+        case 'full_name': printableHeaders[i] = 'Name'; break;
+        case 'participant_type': printableHeaders[i] = 'Part. Type'; break;
+        case 'email': printableHeaders[i] = 'Email'; break;
+        case 'phone': printableHeaders[i] = 'Phone'; break;
+        case 'college': printableHeaders[i] = 'College'; break;
+        case 'registration_date': printableHeaders[i] = 'Reg. Date'; break;
+        case 'team_members': printableHeaders[i] = 'Team Members'; break;
+        case 'team_phones': printableHeaders[i] = 'Team Phones'; break;
+      }
+    });
+  }
+  // If Team Members column is present, render each member as Name on one line and Phone below
+  if (teamMembersColIndex >= 0) {
+    const fmtStack = (r: Registration) => {
+      if (!r.is_team_registration) return 'N/A';
+      const list = safeTeamMembers(r);
+      if (!list.length) return 'N/A';
+      const blocks = list.map((m: any) => {
+        const name = (m?.name || '').trim();
+        const phone = (m?.phone || '').trim();
+        return phone ? `${name}\n${phone}` : name;
+      });
+      return blocks.join('\n\n');
+    };
+    body.forEach((row, i) => {
+      try { row[teamMembersColIndex] = fmtStack(rows[i] as Registration); } catch { /* ignore */ }
+    });
+  }
+
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
-  const fontSize = opts.fontSize || 7;
+  // Auto adjust font size: fewer cols -> a bit larger; many cols -> smaller
+  const colsCount = selectedDefs.length;
+  const autoFont = colsCount <= 6 ? 9 : colsCount <= 10 ? 8 : 6.8;
+  const fontSize = opts.fontSize || autoFont;
   const base = opts.baseFileName || 'registrations';
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
 
@@ -241,12 +294,116 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       // In case tasks < preloaded due to chunking boundaries, pad
       while (preloaded.length < sliceRows.length) preloaded.push(null);
     }
+    // Compute sensible column widths based on importance with min/max clamps
+  const pageWidth = (doc as any).internal.pageSize.getWidth();
+  // Give a little extra breathing room on the right when Team Members column is visible
+  const margin = { top: 10, bottom: 8, left: 7, right: teamMembersColIndex >= 0 ? 10 : 7 };
+    const availableWidth = pageWidth - margin.left - margin.right;
+
+    // Importance weights and min/max widths (mm)
+    const weights: Partial<Record<RegistrationColumnKey, number>> = {
+      id: 1.2,
+      event_title: 1.4,
+      is_team_registration: 0.8,
+      team_name: 1.2,
+      total_members: 0.7,
+      full_name: 1.4,
+      participant_type: 0.9,
+      email: 1.6,
+      phone: 1.0,
+      photo_url: 0.7,
+      college: 1.5,
+      registration_date: 1.1,
+      status: 0.8,
+      team_members: 2.2,
+      team_phones: 2.2,
+    };
+    const minW: Partial<Record<RegistrationColumnKey, number>> = {
+      id: 22,
+      event_title: 34,
+      is_team_registration: 18,
+      team_name: 24,
+      total_members: 16,
+      full_name: 28,
+      participant_type: 20,
+      email: 30,
+      phone: 24,
+      photo_url: Math.max(thumbPx * 0.35, 16),
+      college: 28,
+      registration_date: 28,
+      status: 18,
+      team_members: 42,
+      team_phones: 45,
+    };
+    const maxW: Partial<Record<RegistrationColumnKey, number>> = {
+      event_title: landscape ? 80 : 65,
+      email: 55,
+      college: 55,
+      team_members: landscape ? 100 : 75,
+      team_phones: landscape ? 100 : 75,
+    };
+
+    const totalWeight = selectedDefs.reduce((sum, d) => sum + (weights[d.key] || 1), 0);
+    const desired = selectedDefs.map(d => {
+      const k = d.key as RegistrationColumnKey;
+      const frac = (weights[k] || 1) / (totalWeight || 1);
+      const raw = Math.max(10, frac * availableWidth);
+      const wMin = minW[k] || 16;
+      const wMax = maxW[k] || Math.max(24, availableWidth / selectedDefs.length * 1.75);
+      return Math.min(Math.max(raw, wMin), wMax);
+    });
+  // Apply a slight global shrink so the table doesn't hug the right edge
+  let scaled = desired.map(w => w * 0.98);
+    const sumDesired = desired.reduce((a, b) => a + b, 0);
+    if (sumDesired > availableWidth) {
+      const scale = availableWidth / sumDesired;
+      scaled = desired.map((w, idx) => {
+        const k = selectedDefs[idx].key as RegistrationColumnKey;
+        const wMin = minW[k] || 16;
+        return Math.max(w * scale, wMin);
+      });
+      // Trim overflow by shaving from widest columns until it fits
+      let over = scaled.reduce((a, b) => a + b, 0) - availableWidth;
+      if (over > 0) {
+        const order = scaled.map((w, i) => ({ i, w })).sort((a, b) => b.w - a.w).map(x => x.i);
+        let j = 0;
+        while (over > 0 && j < order.length * 6) {
+          const i = order[j % order.length];
+          const k = selectedDefs[i].key as RegistrationColumnKey;
+          const wMin = minW[k] || 16;
+          const delta = Math.min(0.5, over);
+          const newW = Math.max(wMin, scaled[i] - delta);
+          const actualDelta = scaled[i] - newW;
+          scaled[i] = newW;
+          over -= actualDelta;
+          j++;
+        }
+      }
+    }
+
+    // Apply computed widths to column styles
+    const columnStyles: Record<number, any> = {};
+    selectedDefs.forEach((d, idx) => {
+      const base: any = { cellWidth: scaled[idx], halign: 'left' };
+      if (d.key === 'team_members' || d.key === 'team_phones') base.overflow = 'linebreak';
+      if (d.key === 'phone') base.overflow = 'linebreak';
+      columnStyles[idx] = base;
+    });
+    // Ensure minimum for photo column tied to thumb size
+    if (photoKeyIncluded && photoColIndex >= 0) {
+      columnStyles[photoColIndex] = { cellWidth: Math.max(columnStyles[photoColIndex]?.cellWidth || 0, Math.max(thumbPx * 0.4, 18)) };
+    }
+
     autoTable(doc as any, {
-      head: [headers],
+      head: [printableHeaders],
       body: sliceBody,
-      styles: { fontSize, minCellHeight: photoKeyIncluded ? Math.max(10, Math.ceil(thumbPx * 0.75)) : undefined },
-      headStyles: { fillColor: [30,30,30] },
-      columnStyles: photoKeyIncluded && photoColIndex >= 0 ? { [photoColIndex]: { cellWidth: Math.max(thumbPx + 6, 18) } } : undefined,
+  styles: { fontSize, overflow: 'linebreak', minCellHeight: Math.max(10, photoKeyIncluded ? Math.ceil(thumbPx * 0.75) : 10), cellPadding: 1.1, valign: 'middle' },
+    headStyles: { fillColor: [20,20,20], textColor: [255,255,255], halign: 'center', valign: 'middle', fontSize: Math.max(8, fontSize) },
+      columnStyles,
+  // Reduce side margins to utilize page width better; let autotable wrap to fit
+  margin,
+  tableWidth: 'wrap',
+    pageBreak: 'auto',
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
         if (data.section !== 'body') return;

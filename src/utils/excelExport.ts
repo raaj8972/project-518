@@ -20,7 +20,8 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
   // Prepare data for Excel export
   const excelData: Record<string, any>[] = registrations.map((reg) => {
     const baseData: Record<string, any> = {
-      'Registration ID': reg.id,
+  // Use the new sequential Registration ID (stored in id)
+  'Registration ID': reg.id,
       'Event Title': reg.event_title,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
       'Team Name': reg.team_name || 'N/A',
@@ -102,7 +103,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
   // Create a sheet for each event
   Object.entries(groupedByEvent).forEach(([eventTitle, eventRegistrations]) => {
     const excelData: Record<string, any>[] = eventRegistrations.map((reg) => ({
-      'Registration ID': reg.id,
+  'Registration ID': reg.id,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
       'Team Name': reg.team_name || 'N/A',
       'Total Members': reg.total_members,
@@ -177,7 +178,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
   // Create a sheet for each status
   Object.entries(groupedByStatus).forEach(([status, statusRegistrations]) => {
     const excelData: Record<string, any>[] = statusRegistrations.map((reg) => ({
-      'Registration ID': reg.id,
+  'Registration ID': reg.id,
       'Event Title': reg.event_title,
       'Registration Type': reg.is_team_registration ? 'Team' : 'Individual',
       'Team Name': reg.team_name || 'N/A',

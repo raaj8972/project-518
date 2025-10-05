@@ -21,7 +21,7 @@ const safeTeamMembers = (r: any): any[] => {
 };
 
 export const RegistrationManagement: React.FC = () => {
-  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations } = useData();
+  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations } = useData();
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -46,6 +46,14 @@ export const RegistrationManagement: React.FC = () => {
   const [exportPreset, setExportPreset] = useState<string>('full');
   const [splitThreshold, setSplitThreshold] = useState<number>(0);
   const [exportingGeneric, setExportingGeneric] = useState<boolean>(false);
+  // Selection for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  // User option: exclude Registration ID and College/Institution specifically for PDF
+  const [pdfExcludeIdCollege, setPdfExcludeIdCollege] = useState<boolean>(true);
+  // Date range filter
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
 
   // Map registration.id -> preview URL (signed if bucket is private)
   const [photoPreviewMap, setPhotoPreviewMap] = useState<Record<string, string>>({});
@@ -103,9 +111,41 @@ export const RegistrationManagement: React.FC = () => {
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.college.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Date range filter (inclusive). Uses local timezone for inputs.
+    let matchesDate = true;
+    try {
+      const regDate = new Date((registration as any).registration_date);
+      if (dateFrom) {
+        const from = new Date(`${dateFrom}T00:00:00`);
+        if (regDate < from) matchesDate = false;
+      }
+      if (matchesDate && dateTo) {
+        const to = new Date(`${dateTo}T23:59:59.999`);
+        if (regDate > to) matchesDate = false;
+      }
+    } catch {}
     
-    return matchesEvent && matchesStatus && matchesSearch;
+    return matchesEvent && matchesStatus && matchesSearch && matchesDate;
   });
+
+  // Selection helpers (needs filteredRegistrations)
+  const toggleRowSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleSelectAllVisible = () => setSelectedIds(prev => {
+    const n = new Set(prev);
+    const allSelected = filteredRegistrations.every(r => n.has(r.id));
+    if (allSelected) filteredRegistrations.forEach(r => n.delete(r.id)); else filteredRegistrations.forEach(r => n.add(r.id));
+    return n;
+  });
+  const allVisibleSelected = filteredRegistrations.length > 0 && filteredRegistrations.every(r => selectedIds.has(r.id));
+  const doBulkDelete = async () => {
+    const ids = filteredRegistrations.map(r => r.id).filter(id => selectedIds.has(id));
+    if (!ids.length) { push({ message: 'Select at least one row to delete.', type: 'info' }); return; }
+    if (!confirm(`Delete ${ids.length} registration(s)? This cannot be undone.`)) return;
+    try { setBulkDeleting(true); await (bulkDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Deleted ${ids.length} registrations.`, type: 'success' }); }
+    catch (e) { console.error(e); push({ message: 'Bulk delete failed.', type: 'error' }); }
+    finally { setBulkDeleting(false); }
+  };
 
   // Get unique event titles for filter dropdown
   const uniqueEvents = Array.from(new Set(registrations.map(reg => reg.event_title)));
@@ -247,7 +287,18 @@ export const RegistrationManagement: React.FC = () => {
     }
     setPdfExporting(true);
     try {
-  await exportPdf(filteredRegistrations, selectedColumns, { splitThreshold: splitThreshold || undefined, baseFileName: `registrations-${new Date().toISOString().slice(0,10)}`, photoThumbSize: 20 });
+      const colsForPdf = pdfExcludeIdCollege
+        ? selectedColumns.filter(k => k !== 'id' && k !== 'college')
+        : selectedColumns;
+      await exportPdf(
+        filteredRegistrations,
+        colsForPdf,
+        {
+          splitThreshold: splitThreshold || undefined,
+          baseFileName: `registrations-${new Date().toISOString().slice(0,10)}`,
+          photoThumbSize: 20,
+        }
+      );
       push({ message: 'PDF export complete.', type: 'success' });
     } catch (err:any) {
       console.error(err);
@@ -286,12 +337,42 @@ export const RegistrationManagement: React.FC = () => {
           <p className="text-gray-600">Manage event registrations and participant data</p>
         </div>
         <div className="flex items-center space-x-2 flex-wrap justify-end">
+          {/* PDF exclude toggle */}
+          <label className="flex items-center space-x-2 text-sm text-gray-700 mr-2">
+            <input
+              type="checkbox"
+              checked={pdfExcludeIdCollege}
+              onChange={(e)=>setPdfExcludeIdCollege(e.target.checked)}
+            />
+            <span>PDF: exclude ID & College</span>
+          </label>
+          <label className="flex items-center space-x-2 text-sm text-gray-700 mr-2">
+            <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
+            <span>Select all (visible)</span>
+          </label>
           <button
             onClick={() => setShowColumnModal(true)}
             className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
             title="Choose export columns & presets"
           >
             <Filter size={16} className="mr-2" /> Columns
+          </button>
+          <button
+            onClick={doBulkDelete}
+            disabled={bulkDeleting || selectedIds.size === 0}
+            className={`flex items-center bg-red-700 text-white px-4 py-2 rounded-lg transition-colors ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
+            title="Delete selected registrations"
+          >
+            {bulkDeleting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                Deleting…
+              </>
+            ) : (
+              <>
+                <Trash2 size={16} className="mr-2" /> Delete Selected
+              </>
+            )}
           </button>
           <button
             onClick={handleBulkApprove}
@@ -403,7 +484,7 @@ export const RegistrationManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="grid md:grid-cols-5 gap-4">
           {/* Event Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Event</label>
@@ -440,6 +521,34 @@ export const RegistrationManagement: React.FC = () => {
             </div>
           </div>
 
+          {/* Date From */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">From date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e)=>setDateFrom(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+          </div>
+
+          {/* Date To */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">To date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e)=>setDateTo(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+          </div>
+
           {/* Search */}
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
@@ -466,6 +575,8 @@ export const RegistrationManagement: React.FC = () => {
               setSelectedEvent('all');
               setSelectedStatus('all');
               setSearchTerm('');
+              setDateFrom('');
+              setDateTo('');
             }}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
@@ -507,6 +618,9 @@ export const RegistrationManagement: React.FC = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Participant
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -530,6 +644,9 @@ export const RegistrationManagement: React.FC = () => {
               {filteredRegistrations.map((registration) => (
                 <React.Fragment key={registration.id}>
                   <tr className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap align-top">
+                      <input type="checkbox" checked={selectedIds.has(registration.id)} onChange={() => toggleRowSelect(registration.id)} />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="mr-3">

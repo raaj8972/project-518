@@ -166,13 +166,25 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   setIsSubmitting(true);
 
     try {
-      // Generate registration ID
-      const regId = `REG-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      // Generate sequential registration ID from server (RICO-<n>) with fallback
+      let regId = '';
+      try {
+        // Prefer server-generated sequential ID to avoid collisions across clients
+        const { supabase } = await import('../lib/supabase');
+        const { data, error } = await supabase.rpc('next_registration_id');
+        if (!error && data) {
+          regId = String(data);
+        }
+      } catch {}
+      if (!regId) {
+        // Fallback client-side unique ID (non-sequential) if RPC not available yet
+        regId = `RICO-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      }
       setRegistrationId(regId);
 
       // Prepare registration data for Supabase
       const registrationData = {
-        id: regId,
+  id: regId,
         event_id: eventId,
         event_title: eventTitle,
         participant_type: formData.participant_type,
