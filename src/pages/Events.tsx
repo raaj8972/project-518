@@ -64,6 +64,34 @@ export const Events: React.FC = () => {
   const allCategories = Array.from(allCategoriesMap.values());
   const categories = ['All', ...allCategories];
 
+  // Structured rules helpers (mirror of admin logic)
+  type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
+  type RuleSection = { heading?: string; blocks?: RuleBlock[] };
+  type RuleSectionV1 = { heading?: string; subheading?: string; points?: string[] };
+  const STRUCTURED_MARK = '__SR__';
+  const isStructuredRules = (rules: string[] | null | undefined): boolean => Array.isArray(rules) && rules.length === 1 && typeof rules[0] === 'string' && rules[0].startsWith(STRUCTURED_MARK);
+  const normalizeV1toV2 = (list: RuleSectionV1[]): RuleSection[] => (list || []).map((s) => ({ heading: s.heading, blocks: [ ...(s.points && s.points.length ? [{ kind: 'points', style: 'number', title: s.subheading, items: s.points }] as RuleBlock[] : []) ] }));
+  const unpackStructured = (rules: string[] | null | undefined): RuleSection[] => {
+    try {
+      if (!isStructuredRules(rules)) return [];
+      const s = (rules as string[])[0].slice(STRUCTURED_MARK.length);
+      const parsed = JSON.parse(s);
+      if (parsed?.v === 2 && Array.isArray(parsed?.sections)) return parsed.sections as RuleSection[];
+      if (Array.isArray(parsed?.sections)) return normalizeV1toV2(parsed.sections as RuleSectionV1[]);
+      return [];
+    } catch { return []; }
+  };
+  const computeRulesCount = (rules: string[] | null | undefined): number => {
+    if (!rules || rules.length === 0) return 0;
+    if (isStructuredRules(rules)) {
+      const sections = unpackStructured(rules);
+      if (!sections.length) return 0;
+      const pts = sections.reduce((sum, s) => sum + (s.blocks || []).reduce((acc, b) => acc + (b.items?.filter(p=>p && p.trim()).length || 0), 0), 0);
+      return pts || sections.length;
+    }
+    return rules.filter(r => r && r.trim()).length;
+  };
+
   // Filtered list only uses visible events, but selection may be a category that currently has zero visible events
   const filteredEvents = React.useMemo(() => {
     const list = selectedCategory === 'All'
@@ -549,7 +577,9 @@ export const Events: React.FC = () => {
                               <MapPin size={16} className="mr-2 text-purple-400" />
                               <span>{event.venue}</span>
                             </div>
-                            <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{event.participants} participants</div>
+                            {(event as any).participants && String((event as any).participants).trim() && (
+                              <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{(event as any).participants} participants</div>
+                            )}
                             {getCoordinators(event.id).length > 0 ? (
                               <div className="mt-2 text-sm text-gray-300">
                                 <div className="font-semibold text-gray-200">Coordinators</div>
@@ -612,10 +642,10 @@ export const Events: React.FC = () => {
                               </div>
                             );
                           })()}
-                          {event.rules && event.rules.length > 0 && (
+                          {event.rules && computeRulesCount(event.rules) > 0 && (
                             <div className="mb-4">
                               <button onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); toggleRules(event.id); }} className="flex items-center justify-between w-full text-left font-semibold text-gray-300 mb-2 hover:text-pink-400 transition-colors">
-                                <div className="flex items-center"><FileText size={16} className="mr-2" />Event Rules ({event.rules.length})</div>
+                                <div className="flex items-center"><FileText size={16} className="mr-2" />Event Rules ({computeRulesCount(event.rules)})</div>
                                 {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
                               {expandedRules.has(event.id) && (
@@ -625,9 +655,33 @@ export const Events: React.FC = () => {
                                   onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
                                   onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => e.stopPropagation()}
                                 >
-                                  {event.rules.map((rule: string, i: number) => (
-                                    <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
-                                  ))}
+                                  {isStructuredRules(event.rules) ? (
+                                    unpackStructured(event.rules).map((sec, sIdx) => (
+                                      <div key={sIdx} className="space-y-3">
+                                        {sec.heading?.trim() && <div className="text-white font-semibold">{sec.heading}</div>}
+                                        {(sec.blocks || []).map((b, bIdx) => (
+                                          <div key={bIdx} className="space-y-1">
+                                            {b.title?.trim() && <div className="text-gray-300 text-sm">{b.title}</div>}
+                                            {(b.style || 'number') === 'bullet' ? (
+                                              <ul className="list-disc list-inside space-y-1">
+                                                {b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                  <li key={i} className="rule-text">{p}</li>
+                                                ))}
+                                              </ul>
+                                            ) : (
+                                              b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{p}</span></div>
+                                              ))
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    (event.rules || []).map((rule: string, i: number) => (
+                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
+                                    ))
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1013,13 +1067,15 @@ export const Events: React.FC = () => {
           border: 1px solid rgba(91, 33, 182, 0.32); /* darker purple tone */
           box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(0,0,0,0.35);
           color: #d9d9e3;
+          font-family: Arial, Helvetica, sans-serif; /* Force normal Arial font for rules */
           z-index: 2; /* above decorative layers */
           -webkit-overflow-scrolling: touch;
           backdrop-filter: blur(6px);
         }
-        .rules-panel .rule-line { font-size: 0.95rem; line-height: 1.4rem; color: #e2e8f0; }
-        .rules-panel .rule-index { color: #ff66e5; font-weight: 700; text-shadow: 0 0 6px rgba(255,0,255,0.35); }
-        .rules-panel .rule-text { color: #e6e6f0; }
+        .rules-panel .rule-line { font-size: 0.95rem; line-height: 1.4rem; color: #e2e8f0; font-family: Arial, Helvetica, sans-serif; }
+        .rules-panel .rule-index { color: #ff66e5; font-weight: 700; text-shadow: 0 0 6px rgba(255,0,255,0.35); font-family: Arial, Helvetica, sans-serif; }
+        .rules-panel .rule-text { color: #e6e6f0; font-family: Arial, Helvetica, sans-serif; }
+        .rules-panel ul, .rules-panel li { font-family: Arial, Helvetica, sans-serif; }
         .rules-panel::-webkit-scrollbar { width: 8px; }
   .rules-panel::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #5b21b6, #0e7490); border-radius: 9999px; }
         .rules-panel::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 9999px; }

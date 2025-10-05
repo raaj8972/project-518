@@ -28,6 +28,42 @@ export const EventsManagement: React.FC = () => {
   } = useData() as any;
   const savingProgress = useSavingProgress();
 
+  // ---- Rules (structured) helpers (v2) ----
+  type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
+  type RuleSection = { heading?: string; blocks?: RuleBlock[] };
+  type RuleSectionV1 = { heading?: string; subheading?: string; points?: string[] };
+  const STRUCTURED_MARK = '__SR__';
+  const isStructuredRules = (rules: string[] | null | undefined): boolean => Array.isArray(rules) && rules.length === 1 && typeof rules[0] === 'string' && rules[0].startsWith(STRUCTURED_MARK);
+  const normalizeV1toV2 = (list: RuleSectionV1[]): RuleSection[] => {
+    return (list || []).map((s) => ({
+      heading: s.heading,
+      blocks: [
+        ...(s.points && s.points.length ? [{ kind: 'points', style: 'number', title: s.subheading, items: s.points }] as RuleBlock[] : [])
+      ]
+    }));
+  };
+  const unpackStructured = (rules: string[] | null | undefined): RuleSection[] => {
+    try {
+      if (!isStructuredRules(rules)) return [];
+      const s = (rules as string[])[0].slice(STRUCTURED_MARK.length);
+      const parsed = JSON.parse(s);
+      if (parsed?.v === 2 && Array.isArray(parsed.sections)) return parsed.sections as RuleSection[];
+      if (Array.isArray(parsed?.sections)) return normalizeV1toV2(parsed.sections as RuleSectionV1[]);
+      return [];
+    } catch { return []; }
+  };
+  const packStructured = (sections: RuleSection[]): string[] => [STRUCTURED_MARK + JSON.stringify({ v: 2, sections })];
+  const computeRulesCount = (rules: string[] | null | undefined): number => {
+    if (!rules || rules.length === 0) return 0;
+    if (isStructuredRules(rules)) {
+      const sections = unpackStructured(rules);
+      if (!sections.length) return 0;
+      const pts = sections.reduce((sum, s) => sum + (s.blocks || []).reduce((acc, b) => acc + (b.items?.filter(p=>p && p.trim()).length || 0), 0), 0);
+      return pts || sections.length;
+    }
+    return rules.filter(r => r && r.trim()).length;
+  };
+
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
   const [activeWinnersFor, setActiveWinnersFor] = useState<number | null>(null);
@@ -73,6 +109,10 @@ export const EventsManagement: React.FC = () => {
     artist_id: undefined as number | undefined,
     watch_live_url: '' as string | null,
   });
+
+  // Local UI state for structured rules mode + data (not persisted directly)
+  const [rulesModeStructured, setRulesModeStructured] = useState<boolean>(false);
+  const [rulesSections, setRulesSections] = useState<Array<RuleSection>>([]);
 
   // Admin-side live countdown support so you can see the timer ticking here too
   const [, setTick] = useState(0);
@@ -164,6 +204,8 @@ export const EventsManagement: React.FC = () => {
       artist_id: undefined,
       watch_live_url: '',
     });
+    setRulesModeStructured(false);
+    setRulesSections([]);
   };
 
   const handleAddEvent = async () => {
@@ -174,8 +216,10 @@ export const EventsManagement: React.FC = () => {
     
     try {
       // Insert event and any drafted coordinators in one go
+      const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       await addEventWithCoordinators({
         ...eventForm,
+        rules: finalRules,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
@@ -202,8 +246,10 @@ export const EventsManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
+      const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       await updateEvent(id, {
         ...eventForm,
+        rules: finalRules,
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
@@ -285,6 +331,14 @@ export const EventsManagement: React.FC = () => {
       artist_id: event.artist_id ?? undefined,
       watch_live_url: (event as any).watch_live_url || '',
     });
+    // Populate structured rules UI state
+    if (isStructuredRules((event as any).rules)) {
+      setRulesModeStructured(true);
+      setRulesSections(unpackStructured((event as any).rules));
+    } else {
+      setRulesModeStructured(false);
+      setRulesSections([]);
+    }
     setEditingEvent(event.id);
   };
 
@@ -381,10 +435,27 @@ export const EventsManagement: React.FC = () => {
   };
 
   const addRule = () => {
-    setEventForm(prev => ({
-      ...prev,
-      rules: [...prev.rules, '']
-    }));
+    if (rulesModeStructured) {
+      setRulesSections(prev => {
+        const next = [...prev];
+        if (next.length === 0) {
+          next.push({ heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: [''] }] });
+          return next;
+        }
+        const last = next[next.length - 1];
+        const blocks = [...(last.blocks || [{ kind: 'points', style: 'number', title: '', items: [] }])];
+        const lastBlock = { ...blocks[blocks.length - 1] };
+        lastBlock.items = [...(lastBlock.items || []), ''];
+        blocks[blocks.length - 1] = lastBlock;
+        next[next.length - 1] = { ...last, blocks };
+        return next;
+      });
+    } else {
+      setEventForm(prev => ({
+        ...prev,
+        rules: [...prev.rules, '']
+      }));
+    }
   };
 
   const updateRule = (index: number, value: string) => {
@@ -400,6 +471,19 @@ export const EventsManagement: React.FC = () => {
       rules: prev.rules.filter((_, i) => i !== index)
     }));
   };
+
+  // Structured sections editing helpers
+  const addSection = () => setRulesSections(prev => ([...prev, { heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: [''] }] }]));
+  const removeSection = (idx: number) => setRulesSections(prev => prev.filter((_, i) => i !== idx));
+  const updateSectionField = (idx: number, field: 'heading', value: string) => {
+    setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  };
+  const addBlock = (idx: number, style: 'bullet'|'number' = 'number') => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: [...(s.blocks || []), { kind: 'points', style, title: '', items: [''] }] } : s));
+  const removeBlock = (idx: number, bIndex: number) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).filter((_, j) => j !== bIndex) } : s));
+  const updateBlockField = (idx: number, bIndex: number, patch: Partial<RuleBlock>) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, ...patch } : b) } : s));
+  const addItem = (idx: number, bIndex: number) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: [...(b.items || []), ''] } : b) } : s));
+  const updateItem = (idx: number, bIndex: number, pIndex: number, value: string) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).map((p, k) => k === pIndex ? value : p) } : b) } : s));
+  const removeItem = (idx: number, bIndex: number, pIndex: number) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).filter((_, k) => k !== pIndex) } : b) } : s));
 
   return (
     <div className="space-y-6">
@@ -583,7 +667,7 @@ export const EventsManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Participants</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Participants (Optional)</label>
                   <input
                     type="text"
                     value={eventForm.participants}
@@ -638,35 +722,81 @@ export const EventsManagement: React.FC = () => {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Event Rules</label>
-                <div className="space-y-2">
-                  {eventForm.rules.map((rule, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={rule}
-                        onChange={(e) => updateRule(index, e.target.value)}
-                        placeholder="Event rule"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeRule(index)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addRule}
-                    className="text-blue-600 hover:text-blue-700 text-sm flex items-center"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Add Rule
-                  </button>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Event Rules</label>
+                  <label className="text-xs text-gray-700 flex items-center select-none">
+                    <input type="checkbox" className="mr-2" checked={rulesModeStructured} onChange={(e)=>{
+                      const enabled = e.target.checked;
+                      if (enabled) {
+                        setRulesModeStructured(true);
+                        if (rulesSections.length === 0) setRulesSections([{ heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: eventForm.rules.length ? [...eventForm.rules] : [''] }] }]);
+                      } else {
+                        // flatten into simple list
+                        const flat = rulesSections.flatMap(s => (s.blocks || []).flatMap(b => (b.items || [])).filter(p=>p && p.trim()));
+                        if (flat.length) setEventForm(prev => ({ ...prev, rules: flat }));
+                        setRulesModeStructured(false);
+                      }
+                    }} />
+                    Structured sections
+                  </label>
                 </div>
+                {!rulesModeStructured ? (
+                  <div className="space-y-2">
+                    {eventForm.rules.map((rule, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={rule}
+                          onChange={(e) => updateRule(index, e.target.value)}
+                          placeholder="Event rule"
+                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        />
+                        <button type="button" onClick={() => removeRule(index)} className="text-red-600 hover:text-red-800 p-1"><X size={16} /></button>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addRule} className="text-blue-600 hover:text-blue-700 text-sm flex items-center"><Plus size={16} className="mr-1" />Add Rule</button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rulesSections.map((sec, idx) => (
+                      <div key={idx} className="border border-gray-200 rounded p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="text-sm font-semibold text-gray-700">Section {idx+1}</div>
+                          <button type="button" onClick={()=>removeSection(idx)} className="text-red-600 text-xs">Remove section</button>
+                        </div>
+                        <input className="w-full p-2 text-sm border rounded mb-2" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
+                        <div className="space-y-3">
+                          {(sec.blocks || []).map((b, bIdx) => (
+                            <div key={bIdx} className="border border-dashed border-gray-300 rounded p-2 bg-white">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="text-xs font-semibold text-gray-700">Points block {bIdx+1}</div>
+                                <div className="flex items-center gap-2">
+                                  <select className="text-xs border rounded p-1" value={b.style || 'number'} onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}>
+                                    <option value="number">Numbered</option>
+                                    <option value="bullet">Bullets</option>
+                                  </select>
+                                  <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px]">Remove</button>
+                                </div>
+                              </div>
+                              <input className="w-full p-1.5 text-xs border rounded mb-2" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
+                              <div className="space-y-1">
+                                {(b.items || []).map((p, pIdx) => (
+                                  <div key={pIdx} className="flex items-center gap-2">
+                                    <input className="flex-1 p-1.5 text-xs border rounded" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                    <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600"><X size={11} /></button>
+                                  </div>
+                                ))}
+                                <button type="button" onClick={()=>addItem(idx,bIdx)} className="text-blue-600 hover:text-blue-700 text-[11px] flex items-center"><Plus size={11} className="mr-1" />Add point</button>
+                              </div>
+                            </div>
+                          ))}
+                          <button type="button" onClick={()=>addBlock(idx,'number')} className="text-purple-700 hover:text-purple-800 text-xs flex items-center"><Plus size={12} className="mr-1" />Add Points Block</button>
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={addSection} className="text-purple-700 hover:text-purple-800 text-sm flex items-center"><Plus size={16} className="mr-1" />Add Section</button>
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-4">
                 <label className="flex items-center">
@@ -869,35 +999,74 @@ export const EventsManagement: React.FC = () => {
                 
                 {/* Rules editing */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Event Rules</label>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {eventForm.rules.map((rule, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={rule}
-                          onChange={(e) => updateRule(index, e.target.value)}
-                          placeholder="Event rule"
-                          className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeRule(index)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addRule}
-                      className="text-blue-600 hover:text-blue-700 text-xs flex items-center"
-                    >
-                      <Plus size={12} className="mr-1" />
-                      Add Rule
-                    </button>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-gray-700">Event Rules</label>
+                    <label className="text-xs text-gray-700 flex items-center select-none">
+                      <input type="checkbox" className="mr-2" checked={rulesModeStructured} onChange={(e)=>{
+                        const enabled = e.target.checked;
+                        if (enabled) {
+                          setRulesModeStructured(true);
+                          if (rulesSections.length === 0) setRulesSections([{ heading: '', blocks: [{ kind: 'points', style: 'number', title: '', items: eventForm.rules.length ? [...eventForm.rules] : [''] }] }]);
+                        } else {
+                          const flat = rulesSections.flatMap(s => (s.blocks || []).flatMap(b => (b.items || [])).filter(p=>p && p.trim()));
+                          if (flat.length) setEventForm(prev => ({ ...prev, rules: flat }));
+                          setRulesModeStructured(false);
+                        }
+                      }} />
+                      Structured sections
+                    </label>
                   </div>
+                  {!rulesModeStructured ? (
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {eventForm.rules.map((rule, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <input type="text" value={rule} onChange={(e) => updateRule(index, e.target.value)} placeholder="Event rule" className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400" />
+                          <button type="button" onClick={() => removeRule(index)} className="text-red-600 hover:text-red-800 p-1"><X size={12} /></button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addRule} className="text-blue-600 hover:text-blue-700 text-xs flex items-center"><Plus size={12} className="mr-1" />Add Rule</button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-56 overflow-y-auto">
+                      {rulesSections.map((sec, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded p-2 bg-gray-50">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="text-xs font-semibold text-gray-700">Section {idx+1}</div>
+                            <button type="button" onClick={()=>removeSection(idx)} className="text-red-600 text-[11px]">Remove</button>
+                          </div>
+                          <input className="w-full p-1.5 text-xs border rounded mb-1" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
+                          <div className="space-y-2">
+                            {(sec.blocks || []).map((b, bIdx) => (
+                              <div key={bIdx} className="border border-dashed border-gray-300 rounded p-2 bg-white">
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="text-[11px] font-semibold text-gray-700">Points block {bIdx+1}</div>
+                                  <div className="flex items-center gap-2">
+                                    <select className="text-[11px] border rounded p-1" value={b.style || 'number'} onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}>
+                                      <option value="number">Numbered</option>
+                                      <option value="bullet">Bullets</option>
+                                    </select>
+                                    <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px]">Remove</button>
+                                  </div>
+                                </div>
+                                <input className="w-full p-1.5 text-xs border rounded mb-1" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
+                                <div className="space-y-1">
+                                  {(b.items || []).map((p, pIdx) => (
+                                    <div key={pIdx} className="flex items-center gap-2">
+                                      <input className="flex-1 p-1.5 text-xs border rounded" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                      <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600"><X size={11} /></button>
+                                    </div>
+                                  ))}
+                                  <button type="button" onClick={()=>addItem(idx,bIdx)} className="text-blue-600 hover:text-blue-700 text-[11px] flex items-center"><Plus size={11} className="mr-1" />Add point</button>
+                                </div>
+                              </div>
+                            ))}
+                            <button type="button" onClick={()=>addBlock(idx,'number')} className="text-purple-700 hover:text-purple-800 text-[11px] flex items-center"><Plus size={11} className="mr-1" />Add Points Block</button>
+                          </div>
+                        </div>
+                      ))}
+                      <button type="button" onClick={addSection} className="text-purple-700 hover:text-purple-800 text-xs flex items-center"><Plus size={12} className="mr-1" />Add Section</button>
+                    </div>
+                  )}
                 </div>
 
                 <ImageUpload
@@ -1096,10 +1265,16 @@ export const EventsManagement: React.FC = () => {
                       {event.current_registrations || 0}
                       {event.max_participants && ` / ${event.max_participants}`} participants
                     </div>
-                    {event.rules && event.rules.length > 0 && (
+                    {(event as any).participants && String((event as any).participants).trim() && (
+                      <div className="flex items-center ml-3 text-gray-500">
+                        <Users size={12} className="mr-1" />
+                        {(event as any).participants}
+                      </div>
+                    )}
+                    {event.rules && computeRulesCount(event.rules) > 0 && (
                       <div className="flex items-center">
                         <FileText size={12} className="mr-1" />
-                        {event.rules.length} rule{event.rules.length !== 1 ? 's' : ''} set
+                        {computeRulesCount(event.rules)} rule{computeRulesCount(event.rules) !== 1 ? 's' : ''}
                       </div>
                     )}
                   </div>
