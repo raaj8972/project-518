@@ -1034,6 +1034,7 @@ export interface Database {
           page_key: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
           background_type: 'image' | 'video' | 'auto'
           image_url: string | null
+          mobile_image_url?: string | null
           video_url: string | null
           poster_url: string | null
           overlay_color: string | null
@@ -1047,6 +1048,7 @@ export interface Database {
           page_key: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
           background_type?: 'image' | 'video' | 'auto'
           image_url?: string | null
+          mobile_image_url?: string | null
           video_url?: string | null
           poster_url?: string | null
           overlay_color?: string | null
@@ -1060,6 +1062,7 @@ export interface Database {
           page_key?: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors'
           background_type?: 'image' | 'video' | 'auto'
           image_url?: string | null
+          mobile_image_url?: string | null
           video_url?: string | null
           poster_url?: string | null
           overlay_color?: string | null

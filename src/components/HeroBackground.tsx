@@ -85,7 +85,7 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
 
   const overlayColor = media?.overlay_color || '#000000';
   const overlayOpacity = typeof media?.overlay_opacity === 'number' ? media.overlay_opacity : 0.5;
-  const showMedia = media?.enabled !== false && (media?.image_url || media?.video_url || (media as any)?.mobile_video_url);
+  const showMedia = media?.enabled !== false && (media?.image_url || (media as any)?.mobile_image_url || media?.video_url || (media as any)?.mobile_video_url);
 
   const explicit = (media as any)?.fit_mode as string | undefined;
   const [computedFit, setComputedFit] = useState<'cover' | 'contain'>('cover');
@@ -199,9 +199,11 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
               if (v.paused) { try { v.play(); } catch { /* ignore */ } }
             }}
           />
-        ) : ((media?.background_type === 'image' || media?.background_type === 'auto') && media?.image_url) ? (
+        ) : ((media?.background_type === 'image' || media?.background_type === 'auto') && (media?.image_url || (media as any)?.mobile_image_url)) ? (
           <img
-            src={media.image_url}
+            src={(typeof window !== 'undefined' && (window.innerWidth < 900 || window.innerHeight > window.innerWidth))
+              ? ((media as any)?.mobile_image_url || media.image_url)
+              : (media.image_url || (media as any)?.mobile_image_url)}
             alt="Hero background"
             className={`w-full h-full ${mediaObjectClasses}`}
             style={transformStyle}

@@ -1136,6 +1136,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const patched = {
             ...row,
             image_url: sanitizeUrl((row as any).image_url),
+            mobile_image_url: sanitizeUrl((row as any).mobile_image_url),
             video_url: sanitizeUrl((row as any).video_url),
           } as HeroMedia;
           map[row.page_key as PageKey] = patched;
@@ -1654,6 +1655,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           const patched = {
             ...data,
             image_url: sanitizeUrl((data as any).image_url),
+            mobile_image_url: sanitizeUrl((data as any).mobile_image_url),
             video_url: sanitizeUrl((data as any).video_url),
             mobile_video_url: sanitizeUrl((data as any).mobile_video_url),
             mobile_poster_url: sanitizeUrl((data as any).mobile_poster_url),
@@ -1703,11 +1705,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .upsert([{ page_key: pageKey, ...payload }], { onConflict: 'page_key' })
       .select();
     // Fallback if remote schema missing new columns
-    if (error && (error.message || '').toLowerCase().includes('column') && ((error.message.includes('mobile_video_url')) || (error.message.includes('mobile_poster_url')))) {
-      console.warn('[Data:updateHeroMedia] Remote schema missing mobile columns, retrying without them. Run migration to add mobile_video_url/mobile_poster_url.');
+    if (error && (error.message || '').toLowerCase().includes('column') && ((error.message.includes('mobile_video_url')) || (error.message.includes('mobile_poster_url')) || (error.message.includes('mobile_image_url')))) {
+      console.warn('[Data:updateHeroMedia] Remote schema missing mobile columns, retrying without them. Run migration to add mobile_image_url/mobile_video_url/mobile_poster_url.');
       const fallback = { ...payload } as any;
       delete fallback.mobile_video_url;
       delete fallback.mobile_poster_url;
+      delete fallback.mobile_image_url;
       const retry = await supabase
         .from('hero_media')
         .upsert([{ page_key: pageKey, ...fallback }], { onConflict: 'page_key' })
@@ -1723,6 +1726,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       if (payload.image_url && !urlsEqual(prev.image_url, payload.image_url)) {
         if (!isUrlReferencedSomewhere(prev.image_url, { table: 'hero_media', id: String(pageKey) })) {
           deleteStorageFileByPublicUrl(prev.image_url);
+        }
+      }
+      if ((payload as any).mobile_image_url && !urlsEqual((prev as any).mobile_image_url, (payload as any).mobile_image_url)) {
+        const oldMobileImg = (prev as any).mobile_image_url;
+        if (oldMobileImg && !isUrlReferencedSomewhere(oldMobileImg, { table: 'hero_media', id: String(pageKey) })) {
+          deleteStorageFileByPublicUrl(oldMobileImg);
         }
       }
       if (payload.video_url && !urlsEqual(prev.video_url, payload.video_url)) {
@@ -1746,7 +1755,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (updated) {
       const patched = {
         ...updated,
-        image_url: sanitizeUrl((updated as any).image_url),
+  image_url: sanitizeUrl((updated as any).image_url),
+  mobile_image_url: sanitizeUrl((updated as any).mobile_image_url),
         video_url: sanitizeUrl((updated as any).video_url),
         mobile_video_url: sanitizeUrl((updated as any).mobile_video_url),
         mobile_poster_url: sanitizeUrl((updated as any).mobile_poster_url),

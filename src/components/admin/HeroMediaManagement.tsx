@@ -25,6 +25,7 @@ export const HeroMediaManagement: React.FC = () => {
   const [form, setForm] = useState({
     background_type: 'image' as 'image' | 'video' | 'auto',
     image_url: '',
+    mobile_image_url: '',
     video_url: '',
     mobile_video_url: '',
     poster_url: '',
@@ -204,6 +205,7 @@ export const HeroMediaManagement: React.FC = () => {
       setForm({
         background_type: (current.background_type || 'image') as any,
         image_url: current.image_url || '',
+        mobile_image_url: (current as any).mobile_image_url || '',
         video_url: current.video_url || '',
         mobile_video_url: (current as any).mobile_video_url || '',
         poster_url: current.poster_url || '',
@@ -386,6 +388,32 @@ export const HeroMediaManagement: React.FC = () => {
                       className="text-sm text-red-600 hover:text-red-700"
                     >
                       Clear image URL
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {form.background_type !== 'video' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mobile-only Image (shown on phones)</label>
+                <ImageUpload
+                  onImageSelect={(url) => setForm((p) => ({ ...p, mobile_image_url: url }))}
+                  currentImage={form.mobile_image_url}
+                  bucket="hero-media"
+                  folder={`hero/${selectedPage}/mobile`}
+                  acceptedTypes="image/*"
+                  fileTypeLabel="PNG, JPG, WEBP, GIF up to 5MB"
+                  cropAspect={9/16}
+                />
+                {form.mobile_image_url && (
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, mobile_image_url: '' }))}
+                      className="text-sm text-red-600 hover:text-red-700"
+                    >
+                      Clear mobile image URL
                     </button>
                   </div>
                 )}
@@ -604,7 +632,7 @@ export const HeroMediaManagement: React.FC = () => {
                               />
                             </>
                           ) : form.image_url ? (
-                            <img src={form.image_url} className="w-full h-full object-cover" onLoad={(e)=>{ const i=e.currentTarget; if(i.naturalWidth&&i.naturalHeight){ setMiniMobileAspect(ratioLabel(i.naturalWidth / i.naturalHeight)); } }} />
+                            <img src={form.mobile_image_url || form.image_url} className="w-full h-full object-cover" onLoad={(e)=>{ const i=e.currentTarget; if(i.naturalWidth&&i.naturalHeight){ setMiniMobileAspect(ratioLabel(i.naturalWidth / i.naturalHeight)); } }} />
                           ) : (
                             <div className="w-full h-full bg-gradient-to-br from-gray-600/40 to-gray-800/40" />
                           )}
