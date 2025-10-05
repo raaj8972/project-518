@@ -85,7 +85,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-  const FRONT_MEDIA_TOP = 42; // matches .flip-front { padding-top: 42px; }
+  const FRONT_MEDIA_TOP = 0; // front face now has no reserved top; media fills entire area
   // Cropper area height (taller on larger screens)
   const cropperHeight = Math.max(440, Math.min(560, previewCardHeight));
   const previewCardTaller = previewCardHeight > cropperHeight;
@@ -108,6 +108,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     window.addEventListener('resize', measure);
     return () => { window.removeEventListener('resize', measure); clearTimeout(t); };
   }, [previewCardScaleMode, previewCardHeight, cropperHeight, previewIsMd]);
+
+  // When fitting the whole card to the viewport, always use Full Photo preview to avoid confusion
+  useEffect(() => {
+    if (previewCardScaleMode === 'fit' && previewMode !== 'full') {
+      setPreviewMode('full');
+    }
+  }, [previewCardScaleMode, previewMode]);
 
   // Debounced live cropped preview when adjusting crop
   useEffect(() => {
@@ -965,26 +972,28 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                       <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'contain' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('contain')}>Fit (no crop)</button>
                       <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'cover' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('cover')}>Cover (fill)</button>
                       </div>
-                      <div className="flex gap-1 ml-1">
-                        <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'actual' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('actual')}>Actual</button>
-                        <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'fit' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('fit')}>Fit card</button>
-                      </div>
+                        <div className="flex gap-1 ml-1">
+                          <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'actual' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('actual')}>Actual</button>
+                          <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'fit' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('fit')}>Fit card</button>
+                        </div>
                     </div>
                   </div>
                   {previewCardScaleMode === 'actual' && previewCardTaller && (
                     <div className="px-4 py-1 text-[11px] text-gray-500 bg-white/60">Scroll to see the full card preview</div>
                   )}
+                    {previewCardScaleMode === 'fit' && (
+                      <div className="px-4 py-1 text-[11px] text-gray-500 bg-white/60">Fit card shows the full image without crop (fit).</div>
+                    )}
                   <div className="p-4 flex-1 flex items-center justify-center bg-white" ref={previewViewportRef}>
                     <div className="w-full max-w-[560px] rounded-md shadow-inner overflow-hidden border border-gray-200 bg-black" style={{ borderRadius: 12, padding: previewIsMd ? 3 : 0, transform: `scale(${fitScale})`, transformOrigin: 'top center' }}>
-                      {/* Simulate the card's top reserved area for badges/watch live */}
-                      <div className="w-full bg-black" style={{ height: FRONT_MEDIA_TOP }} />
-                      {/* Visible media area exactly like flip-front-media (fills below the top padding) */}
+                      {/* Visible media area exactly like flip-front-media (fills entire face) */}
                       <div
                         className="w-full"
                         style={{
                           height: Math.max(0, previewCardHeight - FRONT_MEDIA_TOP),
-                          backgroundImage: `url(${previewMode === 'crop' && croppedPreviewUrl ? croppedPreviewUrl : cropSrc})`,
-                          backgroundSize: effectivePosterFit,
+                            backgroundImage: `url(${previewMode === 'crop' && croppedPreviewUrl ? croppedPreviewUrl : cropSrc})`,
+                            // In Fit card mode, force contain to ensure no cropping while fitting the whole card
+                            backgroundSize: previewCardScaleMode === 'fit' ? 'contain' : effectivePosterFit,
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
                           backgroundColor: '#000',

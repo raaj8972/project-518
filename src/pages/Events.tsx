@@ -436,7 +436,12 @@ export const Events: React.FC = () => {
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
                     <button className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`} onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
-                      <div className="flip-front-media" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
+                      <div className="flip-front-media">
+                        {/* Blurred cover layer to fill width while keeping main poster full (no crop) */}
+                        <div className="poster-fill" style={{ backgroundImage: `url(${event.image})` }} />
+                        {/* Main poster layer (contain or cover per setting) */}
+                        <div className="poster-main" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
+                      </div>
                       {event.motion_poster_url ? (
                         <video
                           className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
@@ -776,9 +781,14 @@ export const Events: React.FC = () => {
 
       <style>{`
     /* Flip card styles */
-  .flip-3d { perspective: 1200px; position: relative; height: 440px; }
-  @media (min-width: 480px) { .flip-3d { height: 500px; } }
-  @media (min-width: 768px) { .flip-3d { height: 620px; } }
+          /* Maintain a consistent poster card aspect ratio: 49 x 59.4 (width x height) */
+          .flip-3d { perspective: 1200px; position: relative; aspect-ratio: 49 / 59.4; }
+          /* Fallback for browsers not supporting aspect-ratio */
+          @supports not (aspect-ratio: 1 / 1) {
+            .flip-3d { height: 500px; }
+            @media (min-width: 480px) { .flip-3d { height: 540px; } }
+            @media (min-width: 768px) { .flip-3d { height: 620px; } }
+          }
   .flip-3d-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 600ms cubic-bezier(.2,.8,.2,1); z-index: 10; }
         .flip-3d.is-flipped .flip-3d-inner { transform: rotateY(180deg); }
         /* Remove hover flip so hover can reveal motion poster video on the front; flip via click only */
@@ -789,8 +799,14 @@ export const Events: React.FC = () => {
           .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 12px; overflow: hidden; }
         .flip-front { z-index: 2; }
           /* Parallax depth for media on the front */
-          /* Use contain so posters are never cropped; letterbox with black background if aspect differs */
-          .flip-front-media { position: absolute; inset: 0; background-size: contain; background-repeat: no-repeat; background-position: center; background-color: #000; transform: translateZ(18px); transition: transform 400ms ease; }
+          /* Media fills the entire front face (no top crop on mobile) */
+          .flip-front-media { position: absolute; inset: 0; transform: translateZ(18px); transition: transform 400ms ease; background-color: #000; }
+          /* Blurred cover background to visually fill width */
+          .flip-front-media .poster-fill { position:absolute; inset:0; background-size: cover; background-position:center; filter: blur(16px) brightness(0.75); transform: scale(1.06); }
+          /* Main poster — contain (no crop) by default, or cover if admin chooses */
+          .flip-front-media .poster-main { position:absolute; inset:0; background-repeat:no-repeat; background-position:center; background-size: contain; }
+          @media (min-width: 768px) { .flip-front-media .poster-fill { filter: blur(18px) brightness(0.72); } }
+          /* When admin chooses cover, inline backgroundSize overrides to cover; poster-fill remains underneath but mostly hidden */
           @media (hover: hover) and (pointer: fine) {
             .tilt-card:hover .flip-front-media { transform: translateZ(24px); }
           }
@@ -1077,7 +1093,7 @@ export const Events: React.FC = () => {
           /* Ensure grid spacing and card content have breathing room */
           .container .grid { gap: 16px; }
           /* Reserve space at top of front face for badges/buttons */
-          .flip-front { padding-top: 42px; }
+          /* No additional top padding; badges are absolutely positioned */
           /* Prevent inner content from colliding at the bottom */
           .flip-back .p-6 { padding: 16px; }
           .flip-back .p-6.pt-0 { padding-top: 8px; }
