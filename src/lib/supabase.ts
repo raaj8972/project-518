@@ -72,6 +72,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    // Use a stable, app-specific storage key to avoid collisions between previews/prod
+    storageKey: 'ricorrenza_2025_auth',
   },
 })
 

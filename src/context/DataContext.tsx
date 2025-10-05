@@ -440,40 +440,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Detect once whether PostgREST exposes the `storage` schema (storage.buckets/objects).
   // To prevent repeated 404s in environments where `storage` schema is hidden, we DISABLE the probe by default.
   // Set VITE_ENABLE_STORAGE_CAPABILITY_PROBE=true to run a single cached probe.
-  const storageTablesExposedRef = React.useRef<boolean | null>(null);
-  const storageTablesProbePromiseRef = React.useRef<Promise<boolean> | null>(null);
-  const storageProbeEnabled = (() => {
-    try {
-      const v = (import.meta as any)?.env?.VITE_ENABLE_STORAGE_CAPABILITY_PROBE;
-      return v === 'true' || v === '1';
-    } catch {}
-    return false; // default: disabled to avoid 404 noise
-  })();
-  const areStorageTablesExposed = async (): Promise<boolean> => {
-    if (!storageProbeEnabled) {
-      storageTablesExposedRef.current = false;
-      return false;
-    }
-    if (storageTablesExposedRef.current !== null) return storageTablesExposedRef.current as boolean;
-    if (storageTablesProbePromiseRef.current) return storageTablesProbePromiseRef.current;
-    storageTablesProbePromiseRef.current = (async () => {
-      try {
-        const { error } = await supabase
-          .from('storage.buckets' as any)
-          .select('id', { count: 'exact' })
-          .range(0, 0);
-        storageTablesExposedRef.current = !error;
-        return storageTablesExposedRef.current as boolean;
-      } catch {
-        storageTablesExposedRef.current = false;
-        return false;
-      } finally {
-        // clear promise holder; keep the cached boolean
-        setTimeout(() => { storageTablesProbePromiseRef.current = null; }, 0);
-      }
-    })();
-    return storageTablesProbePromiseRef.current;
-  };
+  // Deprecated probe: instead of pre-probing, we optimistically attempt storage.* tables and safely fall back on error.
+  // Keeping refs for future feature flags if needed.
+  // Note: legacy ref removed; no longer used after optimistic access refactor
 
   // Recursively list all files in a bucket using the Storage API. This works even when
   // direct access to storage.objects is restricted by RLS, and includes nested folders.
@@ -523,6 +492,29 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       resolve(results);
     });
   }
+
+  // Simple sessionStorage cache for expensive recursive listings
+  const getCachedBucketIndex = (bucket: string) => {
+    try {
+      const raw = sessionStorage.getItem(`bucket_index:${bucket}`);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const { ts, items } = parsed || {};
+      // 2-minute TTL to keep UI snappy while reflecting recent uploads/deletes
+      if (!ts || Date.now() - Number(ts) > 120_000) return null;
+      if (!Array.isArray(items)) return null;
+      return items as Array<{ fullPath: string; created_at: string | null; size: number; publicUrl: string }>;
+    } catch { return null; }
+  };
+  const setCachedBucketIndex = (
+    bucket: string,
+    items: Array<{ fullPath: string; created_at: string | null; size: number; publicUrl: string }>
+  ) => {
+    try {
+      sessionStorage.setItem(`bucket_index:${bucket}` , JSON.stringify({ ts: Date.now(), items }));
+    } catch {}
+  };
 
   // --- Admin users helpers ---
   const refreshAdminUsers = async () => {
@@ -630,11 +622,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // Generic: list objects in a bucket with size when available.
   const getBucketObjects = async (bucket: string, page = 1, pageSize = 50) => {
-    // Prefer storage.objects for richer metadata if accessible; gate behind capability check
+    // Prefer storage.objects; try directly and fallback if not accessible
     const from = (page - 1) * pageSize;
-      const to = from + pageSize;
+    const to = from + pageSize;
     try {
-      if (!(await areStorageTablesExposed())) throw new Error('storage schema not exposed');
       const { data, error, count } = await supabase
         .from('storage.objects')
         .select('name, created_at, metadata', { count: 'exact' })
@@ -642,18 +633,20 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         .order('created_at', { ascending: false })
         .range(from, to);
       if (!error && data) {
-          let items = (data || []).map((row: any) => ({
+        let items = (data || []).map((row: any) => ({
           name: row.name as string,
           created_at: row.created_at as string | null,
           size: Number(row?.metadata?.size ?? row?.metadata?.ContentLength ?? 0) || 0,
           publicUrl: publicUrlFor(bucket, row.name as string),
         }));
-          items = await ensurePreviewUrls(bucket, items);
+        items = await ensurePreviewUrls(bucket, items);
         return { items, total: count ?? items.length };
       }
     } catch {}
-    // Fallback: recursively list via Storage API (supports nested folders) and use metadata.size when available
-    const all = await listAllObjectsViaStorageAPI(bucket, '');
+    // Fallback: recursively list via Storage API (supports nested folders). Cache to avoid repeated heavy scans.
+    const cached = getCachedBucketIndex(bucket);
+    const all = cached ?? await listAllObjectsViaStorageAPI(bucket, '');
+    if (!cached) setCachedBucketIndex(bucket, all);
     // Sort by created_at desc then name
     all.sort((a, b) => {
       const at = (a.created_at ? new Date(a.created_at).getTime() : 0);
@@ -683,7 +676,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
       try {
-        if (!(await areStorageTablesExposed())) break;
         const { data, error } = await supabase
           .from('storage.objects')
           .select('metadata')
@@ -706,7 +698,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // If storage.objects was inaccessible or empty, fall back to Storage API recursive listing
     if (count === 0 && totalBytes === 0) {
       try {
-        const all = await listAllObjectsViaStorageAPI(bucket, '');
+        const all = getCachedBucketIndex(bucket) ?? await listAllObjectsViaStorageAPI(bucket, '');
+        if (!getCachedBucketIndex(bucket)) setCachedBucketIndex(bucket, all);
         let sum = 0;
         for (const f of all) sum += (Number(f.size) || 0);
         return { totalBytes: sum, count: all.length };
@@ -720,15 +713,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // List all storage buckets, prefer storage.buckets
   const listStorageBuckets = async (): Promise<string[]> => {
     try {
-      if (await areStorageTablesExposed()) {
-        const { data, error } = await supabase
-          .from('storage.buckets' as any)
-          .select('id')
-          .order('id', { ascending: true });
-        if (!error && data) {
-          const ids = (data as any[]).map((r) => r.id as string).filter(Boolean);
-          return Array.from(new Set(ids));
-        }
+      const { data, error } = await supabase
+        .from('storage.buckets' as any)
+        .select('id')
+        .order('id', { ascending: true });
+      if (!error && data) {
+        const ids = (data as any[]).map((r) => r.id as string).filter(Boolean);
+        return Array.from(new Set(ids));
       }
     } catch {}
     // Fallback to known buckets we operate with
