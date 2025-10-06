@@ -164,6 +164,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const effectiveFileTypeLabel = isVideoUpload
     ? 'MP4, MOV up to 50MB'
     : (isPdfUpload ? 'PDF up to 10MB' : `PNG, JPG, GIF up to ${humanSize(effectiveImageMaxBytes)}`);
+  const displayFileTypeLabel = (fileTypeLabel && fileTypeLabel !== 'PNG, JPG, GIF up to 5MB')
+    ? fileTypeLabel
+    : effectiveFileTypeLabel;
 
   // Helper: read a File into an HTMLImageElement
   const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
@@ -941,7 +944,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               <p className="text-gray-600 mb-2">
                 <span className="font-medium">Click to upload</span> or drag and drop
               </p>
-              <p className="text-sm text-gray-500">{effectiveFileTypeLabel}</p>
+              <p className="text-sm text-gray-500">{displayFileTypeLabel}</p>
             </div>
           )}
         </div>
