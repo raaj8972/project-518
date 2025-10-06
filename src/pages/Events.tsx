@@ -584,17 +584,35 @@ export const Events: React.FC = () => {
                               <div className="mt-2 text-sm text-gray-300">
                                 <div className="font-semibold text-gray-200">Coordinators</div>
                                 <div className="text-gray-400 space-y-0.5">
-                                  {getCoordinators(event.id).map((c: any) => (
-                                    <div key={c.id}>{c.name}{c.phone ? ` • ${c.phone}` : ''}</div>
-                                  ))}
+                                  {getCoordinators(event.id)
+                                    .filter((c: any) => {
+                                      const n = String(c.name ?? '').trim();
+                                      const p = String(c.phone ?? '').trim();
+                                      if (!n && !p) return false;
+                                      if ((n === '0' || n === '-' || n === '—') && !p) return false;
+                                      return true;
+                                    })
+                                    .map((c: any) => {
+                                      const n = String(c.name ?? '').trim();
+                                      const p = String(c.phone ?? '').trim();
+                                      return <div key={c.id}>{n}{p ? ` • ${p}` : ''}</div>;
+                                    })}
                                 </div>
                               </div>
-                            ) : ((event as any).coordinator_name || (event as any).coordinator_phone) ? (
-                              <div className="mt-2 text-sm text-gray-300">
-                                <div className="font-semibold text-gray-200">Coordinator</div>
-                                <div className="text-gray-400">{(event as any).coordinator_name || '—'}{(event as any).coordinator_phone ? ` • ${(event as any).coordinator_phone}` : ''}</div>
-                              </div>
-                            ) : null}
+                            ) : (() => {
+                              const nRaw = (event as any).coordinator_name;
+                              const pRaw = (event as any).coordinator_phone;
+                              const n = String(nRaw ?? '').trim();
+                              const p = String(pRaw ?? '').trim();
+                              if (!n && !p) return null;
+                              if ((n === '0' || n === '-' || n === '—') && !p) return null;
+                              return (
+                                <div className="mt-2 text-sm text-gray-300">
+                                  <div className="font-semibold text-gray-200">Coordinator</div>
+                                  <div className="text-gray-400">{n || ''}{p ? ` • ${p}` : ''}</div>
+                                </div>
+                              );
+                            })()}
                             {event.max_participants && (
                               <div className="mt-3">
                                 <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Registrations</span><span>{event.current_registrations || 0} / {event.max_participants}</span></div>

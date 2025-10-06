@@ -449,9 +449,19 @@ export const Schedule: React.FC = () => {
                                           <div className="mt-3">
                                             <div className="text-xs text-gray-400 mb-1">Coordinators</div>
                                             <ul className="text-xs text-gray-200 space-y-0.5">
-                                              {coords.map(c => (
-                                                <li key={c.id}>{c.name}{c.phone ? ` • ${c.phone}` : ''}</li>
-                                              ))}
+                                              {coords
+                                                .filter((c: any) => {
+                                                  const n = String(c.name ?? '').trim();
+                                                  const p = String(c.phone ?? '').trim();
+                                                  if (!n && !p) return false;
+                                                  if ((n === '0' || n === '-' || n === '—') && !p) return false;
+                                                  return true;
+                                                })
+                                                .map((c: any) => {
+                                                  const n = String(c.name ?? '').trim();
+                                                  const p = String(c.phone ?? '').trim();
+                                                  return <li key={c.id}>{n}{p ? ` • ${p}` : ''}</li>;
+                                                })}
                                             </ul>
                                           </div>
                                         )}

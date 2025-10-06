@@ -344,8 +344,11 @@ export const EventsManagement: React.FC = () => {
 
   const coordinatorsFor = (eventId: number): EventCoordinator[] => (eventCoordinators as EventCoordinator[]).filter((c: EventCoordinator) => c.event_id === eventId).sort((a: EventCoordinator, b: EventCoordinator) => a.order_position - b.order_position);
   const addCoordinator = async (eventId: number) => {
-    if (!newCoordinator.name.trim() && !newCoordinator.phone.trim()) return;
-    await addEventCoordinator({ event_id: eventId, name: newCoordinator.name.trim() || '—', phone: newCoordinator.phone.trim() || null, order_position: (coordinatorsFor(eventId).slice(-1)[0]?.order_position ?? 0) + 1 });
+    const nameT = newCoordinator.name.trim();
+    const phoneT = newCoordinator.phone.trim();
+    const isPlaceholder = (v: string) => v === '' || v === '0' || v === '-' || v === '—';
+    if (isPlaceholder(nameT) && !phoneT) return;
+    await addEventCoordinator({ event_id: eventId, name: isPlaceholder(nameT) ? '—' : nameT, phone: phoneT || null, order_position: (coordinatorsFor(eventId).slice(-1)[0]?.order_position ?? 0) + 1 });
     setNewCoordinator({ name: '', phone: '' });
   };
 
@@ -625,8 +628,13 @@ export const EventsManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={()=>{
-                      if (!newCoordinator.name.trim() && !newCoordinator.phone.trim()) return;
-                      setDraftCoordinators(prev=>[...prev, { name: newCoordinator.name.trim() || '—', phone: newCoordinator.phone.trim() || null }]);
+                      {
+                        const nameT = newCoordinator.name.trim();
+                        const phoneT = newCoordinator.phone.trim();
+                        const isPlaceholder = (v: string) => v === '' || v === '0' || v === '-' || v === '—';
+                        if (isPlaceholder(nameT) && !phoneT) return;
+                        setDraftCoordinators(prev=>[...prev, { name: isPlaceholder(nameT) ? '—' : nameT, phone: phoneT || null }]);
+                      }
                       setNewCoordinator({ name: '', phone: '' });
                     }}
                     className="col-span-2 bg-green-600 text-white rounded text-xs px-2"
