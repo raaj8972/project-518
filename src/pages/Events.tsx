@@ -543,6 +543,13 @@ export const Events: React.FC = () => {
                       );
                     })()}
 
+                    {/* Front-face title badge at bottom center with subtle glow */}
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 sm:bottom-4 z-10 pointer-events-none max-w-[85%]">
+                      <div className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold tracking-wide text-white/95 bg-black/35 border border-white/15 backdrop-blur-sm glow-text truncate">
+                        {event.title}
+                      </div>
+                    </div>
+
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
                       {/* Back face Watch Live button (mirrors front face, 60m pre-live gating) */}
                       {(() => {
