@@ -445,26 +445,28 @@ export const Schedule: React.FC = () => {
                                       <div className="flex-1 min-w-0">
                                         {linkedTitle && <div className="text-white font-semibold text-sm sm:text-base mb-1">{linkedTitle}</div>}
                                         {linkedDesc && <p className="text-gray-300 text-xs sm:text-sm whitespace-pre-line line-clamp-5">{linkedDesc}</p>}
-                                        {coords.length > 0 && (
+                                        {(() => {
+                                          const clean = coords.filter((c: any) => {
+                                            const n = String(c.name ?? '').trim();
+                                            const p = String(c.phone ?? '').trim();
+                                            if (!n && !p) return false;
+                                            if ((n === '0' || n === '-' || n === '—') && !p) return false;
+                                            return true;
+                                          });
+                                          if (clean.length === 0) return null;
+                                          return (
                                           <div className="mt-3">
                                             <div className="text-xs text-gray-400 mb-1">Coordinators</div>
                                             <ul className="text-xs text-gray-200 space-y-0.5">
-                                              {coords
-                                                .filter((c: any) => {
-                                                  const n = String(c.name ?? '').trim();
-                                                  const p = String(c.phone ?? '').trim();
-                                                  if (!n && !p) return false;
-                                                  if ((n === '0' || n === '-' || n === '—') && !p) return false;
-                                                  return true;
-                                                })
-                                                .map((c: any) => {
-                                                  const n = String(c.name ?? '').trim();
-                                                  const p = String(c.phone ?? '').trim();
-                                                  return <li key={c.id}>{n}{p ? ` • ${p}` : ''}</li>;
-                                                })}
+                                              {clean.map((c: any) => {
+                                                const n = String(c.name ?? '').trim();
+                                                const p = String(c.phone ?? '').trim();
+                                                return <li key={c.id}>{n}{p ? ` • ${p}` : ''}</li>;
+                                              })}
                                             </ul>
                                           </div>
-                                        )}
+                                          );
+                                        })()}
 
                                         {/* Direct navigation to the linked event card (registration disabled on Schedule) */}
                                         {linkedEvent && (

@@ -1256,27 +1256,30 @@ export const EventsManagement: React.FC = () => {
                   </div>
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">{event.description}</p>
                   <div className="space-y-1 text-xs text-gray-500 mb-3">
-                    <div className="flex items-center">
-                      <Calendar size={12} className="mr-1" />
-                      {event.date}
-                    </div>
-                    <div className="flex items-center">
-                      <Clock size={12} className="mr-1" />
-                      {event.time}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin size={12} className="mr-1" />
-                      {event.venue}
-                    </div>
-                    <div className="flex items-center">
-                      <Users size={12} className="mr-1" />
-                      {event.current_registrations || 0}
-                      {event.max_participants && ` / ${event.max_participants}`} participants
-                    </div>
-                    {(event as any).participants && String((event as any).participants).trim() && (
-                      <div className="flex items-center ml-3 text-gray-500">
+                    {String(event.date || '').trim() && (
+                      <div className="flex items-center">
+                        <Calendar size={12} className="mr-1" />
+                        {event.date}
+                      </div>
+                    )}
+                    {String(event.time || '').trim() && (
+                      <div className="flex items-center">
+                        <Clock size={12} className="mr-1" />
+                        {event.time}
+                      </div>
+                    )}
+                    {String(event.venue || '').trim() && (
+                      <div className="flex items-center">
+                        <MapPin size={12} className="mr-1" />
+                        {event.venue}
+                      </div>
+                    )}
+                    {(event.max_participants || (event as any).participants) && (
+                      <div className="flex items-center">
                         <Users size={12} className="mr-1" />
-                        {(event as any).participants}
+                        {event.max_participants
+                          ? `${event.current_registrations ?? 0} / ${event.max_participants} participants`
+                          : `${String((event as any).participants).trim()} participants`}
                       </div>
                     )}
                     {event.rules && computeRulesCount(event.rules) > 0 && (

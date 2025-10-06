@@ -580,26 +580,31 @@ export const Events: React.FC = () => {
                             {(event as any).participants && String((event as any).participants).trim() && (
                               <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{(event as any).participants} participants</div>
                             )}
-                            {getCoordinators(event.id).length > 0 ? (
-                              <div className="mt-2 text-sm text-gray-300">
-                                <div className="font-semibold text-gray-200">Coordinators</div>
-                                <div className="text-gray-400 space-y-0.5">
-                                  {getCoordinators(event.id)
-                                    .filter((c: any) => {
-                                      const n = String(c.name ?? '').trim();
-                                      const p = String(c.phone ?? '').trim();
-                                      if (!n && !p) return false;
-                                      if ((n === '0' || n === '-' || n === '—') && !p) return false;
-                                      return true;
-                                    })
-                                    .map((c: any) => {
-                                      const n = String(c.name ?? '').trim();
-                                      const p = String(c.phone ?? '').trim();
-                                      return <div key={c.id}>{n}{p ? ` • ${p}` : ''}</div>;
-                                    })}
-                                </div>
-                              </div>
-                            ) : (() => {
+                            {(() => {
+                              const coords = getCoordinators(event.id).filter((c: any) => {
+                                const n = String(c.name ?? '').trim();
+                                const p = String(c.phone ?? '').trim();
+                                if (!n && !p) return false;
+                                if ((n === '0' || n === '-' || n === '—') && !p) return false;
+                                return true;
+                              });
+                              if (coords.length > 0) {
+                                return (
+                                  <div className="mt-2 text-sm text-gray-300">
+                                    <div className="font-semibold text-gray-200">Coordinators</div>
+                                    <div className="text-gray-400 space-y-0.5">
+                                      {coords.map((c: any) => {
+                                        const n = String(c.name ?? '').trim();
+                                        const p = String(c.phone ?? '').trim();
+                                        return <div key={c.id}>{n}{p ? ` • ${p}` : ''}</div>;
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              // else, fall through to single coordinator fallback below
+                              return null;
+                            })() || (() => {
                               const nRaw = (event as any).coordinator_name;
                               const pRaw = (event as any).coordinator_phone;
                               const n = String(nRaw ?? '').trim();
