@@ -25,6 +25,9 @@ export const EventsManagement: React.FC = () => {
     eventWinners: _eventWinners,
     siteSettings,
     addEventWithCoordinators,
+    // Reorder
+    reorderEvents,
+    lastEventReorderError,
   } = useData() as any;
   const savingProgress = useSavingProgress();
 
@@ -157,6 +160,63 @@ export const EventsManagement: React.FC = () => {
     const local = d.toLocaleString();
     const utc = d.toUTCString();
     return `Opens at — IST: ${ist} • Local: ${local} • UTC: ${utc} • Note: countdown uses your device time`;
+  };
+
+  // ---- Events reorder (owner/admin) ----
+  const [reorderMode, setReorderMode] = useState(false);
+  const [orderList, setOrderList] = useState<number[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [reorderMessage, setReorderMessage] = useState<string | null>(null);
+  const canReorder = !!(myPermissions?.can_events || true); // owner and events-admins
+
+  const openReorder = () => {
+    setOrderList(events.map((e: any) => e.id));
+    setReorderMode(true);
+  };
+  const closeReorder = () => {
+    setReorderMode(false);
+    setOrderList([]);
+    setDragIndex(null);
+    setReorderMessage(null);
+  };
+  const moveRow = (idx: number, delta: -1 | 1) => {
+    setOrderList(prev => {
+      const j = idx + delta;
+      if (idx < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      const tmp = next[idx];
+      next[idx] = next[j];
+      next[j] = tmp;
+      return next;
+    });
+  };
+  const onDragStartRow = (idx: number) => setDragIndex(idx);
+  const onDragOverRow = (e: React.DragEvent<HTMLDivElement>, overIndex: number) => {
+    e.preventDefault();
+    setOrderList(prev => {
+      if (dragIndex === null || dragIndex === overIndex) return prev;
+      const arr = [...prev];
+      const [item] = arr.splice(dragIndex, 1);
+      arr.splice(overIndex, 0, item);
+      setDragIndex(overIndex);
+      return arr;
+    });
+  };
+  const persistReorder = async () => {
+    if (!orderList.length) return;
+    setSavingOrder(true);
+    setReorderMessage(null);
+    try {
+      const ok = await (reorderEvents?.(orderList) || Promise.resolve(false));
+      setReorderMessage(ok ? 'Order saved' : 'Some rows failed to save');
+      if (ok) setTimeout(() => { setReorderMode(false); setReorderMessage(null); }, 1200);
+    } catch (e) {
+      console.error('Failed to reorder events', e);
+      setReorderMessage('Failed to reorder');
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   // Soft palette + glow for admin overlay countdown
@@ -503,6 +563,17 @@ export const EventsManagement: React.FC = () => {
           <p className="text-gray-600">Manage festival events and registrations</p>
         </div>
         <div className="flex items-center gap-3">
+          {canReorder && events.length > 1 && (
+            <button
+              onClick={() => (reorderMode ? closeReorder() : openReorder())}
+              className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                reorderMode ? 'bg-purple-600 text-white border-purple-600 hover:bg-purple-500' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+              title="Drag to reorder events (affects public order)"
+            >
+              {reorderMode ? 'Done Reordering' : 'Reorder Events'}
+            </button>
+          )}
           <label className="flex items-center text-sm text-gray-700">
             <input type="checkbox" className="mr-2" checked={autoOpenEnabled} onChange={(e)=>persistAutoOpen(e.target.checked)} />
             Auto-open after timer
@@ -936,6 +1007,53 @@ export const EventsManagement: React.FC = () => {
               <Save size={16} className="mr-1" />
               Add Event
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reorder Mode Panel */}
+      {reorderMode && (
+        <div className="bg-white rounded-lg shadow-md border border-purple-200 p-4 mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sm font-semibold text-gray-800">Reorder events</div>
+              <div className="text-xs text-gray-600">Drag rows or use arrows. Top = shows first on Events page.</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {lastEventReorderError && (
+                <span className="text-xs text-red-600" title={`${lastEventReorderError.phase || ''} ${lastEventReorderError.details || ''}`}>Warning: {lastEventReorderError.message}</span>
+              )}
+              <button onClick={closeReorder} className="px-3 py-1.5 text-sm rounded border border-gray-300">Cancel</button>
+              <button onClick={persistReorder} disabled={savingOrder} className={`px-3 py-1.5 text-sm rounded ${savingOrder ? 'bg-gray-400 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'}`}>{savingOrder ? 'Saving…' : 'Save Order'}</button>
+            </div>
+          </div>
+          {!!reorderMessage && (
+            <div className="mb-2 text-xs text-gray-700">{reorderMessage}</div>
+          )}
+          <div className="divide-y divide-gray-100 rounded border border-gray-200">
+            {orderList.map((id, idx) => {
+              const ev = events.find((e: any) => e.id === id);
+              if (!ev) return null;
+              return (
+                <div
+                  key={id}
+                  draggable
+                  onDragStart={() => onDragStartRow(idx)}
+                  onDragOver={(e) => onDragOverRow(e, idx)}
+                  className={`flex items-center gap-3 px-3 py-2 bg-white ${dragIndex===idx ? 'opacity-70 ring-1 ring-purple-300' : ''}`}
+                >
+                  <div className="w-8 text-xs text-gray-500 select-none">{idx + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{ev.title}</div>
+                    <div className="text-xs text-gray-500 truncate">{ev.category || '—'}</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => moveRow(idx, -1)} disabled={idx===0} className={`p-1 rounded ${idx===0? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`} title="Move up"><ArrowUp size={14} /></button>
+                    <button onClick={() => moveRow(idx, 1)} disabled={idx===orderList.length-1} className={`p-1 rounded ${idx===orderList.length-1? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`} title="Move down"><ArrowDown size={14} /></button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
