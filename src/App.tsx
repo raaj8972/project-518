@@ -9,6 +9,7 @@ import { useData } from './context/DataContext';
 import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
+import { NotificationsPanel } from './components/NotificationsPanel';
 
 // Eager imports for maximum reliability (avoids lazy chunk loading issues)
 import { Events } from './pages/Events';
@@ -112,6 +113,8 @@ function App() {
             <ComingSoon />
           ) : (
             <>
+              {/* Public notifications panel (viewer-facing) */}
+              {!isAdminRoute && <NotificationsPanel />}
               {/* Hide public site chrome on admin pages to avoid overlap */}
               {!isAdminRoute && <Navbar />}
           <Routes>

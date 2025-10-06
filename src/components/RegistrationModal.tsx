@@ -34,7 +34,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   eventTitle,
   eventId
 }) => {
-  const { addRegistration, events } = useData();
+  const { addRegistration, events, setSuppressPublicNotifications } = useData();
   // Photo requirement is configured per-event; photo can also be optionally enabled via custom label
   const [photoRequired, setPhotoRequired] = useState<boolean>(false);
   const [photoEnabled, setPhotoEnabled] = useState<boolean>(false);
@@ -80,6 +80,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   // Glitch effect trigger and derive per-event photo requirement from events data
   useEffect(() => {
     if (isOpen) {
+      // Suppress public notifications while registration modal is open
+      setSuppressPublicNotifications?.(true);
       try {
         const ev = events.find(e => e.id === eventId) as any;
         const required = !!(ev && ev.registration_photo_required);
@@ -98,7 +100,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         setGlitchActive(true);
         setTimeout(() => setGlitchActive(false), 200);
       }, 12000);
-      return () => clearInterval(glitchTimer);
+      return () => {
+        clearInterval(glitchTimer);
+        // On modal close, allow notifications to appear again
+        setSuppressPublicNotifications?.(false);
+      };
     }
   }, [isOpen, events, eventId]);
 
@@ -295,6 +301,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const handleClose = () => {
     resetForm();
+    // After closing, re-enable notifications overlay
+    setSuppressPublicNotifications?.(false);
     onClose();
   };
 

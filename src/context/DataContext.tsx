@@ -122,6 +122,14 @@ interface DataContextType {
   addEventWinner?: (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; year?: string | null; photo_url?: string | null; registration_id?: string | null }) => Promise<void>;
   updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
   deleteEventWinner?: (id: number) => Promise<void>;
+  // Notifications
+  notifications: Array<{ id: number; title: string | null; message: string; type: string; link_url: string | null; visible: boolean; starts_at: string; ends_at: string | null; priority: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null; created_at: string }>;
+  addNotification?: (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => Promise<void>;
+  updateNotification?: (id: number, patch: Partial<any>) => Promise<void>;
+  deleteNotification?: (id: number) => Promise<void>;
+  // Notifications UX controls
+  suppressPublicNotifications: boolean;
+  setSuppressPublicNotifications?: (flag: boolean) => void;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   // Manual ordering for events (display_order ascending)
   reorderEvents: (orderedIds: number[]) => Promise<boolean>;
@@ -349,6 +357,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   });
   // Admin users list (optional convenience for admin panel)
   const [adminUsers, setAdminUsers] = useState<Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [suppressPublicNotifications, setSuppressPublicNotifications] = useState<boolean>(false);
   // Reconnection helpers
   const lastFetchAtRef = React.useRef<number>(0);
   const retryTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1239,6 +1249,33 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         // Non-fatal
         console.warn('Event winners fetch threw', e);
         setEventWinners([]);
+      }
+
+      // Fetch Notifications (non-critical; allow missing table)
+      try {
+        const nowIso = new Date().toISOString();
+        const { data: notifData, error: notifError } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('visible', true)
+          .lte('starts_at', nowIso)
+          .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: false });
+        if (notifError) {
+          const lower = String((notifError as any)?.message || '').toLowerCase();
+          if (lower.includes('relation') && lower.includes('does not exist')) {
+            console.warn('[Data] notifications table missing; skipping');
+            setNotifications([]);
+          } else {
+            markErr('Error fetching notifications', notifError);
+          }
+        } else {
+          setNotifications(notifData || []);
+        }
+      } catch (e) {
+        console.warn('Notifications fetch threw', e);
+        setNotifications([]);
       }
 
       // Fetch Faculty Heads
@@ -2433,6 +2470,107 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     }
     await fetchData(true);
   };
+
+  // Notifications CRUD (owner/admin only; optional table)
+  const addNotification = async (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => {
+    const payload = {
+      title: n.title ?? null,
+      message: n.message,
+      type: n.type ?? 'info',
+      link_url: n.link_url ?? null,
+      visible: n.visible ?? true,
+      starts_at: n.starts_at ?? new Date().toISOString(),
+      ends_at: n.ends_at ?? null,
+      priority: typeof n.priority === 'number' ? n.priority : 0,
+      auto_dismiss_seconds: (typeof n.auto_dismiss_seconds === 'number' ? n.auto_dismiss_seconds : null) as number | null,
+      text_color: n.text_color ?? null,
+      glow_color: n.glow_color ?? null,
+    } as any;
+    const { error } = await supabase.from('notifications').insert(payload);
+    if (error) {
+      const lower = String((error as any)?.message || '').toLowerCase();
+      if (lower.includes('relation') && lower.includes('does not exist')) {
+        console.warn('notifications table likely missing; cannot add');
+        return;
+      }
+      throw error;
+    }
+    await fetchData(true);
+  };
+
+  const updateNotification = async (id: number, patch: Partial<any>) => {
+  const allowed = new Set(['title','message','type','link_url','visible','starts_at','ends_at','priority','auto_dismiss_seconds','text_color','glow_color']);
+    const sanitized = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.has(k)));
+    const { error } = await supabase.from('notifications').update(sanitized).eq('id', id);
+    if (error) {
+      const lower = String((error as any)?.message || '').toLowerCase();
+      if (lower.includes('relation') && lower.includes('does not exist')) {
+        console.warn('notifications table likely missing; cannot update');
+        return;
+      }
+      throw error;
+    }
+    await fetchData(true);
+  };
+
+  const deleteNotification = async (id: number) => {
+    const { error } = await supabase.from('notifications').delete().eq('id', id);
+    if (error) {
+      const lower = String((error as any)?.message || '').toLowerCase();
+      if (lower.includes('relation') && lower.includes('does not exist')) {
+        console.warn('notifications table likely missing; cannot delete');
+        return;
+      }
+      throw error;
+    }
+    await fetchData(true);
+  };
+
+  // Lightweight refresh of active, viewer-visible notifications only
+  const refreshNotifications = React.useCallback(async () => {
+    try {
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('notifications' as any)
+        .select('*')
+        .eq('visible', true)
+        .lte('starts_at', nowIso)
+        .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+        .order('priority', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (!error && Array.isArray(data)) setNotifications(data);
+    } catch {}
+  }, []);
+
+  // Realtime subscription for notifications so viewers see updates instantly
+  React.useEffect(() => {
+    try {
+      const channel = supabase
+        .channel('realtime:notifications')
+        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'notifications' } as any, () => {
+          refreshNotifications().catch(() => {});
+        })
+        .subscribe((status: any) => {
+          setRealtimeStatus((prev) => ({ ...prev, notifications: String(status) }));
+        });
+      realtimeChannelsRef.current.add(channel);
+      setRealtimeStatus((prev) => ({ ...prev, notifications: 'SUBSCRIBED' }));
+      return () => {
+        try { supabase.removeChannel(channel); } catch {}
+        realtimeChannelsRef.current.delete(channel);
+      };
+    } catch {
+      // ignore
+    }
+  }, [refreshNotifications]);
+
+  // Periodic polling to catch scheduled start/end boundaries without requiring user refresh
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      refreshNotifications().catch(() => {});
+    }, 10_000); // 10s cadence for responsive schedule changes
+    return () => clearInterval(id);
+  }, [refreshNotifications]);
 
   // --- Utility: Delete a file from Supabase Storage when given a public URL
   // Tracks objects already attempted this session to avoid duplicate removal if multiple rows used same image
@@ -4031,10 +4169,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   prefetchGalleryImages,
         addEvent,
   addEventWithCoordinators,
-    eventWinners,
+  eventWinners,
     addEventWinner,
     updateEventWinner,
     deleteEventWinner,
+    notifications,
+  suppressPublicNotifications,
+  setSuppressPublicNotifications,
+    addNotification,
+    updateNotification,
+    deleteNotification,
         updateEvent,
   reorderEvents,
         deleteEvent,

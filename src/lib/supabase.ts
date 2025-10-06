@@ -388,6 +388,56 @@ export interface Database {
           updated_at?: string
         }
       }
+      notifications: {
+        Row: {
+          id: number
+          title: string | null
+          message: string
+          type: string
+          link_url: string | null
+          visible: boolean
+          starts_at: string
+          ends_at: string | null
+          priority: number
+          auto_dismiss_seconds: number | null
+          text_color: string | null
+          glow_color: string | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          title?: string | null
+          message: string
+          type?: string
+          link_url?: string | null
+          visible?: boolean
+          starts_at?: string
+          ends_at?: string | null
+          priority?: number
+          auto_dismiss_seconds?: number | null
+          text_color?: string | null
+          glow_color?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          title?: string | null
+          message?: string
+          type?: string
+          link_url?: string | null
+          visible?: boolean
+          starts_at?: string
+          ends_at?: string | null
+          priority?: number
+          auto_dismiss_seconds?: number | null
+          text_color?: string | null
+          glow_color?: string | null
+          created_by?: string | null
+          created_at?: string
+        }
+      }
       gallery_settings: {
         Row: {
           id: number

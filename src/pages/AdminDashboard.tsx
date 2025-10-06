@@ -40,6 +40,7 @@ import { HomeBoundSettings } from '../components/admin/HomeBoundSettings';
 import { RoadmapMilestonesAdmin } from '../components/admin/RoadmapMilestonesAdmin';
 import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
 import { AboutSettings } from '../components/admin/AboutSettings';
+import { NotificationsManagement } from '../components/admin/NotificationsManagement';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HealthBadge } from '../components/admin/HealthBadge';
 import { StorageOverview } from '../components/admin/StorageOverview';
@@ -48,7 +49,7 @@ import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -152,6 +153,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
     { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
+    { id: 'notifications' as TabType, name: 'Notifications', icon: Info },
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
     { id: 'about' as TabType, name: 'About', icon: Info },
     { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
@@ -193,6 +195,8 @@ export const AdminDashboard: React.FC = () => {
     if (isOwner) return tabs;
     // Non-owners: do NOT show Overview or Security by default
     const allowedIds = new Set<TabType>();
+    // Notifications manager is generally safe; allow for all admins by default
+    allowedIds.add('notifications');
     if (myPermissions?.can_events) allowedIds.add('events');
     if (myPermissions?.can_schedule) {
       allowedIds.add('schedule');
@@ -683,6 +687,7 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'homepage' && <HomepageManagement />}
+            {activeTab === 'notifications' && <NotificationsManagement />}
             {activeTab === 'events' && <EventsManagement />}
             {activeTab === 'homebound' && <HomeBoundSettings />}
             {activeTab === 'schedule' && <ScheduleManagement />}
