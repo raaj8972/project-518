@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -30,6 +30,8 @@ export const EventsManagement: React.FC = () => {
     lastEventReorderError,
   } = useData() as any;
   const savingProgress = useSavingProgress();
+  const [savingAdd, setSavingAdd] = useState(false);
+  const [savingUpdate, setSavingUpdate] = useState(false);
 
   // ---- Rules (structured) helpers (v2) ----
   type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
@@ -111,6 +113,7 @@ export const EventsManagement: React.FC = () => {
     visible: true,
     artist_id: undefined as number | undefined,
     watch_live_url: '' as string | null,
+    prefer_video: false as boolean,
   });
 
   // Local UI state for structured rules mode + data (not persisted directly)
@@ -263,6 +266,7 @@ export const EventsManagement: React.FC = () => {
       visible: true,
       artist_id: undefined,
       watch_live_url: '',
+      prefer_video: false,
     });
     setRulesModeStructured(false);
     setRulesSections([]);
@@ -275,6 +279,7 @@ export const EventsManagement: React.FC = () => {
     }
     
     try {
+      setSavingAdd(true);
       // Insert event and any drafted coordinators in one go
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       await addEventWithCoordinators({
@@ -294,6 +299,8 @@ export const EventsManagement: React.FC = () => {
     } catch (error: any) {
       console.error('Error adding event:', error);
       alert(error?.message || 'Failed to add event. Please try again.');
+    } finally {
+      setSavingAdd(false);
     }
   };
 
@@ -304,6 +311,7 @@ export const EventsManagement: React.FC = () => {
     }
     
     try {
+      setSavingUpdate(true);
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
@@ -324,6 +332,7 @@ export const EventsManagement: React.FC = () => {
       alert(error?.message || 'Failed to update event. Please try again.');
     } finally {
       savingProgress.done();
+      setSavingUpdate(false);
     }
   };
 
@@ -390,6 +399,7 @@ export const EventsManagement: React.FC = () => {
       visible: event.visible !== false,
       artist_id: event.artist_id ?? undefined,
       watch_live_url: (event as any).watch_live_url || '',
+      prefer_video: (event as any).prefer_video ?? false,
     });
     // Populate structured rules UI state
     if (isStructuredRules((event as any).rules)) {
@@ -984,6 +994,17 @@ export const EventsManagement: React.FC = () => {
                   fileTypeLabel="MP4, MOV, WEBM up to 50MB"
                   enableCropper={false}
                 />
+                <div className="mt-2 flex items-center gap-3">
+                  <label className="flex items-center text-sm">
+                    <input
+                      type="checkbox"
+                      checked={(eventForm as any).prefer_video || false}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, prefer_video: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    Prefer video over image on the event card
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1002,10 +1023,11 @@ export const EventsManagement: React.FC = () => {
             <button
               type="button"
               onClick={handleAddEvent}
-              className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center"
+              disabled={savingAdd}
+              className={`w-full sm:w-auto px-6 py-2 ${savingAdd ? 'bg-gray-400 text-white' : 'bg-yellow-400 text-black hover:bg-yellow-300'} rounded-lg flex items-center justify-center`}
             >
-              <Save size={16} className="mr-1" />
-              Add Event
+              {savingAdd ? <Loader2 size={16} className="mr-1 animate-spin" /> : <Save size={16} className="mr-1" />}
+              {savingAdd ? 'Saving…' : 'Add Event'}
             </button>
           </div>
         </div>
@@ -1088,6 +1110,23 @@ export const EventsManagement: React.FC = () => {
                   placeholder="Event description"
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={eventForm.participants || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
+                    placeholder="Participants (e.g., 100+ students)"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={typeof eventForm.max_participants === 'number' ? String(eventForm.max_participants) : ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, max_participants: e.target.value ? Number(e.target.value) : undefined }))}
+                    placeholder="Max participants (optional)"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <input
                     type="date"
@@ -1100,6 +1139,23 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.time}
                     onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
                     placeholder="Time"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <input
+                    type="text"
+                    value={eventForm.participants || ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
+                    placeholder="Participants (optional)"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <input
+                    type="number"
+                    min={0}
+                    value={typeof eventForm.max_participants === 'number' ? String(eventForm.max_participants) : ''}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, max_participants: e.target.value ? Number(e.target.value) : undefined }))}
+                    placeholder="Max participants (optional)"
                     className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   />
                 </div>
@@ -1217,6 +1273,17 @@ export const EventsManagement: React.FC = () => {
                     enableCropper={false}
                     className="mt-1"
                   />
+                  <div className="mt-2">
+                    <label className="flex items-center text-sm">
+                      <input
+                        type="checkbox"
+                        checked={(eventForm as any).prefer_video || false}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, prefer_video: e.target.checked }))}
+                        className="mr-2"
+                      />
+                      Prefer video over image on the event card
+                    </label>
+                  </div>
                 </div>
                 {/* Timer settings (edit) */}
                 <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -1277,10 +1344,11 @@ export const EventsManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleUpdateEvent(event.id)}
-                    className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
+                    disabled={savingUpdate}
+                    className={`w-full sm:w-auto px-4 py-2 ${savingUpdate ? 'bg-gray-400 text-white' : 'bg-yellow-400 text-black hover:bg-yellow-300'} rounded flex items-center justify-center`}
                   >
-                    <Save size={14} className="mr-1" />
-                    Save
+                    {savingUpdate ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Save size={14} className="mr-1" />}
+                    {savingUpdate ? 'Saving…' : 'Save'}
                   </button>
                 </div>
                 {/* Coordinators management */}

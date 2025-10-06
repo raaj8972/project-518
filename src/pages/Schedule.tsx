@@ -306,7 +306,7 @@ export const Schedule: React.FC = () => {
               {/* Day Header */}
               <div className="bg-gradient-to-r from-blue-600 to-cyan-600 p-7 text-white">
                 <div className="scroll-animate opacity-0 transform translate-y-20">
-                  <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold uppercase mb-4 cyberpunk-title leading-tight tracking-tight">{String(schedule[selectedDay].title || '').toUpperCase()}</h2>
+                  <h2 className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-extrabold uppercase mb-4 cyberpunk-title selected-day-title leading-tight tracking-tight">{String(schedule[selectedDay].title || '').toUpperCase()}</h2>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-2 sm:space-y-0 text-sm sm:text-lg opacity-90">
                     <div className="flex items-center">
                       <Calendar size={14} className="mr-2" />
@@ -729,8 +729,13 @@ export const Schedule: React.FC = () => {
 
         /* Mobile optimizations */
         @media (max-width: 768px) {
+          /* Increase title size on small tablets / large phones */
           .cyberpunk-title {
-            font-size: 2rem;
+            font-size: 2.75rem;
+          }
+          /* Make the selected day title even larger on mobile-only screens */
+          .selected-day-title {
+            font-size: 3.25rem;
           }
           
           .hero-section h1 {
@@ -757,8 +762,9 @@ export const Schedule: React.FC = () => {
         }
         
         @media (max-width: 480px) {
+          /* Make the schedule title noticeably larger on phones */
           .cyberpunk-title {
-            font-size: 1.5rem;
+            font-size: 2.25rem;
           }
           
           .hero-section h1 {

@@ -53,7 +53,10 @@ export const Events: React.FC = () => {
   // - Trim whitespace
   // - De-duplicate in a case-insensitive way while preserving first-seen casing
   const allCategoriesMap = new Map<string, string>();
-  (events as any[]).forEach((e: any) => {
+  // Only include categories present on the events that are actually visible to users.
+  // This prevents categories added elsewhere (e.g. gallery) from showing up in the
+  // Events filter when there are no corresponding event cards.
+  (visibleEvents as any[]).forEach((e: any) => {
     const raw = e?.category;
     if (raw == null) return;
     const trimmed = String(raw).trim();
@@ -291,7 +294,7 @@ export const Events: React.FC = () => {
   const closeRegistration = () => setRegistrationModal({ isOpen: false, eventId: 0, eventTitle: '' });
   const toggleRules = (id: number) => setExpandedRules((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  const getCategoryColor = (c: string) => ({ Cultural: 'from-purple-500 to-pink-500', Technical: 'from-blue-500 to-cyan-500', Sports: 'from-green-500 to-emerald-500', default: 'from-gray-500 to-gray-600' } as Record<string, string>)[c] || 'from-gray-500 to-gray-600';
+  // getCategoryColor removed - category pill now uses glass-style across pages
 
   // Site-wide poster fit preference: 'contain' (default) or 'cover'
   const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
@@ -470,7 +473,7 @@ export const Events: React.FC = () => {
                         {/* Main poster layer (contain or cover per setting) */}
                         <div className="poster-main" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
                       </div>
-                      {event.motion_poster_url ? (
+                      {((event as any).prefer_video && (event.motion_poster_url)) ? (
                         <video
                           className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
                           src={event.motion_poster_url}
@@ -480,16 +483,22 @@ export const Events: React.FC = () => {
                           loop
                           poster={event.image}
                         />
-                      ) : null}
-                      <div className="absolute top-3 left-3 sm:top-4 sm:left-4 z-10 flex flex-wrap items-center gap-2 max-w-[75%] sm:max-w-[70%] pr-16">
-                        <span className={`bg-gradient-to-r ${getCategoryColor(event.category)} text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg`}>{event.category}</span>
-                        {/* Suppress separate LIVE/Opens-in pill when Watch Live exists to avoid overlap; the button conveys status */}
-                        {(() => {
-                          const wlu = (event as any).watch_live_url;
-                          if (wlu) return null;
-                          // If no watch-live url, you could show other non-live chips here in future.
-                          return null;
-                        })()}
+                      ) : (event.motion_poster_url ? (
+                        <video
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
+                          src={event.motion_poster_url}
+                          autoPlay
+                          muted
+                          playsInline
+                          loop
+                          poster={event.image}
+                        />
+                      ) : null)}
+                      <div className="absolute top-3 left-4 z-20 pointer-events-none">
+                        {/* Top-left small category pill (glass effect). */}
+                        <span className="inline-flex items-center text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 px-2 py-0.5 rounded-full shadow-sm opacity-100 transition-opacity">
+                          {event.category}
+                        </span>
                       </div>
                       {/* Watch Live button (60m pre-live gating) or Featured badge */}
                       {(() => {
@@ -543,12 +552,8 @@ export const Events: React.FC = () => {
                       );
                     })()}
 
-                    {/* Front-face title badge at bottom center with subtle glow */}
-                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 sm:bottom-4 z-10 pointer-events-none max-w-[85%]">
-                      <div className="px-3 py-1 rounded-full text-xs sm:text-sm font-bold tracking-wide text-white/95 bg-black/35 border border-white/15 backdrop-blur-sm glow-text truncate">
-                        {event.title}
-                      </div>
-                    </div>
+                    {/* Removed front title badge to avoid overlap on mobile; category chip below handles context */}
+                    {/* front-center category removed in favor of top-right glass pill */}
 
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
                       {/* Back face Watch Live button (mirrors front face, 60m pre-live gating) */}

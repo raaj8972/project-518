@@ -133,6 +133,8 @@ interface DataContextType {
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   // Manual ordering for events (display_order ascending)
   reorderEvents: (orderedIds: number[]) => Promise<boolean>;
+  // Manual ordering for event categories (order_position ascending)
+  reorderEventCategories: (orderedIds: number[]) => Promise<boolean>;
   deleteEvent: (id: number) => Promise<void>;
   addEventCoordinator: (coordinator: Omit<EventCoordinator, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
@@ -2253,7 +2255,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     let { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode') || msg.includes('prefer_video')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2262,6 +2264,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
         delete safe.winners_display_mode;
+        // If database hasn't had prefer_video migration applied yet, remove it before retrying.
+        delete safe.prefer_video;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
@@ -2394,8 +2398,109 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     }
     await fetchData(true);
   };
+    // Batch reorder event categories (drag & drop UI). orderedIds is the new top-to-bottom list.
+    const reorderEventCategories = async (orderedIds: number[]): Promise<boolean> => {
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) return false;
+      // If current in-memory eventCategories lack the order_position property entirely, abort with guidance
+      if (eventCategories.length && !Object.prototype.hasOwnProperty.call(eventCategories[0] as any, 'order_position')) {
+        const msg = "order_position column not present in fetched event_categories (migration not applied or API cache stale)";
+        console.warn('[reorderEventCategories] aborting:', msg);
+        return false;
+      }
 
-  // Event Winners CRUD (optional table)
+      // Sanitize + validate ids (must be distinct positive integers)
+      const seen = new Set<number>();
+      const cleanIds: number[] = [];
+      for (const raw of orderedIds) {
+        const n = Number(raw);
+        if (!Number.isInteger(n) || n <= 0) {
+          console.warn('[reorderEventCategories] skipping invalid id value', raw);
+          continue;
+        }
+        if (seen.has(n)) continue;
+        seen.add(n);
+        cleanIds.push(n);
+      }
+      if (!cleanIds.length) {
+        console.warn('[reorderEventCategories] no valid ids after validation');
+        return false;
+      }
+
+      // Preflight: ensure every id still exists in current in-memory set
+      const existingIdSet = new Set(eventCategories.map(c => c.id));
+      const missingIds = cleanIds.filter(id => !existingIdSet.has(id));
+      let effectiveIds = cleanIds.filter(id => existingIdSet.has(id));
+      if (missingIds.length) {
+        console.warn('[reorderEventCategories] missing ids, will skip them', missingIds);
+      }
+      if (!effectiveIds.length) {
+        console.warn('[reorderEventCategories] no remaining existing ids after filtering');
+        return false;
+      }
+
+      // Optimistic local ordering
+      setEventCategories(prev => {
+        const byId = new Map(prev.map(c => [c.id, c] as const));
+        const ordered: EventCategory[] = [];
+        effectiveIds.forEach((id, idx) => {
+          const row = byId.get(id);
+          if (row) ordered.push({ ...row, order_position: idx + 1 } as any);
+        });
+        // Append any categories not included preserving existing order after the ordered list
+        prev.forEach(c => { if (!effectiveIds.includes(c.id)) ordered.push(c); });
+        return ordered;
+      });
+
+      try {
+        // Prefer an atomic server-side RPC for bulk ordering when available.
+        try {
+          const { error: rpcErr } = await supabase.rpc('reorder_event_categories', { p_ids: effectiveIds });
+          if (!rpcErr) {
+            await fetchData(true);
+            return true;
+          }
+          console.warn('[reorderEventCategories] RPC call failed, falling back to per-row updates', rpcErr.message, rpcErr.details, rpcErr.hint);
+        } catch (rpcTh) {
+          console.warn('[reorderEventCategories] RPC call threw, falling back to per-row updates', rpcTh);
+        }
+
+        // Fallback: apply per-row updates (best-effort)
+        const updates = effectiveIds.map((id, idx) => ({ id, order_position: idx + 1 }));
+        const failed: { id: number; message: string }[] = [];
+        for (const u of updates) {
+          try {
+            const { error: rowErr, data: rowData } = await supabase
+              .from('event_categories')
+              .update({ order_position: u.order_position })
+              .eq('id', u.id)
+              .select('id,order_position,name')
+              .maybeSingle();
+            if (rowErr) {
+              failed.push({ id: u.id, message: rowErr.message });
+              console.warn('[reorderEventCategories] row update failed', u.id, rowErr.message, rowErr.details, rowErr.hint);
+            } else if (!rowData) {
+              failed.push({ id: u.id, message: 'No row returned' });
+              console.warn('[reorderEventCategories] row update returned no data', u.id);
+            }
+          } catch (th) {
+            failed.push({ id: u.id, message: (th as any)?.message || String(th) });
+            console.warn('[reorderEventCategories] row update threw', u.id, th);
+          }
+        }
+        if (failed.length) {
+          console.warn('[reorderEventCategories] some updates failed', failed.length, failed.slice(0,3));
+          await fetchData(true);
+          return false;
+        }
+        await fetchData(true);
+        return true;
+      } catch (err) {
+        console.error('[reorderEventCategories] failed', err);
+        return false;
+      }
+    };
+
+    // Event Winners CRUD (optional table)
   const addEventWinner = async (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; year?: string | null; photo_url?: string | null; registration_id?: string | null }) => {
     // Ensure category defaults to the event's category when not explicitly provided
     const payload = { ...winner } as any;
@@ -4180,7 +4285,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     updateNotification,
     deleteNotification,
         updateEvent,
-  reorderEvents,
+      reorderEvents,
+      reorderEventCategories,
         deleteEvent,
   addEventCoordinator,
   updateEventCoordinator,
@@ -4309,6 +4415,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     </DataContext.Provider>
   );
 };
+
+
 
 export const useData = () => {
   const context = useContext(DataContext);

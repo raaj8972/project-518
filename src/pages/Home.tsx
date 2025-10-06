@@ -100,7 +100,6 @@ export const Home: React.FC = () => {
 
   // Heads data and memoized sorted lists (must be before any early return)
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
-  // Committee heads (exclude council-flagged head entries to avoid duplicates when council toggle active)
   const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !(m as any).isCouncil);
   // Council members (non-head) are also part of leadership marquee
   const councilMembers = coreTeamMembers.filter(m => m.enabled && (m as any).isCouncil && !m.is_head);
@@ -755,11 +754,11 @@ export const Home: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">
-                          {event.title}
-                        </h3>
-                        <p className="text-blue-400 text-sm">{event.category}</p>
+                      <div className="absolute top-3 right-4 z-10 pointer-events-none">
+                        {/* Top-right small category pill (glass effect). */}
+                        <span className="inline-flex items-center text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 px-2 py-0.5 rounded-full shadow-sm opacity-100 transition-opacity">
+                          {event.category}
+                        </span>
                       </div>
                     </div>
 

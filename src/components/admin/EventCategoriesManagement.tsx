@@ -9,6 +9,7 @@ export const EventCategoriesManagement: React.FC = () => {
     addEventCategory, 
     updateEventCategory, 
     deleteEventCategory 
+    , reorderEventCategories
   } = useData();
 
   const [isAdding, setIsAdding] = useState(false);
@@ -107,6 +108,52 @@ export const EventCategoriesManagement: React.FC = () => {
     '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B'
   ];
 
+  // Reorder UI state
+  const [reorderMode, setReorderMode] = useState(false);
+  const [orderList, setOrderList] = useState<number[]>([]);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+
+  const startReorder = () => {
+    setOrderList(eventCategories.map(c => c.id));
+    setReorderMode(true);
+  };
+
+  const cancelReorder = () => {
+    setReorderMode(false);
+    setOrderList([]);
+    setDragIndex(null);
+  };
+
+  const persistReorder = async () => {
+    if (!reorderEventCategories) return;
+    const ok = await reorderEventCategories(orderList);
+    if (ok) {
+      setReorderMode(false);
+      setOrderList([]);
+    } else {
+      setError('Failed to persist category order. Please try again.');
+    }
+  };
+
+  const moveRow = (from: number, to: number) => {
+    const copy = [...orderList];
+    const [item] = copy.splice(from, 1);
+    copy.splice(to, 0, item);
+    setOrderList(copy);
+  };
+
+  const onDragStartRow = (e: React.DragEvent, index: number) => {
+    setDragIndex(index);
+    try { e.dataTransfer.setData('text/plain', String(index)); } catch {}
+  };
+
+  const onDragOverRow = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === index) return;
+    moveRow(dragIndex, index);
+    setDragIndex(index);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -115,17 +162,47 @@ export const EventCategoriesManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Event Categories</h2>
           <p className="text-gray-600">Manage event categories and their visual styling</p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setIsAdding(true);
-            resetForm();
-          }}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
-        >
-          <Plus size={16} className="mr-2" />
-          Add Category
-        </button>
+        <div className="flex items-center space-x-3">
+          {!reorderMode ? (
+            <>
+              <button
+                type="button"
+                onClick={startReorder}
+                className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
+              >
+                Reorder
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdding(true);
+                  resetForm();
+                }}
+                className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Category
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={persistReorder}
+                className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors"
+              >
+                Save Order
+              </button>
+              <button
+                type="button"
+                onClick={cancelReorder}
+                className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Error Message */}
@@ -228,10 +305,13 @@ export const EventCategoriesManagement: React.FC = () => {
 
       {/* Categories List */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {eventCategories.map((category) => (
+        {(reorderMode ? orderList.map(id => eventCategories.find(c => c.id === id)!).filter(Boolean) as any[] : eventCategories).map((category) => (
           <div
             key={category.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
+            className={`bg-white rounded-lg shadow-md overflow-hidden ${reorderMode ? 'ring-2 ring-dashed ring-yellow-300 cursor-grab' : 'hover:shadow-lg'} transition-shadow`}
+            draggable={reorderMode}
+            onDragStart={(e) => reorderMode ? onDragStartRow(e, (orderList.findIndex(i => i === category.id))) : undefined}
+            onDragOver={(e) => reorderMode ? onDragOverRow(e, (orderList.findIndex(i => i === category.id))) : undefined}
           >
             {editingCategory === category.id ? (
               <div className="p-6">
@@ -323,22 +403,51 @@ export const EventCategoriesManagement: React.FC = () => {
                       Color: {category.color}
                     </span>
                     <div className="flex items-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => startEditingCategory(category)}
-                        className="bg-blue-600 text-white p-2 rounded hover:bg-blue-500 transition-colors"
-                        title="Edit category"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteCategory(category.id)}
-                        className="bg-red-600 text-white p-2 rounded hover:bg-red-500 transition-colors"
-                        title="Delete category"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {reorderMode ? (
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            aria-label={`Move ${category.name} up`}
+                            onClick={() => {
+                              const idx = orderList.findIndex(i => i === category.id);
+                              if (idx > 0) moveRow(idx, idx - 1);
+                            }}
+                            className="bg-gray-100 text-gray-700 p-2 rounded hover:bg-gray-200"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={`Move ${category.name} down`}
+                            onClick={() => {
+                              const idx = orderList.findIndex(i => i === category.id);
+                              if (idx >= 0 && idx < orderList.length - 1) moveRow(idx, idx + 1);
+                            }}
+                            className="bg-gray-100 text-gray-700 p-2 rounded hover:bg-gray-200"
+                          >
+                            ▼
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => startEditingCategory(category)}
+                            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-500 transition-colors"
+                            title="Edit category"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCategory(category.id)}
+                            className="bg-red-600 text-white p-2 rounded hover:bg-red-500 transition-colors"
+                            title="Delete category"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
