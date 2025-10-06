@@ -57,8 +57,28 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
   const savingProgress = useSavingProgress();
   // Site setting: poster fit for accurate preview (Events card)
-  const { siteSettings } = (useData?.() || {}) as any;
+  const { siteSettings, adminUsers } = (useData?.() || {}) as any;
   const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
+  // Owner detection to allow larger image uploads (up to 30MB)
+  const [isOwner, setIsOwner] = useState<boolean>(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        const uid = data?.user?.id;
+        if (!uid || !Array.isArray(adminUsers)) {
+          if (!cancelled) setIsOwner(false);
+          return;
+        }
+        const owner = !!adminUsers.find((a: any) => a?.user_id === uid && (a?.role === 'owner' || a?.is_primary));
+        if (!cancelled) setIsOwner(owner);
+      } catch {
+        if (!cancelled) setIsOwner(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [adminUsers]);
   // Preview state for crop modal
   const [previewMode, setPreviewMode] = useState<'full' | 'crop'>('full');
   const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
@@ -135,6 +155,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const isPdfUpload = acceptedTypes.includes('pdf');
   const isVideoUpload = acceptedTypes.includes('video');
+  // Effective max image size (bytes): Owner gets 30MB default, others 5MB, unless an explicit override is provided
+  const defaultImageMaxBytes = isOwner ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
+  const effectiveImageMaxBytes = (typeof maxImageBytes === 'number' && maxImageBytes > 0) ? maxImageBytes : defaultImageMaxBytes;
+  const humanSize = (bytes: number) => bytes >= 1024 * 1024
+    ? `${Math.round(bytes / (1024 * 1024))}MB`
+    : `${Math.ceil(bytes / 1024)}KB`;
+  const effectiveFileTypeLabel = isVideoUpload
+    ? 'MP4, MOV up to 50MB'
+    : (isPdfUpload ? 'PDF up to 10MB' : `PNG, JPG, GIF up to ${humanSize(effectiveImageMaxBytes)}`);
 
   // Helper: read a File into an HTMLImageElement
   const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
@@ -358,12 +387,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       }
     }
 
-    // Check file size (max 50MB for videos, 10MB for PDFs, default 5MB for images unless overridden)
+    // Check file size (max 50MB for videos, 10MB for PDFs, owner 30MB default for images otherwise 5MB unless overridden)
     const maxSize = isVideoUpload
       ? 50 * 1024 * 1024
       : isPdfUpload
         ? 10 * 1024 * 1024
-        : (typeof maxImageBytes === 'number' && maxImageBytes > 0 ? maxImageBytes : 5 * 1024 * 1024);
+        : effectiveImageMaxBytes;
     if (file.size > maxSize) {
       // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
       if (!isVideoUpload && !isPdfUpload && maxImageBytes) {
@@ -379,7 +408,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           ? '50MB'
           : isPdfUpload
             ? '10MB'
-            : (typeof maxImageBytes === 'number' && maxImageBytes > 0 ? `${Math.ceil(maxImageBytes / 1024)}KB` : '5MB');
+            : humanSize(effectiveImageMaxBytes);
         setError(`File size must be less than ${sizeLabel}`);
         return;
       }
@@ -912,7 +941,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               <p className="text-gray-600 mb-2">
                 <span className="font-medium">Click to upload</span> or drag and drop
               </p>
-              <p className="text-sm text-gray-500">{fileTypeLabel}</p>
+              <p className="text-sm text-gray-500">{effectiveFileTypeLabel}</p>
             </div>
           )}
         </div>
