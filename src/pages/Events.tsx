@@ -405,11 +405,7 @@ export const Events: React.FC = () => {
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
           <div className="absolute inset-0 z-0">
           <HeroBackground pageKey="events" />
-          <div className="particles-container">
-            {[...Array(50)].map((_: any, i: number) => (
-              <div key={i} className="particle" style={{ left: `${Math.random() * 100}%`, animationDelay: `${Math.random() * 20}s`, animationDuration: `${15 + Math.random() * 10}s` }} />
-            ))}
-          </div>
+          {/* Floating Particles removed */}
           <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`} />
         </div>
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
@@ -475,7 +471,7 @@ export const Events: React.FC = () => {
                       </div>
                       {((event as any).prefer_video && (event.motion_poster_url)) ? (
                         <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video block`}
                           src={event.motion_poster_url}
                           autoPlay
                           muted
@@ -485,7 +481,7 @@ export const Events: React.FC = () => {
                         />
                       ) : (event.motion_poster_url ? (
                         <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video sm:block hidden`}
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video block`}
                           src={event.motion_poster_url}
                           autoPlay
                           muted
@@ -1130,10 +1126,7 @@ export const Events: React.FC = () => {
         /* Theme and effects */
         .cyberpunk-theme { background:#0a0a0a; color:#ffffff; font-family:'Orbitron','Rajdhani',sans-serif; min-height:100vh; }
         .hero-section { position:relative; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
-        .particles-container { position:absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; }
-  .particle { position:absolute; width:2px; height:2px; background: linear-gradient(45deg, #ff00ff, #06b6d4); border-radius:50%; animation: particleFloat linear infinite; }
-    .particle { background: linear-gradient(45deg, #ff00ff, #0e7490); }
-        @keyframes particleFloat { 0% { transform: translateY(100vh) scale(0); opacity:0; } 10% { opacity:1; } 90% { opacity:1; } 100% { transform: translateY(-100px) scale(1); opacity:0; } }
+        /* particles CSS removed */
   .cyberpunk-title { background: linear-gradient(45deg, #ff00ff, #0e7490, #ff00ff); background-size:200% 200%; -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; animation: gradientShift 3s ease-in-out infinite; }
         @keyframes gradientShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
     .neon-pink { color:#ff00ff; text-shadow: 0 0 2px #ff00ff, 0 0 4px #ff00ff; }

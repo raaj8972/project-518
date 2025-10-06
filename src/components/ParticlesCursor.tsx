@@ -62,66 +62,98 @@ export const ParticlesCursor: React.FC = () => {
       document.head.appendChild(s);
     });
 
-    ensureScript()
-      .then(() => {
-        if (cancelled) return;
-        const lib = (window as any).threejsToys;
-        const particlesCursor = lib && lib.particlesCursor;
-        if (!particlesCursor || !containerRef.current) {
-          console.warn('Particles cursor not initialized: library or container missing');
-          return;
+    // Schedule loading after idle or on first pointer move (lazy + on-demand)
+    let scheduled = false;
+    const scheduleLoad = () => {
+      if (scheduled) return;
+      scheduled = true;
+      // Prefer requestIdleCallback when available
+      const load = () => {
+        ensureScript()
+          .then(() => {
+            if (cancelled) return;
+            const lib = (window as any).threejsToys;
+            const particlesCursor = lib && lib.particlesCursor;
+            if (!particlesCursor || !containerRef.current) {
+              console.warn('Particles cursor not initialized: library or container missing');
+              return;
+            }
+
+            const pc = particlesCursor({
+              el: containerRef.current,
+              gpgpuSize: 512,
+              // Match requested palette and parameters
+              colors: [0x00ff00, 0x0000ff],
+              color: 0xff0000,
+              coordScale: 0.5,
+              noiseIntensity: 0.001,
+              noiseTimeCoef: 0.0001,
+              pointSize: 5,
+              pointDecay: 0.0025,
+              sleepRadiusX: 250,
+              sleepRadiusY: 250,
+              sleepTimeCoefX: 0.001,
+              sleepTimeCoefY: 0.002,
+            });
+
+            pcRef.current = pc;
+
+            // capture destroy/cleanup if available
+            if (pc && typeof pc.destroy === 'function') {
+              destroyRef.current = pc.destroy.bind(pc);
+            } else {
+              destroyRef.current = () => {
+                if (containerRef.current) containerRef.current.innerHTML = '';
+              };
+            }
+
+            // Click-to-randomize behavior (matches provided sample)
+            const handleClick = () => {
+              try {
+                const ref = pcRef.current;
+                if (!ref || !ref.uniforms) return;
+                ref.uniforms.uColor.value.set(Math.random() * 0xffffff);
+                ref.uniforms.uCoordScale.value = 0.001 + Math.random() * 2;
+                ref.uniforms.uNoiseIntensity.value = 0.0001 + Math.random() * 0.001;
+                ref.uniforms.uPointSize.value = 1 + Math.random() * 10;
+              } catch {}
+            };
+            document.body.addEventListener('click', handleClick);
+            // Stash remover on destroy
+            const prevDestroy = destroyRef.current;
+            destroyRef.current = () => {
+              try { document.body.removeEventListener('click', handleClick); } catch {}
+              if (prevDestroy) prevDestroy();
+            };
+          })
+          .catch((err) => {
+            console.warn('Particles cursor failed to load:', err);
+          });
+      };
+
+      if ('requestIdleCallback' in window) {
+        try {
+          (window as any).requestIdleCallback(load, { timeout: 2000 });
+        } catch {
+          setTimeout(load, 1200);
         }
+      } else {
+        // Fallback: load after short delay to avoid blocking initial paint
+        setTimeout(load, 1200);
+      }
+    };
 
-        const pc = particlesCursor({
-          el: containerRef.current,
-          gpgpuSize: 512,
-          // Match requested palette and parameters
-          colors: [0x00ff00, 0x0000ff],
-          color: 0xff0000,
-          coordScale: 0.5,
-          noiseIntensity: 0.001,
-          noiseTimeCoef: 0.0001,
-          pointSize: 5,
-          pointDecay: 0.0025,
-          sleepRadiusX: 250,
-          sleepRadiusY: 250,
-          sleepTimeCoefX: 0.001,
-          sleepTimeCoefY: 0.002,
-        });
+    // Trigger early on first pointer move so the effect is ready when user interacts
+    const onFirstPointer = () => {
+      try {
+        scheduleLoad();
+      } catch {}
+      try { window.removeEventListener('pointermove', onFirstPointer); } catch {}
+    };
+    window.addEventListener('pointermove', onFirstPointer, { passive: true });
 
-        pcRef.current = pc;
-
-        // capture destroy/cleanup if available
-        if (pc && typeof pc.destroy === 'function') {
-          destroyRef.current = pc.destroy.bind(pc);
-        } else {
-          destroyRef.current = () => {
-            if (containerRef.current) containerRef.current.innerHTML = '';
-          };
-        }
-
-        // Click-to-randomize behavior (matches provided sample)
-        const handleClick = () => {
-          try {
-            const ref = pcRef.current;
-            if (!ref || !ref.uniforms) return;
-            ref.uniforms.uColor.value.set(Math.random() * 0xffffff);
-            ref.uniforms.uCoordScale.value = 0.001 + Math.random() * 2;
-            ref.uniforms.uNoiseIntensity.value = 0.0001 + Math.random() * 0.001;
-            ref.uniforms.uPointSize.value = 1 + Math.random() * 10;
-          } catch {}
-        };
-        document.body.addEventListener('click', handleClick);
-        // Stash remover on destroy
-        const prevDestroy = destroyRef.current;
-        destroyRef.current = () => {
-          try { document.body.removeEventListener('click', handleClick); } catch {}
-          if (prevDestroy) prevDestroy();
-        };
-      })
-      .catch((err) => {
-        console.warn('Particles cursor failed to load:', err);
-      });
+    // Also schedule a background load in case the user never moves pointer
+    scheduleLoad();
 
     return () => {
       cancelled = true;

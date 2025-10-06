@@ -640,7 +640,6 @@ img {
 
 /* Mobile: tone down decorative overlays for performance */
 @media (max-width: 640px) {
-  .particles-container { display: none !important; }
   .glitch-overlay { display: none !important; }
 }
 

@@ -198,20 +198,7 @@ export const Schedule: React.FC = () => {
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="schedule" />
 
-        {/* Floating Particles */}
-        <div className="particles-container">
-            {[...Array(30)].map((_, i) => (
-              <div
-                key={i}
-                className="particle"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 20}s`,
-                  animationDuration: `${15 + Math.random() * 10}s`
-                }}
-              ></div>
-            ))}
-        </div>
+        {/* Floating Particles removed */}
 
   {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
@@ -346,7 +333,8 @@ export const Schedule: React.FC = () => {
                                 <span className="pr-2">{event.title}</span>
                                 {renderLiveBadge(event, schedule[selectedDay].date)}
                               </h3>
-                              <span className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-gradient-to-r ${getTypeColor(event.type)} text-white shadow-lg flex-shrink-0 ml-2`}>
+                              {/* Make the category/type pill larger on phones (text-base) but keep desktop size at sm:text-sm */}
+                              <span className={`px-2 sm:px-4 py-1 sm:py-2 rounded-full text-base sm:text-sm font-medium bg-gradient-to-r ${getTypeColor(event.type)} text-white shadow-lg flex-shrink-0 ml-2`}>
                                 {event.type}
                               </span>
                             </div>
@@ -557,40 +545,7 @@ export const Schedule: React.FC = () => {
           100% { transform: translate(50px, 50px); }
         }
 
-        .particles-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .particle {
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          background: linear-gradient(45deg, #ff00ff, #00ffff);
-          border-radius: 50%;
-          animation: particleFloat linear infinite;
-        }
-
-        @keyframes particleFloat {
-          0% {
-            transform: translateY(100vh) scale(0);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1);
-            opacity: 0;
-          }
-        }
+        /* particles CSS removed */
 
         .cyberpunk-title {
           background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
@@ -733,9 +688,14 @@ export const Schedule: React.FC = () => {
           .cyberpunk-title {
             font-size: 2.75rem;
           }
-          /* Make the selected day title even larger on mobile-only screens */
+          /* Make the selected day title scale automatically on small -> medium screens.
+             clamp(min, preferred, max) keeps it readable without overflowing. */
           .selected-day-title {
-            font-size: 3.25rem;
+            font-size: clamp(1.8rem, 7.5vw, 3.4rem) !important;
+            line-height: 1.04 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: break-word !important;
           }
           
           .hero-section h1 {
@@ -746,9 +706,7 @@ export const Schedule: React.FC = () => {
             font-size: 1rem !important;
           }
           
-          .particles-container {
-            display: none;
-          }
+          /* particles CSS removed */
           
           .cyberpunk-btn {
             padding: 10px 24px;
@@ -765,6 +723,15 @@ export const Schedule: React.FC = () => {
           /* Make the schedule title noticeably larger on phones */
           .cyberpunk-title {
             font-size: 2.25rem;
+          }
+          /* On very narrow phones, allow the clamp() preferred value to control size
+             while ensuring it doesn't overflow the card. */
+          .selected-day-title {
+            font-size: clamp(1.8rem, 9.5vw, 3.8rem) !important;
+            line-height: 1.02 !important;
+            white-space: normal !important;
+            overflow-wrap: anywhere !important;
+            word-break: break-word !important;
           }
           
           .hero-section h1 {

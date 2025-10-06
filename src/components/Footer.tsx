@@ -19,20 +19,7 @@ export const Footer: React.FC = () => {
   <div className="absolute inset-0 bg-gradient-to-br from-[#0b0b12]/60 via-[#0a0a0a]/70 to-[#0b0b12]/60"></div>
   <div className="absolute inset-0 cyberpunk-grid opacity-10"></div>
       
-      {/* Floating Particles */}
-      <div className="particles-container">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="particle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 20}s`,
-              animationDuration: `${15 + Math.random() * 10}s`
-            }}
-          ></div>
-        ))}
-      </div>
+      {/* Floating Particles removed */}
 
       <div className="container mx-auto px-4 py-1 relative z-10">
         {/* Social Media Section */}
@@ -117,31 +104,7 @@ export const Footer: React.FC = () => {
           100% { transform: translate(30px, 30px); }
         }
 
-        .particles-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .particle {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          background: linear-gradient(45deg, #ff00ff, #00ffff);
-          border-radius: 50%;
-          animation: particleFloat linear infinite;
-        }
-
-        @keyframes particleFloat {
-          0% {
-            transform: translateY(100%) scale(0);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
+        /* particles CSS removed */
           }
           90% {
             opacity: 1;
@@ -225,9 +188,7 @@ export const Footer: React.FC = () => {
             font-size: 1rem;
           }
           
-          .particles-container {
-            display: none;
-          }
+          /* particles CSS removed */
           .glass-panel {
             border-radius: 12px;
             -webkit-backdrop-filter: blur(8px);

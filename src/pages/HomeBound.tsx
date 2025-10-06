@@ -107,20 +107,7 @@ export const HomeBound: React.FC = () => {
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="homebound" />
 
-        {/* Floating Particles (reduced on mobile) */}
-        <div className="particles-container">
-            {[...Array(isTouch ? 18 : 50)].map((_, i) => (
-              <div
-                key={i}
-                className="particle"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 20}s`,
-                  animationDuration: `${15 + Math.random() * 10}s`
-                }}
-              ></div>
-            ))}
-        </div>
+        {/* Floating Particles removed */}
 
         {/* Glitch Overlay */}
         <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
@@ -658,31 +645,7 @@ export const HomeBound: React.FC = () => {
           100% { transform: translate(50px, 50px); }
         }
 
-        .particles-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .particle {
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          background: linear-gradient(45deg, #ff00ff, #00ffff);
-          border-radius: 50%;
-          animation: particleFloat linear infinite;
-        }
-
-        @keyframes particleFloat {
-          0% {
-            transform: translateY(100vh) scale(0);
-            opacity: 0;
-          }
-          10% {
-            opacity: 1;
+        /* particles CSS removed */
           }
           90% {
             opacity: 1;
@@ -1128,9 +1091,7 @@ export const HomeBound: React.FC = () => {
             font-size: 1rem !important;
           }
           
-          .particles-container {
-            display: none;
-          }
+          /* particles CSS removed */
           
           .cyberpunk-btn {
             padding: 10px 24px;

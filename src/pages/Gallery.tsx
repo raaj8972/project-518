@@ -72,20 +72,7 @@ export const Gallery: React.FC = () => {
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="gallery" />
 
-        {/* Floating Particles */}
-        <div className="particles-container">
-            {[...Array(30)].map((_, i) => (
-              <div
-                key={i}
-                className="particle"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 20}s`,
-                  animationDuration: `${15 + Math.random() * 10}s`
-                }}
-              ></div>
-            ))}
-        </div>
+        {/* Floating Particles removed */}
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
@@ -235,30 +222,7 @@ export const Gallery: React.FC = () => {
           100% { transform: translate(50px, 50px); }
         }
 
-        .particles-container {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .particle {
-          position: absolute;
-          width: 2px;
-          height: 2px;
-          background: linear-gradient(45deg, #ff00ff, #00ffff);
-          border-radius: 50%;
-          animation: particleFloat linear infinite;
-        }
-
-        @keyframes particleFloat {
-          0% {
-            transform: translateY(100vh) scale(0);
-            opacity: 0;
-          }
-          10% {
+        /* particles CSS removed */
             opacity: 1;
           }
           90% {
@@ -443,9 +407,7 @@ export const Gallery: React.FC = () => {
             font-size: 1rem !important;
           }
           
-          .particles-container {
-            display: none;
-          }
+          /* particles CSS removed */
           
           .cyberpunk-btn {
             padding: 10px 24px;

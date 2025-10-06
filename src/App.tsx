@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import React from 'react';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -21,7 +21,6 @@ import { Sponsors } from './pages/Sponsors';
 import { Login } from './pages/Login';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ComingSoon } from './pages/ComingSoon';
-import { ParticlesCursor } from './components/ParticlesCursor';
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -104,8 +103,7 @@ function App() {
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-white">
-          {/* Global particles cursor layer */}
-          <ParticlesCursor />
+          {/* particles cursor removed */}
           <GlobalErrorBanner />
           <ConnectionStatusBanner />
           {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
@@ -116,21 +114,8 @@ function App() {
               {/* Public notifications panel (viewer-facing) */}
               {!isAdminRoute && <NotificationsPanel />}
               {/* Hide public site chrome on admin pages to avoid overlap */}
-              {!isAdminRoute && <Navbar />}
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/gallery" element={<Gallery />} />
-            <Route path="/home-bound" element={<HomeBound />} />
-            <Route path="/rico-family" element={<RicoFamily />} />
-            <Route path="/sponsors" element={<Sponsors />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/health" element={<Home />} />
-            {/* Catch all route for 404 handling */}
-            <Route path="*" element={<Home />} />
-          </Routes>
+                  {!isAdminRoute && <Navbar />}
+                  <Outlet />
               {!isAdminRoute && <Footer />}
             </>
           )}
@@ -139,14 +124,36 @@ function App() {
     );
   };
 
+  // Build a router and opt-in to the v7_relativeSplatPath future early to silence warnings
+  const router = createBrowserRouter(
+    [
+      {
+        path: '/',
+        element: <AppShell />,
+        children: [
+          { index: true, element: <Home /> },
+          { path: 'events', element: <Events /> },
+          { path: 'schedule', element: <Schedule /> },
+          { path: 'gallery', element: <Gallery /> },
+          { path: 'home-bound', element: <HomeBound /> },
+          { path: 'rico-family', element: <RicoFamily /> },
+          { path: 'sponsors', element: <Sponsors /> },
+          { path: 'login', element: <Login /> },
+          { path: 'admin', element: <AdminDashboard /> },
+          { path: 'health', element: <Home /> },
+          { path: '*', element: <Home /> }
+        ]
+      }
+    ],
+    { future: { v7_relativeSplatPath: true } }
+  );
+
   return (
     <AuthProvider>
       <DataProvider>
         <ToastProvider>
           <SavingProgressProvider>
-            <Router>
-              <AppShell />
-            </Router>
+            <RouterProvider router={router} />
           </SavingProgressProvider>
         </ToastProvider>
       </DataProvider>
