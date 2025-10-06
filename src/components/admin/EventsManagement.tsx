@@ -12,7 +12,6 @@ export const EventsManagement: React.FC = () => {
   const { 
     events, 
     eventCategories,
-  addEventWithCoordinators,
     updateEvent, 
     deleteEvent,
     toggleEventFeatured,
@@ -25,6 +24,7 @@ export const EventsManagement: React.FC = () => {
     myPermissions,
     eventWinners: _eventWinners,
     siteSettings,
+    addEventWithCoordinators,
   } = useData() as any;
   const savingProgress = useSavingProgress();
 
@@ -1189,7 +1189,9 @@ export const EventsManagement: React.FC = () => {
 
                   {/* Winners management (show once per event) */}
                   <div className="mt-4 border-t pt-3">
-                    <div className="text-sm font-semibold mb-2">Winners</div>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                      <div className="text-sm font-semibold">Winners</div>
+                    </div>
                     <EventWinnersEditor eventId={event.id} />
                   </div>
                 </div>

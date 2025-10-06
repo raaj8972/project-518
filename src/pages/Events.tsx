@@ -644,27 +644,61 @@ export const Events: React.FC = () => {
                               </div>
                             </div>
                           ) : null}
-                          {/* Per-event winners (render as a single horizontal row) */}
+                          {/* Per-event winners: render as a simple list (no photo cards) with position badges and Name (year) */}
                           {(() => {
-                            const evWinners = (eventWinners || []).filter((w: any) => w.event_id === event.id).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                            const evWinners = (eventWinners || [])
+                              .filter((w: any) => w.event_id === event.id)
+                              .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
                             if (!evWinners || evWinners.length === 0) return null;
+                            // Group winners by position (1..4) and show names; multiple winners per position supported
+                            const topPositions = [1, 2, 3, 4];
+                            const grouped = topPositions.map((pos) => ({
+                              pos,
+                              items: evWinners.filter((w: any) => Number(w.position) === pos),
+                            })).filter(g => g.items.length > 0);
+                            if (grouped.length === 0) return null;
+                            const posLabel = (p: number) => p === 1 ? '1st' : p === 2 ? '2nd' : p === 3 ? '3rd' : `${p}th`;
+                            const yearLabelFor = (raw: any): string | null => {
+                              if (raw == null) return null;
+                              const s = String(raw).trim();
+                              if (!s) return null;
+                              const l = s.toLowerCase();
+                              // numeric years
+                              const n = parseInt(s, 10);
+                              if (!Number.isNaN(n) && n > 0 && n < 10) {
+                                const ord = (k: number) => k === 1 ? '1st' : k === 2 ? '2nd' : k === 3 ? '3rd' : `${k}th`;
+                                return `${ord(n)} yr`;
+                              }
+                              if (l.includes('intern')) return 'Intern';
+                              if (l === 'pg' || l === 'pgt' || l.includes('post') || l.includes('pg ')) return 'PG';
+                              if (l.startsWith('i') || l.includes('first')) return '1st yr';
+                              if (l.startsWith('ii') || l.includes('second') || l.includes('2nd')) return '2nd yr';
+                              if (l.startsWith('iii') || l.includes('third') || l.includes('3rd')) return '3rd yr';
+                              return s; // fallback as-is
+                            };
                             return (
                               <div className="mb-4 per-event-winners">
                                 <h4 className="font-semibold text-gray-200 mb-2">Winners</h4>
-                                <div className="flex items-center gap-3 overflow-x-auto no-scrollbar winners-row-mobile">
-                                  {evWinners.map((w: any) => (
-                                    <div key={w.id} className="flex-shrink-0 flex flex-col items-center gap-1 bg-gray-900/40 py-0.5 px-1 rounded mr-2">
-                                      <div className="relative w-28 h-28 md:w-32 md:h-32 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
-                                        {w.photo_url ? <img src={w.photo_url} alt={w.name} className="w-full h-full object-cover" /> : <div className="text-xs text-gray-500">No photo</div>}
-                                        {/* Medal badge (use the winner's position) */}
-                                        {(() => {
-                                          const pos = Number(w.position || 0) || 0;
-                                          const medalColor = pos === 1 ? 'bg-yellow-400 text-black' : pos === 2 ? 'bg-gray-300 text-black' : pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white';
-                                          return <div className={`absolute -bottom-3 -right-3 w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-sm md:text-base font-bold border-2 border-black ${medalColor}`}>{pos}</div>;
-                                        })()}
+                                <div className="space-y-1 text-sm">
+                                  {grouped.map(g => (
+                                    <div key={g.pos} className="flex items-start gap-2">
+                                      <div
+                                        className={`px-2 py-0.5 rounded font-semibold ${g.pos === 1 ? 'bg-yellow-400 text-black' : g.pos === 2 ? 'bg-gray-300 text-black' : g.pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white'}`}
+                                        style={{ filter: g.pos === 1 ? 'drop-shadow(0 0 8px rgba(250,204,21,0.6))' : g.pos === 2 ? 'drop-shadow(0 0 8px rgba(209,213,219,0.45))' : g.pos === 3 ? 'drop-shadow(0 0 8px rgba(180,83,9,0.6))' : 'drop-shadow(0 0 8px rgba(107,114,128,0.55))' }}
+                                      >
+                                        {posLabel(g.pos)}
                                       </div>
-                                      <div className="text-center mt-2">
-                                        <div className="font-semibold text-white truncate" style={{ maxWidth: 140 }}>{w.name}</div>
+                                      <div className="text-gray-200">
+                                        {g.items.map((w: any, idx: number) => {
+                                          // Try to show year from registration when available; fallback omit if not present
+                                          const rawYear = (w as any)?.registration_year || (w as any)?.year || null;
+                                          const year = yearLabelFor(rawYear);
+                                          return (
+                                            <span key={w.id} className="inline">
+                                              {w.name}{year ? ` (${year})` : ''}{idx < g.items.length - 1 ? ', ' : ''}
+                                            </span>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   ))}
@@ -819,36 +853,70 @@ export const Events: React.FC = () => {
                 return (
                   <div className="space-y-6">
                     {eventsWithWinners.map((ev: any) => {
-                      const list = filteredWinners.filter((w: any) => w.event_id === ev.id).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+                      const list = filteredWinners
+                        .filter((w: any) => w.event_id === ev.id)
+                        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
                       if (!list.length) return null;
-                      // group winners by position so multiple winners for same rank show together
-                      const byPos: Record<number, any[]> = {};
-                      list.forEach((w: any) => {
-                        const p = Number(w.position || 0) || 0;
-                        byPos[p] = byPos[p] || [];
-                        byPos[p].push(w);
-                      });
-                      
+                      // Group winners by position (1..4) for readable list output
+                      const topPositions = [1, 2, 3, 4];
+                      const grouped = topPositions
+                        .map((pos) => ({ pos, items: list.filter((w: any) => Number(w.position) === pos) }))
+                        .filter((g) => g.items.length > 0);
+                      if (!grouped.length) return null;
+                      const posLabel = (p: number) => (p === 1 ? '1st' : p === 2 ? '2nd' : p === 3 ? '3rd' : `${p}th`);
+                      const yearLabelFor = (raw: any): string | null => {
+                        if (raw == null) return null;
+                        const s = String(raw).trim();
+                        if (!s) return null;
+                        const l = s.toLowerCase();
+                        const n = parseInt(s, 10);
+                        if (!Number.isNaN(n) && n > 0 && n < 10) {
+                          const ord = (k: number) => (k === 1 ? '1st' : k === 2 ? '2nd' : k === 3 ? '3rd' : `${k}th`);
+                          return `${ord(n)} yr`;
+                        }
+                        if (l.includes('intern')) return 'Intern';
+                        if (l === 'pg' || l === 'pgt' || l.includes('post') || l.includes('pg ')) return 'PG';
+                        if (l.startsWith('i') || l.includes('first')) return '1st yr';
+                        if (l.startsWith('ii') || l.includes('second') || l.includes('2nd')) return '2nd yr';
+                        if (l.startsWith('iii') || l.includes('third') || l.includes('3rd')) return '3rd yr';
+                        return s;
+                      };
                       return (
-                        <div key={ev.id} className="bg-black/60 py-4 px-0 rounded-md">
+                        <div key={ev.id} className="bg-black/60 py-4 px-4 rounded-md">
                           <div className="font-semibold text-lg text-white mb-3 text-center w-full">{ev.title}</div>
-                          <div className="flex gap-6 flex-nowrap md:flex-wrap overflow-x-auto no-scrollbar winners-row-mobile px-4">
-                            {list.map((w: any) => {
-                              const pos = Number(w.position || 0) || 0;
-                              const medalColor = pos === 1 ? 'bg-yellow-400 text-black' : pos === 2 ? 'bg-gray-300 text-black' : pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white';
-                              return (
-                                <div key={w.id} className="w-40 md:w-44 flex-shrink-0 flex flex-col items-center bg-gray-900/40 py-0.5 px-1 rounded">
-                                  <div className="relative w-28 h-28 md:w-32 md:h-32 bg-gray-200 rounded overflow-hidden flex items-center justify-center">
-                                    {w.photo_url ? <img src={w.photo_url} alt={w.name} className="w-full h-full object-cover" /> : <div className="text-sm text-gray-600">No photo</div>}
-                                    <div className={`absolute -bottom-3 -right-3 w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center text-sm md:text-base font-bold border-2 border-black ${medalColor}`}>{pos}</div>
-                                  </div>
-                                  <div className="text-center mt-2">
-                                    <div className="font-semibold text-white truncate">{w.name}</div>
-                                    <div className="text-xs text-gray-400">{ev.title}</div>
-                                  </div>
+                          <div className="space-y-2">
+                            {grouped.map((g) => (
+                              <div key={g.pos} className="flex items-start gap-2">
+                                <div
+                                  className={`px-2 py-0.5 rounded font-semibold ${g.pos === 1 ? 'bg-yellow-400 text-black' : g.pos === 2 ? 'bg-gray-300 text-black' : g.pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white'}`}
+                                  style={{
+                                    filter:
+                                      g.pos === 1
+                                        ? 'drop-shadow(0 0 8px rgba(250,204,21,0.6))'
+                                        : g.pos === 2
+                                        ? 'drop-shadow(0 0 8px rgba(209,213,219,0.45))'
+                                        : g.pos === 3
+                                        ? 'drop-shadow(0 0 8px rgba(180,83,9,0.6))'
+                                        : 'drop-shadow(0 0 8px rgba(107,114,128,0.55))',
+                                  }}
+                                >
+                                  {posLabel(g.pos)}
                                 </div>
-                              );
-                            })}
+                                <div className="text-gray-200">
+                                  {g.items.map((w: any, idx: number) => {
+                                    const rawYear = (w as any)?.registration_year || (w as any)?.year || null;
+                                    const year = yearLabelFor(rawYear);
+                                    return (
+                                      <span key={w.id} className="inline">
+                                        {w.name}
+                                        {year ? ` (${year})` : ''}
+                                        {idx < g.items.length - 1 ? ', ' : ''}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       );

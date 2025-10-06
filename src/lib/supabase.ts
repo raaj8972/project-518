@@ -332,6 +332,7 @@ export interface Database {
           registration_id: string | null
           position: number
           name: string
+          year: string | null
           photo_url: string | null
           created_at: string
         }
@@ -342,6 +343,7 @@ export interface Database {
           registration_id?: string | null
           position?: number
           name: string
+          year?: string | null
           photo_url?: string | null
           created_at?: string
         }
@@ -352,6 +354,7 @@ export interface Database {
           registration_id?: string | null
           position?: number
           name?: string
+          year?: string | null
           photo_url?: string | null
           created_at?: string
         }

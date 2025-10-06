@@ -119,7 +119,7 @@ interface DataContextType {
   ) => Promise<void>;
   // Winners
   eventWinners?: Array<any>;
-  addEventWinner?: (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; photo_url?: string | null }) => Promise<void>;
+  addEventWinner?: (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; year?: string | null; photo_url?: string | null; registration_id?: string | null }) => Promise<void>;
   updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
   deleteEventWinner?: (id: number) => Promise<void>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
@@ -345,6 +345,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     events_registration_photo_label: true,
     registrations_photo_url: true,
     storage_registration_photos_bucket: true,
+    events_winners_display_mode: true,
   });
   // Admin users list (optional convenience for admin panel)
   const [adminUsers, setAdminUsers] = useState<Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>>([]);
@@ -992,10 +993,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             .range(0, 0);
           return !error;
         };
-        const [reqOk, labelOk, photoUrlOk] = await Promise.all([
+        const [reqOk, labelOk, photoUrlOk, winnersModeOk] = await Promise.all([
           trySelectHead('events', 'registration_photo_required'),
           trySelectHead('events', 'registration_photo_label'),
           trySelectHead('registrations', 'photo_url'),
+          trySelectHead('events', 'winners_display_mode'),
         ]);
         let bucketOk = true;
         try {
@@ -1009,6 +1011,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           events_registration_photo_label: !!labelOk,
           registrations_photo_url: !!photoUrlOk,
           storage_registration_photos_bucket: !!bucketOk,
+          events_winners_display_mode: !!winnersModeOk,
         });
       } catch (e) {
         console.warn('Schema detection failed', e);
@@ -1223,7 +1226,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           } else {
             markErr('Error fetching event winners', winnersError);
           }
-        } else setEventWinners((winnersData || []).map((w:any)=>({ ...w, photo_url: sanitizeUrl(w.photo_url) })));
+        } else {
+          // Enrich with sanitized photo_url and optional registration_year if linked
+          const regsById: Record<string, any> = Object.fromEntries((registrations || []).map((r:any) => [r.id, r]));
+          setEventWinners((winnersData || []).map((w:any)=>{
+            const reg = w.registration_id ? regsById[w.registration_id] : null;
+            const registration_year = reg?.year || reg?.batch || null;
+            return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year };
+          }));
+        }
       } catch (e) {
         // Non-fatal
         console.warn('Event winners fetch threw', e);
@@ -2139,6 +2150,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         // Also strip registration photo feature fields if schema not yet migrated
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
+        // Strip winners display mode if not present in schema
+        delete safe.winners_display_mode;
         const retry = await supabase.from('events').insert(safe);
         if (retry.error) throw retry.error;
       } else {
@@ -2160,7 +2173,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .single();
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2168,6 +2181,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.watch_live_url;
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
+        delete safe.winners_display_mode;
         const retry = await supabase
           .from('events')
           .insert(safe)
@@ -2202,7 +2216,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     let { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2210,6 +2224,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.watch_live_url;
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
+        delete safe.winners_display_mode;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
@@ -2344,17 +2359,30 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   // Event Winners CRUD (optional table)
-  const addEventWinner = async (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; photo_url?: string | null }) => {
+  const addEventWinner = async (winner: { event_id?: number | null; category?: string | null; position?: number; name: string; year?: string | null; photo_url?: string | null; registration_id?: string | null }) => {
     // Ensure category defaults to the event's category when not explicitly provided
     const payload = { ...winner } as any;
     if (!payload.category && payload.event_id) {
       const ev = events.find(e => e.id === payload.event_id);
       if (ev) payload.category = ev.category || null;
     }
-    const { error } = await supabase.from('event_winners').insert(payload as any);
+    // Only include DB columns
+    const allowedKeys = new Set(['event_id','category','registration_id','position','name','photo_url','year']);
+    const sanitized = Object.fromEntries(Object.entries(payload).filter(([k]) => allowedKeys.has(k)));
+    let { error } = await supabase.from('event_winners').insert(sanitized as any);
     if (error) {
       const msg = (error as any)?.message || '';
       const lower = String(msg).toLowerCase();
+      if (lower.includes('column') && lower.includes('year') && lower.includes('does not exist')) {
+        // Column not present yet — retry without 'year'
+        const { year, ...fallback } = payload;
+        const retry = await supabase.from('event_winners').insert(fallback as any);
+        if (retry.error) {
+          throw retry.error;
+        }
+        await fetchData(true);
+        return;
+      }
       if (lower.includes('relation') || lower.includes('does not exist')) {
         // table missing; ignore
         console.warn('event_winners table likely missing; cannot add winner yet');
@@ -2366,10 +2394,23 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   const updateEventWinner = async (id: number, patch: Partial<any>) => {
-    const { error } = await supabase.from('event_winners').update(patch).eq('id', id);
+    // Only include DB columns and strip client-only/computed fields
+    const allowedKeys = new Set(['event_id','category','registration_id','position','name','photo_url','year']);
+    const sanitized = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowedKeys.has(k)));
+    let { error } = await supabase.from('event_winners').update(sanitized).eq('id', id);
     if (error) {
       const msg = (error as any)?.message || '';
       const lower = String(msg).toLowerCase();
+      if (lower.includes('column') && lower.includes('year') && lower.includes('does not exist')) {
+        // Retry without the 'year' key
+        const { year, ...fallback } = (patch || {}) as any;
+        const retry = await supabase.from('event_winners').update(fallback).eq('id', id);
+        if (retry.error) {
+          throw retry.error;
+        }
+        await fetchData(true);
+        return;
+      }
       if (lower.includes('relation') || lower.includes('does not exist')) {
         console.warn('event_winners table likely missing; cannot update winner');
         return;
