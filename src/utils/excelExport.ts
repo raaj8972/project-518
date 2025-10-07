@@ -1,4 +1,11 @@
-import * as XLSX from 'xlsx';
+// Lazy-load xlsx only when needed to avoid shipping it in the initial bundle
+let _XLSX: any = null;
+const getXLSX = async () => {
+  if (_XLSX) return _XLSX;
+  const mod = await import('xlsx');
+  _XLSX = (mod && (mod as any).default) ? (mod as any).default : mod;
+  return _XLSX;
+};
 import { Registration } from '../context/DataContext';
 
 // Defensive helper: parse team_members that might be null/string/json
@@ -16,7 +23,7 @@ const safeTeamMembers = (r: any): any[] => {
   return [];
 };
 
-export const exportRegistrationsToExcel = (registrations: Registration[], filename: string = 'registrations.xlsx') => {
+export const exportRegistrationsToExcel = async (registrations: Registration[], filename: string = 'registrations.xlsx') => {
   // Prepare data for Excel export
   const excelData: Record<string, any>[] = registrations.map((reg) => {
     const baseData: Record<string, any> = {
@@ -49,6 +56,7 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
     return baseData;
   });
 
+  const XLSX = await getXLSX();
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(excelData);
@@ -87,7 +95,7 @@ export const exportRegistrationsToExcel = (registrations: Registration[], filena
   XLSX.writeFile(wb, filename);
 };
 
-export const exportRegistrationsByEvent = (registrations: Registration[]) => {
+export const exportRegistrationsByEvent = async (registrations: Registration[]) => {
   // Group registrations by event
   const groupedByEvent = registrations.reduce((acc, reg) => {
     if (!acc[reg.event_title]) {
@@ -97,6 +105,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
     return acc;
   }, {} as Record<string, Registration[]>);
 
+  const XLSX = await getXLSX();
   // Create workbook
   const wb = XLSX.utils.book_new();
 
@@ -162,7 +171,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[]) => {
   XLSX.writeFile(wb, `registrations-by-event-${timestamp}.xlsx`);
 };
 
-export const exportRegistrationsByStatus = (registrations: Registration[]) => {
+export const exportRegistrationsByStatus = async (registrations: Registration[]) => {
   // Group registrations by status
   const groupedByStatus = registrations.reduce((acc, reg) => {
     if (!acc[reg.status]) {
@@ -172,6 +181,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
     return acc;
   }, {} as Record<string, Registration[]>);
 
+  const XLSX = await getXLSX();
   // Create workbook
   const wb = XLSX.utils.book_new();
 
@@ -236,7 +246,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[]) => {
   XLSX.writeFile(wb, `registrations-by-status-${timestamp}.xlsx`);
 };
 
-export const exportAuditionsToExcel = (auditions: any[], filename: string = 'auditions.xlsx') => {
+export const exportAuditionsToExcel = async (auditions: any[], filename: string = 'auditions.xlsx') => {
   // Prepare data for Excel export
   const excelData = auditions.map(audition => ({
     'Audition ID': audition.id,
@@ -251,6 +261,7 @@ export const exportAuditionsToExcel = (auditions: any[], filename: string = 'aud
     'Application Date': new Date(audition.created_at).toLocaleDateString(),
   }));
 
+  const XLSX = await getXLSX();
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(excelData);
@@ -276,7 +287,7 @@ export const exportAuditionsToExcel = (auditions: any[], filename: string = 'aud
   XLSX.writeFile(wb, filename);
 };
 
-export const exportMembershipsToExcel = (memberships: any[], filename: string = 'memberships.xlsx') => {
+export const exportMembershipsToExcel = async (memberships: any[], filename: string = 'memberships.xlsx') => {
   // Prepare data for Excel export
   const excelData = memberships.map(membership => ({
     'Membership ID': membership.id,
@@ -290,6 +301,7 @@ export const exportMembershipsToExcel = (memberships: any[], filename: string = 
     'Application Date': new Date(membership.created_at).toLocaleDateString(),
   }));
 
+  const XLSX = await getXLSX();
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(excelData);

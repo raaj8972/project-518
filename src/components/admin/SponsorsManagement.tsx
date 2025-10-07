@@ -62,6 +62,7 @@ export const SponsorsManagement: React.FC = () => {
   });
 
   const [settingsForm, setSettingsForm] = useLocalStorage('admin_sponsorship_settings_draft', {
+    page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
     intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
     call_to_action_text: sponsorshipSettings?.call_to_action_text || 'Interested in Sponsoring?',
     brochure_url: sponsorshipSettings?.brochure_url || '',
@@ -82,6 +83,7 @@ export const SponsorsManagement: React.FC = () => {
     try {
       if (!localStorage.getItem('admin_sponsorship_settings_draft') && sponsorshipSettings) {
         setSettingsForm({
+          page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
           intro_text: sponsorshipSettings.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
           call_to_action_text: sponsorshipSettings.call_to_action_text || 'Interested in Sponsoring?',
           brochure_url: sponsorshipSettings.brochure_url || '',
@@ -337,6 +339,7 @@ export const SponsorsManagement: React.FC = () => {
 
   const handleCancelSettings = () => {
     setSettingsForm({
+      page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
       intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
       call_to_action_text: sponsorshipSettings?.call_to_action_text || 'Interested in Sponsoring?',
       brochure_url: sponsorshipSettings?.brochure_url || '',
@@ -553,6 +556,16 @@ export const SponsorsManagement: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Sponsors Management</h2>
           <p className="text-gray-600">Manage sponsors, packages, and sponsorship settings</p>
+        </div>
+        <div className="ml-6 w-full max-w-md">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Page Title</label>
+          <input
+            type="text"
+            value={settingsForm.page_title}
+            onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
+            placeholder="OUR SPONSORS"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
         </div>
       </div>
 
@@ -1479,6 +1492,16 @@ export const SponsorsManagement: React.FC = () => {
             {isEditingSettings ? (
               <div className="space-y-6">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Page Title</label>
+                  <input
+                    type="text"
+                    value={settingsForm.page_title}
+                    onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
+                    placeholder="OUR SPONSORS"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Intro Text</label>
                   <textarea
                     value={settingsForm.intro_text}
@@ -1591,6 +1614,12 @@ export const SponsorsManagement: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2">Page Title</h4>
+                  <div className="p-3 bg-gray-50 rounded-lg border">
+                    <p className="text-gray-700">{(sponsorshipSettings as any)?.page_title || 'OUR SPONSORS'}</p>
+                  </div>
+                </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Intro Text</h4>
                   <div className="p-3 bg-gray-50 rounded-lg border">

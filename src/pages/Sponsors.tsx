@@ -61,35 +61,59 @@ export const Sponsors: React.FC = () => {
 
   // Intersection Observer for scroll animations
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in');
-            // Also support 3D variant
-            if (entry.target.classList.contains('scroll-animate-3d')) {
-              entry.target.classList.add('animate-in-3d');
-            }
-            observer.unobserve(entry.target); // reveal once
+            if (entry.target.classList.contains('scroll-animate-3d')) entry.target.classList.add('animate-in-3d');
+            try { observer.unobserve(entry.target); } catch {}
           }
         });
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    const animatedElements = document.querySelectorAll('.scroll-animate, .scroll-animate-3d');
-    animatedElements.forEach((el) => observer.observe(el));
-
-    // Fallback: if IntersectionObserver unsupported, reveal immediately
-    if (typeof IntersectionObserver === 'undefined') {
+    const attach = () => {
+      const animatedElements = document.querySelectorAll('.scroll-animate, .scroll-animate-3d');
       animatedElements.forEach((el) => {
-        el.classList.add('animate-in');
+        const node = el as HTMLElement & { __observed?: boolean };
+        if (!node.__observed) {
+          observer.observe(node);
+          node.__observed = true;
+        }
+      });
+    };
+
+    attach();
+
+    // Immediately reveal in-viewport nodes so content appears after data/filter updates
+    try {
+      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate, .scroll-animate-3d')) as HTMLElement[];
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      nodesNow.forEach((n) => {
+        const r = n.getBoundingClientRect();
+        if (r.top < viewportH * 0.9) {
+          n.classList.add('animate-in');
+          if (n.classList.contains('scroll-animate-3d')) n.classList.add('animate-in-3d');
+          try { (n as any).__observed = true; } catch {}
+        }
+      });
+    } catch (e) { /* ignore */ }
+
+    const t1 = setTimeout(attach, 100);
+    const t2 = setTimeout(attach, 300);
+    const safety = setTimeout(() => {
+      document.querySelectorAll('.scroll-animate, .scroll-animate-3d').forEach((el) => {
+        (el as HTMLElement).classList.add('animate-in');
         if (el.classList.contains('scroll-animate-3d')) el.classList.add('animate-in-3d');
       });
-    }
+    }, 1500);
 
-    return () => observer.disconnect();
-  }, [sponsors, sponsorshipPackages, eventCategories]);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
+  }, [sponsors.length, sponsorshipPackages.length, eventCategories.length]);
 
   // Parallax effect
   useEffect(() => {
@@ -184,7 +208,9 @@ export const Sponsors: React.FC = () => {
               PARTNERSHIPS
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
-              OUR <span className="neon-blue">SPONSORS</span>
+              {(sponsorshipSettings as any)?.page_title || (
+                <>OUR <span className="neon-blue">SPONSORS</span></>
+              )}
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
               {sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is powered by our incredible partners who believe in the future of innovation and technology.'}

@@ -4,6 +4,8 @@ interface AutoCarouselProps {
   children: React.ReactNode[] | React.ReactNode;
   intervalMs?: number;
   pauseOnHover?: boolean;
+  // externally pause autoplay (e.g., when a modal opens)
+  paused?: boolean;
   showArrows?: boolean;
   showDots?: boolean;
   className?: string;
@@ -14,6 +16,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   children,
   intervalMs = 4000,
   pauseOnHover = true,
+  paused = false,
   showArrows = true,
   showDots = true,
   className = '',
@@ -26,7 +29,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(0);
-  const isPaused = isManualPaused || (pauseOnHover && isHovering);
+  const isPaused = isManualPaused || (pauseOnHover && isHovering) || !!paused;
 
 
   useEffect(() => {

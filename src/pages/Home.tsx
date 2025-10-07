@@ -5,16 +5,16 @@ import WatchLiveButton from '../components/WatchLiveButton';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
-import LogoLoop from '../components/LogoLoop';
-import InfiniteMarquee from '../components/InfiniteMarquee';
+const LogoLoop = React.lazy(() => import('../components/LogoLoop'));
+const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
 import { getDominantColor } from '../utils/getDominantColor';
-import CoverflowCarousel from '../components/CoverflowCarousel';
+const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 const GuestArtistVideoModal = React.lazy(() => import('../components/GuestArtistVideoModal'));
 const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtistDetailModal'));
 const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
 import type { GuestArtist } from '../context/DataContext';
-import Roadmap from '../components/Roadmap';
+const Roadmap = React.lazy(() => import('../components/Roadmap'));
 import CountdownTimer from '../components/CountdownTimer';
 import Sparkle3D from '../components/Sparkle3D';
 
@@ -83,10 +83,36 @@ export const Home: React.FC = () => {
   // Selected artist for the detail modal
   const [detailArtist, setDetailArtist] = useState<GuestArtist | null>(null);
   const [glitchActive] = useState(false);
+  // Defer mounting heavy interactive sections until browser is idle to improve initial load
+  const [showInteractive, setShowInteractive] = useState(false);
+  useEffect(() => {
+    let idleId: number | null = null;
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      idleId = (window as any).requestIdleCallback(() => setShowInteractive(true), { timeout: 500 });
+      return () => { if (idleId != null) (window as any).cancelIdleCallback(idleId); };
+    }
+    const t = setTimeout(() => setShowInteractive(true), 350);
+    return () => clearTimeout(t);
+  }, []);
 
   // Prefetch lazy modals on hover to avoid input-time Suspense
   const prefetchDetailModal = () => { import('../components/GuestArtistDetailModal'); };
   const prefetchVideoModal = () => { import('../components/GuestArtistVideoModal'); };
+  
+  // Prefetch some lazy components shortly after mount so interactions feel snappy
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        prefetchDetailModal();
+        prefetchVideoModal();
+        import('../components/FacultyProfileModal');
+        import('../components/AutoCarousel');
+      } catch (e) {
+        // ignore
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, []);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
   const [selectedType, setSelectedType] = useState<'faculty' | 'committee' | null>(null);
@@ -140,16 +166,17 @@ export const Home: React.FC = () => {
 
   // Reveal-on-scroll observer (robust to lazy-loaded content)
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           (entry.target as HTMLElement).classList.add('animate-in');
-          observer.unobserve(entry.target);
+          try { observer.unobserve(entry.target); } catch {}
         }
       });
     }, { threshold: 0.12 });
 
-    // Attach observer to all current and future ".scroll-animate" nodes (best effort)
     const attach = () => {
       const nodes = document.querySelectorAll('.scroll-animate');
       nodes.forEach((el) => {
@@ -161,16 +188,25 @@ export const Home: React.FC = () => {
       });
     };
 
-    // Initial attach
     attach();
-    // Re-attach shortly after mount to catch lazy/Suspense-loaded sections
-    const t1 = setTimeout(attach, 300);
-    const t2 = setTimeout(attach, 1200);
+    const t1 = setTimeout(attach, 100);
+    const t2 = setTimeout(attach, 300);
 
-    // Safety fallback: after a while, ensure any remaining elements become visible
+    try {
+      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      nodesNow.forEach((n) => {
+        const r = n.getBoundingClientRect();
+        if (r.top < viewportH * 0.9) {
+          n.classList.add('animate-in');
+          try { (n as any).__observed = true; } catch {}
+        }
+      });
+    } catch (e) { /* ignore */ }
+
     const safetyTimer = setTimeout(() => {
       document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
-    }, 4000);
+    }, 1500);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safetyTimer); observer.disconnect(); };
   // Re-run when loading flips or data collections change size (new DOM nodes likely)
@@ -377,7 +413,7 @@ export const Home: React.FC = () => {
       {/* Featured Guest Artists */}
 
       {featuredGuestArtists.length > 0 && (
-        <section className="py-14 md:py-20 relative overflow-hidden">
+      <section className="pt-28 pb-14 md:pt-36 md:pb-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/30 to-pink-900/20"></div>
           <div className="container mx-auto px-0 sm:px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
@@ -392,28 +428,32 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            <React.Suspense fallback={<div className="h-[420px] flex items-center justify-center text-gray-400">Loading artists…</div>}>
-            <CoverflowCarousel<GuestArtist>
-              items={featuredGuestArtists}
-              intervalMs={3200}
-              visibleRange={2}
-              pauseOnHover={true}
-              showArrows={true}
-              showDots={false}
-              onItemClick={(artist) => { startTransition(() => { setDetailArtist(artist); setDetailOpen(true); }); }}
-              className="mt-0 md:mt-2"
-              stageHeight={'var(--featured-stage-height)'}
-              renderItem={(artist) => (
+            {showInteractive ? (
+              <React.Suspense fallback={<div className="h-[420px] flex items-center justify-center text-gray-400">Preparing featured artists…</div>}>
+              <CoverflowCarousel
+                items={featuredGuestArtists}
+                intervalMs={3200}
+                paused={detailOpen || videoModalOpen}
+                visibleRange={2}
+                pauseOnHover={true}
+                pauseOnTouch={true}
+                showArrows={true}
+                showDots={false}
+                onItemClick={(artist: GuestArtist) => { startTransition(() => { setDetailArtist(artist); setDetailOpen(true); }); }}
+                className="mt-6 md:mt-8"
+                stageHeight={'var(--featured-stage-height)'}
+                renderItem={(artist: GuestArtist) => (
                 <div
                   id={`artist-${artist.id}`}
-                  className="cyberpunk-card group w-[310px] md:w-[360px] overflow-hidden"
+                  className="cyberpunk-card group w-full sm:w-[310px] md:w-[360px] max-w-[360px] mx-auto overflow-hidden mt-20 sm:mt-6"
                   onMouseEnter={prefetchDetailModal}
+                  onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
                 >
-                  <div className="relative h-64 overflow-hidden">
+                  <div className="relative h-56 md:h-64 overflow-hidden">
                     <img
                       src={artist.image}
                       alt={artist.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 
@@ -431,6 +471,7 @@ export const Home: React.FC = () => {
                       <button
                         type="button"
                         onMouseEnter={prefetchVideoModal}
+                        onTouchStart={() => { try { prefetchVideoModal(); } catch {} }}
                         onClick={(e) => { e.stopPropagation(); startTransition(() => { setSelectedArtistForVideo(artist); setVideoModalOpen(true); }); }}
                         className="absolute top-4 left-4 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg ring-1 ring-pink-400/40 hover:ring-pink-300/70 transition-all animate-pulse"
                         aria-label={`Play video for ${artist.name}`}
@@ -500,6 +541,7 @@ export const Home: React.FC = () => {
                       <button
                         type="button"
                         onMouseEnter={prefetchDetailModal}
+                        onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
                         onClick={() => { startTransition(() => { setDetailArtist(artist as any); setDetailOpen(true); }); }}
                         className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
                         aria-label={`Read more about ${artist.name}`}
@@ -512,8 +554,11 @@ export const Home: React.FC = () => {
                   </div>
                 </div>
               )}
-            />
-            </React.Suspense>
+              />
+              </React.Suspense>
+            ) : (
+              <div className="h-[420px] flex items-center justify-center text-gray-400">Preparing featured artists…</div>
+            )}
           </div>
         </section>
       )}
@@ -540,7 +585,7 @@ export const Home: React.FC = () => {
               {multi ? (
                 <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading…</div>}>
                 <div className="max-w-6xl mx-auto">
-                <AutoCarousel intervalMs={5500} showArrows showDots className="pt-2">
+                <AutoCarousel intervalMs={5500} showArrows showDots className="pt-2" paused={detailOpen || videoModalOpen}>
                   {enabledChiefs.map((cg: any) => (
                     <div
                       key={cg.id}
@@ -839,11 +884,15 @@ export const Home: React.FC = () => {
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                  OUR <span className="neon-blue">PARTNERS</span>
+                  {(homepageSettings && (homepageSettings as any).sponsor_section_title) ? (
+                    <>{(homepageSettings as any).sponsor_section_title}</>
+                  ) : (
+                    <>OUR <span className="neon-blue">PARTNERS</span></>
+                  )}
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-cyan-400 to-cyan-600 mx-auto mb-8 expand-width"></div>
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-                  Powered by industry leaders who believe in our vision
+                  {(homepageSettings && (homepageSettings as any).sponsor_section_subtitle) ?? 'Powered by industry leaders who believe in our vision'}
                 </p>
                 {hasManySponsors && (
                   <div className="mt-6">
@@ -859,6 +908,7 @@ export const Home: React.FC = () => {
               className="relative left-1/2 -translate-x-1/2 w-screen"
               style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
             >
+              <React.Suspense fallback={<div className="h-[160px] flex items-center justify-center text-gray-400">Loading partners…</div>}>
               <LogoLoop
                 logos={featuredSponsors.map(s => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
                 speed={Math.min(800, Math.max(1, Math.abs(homepageSettings?.sponsors_belt_speed_px_per_sec ?? 140)))}
@@ -934,6 +984,7 @@ export const Home: React.FC = () => {
                   ['--logoloop-fadeWidth' as any]: 'clamp(8px, 3vw, 28px)'
                 }}
               />
+              </React.Suspense>
             </div>
             {/* View all button added above when lists are long */}
           </div>
@@ -974,7 +1025,7 @@ export const Home: React.FC = () => {
                     centerGlow={true}
                     arrowSize={48}
                     paused={facultyPaused}
-                    onItemClick={(item) => {
+                    onItemClick={(item: any) => {
                       // quick click-zoom, then open modal
                       setClicked({ type: 'faculty', id: item.id });
                       const idx = sortedFacultyHeads.findIndex(h => h.id === item.id);
@@ -992,7 +1043,7 @@ export const Home: React.FC = () => {
                     showArrows={true}
                     showDots={false}
                     className="py-6"
-                    renderItem={(head) => (
+                    renderItem={(head: any) => (
                       <div className={`w-72 md:w-80 cyberpunk-card p-5 transition-shadow duration-150 ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}>
                         <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
                           <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover"/>
@@ -1020,6 +1071,7 @@ export const Home: React.FC = () => {
                     style={{ paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}
                   >
                     <div className="relative">
+                      <React.Suspense fallback={<div className="h-[72px] flex items-center justify-center text-gray-400">Loading…</div>}>
                       <InfiniteMarquee
                         items={sortedCommitteeHeads}
                         direction={homepageSettings?.committee_marquee_direction ?? 'right'}
@@ -1033,7 +1085,7 @@ export const Home: React.FC = () => {
                         minItemWidthPx={140}
                         sideGutterPx={2}
                         className="py-4 relative"
-                        renderItem={(m) => {
+                        renderItem={(m: any) => {
                           const [glowColor, setGlowColor] = React.useState<string>('rgba(255,255,255,0.22)');
                           React.useEffect(() => {
                             let mounted = true;
@@ -1111,6 +1163,7 @@ export const Home: React.FC = () => {
                         glowColor={undefined} // will be set per-item
                         glowIntensity={0.38} // stronger glow
                       />
+                      </React.Suspense>
                       {/* Edge fades for readability — scoped to marquee area only */}
                       <div
                         className="pointer-events-none absolute inset-y-0 left-0 right-0 hide-edge-fades-xs"
@@ -1129,7 +1182,9 @@ export const Home: React.FC = () => {
       )}
 
   {/* Roadmap Section */}
-  <Roadmap vehicleImage="/rickshaw.svg" vehicleSize={110} offsetAlong={12} offsetNormal={-8} />
+  <React.Suspense fallback={<div className="h-[220px] flex items-center justify-center text-gray-400">Loading roadmap…</div>}>
+    <Roadmap vehicleImage="/rickshaw.svg" vehicleSize={110} offsetAlong={12} offsetNormal={-8} />
+  </React.Suspense>
 
   {/* About Section */}
     {aboutSettings?.enabled === true && (

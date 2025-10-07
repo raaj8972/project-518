@@ -114,7 +114,7 @@ const HoloTiltCard: React.FC<HoloTiltCardProps> = ({
       if (!enableMobileTilt || location.protocol !== 'https:') return;
       const req = (window as any).DeviceMotionEvent?.requestPermission;
       if (typeof req === 'function') {
-        req().then((s:string) => { if (s === 'granted') window.addEventListener('deviceorientation', onDeviceOrientation); }).catch(()=>{});
+        req().then((s: string) => { if (s === 'granted') window.addEventListener('deviceorientation', onDeviceOrientation); }).catch(() => {});
       } else {
         window.addEventListener('deviceorientation', onDeviceOrientation);
       }

@@ -67,7 +67,20 @@ try {
 }
 
 // Create the client from resolved values (env or safe defaults)
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+// Allow opting out of realtime in local dev to avoid noisy WSS failures (e.g., blocked by extensions
+// or local network restrictions). To opt-in in dev, set VITE_SUPABASE_ENABLE_REALTIME=1.
+const realtimeEnabled = (() => {
+  try {
+    const env = (import.meta as any).env || {};
+    if (env.VITE_SUPABASE_ENABLE_REALTIME === '1') return true;
+    // default: disable realtime in DEV to avoid wss issues while developing
+    return !env.DEV;
+  } catch {
+    return true;
+  }
+})();
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, ({
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -75,7 +88,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     // Use a stable, app-specific storage key to avoid collisions between previews/prod
     storageKey: 'ricorrenza_2025_auth',
   },
-})
+  realtime: {
+    enabled: realtimeEnabled,
+  }
+} as any));
 
 // Helpful for diagnostics
 export const SUPABASE_HOST = (() => {

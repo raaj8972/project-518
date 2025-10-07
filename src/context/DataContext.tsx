@@ -638,6 +638,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // Prefer storage.objects; try directly and fallback if not accessible
     const from = (page - 1) * pageSize;
     const to = from + pageSize;
+    // First try: use the Storage API (supabase.storage.from(bucket).list)
+    // This avoids calling PostgREST endpoints like /rest/v1/storage.objects which may be disabled
+    try {
+      const offset = from;
+      const { data: list, error } = await supabase.storage.from(bucket).list('', {
+        limit: pageSize,
+        offset,
+        sortBy: { column: 'updated_at', order: 'desc' },
+      });
+      if (!error && Array.isArray(list)) {
+        const items = (list || []).map((entry: any) => ({
+          name: entry.name as string,
+          created_at: (entry?.created_at ?? entry?.updated_at ?? null) as string | null,
+          size: Number(entry?.metadata?.size ?? entry?.metadata?.ContentLength ?? 0) || 0,
+          publicUrl: publicUrlFor(bucket, entry.name as string),
+        }));
+        const signed = await ensurePreviewUrls(bucket, items);
+        // Storage API doesn't provide a total count, so return the current page length as total fallback
+        return { items: signed, total: signed.length };
+      }
+    } catch (e) {
+      // If Storage API listing fails, fall through to try PostgREST storage.objects below
+    }
+
+    // Fallback: try PostgREST table `storage.objects` (may 404 if not exposed)
     try {
       const { data, error, count } = await supabase
         .from('storage.objects')

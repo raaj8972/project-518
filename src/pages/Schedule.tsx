@@ -57,10 +57,11 @@ export const Schedule: React.FC = () => {
   // Intersection Observer for scroll animations
   // Re-run when schedule or selected day changes so newly mounted nodes are observed
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const animatedElements = document.querySelectorAll('.scroll-animate');
 
-    // Fallback: if IntersectionObserver isn't available, reveal immediately
-    if (typeof window !== 'undefined' && !('IntersectionObserver' in window)) {
+    if (!('IntersectionObserver' in window)) {
       animatedElements.forEach((el) => el.classList.add('animate-in'));
       return;
     }
@@ -70,15 +71,43 @@ export const Schedule: React.FC = () => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in');
+            try { observer.unobserve(entry.target); } catch {}
           }
         });
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    animatedElements.forEach((el) => observer.observe(el));
+    const attach = () => {
+      const nodes = document.querySelectorAll('.scroll-animate');
+      nodes.forEach((el) => {
+        const node = el as HTMLElement & { __observed?: boolean };
+        if (!node.__observed) {
+          observer.observe(node);
+          node.__observed = true;
+        }
+      });
+    };
 
-    return () => observer.disconnect();
+    attach();
+
+    try {
+      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      nodesNow.forEach((n) => {
+        const r = n.getBoundingClientRect();
+        if (r.top < viewportH * 0.9) {
+          n.classList.add('animate-in');
+          try { (n as any).__observed = true; } catch {}
+        }
+      });
+    } catch (e) { /* ignore */ }
+
+    const t1 = setTimeout(attach, 100);
+    const t2 = setTimeout(attach, 300);
+    const safety = setTimeout(() => document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in')), 1500);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
   }, [schedule, selectedDay, loading]);
 
   // Parallax effect

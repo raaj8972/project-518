@@ -74,8 +74,10 @@ export const HomepageManagement: React.FC = () => {
   brand_logo_offset_x_lg_px?: number | '';
   brand_logo_offset_y_lg_px?: number | '';
     sponsor_logos: SponsorLogo[];
-    sponsor_section_enabled: boolean;
-    sponsor_section_text: string;
+  sponsor_section_enabled: boolean;
+  sponsor_section_text: string;
+  sponsor_section_title?: string;
+  sponsor_section_subtitle?: string;
     featured_partners_enabled: boolean;
     show_faculty_heads: boolean;
     show_committee_heads: boolean;
@@ -109,6 +111,8 @@ export const HomepageManagement: React.FC = () => {
     sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
     sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
     sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
+  sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
+  sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
     featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
     show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
     show_committee_heads: homepageSettings?.show_committee_heads ?? true,
@@ -198,6 +202,8 @@ export const HomepageManagement: React.FC = () => {
           : [],
         sponsor_section_enabled: !!form.sponsor_section_enabled,
         sponsor_section_text: (form.sponsor_section_text || 'Powered by').toString(),
+  sponsor_section_title: (form as any).sponsor_section_title || 'OUR PARTNERS',
+  sponsor_section_subtitle: (form as any).sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
         featured_partners_enabled: !!form.featured_partners_enabled,
         show_faculty_heads: !!form.show_faculty_heads,
         show_committee_heads: !!form.show_committee_heads,
@@ -295,6 +301,8 @@ export const HomepageManagement: React.FC = () => {
       sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
       sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
       sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
+  sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
+  sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
       featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
       show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
       show_committee_heads: homepageSettings?.show_committee_heads ?? true,
@@ -874,6 +882,24 @@ export const HomepageManagement: React.FC = () => {
                     )}
                     <div className="p-3 bg-gray-50">
                       <div className="text-center">
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700">Hero Title</label>
+                          <input
+                            type="text"
+                            value={form.hero_title}
+                            onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
+                            className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="block text-sm font-medium text-gray-700">Hero Subtitle</label>
+                          <input
+                            type="text"
+                            value={form.hero_subtitle}
+                            onChange={(e) => setForm(prev => ({ ...prev, hero_subtitle: e.target.value }))}
+                            className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                          />
+                        </div>
                         <h4 className="text-lg font-bold text-gray-900 mb-1">{form.hero_title}</h4>
                         <p className="text-sm text-gray-600 mb-2">{form.hero_subtitle}</p>
                         <p className="text-xs text-gray-500">{form.hero_description}</p>
@@ -920,6 +946,24 @@ export const HomepageManagement: React.FC = () => {
                   />
                   <span className="text-sm text-gray-700">Enable “Our Partners” section</span>
                 </label>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700">Partners Section Title</label>
+                  <input
+                    type="text"
+                    value={form.sponsor_section_title || ''}
+                    onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_title: e.target.value }))}
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-sm font-medium text-gray-700">Partners Section Subtitle</label>
+                  <input
+                    type="text"
+                    value={form.sponsor_section_subtitle || ''}
+                    onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_subtitle: e.target.value }))}
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
               </div>
 
               <div className="space-y-3 p-4 border rounded-lg bg-gray-50">

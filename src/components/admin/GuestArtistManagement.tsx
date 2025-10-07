@@ -20,7 +20,7 @@ export const GuestArtistManagement: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
 
-  const [form, setForm] = useLocalStorage('admin_guest_artist_form_draft', {
+  const [form, setForm, clearForm] = useLocalStorage('admin_guest_artist_form_draft', {
     name: '',
     title: '',
     image: '',
@@ -94,10 +94,10 @@ export const GuestArtistManagement: React.FC = () => {
         name: form.name,
         title: form.title,
         image: form.image,
-        video: form.video || null,
-        video_url: form.video_url || null,
-        youtube_url: form.youtube_url || null,
-        watch_live_url: form.watch_live_url || null,
+        video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+        video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+        youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+        watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -142,10 +142,10 @@ export const GuestArtistManagement: React.FC = () => {
         name: form.name,
         title: form.title,
         image: form.image,
-        video: form.video || null,
-        video_url: form.video_url || null,
-        youtube_url: form.youtube_url || null,
-        watch_live_url: form.watch_live_url || null,
+        video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+        video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+        youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+        watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -217,6 +217,7 @@ export const GuestArtistManagement: React.FC = () => {
   };
 
   const startEditing = (artist: GuestArtist) => {
+    try { clearForm(); } catch {}
     // derive date/time from ISO if present
     let performance_date = '';
     let performance_time = '';

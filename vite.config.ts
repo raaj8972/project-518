@@ -25,7 +25,10 @@ export default defineConfig({
           react: ['react', 'react-dom'],
           router: ['react-router-dom'],
           supabase: ['@supabase/supabase-js'],
-          vendors: ['xlsx', 'gsap']
+          xlsx: ['xlsx'],
+          gsap: ['gsap'],
+          purify: ['dompurify'],
+          pdf: ['jspdf', 'jspdf-autotable', 'html2canvas']
         }
       }
     }

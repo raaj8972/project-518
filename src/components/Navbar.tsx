@@ -77,6 +77,20 @@ export const Navbar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Detect touch-capable devices so we can call hover-prefetch on touch
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  React.useEffect(() => {
+    try {
+      const mq = window.matchMedia('(hover: none), (pointer: coarse)');
+      const update = () => setIsTouchDevice(mq.matches || ('ontouchstart' in window));
+      update();
+      mq.addEventListener?.('change', update);
+      return () => mq.removeEventListener?.('change', update);
+    } catch {
+      setIsTouchDevice(('ontouchstart' in window));
+    }
+  }, []);
+
   // Handle scroll effect
   useEffect(() => {
     const handleScroll = () => {
@@ -148,6 +162,7 @@ export const Navbar: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   onMouseEnter={() => item.onHover && item.onHover()}
+                  onTouchStart={() => { if (isTouchDevice && item.onHover) item.onHover(); }}
                   onClick={(e)=>handleNavClick(e, item.path)}
                   className={`cyberpunk-nav-item group ${
                     isActive(item.path) ? 'active' : ''

@@ -78,6 +78,58 @@ export default function CoverflowCarousel<T>({
     return () => io.disconnect();
   }, []);
 
+  // Refs to detect swipe gestures for touch devices
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
+  const touchMovedRef = useRef(false);
+
+  const handleSwipeStart = (e: React.TouchEvent) => {
+    const t = e.touches && e.touches[0];
+    if (!t) return;
+    touchStartXRef.current = t.clientX;
+    touchStartYRef.current = t.clientY;
+    touchStartTimeRef.current = Date.now();
+    touchMovedRef.current = false;
+  };
+
+  const handleSwipeMove = (e: React.TouchEvent) => {
+    const t = e.touches && e.touches[0];
+    if (!t || touchStartXRef.current == null) return;
+    const dx = t.clientX - touchStartXRef.current;
+    const dy = t.clientY - (touchStartYRef.current ?? 0);
+    // mark moved if horizontal movement exceeds small threshold
+    if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) touchMovedRef.current = true;
+  };
+
+  const handleSwipeEnd = (e: React.TouchEvent) => {
+    try {
+      const t0 = touchStartXRef.current;
+      if (t0 == null) return;
+      const last = e.changedTouches && e.changedTouches[0];
+      if (!last) return;
+      const dx = last.clientX - t0;
+      const dy = last.clientY - (touchStartYRef.current ?? 0);
+  touchStartXRef.current = null;
+  // time delta intentionally unused; kept timing refs for future tuning
+      touchStartYRef.current = null;
+      touchStartTimeRef.current = null;
+      // require primarily horizontal movement and reasonable distance
+      const threshold = 48; // pixels
+      if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) {
+          go('next');
+        } else {
+          go('prev');
+        }
+      }
+    } catch (err) {
+      // ignore
+    } finally {
+      touchMovedRef.current = false;
+    }
+  };
+
   // Detect touch-capable devices and reduced-motion preference
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -136,9 +188,10 @@ export default function CoverflowCarousel<T>({
       className={`relative w-full select-none ${className}`}
       onMouseEnter={() => pauseOnHover && !isTouch && setHovering(true)}
       onMouseLeave={() => pauseOnHover && !isTouch && setHovering(false)}
-      onTouchStart={() => pauseOnTouch && setTouching(true)}
-      onTouchEnd={() => pauseOnTouch && setTouching(false)}
-      onTouchCancel={() => pauseOnTouch && setTouching(false)}
+      onTouchStart={(e) => { pauseOnTouch && setTouching(true); handleSwipeStart(e); }}
+      onTouchMove={(e) => { pauseOnTouch && setTouching(true); handleSwipeMove(e); }}
+      onTouchEnd={(e) => { pauseOnTouch && setTouching(false); handleSwipeEnd(e); }}
+      onTouchCancel={(e) => { pauseOnTouch && setTouching(false); handleSwipeEnd(e); }}
     >
       {/* Perspective stage */}
       <div
@@ -188,6 +241,8 @@ export default function CoverflowCarousel<T>({
             const rotateY = -sign * effRotateY; // negative so left tilts to the left
             let scale = Math.max(0.6, 1 - abs * effScaleStep);
             if (!isTouch && hoveredIndex === idx) scale *= 1.04; // subtle hover pop only on hover-capable
+            // On touch devices, slightly boost the active card scale so the photo extends more
+            if (isTouch && idx === active) scale *= 1.06;
             const translateZ = abs * effTranslateZ; // pulls away with depth
             const zIndex = (hoveredIndex === idx ? 200 : 100) - abs; // hovered above
             const opacity = Math.max(0.25, 1 - abs * 0.25);
@@ -208,6 +263,20 @@ export default function CoverflowCarousel<T>({
                 }}
                 onMouseEnter={() => { if (!isTouch) setHoveredIndex(idx); }}
                 onMouseLeave={() => { if (!isTouch) setHoveredIndex((h) => (h === idx ? null : h)); }}
+                onTouchStart={() => {
+                  // Treat touch like hover for better mobile UX: highlight the touched card
+                  setHoveredIndex(idx);
+                  if (pauseOnTouch) setTouching(true);
+                }}
+                onTouchEnd={() => {
+                  // Clear hovered state after touch ends
+                  setHoveredIndex((h) => (h === idx ? null : h));
+                  if (pauseOnTouch) setTouching(false);
+                }}
+                onTouchCancel={() => {
+                  setHoveredIndex((h) => (h === idx ? null : h));
+                  if (pauseOnTouch) setTouching(false);
+                }}
                 onClick={() => { setActive(idx); onItemClick?.(item, idx); }}
                 aria-hidden={abs !== 0}
               >
@@ -229,28 +298,63 @@ export default function CoverflowCarousel<T>({
         )}
       </div>
 
-      {showArrows && count > 1 && (
-        <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-screen flex items-center justify-between pointer-events-none px-1 sm:px-2" aria-hidden>
-          <button
-            type="button"
-            aria-label="Previous slide"
-            onClick={() => go('prev')}
-            className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 ml-1 sm:ml-2 shadow-md"
-            style={{ width: Math.max(32, Math.min(arrowSize, 56)), height: Math.max(32, Math.min(arrowSize, 56)) }}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            aria-label="Next slide"
-            onClick={() => go('next')}
-            className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 mr-1 sm:mr-2 shadow-md"
-            style={{ width: Math.max(32, Math.min(arrowSize, 56)), height: Math.max(32, Math.min(arrowSize, 56)) }}
-          >
-            ›
-          </button>
-        </div>
-      )}
+      {showArrows && count > 1 && (() => {
+  // Compute a slightly smaller arrow size on touch/narrow screens so buttons don't block content
+  const arrowRenderSize = isTouch ? Math.max(28, Math.min(arrowSize, 44)) : Math.max(32, Math.min(arrowSize, 56));
+        // safe-area aware offset from the screen edge
+        const edgeOffset = isTouch ? 12 : 20;
+  // On touch devices, keep arrows visible but offset them off-stage and reduce opacity
+  const touchArrowInset = isTouch ? -28 : 0;
+  const leftPos = isTouch ? `${touchArrowInset}px` : `env(safe-area-inset-left, ${edgeOffset}px)`;
+  const rightPos = isTouch ? `${touchArrowInset}px` : `env(safe-area-inset-right, ${edgeOffset}px)`;
+  const arrowOpacity = isTouch ? 0.65 : 1;
+
+  return (
+          <>
+            {/* Prev button: positioned near left edge and vertically centered */}
+            <button
+              type="button"
+              aria-label="Previous slide"
+              onClick={() => go('prev')}
+              className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-md"
+              style={{
+                position: 'absolute',
+                left: leftPos,
+                top: '50%',
+                transform: `translateY(-50%) translateX(${isTouch ? '-12px' : '0px'})`,
+                width: arrowRenderSize,
+                height: arrowRenderSize,
+                zIndex: 999,
+                opacity: arrowOpacity,
+                transition: 'opacity 220ms ease, transform 220ms ease',
+              }}
+            >
+              ‹
+            </button>
+
+            {/* Next button: positioned near right edge and vertically centered */}
+            <button
+              type="button"
+              aria-label="Next slide"
+              onClick={() => go('next')}
+              className="pointer-events-auto bg-white/10 hover:bg-white/20 text-white backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20 shadow-md"
+              style={{
+                position: 'absolute',
+                right: rightPos,
+                top: '50%',
+                transform: `translateY(-50%) translateX(${isTouch ? '12px' : '0px'})`,
+                width: arrowRenderSize,
+                height: arrowRenderSize,
+                zIndex: 999,
+                opacity: arrowOpacity,
+                transition: 'opacity 220ms ease, transform 220ms ease',
+              }}
+            >
+              ›
+            </button>
+          </>
+        );
+      })()}
 
       {showDots && count > 1 && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-2">

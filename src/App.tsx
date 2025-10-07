@@ -11,16 +11,16 @@ import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
 
-// Eager imports for maximum reliability (avoids lazy chunk loading issues)
-import { Events } from './pages/Events';
-import { Schedule } from './pages/Schedule';
-import { Gallery } from './pages/Gallery';
-import { HomeBound } from './pages/HomeBound';
-import { RicoFamily } from './pages/RicoFamily';
-import { Sponsors } from './pages/Sponsors';
-import { Login } from './pages/Login';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { ComingSoon } from './pages/ComingSoon';
+// Convert heavy/non-critical routes to lazy-loaded to keep the initial bundle small
+const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
+const Schedule = React.lazy(() => import('./pages/Schedule').then(m => ({ default: (m as any).Schedule }))) as unknown as React.ComponentType<any>;
+const Gallery = React.lazy(() => import('./pages/Gallery').then(m => ({ default: (m as any).Gallery }))) as unknown as React.ComponentType<any>;
+const HomeBound = React.lazy(() => import('./pages/HomeBound').then(m => ({ default: (m as any).HomeBound }))) as unknown as React.ComponentType<any>;
+const RicoFamily = React.lazy(() => import('./pages/RicoFamily').then(m => ({ default: (m as any).RicoFamily }))) as unknown as React.ComponentType<any>;
+const Sponsors = React.lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
+const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
+const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
+const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -80,7 +80,38 @@ function App() {
     const isAdminRoute = location.pathname.startsWith('/admin');
     const isLoginRoute = location.pathname === '/login';
     const isHealthRoute = location.pathname === '/health';
-    const { siteSettings } = useData();
+    const { siteSettings, loading } = useData();
+    // Controlled splash: keep the splash visible at least MIN_SPLASH_MS and fade out
+    // over FADE_MS when loading becomes false. This prevents an abrupt switch to
+    // the Home UI when the data layer finishes very quickly.
+    const MIN_SPLASH_MS = 700; // minimum time to show splash (ms)
+    const FADE_MS = 300; // fade-out duration (ms)
+    const splashStartRef = React.useRef<number | null>(null);
+    const [splashVisible, setSplashVisible] = React.useState<boolean>(loading);
+    const [splashHiding, setSplashHiding] = React.useState<boolean>(false);
+
+    React.useEffect(() => {
+      if (loading) {
+        splashStartRef.current = Date.now();
+        setSplashVisible(true);
+        setSplashHiding(false);
+        return;
+      }
+      // loading flipped to false -> ensure minimum display and then fade
+      const started = splashStartRef.current || Date.now();
+      const elapsed = Date.now() - started;
+      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+      const t = setTimeout(() => {
+        setSplashHiding(true);
+        const t2 = setTimeout(() => setSplashVisible(false), FADE_MS);
+        return () => clearTimeout(t2);
+      }, remaining);
+      return () => clearTimeout(t);
+    }, [loading]);
+
+    // Render the app shell normally but render the splash as a fixed overlay on top
+    // so site chrome (navbar) remains visible above it. We intentionally avoid SVGs
+    // and use CSS + simple HTML for the animated neon spinner and text.
     // Tick so time-based Coming Soon auto-lifts when time passes
     const [now, setNow] = React.useState<number>(Date.now());
     React.useEffect(() => {
@@ -114,9 +145,60 @@ function App() {
               {/* Public notifications panel (viewer-facing) */}
               {!isAdminRoute && <NotificationsPanel />}
               {/* Hide public site chrome on admin pages to avoid overlap */}
-                  {!isAdminRoute && <Navbar />}
+                  {!isAdminRoute && <div className="relative z-50"><Navbar /></div>}
                   <Outlet />
               {!isAdminRoute && <Footer />}
+              {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
+                  We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
+              {splashVisible && (
+                <div
+                  aria-hidden={!loading}
+                  style={{ transition: `opacity ${FADE_MS}ms ease` , opacity: splashHiding ? 0 : 1 }}
+                  className="fixed inset-0 z-40 flex items-center justify-center bg-black/95 pointer-events-none"
+                >
+                  <div className="text-center select-none px-4 pointer-events-auto" style={{ transform: 'translateY(48px)' }}>
+                    <div
+                      className="mx-auto mb-6"
+                      style={{ width: 100, height: 100 }}
+                    >
+                      {/* Conic-gradient ring spinner with a hollow center (mask) */}
+                      <div
+                        className="rounded-full mx-auto"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          animation: 'spin 1s linear infinite',
+                          // Create a visible top/upper-arc by making the rest transparent
+                          background: 'conic-gradient(from -110deg, #00f8ff 0deg 110deg, transparent 110deg 360deg)',
+                          filter: 'drop-shadow(0 0 18px rgba(0,248,255,0.28)) drop-shadow(0 0 22px rgba(255,63,193,0.14))'
+                        }}
+                      >
+                        <div style={{
+                          width: '60%',
+                          height: '60%',
+                          margin: '20% auto',
+                          borderRadius: '50%',
+                          background: 'radial-gradient(circle at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.95) 100%)',
+                          boxShadow: 'inset 0 0 20px rgba(0,0,0,0.7)'
+                        }} />
+                      </div>
+                    </div>
+
+                    <h2 className="text-2xl md:text-3xl font-extrabold tracking-wider"
+                      style={{
+                        background: 'linear-gradient(90deg,#9bd1ff,#e86cff,#9b7bff)',
+                        WebkitBackgroundClip: 'text',
+                        backgroundClip: 'text',
+                        color: 'transparent',
+                        textShadow: '0 2px 12px rgba(155,123,255,0.25)'
+                      }}
+                    >
+                      LOADING RICORRENZA
+                    </h2>
+                    <div className="mt-2 text-sm font-mono text-cyan-300">Initializing experience...</div>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -124,36 +206,42 @@ function App() {
     );
   };
 
-  // Build a router and opt-in to the v7_relativeSplatPath future early to silence warnings
-  const router = createBrowserRouter(
-    [
-      {
-        path: '/',
-        element: <AppShell />,
-        children: [
-          { index: true, element: <Home /> },
-          { path: 'events', element: <Events /> },
-          { path: 'schedule', element: <Schedule /> },
-          { path: 'gallery', element: <Gallery /> },
-          { path: 'home-bound', element: <HomeBound /> },
-          { path: 'rico-family', element: <RicoFamily /> },
-          { path: 'sponsors', element: <Sponsors /> },
-          { path: 'login', element: <Login /> },
-          { path: 'admin', element: <AdminDashboard /> },
-          { path: 'health', element: <Home /> },
-          { path: '*', element: <Home /> }
-        ]
-      }
-    ],
-    { future: { v7_relativeSplatPath: true } }
-  );
+  // Router is created inside an inner component so route elements are instantiated
+  // after providers (DataProvider) are mounted. This avoids calling hooks like
+  // useData() while rendering outside of the provider tree.
+  const InnerRouter: React.FC = () => {
+    const router = React.useMemo(() => createBrowserRouter(
+      [
+        {
+          path: '/',
+          element: <AppShell />,
+          children: [
+            { index: true, element: <Home /> },
+            { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Events /></React.Suspense> },
+            { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Schedule /></React.Suspense> },
+            { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Gallery /></React.Suspense> },
+            { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><HomeBound /></React.Suspense> },
+            { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><RicoFamily /></React.Suspense> },
+            { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sponsors /></React.Suspense> },
+            { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
+            { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
+            { path: 'health', element: <Home /> },
+            { path: '*', element: <Home /> }
+          ]
+        }
+      ],
+      ({ future: { v7_relativeSplatPath: true, v7_startTransition: true } } as any)
+    ), []);
+
+    return <RouterProvider router={router} />;
+  };
 
   return (
     <AuthProvider>
       <DataProvider>
         <ToastProvider>
           <SavingProgressProvider>
-            <RouterProvider router={router} />
+            <InnerRouter />
           </SavingProgressProvider>
         </ToastProvider>
       </DataProvider>

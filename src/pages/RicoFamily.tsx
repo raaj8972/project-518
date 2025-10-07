@@ -8,10 +8,10 @@ import Email3DButtonLink from '../components/Email3DButtonLink';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
-import InfiniteMarquee from '../components/InfiniteMarquee';
-import SportsProfileModal from '../components/SportsProfileModal';
-import CoverflowCarousel from '../components/CoverflowCarousel';
-import FacultyProfileModal from '../components/FacultyProfileModal';
+const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee')) as unknown as React.ComponentType<any>;
+const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal')) as unknown as React.ComponentType<any>;
+const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
+const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal')) as unknown as React.ComponentType<any>;
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
 
 // Local FacultyHead type removed; rely on DataContext types instead
@@ -257,11 +257,11 @@ export const RicoFamily: React.FC = () => {
               centerGlow={true}
               arrowSize={48}
               paused={facultyPaused}
-              onItemClick={(item) => { setSelectedFaculty(item); setFacultyModalOpen(true); setFacultyPaused(true); }}
+              onItemClick={(item: any) => { setSelectedFaculty(item); setFacultyModalOpen(true); setFacultyPaused(true); }}
               pauseOnHover={true}
               showArrows={true}
               className="py-6"
-              renderItem={(head) => (
+              renderItem={(head: any) => (
                 <div className="w-72 md:w-80 neon-card p-5">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
                     <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -402,7 +402,7 @@ export const RicoFamily: React.FC = () => {
                 itemWrapperClassName="px-3"
                 className="py-2"
                 instantPause={true}
-                renderItem={(m) => (
+                renderItem={(m: any) => (
                   <div className="w-64 neon-card borderless p-4">
                     <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
                       <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
@@ -754,7 +754,7 @@ export const RicoFamily: React.FC = () => {
                           adaptiveGlowOnPause={false}
                           itemWrapperClassName="px-3"
                           className="py-2"
-                          renderItem={(head) => (
+                          renderItem={(head: any) => (
                             <div className="w-64 neon-card borderless p-4">
                               <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
                                 <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
@@ -862,7 +862,7 @@ export const RicoFamily: React.FC = () => {
                             adaptiveGlowOnPause={false}
                             itemWrapperClassName="px-3"
                             className="py-2"
-                            renderItem={(head) => (
+                            renderItem={(head: any) => (
                               <div key={head.id} className="w-64 neon-card borderless p-4">
                                 <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
                                   <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />

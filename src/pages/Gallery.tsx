@@ -26,22 +26,55 @@ export const Gallery: React.FC = () => {
 
   // Intersection Observer for scroll animations
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add('animate-in');
+            try { observer.unobserve(entry.target); } catch {};
           }
         });
       },
       { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
     );
 
-    const animatedElements = document.querySelectorAll('.scroll-animate');
-    animatedElements.forEach((el) => observer.observe(el));
+    const attach = () => {
+      const animatedElements = document.querySelectorAll('.scroll-animate');
+      animatedElements.forEach((el) => {
+        const node = el as HTMLElement & { __observed?: boolean };
+        if (!node.__observed) {
+          observer.observe(node);
+          node.__observed = true;
+        }
+      });
+    };
 
-    return () => observer.disconnect();
-  }, []);
+    attach();
+
+    // Immediately reveal any nodes already in/near viewport so category switches
+    // or route returns don't leave the page blank while the observer settles.
+    try {
+      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+      nodesNow.forEach((n) => {
+        const r = n.getBoundingClientRect();
+        if (r.top < viewportH * 0.9) {
+          n.classList.add('animate-in');
+          try { (n as any).__observed = true; } catch {}
+        }
+      });
+    } catch (e) { /* ignore */ }
+
+    const t1 = setTimeout(attach, 100);
+    const t2 = setTimeout(attach, 300);
+    const safety = setTimeout(() => {
+      document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+    }, 1500);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
+  }, [selectedCategory, galleryImages.length]);
 
   // Parallax effect
   useEffect(() => {

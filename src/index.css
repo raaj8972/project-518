@@ -28,6 +28,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Spinner keyframes used by the app splash overlay */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Global responsive utilities */
 @layer utilities {
   /* Offscreen rendering optimization */
