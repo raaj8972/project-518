@@ -251,7 +251,8 @@ export interface Database {
           category: string
           description: string
           image: string
-          motion_poster_url: string | null
+        motion_poster_url: string | null
+        motion_poster_autoplay: boolean | null
           coordinator_name: string | null
           coordinator_phone: string | null
           date: string
@@ -278,6 +279,7 @@ export interface Database {
           description: string
           image: string
           motion_poster_url?: string | null
+          motion_poster_autoplay?: boolean | null
           coordinator_name?: string | null
           coordinator_phone?: string | null
           date: string
@@ -304,6 +306,7 @@ export interface Database {
           description?: string
           image?: string
           motion_poster_url?: string | null
+          motion_poster_autoplay?: boolean | null
           coordinator_name?: string | null
           coordinator_phone?: string | null
           date?: string

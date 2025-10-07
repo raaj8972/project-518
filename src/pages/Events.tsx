@@ -474,9 +474,9 @@ export const Events: React.FC = () => {
                       </div>
                       {((event as any).prefer_video && (event.motion_poster_url)) ? (
                         <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video block`}
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ (event as any).motion_poster_autoplay ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
                           src={event.motion_poster_url}
-                          autoPlay
+                          {...((event as any).motion_poster_autoplay ? { autoPlay: true } : {})}
                           muted
                           playsInline
                           loop
@@ -484,9 +484,9 @@ export const Events: React.FC = () => {
                         />
                       ) : (event.motion_poster_url ? (
                         <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black opacity-0 transition-opacity duration-300 group-hover:opacity-90 front-video block`}
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ (event as any).motion_poster_autoplay ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
                           src={event.motion_poster_url}
-                          autoPlay
+                          {...((event as any).motion_poster_autoplay ? { autoPlay: true } : {})}
                           muted
                           playsInline
                           loop

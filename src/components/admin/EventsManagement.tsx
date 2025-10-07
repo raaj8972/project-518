@@ -115,6 +115,7 @@ export const EventsManagement: React.FC = () => {
     artist_id: undefined as number | undefined,
     watch_live_url: '' as string | null,
     prefer_video: false as boolean,
+    motion_poster_autoplay: false as boolean,
   });
 
   // Local UI state for structured rules mode + data (not persisted directly)
@@ -249,6 +250,7 @@ export const EventsManagement: React.FC = () => {
       description: '',
       image: '',
       motion_poster_url: '',
+      motion_poster_autoplay: false,
       coordinator_name: '',
       coordinator_phone: '',
       date: '',
@@ -385,6 +387,7 @@ export const EventsManagement: React.FC = () => {
       description: event.description,
       image: event.image,
       motion_poster_url: event.motion_poster_url || '',
+  motion_poster_autoplay: (event as any).motion_poster_autoplay ?? false,
       coordinator_name: event.coordinator_name || '',
       coordinator_phone: event.coordinator_phone || '',
       date: event.date,
@@ -1009,6 +1012,15 @@ export const EventsManagement: React.FC = () => {
                     />
                     Prefer video over image on the event card
                   </label>
+                  <label className="flex items-center text-sm">
+                    <input
+                      type="checkbox"
+                      checked={(eventForm as any).motion_poster_autoplay || false}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    Auto-play motion poster on card
+                  </label>
                 </div>
               </div>
             </div>
@@ -1299,6 +1311,17 @@ export const EventsManagement: React.FC = () => {
                       />
                       Prefer video over image on the event card
                     </label>
+                    <div className="mt-2">
+                      <label className="flex items-center text-sm">
+                        <input
+                          type="checkbox"
+                          checked={(eventForm as any).motion_poster_autoplay || false}
+                          onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
+                          className="mr-2"
+                        />
+                        Auto-play motion poster on card
+                      </label>
+                    </div>
                   </div>
                 </div>
                 {/* Timer settings (edit) */}

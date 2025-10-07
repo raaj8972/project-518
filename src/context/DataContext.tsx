@@ -2190,7 +2190,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
         // Strip winners display mode if not present in schema
-        delete safe.winners_display_mode;
+  delete safe.winners_display_mode;
+  // Strip motion poster autoplay flag if schema doesn't support it yet
+  delete safe.motion_poster_autoplay;
         const retry = await supabase.from('events').insert(safe);
         if (retry.error) throw retry.error;
       } else {
@@ -2220,7 +2222,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.watch_live_url;
         delete safe.registration_photo_required;
         delete safe.registration_photo_label;
-        delete safe.winners_display_mode;
+  delete safe.winners_display_mode;
+  delete safe.motion_poster_autoplay;
         const retry = await supabase
           .from('events')
           .insert(safe)
@@ -2266,6 +2269,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         delete safe.winners_display_mode;
         // If database hasn't had prefer_video migration applied yet, remove it before retrying.
         delete safe.prefer_video;
+  delete safe.motion_poster_autoplay;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
