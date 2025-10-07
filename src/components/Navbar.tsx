@@ -1,4 +1,4 @@
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Calendar, Image, Clock, Users, LogIn } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -9,15 +9,26 @@ export const Navbar: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { homepageSettings } = useData();
-  const { prefetchEvents, prefetchGalleryImages } = useData();
+  // Single subscription to DataContext to avoid multiple context subscribers
+  const { homepageSettings, prefetchEvents, prefetchGalleryImages } = useData();
 
   // Compute responsive offsets with fallback to base values
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
   useEffect(() => {
-    const onResize = () => setVw(window.innerWidth);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    // rAF-throttled resize handler to avoid layout thrash on rapid resizes
+    let raf = 0 as number | null;
+    const onResize = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        setVw(window.innerWidth);
+        raf = 0;
+      });
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (raf) cancelAnimationFrame(raf as number);
+    };
   }, []);
   const bp = vw >= 1024 ? 'lg' : vw >= 768 ? 'md' : 'sm';
   const offX = (() => {
@@ -53,18 +64,17 @@ export const Navbar: React.FC = () => {
   const logoSize = Math.max(8, Number((homepageSettings as any)?.brand_logo_size_px) || 36);
   const glowStrength = Math.max(0, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
 
-  // Wrap route changes in a non-urgent transition to avoid input-time Suspense warnings
+  // Handle navigation clicks immediately for snappy response
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     // Allow standard browser behaviors: new tab/window, etc.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
     e.preventDefault();
-    startTransition(() => {
-      navigate(path);
-    });
+    // Close menu immediately for snappy UI, then navigate synchronously
     setIsOpen(false);
+    try { navigate(path); } catch {}
   };
 
-  const navItems = [
+  const navItems = React.useMemo(() => [
     { name: 'Home', path: '/', icon: null },
     { name: 'Events', path: '/events', icon: Calendar, onHover: prefetchEvents },
     { name: 'Schedule', path: '/schedule', icon: Clock },
@@ -73,7 +83,7 @@ export const Navbar: React.FC = () => {
     { name: 'Rico Family', path: '/rico-family', icon: Users },
     { name: 'Sponsors', path: '/sponsors', icon: Users },
     { name: 'Login', path: '/login', icon: LogIn },
-  ];
+  ], [prefetchEvents, prefetchGalleryImages]);
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -91,14 +101,35 @@ export const Navbar: React.FC = () => {
     }
   }, []);
 
-  // Handle scroll effect
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
+  // Helper to schedule low-priority hover prefetch work without blocking the main thread
+  const schedulePrefetch = (fn?: (() => void) | undefined) => {
+    if (!fn) return;
+    try {
+      if (typeof (window as any).requestIdleCallback === 'function') {
+        (window as any).requestIdleCallback(fn, { timeout: 300 });
+      } else {
+        setTimeout(fn, 200);
+      }
+    } catch {
+      setTimeout(fn, 200);
+    }
+  };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+  // Handle scroll effect with rAF-throttle to avoid many re-renders during scroll
+  useEffect(() => {
+    let raf = 0 as number | null;
+    const handleScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        setScrolled(window.scrollY > 50);
+        raf = 0;
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (raf) cancelAnimationFrame(raf as number);
+    };
   }, []);
 
   return (
@@ -161,8 +192,8 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  onMouseEnter={() => item.onHover && item.onHover()}
-                  onTouchStart={() => { if (isTouchDevice && item.onHover) item.onHover(); }}
+              onMouseEnter={() => schedulePrefetch(item.onHover)}
+              onTouchStart={() => { if (isTouchDevice) schedulePrefetch(item.onHover); }}
                   onClick={(e)=>handleNavClick(e, item.path)}
                   className={`cyberpunk-nav-item group ${
                     isActive(item.path) ? 'active' : ''

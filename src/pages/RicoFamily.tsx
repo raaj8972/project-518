@@ -394,7 +394,7 @@ export const RicoFamily: React.FC = () => {
               <InfiniteMarquee
                 items={committeeHeads}
                 direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
                 glowOnPause
                 glowColor="rgba(255,255,255,0.14)"
                 adaptiveGlowOnPause
@@ -745,7 +745,7 @@ export const RicoFamily: React.FC = () => {
                         <InfiniteMarquee
                           items={heads}
                           direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                          speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                          speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
                           pauseOnHover={true}
                           pauseOnTouch={true}
                           instantPause={true}
@@ -853,7 +853,7 @@ export const RicoFamily: React.FC = () => {
                           <InfiniteMarquee
                             items={allCommitteeMembers.filter(m => m.is_head)}
                             direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                            speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 140}
+                            speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
                             pauseOnHover={true}
                             pauseOnTouch={true}
                             instantPause={true}
