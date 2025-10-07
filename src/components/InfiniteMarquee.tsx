@@ -107,12 +107,14 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
       const track = trackRef.current;
       if (!track) return;
       const fullWidth = track.scrollWidth; // both copies
-      const singleWidth = Math.max(1, Math.floor(fullWidth / 2));
+        // Use the exact half width (do not Math.floor) to avoid 1px seam rounding
+        // which can cause a visible jitter at higher speeds. Keep as float.
+        const singleWidth = Math.max(1, fullWidth / 2);
       // Respect provided speed across full range; avoid artificial floors that hide admin changes
       const effectiveSpeed = Math.max(1, Number.isFinite(speedPxPerSec) ? speedPxPerSec : 120); // px/sec
       const sec = singleWidth / effectiveSpeed;
-      // Round to 2 decimals to reduce re-renders yet reflect changes
-      setDurationSec(Math.max(0.1, Number(sec.toFixed(2))));
+  // Keep slightly more precision for the duration to reduce step jitter
+  setDurationSec(Math.max(0.1, Number(sec.toFixed(3))));
       setRunDistancePx(singleWidth);
     };
 
