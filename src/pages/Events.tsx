@@ -6,11 +6,21 @@ import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 
 export const Events: React.FC = () => {
-  const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings } = useData() as any;
+  const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
+  const { user } = useAuth();
+
+  const isOwner = (() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
+    } catch { return false; }
+  })();
   const getCoordinators = (eventId: number) => (eventCoordinators as any)?.filter((c: any) => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -438,6 +448,19 @@ export const Events: React.FC = () => {
 
       <section className="py-12 relative">
         <div className="container mx-auto px-4">
+          {/* Debug: show owner/admin info when ?debug_owner=1 is present */}
+          {new URLSearchParams(window.location.search).get('debug_owner') === '1' && (
+            <div className="mb-4 p-3 rounded border border-yellow-400 bg-yellow-900/20 text-yellow-200 text-sm">
+              <div className="font-medium">Owner debug</div>
+              <div>isOwner: {String(isOwner)}</div>
+              <div>user id: {user?.id ?? 'n/a'}</div>
+              <div>user email: {user?.email ?? 'n/a'}</div>
+              <details className="mt-2 p-2 bg-yellow-900/10 rounded">
+                <summary className="cursor-pointer">adminUsers (truncated)</summary>
+                <pre className="max-h-40 overflow-auto text-xs mt-2">{JSON.stringify(adminUsers?.slice(0, 20) ?? adminUsers, null, 2)}</pre>
+              </details>
+            </div>
+          )}
           <div className="scroll-animate opacity-0 transform translate-y-10">
             <div className="flex justify-center mb-8">
               <div className="cyberpunk-card w-full md:max-w-5xl lg:max-w-6xl xl:max-w-7xl p-3 md:p-4">
@@ -465,34 +488,76 @@ export const Events: React.FC = () => {
               <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
-                    <button className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`} onClick={() => toggleFlip(event.id)} aria-label={`Open details for ${event.title}`}>
+                    <button
+                      className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`}
+                      onClick={() => toggleFlip(event.id)}
+                      aria-label={`Open details for ${event.title}`}
+                      onMouseEnter={() => {
+                        try {
+                          // play on hover only when prefer_video is enabled and autoplay isn't forced
+                          if ((event as any).prefer_video && !(event as any).motion_poster_autoplay) {
+                            const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
+                            if (v) v.play().catch(() => {});
+                          }
+                        } catch (e) {}
+                      }}
+                      onMouseLeave={() => {
+                        try {
+                          if ((event as any).prefer_video && !(event as any).motion_poster_autoplay) {
+                            const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
+                            if (v) {
+                              v.pause();
+                              try { v.currentTime = 0; } catch { /* ignore */ }
+                            }
+                          }
+                        } catch (e) {}
+                      }}
+                    >
                       <div className="flip-front-media">
                         {/* Blurred cover layer to fill width while keeping main poster full (no crop) */}
                         <div className="poster-fill" style={{ backgroundImage: `url(${event.image})` }} />
                         {/* Main poster layer (contain or cover per setting) */}
                         <div className="poster-main" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
                       </div>
-                      {((event as any).prefer_video && (event.motion_poster_url)) ? (
+                      {/* Render motion poster video only when one of:
+                          - motion_poster_autoplay (always show and autoplay),
+                          - prefer_video (show on hover and play via JS),
+                          - owner_hover_reveal (owner preview behavior).
+                        Otherwise show only the static image (default behavior).
+                      */}
+                      {((event as any).motion_poster_autoplay || (event as any).prefer_video || (isOwner && (event as any).owner_hover_reveal)) && event.motion_poster_url ? (
                         <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ (event as any).motion_poster_autoplay ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
+                          id={`event-video-${event.id}`}
+                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ ((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
                           src={event.motion_poster_url}
-                          {...((event as any).motion_poster_autoplay ? { autoPlay: true } : {})}
+                          {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { autoPlay: true } : {})}
                           muted
                           playsInline
                           loop
                           poster={event.image}
                         />
-                      ) : (event.motion_poster_url ? (
-                        <video
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ (event as any).motion_poster_autoplay ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
-                          src={event.motion_poster_url}
-                          {...((event as any).motion_poster_autoplay ? { autoPlay: true } : {})}
-                          muted
-                          playsInline
-                          loop
-                          poster={event.image}
-                        />
-                      ) : null)}
+                      ) : null}
+
+                      {isOwner && (
+                        <div className="absolute top-2 left-2 z-30" onClick={(e)=>e.stopPropagation()}>
+                          <label className="flex items-center text-xs bg-black/50 px-2 py-1 rounded text-white">
+                            <input
+                              type="checkbox"
+                              checked={!!(event as any).owner_hover_reveal}
+                              onChange={async (e) => {
+                                try {
+                                  await updateEvent(event.id, { owner_hover_reveal: e.target.checked } as any);
+                                } catch (err) {
+                                  console.error('Failed to update owner_hover_reveal', err);
+                                  alert('Could not update preview setting.');
+                                }
+                              }}
+                              className="mr-2"
+                            />
+                            Owner preview
+                          </label>
+                        </div>
+                      )}
                     </button>
                       {/* Mobile Rules Modal via Portal */}
                       {rulesModalFor != null && (() => {

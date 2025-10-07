@@ -253,6 +253,7 @@ export interface Database {
           image: string
         motion_poster_url: string | null
         motion_poster_autoplay: boolean | null
+          owner_hover_reveal: boolean | null
           coordinator_name: string | null
           coordinator_phone: string | null
           date: string
@@ -280,6 +281,7 @@ export interface Database {
           image: string
           motion_poster_url?: string | null
           motion_poster_autoplay?: boolean | null
+          owner_hover_reveal?: boolean | null
           coordinator_name?: string | null
           coordinator_phone?: string | null
           date: string
@@ -307,6 +309,7 @@ export interface Database {
           image?: string
           motion_poster_url?: string | null
           motion_poster_autoplay?: boolean | null
+          owner_hover_reveal?: boolean | null
           coordinator_name?: string | null
           coordinator_phone?: string | null
           date?: string
