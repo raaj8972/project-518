@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, ExternalLink } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
@@ -23,13 +22,12 @@ export const Events: React.FC = () => {
   })();
   const getCoordinators = (eventId: number) => (eventCoordinators as any)?.filter((c: any) => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
-  const location = useLocation();
   const [registrationModal, setRegistrationModal] = useState<{ isOpen: boolean; eventId: number; eventTitle: string }>(
     { isOpen: false, eventId: 0, eventTitle: '' }
   );
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [glitchActive, setGlitchActive] = useState(false);
+  const [glitchActive, _setGlitchActive] = useState(false);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
@@ -98,96 +96,20 @@ export const Events: React.FC = () => {
   };
   const computeRulesCount = (rules: string[] | null | undefined): number => {
     if (!rules || rules.length === 0) return 0;
-    if (isStructuredRules(rules)) {
-      const sections = unpackStructured(rules);
-      if (!sections.length) return 0;
-      const pts = sections.reduce((sum, s) => sum + (s.blocks || []).reduce((acc, b) => acc + (b.items?.filter(p=>p && p.trim()).length || 0), 0), 0);
-      return pts || sections.length;
+    try {
+      if (isStructuredRules(rules)) {
+        const sections = unpackStructured(rules);
+        return sections.reduce((acc, sec) => {
+          const blocks = sec.blocks || [];
+          return acc + blocks.reduce((bacc, b) => bacc + (b.items ? b.items.length : 0), 0);
+        }, 0);
+      }
+    } catch (e) {
+      // fall through
     }
-    return rules.filter(r => r && r.trim()).length;
-  };
-
-  // Filtered list only uses visible events, but selection may be a category that currently has zero visible events
-  const filteredEvents = React.useMemo(() => {
-    const list = selectedCategory === 'All'
-      ? visibleEvents
-      : visibleEvents.filter((e: any) => String(e.category).trim().toLowerCase() === selectedCategory.toLowerCase());
-    // If manual ordering active overall, visibleEvents already sorted; for safety, re-apply if subset contains manual ids.
-    const hasManual = list.some((e: any) => e.display_order != null);
-    if (hasManual) {
-      return [...list].sort((a: any, b: any) => {
-        const da = a.display_order ?? Number.MAX_SAFE_INTEGER;
-        const db = b.display_order ?? Number.MAX_SAFE_INTEGER;
-        if (da !== db) return da - db;
-        return a.id - b.id;
-      });
-    }
-    // Otherwise chronological newest-first inside category
-    return [...list].sort((a: any, b: any) => {
-      const at = a.created_at ? new Date(a.created_at).getTime() : 0;
-      const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
-      if (at !== bt) return bt - at;
-      return b.id - a.id;
-    });
-  }, [visibleEvents, selectedCategory]);
-  const categoriesKey = categories.join('|'); // includes hidden categories too
-
-  // If current selection disappears entirely (removed category), fallback to All so cards render
-  useEffect(() => {
-    if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
-      setSelectedCategory('All');
-    }
-  }, [categoriesKey, selectedCategory]);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setGlitchActive(true);
-      setTimeout(() => setGlitchActive(false), 200);
-    }, 12000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Scroll to event card if URL contains #event-<id>
-  useEffect(() => {
-    const hash = location.hash;
-    if (!hash || !hash.startsWith('#event-')) return;
-    const idStr = hash.replace('#event-', '');
-    let target = document.getElementById(`event-${idStr}`);
-    if (target) {
-      setTimeout(() => target!.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
-      target.classList.add('ring-2', 'ring-pink-500');
-      setTimeout(() => target!.classList.remove('ring-2', 'ring-pink-500'), 1500);
-      return;
-    }
-    // If target not found, switch category to include it
-    const idNum = Number(idStr);
-  const ev = events.find((e: any) => e.id === idNum);
-    if (ev && selectedCategory !== 'All' && selectedCategory !== ev.category) {
-      setSelectedCategory(ev.category);
-      // After category update, effect will re-run and scroll
-    }
-  }, [location.hash, selectedCategory, filteredEvents.length, events.length]);
-
-  useEffect(() => {
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('animate-in');
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
-    document.querySelectorAll('.scroll-animate').forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, [events, selectedCategory, filteredRulesKey(filteredEvents)]);
-
-  // (No per-second ticker needed for pills now; WatchLiveButton manages its own countdown.)
-
-  // Stable key for dependency to re-run observer when filteredEvents set changes
-  function filteredRulesKey(list: typeof filteredEvents) {
-    // use ids + length to avoid heavy deps, and ensure change when category toggles
-    return list.length + ':' + list.map((e: any) => e.id).join(',');
+    return (rules || []).filter((r) => !!String(r).trim()).length;
   }
+  
 
   // Soft perspective tilt on hover for desktop/fine pointers
   useEffect(() => {
@@ -240,6 +162,8 @@ export const Events: React.FC = () => {
     cards.forEach((el) => el.addEventListener('click', handler, { passive: true }));
     return () => cards.forEach((el) => el.removeEventListener('click', handler as EventListener));
   }, []);
+
+  
 
   // Auto-scroll marquee for winners rows on small screens
   useEffect(() => {
@@ -311,6 +235,93 @@ export const Events: React.FC = () => {
 
   // Site-wide poster fit preference: 'contain' (default) or 'cover'
   const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
+
+  // Events filtered for current selected category
+  const filteredEvents = React.useMemo(() => {
+    try {
+      if (!visibleEvents || !Array.isArray(visibleEvents)) return [];
+      if (!selectedCategory || selectedCategory === 'All') return visibleEvents;
+      const key = String(selectedCategory).trim().toLowerCase();
+      return (visibleEvents as any[]).filter((e: any) => String(e?.category ?? '').trim().toLowerCase() === key);
+    } catch (err) { return visibleEvents || []; }
+  }, [visibleEvents, selectedCategory]);
+
+  // DEBUG: log counts to help diagnose missing event cards
+  React.useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[Events debug] events:', Array.isArray(events) ? events.length : events, 'visibleEvents:', Array.isArray(visibleEvents) ? visibleEvents.length : visibleEvents, 'filteredEvents:', Array.isArray(filteredEvents) ? filteredEvents.length : filteredEvents, 'selectedCategory:', selectedCategory);
+    } catch (err) {}
+  }, [events, visibleEvents, filteredEvents, selectedCategory]);
+
+  // Reveal-on-scroll observer for Events page (ensure .scroll-animate elements become visible)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      // Quick debug override: allow forcing all cards visible via URL param
+      // Example: /events?debug_force_cards=1
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('debug_force_cards') === '1') {
+          document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+          return;
+        }
+      } catch (e) {
+        // ignore param parse errors
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            (entry.target as HTMLElement).classList.add('animate-in');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12 });
+
+      const attach = () => {
+        const nodes = document.querySelectorAll('.scroll-animate');
+        nodes.forEach((el) => {
+          const node = el as HTMLElement & { __observed?: boolean };
+          if (!node.__observed) {
+            observer.observe(node);
+            node.__observed = true;
+          }
+        });
+      };
+      attach();
+
+      // Immediately make visible any nodes already inside the viewport so
+      // returning to this route doesn't show a black/empty screen while the
+      // IntersectionObserver settles. We use a generous threshold so large
+      // hero elements become visible right away.
+      try {
+        const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+        const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+        nodesNow.forEach((n) => {
+          const r = n.getBoundingClientRect();
+          // If the element is mostly within the viewport (top less than 90% viewport)
+          if (r.top < viewportH * 0.9) {
+            n.classList.add('animate-in');
+            try { (n as any).__observed = true; } catch {}
+          }
+        });
+      } catch (e) {
+        /* ignore */
+      }
+      const t1 = setTimeout(attach, 100);
+      const t2 = setTimeout(attach, 300);
+
+      const safety = setTimeout(() => {
+        document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+      }, 1500);
+
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
+    } catch (err) {
+      // if IntersectionObserver not supported, fall back to making elements visible
+      document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+    }
+  }, [events.length, filteredEvents.length, selectedCategory]);
+
 
 
   // Reset UI state when category changes to avoid empty-looking UI due to flipped/expanded states
@@ -409,6 +420,10 @@ export const Events: React.FC = () => {
     return isTimerOpenWithGrace;
   };
 
+  // Whether to show on-page debug panels: ONLY when explicit debug_owner=1 URL param is present
+  const debugOwnerParam = (() => { try { return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug_owner') === '1'; } catch { return false; } })();
+  const showDebugPanel = debugOwnerParam;
+
   // mapsUrlFor helper removed (we compute inline where needed)
 
   return (
@@ -483,6 +498,20 @@ export const Events: React.FC = () => {
 
       <section className="py-12 relative">
         <div className="container mx-auto px-4" ref={eventsRef}>
+              {showDebugPanel && (
+                <div className="mb-6 p-3 rounded-lg bg-black/60 text-sm text-white">
+                  <div className="flex items-center justify-between">
+                    <div className="font-semibold">Events debug</div>
+                    <div className="text-xs text-gray-300">selected: {selectedCategory}</div>
+                  </div>
+                  <div className="mt-2 text-xs text-gray-200">
+                    events: {Array.isArray(events) ? events.length : 'n/a'} • visible: {Array.isArray(visibleEvents) ? visibleEvents.length : 'n/a'} • filtered: {Array.isArray(filteredEvents) ? filteredEvents.length : 'n/a'}
+                  </div>
+                  {Array.isArray(filteredEvents) && filteredEvents.length > 0 ? (
+                    <div className="mt-2 text-[13px] text-gray-300">First: {filteredEvents.slice(0,5).map((e:any)=>e.title).join(' • ')}</div>
+                  ) : null}
+                </div>
+              )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event: any, index: number) => (
               <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
@@ -490,7 +519,15 @@ export const Events: React.FC = () => {
                   <div className="flip-3d-inner">
                     <button
                       className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`}
-                      onClick={() => toggleFlip(event.id)}
+                      onClick={(e) => {
+                        const btn = e.currentTarget as HTMLElement;
+                        if (btn.dataset.suppressClick) {
+                          // consume a suppressed click generated after a long-press preview
+                          try { delete btn.dataset.suppressClick; } catch {}
+                          return;
+                        }
+                        toggleFlip(event.id);
+                      }}
                       aria-label={`Open details for ${event.title}`}
                       onMouseEnter={() => {
                         try {
@@ -511,6 +548,43 @@ export const Events: React.FC = () => {
                             }
                           }
                         } catch (e) {}
+                      }}
+                      /* Touch behavior for owner-hover preview: on phones, allow owners who enabled owner_hover_reveal to
+                         trigger the motion-poster on touchstart (play) and stop on touchend/move. We keep this gated so
+                         regular users won't get touch-to-play behavior. */
+                      onTouchStart={(e) => {
+                        try {
+                          if (!(isOwner && (event as any).owner_hover_reveal)) return;
+                          const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
+                          const btn = e.currentTarget as HTMLElement;
+                          if (v) {
+                            v.play().catch(() => {});
+                            // Suppress the following click that can fire after a long-press/touch on some devices
+                            try { (btn as any).dataset.suppressClick = '1'; } catch {}
+                            // clear suppress shortly after to allow normal clicks
+                            setTimeout(() => { try { delete (btn as any).dataset.suppressClick; } catch {} }, 700);
+                          }
+                        } catch (err) {}
+                      }}
+                      onTouchEnd={() => {
+                        try {
+                          if (!(isOwner && (event as any).owner_hover_reveal)) return;
+                          const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
+                          if (v) {
+                            v.pause();
+                            try { v.currentTime = 0; } catch {}
+                          }
+                        } catch (err) {}
+                      }}
+                      onTouchMove={() => {
+                        try {
+                          if (!(isOwner && (event as any).owner_hover_reveal)) return;
+                          const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
+                          if (v) {
+                            v.pause();
+                            try { v.currentTime = 0; } catch {}
+                          }
+                        } catch (err) {}
                       }}
                     >
                       <div className="flip-front-media">
@@ -804,13 +878,28 @@ export const Events: React.FC = () => {
                                     {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                                   </div>
                                 </div>
-                                {expandedRules.has(event.id) && (
+                                  {expandedRules.has(event.id) && (
                                   <div
-                                    className="rules-panel rounded-xl p-4 space-y-3 max-h-56 overflow-y-auto rules-zoom-in"
+                                    className="rules-panel rounded-xl p-4 space-y-3 rules-zoom-in custom-scrollbar"
                                     onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
                                     onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
                                     onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => e.stopPropagation()}
                                   >
+                                    <div
+                                      className="rules-scroll max-h-56 md:max-h-[60vh] overflow-y-auto p-0 space-y-3"
+                                      tabIndex={0}
+                                      onWheel={(e: React.WheelEvent<HTMLDivElement>) => {
+                                        // Prevent the page from scrolling when the rules box can scroll
+                                        const node = e.currentTarget as HTMLElement;
+                                        const delta = e.deltaY;
+                                        const atTop = node.scrollTop === 0 && delta < 0;
+                                        const atBottom = node.scrollHeight - node.clientHeight - node.scrollTop <= 1 && delta > 0;
+                                        // If the inner container can consume the scroll, stop propagation
+                                        if (!atTop && !atBottom) {
+                                          e.stopPropagation();
+                                        }
+                                      }}
+                                    >
                                     {isStructuredRules(event.rules) ? (
                                       unpackStructured(event.rules).map((sec, sIdx) => (
                                         <div key={sIdx} className="space-y-3">
@@ -838,8 +927,9 @@ export const Events: React.FC = () => {
                                         <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
                                       ))
                                     )}
+                                    </div>
                                   </div>
-                                )}
+                                  )}
                               </div>
                             );
                           })()}
@@ -978,46 +1068,30 @@ export const Events: React.FC = () => {
                         <div key={ev.id} className="bg-black/60 py-4 px-4 rounded-md">
                           <div className="font-semibold text-lg text-white mb-3 text-center w-full">{ev.title}</div>
                           <div className="space-y-2">
-                            {grouped.map((g) => (
-                              <div key={g.pos} className="flex items-start gap-2">
-                                <div
-                                  className={`px-2 py-0.5 rounded font-semibold ${g.pos === 1 ? 'bg-yellow-400 text-black' : g.pos === 2 ? 'bg-gray-300 text-black' : g.pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white'}`}
-                                  style={{
-                                    filter:
-                                      g.pos === 1
-                                        ? 'drop-shadow(0 0 8px rgba(250,204,21,0.6))'
-                                        : g.pos === 2
-                                        ? 'drop-shadow(0 0 8px rgba(209,213,219,0.45))'
-                                        : g.pos === 3
-                                        ? 'drop-shadow(0 0 8px rgba(180,83,9,0.6))'
-                                        : 'drop-shadow(0 0 8px rgba(107,114,128,0.55))',
-                                  }}
-                                >
-                                  {posLabel(g.pos)}
+                              {grouped.map((g) => (
+                                <div key={g.pos} className="flex items-start gap-2">
+                                  <div
+                                    className={`px-2 py-0.5 rounded font-semibold ${g.pos === 1 ? 'bg-yellow-400 text-black' : g.pos === 2 ? 'bg-gray-300 text-black' : g.pos === 3 ? 'bg-amber-700 text-white' : 'bg-gray-500 text-white'}`}
+                                    style={{ filter: g.pos === 1 ? 'drop-shadow(0 0 8px rgba(250,204,21,0.6))' : g.pos === 2 ? 'drop-shadow(0 0 8px rgba(209,213,219,0.45))' : g.pos === 3 ? 'drop-shadow(0 0 8px rgba(180,83,9,0.6))' : 'drop-shadow(0 0 8px rgba(107,114,128,0.55))' }}
+                                  >
+                                    {posLabel(g.pos)}
+                                  </div>
+                                  <div className="text-gray-200">
+                                    {g.items.map((w: any, idx: number) => {
+                                      const rawYear = (w as any)?.registration_year || (w as any)?.year || null;
+                                      const year = yearLabelFor(rawYear);
+                                      return <span key={w.id} className="inline">{w.name}{year ? ` (${year})` : ''}{idx < g.items.length - 1 ? ', ' : ''}</span>;
+                                    })}
+                                  </div>
                                 </div>
-                                <div className="text-gray-200">
-                                  {g.items.map((w: any, idx: number) => {
-                                    const rawYear = (w as any)?.registration_year || (w as any)?.year || null;
-                                    const year = yearLabelFor(rawYear);
-                                    return (
-                                      <span key={w.id} className="inline">
-                                        {w.name}
-                                        {year ? ` (${year})` : ''}
-                                        {idx < g.items.length - 1 ? ', ' : ''}
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()
-            )}
+                        );
+                      })} {/* end eventsWithWinners.map */}
+                    </div>
+                  );
+                })() /* end winners IIFE */ )} {/* end ternary */}
           </div>
         </div>
       </section>
@@ -1400,6 +1474,13 @@ export const Events: React.FC = () => {
           justify-content: center;
         }
         .rules-close:active { transform: scale(0.98); }
+      /* Hide native big play overlay on motion poster videos and prevent pointer events
+        We control playback via the card touch handlers, so disable native overlays
+        which can remain visible on touch devices even when we play the element. */
+      .front-video { pointer-events: none; }
+      .front-video::-webkit-media-controls-start-playback-button,
+      .front-video::-webkit-media-controls-overlay-play-button,
+      .front-video::-webkit-media-controls { display: none !important; -webkit-appearance: none; }
       `}</style>
     </div>
   );
