@@ -399,6 +399,28 @@
     .sponsor-interactive { transform: translateY(0) scale(1); }
     .sponsor-interactive:active { transform: translateY(-3px) scale(1.05); }
   }
+
+  /* Global glass-style scrollbars for modern browsers */
+  /* WebKit (Chrome, Edge, Safari) */
+  *::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+  *::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.06));
+    border-radius: 9999px;
+    margin: 6px 0; /* avoid touching edges */
+  }
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, rgba(255,255,255,0.20), rgba(200,200,255,0.08));
+    border-radius: 9999px;
+    border: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 0 2px 8px rgba(16,20,30,0.28);
+    backdrop-filter: blur(6px) saturate(120%);
+  }
+  *::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(255,255,255,0.28), rgba(220,220,255,0.12)); }
+
+  /* Firefox: thin + translucent color pairing */
+  * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) rgba(0,0,0,0.06); }
+
+  /* Keep existing utilities that hide scrollbars intact */
   /* Runtime JS-assisted detection baseline: keep off until tapped */
   html.touch-enabled .sponsor-interactive { transform: translateY(0) scale(1); }
   html.touch-enabled .sponsor-interactive.tap-glow::after { opacity:.9; filter: blur(18px) brightness(1.15); transform: scale(1); }

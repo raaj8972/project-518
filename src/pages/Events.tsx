@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, Star } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, ExternalLink } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
@@ -20,6 +21,7 @@ export const Events: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [glitchActive, setGlitchActive] = useState(false);
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
+  const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
   // Events that are actually shown (respecting visibility flag)
@@ -294,6 +296,7 @@ export const Events: React.FC = () => {
   const closeRegistration = () => setRegistrationModal({ isOpen: false, eventId: 0, eventTitle: '' });
   const toggleRules = (id: number) => setExpandedRules((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // removed clipboard/share logic per updated UX (View-only)
   // getCategoryColor removed - category pill now uses glass-style across pages
 
   // Site-wide poster fit preference: 'contain' (default) or 'cover'
@@ -490,66 +493,73 @@ export const Events: React.FC = () => {
                           poster={event.image}
                         />
                       ) : null)}
-                      <div className="absolute top-3 left-4 z-20 pointer-events-none">
-                        {/* Top-left small category pill (glass effect). */}
-                        <span className="inline-flex items-center text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 px-2 py-0.5 rounded-full shadow-sm opacity-100 transition-opacity">
-                          {event.category}
-                        </span>
-                      </div>
-                      {/* Watch Live button (60m pre-live gating) or Featured badge */}
-                      {(() => {
-                        const wlu = (event as any).watch_live_url;
-                        if (wlu) {
-                          const dt = parseEventDateTime(event.date as any, event.time as any);
-                          if (dt) {
-                            return (
-                              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10">
-                                <WatchLiveButton
-                                  url={wlu}
-                                  startTime={dt.toISOString()}
-                                  leadMinutes={LIVE_LEAD_MINUTES}
-                                  forceLive={(event as any).registration_open || event.featured}
-                                  size="xs"
-                                  className=""
-                                />
-                              </div>
-                            );
-                          }
-                        }
-                        if (event.featured) {
-                          return (
-                            <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 z-10">
-                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black p-2 rounded-full animate-pulse pulse-ring">
-                                <Star className="w-4 h-4 fill-current" />
-                              </div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </button>
-
-                    {/* Always-visible countdown pill on front face (when timer-gated and no Watch Live button) */}
-                    {(() => {
-                      const wlu = (event as any).watch_live_url;
-                      const countdown = getCountdown(event);
-                      const showCountdown = !wlu && countdown; // avoid duplicate with WatchLiveButton which has its own countdown
-                      const isOpen = canRegisterNow(event);
-                      if (!showCountdown) return null;
-                      return (
-                        <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-10 pointer-events-none">
-                          <div
-                            className={`px-3 py-1 rounded-full text-xs font-semibold backdrop-blur border ${countdown === 'now' || isOpen ? 'bg-green-600/80 text-white border-white/30' : 'bg-blue-600/80 text-white border-white/20'}`}
-                            title={getOpensAtTooltip(event)}
-                          >
-                            {countdown === 'now' || isOpen ? 'Open now' : `Opens in ${countdown}`}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Removed front title badge to avoid overlap on mobile; category chip below handles context */}
-                    {/* front-center category removed in favor of top-right glass pill */}
+                      {/* Mobile Rules Modal via Portal */}
+                      {rulesModalFor != null && (() => {
+                        const ev = filteredEvents.find((e:any) => e.id === rulesModalFor);
+                        if (!ev || typeof document === 'undefined') return null;
+                        const rulesUrl = (ev as any).rules_link || (ev as any).rules_url || (ev as any).rules_file_url || (ev as any).rules_drive_link || null;
+                        const close = () => setRulesModalFor(null);
+                        return createPortal(
+                          <div className="fixed inset-0 z-[3000] md:hidden" onClick={close}>
+                            {/* lighter glass overlay behind the panel so the page shows through */}
+                            <div className="absolute inset-0 bg-[rgba(8,10,14,0.26)] backdrop-blur-md backdrop-saturate-110 animate-[fadeIn_180ms_ease-out]" />
+                            <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+                              <div className="relative mx-auto w-full max-w-lg pointer-events-auto rules-panel-wrap" onClick={(e)=>e.stopPropagation()}>
+                                <div className="rules-panel rounded-2xl overflow-hidden transform animate-[slideUp_220ms_cubic-bezier(.2,.8,.2,1)]">
+                                  <div className="flex items-center justify-between px-4 py-3">
+                                  <div className="text-sm font-semibold text-white truncate">{ev.title} — Event Rules</div>
+                                </div>
+                                <div className="rules-scroll max-h-[60vh] overflow-y-auto p-4 space-y-3">
+                                  {isStructuredRules(ev.rules) ? (
+                                  unpackStructured(ev.rules).map((sec, sIdx) => (
+                                    <div key={sIdx} className="space-y-2">
+                                      {sec.heading?.trim() && <div className="rule-heading">{sec.heading}</div>}
+                                        {(sec.blocks || []).map((b, bIdx) => (
+                                          <div key={bIdx} className="space-y-1">
+                                            {b.title?.trim() && <div className="rule-subheading">{b.title}</div>}
+                                            {(b.style || 'number') === 'bullet' ? (
+                                              <ul className="list-disc list-inside space-y-1">
+                                                {b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                  <li key={i} className="rule-text text-[13px] leading-snug">{p}</li>
+                                                ))}
+                                              </ul>
+                                            ) : (
+                                              b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[13px]">{i + 1}.</span><span className="rule-text text-[13px] leading-snug">{p}</span></div>
+                                              ))
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    (ev.rules || []).map((rule: string, i: number) => (
+                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[14px]">{i + 1}.</span><span className="rule-text text-[15px] leading-snug">{rule}</span></div>
+                                    ))
+                                  )}
+                                  {rulesUrl && (
+                                    <div className="pt-2">
+                                      <a href={rulesUrl} target="_blank" rel="noreferrer" className="inline-flex items-center text-[11px] px-2 py-1 rounded border border-white/10 hover:border-white/30 bg-white/5">
+                                        <ExternalLink className="w-4 h-4 mr-1" />
+                                        Open PDF/Drive
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Close button moved outside panel so it's not clipped by overflow */}
+                                <button onClick={close} aria-label="Close rules" className="rules-close absolute top-3 right-3 z-[9999] p-3 rounded-full bg-[rgba(255,255,255,0.02)] text-white/90 shadow-md touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>✕</button>
+                                </div>
+                                </div>
+                            </div>
+                            <style>{`
+                              @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+                              @keyframes slideUp { from { transform: translateY(8px) scale(.995); opacity: 0.98 } to { transform: translateY(0) scale(1); opacity: 1 } }
+                            `}</style>
+                          </div>,
+                          document.body
+                        );
+                      })()}
 
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
                       {/* Back face Watch Live button (mirrors front face, 60m pre-live gating) */}
@@ -707,50 +717,67 @@ export const Events: React.FC = () => {
                               </div>
                             );
                           })()}
-                          {event.rules && computeRulesCount(event.rules) > 0 && (
-                            <div className="mb-4">
-                              <button onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); toggleRules(event.id); }} className="flex items-center justify-between w-full text-left font-semibold text-gray-300 mb-2 hover:text-pink-400 transition-colors">
-                                <div className="flex items-center"><FileText size={16} className="mr-2" />Event Rules ({computeRulesCount(event.rules)})</div>
-                                {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                              </button>
-                              {expandedRules.has(event.id) && (
-                                <div
-                                  className="rules-panel rounded-xl p-4 space-y-3 max-h-56 overflow-y-auto rules-zoom-in"
-                                  onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-                                  onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-                                  onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => e.stopPropagation()}
-                                >
-                                  {isStructuredRules(event.rules) ? (
-                                    unpackStructured(event.rules).map((sec, sIdx) => (
-                                      <div key={sIdx} className="space-y-3">
-                                        {sec.heading?.trim() && <div className="text-white font-semibold">{sec.heading}</div>}
-                                        {(sec.blocks || []).map((b, bIdx) => (
-                                          <div key={bIdx} className="space-y-1">
-                                            {b.title?.trim() && <div className="text-gray-300 text-sm">{b.title}</div>}
-                                            {(b.style || 'number') === 'bullet' ? (
-                                              <ul className="list-disc list-inside space-y-1">
-                                                {b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                  <li key={i} className="rule-text">{p}</li>
-                                                ))}
-                                              </ul>
-                                            ) : (
-                                              b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{p}</span></div>
-                                              ))
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    (event.rules || []).map((rule: string, i: number) => (
-                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
-                                    ))
-                                  )}
+                          {(() => {
+                            const rulesCount = computeRulesCount(event.rules);
+                            const rulesUrl = (event as any).rules_link || (event as any).rules_url || (event as any).rules_file_url || (event as any).rules_drive_link || null;
+                            if (!((event.rules && rulesCount > 0) || rulesUrl)) return null;
+                            return (
+                              <div className="mb-4">
+                                <div className="flex items-center justify-between w-full mb-2">
+                                  <button
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => { e.stopPropagation(); }}
+                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) { setRulesModalFor(event.id); } else { toggleRules(event.id); } }}
+                                    className="flex items-center text-left font-semibold text-gray-300 hover:text-pink-400 transition-colors px-2 py-1"
+                                  >
+                                    <FileText size={16} className="mr-2" />
+                                    <span>Event Rules {rulesCount > 0 ? `(${rulesCount})` : ''}</span>
+                                  </button>
+                                  <div className="flex items-center gap-2">
+                                    {/* Card-level PDF view removed — PDF link is available inside the rules modal */}
+                                    {expandedRules.has(event.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                  </div>
                                 </div>
-                              )}
-                            </div>
-                          )}
+                                {expandedRules.has(event.id) && (
+                                  <div
+                                    className="rules-panel rounded-xl p-4 space-y-3 max-h-56 overflow-y-auto rules-zoom-in"
+                                    onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+                                    onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+                                    onTouchStart={(e: React.TouchEvent<HTMLDivElement>) => e.stopPropagation()}
+                                  >
+                                    {isStructuredRules(event.rules) ? (
+                                      unpackStructured(event.rules).map((sec, sIdx) => (
+                                        <div key={sIdx} className="space-y-3">
+                                          {sec.heading?.trim() && <div className="rule-heading">{sec.heading}</div>}
+                                          {(sec.blocks || []).map((b, bIdx) => (
+                                            <div key={bIdx} className="space-y-1">
+                                              {b.title?.trim() && <div className="rule-subheading">{b.title}</div>}
+                                              {(b.style || 'number') === 'bullet' ? (
+                                                <ul className="list-disc list-inside space-y-1">
+                                                  {b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                      <li key={i} className="rule-text">{p}</li>
+                                                    ))}
+                                                </ul>
+                                              ) : (
+                                                b.items.filter(p=>p && p.trim()).map((p, i) => (
+                                                  <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{p}</span></div>
+                                                ))
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ))
+                                    ) : (
+                                      (event.rules || []).map((rule: string, i: number) => (
+                                        <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
+                                      ))
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </div>
                             <div className="p-6 pt-0">
                           {canRegisterNow(event) ? (
@@ -1159,22 +1186,63 @@ export const Events: React.FC = () => {
         /* Rules panel readability improvements */
         .rules-panel {
           position: relative;
-          background: rgba(17, 22, 36, 0.98);
-          border: 1px solid rgba(91, 33, 182, 0.32); /* darker purple tone */
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 6px 18px rgba(0,0,0,0.35);
-          color: #d9d9e3;
-          font-family: Arial, Helvetica, sans-serif; /* Force normal Arial font for rules */
-          z-index: 2; /* above decorative layers */
+          border-radius: 14px;
+          overflow: hidden;
+          padding: 20px 20px 22px 24px;
+          /* subtle translucent glass similar to Apple iOS glass */
+          background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+          border: 1px solid rgba(255,255,255,0.08);
+          box-shadow: 0 14px 40px rgba(2,6,12,0.60), inset 0 1px 0 rgba(255,255,255,0.02);
+          color: #f2f2f7; /* slightly brighter text on translucent glass */
+          font-family: Arial, Helvetica, sans-serif;
+          z-index: 60; /* ensure it's above the page overlay */
           -webkit-overflow-scrolling: touch;
-          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(18px) saturate(150%);
+          backdrop-filter: blur(18px) saturate(150%);
         }
+        /* left vertical glow accent removed from panel to avoid clipped/behind artifacts */
+        .rules-panel-wrap { position: relative; }
+        /* subtle vignette / sheen overlay */
+        .rules-panel::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.46));
+          mix-blend-mode: overlay;
+        }
+          .rule-heading { font-size: 1.02rem; font-weight: 800; color: #fff; text-shadow: 0 6px 22px rgba(180,60,255,0.06), 0 0 8px rgba(90,30,200,0.06); }
+          .rule-subheading { font-size: 0.95rem; color: #d1d5db; font-weight: 700; margin-bottom: 6px; }
+          .rule-text { font-size: 0.98rem; color: #e6e6f0; line-height: 1.6; }
         .rules-panel .rule-line { font-size: 0.95rem; line-height: 1.4rem; color: #e2e8f0; font-family: Arial, Helvetica, sans-serif; }
         .rules-panel .rule-index { color: #ff66e5; font-weight: 700; text-shadow: 0 0 6px rgba(255,0,255,0.35); font-family: Arial, Helvetica, sans-serif; }
-        .rules-panel .rule-text { color: #e6e6f0; font-family: Arial, Helvetica, sans-serif; }
+        
         .rules-panel ul, .rules-panel li { font-family: Arial, Helvetica, sans-serif; }
-        .rules-panel::-webkit-scrollbar { width: 8px; }
-  .rules-panel::-webkit-scrollbar-thumb { background: linear-gradient(180deg, #5b21b6, #0e7490); border-radius: 9999px; }
-        .rules-panel::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); border-radius: 9999px; }
+        /* Glass effect scrollbars for rules modal (Android, desktop, iOS Safari) */
+        .rules-panel::-webkit-scrollbar,
+        .rules-scroll::-webkit-scrollbar {
+          width: 8px;
+          background: transparent;
+        }
+        .rules-panel::-webkit-scrollbar-thumb,
+        .rules-scroll::-webkit-scrollbar-thumb {
+          background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(180,180,255,0.13) 60%, rgba(255,255,255,0.10) 100%);
+          border-radius: 9999px;
+          box-shadow: 0 2px 8px rgba(80,80,120,0.10);
+          border: 1px solid rgba(255,255,255,0.10);
+        }
+        .rules-panel::-webkit-scrollbar-track,
+        .rules-scroll::-webkit-scrollbar-track {
+          background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(80,80,120,0.06) 100%);
+          border-radius: 9999px;
+        }
+        /* Improved mobile scrolling container */
+        .rules-scroll {
+          -webkit-overflow-scrolling: touch; /* momentum on iOS */
+          touch-action: pan-y; /* allow vertical pan */
+          overscroll-behavior: contain; /* avoid chaining to body */
+          max-height: calc(60vh - 8px); /* avoid exact vh quirks on Android */
+        }
 
         /* Glow Text Button (inspired by provided demo) */
         .glow-text-btn {
@@ -1255,6 +1323,18 @@ export const Events: React.FC = () => {
   /* Utility to hide scrollbars */
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .no-scrollbar::-webkit-scrollbar { display: none; }
+  .rules-panel::-webkit-scrollbar, .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+  .rules-panel::-webkit-scrollbar-thumb, .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 9999px; }
+        .rules-close {
+          backdrop-filter: blur(6px) saturate(120%);
+          border: 1px solid rgba(255,255,255,0.06);
+          width: 44px;
+          height: 44px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .rules-close:active { transform: scale(0.98); }
       `}</style>
     </div>
   );

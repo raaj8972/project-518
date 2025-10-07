@@ -103,6 +103,7 @@ export const EventsManagement: React.FC = () => {
     participants: '',
     highlights: [] as string[],
     rules: [] as string[],
+  rules_link: '' as string | null,
     registration_open: true,
     registration_timer_enabled: false as boolean,
   registration_opens_at: '' as string | null,
@@ -267,6 +268,7 @@ export const EventsManagement: React.FC = () => {
       artist_id: undefined,
       watch_live_url: '',
       prefer_video: false,
+      rules_link: '',
     });
     setRulesModeStructured(false);
     setRulesSections([]);
@@ -284,6 +286,7 @@ export const EventsManagement: React.FC = () => {
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       await addEventWithCoordinators({
         ...eventForm,
+        rules_link: eventForm.rules_link || null,
         rules: finalRules,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
@@ -317,6 +320,7 @@ export const EventsManagement: React.FC = () => {
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       await updateEvent(id, {
         ...eventForm,
+        rules_link: eventForm.rules_link || null,
         rules: finalRules,
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
@@ -400,6 +404,7 @@ export const EventsManagement: React.FC = () => {
       artist_id: event.artist_id ?? undefined,
       watch_live_url: (event as any).watch_live_url || '',
       prefer_video: (event as any).prefer_video ?? false,
+      rules_link: (event as any).rules_link || '',
     });
     // Populate structured rules UI state
     if (isStructuredRules((event as any).rules)) {
@@ -1249,6 +1254,17 @@ export const EventsManagement: React.FC = () => {
                       <button type="button" onClick={addSection} className="text-purple-700 hover:text-purple-800 text-xs flex items-center"><Plus size={12} className="mr-1" />Add Section</button>
                     </div>
                   )}
+                  <div className="mt-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rules PDF / Drive link (optional)</label>
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/... or https://...pdf"
+                      value={eventForm.rules_link || ''}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, rules_link: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Add a link to a PDF or Google Drive file for full rules. This will show a View/Share control on the public event card.</p>
+                  </div>
                 </div>
 
                 <ImageUpload

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
 
-type Variant = 'info' | 'success' | 'warning' | 'error' | 'urgent';
+type Variant = 'info' | 'success' | 'warning' | 'error' | 'urgent' | 'custom';
 
 const variantAccent: Record<Variant, { ring: string; glowFrom: string; glowTo: string; label: string }> = {
   info:    { ring: 'ring-cyan-400/60',   glowFrom: 'from-cyan-400/25',    glowTo: 'to-fuchsia-500/20', label: 'text-cyan-300' },
@@ -9,6 +9,7 @@ const variantAccent: Record<Variant, { ring: string; glowFrom: string; glowTo: s
   warning: { ring: 'ring-amber-400/70',  glowFrom: 'from-amber-400/25',   glowTo: 'to-pink-500/20',   label: 'text-amber-300' },
   error:   { ring: 'ring-rose-500/70',   glowFrom: 'from-rose-500/25',    glowTo: 'to-fuchsia-500/20',label: 'text-rose-300' },
   urgent:  { ring: 'ring-fuchsia-500/80',glowFrom: 'from-fuchsia-500/30', glowTo: 'to-rose-500/25',   label: 'text-fuchsia-300' },
+  custom:  { ring: 'ring-violet-400/60',glowFrom: 'from-violet-400/25', glowTo: 'to-indigo-500/20', label: 'text-violet-300' },
 };
 
 // Configure default auto-dismiss per type (ms). Omit or set to 0/undefined to disable.
@@ -39,7 +40,7 @@ export const NotificationsPanel: React.FC = () => {
   const acc = (n: any): Variant => {
     const t = String(n.type || 'info').toLowerCase();
     if (t === 'urgent') return 'urgent';
-    return (['info','success','warning','error'].includes(t) ? (t as Variant) : 'info');
+    return (['info','success','warning','error','custom'].includes(t) ? (t as Variant) : 'info');
   };
 
   // Auto-dismiss timer for info notifications (few seconds), while allowing manual dismiss earlier
@@ -98,7 +99,7 @@ export const NotificationsPanel: React.FC = () => {
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 pt-3">
-            <div className={`text-xs uppercase tracking-wider ${variantAccent[acc(active[0])].label}`}>{(active[0].type || 'info').toString()}</div>
+            <div className={`text-xs uppercase tracking-wider ${variantAccent[acc(active[0])].label} animate-notifLabel`}>{(active[0].type || 'info').toString()}</div>
             <button
               onClick={() => {
                 // Dismiss all visible for this session
@@ -126,6 +127,7 @@ export const NotificationsPanel: React.FC = () => {
                   v === 'success' ? 'rgba(52,211,153,0.8)' :
                   v === 'warning' ? 'rgba(245,158,11,0.85)' :
                   v === 'urgent' ? 'rgba(217,70,239,0.85)' :
+                  v === 'custom' ? 'rgba(124,58,237,0.85)' :
                   'rgba(244,63,94,0.85)'
                 );
                 const glow = glowColor || fallbackGlow;
@@ -136,10 +138,11 @@ export const NotificationsPanel: React.FC = () => {
                     warning: [7, 16, 32],
                     error: [8, 18, 36],
                     urgent: [10, 22, 44],
+                    custom: [6, 14, 30],
                   };
                   const [g1, g2, g3] = glowLevelsByType[v];
                 return (
-                  <div key={n.id} className="relative rounded-lg p-3 bg-white/3" style={{ color: textColor || undefined }}>
+                  <div key={n.id} className="relative rounded-lg p-3 bg-white/3 animate-notifPop" style={{ color: textColor || undefined }}>
                     <div className="flex items-start gap-3">
                       <div className={`mt-0.5 w-2 h-2 rounded-full shadow ${v==='info'?'bg-cyan-400': v==='success'?'bg-emerald-400': v==='warning'?'bg-amber-400': v==='urgent'?'bg-fuchsia-500':'bg-rose-500'}`}/>
                       <div className="flex-1 min-w-0">
@@ -200,6 +203,10 @@ export const NotificationsPanel: React.FC = () => {
         @keyframes sheen { 0% { transform: translateY(-60%); } 100% { transform: translateY(60%); } }
         @keyframes pulseGlow { 0%,100% { opacity: 0.55; } 50% { opacity: 0.9; } }
         @keyframes wordPulse { 0% { opacity: .65; transform: scale(0.985); } 50% { opacity: .92; transform: scale(1.015); } 100% { opacity: .7; transform: scale(0.99); } }
+        @keyframes notifPop { 0% { opacity: 0; transform: scale(0.985); } 60% { opacity: 1; transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); } }
+        .animate-notifPop { animation: notifPop 360ms cubic-bezier(0.2,0.9,0.2,1) both; transform-origin: center; will-change: transform, opacity; }
+        @keyframes notifLabel { 0% { transform: scale(0.96); opacity: 0.6; } 50% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .animate-notifLabel { animation: notifLabel 420ms cubic-bezier(0.2,0.9,0.2,1) both; transform-origin: left center; }
       `}</style>
     </div>
   );
