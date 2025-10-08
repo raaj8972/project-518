@@ -71,7 +71,7 @@ export const Navbar: React.FC = () => {
     e.preventDefault();
     // Close menu immediately for snappy UI, then navigate synchronously
     setIsOpen(false);
-    try { navigate(path); } catch {}
+    try { React.startTransition(() => { navigate(path); }); } catch {}
   };
 
   const navItems = React.useMemo(() => [
