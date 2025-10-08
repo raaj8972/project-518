@@ -1,10 +1,24 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 
 export const ConnectionStatusBanner: React.FC = () => {
-  const { connectionStatus, lastError, refreshAll, showConnectionBanner } = useData();
+  const { connectionStatus, lastError, refreshAll, showConnectionBanner, adminUsers } = useData() as any;
+  const { user } = useAuth();
+
+  // Only show connection health banner to admin/owner users. Hide for public viewers.
+  const isAdminOrOwner = (() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+    } catch {
+      return false;
+    }
+  })();
 
   if (connectionStatus === 'ok' || showConnectionBanner === false) return null;
+  if (!isAdminOrOwner) return null;
 
   const color = connectionStatus === 'offline' ? 'bg-rose-600' : 'bg-amber-500';
   const label = connectionStatus === 'offline' ? 'Offline' : 'Degraded';
