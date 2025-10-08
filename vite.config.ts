@@ -24,6 +24,7 @@ export default defineConfig({
         manualChunks: {
           react: ['react', 'react-dom'],
           router: ['react-router-dom'],
+          lucide: ['lucide-react'],
           supabase: ['@supabase/supabase-js'],
           xlsx: ['xlsx'],
           gsap: ['gsap'],
