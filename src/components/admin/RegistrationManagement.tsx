@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, FileText, Ban } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel, exportRegistrationsByEvent, exportRegistrationsByStatus } from '../../utils/excelExport';
-import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, exportPdf, RegistrationColumnKey } from '../../utils/reportExport';
+import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, RegistrationColumnKey } from '../../utils/reportExport';
+import ExportPdfButton from '../../components/ExportPdfButton';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
 
 // Defensive helper: some old rows may store team_members as JSON string or null
@@ -40,7 +41,7 @@ export const RegistrationManagement: React.FC = () => {
     });
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
-  const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfExporting] = useState(false);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<RegistrationColumnKey[]>(EXPORT_PRESETS.full);
   const [exportPreset, setExportPreset] = useState<string>('full');
@@ -279,32 +280,9 @@ export const RegistrationManagement: React.FC = () => {
     }
   };
 
-  const exportToPdf = async () => {
-    if (pdfExporting || exportingGeneric) return;
-    if (!filteredRegistrations.length) {
-      push({ message: 'No rows to export.', type: 'info' });
-      return;
-    }
-    setPdfExporting(true);
-    try {
-      const colsForPdf = pdfExcludeIdCollege
-        ? selectedColumns.filter(k => k !== 'id' && k !== 'college')
-        : selectedColumns;
-      await exportPdf(
-        filteredRegistrations,
-        colsForPdf,
-        {
-          splitThreshold: splitThreshold || undefined,
-          baseFileName: `registrations-${new Date().toISOString().slice(0,10)}`,
-          photoThumbSize: 20,
-        }
-      );
-      push({ message: 'PDF export complete.', type: 'success' });
-    } catch (err:any) {
-      console.error(err);
-      push({ message: `PDF export failed: ${err?.message || 'unknown error'}`, type: 'error' });
-    } finally { setPdfExporting(false); }
-  };
+  // PDF export now handled by ExportPdfButton which dynamically imports the
+  // heavy PDF libraries when a user triggers export. The previous helper
+  // function was kept for reference but isn't used here anymore.
 
   const handlePresetChange = (preset: string) => {
     setExportPreset(preset);
@@ -396,22 +374,12 @@ export const RegistrationManagement: React.FC = () => {
             ) : <Ban size={16} className="mr-2" />}
             Bulk Reject
           </button>
-          <button
-            onClick={exportToPdf}
-            disabled={pdfExporting}
+          <ExportPdfButton
+            rows={filteredRegistrations}
+            columns={selectedColumns}
+            filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
             className={`flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-purple-500'}`}
-          >
-            {pdfExporting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Generating…
-              </>
-            ) : (
-              <>
-                <FileText size={16} className="mr-2" /> PDF Export
-              </>
-            )}
-          </button>
+          />
           <button
             onClick={doExcel}
             disabled={exportingGeneric}

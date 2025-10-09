@@ -123,7 +123,7 @@ interface DataContextType {
   updateEventWinner?: (id: number, patch: Partial<any>) => Promise<void>;
   deleteEventWinner?: (id: number) => Promise<void>;
   // Notifications
-  notifications: Array<{ id: number; title: string | null; message: string; type: string; link_url: string | null; visible: boolean; starts_at: string; ends_at: string | null; priority: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null; created_at: string }>;
+  notifications: Array<{ id: number; title: string | null; message: string; type: string; link_url: string | null; visible: boolean; starts_at: string; ends_at: string | null; priority: number; admin_only?: boolean; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null; created_at: string }>;
   addNotification?: (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => Promise<void>;
   updateNotification?: (id: number, patch: Partial<any>) => Promise<void>;
   deleteNotification?: (id: number) => Promise<void>;
@@ -2609,7 +2609,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   // Notifications CRUD (owner/admin only; optional table)
-  const addNotification = async (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => {
+  const addNotification = async (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; admin_only?: boolean; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => {
     const payload = {
       title: n.title ?? null,
       message: n.message,
@@ -2619,6 +2619,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       starts_at: n.starts_at ?? new Date().toISOString(),
       ends_at: n.ends_at ?? null,
       priority: typeof n.priority === 'number' ? n.priority : 0,
+      admin_only: !!(n as any).admin_only,
       auto_dismiss_seconds: (typeof n.auto_dismiss_seconds === 'number' ? n.auto_dismiss_seconds : null) as number | null,
       text_color: n.text_color ?? null,
       glow_color: n.glow_color ?? null,
@@ -2630,13 +2631,26 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         console.warn('notifications table likely missing; cannot add');
         return;
       }
+      // If admin_only column doesn't exist yet, try again without it
+      if (String((error as any)?.message || '').toLowerCase().includes('column') && String((error as any)?.message || '').toLowerCase().includes('admin_only')) {
+        try {
+          const fallback = { ...payload };
+          delete fallback.admin_only;
+          const { error: e2 } = await supabase.from('notifications').insert(fallback);
+          if (e2) throw e2;
+          await fetchData(true);
+          return;
+        } catch (e) {
+          // fall through to throw below
+        }
+      }
       throw error;
     }
     await fetchData(true);
   };
 
   const updateNotification = async (id: number, patch: Partial<any>) => {
-  const allowed = new Set(['title','message','type','link_url','visible','starts_at','ends_at','priority','auto_dismiss_seconds','text_color','glow_color']);
+  const allowed = new Set(['title','message','type','link_url','visible','starts_at','ends_at','priority','admin_only','auto_dismiss_seconds','text_color','glow_color']);
     const sanitized = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.has(k)));
     const { error } = await supabase.from('notifications').update(sanitized).eq('id', id);
     if (error) {
@@ -2644,6 +2658,12 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       if (lower.includes('relation') && lower.includes('does not exist')) {
         console.warn('notifications table likely missing; cannot update');
         return;
+      }
+      // If admin_only column missing, retry without it
+      if (lower.includes('column') && lower.includes('admin_only')) {
+        const { admin_only, ...rest } = sanitized as any;
+        const { error: e2 } = await supabase.from('notifications').update(rest).eq('id', id);
+        if (!e2) { await fetchData(true); return; }
       }
       throw error;
     }
@@ -2667,17 +2687,44 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   const refreshNotifications = React.useCallback(async () => {
     try {
       const nowIso = new Date().toISOString();
-      const { data, error } = await supabase
-        .from('notifications' as any)
-        .select('*')
-        .eq('visible', true)
-        .lte('starts_at', nowIso)
-        .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false });
-      if (!error && Array.isArray(data)) setNotifications(data);
+      // Determine if current user is admin so we can include admin_only notifications
+      let isAdminUser = false;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id;
+        if (uid && Array.isArray(adminUsers)) {
+          isAdminUser = !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+        }
+      } catch {}
+
+      // Build base query
+      let query: any = supabase.from('notifications' as any).select('*').eq('visible', true).lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gt.${nowIso}`).order('priority', { ascending: false }).order('created_at', { ascending: false });
+
+      if (!isAdminUser) {
+        // Only fetch public notifications for non-admins. If column missing, fallback to querying without this filter.
+        try {
+          const { data, error } = await query.eq('admin_only', false);
+          if (!error && Array.isArray(data)) { setNotifications(data); return; }
+          if (error) throw error;
+        } catch (e: any) {
+          const lower = String((e as any)?.message || '').toLowerCase();
+          if (lower.includes('column') && lower.includes('admin_only')) {
+            // Column absent; fall back to querying all visible notifications
+            try {
+              const { data: d2, error: e2 } = await supabase.from('notifications' as any).select('*').eq('visible', true).lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gt.${nowIso}`).order('priority', { ascending: false }).order('created_at', { ascending: false });
+              if (!e2 && Array.isArray(d2)) setNotifications(d2);
+            } catch {}
+          }
+        }
+      } else {
+        // Admin: fetch all visible notifications including admin_only
+        try {
+          const { data, error } = await query;
+          if (!error && Array.isArray(data)) setNotifications(data);
+        } catch {}
+      }
     } catch {}
-  }, []);
+  }, [adminUsers]);
 
   // Realtime subscription for notifications so viewers see updates instantly
   React.useEffect(() => {

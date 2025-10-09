@@ -10,7 +10,9 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   // Single subscription to DataContext to avoid multiple context subscribers
-  const { homepageSettings, prefetchEvents, prefetchGalleryImages } = useData();
+  const { homepageSettings, prefetchEvents, prefetchGalleryImages, adminUsers } = useData() as any;
+  // Lightweight auth check (we avoid importing useAuth here to keep navbar lean)
+  const currentUserId = (window as any).__RICORRENZA_USER_ID || null;
 
   // Compute responsive offsets with fallback to base values
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -74,16 +76,27 @@ export const Navbar: React.FC = () => {
     try { React.startTransition(() => { navigate(path); }); } catch {}
   };
 
-  const navItems = React.useMemo(() => [
-    { name: 'Home', path: '/', icon: null },
-    { name: 'Events', path: '/events', icon: Calendar, onHover: prefetchEvents },
-    { name: 'Schedule', path: '/schedule', icon: Clock },
-    { name: 'Gallery', path: '/gallery', icon: Image, onHover: prefetchGalleryImages },
-    { name: 'Home Bound', path: '/home-bound', icon: Users },
-    { name: 'Rico Family', path: '/rico-family', icon: Users },
-    { name: 'Sponsors', path: '/sponsors', icon: Users },
-    { name: 'Login', path: '/login', icon: LogIn },
-  ], [prefetchEvents, prefetchGalleryImages]);
+  const navItems = React.useMemo(() => {
+    const base = [
+      { name: 'Home', path: '/', icon: null },
+      { name: 'Events', path: '/events', icon: Calendar, onHover: prefetchEvents },
+      { name: 'Schedule', path: '/schedule', icon: Clock },
+      { name: 'Gallery', path: '/gallery', icon: Image, onHover: prefetchGalleryImages },
+      { name: 'Home Bound', path: '/home-bound', icon: Users },
+      { name: 'Rico Family', path: '/rico-family', icon: Users },
+      { name: 'Sponsors', path: '/sponsors', icon: Users },
+      { name: 'Login', path: '/login', icon: LogIn },
+    ];
+
+    // If current user appears in adminUsers, add Admin link that prefetches admin chunk on hover
+    try {
+      const uid = currentUserId || (window as any).__RICORRENZA_USER_ID || null;
+      const isAdmin = uid && Array.isArray(adminUsers) && !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+      if (isAdmin) base.splice(base.length - 1, 0, { name: 'Admin', path: '/admin', icon: Users, onHover: () => import('../pages/AdminDashboard').catch(() => {}) });
+    } catch {}
+
+    return base;
+  }, [prefetchEvents, prefetchGalleryImages, adminUsers]);
 
   const isActive = (path: string) => location.pathname === path;
 

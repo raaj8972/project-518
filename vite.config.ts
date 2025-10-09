@@ -21,15 +21,31 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        manualChunks: {
-          react: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          lucide: ['lucide-react'],
-          supabase: ['@supabase/supabase-js'],
-          xlsx: ['xlsx'],
-          gsap: ['gsap'],
-          purify: ['dompurify'],
-          pdf: ['jspdf', 'jspdf-autotable', 'html2canvas']
+        // Use a function so we can place large/rarely-used libraries into
+        // separate chunks and keep admin pages out of the main bundle.
+        manualChunks(id: string) {
+          if (!id) return undefined;
+          // Group node_modules into focused vendor chunks where possible
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+            if (id.includes('react-router-dom')) return 'vendor-router';
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('@supabase') || id.includes('supabase')) return 'vendor-supabase';
+            if (id.includes('xlsx')) return 'vendor-xlsx';
+            if (id.includes('gsap')) return 'vendor-gsap';
+            if (id.includes('dompurify')) return 'vendor-purify';
+            if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('jspdf-autotable')) return 'vendor-pdf';
+            // Fallback vendor chunk for other node_modules
+            return 'vendor';
+          }
+
+          // Place admin-only pages in their own chunk to avoid shipping them
+          // to anonymous visitors on first load.
+          if (id.includes('/src/pages/AdminDashboard') || id.includes('/src/pages/admin') || id.includes('/src/pages/Admin')) {
+            return 'admin';
+          }
+
+          return undefined;
         }
       }
     }

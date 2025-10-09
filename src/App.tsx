@@ -6,6 +6,7 @@ import { Home } from './pages/Home'; // keep Home eager for fast first paint
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { useData } from './context/DataContext';
+import { useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
@@ -45,6 +46,43 @@ class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { 
 // Capture non-React errors (e.g., unhandled rejections) to avoid silent blank screen
 const GlobalErrorBanner: React.FC = () => {
   const [msg, setMsg] = React.useState<string | null>(null);
+  const { adminUsers } = useData() as any;
+  const { user } = useAuth();
+
+  // Only show global runtime error banner to admin/owner users
+  const isAdminOrOwner = React.useMemo(() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+    } catch {
+      return false;
+    }
+  }, [user, adminUsers]);
+
+  // Prefetch admin chunk in the background for admin users to make the
+  // admin dashboard feel snappy when they navigate there. We do this on
+  // idle and avoid prefetching on save-data or very slow connections.
+  React.useEffect(() => {
+    if (!isAdminOrOwner) return;
+    try {
+      const conn = (navigator as any).connection;
+      if (conn && (conn.saveData || /2g/.test(conn.effectiveType || ''))) return; // avoid heavy background download
+    } catch {}
+
+    const doPrefetch = () => {
+      // dynamic import of the admin page will warm the admin chunk
+      import('./pages/AdminDashboard').catch(() => { /* ignore prefetch errors */ });
+    };
+
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      const id = (window as any).requestIdleCallback(() => doPrefetch(), { timeout: 2000 });
+      return () => (window as any).cancelIdleCallback?.(id);
+    }
+    const t = setTimeout(doPrefetch, 1500);
+    return () => clearTimeout(t);
+  }, [isAdminOrOwner]);
+
   React.useEffect(() => {
     const onErr = (e: ErrorEvent) => {
       setMsg(e.message || 'A runtime error occurred. Check console.');
@@ -62,7 +100,10 @@ const GlobalErrorBanner: React.FC = () => {
       window.removeEventListener('unhandledrejection', onRej);
     };
   }, []);
+
   if (!msg) return null;
+  if (!isAdminOrOwner) return null;
+
   return (
     <div className="fixed top-0 inset-x-0 z-[10000] bg-rose-600/95 backdrop-blur text-white text-sm px-4 py-2 shadow">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -81,6 +122,7 @@ function App() {
     const isLoginRoute = location.pathname === '/login';
     const isHealthRoute = location.pathname === '/health';
     const { siteSettings, loading } = useData();
+  // adminUsers and user are not needed here after notification gating logic changed
     // Controlled splash: keep the splash visible at least MIN_SPLASH_MS and fade out
     // over FADE_MS when loading becomes false. This prevents an abrupt switch to
     // the Home UI when the data layer finishes very quickly.
@@ -142,7 +184,7 @@ function App() {
             <ComingSoon />
           ) : (
             <>
-              {/* Public notifications panel (viewer-facing) */}
+              {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
               {!isAdminRoute && <NotificationsPanel />}
               {/* Hide public site chrome on admin pages to avoid overlap */}
                   {!isAdminRoute && <div className="relative z-50"><Navbar /></div>}
