@@ -13,6 +13,8 @@ export const SiteSettingsPanel: React.FC = () => {
     coming_soon_message: '',
     coming_soon_ended_text: '',
     events_poster_fit: 'contain' as 'contain' | 'cover',
+    // Small convenience: allow editing the homepage hero title from Site Settings
+    homepage_hero_title: '',
   });
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
@@ -27,6 +29,7 @@ export const SiteSettingsPanel: React.FC = () => {
       coming_soon_message: siteSettings.coming_soon_message || '',
       coming_soon_ended_text: (siteSettings as any).coming_soon_ended_text || '',
       events_poster_fit: ((siteSettings as any).events_poster_fit === 'cover' ? 'cover' : 'contain'),
+      homepage_hero_title: (siteSettings as any)?.homepage_hero_title || '',
     });
   }, [siteSettings]);
 
@@ -41,6 +44,8 @@ export const SiteSettingsPanel: React.FC = () => {
         coming_soon_message: local.coming_soon_message || null,
         coming_soon_ended_text: local.coming_soon_ended_text || null,
         events_poster_fit: local.events_poster_fit,
+        // optional homepage hero title (stored in site_settings)
+        homepage_hero_title: local.homepage_hero_title || null,
       } as any);
       setSavedAt(Date.now());
     } finally {
@@ -83,6 +88,16 @@ export const SiteSettingsPanel: React.FC = () => {
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 placeholder="Coming Soon"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Homepage Hero Title</label>
+              <input
+                value={local.homepage_hero_title}
+                onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value }))}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                placeholder="RICORRENZA"
+              />
+              <p className="text-xs text-gray-500 mt-1">Quick shortcut to edit the homepage hero title (also available in Homepage management).</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>

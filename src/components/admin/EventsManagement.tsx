@@ -75,6 +75,7 @@ export const EventsManagement: React.FC = () => {
   const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   // Draft coordinators when creating a brand new event (before it has an id)
   const [draftCoordinators, setDraftCoordinators] = useState<Array<{ name: string; phone?: string | null }>>([]);
+  const [newEventParticipantType, setNewEventParticipantType] = useState('');
   const [autoOpenEnabled, setAutoOpenEnabled] = useState<boolean>(() => {
     try { return (localStorage.getItem('admin_auto_open_enabled') === 'true'); } catch { return false; }
   });
@@ -109,6 +110,10 @@ export const EventsManagement: React.FC = () => {
   registration_opens_at: '' as string | null,
   registration_photo_required: false as boolean,
   registration_photo_label: '' as string | null,
+    registration_form_fields: [] as any[],
+  registration_participant_types: [] as string[],
+    // registration_default_mode: 'individual' | 'team' — owner can set default per event
+    registration_default_mode: 'individual' as 'individual' | 'team',
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
@@ -264,6 +269,9 @@ export const EventsManagement: React.FC = () => {
   registration_opens_at: '',
   registration_photo_required: false,
     registration_photo_label: '',
+  registration_form_fields: [],
+  registration_participant_types: [],
+      registration_default_mode: 'individual',
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -281,7 +289,6 @@ export const EventsManagement: React.FC = () => {
       alert('Please fill in all required fields (title, description, and image)');
       return;
     }
-    
     try {
       setSavingAdd(true);
       // Insert event and any drafted coordinators in one go
@@ -295,7 +302,9 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-        current_registrations: 0
+    current_registrations: 0,
+    registration_participant_types: eventForm.registration_participant_types || undefined,
+    registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
       } as any, draftCoordinators);
       setIsAddingEvent(false);
       resetEventForm();
@@ -328,6 +337,8 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
+        registration_participant_types: (eventForm as any).registration_participant_types || null,
+        registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
       } as any);
       steps.next('Finalizing');
       setEditingEvent(null);
@@ -401,6 +412,9 @@ export const EventsManagement: React.FC = () => {
   registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
   registration_photo_required: (event as any).registration_photo_required ?? false,
     registration_photo_label: (event as any).registration_photo_label || '',
+      registration_form_fields: (event as any).registration_form_fields || [],
+  registration_participant_types: (event as any).registration_participant_types || [],
+      registration_default_mode: (event as any).registration_default_mode || 'individual',
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
@@ -499,6 +513,31 @@ export const EventsManagement: React.FC = () => {
       ...prev,
       highlights: [...prev.highlights, '']
     }));
+  };
+
+  const addEventParticipantType = () => {
+    const t = (newEventParticipantType || '').trim();
+    if (!t) return;
+    setEventForm(prev => ({ ...prev, registration_participant_types: [...(prev.registration_participant_types || []), t] } as any));
+    setNewEventParticipantType('');
+  };
+
+  const removeEventParticipantType = (idx: number) => {
+    setEventForm(prev => {
+      const list = (prev.registration_participant_types || []).slice();
+      list.splice(idx, 1);
+      return { ...prev, registration_participant_types: list } as any;
+    });
+  };
+
+  const moveEventParticipantType = (from: number, to: number) => {
+    setEventForm(prev => {
+      const list = (prev.registration_participant_types || []).slice();
+      if (to < 0 || to >= list.length) return prev;
+      const item = list.splice(from, 1)[0];
+      list.splice(to, 0, item);
+      return { ...prev, registration_participant_types: list } as any;
+    });
   };
 
   const updateHighlight = (index: number, value: string) => {
@@ -941,6 +980,35 @@ export const EventsManagement: React.FC = () => {
                   />
                   Visible to Public
                 </label>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
+                  <label className="flex items-center text-sm">
+                    <input type="radio" name="registration_default_mode" className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
+                  </label>
+                  <label className="flex items-center text-sm">
+                    <input type="radio" name="registration_default_mode" className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
+                  </label>
+                </div>
+              </div>
+              {/* Per-event participant types editor */}
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Participant Types (per-event)</label>
+                <div className="space-y-2">
+                  {(eventForm.registration_participant_types || []).map((t: string, i: number) => (
+                    <div key={i} className="flex items-center justify-between p-2 border rounded">
+                      <div className="flex items-center gap-2"><span className="text-sm">{t}</span></div>
+                      <div className="flex items-center gap-2">
+                        <button disabled={i === 0} onClick={() => moveEventParticipantType(i, i - 1)} className="px-2 py-1 border rounded text-sm">↑</button>
+                        <button disabled={i === ((eventForm.registration_participant_types || []).length - 1)} onClick={() => moveEventParticipantType(i, i + 1)} className="px-2 py-1 border rounded text-sm">↓</button>
+                        <button onClick={() => removeEventParticipantType(i)} className="text-red-600">Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-2 flex gap-2">
+                    <input value={newEventParticipantType} onChange={(e) => setNewEventParticipantType(e.target.value)} placeholder="New participant type" className="border rounded p-2 flex-1" />
+                    <button onClick={addEventParticipantType} className="px-3 py-2 bg-green-600 text-white rounded">Add</button>
+                  </div>
+                </div>
               </div>
               {/* Registration Photo Label (optional) */}
               <div className="mt-3">
@@ -954,6 +1022,73 @@ export const EventsManagement: React.FC = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown to users on the registration form. Leave blank to use default.</p>
               </div>
+                {/* Per-event registration form fields editor */}
+                <div className="mt-4 p-3 border rounded bg-gray-50">
+                  <h4 className="font-medium mb-2">Registration Form Fields (per-event overrides)</h4>
+                  <p className="text-sm text-gray-500 mb-2">Order, show/hide and require fields for this event. New fields added here are stored on the event and override site defaults.</p>
+                  <div>
+                    <ul className="space-y-2">
+                      {(eventForm.registration_form_fields || []).map((f: any, idx: number) => (
+                        <li key={f.key || idx} draggable onDragStart={() => setDragIndex(idx)} onDragOver={(e) => {
+                          e.preventDefault();
+                          if (dragIndex === null || dragIndex === idx) return;
+                          setEventForm(prev => {
+                            const arr = [...(prev.registration_form_fields || [])];
+                            const [item] = arr.splice(dragIndex, 1);
+                            arr.splice(idx, 0, item);
+                            return { ...prev, registration_form_fields: arr } as any;
+                          });
+                          setDragIndex(idx);
+                        }} className="flex items-center justify-between p-2 bg-white border rounded">
+                          <div>
+                            <div className="font-medium">{f.label || f.key}</div>
+                            <div className="text-sm text-slate-500">{f.type}{f.type === 'select' && f.options ? ` — options: ${Array.isArray(f.options) ? f.options.join(', ') : String(f.options)}` : ''}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" checked={!!f.visible} onChange={() => setEventForm(prev => {
+                                const arr = (prev.registration_form_fields || []).slice(); arr[idx] = { ...arr[idx], visible: !arr[idx].visible }; return { ...prev, registration_form_fields: arr } as any;
+                              })} />
+                              <span>Show</span>
+                            </label>
+                            <label className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" checked={!!f.required} onChange={() => setEventForm(prev => {
+                                const arr = (prev.registration_form_fields || []).slice(); arr[idx] = { ...arr[idx], required: !arr[idx].required }; return { ...prev, registration_form_fields: arr } as any;
+                              })} />
+                              <span>Required</span>
+                            </label>
+                            <button onClick={() => setEventForm(prev => ({ ...prev, registration_form_fields: (prev.registration_form_fields || []).filter((_, j) => j !== idx) } as any))} className="text-red-600 text-sm">Delete</button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <input className="border rounded p-2" placeholder="key (lowercase_snake)" value={(eventForm as any).new_field_key || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_key: e.target.value } as any))} />
+                      <input className="border rounded p-2" placeholder="Label" value={(eventForm as any).new_field_label || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_label: e.target.value } as any))} />
+                      <select className="border rounded p-2" value={(eventForm as any).new_field_type || 'text'} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_type: e.target.value } as any))}>
+                        <option value="text">text</option>
+                        <option value="email">email</option>
+                        <option value="tel">tel</option>
+                        <option value="date">date</option>
+                        <option value="select">select (comma-separated options)</option>
+                        <option value="photo">photo</option>
+                      </select>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input className="border rounded p-2 flex-1" placeholder="Options (comma separated) — only for select" value={(eventForm as any).new_field_options || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_options: e.target.value } as any))} />
+                      <button onClick={() => {
+                        const key = String((eventForm as any).new_field_key || '').trim();
+                        const label = String((eventForm as any).new_field_label || '').trim();
+                        const type = String((eventForm as any).new_field_type || 'text');
+                        if (!key || !/^[a-z0-9_]+$/.test(key)) { alert('Field key required (lowercase, numbers, underscore)'); return; }
+                        if (!label) { alert('Field label required'); return; }
+                        const opts = String((eventForm as any).new_field_options || '').split(',').map(s => s.trim()).filter(Boolean);
+                        setEventForm(prev => ({ ...prev, registration_form_fields: [...(prev.registration_form_fields || []), { key, label, type, visible: true, required: false, options: opts.length ? opts : undefined }], new_field_key: '', new_field_label: '', new_field_type: 'text', new_field_options: '' } as any));
+                      }} className="px-3 py-2 bg-green-600 text-white rounded">Add Field</button>
+                    </div>
+                  </div>
+                </div>
               {eventForm.registration_timer_enabled && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At (optional)</label>
@@ -1176,6 +1311,26 @@ export const EventsManagement: React.FC = () => {
                     className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   />
                 </div>
+                {/* Per-event participant types editor (edit mode) */}
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Participant Types (per-event)</label>
+                  <div className="space-y-2">
+                    {(eventForm.registration_participant_types || []).map((t: string, i: number) => (
+                      <div key={i} className="flex items-center justify-between p-2 border rounded">
+                        <div className="text-sm">{t}</div>
+                        <div className="flex items-center gap-2">
+                          <button disabled={i === 0} onClick={() => moveEventParticipantType(i, i - 1)} className="px-2 py-1 border rounded text-sm">↑</button>
+                          <button disabled={i === ((eventForm.registration_participant_types || []).length - 1)} onClick={() => moveEventParticipantType(i, i + 1)} className="px-2 py-1 border rounded text-sm">↓</button>
+                          <button onClick={() => removeEventParticipantType(i)} className="text-red-600">Remove</button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-2 flex gap-2">
+                      <input value={newEventParticipantType} onChange={(e) => setNewEventParticipantType(e.target.value)} placeholder="New participant type" className="border rounded p-2 flex-1" />
+                      <button onClick={addEventParticipantType} className="px-3 py-2 bg-green-600 text-white rounded">Add</button>
+                    </div>
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={eventForm.venue}
@@ -1369,6 +1524,15 @@ export const EventsManagement: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
+                  <div className="flex items-center gap-4 mr-auto">
+                    <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
+                    <label className="flex items-center text-sm">
+                      <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
+                    </label>
+                    <label className="flex items-center text-sm">
+                      <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
+                    </label>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -1454,6 +1618,10 @@ export const EventsManagement: React.FC = () => {
                     );
                   })()}
                   <div className="absolute top-2 right-2 flex space-x-1">
+                    {/* Registration mode badge */}
+                    <div className="bg-gray-900/70 text-xs text-white px-2 py-1 rounded mr-1 flex items-center" title={`Default registration mode: ${(event as any).registration_default_mode || 'individual'}`}>
+                      {(event as any).registration_default_mode === 'team' ? 'Mode: Team' : 'Mode: Individual'}
+                    </div>
                     {event.featured && (
                       <span className="bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-medium">
                         <Star size={12} className="inline mr-1" />

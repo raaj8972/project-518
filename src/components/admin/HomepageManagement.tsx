@@ -21,6 +21,236 @@ export const HomepageManagement: React.FC = () => {
   const [savingPage, setSavingPage] = useState(false);
   // Removed dev-only preview breakpoint state and window width tracking
   const savingProgress = useSavingProgress();
+
+  type SponsorLogo = {
+    id: string;
+    name: string;
+    logo_url: string;
+    website?: string;
+    enabled: boolean;
+    order: number;
+  };
+  
+  type FormState = {
+    hero_media_url: string;
+    hero_media_type: 'image' | 'video';
+    hero_title: string;
+    hero_subtitle: string;
+    hero_description: string;
+    brand_logo_url?: string;
+    brand_year?: number | '';
+    brand_logo_size_px?: number | '';
+    brand_logo_glow_strength?: number | '';
+    brand_logo_glow_color?: string;
+    brand_logo_side?: 'left' | 'right';
+    brand_logo_offset_x_px?: number | '';
+    brand_logo_offset_y_px?: number | '';
+    // Optional responsive overrides
+    brand_logo_offset_x_sm_px?: number | '';
+    brand_logo_offset_y_sm_px?: number | '';
+    brand_logo_offset_x_md_px?: number | '';
+    brand_logo_offset_y_md_px?: number | '';
+    brand_logo_offset_x_lg_px?: number | '';
+    brand_logo_offset_y_lg_px?: number | '';
+    sponsor_logos: SponsorLogo[];
+    sponsor_section_enabled: boolean;
+    sponsor_section_text: string;
+    sponsor_section_title?: string;
+    sponsor_section_subtitle?: string;
+    featured_partners_enabled: boolean;
+    show_faculty_heads: boolean;
+    show_committee_heads: boolean;
+    leadership_carousel_speed_ms: number | '';
+    sponsors_belt_speed_px_per_sec: number | '';
+    committee_marquee_speed_px_per_sec: number | '';
+    sponsors_belt_direction: 'left' | 'right';
+    committee_marquee_direction: 'left' | 'right';
+  };
+  
+  const [form, setForm] = useLocalStorage<FormState>('admin_homepage_form_draft', {
+    hero_media_url: homepageSettings?.hero_media_url || '',
+    hero_media_type: homepageSettings?.hero_media_type || 'image' as 'image' | 'video',
+    hero_title: homepageSettings?.hero_title || 'RICORRENZA',
+    hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
+    hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
+    brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
+    brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
+    brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
+    brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
+    brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
+    brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
+    brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
+    brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
+    brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
+    brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
+    brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
+    brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
+    brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
+    brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
+    sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
+    sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
+    sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
+    sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
+    sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
+    featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
+    show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
+    show_committee_heads: homepageSettings?.show_committee_heads ?? true,
+    leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
+    sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
+    committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
+    sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
+    committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
+  });
+
+  const handleMediaSelect = (url: string) => {
+    setForm(prev => ({ ...prev, hero_media_url: url }));
+    setMessage({ type: 'success', text: 'Background media selected. Click Save Changes to apply.' });
+    setTimeout(() => setMessage(null), 2000);
+  };
+
+  const handleRemoveLogoBg = async (logoId: string) => {
+    const logo = form.sponsor_logos.find(l => l.id === logoId);
+    if (!logo?.logo_url) return;
+    try {
+      setBgRemoveBusyId(logoId);
+      const res = await fetch(logo.logo_url, { mode: 'cors' });
+      const blob = await res.blob();
+      const cleaned = await removeBlackBackground(blob, 28);
+      const url = await uploadCleanLogo(cleaned);
+      setForm(prev => ({ ...prev, sponsor_logos: prev.sponsor_logos.map(l => l.id === logoId ? { ...l, logo_url: url } : l) }));
+      setMessage({ type: 'success', text: 'Background removed — saved to draft. Click Save Changes to apply.' });
+      setTimeout(() => setMessage(null), 2500);
+    } catch (e) {
+      console.error('Remove background failed', e);
+      alert('Unable to remove background. Please ensure CORS allows fetching this image, or upload a transparent PNG.');
+    } finally {
+      setBgRemoveBusyId(null);
+    }
+  };
+
+  const handleCancel = () => {
+    setForm({
+      hero_media_url: homepageSettings?.hero_media_url || '',
+      hero_media_type: homepageSettings?.hero_media_type || 'image',
+      hero_title: homepageSettings?.hero_title || 'RICORRENZA',
+      hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
+      hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
+      brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
+      brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
+      brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
+      brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
+      brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
+      brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
+      brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
+      brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
+      brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
+      brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
+      brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
+      brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
+      brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
+      brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
+      sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
+      sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
+      sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
+      sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
+      sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
+      featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
+      show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
+      show_committee_heads: homepageSettings?.show_committee_heads ?? true,
+      leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
+      sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
+      committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
+      sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
+      committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
+    });
+    try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
+    setIsEditing(false);
+    setMessage(null);
+  };
+
+  const handleSave = async () => {
+    try {
+      if (savingPage || savingBranding) return;
+      setSavingPage(true);
+      const steps = savingProgress.withSteps(4, 'Preparing…');
+      steps.next('Validating');
+      const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
+      const payload = {
+        hero_media_url: (form.hero_media_url || '').trim() || null,
+        hero_media_type: (form.hero_media_type === 'video' ? 'video' : 'image') as 'image' | 'video',
+        hero_title: (form.hero_title || 'RICORRENZA').toString(),
+        hero_subtitle: (form.hero_subtitle || 'Experience the Future').toString(),
+        hero_description: (form.hero_description || 'Experience the future of Healthcare, Technology, and Creativity').toString(),
+        sponsor_logos: Array.isArray(form.sponsor_logos)
+          ? form.sponsor_logos.map((L, i) => ({
+              id: L.id,
+              name: L.name,
+              logo_url: L.logo_url,
+              website: L.website || undefined,
+              enabled: !!L.enabled,
+              order: typeof L.order === 'number' && !isNaN(L.order) ? L.order : i + 1,
+            }))
+          : [],
+        sponsor_section_enabled: !!form.sponsor_section_enabled,
+        sponsor_section_text: (form.sponsor_section_text || 'Powered by').toString(),
+        sponsor_section_title: (form as any).sponsor_section_title || 'OUR PARTNERS',
+        sponsor_section_subtitle: (form as any).sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
+        featured_partners_enabled: !!form.featured_partners_enabled,
+        show_faculty_heads: !!form.show_faculty_heads,
+        show_committee_heads: !!form.show_committee_heads,
+        brand_logo_url: (form as any).brand_logo_url || null,
+        brand_year: typeof (form as any).brand_year === 'number' && !isNaN((form as any).brand_year)
+          ? (form as any).brand_year
+          : new Date().getFullYear(),
+        brand_logo_size_px: typeof (form as any).brand_logo_size_px === 'number' && !isNaN((form as any).brand_logo_size_px)
+          ? Math.min(256, Math.max(16, (form as any).brand_logo_size_px))
+          : 36,
+        brand_logo_glow_strength: typeof (form as any).brand_logo_glow_strength === 'number' && !isNaN((form as any).brand_logo_glow_strength)
+          ? Math.min(2, Math.max(0, (form as any).brand_logo_glow_strength))
+          : 1,
+        brand_logo_glow_color: ((form as any).brand_logo_glow_color || '').toString().trim() || '#ff00ff',
+        brand_logo_side: ((form as any).brand_logo_side === 'right' ? 'right' : 'left') as any,
+        brand_logo_offset_x_px: typeof (form as any).brand_logo_offset_x_px === 'number' && !isNaN((form as any).brand_logo_offset_x_px)
+          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_x_px))
+          : 0,
+        brand_logo_offset_y_px: typeof (form as any).brand_logo_offset_y_px === 'number' && !isNaN((form as any).brand_logo_offset_y_px)
+          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_y_px))
+          : 0,
+        brand_logo_offset_x_sm_px: (typeof (form as any).brand_logo_offset_x_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_x_sm_px)) ? clamp((form as any).brand_logo_offset_x_sm_px, -400, 400) : null,
+        brand_logo_offset_y_sm_px: (typeof (form as any).brand_logo_offset_y_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_y_sm_px)) ? clamp((form as any).brand_logo_offset_y_sm_px, -400, 400) : null,
+        brand_logo_offset_x_md_px: (typeof (form as any).brand_logo_offset_x_md_px === 'number' && !isNaN((form as any).brand_logo_offset_x_md_px)) ? clamp((form as any).brand_logo_offset_x_md_px, -400, 400) : null,
+        brand_logo_offset_y_md_px: (typeof (form as any).brand_logo_offset_y_md_px === 'number' && !isNaN((form as any).brand_logo_offset_y_md_px)) ? clamp((form as any).brand_logo_offset_y_md_px, -400, 400) : null,
+        brand_logo_offset_x_lg_px: (typeof (form as any).brand_logo_offset_x_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_x_lg_px)) ? clamp((form as any).brand_logo_offset_x_lg_px, -400, 400) : null,
+        brand_logo_offset_y_lg_px: (typeof (form as any).brand_logo_offset_y_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_y_lg_px)) ? clamp((form as any).brand_logo_offset_y_lg_px, -400, 400) : null,
+        leadership_carousel_speed_ms: typeof form.leadership_carousel_speed_ms === 'number' && !isNaN(form.leadership_carousel_speed_ms)
+          ? Math.max(1000, form.leadership_carousel_speed_ms)
+          : 2500,
+        sponsors_belt_speed_px_per_sec: typeof form.sponsors_belt_speed_px_per_sec === 'number' && !isNaN(form.sponsors_belt_speed_px_per_sec)
+          ? Math.min(800, Math.max(1, form.sponsors_belt_speed_px_per_sec))
+          : 140,
+        committee_marquee_speed_px_per_sec: typeof form.committee_marquee_speed_px_per_sec === 'number' && !isNaN(form.committee_marquee_speed_px_per_sec)
+          ? Math.min(800, Math.max(1, form.committee_marquee_speed_px_per_sec))
+          : 75,
+        sponsors_belt_direction: (form.sponsors_belt_direction === 'right' ? 'right' : 'left') as 'left' | 'right',
+        committee_marquee_direction: (form.committee_marquee_direction === 'left' ? 'left' : 'right') as 'left' | 'right',
+      } as const;
+      steps.next('Saving to database');
+      await updateHomepageSettings(payload as any);
+      setForm(payload as unknown as FormState);
+      setIsEditing(false);
+      setMessage({ type: 'success', text: 'Homepage settings updated successfully!' });
+      try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
+      setTimeout(() => setMessage(null), 5000);
+    } catch (error) {
+      console.error('Error updating homepage settings:', error);
+      const errText = (error as any)?.message || 'Failed to update homepage settings. Please try again.';
+      setMessage({ type: 'error', text: errText });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setSavingPage(false);
+      savingProgress.done();
+    }
+  };
   
   // Normalize potentially problematic image/asset URLs so they render in admin previews
   const sanitizeUrl = (u: string | null | undefined): string => {
@@ -42,86 +272,6 @@ export const HomepageManagement: React.FC = () => {
     } catch {}
     return s;
   };
-
-  type SponsorLogo = {
-    id: string;
-    name: string;
-    logo_url: string;
-    website?: string;
-    enabled: boolean;
-    order: number;
-  };
-  
-  type FormState = {
-    hero_media_url: string;
-    hero_media_type: 'image' | 'video';
-    hero_title: string;
-    hero_subtitle: string;
-    hero_description: string;
-    brand_logo_url?: string;
-  brand_year?: number | '';
-  brand_logo_size_px?: number | '';
-  brand_logo_glow_strength?: number | '';
-  brand_logo_glow_color?: string;
-  brand_logo_side?: 'left' | 'right';
-  brand_logo_offset_x_px?: number | '';
-  brand_logo_offset_y_px?: number | '';
-  // Optional responsive overrides
-  brand_logo_offset_x_sm_px?: number | '';
-  brand_logo_offset_y_sm_px?: number | '';
-  brand_logo_offset_x_md_px?: number | '';
-  brand_logo_offset_y_md_px?: number | '';
-  brand_logo_offset_x_lg_px?: number | '';
-  brand_logo_offset_y_lg_px?: number | '';
-    sponsor_logos: SponsorLogo[];
-  sponsor_section_enabled: boolean;
-  sponsor_section_text: string;
-  sponsor_section_title?: string;
-  sponsor_section_subtitle?: string;
-    featured_partners_enabled: boolean;
-    show_faculty_heads: boolean;
-    show_committee_heads: boolean;
-  leadership_carousel_speed_ms: number | '';
-  sponsors_belt_speed_px_per_sec: number | '';
-  committee_marquee_speed_px_per_sec: number | '';
-    sponsors_belt_direction: 'left' | 'right';
-    committee_marquee_direction: 'left' | 'right';
-  };
-  
-  const [form, setForm] = useLocalStorage<FormState>('admin_homepage_form_draft', {
-    hero_media_url: homepageSettings?.hero_media_url || '',
-    hero_media_type: homepageSettings?.hero_media_type || 'image' as 'image' | 'video',
-    hero_title: homepageSettings?.hero_title || 'RICORRENZA',
-    hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
-    hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
-    brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
-  brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
-  brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
-  brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
-  brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
-    brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
-    brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
-    brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
-  brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
-  brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
-  brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
-  brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
-  brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
-  brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
-    sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
-    sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
-    sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
-  sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
-  sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
-    featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
-    show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
-    show_committee_heads: homepageSettings?.show_committee_heads ?? true,
-    leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
-    sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
-    committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
-    sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
-    committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
-  });
 
   // --- Helper: remove near-black background and return transparent PNG Blob
   const removeBlackBackground = async (input: Blob, threshold = 24): Promise<Blob> => {
@@ -151,174 +301,6 @@ export const HomepageManagement: React.FC = () => {
     if (error) throw error;
     const { data: { publicUrl } } = supabase.storage.from('sponsor-logos').getPublicUrl(fileName);
     return publicUrl;
-  };
-
-  const handleRemoveLogoBg = async (logoId: string) => {
-    const logo = form.sponsor_logos.find(l => l.id === logoId);
-    if (!logo?.logo_url) return;
-    try {
-      setBgRemoveBusyId(logoId);
-      const res = await fetch(logo.logo_url, { mode: 'cors' });
-      const blob = await res.blob();
-      const cleaned = await removeBlackBackground(blob, 28);
-      const url = await uploadCleanLogo(cleaned);
-      setForm(prev => ({
-        ...prev,
-        sponsor_logos: prev.sponsor_logos.map(l => l.id === logoId ? { ...l, logo_url: url } : l)
-      }));
-    } catch (e) {
-      console.error('Remove background failed', e);
-      alert('Unable to remove background. Please ensure CORS allows fetching this image, or upload a transparent PNG.');
-    } finally {
-      setBgRemoveBusyId(null);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      if (savingPage || savingBranding) return;
-      setSavingPage(true);
-      const steps = savingProgress.withSteps(4, 'Preparing…');
-      steps.next('Validating');
-      // Normalize numeric fields before saving (convert '' to sane numbers or null)
-      const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
-      const payload = {
-        // Hero
-        hero_media_url: (form.hero_media_url || '').trim() || null,
-        hero_media_type: (form.hero_media_type === 'video' ? 'video' : 'image') as 'image' | 'video',
-        hero_title: (form.hero_title || 'RICORRENZA').toString(),
-        hero_subtitle: (form.hero_subtitle || 'Experience the Future').toString(),
-        hero_description: (form.hero_description || 'Experience the future of Healthcare, Technology, and Creativity').toString(),
-        // Sponsor logos (ensure numeric order)
-        sponsor_logos: Array.isArray(form.sponsor_logos)
-          ? form.sponsor_logos.map((L, i) => ({
-              id: L.id,
-              name: L.name,
-              logo_url: L.logo_url,
-              website: L.website || undefined,
-              enabled: !!L.enabled,
-              order: typeof L.order === 'number' && !isNaN(L.order) ? L.order : i + 1,
-            }))
-          : [],
-        sponsor_section_enabled: !!form.sponsor_section_enabled,
-        sponsor_section_text: (form.sponsor_section_text || 'Powered by').toString(),
-  sponsor_section_title: (form as any).sponsor_section_title || 'OUR PARTNERS',
-  sponsor_section_subtitle: (form as any).sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
-        featured_partners_enabled: !!form.featured_partners_enabled,
-        show_faculty_heads: !!form.show_faculty_heads,
-        show_committee_heads: !!form.show_committee_heads,
-        // Branding
-        brand_logo_url: (form as any).brand_logo_url || null,
-        brand_year: typeof (form as any).brand_year === 'number' && !isNaN((form as any).brand_year)
-          ? (form as any).brand_year
-          : new Date().getFullYear(),
-        brand_logo_size_px: typeof (form as any).brand_logo_size_px === 'number' && !isNaN((form as any).brand_logo_size_px)
-          ? Math.min(256, Math.max(16, (form as any).brand_logo_size_px))
-          : 36,
-        brand_logo_glow_strength: typeof (form as any).brand_logo_glow_strength === 'number' && !isNaN((form as any).brand_logo_glow_strength)
-          ? Math.min(2, Math.max(0, (form as any).brand_logo_glow_strength))
-          : 1,
-        brand_logo_glow_color: ((form as any).brand_logo_glow_color || '').toString().trim() || '#ff00ff',
-        brand_logo_side: ((form as any).brand_logo_side === 'right' ? 'right' : 'left') as any,
-        brand_logo_offset_x_px: typeof (form as any).brand_logo_offset_x_px === 'number' && !isNaN((form as any).brand_logo_offset_x_px)
-          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_x_px))
-          : 0,
-        brand_logo_offset_y_px: typeof (form as any).brand_logo_offset_y_px === 'number' && !isNaN((form as any).brand_logo_offset_y_px)
-          ? Math.min(200, Math.max(-200, (form as any).brand_logo_offset_y_px))
-          : 0,
-        // Responsive overrides: coerce to number within bounds or null
-        brand_logo_offset_x_sm_px: (typeof (form as any).brand_logo_offset_x_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_x_sm_px))
-          ? clamp((form as any).brand_logo_offset_x_sm_px, -400, 400)
-          : null,
-        brand_logo_offset_y_sm_px: (typeof (form as any).brand_logo_offset_y_sm_px === 'number' && !isNaN((form as any).brand_logo_offset_y_sm_px))
-          ? clamp((form as any).brand_logo_offset_y_sm_px, -400, 400)
-          : null,
-        brand_logo_offset_x_md_px: (typeof (form as any).brand_logo_offset_x_md_px === 'number' && !isNaN((form as any).brand_logo_offset_x_md_px))
-          ? clamp((form as any).brand_logo_offset_x_md_px, -400, 400)
-          : null,
-        brand_logo_offset_y_md_px: (typeof (form as any).brand_logo_offset_y_md_px === 'number' && !isNaN((form as any).brand_logo_offset_y_md_px))
-          ? clamp((form as any).brand_logo_offset_y_md_px, -400, 400)
-          : null,
-        brand_logo_offset_x_lg_px: (typeof (form as any).brand_logo_offset_x_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_x_lg_px))
-          ? clamp((form as any).brand_logo_offset_x_lg_px, -400, 400)
-          : null,
-        brand_logo_offset_y_lg_px: (typeof (form as any).brand_logo_offset_y_lg_px === 'number' && !isNaN((form as any).brand_logo_offset_y_lg_px))
-          ? clamp((form as any).brand_logo_offset_y_lg_px, -400, 400)
-          : null,
-        // Animation speeds + directions
-        leadership_carousel_speed_ms: typeof form.leadership_carousel_speed_ms === 'number' && !isNaN(form.leadership_carousel_speed_ms)
-          ? Math.max(1000, form.leadership_carousel_speed_ms)
-          : 2500,
-        sponsors_belt_speed_px_per_sec: typeof form.sponsors_belt_speed_px_per_sec === 'number' && !isNaN(form.sponsors_belt_speed_px_per_sec)
-          ? Math.min(800, Math.max(1, form.sponsors_belt_speed_px_per_sec))
-          : 140,
-        committee_marquee_speed_px_per_sec: typeof form.committee_marquee_speed_px_per_sec === 'number' && !isNaN(form.committee_marquee_speed_px_per_sec)
-          ? Math.min(800, Math.max(1, form.committee_marquee_speed_px_per_sec))
-          : 75,
-        sponsors_belt_direction: (form.sponsors_belt_direction === 'right' ? 'right' : 'left') as 'left' | 'right',
-        committee_marquee_direction: (form.committee_marquee_direction === 'left' ? 'left' : 'right') as 'left' | 'right',
-      } as const;
-      steps.next('Saving to database');
-      await updateHomepageSettings(payload as any);
-      // Sync the form state to the normalized payload so UI reflects saved values immediately
-      setForm(payload as unknown as FormState);
-      setIsEditing(false);
-      setMessage({ type: 'success', text: 'Homepage settings updated successfully!' });
-      try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
-      setTimeout(() => setMessage(null), 5000);
-    } catch (error) {
-      console.error('Error updating homepage settings:', error);
-  const errText = (error as any)?.message || 'Failed to update homepage settings. Please try again.';
-  setMessage({ type: 'error', text: errText });
-      setTimeout(() => setMessage(null), 5000);
-    } finally {
-      setSavingPage(false);
-      savingProgress.done();
-    }
-  };
-
-  const handleCancel = () => {
-    setForm({
-      hero_media_url: homepageSettings?.hero_media_url || '',
-      hero_media_type: homepageSettings?.hero_media_type || 'image',
-      hero_title: homepageSettings?.hero_title || 'RICORRENZA',
-      hero_subtitle: homepageSettings?.hero_subtitle || 'Experience the Future',
-      hero_description: homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity',
-      brand_logo_url: (homepageSettings as any)?.brand_logo_url || '',
-      brand_year: (homepageSettings as any)?.brand_year ?? new Date().getFullYear(),
-  brand_logo_size_px: (homepageSettings as any)?.brand_logo_size_px ?? 36,
-  brand_logo_glow_strength: (homepageSettings as any)?.brand_logo_glow_strength ?? 1,
-  brand_logo_glow_color: (homepageSettings as any)?.brand_logo_glow_color || '#ff00ff',
-  brand_logo_side: ((homepageSettings as any)?.brand_logo_side as any) || 'left',
-  brand_logo_offset_x_px: (homepageSettings as any)?.brand_logo_offset_x_px ?? 0,
-  brand_logo_offset_y_px: (homepageSettings as any)?.brand_logo_offset_y_px ?? 0,
-  brand_logo_offset_x_sm_px: (homepageSettings as any)?.brand_logo_offset_x_sm_px ?? '',
-  brand_logo_offset_y_sm_px: (homepageSettings as any)?.brand_logo_offset_y_sm_px ?? '',
-  brand_logo_offset_x_md_px: (homepageSettings as any)?.brand_logo_offset_x_md_px ?? '',
-  brand_logo_offset_y_md_px: (homepageSettings as any)?.brand_logo_offset_y_md_px ?? '',
-  brand_logo_offset_x_lg_px: (homepageSettings as any)?.brand_logo_offset_x_lg_px ?? '',
-  brand_logo_offset_y_lg_px: (homepageSettings as any)?.brand_logo_offset_y_lg_px ?? '',
-      sponsor_logos: (homepageSettings?.sponsor_logos as SponsorLogo[]) || [],
-      sponsor_section_enabled: homepageSettings?.sponsor_section_enabled || false,
-      sponsor_section_text: homepageSettings?.sponsor_section_text || 'Powered by',
-  sponsor_section_title: (homepageSettings as any)?.sponsor_section_title || 'OUR PARTNERS',
-  sponsor_section_subtitle: (homepageSettings as any)?.sponsor_section_subtitle || 'Powered by industry leaders who believe in our vision',
-      featured_partners_enabled: homepageSettings?.featured_partners_enabled ?? true,
-      show_faculty_heads: homepageSettings?.show_faculty_heads ?? true,
-      show_committee_heads: homepageSettings?.show_committee_heads ?? true,
-      leadership_carousel_speed_ms: homepageSettings?.leadership_carousel_speed_ms ?? 2500,
-      sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
-      committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
-      sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
-      committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
-    });
-    try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
-    setIsEditing(false);
-    setMessage(null);
-  };
-
-  const handleMediaSelect = (url: string) => {
-    setForm(prev => ({ ...prev, hero_media_url: url }));
   };
 
   const clearMedia = () => {
@@ -507,8 +489,30 @@ export const HomepageManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Current Settings Display */}
+      {/* Current Settings Display: compact read-only summary when NOT editing */}
       {!isEditing && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Homepage Settings</h3>
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <span className="text-gray-900 font-semibold">{homepageSettings?.hero_title || form.hero_title || 'RICORRENZA'}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Background Media</label>
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <span className="text-gray-700">{(homepageSettings?.hero_media_type || form.hero_media_type) === 'video' ? 'Video' : 'Image'}</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-4">Click <strong>Edit Homepage</strong> to modify the hero title, background and other settings.</p>
+        </div>
+      )}
+
+      {/* Full editor — visible only while editing */}
+      {isEditing && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Current Homepage Settings</h3>
           
@@ -517,9 +521,17 @@ export const HomepageManagement: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
-                <div className="p-3 bg-gray-50 rounded-lg border">
-                  <span className="text-gray-900 font-semibold">{homepageSettings?.hero_title || 'RICORRENZA'}</span>
+                <div className="relative">
+                  <Type className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={form.hero_title}
+                    onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
+                    placeholder="RICORRENZA"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">Main hero title shown prominently on the homepage</p>
               </div>
               
               {/* Branding */}

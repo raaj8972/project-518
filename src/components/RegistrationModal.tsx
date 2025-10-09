@@ -8,6 +8,12 @@ interface RegistrationModalProps {
   onClose: () => void;
   eventTitle: string;
   eventId: number;
+  // Optional preview overrides (used by admin preview to show draft site settings/events)
+  previewOverrides?: {
+    siteSettings?: any;
+    events?: any[];
+    addRegistration?: (data: any) => Promise<void> | void;
+  };
 }
 
 interface TeamMember {
@@ -32,9 +38,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   isOpen,
   onClose,
   eventTitle,
-  eventId
+  eventId,
+  previewOverrides
 }) => {
-  const { addRegistration, events, setSuppressPublicNotifications } = useData();
+  const dataCtx = useData() as any;
+  // Allow preview overrides to replace context values when provided
+  const addRegistration = (previewOverrides?.addRegistration) ?? dataCtx.addRegistration;
+  const events = (previewOverrides?.events) ?? dataCtx.events;
+  const setSuppressPublicNotifications = dataCtx.setSuppressPublicNotifications;
+  const siteSettings = (previewOverrides?.siteSettings) ?? dataCtx.siteSettings;
   // Photo requirement is configured per-event; photo can also be optionally enabled via custom label
   const [photoRequired, setPhotoRequired] = useState<boolean>(false);
   const [photoEnabled, setPhotoEnabled] = useState<boolean>(false);
@@ -68,14 +80,78 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     });
   }, [isSubmitted]);
 
-  const participantTypes = [
-    '1st Year',
-    '2nd Year', 
-    '3rd Year',
-    '4th Year',
-    'Intern',
-    'PG (Post Graduate)'
-  ];
+  const participantTypes = React.useMemo(() => {
+    try {
+      // Prefer per-event override on the event row, fall back to site settings, then built-in default
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      const evTypes = ev?.registration_participant_types;
+      if (Array.isArray(evTypes) && evTypes.length) return evTypes;
+      const s = (siteSettings as any)?.registration_participant_types;
+      if (Array.isArray(s) && s.length) return s;
+    } catch {}
+    return [
+      '1st Year',
+      '2nd Year', 
+      '3rd Year',
+      '4th Year',
+      'Intern',
+      'PG (Post Graduate)'
+    ];
+  }, [siteSettings, events, eventId]);
+
+  // Form field visibility/required configuration (site-level defaults can override)
+  const fieldConfigMap = useMemo(() => {
+    const siteFields = (siteSettings as any)?.registration_form_fields;
+    const defaults: Record<string, any> = {
+      participant_type: { key: 'participant_type', label: 'Participant Type', type: 'select', visible: true, required: true },
+      full_name: { key: 'full_name', label: 'Full Name', type: 'text', visible: true, required: true },
+      email: { key: 'email', label: 'Email Address', type: 'email', visible: true, required: true },
+      phone: { key: 'phone', label: 'Phone Number', type: 'tel', visible: true, required: true },
+      college: { key: 'college', label: 'Institution Name', type: 'text', visible: true, required: false },
+      photo: { key: 'photo', label: 'Participant Photo', type: 'photo', visible: Boolean((siteSettings as any)?.registration_photo_default_label), required: Boolean((siteSettings as any)?.registration_photo_default_required) }
+    };
+    const map: Record<string, any> = { ...defaults };
+    if (Array.isArray(siteFields)) {
+      siteFields.forEach((f: any) => {
+        if (f && f.key) {
+          map[f.key] = { ...map[f.key], ...f };
+        }
+      });
+    }
+
+    // If this modal is opened for a specific event, allow event-level overrides stored on the event
+    try {
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      const evFields = ev?.registration_form_fields;
+      if (Array.isArray(evFields)) {
+        evFields.forEach((f: any) => {
+          if (f && f.key) {
+            map[f.key] = { ...map[f.key], ...f };
+          }
+        });
+      }
+    } catch {}
+
+    return map;
+  }, [siteSettings, events, eventId]);
+
+  // Initialize team/individual mode when modal opens based on event-level default, then site settings, then 'individual'
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      const site = (siteSettings as any) || {};
+      const evMode = ev?.registration_default_mode;
+      const siteMode = site.registration_default_mode;
+      const mode = evMode || siteMode || 'individual';
+      setFormData(prev => ({
+        ...prev,
+        is_team_registration: mode === 'team',
+        total_members: mode === 'team' ? Math.max(2, prev.total_members) : 1,
+        participant_type: participantTypes && participantTypes.length ? participantTypes[0] : prev.participant_type
+      }));
+    } catch {}
+  }, [isOpen, events, eventId, siteSettings, participantTypes]);
 
   // Glitch effect trigger and derive per-event photo requirement from events data
   useEffect(() => {
@@ -83,11 +159,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       // Suppress public notifications while registration modal is open
       setSuppressPublicNotifications?.(true);
       try {
-        const ev = events.find(e => e.id === eventId) as any;
-        const required = !!(ev && ev.registration_photo_required);
+  const ev = events.find((e: any) => e.id === eventId) as any;
+        const site = (siteSettings as any) || {};
+        // Event-level value takes precedence; fallback to siteSettings defaults
+        const required = Boolean(ev ? (ev.registration_photo_required ?? site.registration_photo_default_required) : site.registration_photo_default_required);
         setPhotoRequired(required);
-        setPhotoEnabled(required); // only show when explicitly required
-        if (!required) {
+        const hasLabel = Boolean(ev ? (ev.registration_photo_label ?? site.registration_photo_default_label) : site.registration_photo_default_label);
+        // Show photo UI when required or when a label is present (custom label)
+        setPhotoEnabled(Boolean(required || hasLabel));
+        if (!required && !hasLabel) {
           // Clear any selected photo and related validation when feature is off
           setPhotoUrl('');
           setErrors(prev => {
@@ -110,21 +190,27 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: ErrorsMap = {};
-
-    if (!formData.full_name.trim()) {
-      newErrors.full_name = 'Full name is required';
+    // Validate only fields that are visible
+    if (fieldConfigMap.full_name?.visible) {
+      if (fieldConfigMap.full_name?.required && !formData.full_name.trim()) {
+        newErrors.full_name = 'Full name is required';
+      }
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (fieldConfigMap.email?.visible) {
+      if (!formData.email.trim()) {
+        if (fieldConfigMap.email?.required) newErrors.email = 'Email is required';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'Please enter a valid email address';
+      }
     }
 
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-  } else if (!/^\+?[\d\s\-()]{10,}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
+    if (fieldConfigMap.phone?.visible) {
+      if (!formData.phone.trim()) {
+        if (fieldConfigMap.phone?.required) newErrors.phone = 'Phone number is required';
+      } else if (!/^\+?[\d\s\-()]{10,}$/.test(formData.phone)) {
+        newErrors.phone = 'Please enter a valid phone number';
+      }
     }
 
     // Optional/Required photo per-event
@@ -132,13 +218,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       newErrors['photo'] = 'Participant photo is required for this event';
     }
 
-    // Institution name is optional
+    // Institution name validation (if visible)
+    if (fieldConfigMap.college?.visible) {
+      if (fieldConfigMap.college?.required && !formData.college.trim()) {
+        newErrors.college = 'Institution name is required';
+      }
+    }
 
     if (formData.is_team_registration) {
-      if (!formData.team_name.trim()) {
-        newErrors.team_name = 'Team name is required';
-      }
-
+      // Team identifier is optional now; do not require team_name here.
       if (formData.total_members < 2) {
         newErrors.total_members = 'Team must have at least 2 members';
       }
@@ -442,7 +530,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               {formData.is_team_registration && (
                 <div className="cyberpunk-section">
                   <label className="cyberpunk-label">
-                    TEAM_IDENTIFIER *
+                    TEAM_IDENTIFIER (optional)
                   </label>
                   <div className="relative">
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
@@ -547,9 +635,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               {photoEnabled && (
                 <div className="cyberpunk-section">
                   {(() => {
-                    const ev = events.find(e => e.id === eventId) as any;
-                    const custom = (ev && ev.registration_photo_label) ? String(ev.registration_photo_label) : '';
-                    const labelText = custom.trim() || 'PARTICIPANT_PHOTO';
+                    const ev = events.find((e: any) => e.id === eventId) as any;
+                    const site = (siteSettings as any) || {};
+                    const custom = ev ? (ev.registration_photo_label ?? site.registration_photo_default_label) : site.registration_photo_default_label;
+                    const labelText = custom ? String(custom).trim() : 'PARTICIPANT_PHOTO';
                     return (
                       <label className="cyberpunk-label flex items-center">
                         <ImageIcon className="w-5 h-5 text-cyan-400 mr-2" /> {labelText} {photoRequired ? '*' : ''}
@@ -593,9 +682,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               )}
 
               {/* College/Institution (Optional) */}
-              <div className="cyberpunk-section">
+                <div className="cyberpunk-section">
                 <label className="cyberpunk-label">
-                  INSTITUTION_NAME (OPTIONAL)
+                  {(() => {
+                    const site = (siteSettings as any) || {};
+                    const optional = site.registration_institution_optional === true;
+                    return `INSTITUTION_NAME ${optional ? '(OPTIONAL)' : ''}`;
+                  })()}
                 </label>
                 <div className="relative">
                   <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
@@ -603,7 +696,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     type="text"
                     value={formData.college}
                     onChange={(e) => handleInputChange('college', e.target.value)}
-                    placeholder="Your college or institution"
+                    placeholder={(() => {
+                      try {
+                        const site = (siteSettings as any) || {};
+                        return (site.registration_field_placeholders?.college) || 'Your college or institution';
+                      } catch { return 'Your college or institution'; }
+                    })()}
                     className={`cyberpunk-input pl-12`}
                   />
                 </div>

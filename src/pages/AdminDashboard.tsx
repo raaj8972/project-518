@@ -36,6 +36,7 @@ import { HomepageManagement } from '../components/admin/HomepageManagement';
 import { AuditionManagement } from '../components/admin/AuditionManagement';
 import { MembershipManagement } from '../components/admin/MembershipManagement';
 import { FormSettingsManagement } from '../components/admin/FormSettingsManagement';
+import RegistrationModalSettings from '../components/admin/RegistrationModalSettings';
 import { HomeBoundSettings } from '../components/admin/HomeBoundSettings';
 import { RoadmapMilestonesAdmin } from '../components/admin/RoadmapMilestonesAdmin';
 import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
@@ -49,7 +50,7 @@ import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -175,6 +176,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
     { id: 'memberships' as TabType, name: 'Memberships', icon: Users },
     { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings },
+  { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck },
     { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
     { id: 'security' as TabType, name: 'Security', icon: Shield },
   ];
@@ -695,6 +697,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'sponsors' && <SponsorsManagement />}
             {activeTab === 'registrations' && <RegistrationManagement />}
             {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
+            {activeTab === 'registration-modal' && <RegistrationModalSettings />}
             {activeTab === 'categories' && <EventCategoriesManagement />}
             {activeTab === 'social' && <SocialMediaManagement />}
             {activeTab === 'faculty' && <FacultyHeadsManagement />}

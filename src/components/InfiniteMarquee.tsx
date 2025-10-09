@@ -61,8 +61,6 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
   } = props;
   // React hooks and refs
   const trackRef = useRef<HTMLDivElement | null>(null);
-  const [durationSec, setDurationSec] = useState<number>(30);
-  const [runDistancePx, setRunDistancePx] = useState<number>(0);
   const [isHovering, setIsHovering] = useState(false);
   const [manualPaused, setManualPaused] = useState(false);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -74,6 +72,7 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
   // Track if we imperatively forced a pause due to a touch (for snappier mobile UX)
   const touchForcedPauseRef = useRef<boolean>(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(false);
+  // (CSS-based marquee uses CSS variables and keyframe animation)
 
   // Detect prefers-reduced-motion
   useEffect(() => {
@@ -102,20 +101,25 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
     } catch {}
   }, []);
 
+  // CSS-driven marquee: measure track and set CSS variables + animation duration
   useEffect(() => {
     const measure = () => {
       const track = trackRef.current;
       if (!track) return;
       const fullWidth = track.scrollWidth; // both copies
-        // Use the exact half width (do not Math.floor) to avoid 1px seam rounding
-        // which can cause a visible jitter at higher speeds. Keep as float.
-        const singleWidth = Math.max(1, fullWidth / 2);
-      // Respect provided speed across full range; avoid artificial floors that hide admin changes
-      const effectiveSpeed = Math.max(1, Number.isFinite(speedPxPerSec) ? speedPxPerSec : 120); // px/sec
-      const sec = singleWidth / effectiveSpeed;
-  // Keep slightly more precision for the duration to reduce step jitter
-  setDurationSec(Math.max(0.1, Number(sec.toFixed(3))));
-      setRunDistancePx(singleWidth);
+      // Use the exact half width (do not Math.floor) to avoid 1px seam rounding
+      // which can cause a visible jitter at higher speeds. Keep as float.
+      const singleWidth = Math.max(1, fullWidth / 2);
+      // Use provided speed, fallback to 120px/sec
+      const speed = Number.isFinite(speedPxPerSec) && speedPxPerSec > 0 ? speedPxPerSec : 120;
+      const durationSec = singleWidth / speed;
+      try {
+        track.style.setProperty('--im-d', `${singleWidth}px`);
+        track.style.animation = `im-scroll-var ${durationSec}s linear infinite`;
+        track.style.animationDirection = direction === 'right' ? 'reverse' : 'normal';
+        // Respect initial pause state
+        track.style.animationPlayState = (paused || isHovering || manualPaused) ? 'paused' : 'running';
+      } catch {}
     };
 
     measure();
@@ -124,7 +128,8 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
     if (trackRef.current) ro.observe(trackRef.current);
     if (containerRef.current) ro.observe(containerRef.current);
     return () => { try { ro.disconnect(); } catch {} };
-  }, [items, speedPxPerSec]);
+  }, [items, speedPxPerSec, direction, paused, isHovering, manualPaused]);
+  
 
   if (!items || items.length === 0) return null;
 
@@ -374,19 +379,9 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
         ref={trackRef}
         className="flex items-stretch whitespace-nowrap"
         style={{
-          // Animate by the exact measured width of the first group to avoid 50% rounding seams
-          // Use longhand animation properties to avoid conflicting with animationDirection/animationPlayState
-          animationName: 'im-scroll-var',
-          animationDuration: `${durationSec}s`,
-          animationTimingFunction: 'linear',
-          animationIterationCount: 'infinite',
-          animationPlayState: isPaused ? ('paused' as const) : ('running' as const),
-          animationDirection: direction === 'right' ? ('reverse' as const) : ('normal' as const),
           willChange: 'transform',
           backfaceVisibility: 'hidden',
-          transform: 'translateZ(0)',
-          // CSS var consumed by keyframes to translate exact pixel distance
-          ['--im-d' as any]: `${runDistancePx}px`
+          transform: 'translateZ(0)'
         }}
       >
         <div className="flex items-stretch">
@@ -402,7 +397,6 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
               onTouchStart={() => { setHoveredIndex(idx); if (adaptiveGlowOnPause) { ensureIndexColor(idx); } }}
               onTouchEnd={() => setHoveredIndex((h) => (h === idx ? null : h))}
             >
-      {/* Optional inner per-item halo (very subtle) */}
               {adaptiveGlowOnPause && isPaused && hoveredIndex === idx && (
                 <div aria-hidden className="pointer-events-none absolute -inset-1 rounded-xl" style={{ boxShadow: `0 0 36px 12px ${getGlowColor ? getGlowColor(item, idx) : (colorByIndex.current.get(idx) || glowColor)}`, filter: `brightness(${glowIntensity})` }} />
               )}

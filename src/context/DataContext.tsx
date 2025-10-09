@@ -2704,7 +2704,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         // Only fetch public notifications for non-admins. If column missing, fallback to querying without this filter.
         try {
           const { data, error } = await query.eq('admin_only', false);
-          if (!error && Array.isArray(data)) { setNotifications(data); return; }
+          if (!error && Array.isArray(data)) { setNotifications(data); console.debug('[DataContext] refreshNotifications fetched (public filter)', data); return; }
           if (error) throw error;
         } catch (e: any) {
           const lower = String((e as any)?.message || '').toLowerCase();
@@ -2712,7 +2712,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
             // Column absent; fall back to querying all visible notifications
             try {
               const { data: d2, error: e2 } = await supabase.from('notifications' as any).select('*').eq('visible', true).lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gt.${nowIso}`).order('priority', { ascending: false }).order('created_at', { ascending: false });
-              if (!e2 && Array.isArray(d2)) setNotifications(d2);
+              if (!e2 && Array.isArray(d2)) { setNotifications(d2); console.debug('[DataContext] refreshNotifications fetched (fallback no admin_only)', d2); }
             } catch {}
           }
         }
@@ -2720,7 +2720,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         // Admin: fetch all visible notifications including admin_only
         try {
           const { data, error } = await query;
-          if (!error && Array.isArray(data)) setNotifications(data);
+          if (!error && Array.isArray(data)) { setNotifications(data); console.debug('[DataContext] refreshNotifications fetched (admin)', data); }
         } catch {}
       }
     } catch {}
@@ -2729,12 +2729,15 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   // Realtime subscription for notifications so viewers see updates instantly
   React.useEffect(() => {
     try {
+      console.debug('[DataContext] subscribing to realtime:notifications');
       const channel = supabase
         .channel('realtime:notifications')
-        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'notifications' } as any, () => {
+        .on('postgres_changes' as any, { event: '*', schema: 'public', table: 'notifications' } as any, (payload: any) => {
+          console.debug('[DataContext] realtime notification event', payload?.event, payload?.record?.id);
           refreshNotifications().catch(() => {});
         })
         .subscribe((status: any) => {
+          console.debug('[DataContext] realtime subscription status', status);
           setRealtimeStatus((prev) => ({ ...prev, notifications: String(status) }));
         });
       realtimeChannelsRef.current.add(channel);
@@ -2743,8 +2746,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         try { supabase.removeChannel(channel); } catch {}
         realtimeChannelsRef.current.delete(channel);
       };
-    } catch {
-      // ignore
+    } catch (e) {
+      console.warn('[DataContext] realtime subscribe failed', e);
     }
   }, [refreshNotifications]);
 
