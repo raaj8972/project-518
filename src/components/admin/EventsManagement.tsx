@@ -114,6 +114,7 @@ export const EventsManagement: React.FC = () => {
   registration_participant_types: [] as string[],
     // registration_default_mode: 'individual' | 'team' — owner can set default per event
     registration_default_mode: 'individual' as 'individual' | 'team',
+  team_max_members: undefined as number | undefined,
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
@@ -272,6 +273,7 @@ export const EventsManagement: React.FC = () => {
   registration_form_fields: [],
   registration_participant_types: [],
       registration_default_mode: 'individual',
+  team_max_members: undefined,
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -305,6 +307,7 @@ export const EventsManagement: React.FC = () => {
     current_registrations: 0,
     registration_participant_types: eventForm.registration_participant_types || undefined,
     registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
+        team_max_members: (eventForm as any).team_max_members ?? null,
       } as any, draftCoordinators);
       setIsAddingEvent(false);
       resetEventForm();
@@ -339,6 +342,7 @@ export const EventsManagement: React.FC = () => {
         registration_photo_label: (eventForm as any).registration_photo_label || null,
         registration_participant_types: (eventForm as any).registration_participant_types || null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
+        team_max_members: (eventForm as any).team_max_members ?? null,
       } as any);
       steps.next('Finalizing');
       setEditingEvent(null);
@@ -415,6 +419,7 @@ export const EventsManagement: React.FC = () => {
       registration_form_fields: (event as any).registration_form_fields || [],
   registration_participant_types: (event as any).registration_participant_types || [],
       registration_default_mode: (event as any).registration_default_mode || 'individual',
+  team_max_members: (event as any).team_max_members ?? undefined,
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
@@ -980,7 +985,11 @@ export const EventsManagement: React.FC = () => {
                   />
                   Visible to Public
                 </label>
-                <div className="flex items-center gap-4">
+                <div
+                  className="flex items-center gap-4 overflow-x-auto whitespace-nowrap cyberpunk-scrollbar pr-2"
+                  tabIndex={0}
+                  aria-label="Default Registration Mode and Max Team Members horizontal scroller"
+                >
                   <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
                   <label className="flex items-center text-sm">
                     <input type="radio" name="registration_default_mode" className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
@@ -988,6 +997,24 @@ export const EventsManagement: React.FC = () => {
                   <label className="flex items-center text-sm">
                     <input type="radio" name="registration_default_mode" className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
                   </label>
+                </div>
+                <p className="sm:hidden text-xs text-gray-500 mt-1">Tip: Swipe sideways on the row above to see all controls.</p>
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1 min-w-[180px]">Max Team Members (team mode)</label>
+                  <input
+                    type="number"
+                    min={2}
+                    max={50}
+                    value={(eventForm as any).team_max_members ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                      setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                    }}
+                    placeholder="Default 50"
+                    className="w-32 sm:w-40 px-3 py-2 border rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Leave blank to use the global default (50). Applies when users choose Team mode.</p>
                 </div>
               </div>
               {/* Per-event participant types editor */}
@@ -1524,7 +1551,11 @@ export const EventsManagement: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
-                  <div className="flex items-center gap-4 mr-auto">
+                  <div
+                    className="flex items-center gap-4 mr-auto overflow-x-auto whitespace-nowrap cyberpunk-scrollbar pr-2"
+                    tabIndex={0}
+                    aria-label="Default Registration Mode and Max Team Members horizontal scroller"
+                  >
                     <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
                     <label className="flex items-center text-sm">
                       <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
@@ -1532,7 +1563,25 @@ export const EventsManagement: React.FC = () => {
                     <label className="flex items-center text-sm">
                       <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
                     </label>
+                    <div className="ml-4 flex items-center gap-2 min-w-[280px]">
+                      <label className="text-sm text-gray-700">Max Team Members</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={50}
+                        value={(eventForm as any).team_max_members ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                          setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                        }}
+                        placeholder="Default 50"
+                        className="w-24 sm:w-28 px-2 py-1 border rounded"
+                      />
+                    </div>
+                    
                   </div>
+                  <p className="sm:hidden text-[11px] text-gray-500 mt-1">Swipe sideways on the row above to reveal Registration Mode.</p>
                   <button
                     type="button"
                     onClick={() => {

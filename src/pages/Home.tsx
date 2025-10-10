@@ -17,6 +17,7 @@ import type { GuestArtist } from '../context/DataContext';
 const Roadmap = React.lazy(() => import('../components/Roadmap'));
 import CountdownTimer from '../components/CountdownTimer';
 import Sparkle3D from '../components/Sparkle3D';
+import PreserveNewlines from '../components/PreserveNewlines';
 
 export const Home: React.FC = () => {
   // Error boundary to catch dynamic-import chunk load failures and offer a reload
@@ -609,7 +610,7 @@ export const Home: React.FC = () => {
                         <div>
                           <h3 className="text-lg font-extrabold text-white mb-1 tracking-wide group-hover:text-blue-300 transition-colors line-clamp-2">{cg.name}</h3>
                           <p className="text-xs font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2 line-clamp-1">{cg.title}</p>
-                          <p className="text-gray-300 leading-relaxed text-[11px] line-clamp-5">{cg.description}</p>
+                          <PreserveNewlines text={cg.description} className="text-gray-300 leading-relaxed text-[11px] line-clamp-5" />
                         </div>
                         {cg.achievements && cg.achievements.length > 0 && (
                           <div>
@@ -669,9 +670,7 @@ export const Home: React.FC = () => {
                           <p className="text-lg font-semibold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-4">
                             {cg.title}
                           </p>
-                          <p className="text-gray-300 leading-relaxed text-sm md:text-base line-clamp-6 md:line-clamp-none">
-                            {cg.description}
-                          </p>
+                          <PreserveNewlines text={cg.description} className="text-gray-300 leading-relaxed text-sm md:text-base line-clamp-6 md:line-clamp-none" />
                         </div>
                         {cg.achievements && cg.achievements.length > 0 && (
                           <div>
@@ -1752,9 +1751,7 @@ export const Home: React.FC = () => {
                 <h3 className="text-2xl font-extrabold text-white tracking-wide mb-1">{selectedChiefGuest.name}</h3>
                 {selectedChiefGuest.title && <p className="text-sm font-semibold bg-gradient-to-r from-blue-300 to-purple-300 bg-clip-text text-transparent mb-3">{selectedChiefGuest.title}</p>}
                 {selectedChiefGuest.description && (
-                  <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
-                    {selectedChiefGuest.description}
-                  </p>
+                  <PreserveNewlines text={selectedChiefGuest.description} className="text-gray-300 text-sm leading-relaxed" />
                 )}
               </div>
               <button

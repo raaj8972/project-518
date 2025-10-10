@@ -5,6 +5,8 @@ import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
 import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
 import Phone3DButtonLink from '../components/Phone3DButtonLink';
 import Email3DButtonLink from '../components/Email3DButtonLink';
+import PreserveNewlines from '../components/PreserveNewlines';
+import DescriptionHeaderBody from '../components/DescriptionHeaderBody';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
@@ -312,9 +314,35 @@ export const RicoFamily: React.FC = () => {
                     <div className="p-6 flex flex-col justify-center">
                       <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${lead ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
                       <p className={`text-lg font-semibold mb-4 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>{member.role || 'Member'}</p>
-                      {member.description && (
-                        <p className="text-gray-300 mb-4 leading-relaxed text-sm">{member.description}</p>
-                      )}
+                              {member.description && (
+                                (() => {
+                                  // Make the header glow green for Treasurer role (only in the Council section)
+                                  const isTreasurer = String(member.role || '').toLowerCase().includes('treasur');
+                                  const headerClass = isTreasurer
+                                    ? 'text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.6)] font-semibold mb-2 text-lg'
+                                    : 'text-gray-300 font-semibold mb-2 text-lg';
+                                  return (
+                                    <DescriptionHeaderBody
+                                      text={member.description}
+                                      headerClassName={headerClass}
+                                      bodyClassName="text-gray-300 mb-4 leading-relaxed text-sm"
+                                      highlights={["I Treasure Ricorrenza", "Treasure"]}
+                                      headerHighlightRules={[
+                                        // General Secretary header line highlight (red glow) — match full phrase
+                                        {
+                                          pattern: /^\s*as\s+the\s+(?:(?:g(?:\.\s*)?s(?:\.|\b))(?:\s*\/\s*gen(?:e)?ral\s+secretary)?|gen(?:e)?ral\s+secretary)\s+of\s+ricorrenza\s*2025/i,
+                                          className: 'text-red-400 font-semibold drop-shadow-[0_0_12px_rgba(248,113,113,1)] drop-shadow-[0_0_28px_rgba(248,113,113,0.55)]'
+                                        },
+                                        // President header line highlight (blue glow) — match full phrase
+                                        {
+                                          pattern: /^\s*as\s+the\s+president\s+of\s+ricorrenza\s*2025/i,
+                                          className: 'text-blue-400 font-semibold drop-shadow-[0_0_12px_rgba(96,165,250,1)] drop-shadow-[0_0_28px_rgba(96,165,250,0.55)]'
+                                        }
+                                      ]}
+                                    />
+                                  );
+                                })()
+                              )}
                       {member.specialty && (
                         <div className="mb-4">
                           <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium border tracking-wide ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : anyDev ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-red-500/15 text-red-300 border-red-500/40'}`}>{member.specialty}</span>
@@ -464,9 +492,7 @@ export const RicoFamily: React.FC = () => {
                       <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
                         {committee.name.toUpperCase()}
                       </h3>
-                      <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-                        {committee.description}
-                      </p>
+                      <PreserveNewlines as="div" text={committee.description} className="text-lg text-gray-300 max-w-2xl mx-auto" />
                     </div>
 
                     {/* Committee Head */}
@@ -502,7 +528,7 @@ export const RicoFamily: React.FC = () => {
                                   <div className="p-6 flex flex-col justify-center">
                                     <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : 'text-white'}`}>{head.name}</h5>
                                     <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{head.role}</p>
-                                    <p className="text-gray-300 mb-4 leading-relaxed text-sm">{head.description}</p>
+                                    <PreserveNewlines text={head.description} className="text-gray-300 mb-4 leading-relaxed text-sm" />
                                     {head.specialty && (
                                       <div className="mb-4">
                                         <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
@@ -654,7 +680,7 @@ export const RicoFamily: React.FC = () => {
                                   {isExpanded && (
                                     <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
                                       {member.description && (
-                                        <p className="leading-relaxed">{member.description}</p>
+                                        <PreserveNewlines text={member.description} className="leading-relaxed" />
                                       )}
                                       {member.specialty && (
                                         <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>

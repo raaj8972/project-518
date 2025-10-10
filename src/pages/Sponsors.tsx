@@ -3,6 +3,7 @@ import { ExternalLink, Download, Building, Star, Crown, Mail, Phone, MapPin } fr
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
+import PreserveNewlines from '../components/PreserveNewlines';
 
 export const Sponsors: React.FC = () => {
   const { sponsors, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
@@ -293,7 +294,7 @@ export const Sponsors: React.FC = () => {
                       </div>
                       
                       {sponsor.description && sponsor.description.trim().length > 0 && (
-                        <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                        <PreserveNewlines text={sponsor.description} className="text-gray-300 mb-6 leading-relaxed" />
                       )}
                       
                       {sponsor.website && (
@@ -386,7 +387,7 @@ export const Sponsors: React.FC = () => {
                       </div>
                       
                       {sponsor.description && sponsor.description.trim().length > 0 && (
-                        <p className="text-gray-300 mb-6 leading-relaxed">{sponsor.description}</p>
+                        <PreserveNewlines text={sponsor.description} className="text-gray-300 mb-6 leading-relaxed" />
                       )}
                       
                       {sponsor.website && (
@@ -480,7 +481,7 @@ export const Sponsors: React.FC = () => {
                           </div>
                           
                           {sponsor.description && sponsor.description.trim().length > 0 && (
-                            <p className="text-gray-300 text-sm mb-4 line-clamp-3">{sponsor.description}</p>
+                            <PreserveNewlines text={sponsor.description} className="text-gray-300 text-sm mb-4 line-clamp-3" />
                           )}
                           
                           {sponsor.website && (

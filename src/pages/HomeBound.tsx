@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Music, Star, Instagram, Youtube, AlignJustify as Spotify, ArrowRight, Mic, Guitar, Headphones, Volume2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
+import PreserveNewlines from '../components/PreserveNewlines';
 import { AuditionModal } from '../components/AuditionModal';
 import FlipCard, { FlipCardHandle } from '../components/FlipCard';
 
@@ -228,7 +229,7 @@ export const HomeBound: React.FC = () => {
                           <div className="mb-3">
                             <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">{member.specialty}</span>
                           </div>
-                          <p className="text-gray-200 mb-4 leading-relaxed text-sm md:text-base">{member.description}</p>
+                          <PreserveNewlines text={member.description} className="text-gray-200 mb-4 leading-relaxed text-sm md:text-base" />
                           {member.social_links && Object.keys(member.social_links).length > 0 && (
                             <div className="flex space-x-4 mb-4 items-center">
                               {member.social_links.instagram && (
@@ -333,7 +334,7 @@ export const HomeBound: React.FC = () => {
                         <div className="p-6">
                           <h4 className="text-xl font-bold text-white mb-2 member-name">{member.name}</h4>
                           <p className="text-blue-400 font-semibold mb-3 text-sm">{member.role}</p>
-                          <p className="text-gray-200 text-sm leading-relaxed mb-2">{member.description}</p>
+                          <PreserveNewlines text={member.description} className="text-gray-200 text-sm leading-relaxed mb-2" />
                           {/* Back button removed; tap/click card to flip back */}
                         </div>
                       </div>

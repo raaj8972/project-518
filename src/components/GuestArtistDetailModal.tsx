@@ -7,6 +7,7 @@ import { Calendar, MapPin } from 'lucide-react';
 import Instagram3DButtonLink from './Instagram3DButtonLink';
 import YouTube3DButtonLink from './YouTube3DButtonLink';
 import Facebook3DButtonLink from './Facebook3DButtonLink';
+import PreserveNewlines from './PreserveNewlines';
 
 type SocialLinks = Record<string, string> | null | undefined;
 
@@ -105,7 +106,7 @@ const GuestArtistDetailModal: React.FC<{
                 </div>
               )}
               {artist.description && (
-                <p className="text-gray-300 leading-relaxed mb-4 whitespace-pre-line">{artist.description}</p>
+                <PreserveNewlines text={artist.description} className="text-gray-300 leading-relaxed mb-4" />
               )}
 
               {artist.countdown_enabled && artist.performance_at && (

@@ -6,6 +6,7 @@ import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import PreserveNewlines from '../PreserveNewlines';
 
 // Spotify icon component since it's not in lucide-react
 const Spotify = ({ className }: { className?: string }) => (
@@ -1120,7 +1121,9 @@ export const CoreTeamManagement: React.FC = () => {
                               </span>
                             )}
                           </div>
-                          <p className="text-gray-600 text-xs mb-3 line-clamp-2">{member.description}</p>
+                          {member.description && (
+                            <PreserveNewlines text={member.description} className="text-gray-600 text-xs mb-3" />
+                          )}
                           
                           {/* Social Links Display */}
                           {member.social_links && Object.values(member.social_links).some(link => link) && (
