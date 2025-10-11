@@ -1,0 +1,1 @@
+Expose an admin toggle to choose the counting policy (approved-only vs pending+approved).

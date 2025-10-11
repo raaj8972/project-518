@@ -22,7 +22,7 @@ const safeTeamMembers = (r: any): any[] => {
 };
 
 export const RegistrationManagement: React.FC = () => {
-  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations } = useData();
+  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, siteSettings, updateSiteSettings } = useData();
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -47,6 +47,10 @@ export const RegistrationManagement: React.FC = () => {
   const [exportPreset, setExportPreset] = useState<string>('full');
   const [splitThreshold, setSplitThreshold] = useState<number>(0);
   const [exportingGeneric, setExportingGeneric] = useState<boolean>(false);
+  // Institution visibility controls (moved from Site Settings into Registration admin)
+  const [registrationInstitutionVisible, setRegistrationInstitutionVisible] = useState<boolean>(true);
+  const [registrationInstitutionOptional, setRegistrationInstitutionOptional] = useState<boolean>(false);
+  const [savingRegSettings, setSavingRegSettings] = useState<boolean>(false);
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -67,6 +71,10 @@ export const RegistrationManagement: React.FC = () => {
   }, [registrations]);
 
   useEffect(() => {
+    try {
+      setRegistrationInstitutionVisible((siteSettings as any)?.registration_institution_visible !== false);
+      setRegistrationInstitutionOptional((siteSettings as any)?.registration_institution_optional === true);
+    } catch {}
     let cancelled = false;
     (async () => {
       const next: Record<string, string> = {};
@@ -396,6 +404,25 @@ export const RegistrationManagement: React.FC = () => {
             {exportingGeneric ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> : <Download size={16} className="mr-2" />}
             CSV
           </button>
+          {/* Institution visibility controls (owner-managed) */}
+          <div className="ml-4 flex items-center space-x-3">
+            <label className="flex items-center space-x-2 text-sm text-gray-700">
+              <input type="checkbox" checked={registrationInstitutionVisible} onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)} />
+              <span>Show Institution field</span>
+            </label>
+            <label className="flex items-center space-x-2 text-sm text-gray-700">
+              <input type="checkbox" checked={registrationInstitutionOptional} onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)} disabled={!registrationInstitutionVisible} />
+              <span>Optional</span>
+            </label>
+            <button className={`px-3 py-1 rounded bg-yellow-600 text-white text-sm ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} disabled={savingRegSettings}
+              onClick={async () => {
+                try {
+                  setSavingRegSettings(true);
+                  await updateSiteSettings({ registration_institution_visible: registrationInstitutionVisible, registration_institution_optional: registrationInstitutionOptional } as any);
+                } catch (e) { console.error(e); } finally { setSavingRegSettings(false); }
+              }}
+            >Save</button>
+          </div>
           {exportOptions.map((option, index) => (
             <button
               key={index}
