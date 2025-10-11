@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Building, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon } from 'lucide-react';
+import { X, User, Mail, Phone, Building, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { ImageUpload } from './ImageUpload';
 
@@ -69,6 +69,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [errors, setErrors] = useState<ErrorsMap>({});
   const [glitchActive, setGlitchActive] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string>('');
+  // Quota UI helpers
+  const [quotaFullMap, setQuotaFullMap] = useState<Record<string, boolean>>({});
+  const [quotaBlocked, setQuotaBlocked] = useState<{ title?: string; message: string } | null>(null);
 
   // Determine per-event team member limit (when team mode). Null/undefined falls back to global default (50)
   const teamLimit = React.useMemo(() => {
@@ -128,6 +131,19 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         }
       });
     }
+
+    // Site-wide Institution visibility toggle: owner can hide the field entirely for viewers
+    try {
+      const vis = (siteSettings as any)?.registration_institution_visible;
+      if (vis === false) {
+        map.college.visible = false;
+        map.college.required = false;
+      } else {
+        // Respect optional flag from site settings (default false)
+        const optional = (siteSettings as any)?.registration_institution_optional === true;
+        if (optional) map.college.required = false;
+      }
+    } catch {}
 
     // If this modal is opened for a specific event, allow event-level overrides stored on the event
     try {
@@ -263,12 +279,145 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
+  // Compute which participant types are full for this event (approved-only), based on per-event quotas if set or fallback to site quotas
+  useEffect(() => {
+    let cancelled = false;
+    const ev = (() => { try { return events.find((e: any) => e.id === eventId) as any; } catch { return undefined; } })();
+    const eventQuotas = ev?.registration_participant_quotas as Record<string, number> | undefined;
+    const siteQuotas = (siteSettings as any)?.registration_participant_quotas as Record<string, number> | undefined;
+    const quotas = eventQuotas || siteQuotas;
+    if (!isOpen || !quotas) { setQuotaFullMap({}); return; }
+    const run = async () => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const results: Record<string, boolean> = {};
+        await Promise.all((participantTypes || []).map(async (t) => {
+          const maxForType = typeof quotas[t] === 'number' ? quotas[t] : undefined;
+          if (maxForType === undefined) { results[t] = false; return; }
+          if (maxForType <= 0) { results[t] = true; return; }
+          try {
+            const { count, error } = await supabase
+              .from('registrations')
+              .select('id', { count: 'exact', head: true })
+              .eq('event_id', eventId)
+              .eq('participant_type', t)
+              .eq('status', 'approved');
+            if (!error && typeof count === 'number' && count >= maxForType) results[t] = true;
+            else results[t] = false;
+          } catch { results[t] = false; }
+        }));
+        if (!cancelled) setQuotaFullMap(results);
+      } catch (e) {
+        console.warn('[RegistrationModal] quota pre-check failed', e);
+        if (!cancelled) setQuotaFullMap({});
+      } finally {
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [isOpen, eventId, participantTypes, siteSettings, events]);
+
+  // If the current selected type becomes full, switch to the first available non-full type
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      if (quotaFullMap[formData.participant_type]) {
+        const firstOpen = (participantTypes || []).find(t => !quotaFullMap[t]);
+        if (firstOpen && firstOpen !== formData.participant_type) {
+          setFormData(prev => ({ ...prev, participant_type: firstOpen }));
+        }
+      }
+    } catch {}
+  }, [quotaFullMap, isOpen]);
+
+  const allTypesFull = useMemo(() => {
+    const pts = participantTypes || [];
+    if (!pts.length) return false;
+    // If there's only a single participant type, don't show the global
+    // "All types full" overlay. We'll instead surface a per-type warning
+    // and block on submit. This avoids confusion when events intentionally
+    // expose just one type which happens to be full.
+    if (pts.length <= 1) return false;
+    // Show only if quotas are configured at event or site level
+    try {
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      const hasQuotas = Boolean(ev?.registration_participant_quotas) || Boolean((siteSettings as any)?.registration_participant_quotas);
+      if (!hasQuotas) return false;
+    } catch { return false; }
+    return pts.every(t => Boolean(quotaFullMap[t]));
+  }, [participantTypes, quotaFullMap, events, eventId, siteSettings]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
       return;
     }
+
+    // Enforce participant-type quotas if configured (prefer per-event, approved-only) with server-side guard
+    try {
+      const ev = (() => { try { return events.find((e: any) => e.id === eventId) as any; } catch { return undefined; } })();
+      const quotas = (ev?.registration_participant_quotas as Record<string, number> | undefined) 
+        || ((siteSettings as any)?.registration_participant_quotas as Record<string, number> | undefined);
+      const pType = formData.participant_type;
+      const maxForType = quotas && typeof quotas[pType] === 'number' ? quotas[pType] : undefined;
+      if (typeof maxForType === 'number') {
+        // 0 means closed
+        if (maxForType <= 0) {
+          setQuotaBlocked({ title: 'REGISTRATIONS CLOSED', message: `${pType} is currently closed for this event.` });
+          return;
+        }
+
+        // If our pre-check already marked this type as full, block immediately
+        if (quotaFullMap[pType]) {
+          setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event.` });
+          return;
+        }
+        try {
+          const { supabase } = await import('../lib/supabase');
+          // Count approved rows for this participant_type for the current event only
+          const { count: approvedCount, error: approvedError } = await supabase
+            .from('registrations')
+            .select('id', { count: 'exact', head: true })
+            .eq('event_id', eventId)
+            .eq('participant_type', pType)
+            .eq('status', 'approved');
+          if (!approvedError && typeof approvedCount === 'number' && approvedCount >= maxForType) {
+            // Block and show friendly message
+            setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event. Limit of ${maxForType} approved registrations reached.` });
+            return;
+          }
+
+          // Also enforce soft cap on total submissions (pending + approved). This prevents
+          // new submissions from slipping through if approvals are pending but capacity is reached.
+          const { count: totalCount, error: totalError } = await supabase
+            .from('registrations')
+            .select('id', { count: 'exact', head: true })
+            .eq('event_id', eventId)
+            .eq('participant_type', pType)
+            .in('status', ['pending', 'approved']);
+          if (!totalError && typeof totalCount === 'number' && totalCount >= maxForType) {
+            setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType}. Maximum submissions reached for this type.` });
+            return;
+          }
+
+          // Server-side authoritative check (SECURITY DEFINER) not affected by RLS
+          try {
+            const { data: rows } = await supabase.rpc('check_registration_quota', { e_id: eventId, p_type: pType });
+            const row = Array.isArray(rows) ? rows[0] : undefined;
+            if (row && row.is_full) {
+              setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType}. Limit reached (${row.max ?? 'N/A'}).` });
+              return;
+            }
+          } catch {}
+        } catch (e) {
+          // If counting fails (e.g., RLS), block conservatively when quotas exist to avoid overbooking
+          console.warn('[RegistrationModal] quota check failed, blocking conservatively', e);
+          setQuotaBlocked({ title: 'REGISTRATIONS TEMPORARILY UNAVAILABLE', message: `Unable to verify remaining capacity for ${pType}. Please try again later or choose another participant type.` });
+          return;
+        }
+      }
+    } catch {}
 
   setIsSubmitting(true);
 
@@ -493,6 +642,50 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               </button>
             </div>
           </div>
+        ) : quotaBlocked ? (
+          <div className="p-4 sm:p-6 text-center flex-1 overflow-y-auto">
+            <div className="cyberpunk-success-container">
+              <div className="relative w-20 h-20 mx-auto mb-6 success-anim-in">
+                <div className="absolute inset-0 success-ring" />
+                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-pink-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(234,179,8,0.45)]">
+                  <AlertTriangle className="w-10 h-10 text-black" />
+                </div>
+              </div>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold cyberpunk-title mb-4">{quotaBlocked.title || 'REGISTRATIONS LIMITED'}</h3>
+              <p className="text-cyan-300 mb-6 font-mono text-sm max-w-md mx-auto">{quotaBlocked.message}</p>
+              <button
+                onClick={handleClose}
+                className="cyberpunk-btn cyberpunk-btn-primary text-sm px-6 py-3"
+              >
+                <span className="relative z-10 flex items-center">
+                  <Shield className="mr-2" size={20} />
+                  CLOSE
+                </span>
+              </button>
+            </div>
+          </div>
+        ) : allTypesFull ? (
+          <div className="p-4 sm:p-6 text-center flex-1 overflow-y-auto">
+            <div className="cyberpunk-success-container">
+              <div className="relative w-20 h-20 mx-auto mb-6 success-anim-in">
+                <div className="absolute inset-0 success-ring" />
+                <div className="w-20 h-20 bg-gradient-to-r from-yellow-400 to-pink-400 rounded-full flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(234,179,8,0.45)]">
+                  <AlertTriangle className="w-10 h-10 text-black" />
+                </div>
+              </div>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold cyberpunk-title mb-4">REGISTRATIONS FULL</h3>
+              <p className="text-cyan-300 mb-6 font-mono text-sm max-w-md mx-auto">All participant types are full for this event. Please check back later.</p>
+              <button
+                onClick={handleClose}
+                className="cyberpunk-btn cyberpunk-btn-primary text-sm px-6 py-3"
+              >
+                <span className="relative z-10 flex items-center">
+                  <Shield className="mr-2" size={20} />
+                  CLOSE
+                </span>
+              </button>
+            </div>
+          </div>
         ) : (
           /* Registration Form */
           <div className="flex-1 overflow-y-auto">
@@ -574,11 +767,29 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       onChange={(e) => handleInputChange('participant_type', e.target.value)}
                       className="cyberpunk-select pl-12"
                     >
-                      {participantTypes.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
+                      {(participantTypes || []).map(type => {
+                        const isFull = Boolean(quotaFullMap[type]);
+                        return (
+                          <option key={type} value={type} disabled={isFull} title={isFull ? 'Full for this event' : ''}>
+                            {isFull ? `${type} (full)` : type}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
+                  {(() => {
+                    try {
+                      const pType = formData.participant_type;
+                      if (pType && quotaFullMap[pType]) {
+                        return (
+                          <p className="mt-1 text-xs text-amber-400">
+                            The selected type is full for this event. Please choose another participant type.
+                          </p>
+                        );
+                      }
+                    } catch {}
+                    return null;
+                  })()}
                 </div>
 
                 {/* Full Name */}
@@ -694,7 +905,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               )}
 
-              {/* College/Institution (Optional) */}
+              {/* College/Institution (visibility controlled by Site Settings) */}
+              {fieldConfigMap.college?.visible && (
                 <div className="cyberpunk-section">
                 <label className="cyberpunk-label">
                   {(() => {
@@ -719,6 +931,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   />
                 </div>
               </div>
+              )}
 
               {/* Team Members (if team registration) */}
               {formData.is_team_registration && (

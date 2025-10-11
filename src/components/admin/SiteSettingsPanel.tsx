@@ -15,6 +15,8 @@ export const SiteSettingsPanel: React.FC = () => {
     events_poster_fit: 'contain' as 'contain' | 'cover',
     // Small convenience: allow editing the homepage hero title from Site Settings
     homepage_hero_title: '',
+    registration_institution_visible: true,
+    registration_institution_optional: false,
   });
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
@@ -30,6 +32,8 @@ export const SiteSettingsPanel: React.FC = () => {
       coming_soon_ended_text: (siteSettings as any).coming_soon_ended_text || '',
       events_poster_fit: ((siteSettings as any).events_poster_fit === 'cover' ? 'cover' : 'contain'),
       homepage_hero_title: (siteSettings as any)?.homepage_hero_title || '',
+      registration_institution_visible: (siteSettings as any)?.registration_institution_visible !== false,
+      registration_institution_optional: (siteSettings as any)?.registration_institution_optional === true,
     });
   }, [siteSettings]);
 
@@ -46,6 +50,8 @@ export const SiteSettingsPanel: React.FC = () => {
         events_poster_fit: local.events_poster_fit,
         // optional homepage hero title (stored in site_settings)
         homepage_hero_title: local.homepage_hero_title || null,
+        registration_institution_visible: !!local.registration_institution_visible,
+        registration_institution_optional: !!local.registration_institution_optional,
       } as any);
       setSavedAt(Date.now());
     } finally {
@@ -119,6 +125,29 @@ export const SiteSettingsPanel: React.FC = () => {
                 <option value="cover">Cover (fill card, may crop)</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">Contain shows full image with letterboxing; Cover fills the card but may crop on some screens.</p>
+            </div>
+            <div className="pt-2 border-t border-gray-200">
+              <div className="text-sm font-semibold text-gray-800 mb-2">Registration form: Institution field</div>
+              <label className="flex items-center gap-3 mb-2">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  checked={local.registration_institution_visible}
+                  onChange={(e) => setLocal((s) => ({ ...s, registration_institution_visible: e.target.checked }))}
+                />
+                <span className="text-gray-800">Show Institution Name field to viewers</span>
+              </label>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="rounded"
+                  checked={local.registration_institution_optional}
+                  onChange={(e) => setLocal((s) => ({ ...s, registration_institution_optional: e.target.checked }))}
+                  disabled={!local.registration_institution_visible}
+                />
+                <span className={`text-gray-800 ${!local.registration_institution_visible ? 'opacity-60' : ''}`}>Make Institution optional (when visible)</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1">When hidden, the field won’t be shown or required in the registration modal.</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ended Text (after timer)</label>

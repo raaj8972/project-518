@@ -112,6 +112,7 @@ export const EventsManagement: React.FC = () => {
   registration_photo_label: '' as string | null,
     registration_form_fields: [] as any[],
   registration_participant_types: [] as string[],
+  registration_participant_quotas: {} as Record<string, number>,
     // registration_default_mode: 'individual' | 'team' — owner can set default per event
     registration_default_mode: 'individual' as 'individual' | 'team',
   team_max_members: undefined as number | undefined,
@@ -272,6 +273,7 @@ export const EventsManagement: React.FC = () => {
     registration_photo_label: '',
   registration_form_fields: [],
   registration_participant_types: [],
+  registration_participant_quotas: {},
       registration_default_mode: 'individual',
   team_max_members: undefined,
       max_participants: undefined,
@@ -304,8 +306,9 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-    current_registrations: 0,
-    registration_participant_types: eventForm.registration_participant_types || undefined,
+  current_registrations: 0,
+  registration_participant_types: eventForm.registration_participant_types || undefined,
+  registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
     registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         team_max_members: (eventForm as any).team_max_members ?? null,
       } as any, draftCoordinators);
@@ -340,7 +343,8 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-        registration_participant_types: (eventForm as any).registration_participant_types || null,
+  registration_participant_types: (eventForm as any).registration_participant_types || null,
+  registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         team_max_members: (eventForm as any).team_max_members ?? null,
       } as any);
@@ -418,6 +422,7 @@ export const EventsManagement: React.FC = () => {
     registration_photo_label: (event as any).registration_photo_label || '',
       registration_form_fields: (event as any).registration_form_fields || [],
   registration_participant_types: (event as any).registration_participant_types || [],
+    registration_participant_quotas: ((event as any).registration_participant_quotas || {}) as any,
       registration_default_mode: (event as any).registration_default_mode || 'individual',
   team_max_members: (event as any).team_max_members ?? undefined,
       max_participants: event.max_participants ?? undefined,
@@ -530,8 +535,14 @@ export const EventsManagement: React.FC = () => {
   const removeEventParticipantType = (idx: number) => {
     setEventForm(prev => {
       const list = (prev.registration_participant_types || []).slice();
-      list.splice(idx, 1);
-      return { ...prev, registration_participant_types: list } as any;
+      const removed = list.splice(idx, 1)[0];
+      // Also prune any quota set for the removed type
+      const quotasBase = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
+      const quotas = { ...quotasBase };
+      if (removed && Object.prototype.hasOwnProperty.call(quotas, removed)) {
+        delete quotas[removed];
+      }
+      return { ...prev, registration_participant_types: list, registration_participant_quotas: quotas } as any;
     });
   };
 
@@ -1017,25 +1028,106 @@ export const EventsManagement: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1">Leave blank to use the global default (50). Applies when users choose Team mode.</p>
                 </div>
               </div>
-              {/* Per-event participant types editor */}
+              {/* Per-event participant types editor - choose from site-level list and set per-type limits */}
               <div className="mt-3">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Participant Types (per-event)</label>
-                <div className="space-y-2">
-                  {(eventForm.registration_participant_types || []).map((t: string, i: number) => (
-                    <div key={i} className="flex items-center justify-between p-2 border rounded">
-                      <div className="flex items-center gap-2"><span className="text-sm">{t}</span></div>
-                      <div className="flex items-center gap-2">
-                        <button disabled={i === 0} onClick={() => moveEventParticipantType(i, i - 1)} className="px-2 py-1 border rounded text-sm">↑</button>
-                        <button disabled={i === ((eventForm.registration_participant_types || []).length - 1)} onClick={() => moveEventParticipantType(i, i + 1)} className="px-2 py-1 border rounded text-sm">↓</button>
-                        <button onClick={() => removeEventParticipantType(i)} className="text-red-600">Remove</button>
-                      </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Participant Types for this event</label>
+                {Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500 mb-1">
+                      Check to enable a type for this event. Leave the limit blank for unlimited, or set 0 to close that type.
+                    </p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 border rounded"
+                        onClick={() => {
+                          const list = (siteSettings as any).registration_participant_types as string[];
+                          setEventForm(prev => ({ ...prev, registration_participant_types: [...list] } as any));
+                        }}
+                      >Select all</button>
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 border rounded"
+                        onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [] as string[], registration_participant_quotas: {} as any } as any))}
+                      >Clear all</button>
                     </div>
-                  ))}
-                  <div className="mt-2 flex gap-2">
-                    <input value={newEventParticipantType} onChange={(e) => setNewEventParticipantType(e.target.value)} placeholder="New participant type" className="border rounded p-2 flex-1" />
-                    <button onClick={addEventParticipantType} className="px-3 py-2 bg-green-600 text-white rounded">Add</button>
+                    {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
+                      const selected = (eventForm.registration_participant_types || []).includes(t);
+                      const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
+                      return (
+                        <div key={t} className="flex items-center justify-between p-2 border rounded">
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setEventForm(prev => {
+                                    const cur = new Set(prev.registration_participant_types || []);
+                                    const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
+                                    if (checked) cur.add(t); else { cur.delete(t); if (quotas[t] !== undefined) delete quotas[t]; }
+                                    return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
+                                  });
+                                }}
+                              />
+                              <span className="text-sm min-w-[120px]">{t}</span>
+                            </label>
+                            <label className="text-xs text-gray-600">Limit</label>
+                            <input
+                              type="number"
+                              min={0}
+                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : ''}`}
+                              placeholder={selected ? 'Unlimited' : 'Unavailable'}
+                              title="Check to enable this type. Leave blank for unlimited. Set 0 to close."
+                              value={limitVal}
+                              disabled={!selected}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                setEventForm(prev => {
+                                  const base = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
+                                  const quotas = { ...base };
+                                  if (raw === '') delete quotas[t]; else quotas[t] = Math.max(0, parseInt(raw || '0')) || 0;
+                                  return { ...prev, registration_participant_quotas: quotas } as any;
+                                });
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {(() => {
+                      const siteList = (siteSettings as any).registration_participant_types as string[];
+                      const unknown = (eventForm.registration_participant_types || []).filter((t: string) => !siteList.includes(t));
+                      if (!unknown.length) return null;
+                      return (
+                        <div className="mt-2 p-2 border border-amber-200 bg-amber-50 rounded text-xs text-amber-800">
+                          Some types are selected on this event but not present in site settings: {unknown.join(', ')}.
+                          <button
+                            type="button"
+                            className="ml-2 underline"
+                            onClick={() => setEventForm(prev => {
+                              const siteSet = new Set((siteSettings as any).registration_participant_types as string[]);
+                              const list = (prev.registration_participant_types || []).filter((t: string) => siteSet.has(t));
+                              const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
+                              Object.keys(quotas).forEach(k => { if (!siteSet.has(k)) delete quotas[k]; });
+                              return { ...prev, registration_participant_types: list, registration_participant_quotas: quotas } as any;
+                            })}
+                          >Remove unknown</button>
+                        </div>
+                      );
+                    })()}
                   </div>
-                </div>
+                ) : (
+                  <div className="p-3 border rounded bg-gray-50 text-sm text-gray-600">
+                    No participant types found. Define them in Admin → Registration Modal settings first.
+                  </div>
+                )}
+              </div>
+              {/* Note about quotas */}
+              <div className="mt-3 p-3 border rounded bg-gray-50">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Participant Type Limits</label>
+                <p className="text-xs text-gray-500">Set per-event maximums for each selected type. 0 = closed, blank = unlimited (falls back to site quota if set).</p>
               </div>
               {/* Registration Photo Label (optional) */}
               <div className="mt-3">
@@ -1338,25 +1430,98 @@ export const EventsManagement: React.FC = () => {
                     className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                   />
                 </div>
-                {/* Per-event participant types editor (edit mode) */}
+                {/* Per-event participant types editor (edit mode) - select from site-level list with per-type limits */}
                 <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Participant Types (per-event)</label>
-                  <div className="space-y-2">
-                    {(eventForm.registration_participant_types || []).map((t: string, i: number) => (
-                      <div key={i} className="flex items-center justify-between p-2 border rounded">
-                        <div className="text-sm">{t}</div>
-                        <div className="flex items-center gap-2">
-                          <button disabled={i === 0} onClick={() => moveEventParticipantType(i, i - 1)} className="px-2 py-1 border rounded text-sm">↑</button>
-                          <button disabled={i === ((eventForm.registration_participant_types || []).length - 1)} onClick={() => moveEventParticipantType(i, i + 1)} className="px-2 py-1 border rounded text-sm">↓</button>
-                          <button onClick={() => removeEventParticipantType(i)} className="text-red-600">Remove</button>
-                        </div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Participant Types for this event</label>
+                  {Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-1 border rounded"
+                          onClick={() => {
+                            const list = (siteSettings as any).registration_participant_types as string[];
+                            setEventForm(prev => ({ ...prev, registration_participant_types: [...list] } as any));
+                          }}
+                        >Select all</button>
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-1 border rounded"
+                          onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [] as string[], registration_participant_quotas: {} as any } as any))}
+                        >Clear all</button>
                       </div>
-                    ))}
-                    <div className="mt-2 flex gap-2">
-                      <input value={newEventParticipantType} onChange={(e) => setNewEventParticipantType(e.target.value)} placeholder="New participant type" className="border rounded p-2 flex-1" />
-                      <button onClick={addEventParticipantType} className="px-3 py-2 bg-green-600 text-white rounded">Add</button>
+                      {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
+                        const selected = (eventForm.registration_participant_types || []).includes(t);
+                        const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
+                        return (
+                          <div key={t} className="flex items-center justify-between p-2 border rounded">
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setEventForm(prev => {
+                                      const cur = new Set(prev.registration_participant_types || []);
+                                      const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
+                                      if (checked) cur.add(t); else { cur.delete(t); if (quotas[t] !== undefined) delete quotas[t]; }
+                                      return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm min-w-[120px]">{t}</span>
+                              </label>
+                              <label className="text-xs text-gray-600">Limit</label>
+                              <input
+                                type="number"
+                                min={0}
+                                className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : ''}`}
+                                placeholder="Unlimited"
+                                title="Set per-event limit (0 = closed, blank = unlimited)"
+                                value={limitVal}
+                                disabled={!selected}
+                                onChange={(e) => {
+                                  const raw = e.target.value;
+                                  setEventForm(prev => {
+                                    const base = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
+                                    const quotas = { ...base };
+                                    if (raw === '') delete quotas[t]; else quotas[t] = Math.max(0, parseInt(raw || '0')) || 0;
+                                    return { ...prev, registration_participant_quotas: quotas } as any;
+                                  });
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(() => {
+                        const siteList = (siteSettings as any).registration_participant_types as string[];
+                        const unknown = (eventForm.registration_participant_types || []).filter((t: string) => !siteList.includes(t));
+                        if (!unknown.length) return null;
+                        return (
+                          <div className="mt-2 p-2 border border-amber-200 bg-amber-50 rounded text-xs text-amber-800">
+                            Some types are selected on this event but not present in site settings: {unknown.join(', ')}.
+                            <button
+                              type="button"
+                              className="ml-2 underline"
+                              onClick={() => setEventForm(prev => {
+                                const siteSet = new Set((siteSettings as any).registration_participant_types as string[]);
+                                const list = (prev.registration_participant_types || []).filter((t: string) => siteSet.has(t));
+                                const quotas = { ...(((prev as any).registration_participant_quotas || {}) as Record<string, number>) };
+                                Object.keys(quotas).forEach(k => { if (!siteSet.has(k)) delete quotas[k]; });
+                                return { ...prev, registration_participant_types: list, registration_participant_quotas: quotas } as any;
+                              })}
+                            >Remove unknown</button>
+                          </div>
+                        );
+                      })()}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="p-3 border rounded bg-gray-50 text-sm text-gray-600">
+                      No participant types found. Define them in Admin → Registration Modal settings first.
+                    </div>
+                  )}
                 </div>
                 <input
                   type="text"

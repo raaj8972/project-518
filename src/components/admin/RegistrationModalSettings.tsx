@@ -13,18 +13,23 @@ export const RegistrationModalSettings: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   // Local draft state stored in localStorage while editing
-  // We only keep participant types in this simplified admin view per owner's request
   const [draft, setDraft] = useLocalStorage('admin_registration_modal_draft', {
-    participantTypes: (siteSettings?.registration_participant_types as string[]) || ['1st Year', '2nd Year', '3rd Year', '4th Year']
+    participantTypes: (siteSettings?.registration_participant_types as string[]) || ['1st Year', '2nd Year', '3rd Year', '4th Year'],
+    registrationInstitutionVisible: (siteSettings as any)?.registration_institution_visible !== false,
+    registrationInstitutionOptional: (siteSettings as any)?.registration_institution_optional === true,
+    participantQuotas: (siteSettings as any)?.registration_participant_quotas || {},
   });
 
   useEffect(() => {
-    // Sync when siteSettings change (but don't overwrite while editing)
     if (!isEditing && siteSettings) {
       try {
-        setDraft({
-          participantTypes: (siteSettings?.registration_participant_types as string[]) || draft.participantTypes
-        });
+        setDraft(prev => ({
+          ...prev,
+          participantTypes: (siteSettings?.registration_participant_types as string[]) || prev.participantTypes,
+          registrationInstitutionVisible: (siteSettings as any)?.registration_institution_visible !== false,
+          registrationInstitutionOptional: (siteSettings as any)?.registration_institution_optional === true,
+          participantQuotas: (siteSettings as any)?.registration_participant_quotas || prev.participantQuotas || {},
+        }));
       } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -34,21 +39,47 @@ export const RegistrationModalSettings: React.FC = () => {
     setSaving(true);
     try {
       await updateSiteSettings({
-        registration_participant_types: draft.participantTypes
+        registration_participant_types: draft.participantTypes,
+        registration_institution_visible: (draft as any).registrationInstitutionVisible,
+        registration_institution_optional: (draft as any).registrationInstitutionOptional,
+        registration_participant_quotas: (draft as any).participantQuotas,
       });
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Registration modal settings saved.' });
       setTimeout(() => setMessage(null), 4000);
     } catch (err: any) {
       console.error('Failed to save registration modal settings', err);
-      setMessage({ type: 'error', text: err?.message || 'Save failed' });
+      const msg = String(err?.message || err || '');
+      const looksLikeSchemaCache = /registration_participant_quotas/i.test(msg) && /schema cache|does not exist|could not find/i.test(msg);
+      if (looksLikeSchemaCache) {
+        try {
+          // Retry without quotas field so other settings can be saved
+          await updateSiteSettings({
+            registration_participant_types: draft.participantTypes,
+            registration_institution_visible: (draft as any).registrationInstitutionVisible,
+            registration_institution_optional: (draft as any).registrationInstitutionOptional,
+          });
+          setIsEditing(false);
+          setMessage({
+            type: 'success',
+            text: 'Saved without quotas. Please apply the DB migration for site-level quotas and click “Reset API cache” in Supabase, then try saving quotas again.'
+          });
+          setTimeout(() => setMessage(null), 6000);
+          return;
+        } catch (e2: any) {
+          const msg2 = String(e2?.message || e2 || '');
+          setMessage({ type: 'error', text: msg2 || 'Save failed (retry without quotas also failed)' });
+          return;
+        }
+      }
+      setMessage({ type: 'error', text: msg || 'Save failed' });
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    // reset draft from siteSettings
+    // reset draft from siteSettings (no deep merge needed here)
     setDraft(prev => ({ ...prev }));
     setIsEditing(false);
     setMessage(null);
@@ -77,8 +108,6 @@ export const RegistrationModalSettings: React.FC = () => {
     });
   };
 
-  // only participant type helpers remain
-
   const moveParticipantType = (from: number, to: number) => {
     setDraft(prev => {
       const list = (prev.participantTypes || []).slice();
@@ -88,10 +117,6 @@ export const RegistrationModalSettings: React.FC = () => {
       return { ...prev, participantTypes: list };
     });
   };
-
-  // no form field moves in simplified view
-
-  // no other field editing in this simplified view
 
   return (
     <div className="space-y-6">
@@ -105,7 +130,6 @@ export const RegistrationModalSettings: React.FC = () => {
           {(() => {
             try {
               const uid = user?.id;
-              // Allow owners and admin-role users to edit participant types
               const isListedAdmin = !!adminUsers?.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
               const hasPermission = !!(myPermissions?.can_registrations || myPermissions?.can_events);
               if (!isListedAdmin && !hasPermission) return null;
@@ -140,11 +164,44 @@ export const RegistrationModalSettings: React.FC = () => {
             <h3 className="font-semibold mb-2">Participant Types</h3>
             <div className="text-sm text-gray-700">{(draft.participantTypes || []).join(', ')}</div>
           </div>
+          <div>
+            <h3 className="font-semibold mt-2 mb-2">Institution / College field</h3>
+            <div className="text-sm text-gray-700">
+              {(draft as any).registrationInstitutionVisible ? (
+                <span>Visible to viewers — {(draft as any).registrationInstitutionOptional ? 'Optional' : 'Required'}</span>
+              ) : (
+                <span className="text-gray-500">Hidden from viewers</span>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
       {isEditing && (
         <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+          <div>
+            <h3 className="font-semibold mb-2">Institution / College field</h3>
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center space-x-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={(draft as any).registrationInstitutionVisible}
+                  onChange={(e) => setDraft(prev => ({ ...prev, registrationInstitutionVisible: e.target.checked }))}
+                />
+                <span>Show Institution field to viewers</span>
+              </label>
+              <label className="flex items-center space-x-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={(draft as any).registrationInstitutionOptional}
+                  onChange={(e) => setDraft(prev => ({ ...prev, registrationInstitutionOptional: e.target.checked }))}
+                  disabled={!(draft as any).registrationInstitutionVisible}
+                />
+                <span>Make Institution optional</span>
+              </label>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Participant Types</label>
             <div className="flex gap-2">
@@ -161,6 +218,19 @@ export const RegistrationModalSettings: React.FC = () => {
                       value={t}
                       onChange={(e) => updateParticipantType(i, e.target.value)}
                     />
+                    {/* Quota per type */}
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-28 border rounded px-2 py-1 ml-2"
+                      value={(draft as any).participantQuotas?.[t] ?? ''}
+                      onChange={(e) => setDraft(prev => ({
+                        ...prev,
+                        participantQuotas: { ...(prev as any).participantQuotas, [t]: e.target.value === '' ? undefined : Math.max(0, parseInt(e.target.value || '0')) }
+                      }))}
+                      placeholder="limit"
+                      title="Max registrations for this type (0 = closed, blank = unlimited)"
+                    />
                   </div>
                   <div className="flex items-center gap-2 ml-4">
                     <button aria-label="move up" disabled={i === 0} onClick={() => moveParticipantType(i, i - 1)} className="px-2 py-1 border rounded text-sm">↑</button>
@@ -172,7 +242,6 @@ export const RegistrationModalSettings: React.FC = () => {
             </ul>
           </div>
 
-          {/* simplified: only participant types editable */}
           <div className="flex justify-end space-x-3 pt-4">
             <button onClick={handleCancel} className="px-4 py-2 rounded border">Cancel</button>
             <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">
@@ -204,7 +273,15 @@ export const RegistrationModalSettings: React.FC = () => {
           eventTitle="preview"
           eventId={-1}
           previewOverrides={{
-            siteSettings: { registration_participant_types: draft.participantTypes, registration_photo_default_label: null, registration_photo_default_required: false, registration_form_fields: null },
+            siteSettings: {
+              registration_participant_types: draft.participantTypes,
+              registration_photo_default_label: null,
+              registration_photo_default_required: false,
+              registration_form_fields: null,
+              registration_institution_visible: (draft as any).registrationInstitutionVisible,
+              registration_institution_optional: (draft as any).registrationInstitutionOptional,
+              registration_participant_quotas: (draft as any).participantQuotas,
+            },
             events: [{ id: -1, registration_participant_types: draft.participantTypes }],
             addRegistration: addRegistration
           }}

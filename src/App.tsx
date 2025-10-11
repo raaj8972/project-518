@@ -92,6 +92,25 @@ const GlobalErrorBanner: React.FC = () => {
       const reason = (e.reason && (e.reason.message || String(e.reason))) || 'Unhandled promise rejection';
       setMsg(reason);
       console.error('Unhandled rejection:', e.reason);
+
+      // Auto-recover from stale HTML vs new asset chunk mismatch:
+      // If a dynamic import or chunk load fails (common after deploys), reload once with a cache-busting param.
+      try {
+        const text = String(reason || '').toLowerCase();
+        const isChunkErr =
+          text.includes('failed to fetch dynamically imported module') ||
+          text.includes('chunkloaderror') ||
+          text.includes('loading chunk') ||
+          text.includes('import()') ||
+          /assets\/.*\.js/.test(text);
+        const already = sessionStorage.getItem('chunk-reload');
+        if (isChunkErr && already !== '1') {
+          sessionStorage.setItem('chunk-reload', '1');
+          const url = new URL(window.location.href);
+          url.searchParams.set('v', String(Date.now()));
+          window.location.replace(url.toString());
+        }
+      } catch {}
     };
     window.addEventListener('error', onErr);
     window.addEventListener('unhandledrejection', onRej);

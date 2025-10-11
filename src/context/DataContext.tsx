@@ -2242,7 +2242,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .single();
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode') || msg.includes('team_max_members')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode') || msg.includes('team_max_members') || msg.includes('registration_participant_quotas')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2255,6 +2255,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   delete safe.owner_hover_reveal;
         // Strip per-event team cap if schema cache hasn’t picked it up yet
         delete safe.team_max_members;
+        // Strip per-event participant quotas if schema cache hasn’t picked it up yet
+        delete safe.registration_participant_quotas;
         const retry = await supabase
           .from('events')
           .insert(safe)
@@ -2289,7 +2291,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     let { error } = await supabase.from('events').update(event).eq('id', id);
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode') || msg.includes('prefer_video') || msg.includes('team_max_members')) {
+      if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('winners_display_mode') || msg.includes('prefer_video') || msg.includes('team_max_members') || msg.includes('registration_participant_quotas')) {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2304,6 +2306,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   delete safe.owner_hover_reveal;
         // Strip per-event team cap if schema cache hasn’t picked it up yet
         delete safe.team_max_members;
+        // Strip per-event participant quotas if schema cache hasn’t picked it up yet
+        delete safe.registration_participant_quotas;
         const retry = await supabase.from('events').update(safe).eq('id', id);
         if (retry.error) throw retry.error;
       } else {
