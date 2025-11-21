@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { useGesture } from '@use-gesture/react';
 import './DomeGallery.css';
 
@@ -915,22 +917,38 @@ export default function DomeGallery({
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-          {/* Download button (visible only when an image is enlarged) */}
-          <button
-            type="button"
-            className="download-btn"
-            aria-label="Download image"
-            title="Download image"
-            onClick={onDownload}
-            // Enable only while enlarged
-            disabled={!enlargedSrc}
-          >
-            {/* Inline SVG download icon */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          {/* Download button (visible only when an image is enlarged AND viewer is admin/owner) */}
+          {(() => {
+            try {
+              const data = useData() as any;
+              const { user } = useAuth();
+              const adminUsers = data?.adminUsers as any[] | undefined;
+              const uid = user?.id;
+              const isAdminOrOwner = uid && Array.isArray(adminUsers) && !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+              if (!isAdminOrOwner) return null;
+            } catch {
+              // If context isn't available, default to hiding the button for safety
+              return null;
+            }
+
+            return (
+              <button
+                type="button"
+                className="download-btn"
+                aria-label="Download image"
+                title="Download image"
+                onClick={onDownload}
+                // Enable only while enlarged
+                disabled={!enlargedSrc}
+              >
+                {/* Inline SVG download icon */}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            );
+          })()}
         </div>
       </main>
     </div>
