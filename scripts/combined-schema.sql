@@ -732,7 +732,7 @@ COMMIT;
 
 -- FILE: migrations/20251011_add_registration_participant_quotas.sql
 
--- Expose an admin toggle to choose the counting policy (approved-only vs pending+approved).
+Expose an admin toggle to choose the counting policy (approved-only vs pending+approved).
 -- FILE: migrations/20251011_add_site_registration_quotas_and_visibility.sql
 
 -- Add site-level registration quotas and Institution visibility toggle

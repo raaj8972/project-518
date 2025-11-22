@@ -16,12 +16,11 @@ const Spotify = ({ className }: { className?: string }) => (
 );
 
 export const CoreTeamManagement: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const savingProgress = useSavingProgress();
   const { 
-  coreCommittees,
+    coreCommittees,
     coreTeamMembers,
-  adminUsers,
     addCoreCommittee,
     updateCoreCommittee,
     deleteCoreCommittee,
@@ -186,11 +185,6 @@ export const CoreTeamManagement: React.FC = () => {
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
     
-    // Prevent non-owners from creating a web-developer entry
-    if (isWebDevRole(memberForm.role) && !isOwnerUser) {
-      alert('Only an owner can add or modify Web Developer profiles.');
-      return;
-    }
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
@@ -214,11 +208,6 @@ export const CoreTeamManagement: React.FC = () => {
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
     
-    // Prevent non-owners from updating a web-developer entry
-    if (isWebDevRole(memberForm.role) && !isOwnerUser) {
-      alert('Only an owner can add or modify Web Developer profiles.');
-      return;
-    }
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
@@ -236,11 +225,6 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleDeleteMember = async (id: number) => {
-    const member = coreTeamMembers.find(m => m.id === id);
-    if (member && isWebDevRole(member.role) && !isOwnerUser) {
-      alert('Only an owner can delete Web Developer profiles.');
-      return;
-    }
     if (confirm('Are you sure you want to delete this team member? This action cannot be undone.')) {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
@@ -256,11 +240,6 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const startEditingMember = (member: CoreTeamMember) => {
-    // Block editing web-developer entries for non-owner admins
-    if (isWebDevRole(member.role) && !isOwnerUser) {
-      alert('Only an owner can edit Web Developer profiles.');
-      return;
-    }
     setMemberForm({
       committee_id: member.committee_id,
       name: member.name,
@@ -308,17 +287,6 @@ export const CoreTeamManagement: React.FC = () => {
   // Sort committees and members
   const sortedCommittees = [...coreCommittees].sort((a, b) => a.order_position - b.order_position);
   const sortedMembers = [...coreTeamMembers].sort((a, b) => a.order_position - b.order_position);
-
-  // Owner detection helper
-  const isOwnerUser = Boolean(adminUsers && user && adminUsers.find((a: any) => a.user_id === user.id && (a.role === 'owner' || a.is_primary)));
-
-  // Only treat explicit 'web developer' and 'lead developer' roles as protected
-  const isWebDevRole = (role?: string | null) => {
-    const rl = String(role || '').toLowerCase().trim();
-    if (!rl) return false;
-    const normalized = rl.replace(/\s+/g, ' ');
-    return ['web developer', 'lead developer', 'lead web developer', 'lead webdev', 'webdev', 'web developer (lead)'].includes(normalized);
-  };
 
   // Group members by committee
   const membersByCommittee = sortedMembers.reduce((acc, member) => {
@@ -1194,52 +1162,46 @@ export const CoreTeamManagement: React.FC = () => {
                               {member.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
                             </button>
                             <div className="flex space-x-1">
-                                  {(!isWebDevRole(member.role) || isOwnerUser) ? (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleCoreTeamMemberIsHead(member.id)}
-                                        className={`p-1 rounded transition-colors ${
-                                          member.is_head 
-                                            ? 'bg-yellow-100 text-yellow-600' 
-                                            : 'bg-gray-100 text-gray-600'
-                                        } hover:bg-yellow-200`}
-                                        title={member.is_head ? 'Remove as head' : 'Make committee head'}
-                                      >
-                                        <Crown size={12} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleMemberCouncil(member.id)}
-                                        className={`p-1 rounded transition-colors ${
-                                          (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
-                                        } hover:bg-red-200 ml-1`}
-                                        title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
-                                      >
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                          <circle cx="12" cy="12" r="10" />
-                                        </svg>
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => startEditingMember(member)}
-                                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                                        title="Edit member"
-                                      >
-                                        <Edit size={12} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteMember(member.id)}
-                                        className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                                        title="Delete member"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <div className="text-xs text-gray-500 italic px-2 py-1">Owner-only</div>
-                                  )}
+                              <button
+                                type="button"
+                                onClick={() => toggleCoreTeamMemberIsHead(member.id)}
+                                className={`p-1 rounded transition-colors ${
+                                  member.is_head 
+                                    ? 'bg-yellow-100 text-yellow-600' 
+                                    : 'bg-gray-100 text-gray-600'
+                                } hover:bg-yellow-200`}
+                                title={member.is_head ? 'Remove as head' : 'Make committee head'}
+                              >
+                                <Crown size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleMemberCouncil(member.id)}
+                                className={`p-1 rounded transition-colors ${
+                                  (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                                } hover:bg-red-200 ml-1`}
+                                title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                  <circle cx="12" cy="12" r="10" />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => startEditingMember(member)}
+                                className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
+                                title="Edit member"
+                              >
+                                <Edit size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMember(member.id)}
+                                className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
+                                title="Delete member"
+                              >
+                                <Trash2 size={12} />
+                              </button>
                             </div>
                           </div>
                         </div>

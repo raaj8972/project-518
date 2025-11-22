@@ -49,10 +49,3 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "interest-cohort=()"
-
-
-[[headers]]
-  # Prevent search engines from indexing images from the site
-  for = "/**/*.{png,jpg,jpeg,gif,webp,svg}"
-  [headers.values]
-    X-Robots-Tag = "noimageindex"
