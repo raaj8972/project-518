@@ -5,6 +5,7 @@ import HeroBackground from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import { AuditionModal } from '../components/AuditionModal';
 import FlipCard, { FlipCardHandle } from '../components/FlipCard';
+import ScrollHint from '../components/ScrollHint';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings } = useData();
@@ -133,6 +134,8 @@ export const HomeBound: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      {/* One-time mobile scroll hint */}
+      <ScrollHint />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="homebound" />

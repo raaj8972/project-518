@@ -10,6 +10,7 @@ import DescriptionHeaderBody from '../components/DescriptionHeaderBody';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
+import ScrollHint from '../components/ScrollHint';
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee')) as unknown as React.ComponentType<any>;
 const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal')) as unknown as React.ComponentType<any>;
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
@@ -197,6 +198,8 @@ export const RicoFamily: React.FC = () => {
 
   return (
   <div className="neon-theme min-h-screen">
+    {/* One-time mobile scroll hint */}
+    <ScrollHint />
       <style>{`
         @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>

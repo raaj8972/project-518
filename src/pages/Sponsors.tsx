@@ -4,6 +4,7 @@ import * as LucideIcons from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
+import ScrollHint from '../components/ScrollHint';
 
 export const Sponsors: React.FC = () => {
   const { sponsors, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
@@ -116,6 +117,7 @@ export const Sponsors: React.FC = () => {
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
   }, [sponsors.length, sponsorshipPackages.length, eventCategories.length]);
 
+
   // Parallax effect
   useEffect(() => {
     const handleScroll = () => {
@@ -192,6 +194,8 @@ export const Sponsors: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      {/* One-time mobile scroll hint */}
+      <ScrollHint />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="sponsors" />

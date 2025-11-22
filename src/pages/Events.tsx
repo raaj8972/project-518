@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
+import ScrollHint from '../components/ScrollHint';
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -58,6 +59,10 @@ export const Events: React.FC = () => {
       return b.id - a.id; // newer id first as tie-breaker
     });
   }, [events]);
+
+  // Show a one-time mobile scroll hint near the top of the Events page
+  // The ScrollHint component handles its own localStorage state and will
+  // hide itself after the user scrolls/touches once.
 
   // Build the full category list from ALL events (even hidden) so owner-created
   // categories appear in the filter even if no event is currently visible.
@@ -429,6 +434,8 @@ export const Events: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      {/* One-time mobile scroll hint */}
+      <ScrollHint />
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
 
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">

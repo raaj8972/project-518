@@ -6,6 +6,7 @@ import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import HeroBackground from '../components/HeroBackground';
 // Registration is disabled on Schedule; users will open the event card instead.
+import ScrollHint from '../components/ScrollHint';
 
 export const Schedule: React.FC = () => {
   const { schedule, loading, events, guestArtists, eventCoordinators } = useData() as any;
@@ -223,6 +224,8 @@ export const Schedule: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      {/* One-time mobile scroll hint */}
+      <ScrollHint />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         <HeroBackground pageKey="schedule" />
