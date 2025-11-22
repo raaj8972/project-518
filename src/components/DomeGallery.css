@@ -166,6 +166,17 @@ main.sphere-main {
   padding: var(--viewer-pad);
 }
 
+/* Keep the viewer fixed while an image is enlarged so the enlarged image doesn't move with page scroll */
+.sphere-root[data-enlarging='true'] .viewer {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  pointer-events: auto; /* enable interactions inside viewer */
+}
+
 .viewer .frame {
   height: 100%;
   aspect-ratio: 1;
@@ -318,8 +329,10 @@ main.sphere-main {
     border-radius: 14px;
   }
   /* Let touches pass through image to page scroll while enlarged */
+  /* Do not allow touches to pass through the enlarged image; keep it fixed and non-movable */
   .sphere-root[data-enlarging='true'] .viewer .enlarge {
-    pointer-events: none;
+    pointer-events: auto;
+    touch-action: none;
   }
   /* Softer tile hover effects (when they apply) */
   .item__image:hover,
@@ -355,7 +368,8 @@ main.sphere-main {
 /* Close (X) button styling */
 .close-btn {
   position: fixed; /* anchor to enlarged image via CSS vars */
-  left: calc(var(--enlarge-left, 0px) + 8px);
+  /* place the close button just outside the top-left of the enlarged image so it doesn't overlap the picture */
+  left: calc(var(--enlarge-left, 0px) - 64px);
   top: calc(var(--enlarge-top, 0px) + 4px);
   z-index: 40;
   width: 44px;

@@ -169,7 +169,6 @@ export default function DomeGallery({
   const windowOverlayUpdateRef = useRef<(() => void) | null>(null);
   const secondPhaseDidRunRef = useRef(false);
   const [enlargedSrc, setEnlargedSrc] = useState<string | null>(null);
-  const [enlargedAlt, setEnlargedAlt] = useState<string>('');
   const focusedElRef = useRef<HTMLElement | null>(null);
   const originalTilePositionRef = useRef<{
     left: number;
@@ -498,7 +497,6 @@ export default function DomeGallery({
       overlay.style.transition = `transform ${localTransitionMs}ms ease, opacity ${localTransitionMs}ms ease`;
 
   const rawSrc = parent.dataset.src || (el.querySelector('img') as HTMLImageElement)?.src || '';
-  const rawAlt = parent.dataset.alt || (el.querySelector('img') as HTMLImageElement)?.alt || '';
     const img = document.createElement('img');
     img.src = rawSrc;
     // Preload/decode the image to avoid jank on first paint; don't block too long
@@ -517,7 +515,6 @@ export default function DomeGallery({
     overlay.appendChild(img);
     viewerRef.current!.appendChild(overlay);
   setEnlargedSrc(rawSrc || null);
-  setEnlargedAlt(rawAlt || '');
 
     const tx0 = tileR.left - frameR.left;
     const ty0 = tileR.top - frameR.top;
@@ -681,8 +678,7 @@ export default function DomeGallery({
           root.style.removeProperty('--enlarge-width');
           root.style.removeProperty('--enlarge-height');
         }
-        setEnlargedSrc(null);
-        setEnlargedAlt('');
+  setEnlargedSrc(null);
         requestAnimationFrame(() => {
           (parent.style as any).transition = '';
           el.style.transition = 'opacity 220ms ease-out';
@@ -796,37 +792,7 @@ export default function DomeGallery({
     };
   }, [closeOverlay]);
 
-  const onDownload = useCallback(async () => {
-    if (!enlargedSrc) return;
-    // Try to fetch and save; fallback to opening in new tab if CORS blocks download
-    const deriveFilename = () => {
-      try {
-        const url = new URL(enlargedSrc);
-        const base = url.pathname.split('/').pop() || 'image';
-        const safeAlt = enlargedAlt?.trim().replace(/[^a-z0-9-_]+/gi, '_').slice(0, 50);
-        return safeAlt ? `${safeAlt}_${base}` : base;
-      } catch {
-        const safeAlt = enlargedAlt?.trim().replace(/[^a-z0-9-_]+/gi, '_').slice(0, 50) || 'image';
-        return `${safeAlt}.jpg`;
-      }
-    };
-    const filename = deriveFilename();
-    try {
-      const res = await fetch(enlargedSrc, { mode: 'cors' });
-      if (!res.ok) throw new Error('fetch failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      window.open(enlargedSrc, '_blank');
-    }
-  }, [enlargedSrc, enlargedAlt]);
+  // download feature removed: keep enlargedSrc/enlargedAlt state for viewer UI only
 
   useEffect(() => {
     return () => {
@@ -915,22 +881,7 @@ export default function DomeGallery({
               <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
-          {/* Download button (visible only when an image is enlarged) */}
-          <button
-            type="button"
-            className="download-btn"
-            aria-label="Download image"
-            title="Download image"
-            onClick={onDownload}
-            // Enable only while enlarged
-            disabled={!enlargedSrc}
-          >
-            {/* Inline SVG download icon */}
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M12 3v10m0 0 4-4m-4 4-4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
+          {/* download button removed intentionally */}
         </div>
       </main>
     </div>
