@@ -10,6 +10,14 @@
       <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
       <image:caption>RICORRENZA logo</image:caption>
     </image:image>
+    <image:image>
+      <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
+      <image:caption>Apple touch icon</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://ricorrenza.fun/android-chrome-512x512.png</image:loc>
+      <image:caption>App icon</image:caption>
+    </image:image>
   </url>
 
   <url>
@@ -25,6 +33,10 @@
   <url>
     <loc>https://ricorrenza.fun/gallery</loc>
     <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <image:image>
+      <image:loc>https://ricorrenza.fun/storage/uploads/cake1.jpg</image:loc>
+      <image:caption>Ricorrenza family event cake</image:caption>
+    </image:image>
   </url>
 
   <url>
