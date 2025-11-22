@@ -11,6 +11,8 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   const media = heroMedia?.[pageKey];
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  // Defer actual video element rendering so the browser can prioritize the poster/image
+  const [showVideo, setShowVideo] = useState(false);
 
   useEffect(() => {
     if (!media) fetchHeroMedia(pageKey).catch(() => {});
@@ -72,6 +74,54 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
     const vis = () => { if (!document.hidden) tryPlay(); };
     document.addEventListener('visibilitychange', vis);
     return () => { cancelled = true; v.removeEventListener('pause', onPause); v.removeEventListener('ended', onEnded); document.removeEventListener('visibilitychange', vis); };
+  }, [activeVideoUrl]);
+
+  // Determine the best poster to use for preloading / LCP
+  const posterUrl = (() => {
+    try {
+      if (!media) return null;
+      // If using a mobile video and there's a mobile poster, prefer that
+      if (activeVideoUrl && (activeVideoUrl === (media as any)?.mobile_video_url) && ((media as any)?.mobile_poster_url)) {
+        return (media as any)?.mobile_poster_url as string;
+      }
+      // Prefer explicit poster_url then mobile poster then image
+      return (media as any)?.poster_url || (media as any)?.mobile_poster_url || media?.image_url || (media as any)?.mobile_image_url || null;
+    } catch (e) { return null; }
+  })();
+
+  // Preload poster to improve LCP (per-page poster choice)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!posterUrl) return;
+    try {
+      const existing = Array.from(document.querySelectorAll('link[rel="preload"][as="image"]')).find((l) => (l as HTMLLinkElement).href === posterUrl);
+      if (existing) return;
+      const l = document.createElement('link');
+      l.rel = 'preload';
+      l.as = 'image';
+      l.href = posterUrl;
+      // avoid CORS issues for externally hosted assets; set anonymous to be safe
+      l.crossOrigin = 'anonymous';
+      document.head.appendChild(l);
+      return () => { try { document.head.removeChild(l); } catch {} };
+    } catch (e) { /* ignore */ }
+  }, [posterUrl]);
+
+  // Defer video injection until browser is idle / after load so it doesn't block LCP
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (!activeVideoUrl) { setShowVideo(false); return; }
+    let cancelled = false;
+    const enable = () => { if (!cancelled) setShowVideo(true); };
+    // Prefer requestIdleCallback, fallback to window.load or a timeout
+    if ((window as any).requestIdleCallback) {
+      const id = (window as any).requestIdleCallback(enable, { timeout: 1500 });
+      return () => { cancelled = true; try { (window as any).cancelIdleCallback(id); } catch {} };
+    }
+    const onLoad = () => enable();
+    window.addEventListener('load', onLoad);
+    const t = window.setTimeout(enable, 1200);
+    return () => { cancelled = true; window.removeEventListener('load', onLoad); clearTimeout(t); };
   }, [activeVideoUrl]);
 
   useEffect(() => {
@@ -179,7 +229,7 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   return (
     <div className={`absolute inset-0 z-0 ${className}`}>
       {showMedia ? (
-        ((media?.background_type === 'video' || media?.background_type === 'auto') && (activeVideoUrl || media.video_url)) ? (
+        ((media?.background_type === 'video' || media?.background_type === 'auto') && (activeVideoUrl || media.video_url) && showVideo) ? (
           <video
             ref={videoRef}
             src={(activeVideoUrl !== null ? activeVideoUrl : media.video_url) || undefined}
