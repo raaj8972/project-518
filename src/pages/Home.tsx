@@ -1,6 +1,6 @@
 import React, { useState, useEffect, startTransition } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, MapPin, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
+import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
@@ -15,9 +15,11 @@ const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtis
 const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
 import type { GuestArtist } from '../context/DataContext';
 const Roadmap = React.lazy(() => import('../components/Roadmap'));
-import CountdownTimer from '../components/CountdownTimer';
-import Sparkle3D from '../components/Sparkle3D';
+// CountdownTimer and Sparkle3D are not used in the featured artist card preview; keep them commented out in case we re-enable later
+// import CountdownTimer from '../components/CountdownTimer';
+// import Sparkle3D from '../components/Sparkle3D';
 import PreserveNewlines from '../components/PreserveNewlines';
+import InlineArtistPreview from '../components/InlineArtistPreview';
 
 export const Home: React.FC = () => {
   // Error boundary to catch dynamic-import chunk load failures and offer a reload
@@ -450,12 +452,9 @@ export const Home: React.FC = () => {
                   onMouseEnter={prefetchDetailModal}
                   onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
                 >
-                  <div className="relative h-56 md:h-64 overflow-hidden">
-                    <img
-                      src={artist.image}
-                      alt={artist.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
-                    />
+                    <div className="relative h-56 md:h-64 overflow-hidden">
+                      {/* Use an inline preview that will autoplay muted when card becomes visible */}
+                      <InlineArtistPreview videoUrl={(artist as any).video_url} poster={artist.image} imgSrc={artist.image} youtubeUrl={(artist as any).youtube_url} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
 
                     <div className="absolute top-4 right-4">
@@ -498,60 +497,72 @@ export const Home: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-pink-400 transition-colors">
-                      {artist.name}
-                    </h3>
-                    <p className="text-pink-400 font-semibold mb-3">{artist.title}</p>
-                    <div className="mb-3">
-                      <span className="inline-block bg-purple-500/20 text-purple-400 px-3 py-1 rounded-full text-sm font-medium border border-purple-500/30">
-                        {artist.specialty}
-                      </span>
-                    </div>
-                    {(artist as any).countdown_enabled && (artist as any).performance_at && (
-                      <div className="relative mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
-                        <div className="absolute -top-2 -right-2 w-10 h-10">
-                          <Sparkle3D intensity={7} />
+                  {/* Bottom media preview: show video clip if available, fallback to image; overlay Details */}
+                  <div className="p-0">
+                    <div className="relative h-40 md:h-44 overflow-hidden bg-black">
+                      {artist.video_url ? (
+                        <video
+                          src={artist.video_url}
+                          poster={artist.image}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          muted
+                          playsInline
+                          loop
+                          preload="metadata"
+                        />
+                      ) : artist.youtube_url ? (
+                        /* Show YouTube thumbnail as preview; click play button to open modal */
+                        <img
+                          src={((): string => {
+                            try {
+                              const m = artist.youtube_url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+                              if (m && m[1]) return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
+                            } catch (e) {}
+                            return artist.image;
+                          })()}
+                          alt={artist.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img src={artist.image} alt={artist.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+                      <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                        <div className="space-y-0">
+                          <h3 className="text-lg font-bold text-white leading-tight line-clamp-1">{artist.name}</h3>
+                          <p className="text-xs text-pink-300">{artist.title}</p>
                         </div>
-                        <div className="flex flex-col items-start gap-3">
-                          <div className="text-xs text-gray-300">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4 text-pink-300" />
-                              <span>{new Date((artist as any).performance_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
-                            </div>
-                            {(artist as any).venue && (
-                              <div className="flex items-center gap-1 mt-1 text-gray-400">
-                                <MapPin className="w-4 h-4" />
-                                <span>{(artist as any).venue}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="mt-2 self-start">
-                            <CountdownTimer
-                              className="max-w-full"
-                              target={(artist as any).performance_at as any}
-                              endedText="LIVE NOW"
-                              showEnded={(artist as any).live_now_enabled !== false}
-                            />
-                          </div>
+
+                        <div className="flex items-center gap-3">
+                          {(artist.video_url || artist.youtube_url) && (
+                            <button
+                              onMouseEnter={prefetchVideoModal}
+                              onTouchStart={() => { try { prefetchVideoModal(); } catch {} }}
+                              onClick={(e) => { e.stopPropagation(); startTransition(() => { setSelectedArtistForVideo(artist); setVideoModalOpen(true); }); }}
+                              className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/20 shadow-lg hover:ring-2 hover:ring-pink-400/40 transition"
+                              aria-label={`Play video for ${artist.name}`}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 ml-0.5">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onMouseEnter={prefetchDetailModal}
+                            onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
+                            onClick={() => { startTransition(() => { setDetailArtist(artist as any); setDetailOpen(true); }); }}
+                            className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
+                            aria-label={`Read more about ${artist.name}`}
+                          >
+                            Details
+                          </button>
                         </div>
                       </div>
-                    )}
-                    {/* Description removed from card to avoid overlap; shown in detail modal on click */}
-                    <div className="mt-3">
-                      <button
-                        type="button"
-                        onMouseEnter={prefetchDetailModal}
-                        onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
-                        onClick={() => { startTransition(() => { setDetailArtist(artist as any); setDetailOpen(true); }); }}
-                        className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
-                        aria-label={`Read more about ${artist.name}`}
-                      >
-                        Details
-                      </button>
                     </div>
-
-                    {/* Social icons moved into detail modal; hidden on card to reduce clutter */}
                   </div>
                 </div>
               )}
