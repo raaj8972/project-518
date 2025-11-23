@@ -452,10 +452,14 @@ export const Home: React.FC = () => {
                   onMouseEnter={prefetchDetailModal}
                   onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
                 >
-                    <div className="relative h-56 md:h-64 overflow-hidden">
-                      {/* Use an inline preview that will autoplay muted when card becomes visible */}
-                      <InlineArtistPreview videoUrl={(artist as any).video_url} poster={artist.image} imgSrc={artist.image} youtubeUrl={(artist as any).youtube_url} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                  {/* Top: static hero/poster image */}
+                  <div className="relative h-56 md:h-64 overflow-hidden">
+                    <img
+                      src={artist.image}
+                      alt={artist.name}
+                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
                     <div className="absolute top-4 right-4">
                       <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
@@ -467,24 +471,10 @@ export const Home: React.FC = () => {
                       </div>
                     </div>
 
-                    {(artist.video_url || artist.youtube_url) && (
-                      <button
-                        type="button"
-                        onMouseEnter={prefetchVideoModal}
-                        onTouchStart={() => { try { prefetchVideoModal(); } catch {} }}
-                        onClick={(e) => { e.stopPropagation(); startTransition(() => { setSelectedArtistForVideo(artist); setVideoModalOpen(true); }); }}
-                        className="absolute top-4 left-4 inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg ring-1 ring-pink-400/40 hover:ring-pink-300/70 transition-all animate-pulse"
-                        aria-label={`Play video for ${artist.name}`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
-                          <path d="M8 5v14l11-7z" />
-                        </svg>
-                      </button>
-                    )}
-                    { (artist as any).watch_live_url && (artist as any).performance_at && (
+                    {(artist as any).watch_live_url && (artist as any).performance_at && (
                       <div
-                        className="absolute top-4 left-14 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto transition-all duration-300"
-                        onClick={(e)=>e.stopPropagation()}
+                        className="absolute top-4 left-4 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto transition-all duration-300"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <WatchLiveButton
                           url={(artist as any).watch_live_url}
@@ -497,35 +487,15 @@ export const Home: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Bottom media preview: show video clip if available, fallback to image; overlay Details */}
-                  <div className="p-0">
+                  {/* Bottom strip: either video preview OR image, plus Details */}
+                  <div className="p-0 border-t border-pink-500/20">
                     <div className="relative h-40 md:h-44 overflow-hidden bg-black">
-                      {artist.video_url ? (
-                        <video
-                          src={artist.video_url}
-                          poster={artist.image}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                          muted
-                          playsInline
-                          loop
-                          preload="metadata"
-                        />
-                      ) : artist.youtube_url ? (
-                        /* Show YouTube thumbnail as preview; click play button to open modal */
-                        <img
-                          src={((): string => {
-                            try {
-                              const m = artist.youtube_url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
-                              if (m && m[1]) return `https://img.youtube.com/vi/${m[1]}/hqdefault.jpg`;
-                            } catch (e) {}
-                            return artist.image;
-                          })()}
-                          alt={artist.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <img src={artist.image} alt={artist.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                      )}
+                      <InlineArtistPreview
+                        videoUrl={(artist as any).video_url}
+                        poster={artist.image}
+                        imgSrc={artist.image}
+                        youtubeUrl={(artist as any).youtube_url}
+                      />
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
@@ -539,12 +509,27 @@ export const Home: React.FC = () => {
                           {(artist.video_url || artist.youtube_url) && (
                             <button
                               onMouseEnter={prefetchVideoModal}
-                              onTouchStart={() => { try { prefetchVideoModal(); } catch {} }}
-                              onClick={(e) => { e.stopPropagation(); startTransition(() => { setSelectedArtistForVideo(artist); setVideoModalOpen(true); }); }}
+                              onTouchStart={() => {
+                                try {
+                                  prefetchVideoModal();
+                                } catch {}
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startTransition(() => {
+                                  setSelectedArtistForVideo(artist);
+                                  setVideoModalOpen(true);
+                                });
+                              }}
                               className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/20 shadow-lg hover:ring-2 hover:ring-pink-400/40 transition"
                               aria-label={`Play video for ${artist.name}`}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 ml-0.5">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                                className="w-4 h-4 ml-0.5"
+                              >
                                 <path d="M8 5v14l11-7z" />
                               </svg>
                             </button>
@@ -553,8 +538,17 @@ export const Home: React.FC = () => {
                           <button
                             type="button"
                             onMouseEnter={prefetchDetailModal}
-                            onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
-                            onClick={() => { startTransition(() => { setDetailArtist(artist as any); setDetailOpen(true); }); }}
+                            onTouchStart={() => {
+                              try {
+                                prefetchDetailModal();
+                              } catch {}
+                            }}
+                            onClick={() => {
+                              startTransition(() => {
+                                setDetailArtist(artist as any);
+                                setDetailOpen(true);
+                              });
+                            }}
                             className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
                             aria-label={`Read more about ${artist.name}`}
                           >
