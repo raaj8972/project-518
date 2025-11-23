@@ -539,7 +539,7 @@ body {
   --theme-glow-spread: rgba(11, 15, 26, 0.42);
   --theme-card-bg: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
   /* Featured Artists carousel stage height (default/mobile) */
-  --featured-stage-height: clamp(600px, 86svh, 860px);
+  --featured-stage-height: clamp(520px, 82svh, 760px);
 }
 
 /* Prefer dark scheme by default for our cyberpunk pages */
@@ -555,7 +555,13 @@ body {
 @media (min-width: 1024px) {
   :root {
     /* Slightly reduced height on larger screens for a tighter layout */
-    --featured-stage-height: clamp(520px, 72svh, 720px);
+    --featured-stage-height: clamp(500px, 68svh, 700px);
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --featured-stage-height: clamp(460px, 88svh, 620px);
   }
 }
 

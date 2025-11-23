@@ -1344,7 +1344,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         .from('guest_artists')
         .select('*');
       if (guestArtistsError) markErr('Error fetching guest artists', guestArtistsError);
-      else setGuestArtists((guestArtistsData || []).map(a => ({ ...a, image: sanitizeUrl((a as any).image) })));
+      else setGuestArtists((guestArtistsData || []).map(a => ({
+        ...a,
+        image: sanitizeUrl((a as any).image),
+        card_media_url: sanitizeUrl((a as any).card_media_url),
+        detail_music_url: sanitizeUrl((a as any).detail_music_url)
+      })));
 
       // Fetch Chief Guests
       const { data: chiefGuestsData, error: chiefGuestsError } = await supabase
@@ -3823,7 +3828,17 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
       if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
         // Strip columns that may not exist yet if migration hasn't been applied (graceful degradation)
-        const { performance_at, venue, countdown_enabled, live_now_enabled, watch_live_url, ...rest } = (artist as any) || {};
+        const {
+          performance_at,
+          venue,
+          countdown_enabled,
+          live_now_enabled,
+          watch_live_url,
+          card_media_url,
+          card_media_is_video,
+          detail_music_url,
+          ...rest
+        } = (artist as any) || {};
         const { error: e2 } = await supabase.from('guest_artists').insert(rest as any);
         if (e2) throw e2;
       } else {
@@ -3842,7 +3857,17 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       const schemaCacheUnknown = msg.includes('schema cache') && (msg.includes('could not find') || msg.includes('not found'));
       if (code === '42703' || msg.includes('column') && msg.includes('does not exist') || schemaCacheUnknown) {
         // Strip possibly non-migrated columns and retry
-        const { performance_at, venue, countdown_enabled, live_now_enabled, watch_live_url, ...rest } = (artist as any) || {};
+        const {
+          performance_at,
+          venue,
+          countdown_enabled,
+          live_now_enabled,
+          watch_live_url,
+          card_media_url,
+          card_media_is_video,
+          detail_music_url,
+          ...rest
+        } = (artist as any) || {};
         const { error: e2 } = await supabase.from('guest_artists').update(rest as any).eq('id', id);
         if (e2) throw e2;
       } else {
@@ -3850,19 +3875,25 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       }
     }
     if (prev) {
-      const newImg = (artist as any)?.image;
-      const newUrl = (artist as any)?.image_url;
-      const newPhoto = (artist as any)?.photo_url;
-      const newVideo = (artist as any)?.video_url;
-      const oldImg = (prev as any)?.image;
-      const oldUrl = (prev as any)?.image_url;
-      const oldPhoto = (prev as any)?.photo_url;
-      const oldVideo = (prev as any)?.video_url;
+  const newImg = (artist as any)?.image;
+  const newUrl = (artist as any)?.image_url;
+  const newPhoto = (artist as any)?.photo_url;
+  const newVideo = (artist as any)?.video_url;
+  const newCardMedia = (artist as any)?.card_media_url;
+  const newDetailMusic = (artist as any)?.detail_music_url;
+  const oldImg = (prev as any)?.image;
+  const oldUrl = (prev as any)?.image_url;
+  const oldPhoto = (prev as any)?.photo_url;
+  const oldVideo = (prev as any)?.video_url;
+  const oldCardMedia = (prev as any)?.card_media_url;
+  const oldDetailMusic = (prev as any)?.detail_music_url;
       const toDelete: string[] = [];
-      if (newImg && !urlsEqual(oldImg, newImg)) toDelete.push(oldImg);
-      if (newUrl && !urlsEqual(oldUrl, newUrl)) toDelete.push(oldUrl);
-      if (newPhoto && !urlsEqual(oldPhoto, newPhoto)) toDelete.push(oldPhoto);
-      if (newVideo && !urlsEqual(oldVideo, newVideo)) toDelete.push(oldVideo);
+  if (newImg && !urlsEqual(oldImg, newImg)) toDelete.push(oldImg);
+  if (newUrl && !urlsEqual(oldUrl, newUrl)) toDelete.push(oldUrl);
+  if (newPhoto && !urlsEqual(oldPhoto, newPhoto)) toDelete.push(oldPhoto);
+  if (newVideo && !urlsEqual(oldVideo, newVideo)) toDelete.push(oldVideo);
+  if (newCardMedia && !urlsEqual(oldCardMedia, newCardMedia)) toDelete.push(oldCardMedia);
+  if (newDetailMusic && !urlsEqual(oldDetailMusic, newDetailMusic)) toDelete.push(oldDetailMusic);
       for (const u of toDelete.filter(Boolean)) {
         if (!isUrlReferencedSomewhere(u, { table: 'guest_artists', id })) {
           deleteStorageFileByPublicUrl(u);
@@ -3876,8 +3907,10 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     const artist = guestArtists.find(a => a.id === id) || null;
     const { error } = await supabase.from('guest_artists').delete().eq('id', id);
     if (error) throw error;
-    deleteStorageFileByPublicUrl((artist as any)?.image || (artist as any)?.image_url || (artist as any)?.photo_url);
-    deleteStorageFileByPublicUrl((artist as any)?.video_url);
+  deleteStorageFileByPublicUrl((artist as any)?.image || (artist as any)?.image_url || (artist as any)?.photo_url);
+  deleteStorageFileByPublicUrl((artist as any)?.video_url);
+  deleteStorageFileByPublicUrl((artist as any)?.card_media_url);
+  deleteStorageFileByPublicUrl((artist as any)?.detail_music_url);
     await fetchData(true);
   };
 

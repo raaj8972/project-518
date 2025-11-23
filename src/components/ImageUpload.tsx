@@ -9,7 +9,7 @@ interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images';
+  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
@@ -153,17 +153,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cropSrc, croppedAreaPixels, previewMode]);
 
-  const isPdfUpload = acceptedTypes.includes('pdf');
-  const isVideoUpload = acceptedTypes.includes('video');
+  const acceptedTypesLower = acceptedTypes.toLowerCase();
+  const isPdfUpload = acceptedTypesLower.includes('pdf');
+  const isVideoUpload = acceptedTypesLower.includes('video');
+  const isAudioUpload = acceptedTypesLower.includes('audio');
   // Effective max image size (bytes): Owner gets 30MB default, others 5MB, unless an explicit override is provided
   const defaultImageMaxBytes = isOwner ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
+  const defaultAudioMaxBytes = 25 * 1024 * 1024;
   const effectiveImageMaxBytes = (typeof maxImageBytes === 'number' && maxImageBytes > 0) ? maxImageBytes : defaultImageMaxBytes;
   const humanSize = (bytes: number) => bytes >= 1024 * 1024
     ? `${Math.round(bytes / (1024 * 1024))}MB`
     : `${Math.ceil(bytes / 1024)}KB`;
   const effectiveFileTypeLabel = isVideoUpload
     ? 'MP4, MOV up to 50MB'
-    : (isPdfUpload ? 'PDF up to 10MB' : `PNG, JPG, GIF up to ${humanSize(effectiveImageMaxBytes)}`);
+    : (isAudioUpload
+      ? `MP3/OGG up to ${humanSize(defaultAudioMaxBytes)}`
+      : (isPdfUpload ? 'PDF up to 10MB' : `PNG, JPG, GIF up to ${humanSize(effectiveImageMaxBytes)}`));
   const displayFileTypeLabel = (fileTypeLabel && fileTypeLabel !== 'PNG, JPG, GIF up to 5MB')
     ? fileTypeLabel
     : effectiveFileTypeLabel;
@@ -279,8 +284,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const fileExt = file.name.split('.').pop();
     const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-    // Dynamic timeout based on file type: videos can be large, images smaller
-    const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : 120_000;
+  // Dynamic timeout based on file type: videos can be large, images smaller
+  const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : isAudioUpload ? 180_000 : 120_000;
     // Try XHR path to surface real upload progress.
     const tryXHR = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -383,6 +388,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         setError('Please select a PDF file');
         return;
       }
+    } else if (isAudioUpload) {
+      if (!file.type.startsWith('audio/')) {
+        setError('Please select an audio file (MP3 or OGG)');
+        return;
+      }
     } else {
       if (!file.type.startsWith('image/')) {
         setError('Please select an image file');
@@ -395,10 +405,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       ? 50 * 1024 * 1024
       : isPdfUpload
         ? 10 * 1024 * 1024
-        : effectiveImageMaxBytes;
+        : isAudioUpload
+          ? defaultAudioMaxBytes
+          : effectiveImageMaxBytes;
     if (file.size > maxSize) {
       // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
-      if (!isVideoUpload && !isPdfUpload && maxImageBytes) {
+  if (!isVideoUpload && !isPdfUpload && !isAudioUpload && maxImageBytes) {
         const compressed = await compressImageToTarget(file, maxImageBytes);
         if (!compressed || compressed.size > maxImageBytes * 1.1) {
           setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
@@ -418,7 +430,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
 
     // For images, optionally open cropper instead of immediate upload
-    if (!isPdfUpload && !isVideoUpload && enableCropper) {
+  if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
@@ -441,7 +453,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
 
     // If cropper is disabled but this is an image, still create a quick local preview
-    if (!isPdfUpload && !isVideoUpload && !enableCropper) {
+  if (!isPdfUpload && !isVideoUpload && !isAudioUpload && !enableCropper) {
       try {
         const r = new FileReader();
         r.onload = () => setLocalPreview(r.result as string);
@@ -951,7 +963,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
       )}
 
       {/* Cropper Modal */}
-      {cropSrc && !isPdfUpload && !isVideoUpload && enableCropper && (
+  {cropSrc && !isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper && (
         <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl overflow-hidden">
             <div className="p-4 border-b">

@@ -424,6 +424,7 @@ export interface Database {
           starts_at: string
           ends_at: string | null
           priority: number
+          admin_only: boolean
           auto_dismiss_seconds: number | null
           text_color: string | null
           glow_color: string | null
@@ -440,6 +441,7 @@ export interface Database {
           starts_at?: string
           ends_at?: string | null
           priority?: number
+          admin_only?: boolean
           auto_dismiss_seconds?: number | null
           text_color?: string | null
           glow_color?: string | null
@@ -456,6 +458,7 @@ export interface Database {
           starts_at?: string
           ends_at?: string | null
           priority?: number
+          admin_only?: boolean
           auto_dismiss_seconds?: number | null
           text_color?: string | null
           glow_color?: string | null
@@ -1162,6 +1165,9 @@ export interface Database {
           video_url: string | null
           youtube_url: string | null
           watch_live_url: string | null
+          detail_music_url: string | null
+          card_media_url: string | null
+          card_media_is_video: boolean | null
           description: string
           specialty: string
           achievements: string[]
@@ -1185,6 +1191,9 @@ export interface Database {
           video_url?: string | null
           youtube_url?: string | null
           watch_live_url?: string | null
+          detail_music_url?: string | null
+          card_media_url?: string | null
+          card_media_is_video?: boolean | null
           description: string
           specialty: string
           achievements?: string[]
@@ -1208,6 +1217,9 @@ export interface Database {
           video_url?: string | null
           youtube_url?: string | null
           watch_live_url?: string | null
+          detail_music_url?: string | null
+          card_media_url?: string | null
+          card_media_is_video?: boolean | null
           description?: string
           specialty?: string
           achievements?: string[]

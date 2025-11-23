@@ -65,3 +65,12 @@ Once variables are set, deploy, then in Admin → Connection Overview:
 ## Documentation
 - Schedule linking: `docs/schedule-linking.md`
 - Admin Storage Overview and quota: `docs/storage-overview.md`
+
+## Guest artist detail music
+- Run the Supabase migration `supabase/migrations/20251123_create_guest_artist_audio_bucket.sql` (or execute its SQL manually) to create the public `guest-artist-audio` storage bucket with policies for public playback and authenticated uploads.
+- In the Admin → Guest Artists form, use the new **Detail Modal Music (MP3)** uploader to drop a loopable MP3/OGG (max 25 MB) or paste a direct URL; the modal will autoplay it when attendees tap **Detail**.
+- This feature is optional—leave the field empty if an artist should remain silent.
+
+## Notifications admin-only targeting
+- Apply `supabase/migrations/20251123_notifications_add_admin_only.sql` in Supabase (or run the SQL manually) to add the `admin_only` boolean flag and ensure anon/public reads automatically exclude admin-only rows.
+- Non-admin viewers will only see notifications where `admin_only = false`, while authenticated admins can keep broadcasting private alerts via the dashboard.

@@ -6,6 +6,8 @@ import type { GuestArtist } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 
+type CardMediaMode = 'image' | 'video';
+
 export const GuestArtistManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
   const { 
@@ -28,12 +30,15 @@ export const GuestArtistManagement: React.FC = () => {
     video_url: '',
     youtube_url: '',
     watch_live_url: '', // NEW field for external live stream link
+  detail_music_url: '',
     description: '',
     specialty: '',
     achievements: [] as string[],
     order_position: 1,
     enabled: true,
     is_featured: false,
+  card_media_url: '',
+  card_media_mode: 'image' as CardMediaMode,
     // scheduling
     performance_date: '', // YYYY-MM-DD
     performance_time: '', // HH:mm
@@ -56,12 +61,15 @@ export const GuestArtistManagement: React.FC = () => {
   video_url: '',
   youtube_url: '',
       watch_live_url: '',
+  detail_music_url: '',
       description: '',
       specialty: '',
       achievements: [],
       order_position: guestArtists.length + 1,
       enabled: true,
       is_featured: false,
+  card_media_url: '',
+  card_media_mode: 'image' as CardMediaMode,
       performance_date: '',
       performance_time: '',
       venue: '',
@@ -98,6 +106,9 @@ export const GuestArtistManagement: React.FC = () => {
         video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
         youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
         watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+  detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+        card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+        card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -146,6 +157,9 @@ export const GuestArtistManagement: React.FC = () => {
         video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
         youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
         watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+  detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+        card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+        card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
         description: form.description,
         specialty: form.specialty,
         achievements: form.achievements,
@@ -239,12 +253,15 @@ export const GuestArtistManagement: React.FC = () => {
   video_url: (artist as any).video_url || '',
   youtube_url: (artist as any).youtube_url || '',
       watch_live_url: (artist as any).watch_live_url || '',
+    detail_music_url: (artist as any).detail_music_url || '',
       description: artist.description,
       specialty: artist.specialty,
       achievements: artist.achievements,
       order_position: artist.order_position,
       enabled: artist.enabled,
       is_featured: artist.is_featured,
+      card_media_url: (artist as any).card_media_url || '',
+  card_media_mode: ((artist as any).card_media_is_video ? 'video' : 'image') as CardMediaMode,
       performance_date,
       performance_time,
       venue: (artist as any).venue || '',
@@ -380,6 +397,36 @@ export const GuestArtistManagement: React.FC = () => {
                   placeholder="https://www.youtube.com/live/... or other platform"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Detail Modal Music (Optional, MP3)</label>
+                <div className="space-y-3">
+                  <ImageUpload
+                    onImageSelect={(url) => setForm(prev => ({ ...prev, detail_music_url: url }))}
+                    currentImage={form.detail_music_url}
+                    bucket="guest-artist-audio"
+                    folder="artists"
+                    acceptedTypes="audio/mpeg,audio/mp3,audio/ogg,audio/*"
+                    fileTypeLabel="MP3/OGG up to 25MB"
+                    enableCropper={false}
+                  />
+                  {form.detail_music_url && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <p className="text-xs text-gray-500 mb-2">Preview current track</p>
+                      <audio controls src={form.detail_music_url} className="w-full" preload="none" />
+                    </div>
+                  )}
+                  <input
+                    type="url"
+                    value={form.detail_music_url}
+                    onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
+                    placeholder="https://cdn.example.com/audio/loop.mp3"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Upload or paste a direct MP3/OGG link. The track will autoplay, loop, and stop when the modal closes.
+                  </p>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -556,6 +603,63 @@ export const GuestArtistManagement: React.FC = () => {
                   cropAspect={4/5}
                 />
               </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Card Media (Homepage strip)</label>
+                    <p className="text-xs text-gray-500">Show either a short motion poster (video) or a still image on the guest artist card—just like event cards.</p>
+                  </div>
+                  {form.card_media_url && (
+                    <button
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, card_media_url: '' }))}
+                      className="text-xs text-red-500 hover:text-red-600"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      className="mr-2"
+                      checked={form.card_media_mode === 'image'}
+                      onChange={() => setForm(prev => ({
+                        ...prev,
+                        card_media_mode: 'image' as CardMediaMode,
+                        card_media_url: prev.card_media_mode === 'image' ? prev.card_media_url : ''
+                      }))}
+                    />
+                    Image
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      className="mr-2"
+                      checked={form.card_media_mode === 'video'}
+                      onChange={() => setForm(prev => ({
+                        ...prev,
+                        card_media_mode: 'video' as CardMediaMode,
+                        card_media_url: prev.card_media_mode === 'video' ? prev.card_media_url : ''
+                      }))}
+                    />
+                    Motion Poster (Video)
+                  </label>
+                </div>
+                <ImageUpload
+                  onImageSelect={(url) => setForm(prev => ({ ...prev, card_media_url: url }))}
+                  currentImage={form.card_media_url || ''}
+                  bucket={form.card_media_mode === 'video' ? 'guest-artist-videos' : 'guest-artist-images'}
+                  folder="artists/card-media"
+                  acceptedTypes={form.card_media_mode === 'video' ? 'video/*' : undefined}
+                  enableCropper={form.card_media_mode !== 'video'}
+                  cropAspect={form.card_media_mode !== 'video' ? 16/9 : undefined}
+                  fileTypeLabel={form.card_media_mode === 'video'
+                    ? 'MP4, MOV, WEBM up to 60MB. Aim for 3-10 seconds so it loops smoothly.'
+                    : 'PNG/JPG/WEBP up to 10MB. Use 16:9 (landscape) to fill the strip.'}
+                />
+              </div>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
@@ -630,6 +734,36 @@ export const GuestArtistManagement: React.FC = () => {
                   placeholder="Live Stream URL"
                   className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
                 />
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700">Detail Modal Music (Optional, MP3)</label>
+                  <div className="space-y-2">
+                    <ImageUpload
+                      onImageSelect={(url) => setForm(prev => ({ ...prev, detail_music_url: url }))}
+                      currentImage={form.detail_music_url}
+                      bucket="guest-artist-audio"
+                      folder="artists"
+                      acceptedTypes="audio/mpeg,audio/mp3,audio/ogg,audio/*"
+                      fileTypeLabel="MP3/OGG up to 25MB"
+                      enableCropper={false}
+                    />
+                    {form.detail_music_url && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
+                        <p className="text-[11px] text-gray-500 mb-1">Preview current track</p>
+                        <audio controls src={form.detail_music_url} className="w-full" preload="none" />
+                      </div>
+                    )}
+                    <input
+                      type="url"
+                      value={form.detail_music_url}
+                      onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
+                      placeholder="https://cdn.example.com/audio/loop.mp3"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    />
+                    <p className="text-[11px] text-gray-500">
+                      Upload or paste a direct MP3/OGG link. The track will autoplay and loop until the modal closes.
+                    </p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="number"
@@ -759,6 +893,63 @@ export const GuestArtistManagement: React.FC = () => {
                   className="h-32"
                   cropAspect={4/5}
                 />
+                <div className="space-y-3 pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Card Media (Homepage strip)</label>
+                      <p className="text-xs text-gray-500">Upload a landscape image or short video shown on the card.</p>
+                    </div>
+                    {form.card_media_url && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, card_media_url: '' }))}
+                        className="text-xs text-red-500 hover:text-red-600"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        className="mr-2"
+                        checked={form.card_media_mode === 'image'}
+                        onChange={() => setForm(prev => ({
+                          ...prev,
+                          card_media_mode: 'image' as CardMediaMode,
+                          card_media_url: prev.card_media_mode === 'image' ? prev.card_media_url : ''
+                        }))}
+                      />
+                      Image
+                    </label>
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        className="mr-2"
+                        checked={form.card_media_mode === 'video'}
+                        onChange={() => setForm(prev => ({
+                          ...prev,
+                          card_media_mode: 'video' as CardMediaMode,
+                          card_media_url: prev.card_media_mode === 'video' ? prev.card_media_url : ''
+                        }))}
+                      />
+                      Motion Poster (Video)
+                    </label>
+                  </div>
+                  <ImageUpload
+                    onImageSelect={(url) => setForm(prev => ({ ...prev, card_media_url: url }))}
+                    currentImage={form.card_media_url || ''}
+                    bucket={form.card_media_mode === 'video' ? 'guest-artist-videos' : 'guest-artist-images'}
+                    folder="artists/card-media"
+                    acceptedTypes={form.card_media_mode === 'video' ? 'video/*' : undefined}
+                    enableCropper={form.card_media_mode !== 'video'}
+                    cropAspect={form.card_media_mode !== 'video' ? 16/9 : undefined}
+                    fileTypeLabel={form.card_media_mode === 'video'
+                      ? 'MP4, MOV, WEBM up to 60MB'
+                      : 'PNG/JPG/WEBP up to 10MB (16:9 recommended)'}
+                  />
+                </div>
                 <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
                   <button
                     type="button"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
@@ -20,6 +20,17 @@ const Roadmap = React.lazy(() => import('../components/Roadmap'));
 // import Sparkle3D from '../components/Sparkle3D';
 import PreserveNewlines from '../components/PreserveNewlines';
 import InlineArtistPreview from '../components/InlineArtistPreview';
+
+const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|ogv|ogg|avi)$/i;
+const looksLikeVideoAsset = (url?: string | null) => {
+  if (!url) return false;
+  try {
+    const trimmed = url.split('?')[0].toLowerCase();
+    if (VIDEO_EXTENSIONS.test(trimmed)) return true;
+    if (trimmed.includes('guest-artist-videos')) return true;
+  } catch {}
+  return false;
+};
 
 export const Home: React.FC = () => {
   // Error boundary to catch dynamic-import chunk load failures and offer a reload
@@ -99,17 +110,21 @@ export const Home: React.FC = () => {
   }, []);
 
   // Prefetch lazy modals on hover to avoid input-time Suspense
-  const prefetchDetailModal = () => { import('../components/GuestArtistDetailModal'); };
-  const prefetchVideoModal = () => { import('../components/GuestArtistVideoModal'); };
+  const prefetchDetailModal = () => {
+    import('../components/GuestArtistDetailModal').catch(() => {});
+  };
+  const prefetchVideoModal = () => {
+    import('../components/GuestArtistVideoModal').catch(() => {});
+  };
   
   // Prefetch some lazy components shortly after mount so interactions feel snappy
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        prefetchDetailModal();
-        prefetchVideoModal();
-        import('../components/FacultyProfileModal');
-        import('../components/AutoCarousel');
+  prefetchDetailModal();
+  prefetchVideoModal();
+  import('../components/FacultyProfileModal').catch(() => {});
+  import('../components/AutoCarousel').catch(() => {});
       } catch (e) {
         // ignore
       }
@@ -126,6 +141,73 @@ export const Home: React.FC = () => {
   // Chief Guest modal state
   const [chiefGuestModalOpen, setChiefGuestModalOpen] = useState(false);
   const [selectedChiefGuest, setSelectedChiefGuest] = useState<any | null>(null);
+
+  const detailAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopDetailAudio = useCallback(() => {
+    const player = detailAudioRef.current;
+    if (!player) return;
+    try {
+      player.pause();
+      player.currentTime = 0;
+    } catch {}
+  }, []);
+
+  const primeDetailAudio = useCallback((url?: string | null, userInitiated?: boolean) => {
+    const src = (url || '').trim();
+    if (!src) {
+      stopDetailAudio();
+      return;
+    }
+    if (!userInitiated) {
+      // Avoid autoplaying without a user gesture to satisfy Safari/iOS policies.
+      stopDetailAudio();
+      return;
+    }
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return;
+    let player = detailAudioRef.current;
+    if (!player) {
+      player = new Audio();
+      player.preload = 'auto';
+      detailAudioRef.current = player;
+    }
+    try {
+      player.pause();
+    } catch {}
+    if (player.src !== src) {
+      player.src = src;
+    }
+    player.loop = true;
+    try {
+      player.currentTime = 0;
+    } catch {}
+    player.play().catch((err) => {
+      try {
+        console.warn('Guest artist detail audio blocked by browser', err);
+      } catch {}
+    });
+  }, [stopDetailAudio]);
+
+  useEffect(() => () => {
+    stopDetailAudio();
+  }, [stopDetailAudio]);
+
+  const openDetailModal = useCallback((artist: GuestArtist, options?: { userInitiated?: boolean }) => {
+    if (!artist) return;
+    primeDetailAudio((artist as any)?.detail_music_url, options?.userInitiated ?? false);
+    startTransition(() => {
+      setDetailArtist(artist);
+      setDetailOpen(true);
+    });
+  }, [primeDetailAudio]);
+
+  const closeDetailModal = useCallback(() => {
+    stopDetailAudio();
+    startTransition(() => {
+      setDetailOpen(false);
+      setDetailArtist(null);
+    });
+  }, [stopDetailAudio]);
 
   // Heads data and memoized sorted lists (must be before any early return)
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
@@ -241,13 +323,12 @@ export const Home: React.FC = () => {
     if (!artistId || !guestArtists?.length) return;
     const artist = guestArtists.find(a => a.id === artistId);
     if (artist) {
-      setDetailArtist(artist as any);
-      setDetailOpen(true);
+      openDetailModal(artist as any, { userInitiated: false });
       // Try to scroll a tile into view if it has the anchor id
       const tile = document.getElementById(`artist-${artistId}`);
       if (tile) setTimeout(() => tile.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     }
-  }, [location.hash, guestArtists?.length]);
+  }, [location.hash, guestArtists?.length, openDetailModal]);
 
   // Show loading state while data is being fetched
   if (loading) {
@@ -442,24 +523,51 @@ export const Home: React.FC = () => {
                 pauseOnTouch={true}
                 showArrows={true}
                 showDots={false}
-                onItemClick={(artist: GuestArtist) => { startTransition(() => { setDetailArtist(artist); setDetailOpen(true); }); }}
+                onItemClick={(artist: GuestArtist) => openDetailModal(artist, { userInitiated: true })}
                 className="mt-6 md:mt-8"
                 stageHeight={'var(--featured-stage-height)'}
-                renderItem={(artist: GuestArtist) => (
+                renderItem={(artist: GuestArtist) => {
+                  const rawCardMediaUrl = (artist as any).card_media_url as string | null;
+                  const cardMediaUrl = rawCardMediaUrl && rawCardMediaUrl.trim() ? rawCardMediaUrl : null;
+                  const cardMediaExplicitVideo = !!(cardMediaUrl && (artist as any).card_media_is_video);
+                  const cardMediaLooksVideo = cardMediaUrl ? looksLikeVideoAsset(cardMediaUrl) : false;
+                  const cardMediaMode: 'video' | 'image' | null = cardMediaUrl
+                    ? (cardMediaExplicitVideo || cardMediaLooksVideo ? 'video' : 'image')
+                    : null;
+                  const inlineVideoUrl = cardMediaMode === 'video' ? cardMediaUrl : (artist as any).video_url;
+                  const inlineImageSrc = cardMediaMode === 'image' ? cardMediaUrl : undefined;
+                  const inlineYoutubeUrl = cardMediaMode ? undefined : (artist as any).youtube_url;
+
+                  const hasCardMedia = !!cardMediaMode;
+                  const showBottomMediaStrip = !hasCardMedia;
+
+                  return (
                 <div
                   id={`artist-${artist.id}`}
-                  className="cyberpunk-card group w-full sm:w-[310px] md:w-[360px] max-w-[360px] mx-auto overflow-hidden mt-20 sm:mt-6"
+                  className="cyberpunk-card featured-artist-card group w-full mx-auto overflow-hidden mt-16 sm:mt-6"
                   onMouseEnter={prefetchDetailModal}
                   onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
                 >
-                  {/* Top: static hero/poster image */}
-                  <div className="relative h-56 md:h-64 overflow-hidden">
-                    <img
-                      src={artist.image}
-                      alt={artist.name}
-                      className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                  {/* Top: hero/poster media */}
+                  <div className={`relative overflow-hidden ${hasCardMedia ? '' : 'h-56 md:h-64'}`}>
+                    {hasCardMedia ? (
+                      <InlineArtistPreview
+                        className="block"
+                        videoUrl={cardMediaMode === 'video' ? cardMediaUrl : undefined}
+                        imgSrc={cardMediaMode === 'image' ? cardMediaUrl : undefined}
+                        poster={artist.image}
+                        youtubeUrl={undefined}
+                        fallbackPoster={false}
+                        intrinsic
+                      />
+                    ) : (
+                      <img
+                        src={artist.image}
+                        alt={artist.name}
+                        className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
+                      />
+                    )}
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
                     <div className="absolute top-4 right-4">
                       <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
@@ -487,19 +595,24 @@ export const Home: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Bottom strip: either video preview OR image, plus Details */}
+                  {/* Bottom strip: media preview only when no dedicated card media; always contains CTA */}
                   <div className="p-0 border-t border-pink-500/20">
-                    <div className="relative h-40 md:h-44 overflow-hidden bg-black">
-                      <InlineArtistPreview
-                        videoUrl={(artist as any).video_url}
-                        poster={artist.image}
-                        imgSrc={artist.image}
-                        youtubeUrl={(artist as any).youtube_url}
-                      />
+                    <div className={`relative ${showBottomMediaStrip ? 'h-40 md:h-44' : 'py-6'} overflow-hidden bg-black`}>
+                      {showBottomMediaStrip ? (
+                        <InlineArtistPreview
+                          videoUrl={inlineVideoUrl as string | undefined | null}
+                          poster={artist.image}
+                          imgSrc={inlineImageSrc}
+                          youtubeUrl={inlineYoutubeUrl as string | undefined}
+                          fallbackPoster={false}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-950 to-black" />
+                      )}
 
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
 
-                      <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between">
+                      <div className="card-footer absolute bottom-3 left-4 right-4 flex items-center justify-between">
                         <div className="space-y-0">
                           <h3 className="text-lg font-bold text-white leading-tight line-clamp-1">{artist.name}</h3>
                           <p className="text-xs text-pink-300">{artist.title}</p>
@@ -543,12 +656,7 @@ export const Home: React.FC = () => {
                                 prefetchDetailModal();
                               } catch {}
                             }}
-                            onClick={() => {
-                              startTransition(() => {
-                                setDetailArtist(artist as any);
-                                setDetailOpen(true);
-                              });
-                            }}
+                            onClick={() => openDetailModal(artist as any, { userInitiated: true })}
                             className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
                             aria-label={`Read more about ${artist.name}`}
                           >
@@ -559,7 +667,8 @@ export const Home: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              )}
+                  );
+              }}
               />
               </React.Suspense>
             ) : (
@@ -728,7 +837,7 @@ export const Home: React.FC = () => {
           <React.Suspense fallback={null}>
             <GuestArtistDetailModal
               isOpen={detailOpen}
-              onClose={() => { startTransition(() => { setDetailOpen(false); setDetailArtist(null); }); }}
+              onClose={closeDetailModal}
               artist={detailArtist}
             />
           </React.Suspense>
@@ -1585,6 +1694,41 @@ export const Home: React.FC = () => {
           overflow: hidden;
         }
 
+        .featured-artist-card {
+          width: clamp(230px, 70vw, 320px);
+          max-width: 340px;
+          min-height: clamp(360px, 52vw, 520px);
+        }
+
+        .featured-artist-card .card-footer {
+          font-size: clamp(0.82rem, 2.4vw, 0.95rem);
+        }
+
+        .featured-artist-card .card-footer h3 {
+          font-size: clamp(0.95rem, 3.5vw, 1.2rem);
+          line-height: 1.1;
+        }
+
+        @media (min-width: 768px) {
+          .featured-artist-card {
+            width: clamp(250px, 32vw, 340px);
+            min-height: clamp(420px, 46vw, 560px);
+          }
+          .featured-artist-card .card-footer {
+            font-size: 0.92rem;
+          }
+          .featured-artist-card .card-footer h3 {
+            font-size: 1.15rem;
+          }
+        }
+
+        @media (min-width: 1280px) {
+          .featured-artist-card {
+            width: clamp(280px, 22vw, 360px);
+            min-height: clamp(440px, 30vw, 600px);
+          }
+        }
+
         .cyberpunk-card::before {
           content: '';
           position: absolute;
@@ -1716,6 +1860,9 @@ export const Home: React.FC = () => {
           .cyberpunk-card {
             margin: 0 4px;
           }
+          .featured-artist-card .card-footer h3 {
+            font-size: 0.95rem;
+          }
         }
         
         @media (max-width: 480px) {
@@ -1735,6 +1882,12 @@ export const Home: React.FC = () => {
             padding: 8px 16px;
             font-size: 0.8rem;
             clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
+          }
+          .featured-artist-card .card-footer {
+            font-size: 0.78rem;
+          }
+          .featured-artist-card .card-footer h3 {
+            font-size: 0.88rem;
           }
         }
       `}</style>

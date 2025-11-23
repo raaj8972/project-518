@@ -3,7 +3,7 @@ import WatchLiveButton from './WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import CountdownTimer from './CountdownTimer';
 import Sparkle3D from './Sparkle3D';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Music2 } from 'lucide-react';
 import Instagram3DButtonLink from './Instagram3DButtonLink';
 import YouTube3DButtonLink from './YouTube3DButtonLink';
 import Facebook3DButtonLink from './Facebook3DButtonLink';
@@ -26,6 +26,7 @@ export type GuestArtistDetail = {
   venue?: string | null;
   countdown_enabled?: boolean;
   watch_live_url?: string | null; // new live stream link
+  detail_music_url?: string | null;
 };
 
 // Extract YouTube video id from various URL formats
@@ -76,20 +77,41 @@ const GuestArtistDetailModal: React.FC<{
         <div className="relative w-full max-w-5xl bg-[#0b0f1a] text-white rounded-xl shadow-2xl border border-white/10">
           {/* Header with image and small play badge */}
           <div className="relative w-full h-64 md:h-80 overflow-hidden">
-          {artist.image ? (
-            <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-800" />
-          )}
-          {(artist.video_url || artist.youtube_url) && (
-            <div className="absolute top-4 left-4">
-              <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg animate-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </span>
-            </div>
-          )}
+            {artist.video_url ? (
+              <video
+                ref={videoRef}
+                src={artist.video_url}
+                poster={artist.image || undefined}
+                className="w-full h-full object-cover"
+                playsInline
+                autoPlay
+                loop
+                muted
+                controls
+              />
+            ) : youTubeId ? (
+              <iframe
+                title={`${artist.name} video`}
+                className="w-full h-full"
+                src={`https://www.youtube.com/embed/${youTubeId}?autoplay=1&rel=0&modestbranding=1`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
+            ) : artist.image ? (
+              <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gray-800" />
+            )}
+            {(artist.video_url || artist.youtube_url) && (
+              <div className="absolute top-4 left-4">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg animate-pulse">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Body */}
@@ -102,6 +124,14 @@ const GuestArtistDetailModal: React.FC<{
                 <div className="mb-4">
                   <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm border border-purple-500/30">
                     {artist.specialty}
+                  </span>
+                </div>
+              )}
+              {artist.detail_music_url && (
+                <div className="mb-4">
+                  <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-xs text-purple-100 px-3 py-1 rounded-full">
+                    <Music2 className="w-3.5 h-3.5 text-purple-200" />
+                    Now playing artist music
                   </span>
                 </div>
               )}
@@ -181,27 +211,7 @@ const GuestArtistDetailModal: React.FC<{
           </div>
 
           {/* Optional video section */}
-          {(artist.video_url || youTubeId) && (
-            <div className="mt-6">
-              <h4 className="text-sm font-bold text-pink-300 mb-2">Featured Video</h4>
-              <div className="relative w-full pt-[56.25%] bg-black rounded-lg overflow-hidden border border-white/10">
-                <div className="absolute inset-0">
-                  {artist.video_url ? (
-                    <video ref={videoRef} src={artist.video_url || undefined} controls autoPlay playsInline className="w-full h-full object-contain bg-black" />
-                  ) : (
-                    <iframe
-                      className="w-full h-full"
-                      src={`https://www.youtube.com/embed/${youTubeId}?autoplay=1&rel=0`}
-                      title={artist.name}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      referrerPolicy="strict-origin-when-cross-origin"
-                      allowFullScreen
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Featured video moved to the header to autoplay when modal opens */}
 
           {/* Optional channel + playlist section */}
           {artist.youtube_url && (
