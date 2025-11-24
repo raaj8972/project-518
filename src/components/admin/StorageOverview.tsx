@@ -23,6 +23,7 @@ const DEFAULT_BUCKETS = [
   'faculty-images',
   'band-images',
   'hero-media',
+  'hero-videos',
   'hero-video',
   'pdf',
   'documents',
@@ -38,7 +39,7 @@ export const StorageOverview: React.FC = () => {
   const [items, setItems] = useState<Array<{ name: string; publicUrl: string; size: number; created_at: string | null }>>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
   const [busyName, setBusyName] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [bucket, setBucket] = useState<string>('registration-photos');
@@ -133,7 +134,7 @@ export const StorageOverview: React.FC = () => {
   useEffect(() => {
     loadPage(page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, [page, pageSize]);
 
   // Realtime: refresh when storage objects in the selected bucket change
   useEffect(() => {
@@ -179,7 +180,7 @@ export const StorageOverview: React.FC = () => {
   }, []);
 
   const onDelete = async (name: string) => {
-    if (!confirm('Delete this photo from storage and clear any registration references?')) return;
+    if (!confirm('Delete this item? If it is a folder, all contents will be removed.')) return;
     setBusyName(name);
     try {
       const res = await deleteBucketObject(bucket, name);
@@ -195,7 +196,7 @@ export const StorageOverview: React.FC = () => {
 
   // Delete for a specific bucket (used in Top 10 list)
   const onDeleteFor = async (bkt: string, name: string) => {
-    if (!confirm(`Delete this file from '${bkt}' and clear known references?`)) return;
+    if (!confirm(`Delete this item from '${bkt}'? If it is a folder, all contents will be removed.`)) return;
     setBusyName(`${bkt}/${name}`);
     try {
       const res = await deleteBucketObject(bkt, name);
@@ -419,9 +420,11 @@ export const StorageOverview: React.FC = () => {
             onChange={(e) => setBucket(e.target.value)}
             className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
           >
-            {(buckets.length ? buckets : DEFAULT_BUCKETS).map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
+            {(buckets.length ? buckets : DEFAULT_BUCKETS).map((b) => {
+              const info = breakdown.find(x => x.id === b);
+              const label = info ? `${b} (${formatBytes(info.totalBytes)})` : b;
+              return <option key={b} value={b}>{label}</option>;
+            })}
           </select>
           <div className="text-xs text-gray-500 mt-1">Public URLs shown; ensure your RLS allows listing/deleting.</div>
         </div>
@@ -431,7 +434,19 @@ export const StorageOverview: React.FC = () => {
         </div>
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="text-xs text-gray-500 mb-1">Per Page</div>
-          <div className="text-sm text-gray-900">{pageSize}</div>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+          >
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={500}>500</option>
+          </select>
+          <div className="text-xs text-gray-500 mt-1 text-right">
+            Showing {items.length} of {total}
+          </div>
         </div>
       </div>
 

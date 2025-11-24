@@ -9,7 +9,7 @@ interface AuthContextType {
   login: (email: string, password: string, totpCode?: string) => Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
-  setupTOTP: () => Promise<{ secret: string; qrCode: string } | null>;
+  setupTOTP: () => Promise<{ secret: string; qrCode: string } | { error: string } | null>;
   verifyTOTP: (token: string, secret: string) => Promise<boolean>;
   enableTOTP: (token: string, secret: string) => Promise<boolean>;
   disableTOTP: () => Promise<boolean>;
@@ -148,7 +148,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const setupTOTP = async (): Promise<{ secret: string; qrCode: string } | null> => {
+  const setupTOTP = async (): Promise<{ secret: string; qrCode: string } | { error: string } | null> => {
     try {
       let u = user;
       if (!u) {
@@ -157,7 +157,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       if (!u) {
         console.warn('[2FA] setupTOTP called without an authenticated user');
-        return null;
+        return { error: 'User not authenticated' };
       }
 
       const secret = generateTOTPSecret();
@@ -165,9 +165,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const qrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauth)}`;
 
       return { secret, qrCode };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error setting up TOTP:', error);
-      return null;
+      return { error: error.message || 'Unknown error during TOTP setup' };
     }
   };
 

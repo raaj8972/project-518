@@ -207,7 +207,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const landscape = opts.landscape !== false; // default landscape
   // Auto adjust font size: fewer cols -> a bit larger; many cols -> smaller
   const colsCount = selectedDefs.length;
-  const autoFont = colsCount <= 6 ? 9 : colsCount <= 10 ? 8 : 6.8;
+  const autoFont = colsCount <= 6 ? 9 : colsCount <= 10 ? 8 : 7.5;
   const fontSize = opts.fontSize || autoFont;
   const base = opts.baseFileName || 'registrations';
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));

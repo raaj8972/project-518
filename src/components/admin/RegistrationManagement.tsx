@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban, RefreshCw } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { supabase } from '../../lib/supabase';
@@ -22,7 +22,7 @@ const safeTeamMembers = (r: any): any[] => {
 };
 
 export const RegistrationManagement: React.FC = () => {
-  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, siteSettings, updateSiteSettings } = useData();
+  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings } = useData();
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -158,6 +158,15 @@ export const RegistrationManagement: React.FC = () => {
 
   // Get unique event titles for filter dropdown
   const uniqueEvents = Array.from(new Set(registrations.map(reg => reg.event_title)));
+  
+  // Compute counts per event for the dropdown
+  const eventCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    registrations.forEach(r => {
+      counts[r.event_title] = (counts[r.event_title] || 0) + 1;
+    });
+    return counts;
+  }, [registrations]);
 
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected') => {
     try {
@@ -210,6 +219,20 @@ export const RegistrationManagement: React.FC = () => {
           return newSet;
         });
       }
+    }
+  };
+
+  const handleResetSequence = async () => {
+    if (!confirm('Are you sure you want to reset the Registration ID sequence to 1? This should only be done if you have deleted all registrations. If existing IDs conflict, new registrations may fail.')) return;
+    try {
+      if (resetRegistrationIdSequence) {
+        await resetRegistrationIdSequence();
+        push({ message: 'Registration ID sequence reset to 1.', type: 'success' });
+      } else {
+        push({ message: 'Feature not available.', type: 'error' });
+      }
+    } catch (e: any) {
+      push({ message: 'Failed to reset sequence: ' + e.message, type: 'error' });
     }
   };
 
@@ -314,6 +337,43 @@ export const RegistrationManagement: React.FC = () => {
     setExportingGeneric(true);
     try { await exportExcel(filteredRegistrations, selectedColumns, `registrations-${Date.now()}.xlsx`); push({ message: 'Excel downloaded.', type: 'success' }); } catch(e:any){ push({ message: 'Excel export failed: '+e.message, type: 'error'});} finally { setExportingGeneric(false);} }
 
+  // Compute columns for PDF export:
+  // 1. Respect "PDF: exclude ID & College" checkbox
+  // 2. Respect global "Show Institution field" setting
+  // 3. Ensure "Team Members" is included if not explicitly removed (to fix user issue)
+  const pdfColumns = useMemo(() => {
+    let cols = [...selectedColumns];
+    
+    // If user wants to exclude ID & College specifically for PDF
+    if (pdfExcludeIdCollege) {
+      cols = cols.filter(c => c !== 'id' && c !== 'college');
+    }
+    
+    // If College is globally disabled, remove it
+    if (!registrationInstitutionVisible) {
+      cols = cols.filter(c => c !== 'college');
+    }
+
+    // Remove Status column from PDF as requested
+    cols = cols.filter(c => c !== 'status');
+
+    // Ensure Team Members is present if we have Team Name or Total Members, 
+    // unless the user has explicitly deselected it? 
+    // The user said "it does not show the team member information".
+    // I'll add it if it's missing, but only if 'team_name' is present (implying team context).
+    if (cols.includes('team_name') && !cols.includes('team_members')) {
+      // Insert after total_members if possible
+      const idx = cols.indexOf('total_members');
+      if (idx >= 0) {
+        cols.splice(idx + 1, 0, 'team_members');
+      } else {
+        cols.push('team_members');
+      }
+    }
+    
+    return cols;
+  }, [selectedColumns, pdfExcludeIdCollege, registrationInstitutionVisible]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -384,7 +444,7 @@ export const RegistrationManagement: React.FC = () => {
           </button>
           <ExportPdfButton
             rows={filteredRegistrations}
-            columns={selectedColumns}
+            columns={pdfColumns}
             filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
             className={`flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-purple-500'}`}
           />
@@ -433,6 +493,13 @@ export const RegistrationManagement: React.FC = () => {
               {option.label}
             </button>
           ))}
+          <button
+            onClick={handleResetSequence}
+            className="flex items-center bg-orange-700 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+            title="Reset Registration ID sequence to 1 (Use only after deleting all registrations)"
+          >
+            <RefreshCw size={16} className="mr-2" /> Reset IDs
+          </button>
         </div>
       </div>
 
@@ -490,9 +557,11 @@ export const RegistrationManagement: React.FC = () => {
                 onChange={(e) => setSelectedEvent(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
               >
-                <option value="all">All Events</option>
+                <option value="all">All Events ({registrations.length})</option>
                 {uniqueEvents.map(eventTitle => (
-                  <option key={eventTitle} value={eventTitle}>{eventTitle}</option>
+                  <option key={eventTitle} value={eventTitle}>
+                    {eventTitle} ({eventCounts[eventTitle] || 0})
+                  </option>
                 ))}
               </select>
             </div>

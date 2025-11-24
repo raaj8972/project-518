@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Building, Star, Eye, EyeOff, ExternalLink, Download, Mail, Award, Link as LinkIcon, FileText } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Building, Star, Eye, EyeOff, ExternalLink, Download, Mail, Award, Link as LinkIcon, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -548,6 +548,35 @@ export const SponsorsManagement: React.FC = () => {
     { value: 'address', label: 'Address', icon: 'MapPin' },
     { value: 'custom', label: 'Custom', icon: 'MessageSquare' }
   ];
+
+  const handleMovePackage = async (id: number, direction: 'up' | 'down') => {
+    const currentIndex = sortedPackages.findIndex(p => p.id === id);
+    if (currentIndex === -1) return;
+    
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= sortedPackages.length) return;
+    
+    const currentPkg = sortedPackages[currentIndex];
+    const targetPkg = sortedPackages[targetIndex];
+    
+    // Swap order positions
+    const currentOrder = currentPkg.order_position;
+    const targetOrder = targetPkg.order_position;
+    
+    try {
+      // If positions are the same, we need to force a difference
+      if (currentOrder === targetOrder) {
+        await updateSponsorshipPackage(currentPkg.id, { order_position: direction === 'up' ? currentOrder - 1 : currentOrder + 1 });
+      } else {
+        // Standard swap
+        await updateSponsorshipPackage(currentPkg.id, { order_position: targetOrder });
+        await updateSponsorshipPackage(targetPkg.id, { order_position: currentOrder });
+      }
+    } catch (error) {
+      console.error('Failed to reorder packages:', error);
+      alert('Failed to reorder packages');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -1235,7 +1264,7 @@ export const SponsorsManagement: React.FC = () => {
 
           {/* Packages List */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedPackages.map((pkg) => {
+            {sortedPackages.map((pkg, index) => {
               const IconComponent = getIconComponent(pkg.icon);
               return (
                 <div key={pkg.id} className="bg-white rounded-lg shadow-md overflow-hidden">
@@ -1398,6 +1427,31 @@ export const SponsorsManagement: React.FC = () => {
                         </ul>
                         
                         <div className="flex justify-between items-center">
+                          <div className="flex space-x-1 mr-2">
+                            <button
+                              type="button"
+                              onClick={() => handleMovePackage(pkg.id, 'up')}
+                              disabled={index === 0}
+                              className={`p-1 rounded transition-colors ${
+                                index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Move Up"
+                            >
+                              <ArrowUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMovePackage(pkg.id, 'down')}
+                              disabled={index === sortedPackages.length - 1}
+                              className={`p-1 rounded transition-colors ${
+                                index === sortedPackages.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'
+                              }`}
+                              title="Move Down"
+                            >
+                              <ArrowDown size={14} />
+                            </button>
+                          </div>
+
                           <button
                             type="button"
                             onClick={() => handleTogglePackageEnabled(pkg.id)}

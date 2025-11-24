@@ -244,6 +244,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       newErrors['photo'] = 'Participant photo is required for this event';
     }
 
+    // Validate placeholder selection for Participant Type
+    if (participantTypes && participantTypes.length > 0) {
+      const first = participantTypes[0];
+      // Heuristic: if the first item contains "select" (case-insensitive) or starts with ".", treat as placeholder
+      const isPlaceholder = first.toLowerCase().includes('select') || first.trim().startsWith('.');
+      if (isPlaceholder && formData.participant_type === first) {
+        newErrors.participant_type = 'Please select a valid option';
+      }
+    }
+
     // Institution name validation (if visible)
     if (fieldConfigMap.college?.visible) {
       if (fieldConfigMap.college?.required && !formData.college.trim()) {
@@ -765,18 +775,23 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     <select
                       value={formData.participant_type}
                       onChange={(e) => handleInputChange('participant_type', e.target.value)}
-                      className="cyberpunk-select pl-12"
+                      className={`cyberpunk-select pl-12 ${errors.participant_type ? 'border-red-500' : ''}`}
                     >
-                      {(participantTypes || []).map(type => {
+                      {(participantTypes || []).map((type, idx) => {
                         const isFull = Boolean(quotaFullMap[type]);
+                        // Check if this is the first item and looks like a placeholder
+                        const isPlaceholder = idx === 0 && (type.toLowerCase().includes('select') || type.trim().startsWith('.'));
                         return (
-                          <option key={type} value={type} disabled={isFull} title={isFull ? 'Full for this event' : ''}>
+                          <option key={type} value={type} disabled={isFull || isPlaceholder} title={isFull ? 'Full for this event' : ''}>
                             {isFull ? `${type} (full)` : type}
                           </option>
                         );
                       })}
                     </select>
                   </div>
+                  {errors.participant_type && (
+                    <p className="cyberpunk-error">{errors.participant_type}</p>
+                  )}
                   {(() => {
                     try {
                       const pType = formData.participant_type;

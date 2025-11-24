@@ -21,13 +21,14 @@ export const SecuritySettings: React.FC = () => {
         return;
       }
       const result = await setupTOTP();
-      if (result) {
+      if (result && 'secret' in result) {
         setTotpSecret(result.secret);
         setQrCodeUrl(result.qrCode);
         setIsSettingUpTOTP(true);
         setMessage(null);
       } else {
-        setMessage({ type: 'error', text: 'Failed to setup 2FA. Please try again (ensure you are signed in).' });
+        const errMsg = result && 'error' in result ? result.error : 'Failed to setup 2FA';
+        setMessage({ type: 'error', text: `${errMsg}. Please try again.` });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to setup 2FA. Please try again.' });

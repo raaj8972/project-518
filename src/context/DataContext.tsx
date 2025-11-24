@@ -163,6 +163,7 @@ interface DataContextType {
   bulkRejectRegistrations?: (ids: string[]) => Promise<void>;
   bulkDeleteRegistrations?: (ids: string[]) => Promise<void>;
   deleteRegistration: (id: string) => Promise<void>;
+  resetRegistrationIdSequence?: () => Promise<void>;
   updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
   updateContactSection: (id: number, section: Partial<ContactSection>) => Promise<void>;
@@ -637,8 +638,31 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const getBucketObjects = async (bucket: string, page = 1, pageSize = 50) => {
     // Prefer storage.objects; try directly and fallback if not accessible
     const from = (page - 1) * pageSize;
-    const to = from + pageSize;
-    // First try: use the Storage API (supabase.storage.from(bucket).list)
+    const to = from + pageSize - 1;
+
+    // First try: PostgREST table `storage.objects` (flattens folders, gives total count)
+    try {
+      const { data, error, count } = await supabase
+        .from('storage.objects')
+        .select('name, created_at, updated_at, metadata', { count: 'exact' })
+        .eq('bucket_id', bucket)
+        .range(from, to);
+
+      if (!error && data) {
+        let items = (data || []).map((row: any) => ({
+          name: row.name as string,
+          created_at: (row.created_at || row.updated_at) as string | null,
+          size: Number(row?.metadata?.size ?? row?.metadata?.ContentLength ?? 0) || 0,
+          publicUrl: publicUrlFor(bucket, row.name as string),
+        }));
+        items = await ensurePreviewUrls(bucket, items);
+        return { items, total: count ?? items.length };
+      }
+    } catch (e) {
+      console.warn('PostgREST storage.objects list failed, falling back to Storage API', e);
+    }
+
+    // Fallback: use the Storage API (supabase.storage.from(bucket).list)
     // This avoids calling PostgREST endpoints like /rest/v1/storage.objects which may be disabled
     try {
       const offset = from;
@@ -647,7 +671,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         offset,
         sortBy: { column: 'updated_at', order: 'desc' },
       });
-      if (!error && Array.isArray(list)) {
+      if (!error && Array.isArray(list) && list.length > 0) {
         const items = (list || []).map((entry: any) => ({
           name: entry.name as string,
           created_at: (entry?.created_at ?? entry?.updated_at ?? null) as string | null,
@@ -659,28 +683,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         return { items: signed, total: signed.length };
       }
     } catch (e) {
-      // If Storage API listing fails, fall through to try PostgREST storage.objects below
+      // If Storage API listing fails, fall through to try recursive below
     }
 
-    // Fallback: try PostgREST table `storage.objects` (may 404 if not exposed)
-    try {
-      const { data, error, count } = await supabase
-        .from('storage.objects')
-        .select('name, created_at, metadata', { count: 'exact' })
-        .eq('bucket_id', bucket)
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      if (!error && data) {
-        let items = (data || []).map((row: any) => ({
-          name: row.name as string,
-          created_at: row.created_at as string | null,
-          size: Number(row?.metadata?.size ?? row?.metadata?.ContentLength ?? 0) || 0,
-          publicUrl: publicUrlFor(bucket, row.name as string),
-        }));
-        items = await ensurePreviewUrls(bucket, items);
-        return { items, total: count ?? items.length };
-      }
-    } catch {}
     // Fallback: recursively list via Storage API (supports nested folders). Cache to avoid repeated heavy scans.
     const cached = getCachedBucketIndex(bucket);
     const all = cached ?? await listAllObjectsViaStorageAPI(bucket, '');
@@ -723,7 +728,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         const rows = data || [];
         if (rows.length === 0) break;
         for (const r of rows as any[]) {
-          const sz = Number(r?.metadata?.size ?? r?.metadata?.ContentLength ?? 0) || 0;
+          // Defensive check for metadata structure
+          const meta = r?.metadata || {};
+          const sz = Number(meta.size ?? meta.ContentLength ?? 0) || 0;
           if (sz > 0) totalBytes += sz;
           count += 1;
         }
@@ -780,32 +787,69 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
 
   const deleteBucketObject = async (bucket: string, name: string) => {
-    const publicUrl = publicUrlFor(bucket, name);
-    // Best-effort: clear references we control (registrations.photo_url, sponsors.logo, gallery_images.src, etc.)
-    let clearedRefs = 0;
-    try {
-      // registrations.photo_url
-      const { data: r1, error: e1 } = await supabase.from('registrations').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
-      if (!e1) clearedRefs += (r1?.length || 0);
-      // sponsors.logo
-      const { data: r2, error: e2 } = await supabase.from('sponsors').update({ logo: null } as any).eq('logo', publicUrl).select('id');
-      if (!e2) clearedRefs += (r2?.length || 0);
-      // gallery_images.src
-      const { data: r3, error: e3 } = await supabase.from('gallery_images').update({ src: null } as any).eq('src', publicUrl).select('id');
-      if (!e3) clearedRefs += (r3?.length || 0);
-      // event_winners.photo_url (clear winner image references)
+    // Recursive delete strategy: collect all paths first
+    const pathsToDelete: string[] = [name];
+
+    const collectPaths = async (prefix: string) => {
       try {
-        const { data: r4, error: e4 } = await supabase.from('event_winners').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
-        if (!e4) clearedRefs += (r4?.length || 0);
+        const { data: items } = await supabase.storage.from(bucket).list(prefix, { limit: 100 });
+        if (!items || items.length === 0) return;
+        
+        for (const item of items) {
+            // If item.name is just the file name, we need to append it to prefix
+            const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+            pathsToDelete.push(fullPath);
+            // Recurse to find deeper children
+            await collectPaths(fullPath);
+        }
       } catch (e) {
-        // swallow per-table errors to keep deletion best-effort
+        console.warn('Error recursing', prefix, e);
       }
-    } catch (e) {
-      console.warn('Failed to clear some references for', publicUrl, e);
+    };
+
+    // Start recursion from the item name
+    await collectPaths(name);
+
+    // Unique paths
+    const uniquePaths = Array.from(new Set(pathsToDelete));
+    let clearedRefs = 0;
+
+    // Clear references for ALL found paths
+    for (const path of uniquePaths) {
+        const publicUrl = publicUrlFor(bucket, path);
+        try {
+          // registrations.photo_url
+          const { data: r1, error: e1 } = await supabase.from('registrations').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
+          if (!e1) clearedRefs += (r1?.length || 0);
+          // sponsors.logo
+          const { data: r2, error: e2 } = await supabase.from('sponsors').update({ logo: null } as any).eq('logo', publicUrl).select('id');
+          if (!e2) clearedRefs += (r2?.length || 0);
+          // gallery_images.src
+          const { data: r3, error: e3 } = await supabase.from('gallery_images').update({ src: null } as any).eq('src', publicUrl).select('id');
+          if (!e3) clearedRefs += (r3?.length || 0);
+          // event_winners.photo_url
+          try {
+            const { data: r4, error: e4 } = await supabase.from('event_winners').update({ photo_url: null } as any).eq('photo_url', publicUrl).select('id');
+            if (!e4) clearedRefs += (r4?.length || 0);
+          } catch {}
+        } catch (e) {
+          console.warn('Failed to clear references for', publicUrl, e);
+        }
     }
-    const { error: delErr } = await supabase.storage.from(bucket).remove([name]);
-    if (delErr) return { ok: false, clearedRefs };
-    return { ok: true, clearedRefs };
+
+    // Batch delete from storage
+    let allOk = true;
+    // Chunk into 50s
+    for (let i = 0; i < uniquePaths.length; i += 50) {
+        const batch = uniquePaths.slice(i, i + 50);
+        const { error: delErr } = await supabase.storage.from(bucket).remove(batch);
+        if (delErr) {
+            console.warn('Delete batch failed', batch, delErr);
+            allOk = false;
+        }
+    }
+
+    return { ok: allOk, clearedRefs };
   };
 
   // Registration-specific thin wrappers
@@ -1245,7 +1289,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         supabase.from('band_members').select('*').order('order_position', { ascending: true }),
         supabase.from('guest_artists').select('*'),
         supabase.from('chief_guests').select('*').order('order_position', { ascending: true }),
-        supabase.from('sponsorship_packages').select('*'),
+        supabase.from('sponsorship_packages').select('*').order('order_position', { ascending: true }),
         supabase.from('auditions').select('*').order('created_at', { ascending: false }),
         supabase.from('memberships').select('*'),
         supabase.from('sports_committees').select('*').order('order_position', { ascending: true }),
@@ -3192,6 +3236,11 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     await fetchData(true);
   };
 
+  const resetRegistrationIdSequence = async () => {
+    const { error } = await supabase.rpc('reset_registration_id_sequence');
+    if (error) throw error;
+  };
+
   const bulkDeleteRegistrations = async (ids: string[]) => {
     if (!ids?.length) return;
     const CHUNK = 100;
@@ -4330,6 +4379,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   bulkRejectRegistrations,
   bulkDeleteRegistrations,
         deleteRegistration,
+        resetRegistrationIdSequence,
         updateSponsorshipSettings,
   addContactSection,
   updateContactSection,

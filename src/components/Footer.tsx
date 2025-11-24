@@ -62,8 +62,17 @@ export const Footer: React.FC = () => {
         {/* Fallback strip: always visible */}
         <div className="mt-4">
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-          <div className="py-4 text-center text-xs text-gray-300/80">
-            © {new Date().getFullYear()} RICORRENZA • All rights reserved to Ricorrenza Committee and Raaj
+          <div className="py-4 flex items-center justify-center gap-1 text-xs text-gray-300/80">
+            <span>© {new Date().getFullYear()} RICORRENZA • All rights reserved to Ricorrenza Committee and Raaj</span>
+            <a 
+              href="https://www.instagram.com/i_amraaj__?igsh=a2ZxaTBubnpmYmhu&utm_source=qr" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-pink-500 hover:text-pink-400 transition-all active:scale-75 ml-1 inline-block"
+              title="Follow Raaj on Instagram"
+            >
+              <Instagram size={14} />
+            </a>
           </div>
         </div>
       </div>
