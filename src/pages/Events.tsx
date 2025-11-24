@@ -615,6 +615,7 @@ export const Events: React.FC = () => {
                           {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { autoPlay: true } : {})}
                           muted
                           playsInline
+                          preload="auto"
                           loop
                           poster={event.image}
                         />

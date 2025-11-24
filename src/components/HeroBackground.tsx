@@ -111,17 +111,8 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!activeVideoUrl) { setShowVideo(false); return; }
-    let cancelled = false;
-    const enable = () => { if (!cancelled) setShowVideo(true); };
-    // Prefer requestIdleCallback, fallback to window.load or a timeout
-    if ((window as any).requestIdleCallback) {
-      const id = (window as any).requestIdleCallback(enable, { timeout: 1500 });
-      return () => { cancelled = true; try { (window as any).cancelIdleCallback(id); } catch {} };
-    }
-    const onLoad = () => enable();
-    window.addEventListener('load', onLoad);
-    const t = window.setTimeout(enable, 1200);
-    return () => { cancelled = true; window.removeEventListener('load', onLoad); clearTimeout(t); };
+    // Immediate video loading requested to avoid "not loading" perception
+    setShowVideo(true);
   }, [activeVideoUrl]);
 
   useEffect(() => {
@@ -234,7 +225,7 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
             ref={videoRef}
             src={(activeVideoUrl !== null ? activeVideoUrl : media.video_url) || undefined}
             playsInline
-            preload="metadata"
+            preload="auto"
             muted
             autoPlay
             loop
@@ -255,6 +246,8 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
               ? ((media as any)?.mobile_image_url || media.image_url)
               : (media.image_url || (media as any)?.mobile_image_url)}
             alt="Hero background"
+            fetchPriority="high"
+            loading="eager"
             className={`w-full h-full ${mediaObjectClasses}`}
             style={transformStyle}
             onLoad={(e) => {

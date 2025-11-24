@@ -64,6 +64,23 @@ const GlobalErrorBanner: React.FC = () => {
   // admin dashboard feel snappy when they navigate there. We do this on
   // idle and avoid prefetching on save-data or very slow connections.
   React.useEffect(() => {
+    // Prioritize preloading Events and RicoFamily pages for all users
+    // to ensure smooth navigation after the splash screen.
+    const prefetchPublic = async () => {
+      try {
+        // Events is high priority
+        await import('./pages/Events');
+        // RicoFamily is next
+        await import('./pages/RicoFamily');
+      } catch {}
+    };
+    // Start prefetching public pages immediately (low priority compared to critical render)
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      (window as any).requestIdleCallback(() => prefetchPublic(), { timeout: 2000 });
+    } else {
+      setTimeout(prefetchPublic, 500);
+    }
+
     if (!isAdminOrOwner) return;
     try {
       const conn = (navigator as any).connection;
@@ -76,10 +93,10 @@ const GlobalErrorBanner: React.FC = () => {
     };
 
     if (typeof (window as any).requestIdleCallback === 'function') {
-      const id = (window as any).requestIdleCallback(() => doPrefetch(), { timeout: 2000 });
+      const id = (window as any).requestIdleCallback(() => doPrefetch(), { timeout: 4000 });
       return () => (window as any).cancelIdleCallback?.(id);
     }
-    const t = setTimeout(doPrefetch, 1500);
+    const t = setTimeout(doPrefetch, 3000);
     return () => clearTimeout(t);
   }, [isAdminOrOwner]);
 

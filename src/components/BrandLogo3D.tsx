@@ -30,8 +30,9 @@ export const BrandLogo3D: React.FC<Props> = ({ src, alt = 'Brand', size = 32, gl
           <img
             src={src}
             alt={alt}
-            decoding="async"
+            decoding="sync"
             loading="eager"
+            fetchPriority="high"
             className="brand3d-img"
             style={{ height, width: 'auto' }}
           />

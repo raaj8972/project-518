@@ -1053,34 +1053,63 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         console.warn('Schema detection failed', e);
       }
-      // Fetch Events ordered by display_order if column exists; fallback gracefully if not migrated
-      let eventsData: any[] | null = null;
-      let eventsError: any = null;
-      try {
-        const res = await supabase
-          .from('events')
-          .select('*')
-          .order('display_order', { ascending: true }); // secondary ordering handled client-side to avoid multi-column order 400
-        eventsData = res.data as any[] | null;
-        eventsError = res.error;
-        // Some PostgREST versions error on ordering by missing column; detect and retry
-        if (eventsError && String(eventsError.message || '').toLowerCase().includes('display_order')) {
-          const retry = await supabase.from('events').select('*');
-          eventsData = retry.data as any[] | null;
-          eventsError = retry.error;
-        }
-      } catch (e: any) {
-        eventsError = e;
-      }
-      if (eventsError) markErr('Error fetching events', eventsError);
+      // Parallelize independent fetches to speed up initial load
+      // Group 1: Critical data for Home/Events/Layout
+      const [
+        eventsRes,
+        heroMediaRes,
+        homepageSettingsRes,
+        siteSettingsRes,
+        formSettingsRes,
+        registrationsRes,
+        eventCategoriesRes,
+        sponsorsRes,
+        scheduleDaysRes,
+        notificationsRes
+      ] = await Promise.all([
+        // Events (ordered)
+        (async () => {
+          try {
+            let { data, error } = await supabase.from('events').select('*').order('display_order', { ascending: true });
+            if (error && String(error.message || '').toLowerCase().includes('display_order')) {
+              const retry = await supabase.from('events').select('*');
+              data = retry.data; error = retry.error;
+            }
+            return { data, error };
+          } catch (e) { return { data: null, error: e }; }
+        })(),
+        // Hero Media
+        supabase.from('hero_media').select('*'),
+        // Homepage Settings
+        supabase.from('homepage_settings').select('*').eq('id', 1).maybeSingle(),
+        // Site Settings
+        supabase.from('site_settings').select('*').eq('id', 1).maybeSingle(),
+        // Form Settings
+        supabase.from('form_settings').select('*').eq('id', 1).single(),
+        // Registrations (needed for winners)
+        supabase.from('registrations').select('*'),
+        // Event Categories
+        supabase.from('event_categories').select('*'),
+        // Sponsors
+        supabase.from('sponsors').select('*'),
+        // Schedule
+        supabase.from('schedule_days').select('*, schedule_events (*)').order('date', { ascending: true }),
+        // Notifications
+        (async () => {
+          const nowIso = new Date().toISOString();
+          return supabase.from('notifications').select('*').eq('visible', true).lte('starts_at', nowIso).or(`ends_at.is.null,ends_at.gt.${nowIso}`).order('priority', { ascending: false }).order('created_at', { ascending: false });
+        })()
+      ]);
+
+      // Process Group 1 Results
+      // Events
+      if (eventsRes.error) markErr('Error fetching events', eventsRes.error);
       else {
-        const mapped = (eventsData || []).map(e => ({ ...e, image: sanitizeUrl((e as any).image) }));
-        // Ensure stable ordering client-side if display_order present; otherwise leave as returned
+        const mapped = (eventsRes.data || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) }));
         mapped.sort((a: any, b: any) => {
           const da = (a.display_order ?? Infinity);
           const db = (b.display_order ?? Infinity);
           if (da !== db) return da - db;
-          // fallback secondary by created_at then id
           const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
           const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
           if (ca !== cb) return ca - cb;
@@ -1089,347 +1118,209 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setEvents(mapped);
       }
 
-      // Fetch Gallery Images (non-critical; tolerate missing table/permission/transient network)
-      const { data: galleryImagesData, error: galleryImagesError } = await supabase
-        .from('gallery_images')
-        .select('*');
-      if (galleryImagesError) {
-        const rawMsg = (galleryImagesError as any)?.message || (galleryImagesError as any)?.toString?.() || '';
+      // Hero Media
+      if (heroMediaRes.error) {
+        // ...existing error handling logic for hero_media...
+        const rawMsg = (heroMediaRes.error as any)?.message || '';
         const msg = String(rawMsg).toLowerCase();
-        const code = (galleryImagesError as any)?.code;
-        const isMissingTable = (
-          code === 'PGRST205' ||
-          msg.includes("relation 'public.gallery_images' does not exist") ||
-          (msg.includes('could not find the table') && msg.includes('gallery_images'))
-        );
-        const isTransientNetwork = (
-          msg.includes('load failed') ||
-          msg.includes('failed to fetch') ||
-          msg.includes('networkerror') ||
-          msg.includes('network error')
-        );
-        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] gallery_images fetch non-critical issue; using empty list:', rawMsg);
-          setGalleryImages([]);
-        } else {
-          markErr('Error fetching gallery images', galleryImagesError);
-        }
-      } else setGalleryImages((galleryImagesData || []).map(g => ({ ...g, src: sanitizeUrl((g as any).src) })));
-
-  // Fetch Sponsors
-      // Fetch Event Coordinators
-      try {
-        const { data: ec, error: ecErr } = await supabase
-          .from('event_coordinators')
-          .select('*')
-          .order('event_id', { ascending: true })
-          .order('order_position', { ascending: true });
-        if (ecErr) markErr('Error fetching event coordinators', ecErr);
-        else setEventCoordinators(ec || []);
-      } catch (e) {
-        markErr('Event coordinators fetch threw', e);
-      }
-      const { data: sponsorsData, error: sponsorsError } = await supabase
-        .from('sponsors')
-        .select('*');
-      if (sponsorsError) markErr('Error fetching sponsors', sponsorsError);
-      else setSponsors((sponsorsData || []).map(s => ({ ...s, logo: sanitizeUrl((s as any).logo) })));
-
-      // Fetch Hero Media (all pages at once) – treat missing/permission/transient as non-critical
-      const { data: heroMediaData, error: heroMediaError } = await supabase
-        .from('hero_media')
-        .select('*');
-      if (heroMediaError) {
-        const rawMsg = (heroMediaError as any)?.message || (heroMediaError as any)?.toString?.() || '';
-        const msg = String(rawMsg).toLowerCase();
-        const code = (heroMediaError as any)?.code;
-        const isMissingTable = (
-          code === 'PGRST205' ||
-          msg.includes("relation 'public.hero_media' does not exist") ||
-          (msg.includes('could not find the table') && msg.includes('hero_media'))
-        );
-        const isTransientNetwork = (
-          msg.includes('load failed') ||
-          msg.includes('failed to fetch') ||
-          msg.includes('networkerror') ||
-          msg.includes('network error')
-        );
-        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
+        const code = (heroMediaRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.hero_media' does not exist") || (msg.includes('could not find the table') && msg.includes('hero_media'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
         if (isMissingTable || isTransientNetwork || isPermissionish) {
           console.warn('[Data] hero_media fetch non-critical issue; using empty set:', rawMsg);
           setHeroMedia({});
         } else {
-          markErr('Error fetching hero media', heroMediaError);
+          markErr('Error fetching hero media', heroMediaRes.error);
         }
       } else {
         const map: Partial<Record<PageKey, HeroMedia | null>> = {};
-        (heroMediaData || []).forEach((row) => {
+        (heroMediaRes.data || []).forEach((row: any) => {
           const patched = {
             ...row,
-            image_url: sanitizeUrl((row as any).image_url),
-            mobile_image_url: sanitizeUrl((row as any).mobile_image_url),
-            video_url: sanitizeUrl((row as any).video_url),
+            image_url: sanitizeUrl(row.image_url),
+            mobile_image_url: sanitizeUrl(row.mobile_image_url),
+            video_url: sanitizeUrl(row.video_url),
           } as HeroMedia;
           map[row.page_key as PageKey] = patched;
         });
         setHeroMedia(map);
       }
 
-      // Fetch Schedule Days and Events
-      const { data: scheduleDaysData, error: scheduleDaysError } = await supabase
-        .from('schedule_days')
-        .select(`
-          *,
-          schedule_events (*)
-        `)
-        .order('date', { ascending: true });
-      if (scheduleDaysError) markErr('Error fetching schedule days', scheduleDaysError);
+      // Homepage Settings
+      if (homepageSettingsRes.error) markErr('Error fetching homepage settings', homepageSettingsRes.error);
+      else setHomepageSettings(homepageSettingsRes.data || null);
+
+      // Site Settings
+      if (siteSettingsRes.error) {
+        // ...existing error handling logic for site_settings...
+        const ssErr = siteSettingsRes.error;
+        const raw = (ssErr as any)?.message || String(ssErr);
+        const msg = String(raw).toLowerCase();
+        const code = (ssErr as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.site_settings' does not exist") || (msg.includes('could not find the table') && msg.includes('site_settings'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] site_settings non-critical issue; using null:', raw);
+          setSiteSettings(null);
+        } else {
+          markErr('Error fetching site settings', ssErr);
+        }
+      } else {
+        setSiteSettings(siteSettingsRes.data || null);
+      }
+
+      // Form Settings
+      if (formSettingsRes.error) markErr('Error fetching form settings', formSettingsRes.error);
+      else setFormSettings(formSettingsRes.data || null);
+
+      // Registrations
+      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
+      else setRegistrations(registrationsRes.data || []);
+      const currentRegistrations = registrationsRes.data || []; // Capture for dependency
+
+      // Event Categories
+      if (eventCategoriesRes.error) markErr('Error fetching event categories', eventCategoriesRes.error);
+      else setEventCategories(eventCategoriesRes.data || []);
+
+      // Sponsors
+      if (sponsorsRes.error) markErr('Error fetching sponsors', sponsorsRes.error);
+      else setSponsors((sponsorsRes.data || []).map((s: any) => ({ ...s, logo: sanitizeUrl(s.logo) })));
+
+      // Schedule
+      if (scheduleDaysRes.error) markErr('Error fetching schedule days', scheduleDaysRes.error);
       else {
-        // Transform the data to match our ScheduleDay type
-        const transformedSchedule = (scheduleDaysData || []).map(day => ({
+        const transformedSchedule = (scheduleDaysRes.data || []).map((day: any) => ({
           ...day,
           events: day.schedule_events || []
         }));
         setSchedule(transformedSchedule);
       }
 
-      // Fetch Registrations
-      const { data: registrationsData, error: registrationsError } = await supabase
-        .from('registrations')
-        .select('*');
-      if (registrationsError) markErr('Error fetching registrations', registrationsError);
-      else setRegistrations(registrationsData || []);
-
-      // Fetch Sponsorship Settings and Contact Sections
-      const { data: sponsorshipSettingsData, error: sponsorshipSettingsError } = await supabase
-        .from('sponsorship_settings')
-        .select('*, contact_sections (id, type, title, content, icon, enabled, "order")')
-        .eq('id', 1)
-        .single();
-      if (sponsorshipSettingsError) {
-        const rawMsg = (sponsorshipSettingsError as any)?.message || (sponsorshipSettingsError as any)?.toString?.() || '';
-        const msg = String(rawMsg).toLowerCase();
-        const code = (sponsorshipSettingsError as any)?.code;
-        // Treat missing table/permission/transient network as non-critical so we don't flash a degraded banner on load
-        const isMissingTable = (
-          code === 'PGRST205' ||
-          msg.includes("relation 'public.sponsorship_settings' does not exist") ||
-          (msg.includes('could not find the table') && msg.includes('sponsorship_settings'))
-        );
-        const isTransientNetwork = (
-          msg.includes('load failed') ||
-          msg.includes('failed to fetch') ||
-          msg.includes('networkerror') ||
-          msg.includes('network error')
-        );
-        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] sponsorship_settings fetch non-critical issue; using defaults:', rawMsg);
-          setSponsorshipSettings(null);
+      // Notifications
+      if (notificationsRes.error) {
+        const lower = String((notificationsRes.error as any)?.message || '').toLowerCase();
+        if (lower.includes('relation') && lower.includes('does not exist')) {
+          console.warn('[Data] notifications table missing; skipping');
+          setNotifications([]);
         } else {
-          markErr('Error fetching sponsorship settings', sponsorshipSettingsError);
+          markErr('Error fetching notifications', notificationsRes.error);
         }
       } else {
-        const settingsWithContactSections = {
-          ...sponsorshipSettingsData,
-          contactSections: sponsorshipSettingsData?.contact_sections || []
-        } as SponsorshipSettings;
-        setSponsorshipSettings(settingsWithContactSections);
+        setNotifications(notificationsRes.data || []);
       }
 
-      // Fetch Event Categories
-      const { data: eventCategoriesData, error: eventCategoriesError } = await supabase
-        .from('event_categories')
-        .select('*');
-      if (eventCategoriesError) markErr('Error fetching event categories', eventCategoriesError);
-      else setEventCategories(eventCategoriesData || []);
+      // Group 2: Secondary data (can load in parallel with Group 1 processing or after)
+      // We run this in parallel with the above processing effectively by awaiting a second Promise.all
+      const [
+        galleryImagesRes,
+        aboutSettingsRes,
+        homeboundSettingsRes,
+        socialMediaSettingsRes,
+        facultyHeadsRes,
+        coreCommitteesRes,
+        coreTeamMembersRes,
+        bandMembersRes,
+        guestArtistsRes,
+        chiefGuestsRes,
+        sponsorshipPackagesRes,
+        auditionsRes,
+        membershipsRes,
+        sportsCommitteesRes,
+        sportsTeamMembersRes,
+        roadmapMilestonesRes,
+        gallerySettingsRes,
+        eventCoordinatorsRes,
+        sponsorshipSettingsRes,
+        eventWinnersRes
+      ] = await Promise.all([
+        supabase.from('gallery_images').select('*'),
+        supabase.from('about_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('homebound_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('social_media_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('faculty_heads').select('*'),
+        supabase.from('core_committees').select('*'),
+        supabase.from('core_team_members').select('*'),
+        supabase.from('band_members').select('*').order('order_position', { ascending: true }),
+        supabase.from('guest_artists').select('*'),
+        supabase.from('chief_guests').select('*').order('order_position', { ascending: true }),
+        supabase.from('sponsorship_packages').select('*'),
+        supabase.from('auditions').select('*').order('created_at', { ascending: false }),
+        supabase.from('memberships').select('*'),
+        supabase.from('sports_committees').select('*').order('order_position', { ascending: true }),
+        supabase.from('sports_team_members').select('*').order('order_position', { ascending: true }),
+        supabase.from('roadmap_milestones').select('*').order('order_position', { ascending: true }),
+        supabase.from('gallery_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true }),
+        supabase.from('sponsorship_settings').select('*, contact_sections (id, type, title, content, icon, enabled, "order")').eq('id', 1).single(),
+        supabase.from('event_winners').select('*').order('event_id', { ascending: true }).order('position', { ascending: true })
+      ]);
 
-      // Fetch Event Winners (non-critical; allow missing table)
-      try {
-        const { data: winnersData, error: winnersError } = await supabase
-          .from('event_winners')
-          .select('*')
-          .order('event_id', { ascending: true })
-          .order('position', { ascending: true });
-        if (winnersError) {
-          const raw = (winnersError as any)?.message || '';
-          const msg = String(raw).toLowerCase();
-          const code = (winnersError as any)?.code;
-          const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.event_winners' does not exist") || msg.includes('could not find the table') && msg.includes('event_winners');
-          if (isMissingTable) {
-            console.warn('[Data] event_winners table missing; skipping winners load');
-            setEventWinners([]);
-          } else {
-            markErr('Error fetching event winners', winnersError);
-          }
-        } else {
-          // Enrich with sanitized photo_url and optional registration_year if linked
-          const regsById: Record<string, any> = Object.fromEntries((registrations || []).map((r:any) => [r.id, r]));
-          setEventWinners((winnersData || []).map((w:any)=>{
-            const reg = w.registration_id ? regsById[w.registration_id] : null;
-            const registration_year = reg?.year || reg?.batch || null;
-            return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year };
-          }));
-        }
-      } catch (e) {
-        // Non-fatal
-        console.warn('Event winners fetch threw', e);
-        setEventWinners([]);
-      }
-
-      // Fetch Notifications (non-critical; allow missing table)
-      try {
-        const nowIso = new Date().toISOString();
-        const { data: notifData, error: notifError } = await supabase
-          .from('notifications')
-          .select('*')
-          .eq('visible', true)
-          .lte('starts_at', nowIso)
-          .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-          .order('priority', { ascending: false })
-          .order('created_at', { ascending: false });
-        if (notifError) {
-          const lower = String((notifError as any)?.message || '').toLowerCase();
-          if (lower.includes('relation') && lower.includes('does not exist')) {
-            console.warn('[Data] notifications table missing; skipping');
-            setNotifications([]);
-          } else {
-            markErr('Error fetching notifications', notifError);
-          }
-        } else {
-          setNotifications(notifData || []);
-        }
-      } catch (e) {
-        console.warn('Notifications fetch threw', e);
-        setNotifications([]);
-      }
-
-      // Fetch Faculty Heads
-      const { data: facultyHeadsData, error: facultyHeadsError } = await supabase
-        .from('faculty_heads')
-        .select('*');
-      if (facultyHeadsError) markErr('Error fetching faculty heads', facultyHeadsError);
-      else setFacultyHeads((facultyHeadsData || []).map(h => ({ ...h, image: sanitizeUrl((h as any).image) })));
-
-      // Fetch Core Committees
-      const { data: coreCommitteesData, error: coreCommitteesError } = await supabase
-        .from('core_committees')
-        .select('*');
-      if (coreCommitteesError) markErr('Error fetching core committees', coreCommitteesError);
-      else setCoreCommittees(coreCommitteesData || []);
-
-      // Fetch Core Team Members
-      const { data: coreTeamMembersData, error: coreTeamMembersError } = await supabase
-        .from('core_team_members')
-        .select('*');
-      if (coreTeamMembersError) markErr('Error fetching core team members', coreTeamMembersError);
-      else setCoreTeamMembers((coreTeamMembersData || []).map(m => ({
-        ...m,
-        image: sanitizeUrl((m as any).image),
-        // Map snake_case DB column to camelCase used in UI. If column absent, default false.
-        isCouncil: ((m as any).is_council ?? false) as boolean,
-      }) as any));
-
-      // Fetch Band Members (ALL for admin; public pages filter by enabled)
-      const { data: bandMembersData, error: bandMembersError } = await supabase
-        .from('band_members')
-        .select('*')
-        .order('order_position', { ascending: true });
-      if (bandMembersError) markErr('Error fetching band members', bandMembersError);
-      else setBandMembers((bandMembersData || []).map(b => ({ ...b, image: sanitizeUrl((b as any).image) })));
-
-      // Fetch Guest Artists
-      const { data: guestArtistsData, error: guestArtistsError } = await supabase
-        .from('guest_artists')
-        .select('*');
-      if (guestArtistsError) markErr('Error fetching guest artists', guestArtistsError);
-      else setGuestArtists((guestArtistsData || []).map(a => ({
-        ...a,
-        image: sanitizeUrl((a as any).image),
-        card_media_url: sanitizeUrl((a as any).card_media_url),
-        detail_music_url: sanitizeUrl((a as any).detail_music_url)
-      })));
-
-      // Fetch Chief Guests
-      const { data: chiefGuestsData, error: chiefGuestsError } = await supabase
-        .from('chief_guests')
-        .select('*')
-        .order('order_position', { ascending: true });
-      if (chiefGuestsError) markErr('Error fetching chief guests', chiefGuestsError);
-      else setChiefGuests((chiefGuestsData || []).map(c => ({ ...c, image: sanitizeUrl((c as any).image) })));
-
-      // Fetch Sponsorship Packages
-      const { data: sponsorshipPackagesData, error: sponsorshipPackagesError } = await supabase
-        .from('sponsorship_packages')
-        .select('*');
-      if (sponsorshipPackagesError) markErr('Error fetching sponsorship packages', sponsorshipPackagesError);
-      else setSponsorshipPackages(sponsorshipPackagesData || []);
-
-      // Fetch Auditions
-      const { data: auditionsData, error: auditionsError } = await supabase
-        .from('auditions')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (auditionsError) markErr('Error fetching auditions', auditionsError);
-      else setAuditions(auditionsData || []);
-
-      // Fetch Memberships (non-critical; show empty on missing table/permission/network hiccups)
-      const { data: membershipsData, error: membershipsError } = await supabase
-        .from('memberships')
-        .select('*');
-      if (membershipsError) {
-        const rawMsg = (membershipsError as any)?.message || (membershipsError as any)?.toString?.() || '';
+      // Process Group 2 Results
+      // Gallery Images
+      if (galleryImagesRes.error) {
+        // ...existing error handling...
+        const rawMsg = (galleryImagesRes.error as any)?.message || '';
         const msg = String(rawMsg).toLowerCase();
-        const code = (membershipsError as any)?.code;
-        const isMissingTable = (
-          code === 'PGRST205' ||
-          msg.includes("relation 'public.memberships' does not exist") ||
-          (msg.includes('could not find the table') && msg.includes('memberships'))
-        );
-        const isTransientNetwork = (
-          msg.includes('load failed') ||
-          msg.includes('failed to fetch') ||
-          msg.includes('networkerror') ||
-          msg.includes('network error')
-        );
-        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
-
+        const code = (galleryImagesRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.gallery_images' does not exist") || (msg.includes('could not find the table') && msg.includes('gallery_images'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
         if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] memberships fetch non-critical issue; using empty list:', rawMsg);
-          setMemberships([]);
+          console.warn('[Data] gallery_images fetch non-critical issue; using empty list:', rawMsg);
+          setGalleryImages([]);
         } else {
-          markErr('Error fetching memberships', membershipsError);
+          markErr('Error fetching gallery images', galleryImagesRes.error);
         }
-      } else setMemberships(membershipsData || []);
+      } else setGalleryImages((galleryImagesRes.data || []).map((g: any) => ({ ...g, src: sanitizeUrl(g.src) })));
 
-      // Fetch Form Settings
-      const { data: formSettingsData, error: formSettingsError } = await supabase
-        .from('form_settings')
-        .select('*')
-        .eq('id', 1)
-        .single();
-      if (formSettingsError) markErr('Error fetching form settings', formSettingsError);
-      else setFormSettings(formSettingsData || null);
+      // About Settings
+      if (aboutSettingsRes.error) {
+        const msg = String(aboutSettingsRes.error.message || '').toLowerCase();
+        if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
+          console.warn('[Data] about_settings table missing; continuing with null');
+          setAboutSettings(null);
+        } else {
+          markErr('Error fetching about settings', aboutSettingsRes.error);
+        }
+      } else if (aboutSettingsRes.data) {
+        const aboutData = aboutSettingsRes.data;
+        const normalized: AboutSettings = {
+          id: (aboutData as any).id,
+          enabled: (aboutData as any).enabled ?? true,
+          hero_title: (aboutData as any).hero_title ?? null,
+          hero_heading: (aboutData as any).hero_heading ?? null,
+          hero_paragraphs: Array.isArray((aboutData as any).hero_paragraphs) ? (aboutData as any).hero_paragraphs : [],
+          tracks: Array.isArray((aboutData as any).tracks) ? (aboutData as any).tracks : [],
+          tracksLabel: (aboutData as any).tracksLabel ?? null,
+          zones: Array.isArray((aboutData as any).zones) ? (aboutData as any).zones : [],
+          zonesLabel: (aboutData as any).zonesLabel ?? null,
+          stats: Array.isArray((aboutData as any).stats) ? (aboutData as any).stats : [],
+          updated_at: (aboutData as any).updated_at ?? null,
+        };
+        setAboutSettings(normalized);
+      } else {
+        setAboutSettings(null);
+      }
 
-      // Fetch Social Media Settings (normalize snake_case -> camelCase)
-      const { data: socialMediaSettingsData, error: socialMediaSettingsError } = await supabase
-        .from('social_media_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      if (socialMediaSettingsError) markErr('Error fetching social media settings', socialMediaSettingsError);
+      // Homebound Settings
+      if (homeboundSettingsRes.error) markErr('Error fetching homebound settings', homeboundSettingsRes.error);
+      else setHomeboundSettings(homeboundSettingsRes.data || null);
+
+      // Social Media Settings
+      if (socialMediaSettingsRes.error) markErr('Error fetching social media settings', socialMediaSettingsRes.error);
       else {
-        if (socialMediaSettingsData) {
-          // Normalize to camelCase expected by UI components
+        if (socialMediaSettingsRes.data) {
+          const d = socialMediaSettingsRes.data;
           const normalized: any = {
-            id: (socialMediaSettingsData as any).id,
-            instagramEnabled: (socialMediaSettingsData as any).instagram_enabled ?? false,
-            instagramUrl: (socialMediaSettingsData as any).instagram_url ?? null,
-            youtubeEnabled: (socialMediaSettingsData as any).youtube_enabled ?? false,
-            youtubeUrl: (socialMediaSettingsData as any).youtube_url ?? null,
-            created_at: (socialMediaSettingsData as any).created_at,
-            updated_at: (socialMediaSettingsData as any).updated_at,
+            id: (d as any).id,
+            instagramEnabled: (d as any).instagram_enabled ?? false,
+            instagramUrl: (d as any).instagram_url ?? null,
+            youtubeEnabled: (d as any).youtube_enabled ?? false,
+            youtubeUrl: (d as any).youtube_url ?? null,
+            created_at: (d as any).created_at,
+            updated_at: (d as any).updated_at,
           };
           setSocialMediaSettings(normalized as SocialMediaSettings);
         } else {
@@ -1437,23 +1328,148 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Fetch Homepage Settings
-      const { data: homepageSettingsData, error: homepageSettingsError } = await supabase
-        .from('homepage_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      if (homepageSettingsError) markErr('Error fetching homepage settings', homepageSettingsError);
-      else setHomepageSettings(homepageSettingsData || null);
+      // Faculty Heads
+      if (facultyHeadsRes.error) markErr('Error fetching faculty heads', facultyHeadsRes.error);
+      else setFacultyHeads((facultyHeadsRes.data || []).map((h: any) => ({ ...h, image: sanitizeUrl(h.image) })));
 
-      // Fetch HomeBound Settings
-      const { data: hbSettingsData, error: hbSettingsError } = await supabase
-        .from('homebound_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      if (hbSettingsError) markErr('Error fetching homebound settings', hbSettingsError);
-      else setHomeboundSettings(hbSettingsData || null);
+      // Core Committees
+      if (coreCommitteesRes.error) markErr('Error fetching core committees', coreCommitteesRes.error);
+      else setCoreCommittees(coreCommitteesRes.data || []);
+
+      // Core Team Members
+      if (coreTeamMembersRes.error) markErr('Error fetching core team members', coreTeamMembersRes.error);
+      else setCoreTeamMembers((coreTeamMembersRes.data || []).map((m: any) => ({
+        ...m,
+        image: sanitizeUrl(m.image),
+        isCouncil: (m.is_council ?? false) as boolean,
+      })));
+
+      // Band Members
+      if (bandMembersRes.error) markErr('Error fetching band members', bandMembersRes.error);
+      else setBandMembers((bandMembersRes.data || []).map((b: any) => ({ ...b, image: sanitizeUrl(b.image) })));
+
+      // Guest Artists
+      if (guestArtistsRes.error) markErr('Error fetching guest artists', guestArtistsRes.error);
+      else setGuestArtists((guestArtistsRes.data || []).map((a: any) => ({
+        ...a,
+        image: sanitizeUrl(a.image),
+        card_media_url: sanitizeUrl(a.card_media_url),
+        detail_music_url: sanitizeUrl(a.detail_music_url)
+      })));
+
+      // Chief Guests
+      if (chiefGuestsRes.error) markErr('Error fetching chief guests', chiefGuestsRes.error);
+      else setChiefGuests((chiefGuestsRes.data || []).map((c: any) => ({ ...c, image: sanitizeUrl(c.image) })));
+
+      // Sponsorship Packages
+      if (sponsorshipPackagesRes.error) markErr('Error fetching sponsorship packages', sponsorshipPackagesRes.error);
+      else setSponsorshipPackages(sponsorshipPackagesRes.data || []);
+
+      // Auditions
+      if (auditionsRes.error) markErr('Error fetching auditions', auditionsRes.error);
+      else setAuditions(auditionsRes.data || []);
+
+      // Memberships
+      if (membershipsRes.error) {
+        // ...existing error handling...
+        const rawMsg = (membershipsRes.error as any)?.message || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (membershipsRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.memberships' does not exist") || (msg.includes('could not find the table') && msg.includes('memberships'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] memberships fetch non-critical issue; using empty list:', rawMsg);
+          setMemberships([]);
+        } else {
+          markErr('Error fetching memberships', membershipsRes.error);
+        }
+      } else setMemberships(membershipsRes.data || []);
+
+      // Sports Committees
+      if (sportsCommitteesRes.error) setSportsCommittees([]); // tolerate missing
+      else setSportsCommittees(sportsCommitteesRes.data || []);
+
+      // Sports Team Members
+      if (sportsTeamMembersRes.error) setSportsTeamMembers([]); // tolerate missing
+      else setSportsTeamMembers(sportsTeamMembersRes.data || []);
+
+      // Roadmap Milestones
+      if (roadmapMilestonesRes.error) {
+        // ...existing error handling...
+        const rawMsg = (roadmapMilestonesRes.error as any)?.message || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (roadmapMilestonesRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.roadmap_milestones' does not exist") || (msg.includes('could not find the table') && msg.includes('roadmap_milestones'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] roadmap_milestones fetch non-critical issue; using empty list:', rawMsg);
+          setRoadmapMilestones([]);
+        } else {
+          markErr('Error fetching roadmap milestones', roadmapMilestonesRes.error);
+        }
+      } else setRoadmapMilestones(roadmapMilestonesRes.data || []);
+
+      // Gallery Settings
+      if (gallerySettingsRes.error) {
+        const msg = String((gallerySettingsRes.error as any)?.message || '').toLowerCase();
+        const code = (gallerySettingsRes.error as any)?.code;
+        if (code === 'PGRST205' || (msg.includes('could not find the table') && msg.includes('gallery_settings'))) {
+          console.warn('[Data] gallery_settings table missing; using defaults');
+          setGallerySettings(DEFAULT_GALLERY_SETTINGS);
+        } else {
+          markErr('Error fetching gallery settings', gallerySettingsRes.error);
+        }
+      } else setGallerySettings(gallerySettingsRes.data || null);
+
+      // Event Coordinators
+      if (eventCoordinatorsRes.error) markErr('Error fetching event coordinators', eventCoordinatorsRes.error);
+      else setEventCoordinators(eventCoordinatorsRes.data || []);
+
+      // Sponsorship Settings
+      if (sponsorshipSettingsRes.error) {
+        // ...existing error handling...
+        const rawMsg = (sponsorshipSettingsRes.error as any)?.message || '';
+        const msg = String(rawMsg).toLowerCase();
+        const code = (sponsorshipSettingsRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.sponsorship_settings' does not exist") || (msg.includes('could not find the table') && msg.includes('sponsorship_settings'));
+        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
+        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
+        if (isMissingTable || isTransientNetwork || isPermissionish) {
+          console.warn('[Data] sponsorship_settings fetch non-critical issue; using defaults:', rawMsg);
+          setSponsorshipSettings(null);
+        } else {
+          markErr('Error fetching sponsorship settings', sponsorshipSettingsRes.error);
+        }
+      } else {
+        const settingsWithContactSections = {
+          ...sponsorshipSettingsRes.data,
+          contactSections: (sponsorshipSettingsRes.data as any)?.contact_sections || []
+        } as SponsorshipSettings;
+        setSponsorshipSettings(settingsWithContactSections);
+      }
+
+      // Event Winners (using currentRegistrations from Group 1)
+      if (eventWinnersRes.error) {
+        const raw = (eventWinnersRes.error as any)?.message || '';
+        const msg = String(raw).toLowerCase();
+        const code = (eventWinnersRes.error as any)?.code;
+        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.event_winners' does not exist") || msg.includes('could not find the table') && msg.includes('event_winners');
+        if (isMissingTable) {
+          console.warn('[Data] event_winners table missing; skipping winners load');
+          setEventWinners([]);
+        } else {
+          markErr('Error fetching event winners', eventWinnersRes.error);
+        }
+      } else {
+        const regsById: Record<string, any> = Object.fromEntries(currentRegistrations.map((r:any) => [r.id, r]));
+        setEventWinners((eventWinnersRes.data || []).map((w:any)=>{
+          const reg = w.registration_id ? regsById[w.registration_id] : null;
+          const registration_year = reg?.year || reg?.batch || null;
+          return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year };
+        }));
+      }
 
       // Fetch my permissions (non-critical). Skip when unauthenticated to avoid 400 on eq filter with empty user_id.
       try {
@@ -1487,144 +1503,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch { setMyPermissions({}); }
-
-      // Sports committees + members (tolerate missing) — always attempt, even if no permissions row exists
-      try {
-        const { data: scData } = await supabase
-          .from('sports_committees' as any)
-          .select('*')
-          .order('order_position', { ascending: true });
-        setSportsCommittees(Array.isArray(scData) ? (scData as any) : []);
-      } catch { setSportsCommittees([]); }
-      try {
-        const { data: smData } = await supabase
-          .from('sports_team_members' as any)
-          .select('*')
-          .order('order_position', { ascending: true });
-        setSportsTeamMembers(Array.isArray(smData) ? (smData as any) : []);
-      } catch { setSportsTeamMembers([]); }
-
-      // Continue with Site Settings (non-critical; missing table/network/permission tolerated)
-      try {
-        const { data: ssData, error: ssErr } = await supabase
-          .from('site_settings')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle();
-        if (ssErr) {
-          const raw = (ssErr as any)?.message || String(ssErr);
-          const msg = String(raw).toLowerCase();
-          const code = (ssErr as any)?.code;
-          const isMissingTable = (
-            code === 'PGRST205' ||
-            msg.includes("relation 'public.site_settings' does not exist") ||
-            (msg.includes('could not find the table') && msg.includes('site_settings'))
-          );
-          const isTransientNetwork = (
-            msg.includes('load failed') ||
-            msg.includes('failed to fetch') ||
-            msg.includes('networkerror') ||
-            msg.includes('network error')
-          );
-          const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
-          if (isMissingTable || isTransientNetwork || isPermissionish) {
-            console.warn('[Data] site_settings non-critical issue; using null:', raw);
-            setSiteSettings(null);
-          } else {
-            markErr('Error fetching site settings', ssErr);
-          }
-        } else {
-          setSiteSettings(ssData || null);
-        }
-      } catch (e) {
-        console.warn('[Data] site_settings fetch threw (non-critical)', e);
-        setSiteSettings(null);
-      }
-
-      // Fetch About Settings (resilient: empty if table missing)
-      try {
-        const { data: aboutData, error: aboutErr } = await supabase
-          .from('about_settings')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle();
-        if (aboutErr) throw aboutErr;
-        if (aboutData) {
-          const normalized: AboutSettings = {
-            id: (aboutData as any).id,
-            enabled: (aboutData as any).enabled ?? true,
-            hero_title: (aboutData as any).hero_title ?? null,
-            hero_heading: (aboutData as any).hero_heading ?? null,
-            hero_paragraphs: Array.isArray((aboutData as any).hero_paragraphs) ? (aboutData as any).hero_paragraphs : [],
-            tracks: Array.isArray((aboutData as any).tracks) ? (aboutData as any).tracks : [],
-            tracksLabel: (aboutData as any).tracksLabel ?? null,
-            zones: Array.isArray((aboutData as any).zones) ? (aboutData as any).zones : [],
-            zonesLabel: (aboutData as any).zonesLabel ?? null,
-            stats: Array.isArray((aboutData as any).stats) ? (aboutData as any).stats : [],
-            updated_at: (aboutData as any).updated_at ?? null,
-          };
-          setAboutSettings(normalized);
-        } else setAboutSettings(null);
-      } catch (e: any) {
-        const msg = String(e?.message || '').toLowerCase();
-        if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
-          console.warn('[Data] about_settings table missing; continuing with null');
-          setAboutSettings(null);
-        } else {
-          markErr('Error fetching about settings', e);
-        }
-      }
-
-      // Fetch Gallery Settings
-      const { data: gallerySettingsData, error: gallerySettingsError } = await supabase
-        .from('gallery_settings')
-        .select('*')
-        .eq('id', 1)
-        .maybeSingle();
-      if (gallerySettingsError) {
-        const msg = String((gallerySettingsError as any)?.message || '').toLowerCase();
-        const code = (gallerySettingsError as any)?.code;
-        // If the table doesn't exist in this project yet, apply safe defaults and do NOT mark as degraded
-        if (code === 'PGRST205' || (msg.includes('could not find the table') && msg.includes('gallery_settings'))) {
-          console.warn('[Data] gallery_settings table missing; using defaults');
-          setGallerySettings(DEFAULT_GALLERY_SETTINGS);
-        } else {
-          markErr('Error fetching gallery settings', gallerySettingsError);
-        }
-      } else setGallerySettings(gallerySettingsData || null);
-
-      // Fetch Roadmap Milestones (non-critical; failures should not degrade connection)
-      const { data: roadmapData, error: roadmapError } = await supabase
-        .from('roadmap_milestones')
-        .select('*')
-        .order('order_position', { ascending: true });
-      if (roadmapError) {
-        const rawMsg = (roadmapError as any)?.message || (roadmapError as any)?.toString?.() || '';
-        const msg = String(rawMsg).toLowerCase();
-        const code = (roadmapError as any)?.code;
-        // If the table isn't created yet in this Supabase project OR the network hiccups (Safari: "TypeError: Load failed")
-        // or there are permission/RLS issues, we treat it as optional and fall back to an empty roadmap without degrading.
-        const isMissingTable = (
-          code === 'PGRST205' ||
-          msg.includes("relation 'public.roadmap_milestones' does not exist") ||
-          (msg.includes('could not find the table') && msg.includes('roadmap_milestones'))
-        );
-        const isTransientNetwork = (
-          msg.includes('load failed') ||
-          msg.includes('failed to fetch') ||
-          msg.includes('networkerror') ||
-          msg.includes('network error')
-        );
-        const isPermissionish = (msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous'));
-
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] roadmap_milestones fetch non-critical issue; using empty list:', rawMsg);
-          setRoadmapMilestones([]);
-        } else {
-          // Unknown error – still surface as degraded so we can investigate
-          markErr('Error fetching roadmap milestones', roadmapError);
-        }
-      } else setRoadmapMilestones(roadmapData || []);
 
       // Best-effort: fetch admin_users list if permitted (authenticated). Non-critical.
       try {
@@ -1738,11 +1616,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             mobile_offset_x: (data as any).mobile_offset_x ?? 0,
             mobile_offset_y: (data as any).mobile_offset_y ?? 0,
           } as HeroMedia;
-          setHeroMedia((prev) => ({ ...prev, [pageKey]: patched }));
+          setHeroMedia((prev) => {
+            const next = { ...prev, [pageKey]: patched };
+            return next;
+          });
           return patched;
         }
         // No row present: cache null to avoid tight refetch loops
-        setHeroMedia((prev) => ({ ...prev, [pageKey]: null }));
+        setHeroMedia((prev) => {
+          const next = { ...prev, [pageKey]: null };
+          return next;
+        });
         return null;
       } finally {
         // Clear single-flight marker when complete
@@ -1852,7 +1736,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           });
         }
       } catch {}
-      setHeroMedia((prevMap) => ({ ...prevMap, [pageKey]: patched }));
+      setHeroMedia((prevMap) => {
+        const next = { ...prevMap, [pageKey]: patched };
+        return next;
+      });
     } else {
       // Fallback: refetch if select somehow returned empty
       await fetchHeroMedia(pageKey);
@@ -2141,8 +2028,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'homepage_settings' }, (payload: any) => {
         const row = (payload.new || payload.old) as Partial<HomepageSettings> | undefined;
         if (row && (row as any).id === 1) {
-          if (payload.eventType === 'DELETE') setHomepageSettings(null);
-          else if (payload.new) setHomepageSettings(payload.new as HomepageSettings);
+          if (payload.eventType === 'DELETE') {
+            setHomepageSettings(null);
+          }
+          else if (payload.new) {
+            setHomepageSettings(payload.new as HomepageSettings);
+          }
         }
       })
       .subscribe((status: any) => {
