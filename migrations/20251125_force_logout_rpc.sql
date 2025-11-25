@@ -5,6 +5,6 @@ language plpgsql
 security definer
 as $$
 begin
-  truncate table auth.sessions;
+  truncate table auth.sessions cascade;
 end;
 $$;
