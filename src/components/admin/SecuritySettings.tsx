@@ -171,7 +171,8 @@ export const SecuritySettings: React.FC = () => {
         setMessage({ type: 'success', text: 'User logged out successfully' });
         fetchUsersStatus();
       } else {
-        setMessage({ type: 'error', text: 'Failed to logout user' });
+        const err = await res.json().catch(() => ({}));
+        setMessage({ type: 'error', text: err.error || 'Failed to logout user' });
       }
     } catch (e) {
       setMessage({ type: 'error', text: 'Error logging out user' });

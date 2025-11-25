@@ -264,7 +264,10 @@ export const handler: Handler = async (event, context) => {
 
       // Sign out from Supabase Auth (invalidates refresh tokens)
       const { error } = await supabase.auth.admin.signOut(targetUserId);
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase signOut error:', error);
+        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Supabase Auth Error: ' + error.message }) };
+      }
 
       // Remove from active sessions table
       await supabase
