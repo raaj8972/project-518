@@ -16,7 +16,7 @@ export const handler: Handler = async (event, context) => {
   const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
   const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDAxNDEsImV4cCI6MjA3MzA3NjE0MX0.0akCpqYDlGgEenU4fPzDQorsvygcviBpfk4iluSm9Vs';
   // Provided by user for local dev fallback
-  const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
+  const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9zZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
 
   // Determine which configuration to use
   let supabaseUrl = (process.env.SUPABASE_URL || '').trim();
@@ -42,6 +42,11 @@ export const handler: Handler = async (event, context) => {
       }) 
     };
   }
+
+  // Debug Service Key (Safe Log)
+  console.log(`[Admin Security] Service Key Length: ${supabaseServiceKey.length}`);
+  console.log(`[Admin Security] Service Key Start: ${supabaseServiceKey.substring(0, 10)}...`);
+  console.log(`[Admin Security] Service Key End: ...${supabaseServiceKey.substring(supabaseServiceKey.length - 10)}`);
 
   // Initialize Supabase with Service Key (required for admin actions)
   const supabase = createClient(supabaseUrl, supabaseServiceKey, {
