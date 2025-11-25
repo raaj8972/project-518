@@ -35,7 +35,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Check for existing session
     const getSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          // If JWT is invalid/malformed, force sign out to clear bad tokens
+          if (error.message && (
+            error.message.includes('invalid JWT') || 
+            error.message.includes('malformed') || 
+            error.message.includes('signature')
+          )) {
+            console.log('Clearing invalid session...');
+            await supabase.auth.signOut();
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+          return;
+        }
+
         if (session?.user) {
           setUser(session.user);
           setIsAuthenticated(true);
