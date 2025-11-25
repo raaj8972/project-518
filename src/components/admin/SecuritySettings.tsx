@@ -172,10 +172,10 @@ export const SecuritySettings: React.FC = () => {
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (isPinVerified && pin === '9693') headers['x-master-key'] = '9693';
 
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
+      const res = await fetch('/.netlify/functions/force-logout', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ action: 'force_logout', targetUserId: userId })
+        body: JSON.stringify({ targetUserId: userId })
       });
 
       if (res.ok) {
