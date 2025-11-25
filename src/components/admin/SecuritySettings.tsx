@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff, Lock } from 'lucide-react';
+import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { supabase } from '../../lib/supabase';
@@ -153,7 +153,12 @@ export const SecuritySettings: React.FC = () => {
   };
 
   const handleForceLogout = async (userId: string) => {
-    if (!confirm('Are you sure you want to force logout this user? They will be signed out of all devices.')) return;
+    const isSelf = user?.id === userId;
+    const confirmMsg = isSelf 
+      ? 'Are you sure you want to sign out of all devices? You will be redirected to login.'
+      : 'Are you sure you want to force logout this user? They will be signed out of all devices.';
+
+    if (!confirm(confirmMsg)) return;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -169,7 +174,13 @@ export const SecuritySettings: React.FC = () => {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'User logged out successfully' });
-        fetchUsersStatus();
+        if (isSelf) {
+          // Force client-side logout immediately
+          await supabase.auth.signOut();
+          window.location.href = '/';
+        } else {
+          fetchUsersStatus();
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         setMessage({ type: 'error', text: err.error || 'Failed to logout user' });
@@ -442,6 +453,29 @@ export const SecuritySettings: React.FC = () => {
               <AlertCircle className="w-5 h-5 text-yellow-500" />
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Session Management (Self) */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <LogOut className="w-6 h-6 text-red-600 mr-3" />
+            <h3 className="text-lg font-semibold text-gray-900">Session Management</h3>
+          </div>
+        </div>
+        <div className="p-4 bg-red-50 rounded-lg border border-red-100">
+          <h4 className="font-medium text-red-900 mb-2">Force Logout All Devices</h4>
+          <p className="text-sm text-red-700 mb-4">
+            This will sign you out from all devices, including this one. You will need to sign in again.
+            Useful if you suspect unauthorized access or want to clear old sessions.
+          </p>
+          <button
+            onClick={() => user && handleForceLogout(user.id)}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            Sign Out Everywhere
+          </button>
         </div>
       </div>
 

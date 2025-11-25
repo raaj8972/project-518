@@ -256,14 +256,17 @@ export const handler: Handler = async (event, context) => {
     }
 
     if (action === 'force_logout') {
-      // Only the Owner may force logout other admins
+      // Owner can force logout anyone. Users can force logout themselves.
       let isOwner = false;
+      let requestingUserId = '';
+
       try {
         const authHeader = event.headers.authorization;
         if (authHeader) {
           const token = authHeader.replace('Bearer ', '');
           const { data: { user } } = await supabase.auth.getUser(token);
           if (user) {
+            requestingUserId = user.id;
             const { data: adminUser } = await supabase
               .from('admin_users')
               .select('role, is_primary')
@@ -278,14 +281,16 @@ export const handler: Handler = async (event, context) => {
         console.warn('Error determining owner for force_logout check', e);
       }
 
-      if (!isOwner) {
-        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: Owner access required for force logout' }) };
+      if (!targetUserId) return { statusCode: 400, headers, body: 'Missing targetUserId' };
+
+      // Allow if Owner OR if user is targeting themselves
+      if (!isOwner && targetUserId !== requestingUserId) {
+        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: Owner access required for force logout of other users' }) };
       }
 
       if (!hasServiceKey) {
         return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error: Missing Service Role Key. Cannot force logout.' }) };
       }
-      if (!targetUserId) return { statusCode: 400, headers, body: 'Missing targetUserId' };
 
       // Sign out from Supabase Auth (invalidates refresh tokens)
       const { error } = await supabase.auth.admin.signOut(targetUserId);
