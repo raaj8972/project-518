@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../../context/DataContext';
-import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, ToggleLeft, ToggleRight, Lock } from 'lucide-react';
 
-export const AdminUsersPanel: React.FC = () => {
+interface AdminUsersPanelProps {
+  onManage2FA?: () => void;
+}
+
+export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA }) => {
   const { adminUsers, refreshAdminUsers, addAdminUser, addAdminByEmail, removeAdminUser, createAdminAccount, listAdminPermissions, setAdminPermission } = useData();
+  const { user } = useAuth();
   const [userId, setUserId] = useState(''); // legacy/manual path
   const [email, setEmail] = useState(''); // preferred path
   const [password, setPassword] = useState(''); // owner-only create path
@@ -26,6 +32,10 @@ export const AdminUsersPanel: React.FC = () => {
     can_homebound?: boolean;
     can_sports?: boolean;
   }>>({});
+
+  const currentUserAdmin = useMemo(() => adminUsers?.find(u => u.user_id === user?.id), [adminUsers, user]);
+  const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary;
+
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
   useEffect(() => {
     (async () => {
@@ -113,6 +123,22 @@ export const AdminUsersPanel: React.FC = () => {
         can add/remove admins and cannot be removed; <span className="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-medium">admin</span>
         can manage site settings and content. The first admin becomes the owner automatically.
       </p>
+
+      {isOwner && onManage2FA && (
+        <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-medium text-indigo-900">Security Settings</h4>
+            <p className="text-xs text-indigo-700 mt-1">Manage 2FA requirements and force logout for other admins.</p>
+          </div>
+          <button
+            onClick={onManage2FA}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            <Lock className="w-4 h-4" />
+            Manage 2FA for others
+          </button>
+        </div>
+      )}
 
       <form onSubmit={onAdd} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <input

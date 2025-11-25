@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff } from 'lucide-react';
+import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useData } from '../../context/DataContext';
+import { supabase } from '../../lib/supabase';
 
 export const SecuritySettings: React.FC = () => {
-  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated } = useAuth();
+  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated, user } = useAuth();
+  const { adminUsers } = useData();
   const [isSettingUpTOTP, setIsSettingUpTOTP] = useState(false);
   const [totpSecret, setTotpSecret] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -11,6 +14,202 @@ export const SecuritySettings: React.FC = () => {
   const [showSecret, setShowSecret] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Admin user management state
+  const [usersStatus, setUsersStatus] = useState<any[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // PIN Protection State
+  const [pin, setPin] = useState('');
+  const [isPinVerified, setIsPinVerified] = useState(false);
+  const [pinError, setPinError] = useState('');
+
+  // Password Management State
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+
+  const isOwner = React.useMemo(() => {
+    if (!user) return false;
+    if (user.user_metadata?.is_super_admin) return true;
+    if (!adminUsers) return false;
+    return !!adminUsers.find(a => a.user_id === user.id && (a.role === 'owner' || a.is_primary));
+  }, [user, adminUsers]);
+
+  React.useEffect(() => {
+    if (user && !selectedUserId) {
+      setSelectedUserId(user.id);
+    }
+  }, [user]);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match' });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ 
+          action: 'update_password', 
+          targetUserId: selectedUserId, 
+          newPassword 
+        })
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Password updated successfully' });
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMessage({ type: 'error', text: err.error || 'Failed to update password' });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error updating password' });
+    }
+    setIsUpdatingPassword(false);
+  };
+
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pin === '9693') {
+      setIsPinVerified(true);
+      setPinError('');
+    } else {
+      setPinError('Incorrect PIN');
+      setPin('');
+    }
+  };
+
+  const fetchUsersStatus = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'list_users' })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setUsersStatus(data);
+      } else {
+        const err = await res.json().catch(() => ({ error: 'Failed to load users' }));
+        setMessage({ type: 'error', text: `Failed to load user list: ${err.error || res.statusText}` });
+      }
+    } catch (error: any) {
+      setMessage({ type: 'error', text: `Error loading user list: ${error.message || 'Unknown'}` });
+    }
+    setIsLoadingUsers(false);
+  };
+
+  const handleToggleUser2FA = async (userId: string, enable: boolean) => {
+    if (!confirm(`Are you sure you want to ${enable ? 'enable' : 'disable'} 2FA for this user?`)) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'toggle_2fa', targetUserId: userId, enable })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setMessage({ type: 'success', text: data.message || `2FA ${enable ? 'enabled' : 'disabled'} successfully` });
+        fetchUsersStatus();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setMessage({ type: 'error', text: err.error || 'Failed to update 2FA status' });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error updating 2FA status' });
+    }
+  };
+
+  const handleForceLogout = async (userId: string) => {
+    if (!confirm('Are you sure you want to force logout this user? They will be signed out of all devices.')) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'force_logout', targetUserId: userId })
+      });
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'User logged out successfully' });
+        fetchUsersStatus();
+      } else {
+        setMessage({ type: 'error', text: 'Failed to logout user' });
+      }
+    } catch (e) {
+      setMessage({ type: 'error', text: 'Error logging out user' });
+    }
+  };
+
+  if (!isPinVerified) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] bg-white rounded-lg shadow-md p-8">
+        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+          <Lock className="w-8 h-8 text-gray-600" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">Security Access</h2>
+        <p className="text-gray-600 mb-6 text-center max-w-md">
+          Please enter the security PIN to access these settings.
+        </p>
+        <form onSubmit={handlePinSubmit} className="w-full max-w-xs">
+          <div className="mb-4">
+            <input
+              type="password"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Enter PIN"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center text-lg tracking-widest"
+              autoFocus
+            />
+            {pinError && <p className="text-red-500 text-sm mt-2 text-center">{pinError}</p>}
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-gray-900 text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          >
+            Access Settings
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   const handleSetupTOTP = async () => {
     setIsLoading(true);
@@ -143,15 +342,82 @@ export const SecuritySettings: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center">
-              <Key className="w-5 h-5 text-gray-600 mr-3" />
-              <div>
-                <div className="font-medium text-gray-900">Password Protection</div>
-                <div className="text-sm text-gray-600">Your account is protected with a secure password</div>
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center">
+                <Key className="w-5 h-5 text-gray-600 mr-3" />
+                <div>
+                  <div className="font-medium text-gray-900">Password Protection</div>
+                  <div className="text-sm text-gray-600">Your account is protected with a secure password</div>
+                </div>
               </div>
+              {isUpdatingPassword ? (
+                <span className="text-sm text-blue-600">Updating...</span>
+              ) : (
+                <button 
+                  onClick={() => setShowPasswordForm(!showPasswordForm)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  {showPasswordForm ? 'Cancel' : 'Change Password'}
+                </button>
+              )}
             </div>
-            <CheckCircle className="w-5 h-5 text-green-500" />
+
+            {/* Password Update Form */}
+            {showPasswordForm && (
+              <form onSubmit={handleUpdatePassword} className="mt-4 space-y-4 border-t border-gray-200 pt-4">
+                {isOwner && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Select User to Update</label>
+                    <select
+                      value={selectedUserId}
+                      onChange={(e) => setSelectedUserId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      {adminUsers?.map(u => (
+                        <option key={u.user_id} value={u.user_id}>
+                          {u.email} ({u.role}) {u.user_id === user?.id ? '(You)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Update Password
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
 
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -322,28 +588,76 @@ export const SecuritySettings: React.FC = () => {
         )}
       </div>
 
-      {/* Security Tips */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-900 mb-4">Security Tips</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
-          <li className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span>Keep your authenticator app secure and backed up</span>
-          </li>
-          <li className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span>Never share your admin password or 2FA codes with anyone</span>
-          </li>
-          <li className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span>Log out when you're done using the admin panel</span>
-          </li>
-          <li className="flex items-start">
-            <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-            <span>Use a secure device when accessing the admin panel</span>
-          </li>
-        </ul>
-      </div>
+      {/* Admin User Management (Owner Only) */}
+      {isOwner && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Admin User Management</h3>
+            <button 
+              onClick={fetchUsersStatus} 
+              className="text-sm text-blue-600 hover:text-blue-800"
+              disabled={isLoadingUsers}
+            >
+              {isLoadingUsers ? 'Refreshing...' : 'Refresh List'}
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2FA</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Seen</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {usersStatus.map((u) => (
+                  <tr key={u.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">{u.email}</div>
+                      <div className="text-xs text-gray-500">{u.id === user?.id ? '(You)' : ''}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {u.is_online ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                          Online
+                        </span>
+                      ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          Offline
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {u.totp_enabled ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Enabled</span>
+                      ) : (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">Disabled</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {u.last_sign_in_at || 'Unknown'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                      <button onClick={() => handleToggleUser2FA(u.id, !u.totp_enabled)} className="text-blue-600 hover:text-blue-800 mr-3">
+                        {u.totp_enabled ? 'Disable 2FA' : 'Enable 2FA'}
+                      </button>
+                      {isOwner && (
+                        <button onClick={() => handleForceLogout(u.id)} className="text-red-600 hover:text-red-800">
+                          Force Logout
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

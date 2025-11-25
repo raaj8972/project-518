@@ -19,6 +19,15 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   // Local dev/preview ergonomics
+  server: {
+    proxy: {
+      '/.netlify/functions': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   preview: {
     // Ensure we always use the same port if requested
     strictPort: true,
