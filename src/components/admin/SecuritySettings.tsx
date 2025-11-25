@@ -202,7 +202,8 @@ export const SecuritySettings: React.FC = () => {
         }
       } else {
         const err = await res.json().catch(() => ({}));
-        setMessage({ type: 'error', text: err.error || 'Failed to logout user' });
+        const errorText = err.details ? `${err.error}: ${err.details}` : (err.error || 'Failed to logout user');
+        setMessage({ type: 'error', text: errorText });
       }
     } catch (e: any) {
       setMessage({ type: 'error', text: `Error logging out user: ${e.message || 'Unknown error'}` });
