@@ -166,8 +166,15 @@ export const SecuritySettings: React.FC = () => {
     if (!confirm(confirmMsg)) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Safely get session, ignoring errors if we have the master key
+      let token: string | undefined;
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token;
+      } catch (e) {
+        console.warn('Session error ignored during force logout:', e);
+      }
+
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       if (isPinVerified && pin === '9693') headers['x-master-key'] = '9693';
@@ -181,8 +188,14 @@ export const SecuritySettings: React.FC = () => {
       if (res.ok) {
         setMessage({ type: 'success', text: 'User logged out successfully' });
         if (isSelf) {
-          // Force client-side logout immediately
-          await supabase.auth.signOut();
+          // Force client-side logout immediately, ignoring errors
+          try {
+            await supabase.auth.signOut();
+          } catch (e) {
+            console.warn('SignOut error ignored:', e);
+          }
+          // Clear local storage manually to be sure
+          localStorage.removeItem('supabase.auth.token');
           window.location.href = '/';
         } else {
           fetchUsersStatus();
@@ -191,8 +204,8 @@ export const SecuritySettings: React.FC = () => {
         const err = await res.json().catch(() => ({}));
         setMessage({ type: 'error', text: err.error || 'Failed to logout user' });
       }
-    } catch (e) {
-      setMessage({ type: 'error', text: 'Error logging out user' });
+    } catch (e: any) {
+      setMessage({ type: 'error', text: `Error logging out user: ${e.message || 'Unknown error'}` });
     }
   };
 

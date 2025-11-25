@@ -43,10 +43,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (error.message && (
             error.message.includes('invalid JWT') || 
             error.message.includes('malformed') || 
-            error.message.includes('signature')
+            error.message.includes('signature') ||
+            error.message.includes('Auth session missing')
           )) {
             console.log('Clearing invalid session...');
-            await supabase.auth.signOut();
+            await supabase.auth.signOut().catch(() => {});
             setUser(null);
             setIsAuthenticated(false);
           }
