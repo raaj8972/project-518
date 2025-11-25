@@ -283,8 +283,8 @@ export const handler: Handler = async (event, context) => {
 
       if (!targetUserId) return { statusCode: 400, headers, body: 'Missing targetUserId' };
 
-      // Allow if Owner OR if user is targeting themselves
-      if (!isOwner && targetUserId !== requestingUserId) {
+      // Allow if Admin (Master Key), Owner, or if user is targeting themselves
+      if (!isAdmin && !isOwner && targetUserId !== requestingUserId) {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: Owner access required for force logout of other users' }) };
       }
 
