@@ -187,6 +187,14 @@ export const SecuritySettings: React.FC = () => {
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'User logged out successfully' });
+        
+        // Broadcast logout event to all connected clients
+        await supabase.channel('admin_security').send({
+          type: 'broadcast',
+          event: 'force_logout',
+          payload: { targetUserId: userId }
+        });
+
         if (isSelf) {
           // Force client-side logout immediately, ignoring errors
           try {

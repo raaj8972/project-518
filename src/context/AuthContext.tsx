@@ -71,8 +71,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session?.user) {
+      async (event, session) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setIsAuthenticated(false);
+          setIsTOTPEnabled(false);
+          // Clear local storage
+          localStorage.removeItem('supabase.auth.token');
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-')) localStorage.removeItem(key);
+          });
+        } else if (session?.user) {
           setUser(session.user);
           setIsAuthenticated(true);
           checkTOTPStatus(session.user);
@@ -85,8 +94,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Listen for global force logout events via Realtime
+    const channel = supabase.channel('admin_security')
+      .on(
+        'broadcast',
+        { event: 'force_logout' },
+        (payload) => {
+          console.log('Received force logout signal:', payload);
+          // If payload has targetUserId, check if it matches current user
+          // If no targetUserId, it's a global logout
+          if (!payload.payload?.targetUserId || (user && payload.payload.targetUserId === user.id)) {
+            console.log('Force logging out...');
+            logout();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [user]); // Add user dependency to check ID correctly
 
   const checkTOTPStatus = async (user: User) => {
     try {
