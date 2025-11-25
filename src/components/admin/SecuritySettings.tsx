@@ -196,6 +196,10 @@ export const SecuritySettings: React.FC = () => {
           }
           // Clear local storage manually to be sure
           localStorage.removeItem('supabase.auth.token');
+          // Also clear any other supabase keys
+          Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('sb-')) localStorage.removeItem(key);
+          });
           window.location.href = '/';
         } else {
           fetchUsersStatus();
