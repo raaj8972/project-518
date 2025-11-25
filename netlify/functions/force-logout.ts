@@ -1,5 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { Client } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
 const handler: Handler = async (event, context) => {
   const headers = {
@@ -28,111 +28,59 @@ const handler: Handler = async (event, context) => {
     };
   }
 
-  // Parse body for optional targetUserId
-  let targetUserId: string | null = null;
-  try {
-    if (event.body) {
-      const body = JSON.parse(event.body);
-      targetUserId = body.targetUserId;
-    }
-  } catch (e) {
-    // ignore JSON parse error
-  }
+  // 2. Initialize Supabase Admin Client
+  // We use the REST API (via supabase-js) to avoid direct DB connection issues (port 5432/6543)
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://isfqhascrdzaoebhuohs.supabase.co';
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // 2. Database Connection
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) {
+  if (!supabaseServiceKey) {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Server Configuration Error: DATABASE_URL is missing' }),
+      body: JSON.stringify({ error: 'Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing' }),
     };
   }
 
-  const client = new Client({
-    connectionString,
-    ssl: { rejectUnauthorized: false }, // Required for Supabase/many cloud DBs
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   });
 
   try {
-    await client.connect();
+    // 3. Call the RPC function to clear sessions
+    // This requires the 'force_logout_all_users' function to exist in the DB
+    const { error } = await supabase.rpc('force_logout_all_users');
 
-    // 3. Execute Force Logout SQL
-    // We use the dynamic block to handle 'data' vs 'access_token' schema differences safely.
-    
-    let sql = '';
-    
-    if (targetUserId) {
-      // Targeted logout
-      sql = `
-        -- 1. Clear app-level tracking for user
-        DELETE FROM public.admin_sessions WHERE user_id = '${targetUserId}';
-
-        -- 2. Delete sessions from auth.sessions for user
-        DELETE FROM auth.sessions WHERE user_id = '${targetUserId}';
-
-        -- 3. Revoke refresh tokens for user
-        DELETE FROM auth.refresh_tokens WHERE user_id = '${targetUserId}';
-      `;
-    } else {
-      // Global admin logout
-      sql = `
-        -- 1. Clear app-level tracking
-        TRUNCATE TABLE public.admin_sessions;
-
-        -- 2. Delete malformed or all admin sessions from auth.sessions
-        DO $$
-        DECLARE
-          del_sql TEXT;
-        BEGIN
-          IF EXISTS(
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'auth' AND table_name = 'sessions' AND column_name = 'data'
-          ) THEN
-            del_sql := $q$
-              DELETE FROM auth.sessions
-              WHERE user_id::text IN (SELECT user_id::text FROM public.admin_users);
-            $q$;
-          ELSIF EXISTS(
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'auth' AND table_name = 'sessions' AND column_name = 'access_token'
-          ) THEN
-            del_sql := $q$
-              DELETE FROM auth.sessions
-              WHERE user_id::text IN (SELECT user_id::text FROM public.admin_users);
-            $q$;
-          ELSE
-            del_sql := $q$
-              DELETE FROM auth.sessions
-              WHERE user_id::text IN (SELECT user_id::text FROM public.admin_users);
-            $q$;
-          END IF;
-          EXECUTE del_sql;
-        END$$;
-
-        -- 3. Revoke refresh tokens
-        DELETE FROM auth.refresh_tokens
-        WHERE user_id::text IN (SELECT user_id::text FROM public.admin_users);
-      `;
+    if (error) {
+      console.error('Supabase RPC Error:', error);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Database Error', 
+          details: error.message 
+        }),
+      };
     }
-
-    await client.query(sql);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ message: targetUserId ? `Successfully logged out user ${targetUserId}` : 'Successfully forced logout for all admin users.' }),
+      body: JSON.stringify({ message: 'Successfully cleared all sessions via RPC' }),
     };
 
-  } catch (error: any) {
-    console.error('Force logout error:', error);
+  } catch (err: any) {
+    console.error('Unexpected Error:', err);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Database error', details: error.message }),
+      body: JSON.stringify({ 
+        error: 'Internal Server Error', 
+        details: err.message 
+      }),
     };
-  } finally {
-    await client.end();
   }
 };
 
