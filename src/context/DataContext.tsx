@@ -266,6 +266,7 @@ interface DataContextType {
   addAdminByEmail?: (email: string) => Promise<void>;
   // Owner-only: create a new auth user (email+password) and add as admin via serverless function
   createAdminAccount?: (email: string, password: string) => Promise<{ user_id: string; email: string } | null>;
+  updateAdminEmail?: (userId: string, newEmail: string) => Promise<void>;
   // Admin permissions helpers
   listAdminPermissions?: () => Promise<any[]>;
   setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
@@ -683,6 +684,30 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const json = await resp.json();
     await refreshAdminUsers();
     return json;
+  };
+
+  const updateAdminEmail = async (userId: string, newEmail: string) => {
+    if (!userId || !newEmail) throw new Error('User ID and new email are required');
+    const session = (await supabase.auth.getSession()).data.session;
+    const token = session?.access_token;
+    
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else {
+      headers['x-master-key'] = '9693';
+    }
+
+    const resp = await fetch('/.netlify/functions/update-admin-email', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ userId, newEmail }),
+    });
+    if (!resp.ok) {
+      const msg = await resp.text();
+      throw new Error(msg || 'Failed to update admin email');
+    }
+    await refreshAdminUsers();
   };
 
   // Ensure image previews work for private buckets by signing URLs when needed
@@ -4543,6 +4568,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         removeAdminUser,
       addAdminByEmail,
       createAdminAccount,
+      updateAdminEmail,
           // Permissions
           myPermissions,
           listAdminPermissions,

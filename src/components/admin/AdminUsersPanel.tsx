@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, ToggleLeft, ToggleRight, Lock } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, ToggleLeft, ToggleRight, Lock, Edit } from 'lucide-react';
 
 interface AdminUsersPanelProps {
   onManage2FA?: () => void;
 }
 
 export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA }) => {
-  const { adminUsers, refreshAdminUsers, addAdminUser, addAdminByEmail, removeAdminUser, createAdminAccount, listAdminPermissions, setAdminPermission } = useData();
+  const { adminUsers, refreshAdminUsers, addAdminUser, addAdminByEmail, removeAdminUser, createAdminAccount, listAdminPermissions, setAdminPermission, updateAdminEmail } = useData();
   const { user } = useAuth();
   const [userId, setUserId] = useState(''); // legacy/manual path
   const [email, setEmail] = useState(''); // preferred path
@@ -103,6 +103,20 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     if (!confirm('Remove this admin?')) return;
     setBusy(true);
     try { await removeAdminUser(uid); } catch (e: any) { alert(e?.message || 'Failed to remove admin'); } finally { setBusy(false); }
+  };
+
+  const onEditEmail = async (uid: string, currentEmail: string) => {
+    if (!updateAdminEmail) return;
+    const newEmail = prompt('Enter new email address:', currentEmail);
+    if (!newEmail || newEmail === currentEmail) return;
+    setBusy(true);
+    try {
+      await updateAdminEmail(uid, newEmail.trim());
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update email');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copyHelp = async () => {
@@ -250,9 +264,14 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                   {u.role === 'owner' || u.is_primary ? (
                     <span className="text-gray-400 text-xs">Cannot remove owner</span>
                   ) : (
-                    <button disabled={busy} onClick={() => onRemove(u.user_id)} className="inline-flex items-center gap-1 text-red-600 hover:text-red-700">
-                      <Trash2 className="w-4 h-4"/> Remove
-                    </button>
+                    <div className="flex flex-col gap-1">
+                      <button disabled={busy} onClick={() => onEditEmail(u.user_id, u.email)} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700">
+                        <Edit className="w-4 h-4"/> Edit Email
+                      </button>
+                      <button disabled={busy} onClick={() => onRemove(u.user_id)} className="inline-flex items-center gap-1 text-red-600 hover:text-red-700">
+                        <Trash2 className="w-4 h-4"/> Remove
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

@@ -343,83 +343,85 @@ export const SecuritySettings: React.FC = () => {
         </div>
 
         <div className="space-y-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Key className="w-5 h-5 text-gray-600 mr-3" />
-                <div>
-                  <div className="font-medium text-gray-900">Password Protection</div>
-                  <div className="text-sm text-gray-600">Your account is protected with a secure password</div>
-                </div>
-              </div>
-              {isUpdatingPassword ? (
-                <span className="text-sm text-blue-600">Updating...</span>
-              ) : (
-                <button 
-                  onClick={() => setShowPasswordForm(!showPasswordForm)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {showPasswordForm ? 'Cancel' : 'Change Password'}
-                </button>
-              )}
-            </div>
-
-            {/* Password Update Form */}
-            {showPasswordForm && (
-              <form onSubmit={handleUpdatePassword} className="mt-4 space-y-4 border-t border-gray-200 pt-4">
-                {isOwner && (
+          {isOwner && (
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center">
+                  <Key className="w-5 h-5 text-gray-600 mr-3" />
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Select User to Update</label>
-                    <select
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {adminUsers?.map(u => (
-                        <option key={u.user_id} value={u.user_id}>
-                          {u.email} ({u.role}) {u.user_id === user?.id ? '(You)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="font-medium text-gray-900">Password Protection</div>
+                    <div className="text-sm text-gray-600">Your account is protected with a secure password</div>
                   </div>
+                </div>
+                {isUpdatingPassword ? (
+                  <span className="text-sm text-blue-600">Updating...</span>
+                ) : (
+                  <button 
+                    onClick={() => setShowPasswordForm(!showPasswordForm)}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    {showPasswordForm ? 'Cancel' : 'Change Password'}
+                  </button>
                 )}
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                  <div className="relative">
+              </div>
+
+              {/* Password Update Form */}
+              {showPasswordForm && (
+                <form onSubmit={handleUpdatePassword} className="mt-4 space-y-4 border-t border-gray-200 pt-4">
+                  {isOwner && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Select User to Update</label>
+                      <select
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        {adminUsers?.map(u => (
+                          <option key={u.user_id} value={u.user_id}>
+                            {u.email} ({u.role}) {u.user_id === user?.id ? '(You)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                     <input
                       type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm new password"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isUpdatingPassword || !newPassword || !confirmPassword}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Update Password
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={isUpdatingPassword || !newPassword || !confirmPassword}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Update Password
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center">
