@@ -132,25 +132,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <p className="text-xs text-gray-500 mt-1">Contain shows full image with letterboxing; Cover fills the card but may crop on some screens.</p>
             </div>
             {/* Institution visibility controls moved to Registration admin panel */}
-            <div className="pt-4 border-t border-gray-200">
-              <div className="text-sm font-semibold text-gray-800 mb-2">Registration participant types</div>
-              <p className="text-xs text-gray-500 mb-2">Edit the dropdown options shown to registrants (order matters).</p>
-              <div className="space-y-2">
-                {local.registration_participant_types.map((t, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      value={t}
-                      onChange={(e) => setLocal(s => ({ ...s, registration_participant_types: s.registration_participant_types.map((x, idx) => idx === i ? e.target.value : x) }))}
-                      className="flex-1 rounded-md border border-gray-300 px-3 py-1"
-                    />
-                    <button type="button" onClick={() => setLocal(s => ({ ...s, registration_participant_types: s.registration_participant_types.filter((_, idx) => idx !== i) }))} className="text-xs px-2 py-1 bg-rose-600 text-white rounded">Remove</button>
-                  </div>
-                ))}
-                <div>
-                  <button type="button" onClick={() => setLocal(s => ({ ...s, registration_participant_types: [...s.registration_participant_types, `Option ${s.registration_participant_types.length + 1}`] }))} className="text-xs px-3 py-2 bg-cyan-600 text-white rounded">Add option</button>
-                </div>
-              </div>
-            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ended Text (after timer)</label>
               <input

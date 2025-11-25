@@ -23,11 +23,21 @@ export const handler: Handler = async (event, context) => {
   if (!supabaseUrl) supabaseUrl = DEFAULT_SUPABASE_URL;
 
   let supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  // Clean the key: remove whitespace and quotes which might be accidentally added in .env
+  supabaseServiceKey = supabaseServiceKey.replace(/^["']|["']$/g, '').trim();
+
   let supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '').trim();
 
-  // If using the default URL, ensure we use the default keys if env vars are missing
-  if (supabaseUrl === DEFAULT_SUPABASE_URL) {
-    if (!supabaseServiceKey) supabaseServiceKey = DEFAULT_SERVICE_ROLE_KEY;
+  // Helper to normalize URL for comparison (remove trailing slash)
+  const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+
+  // If using the default URL, ensure we use the default keys if env vars are missing OR invalid
+  if (normalizeUrl(supabaseUrl) === normalizeUrl(DEFAULT_SUPABASE_URL)) {
+    // If key is missing or doesn't look like a JWT (3 parts), use default
+    if (!supabaseServiceKey || supabaseServiceKey.split('.').length !== 3) {
+      console.log('[Admin Security] Using default Service Role Key (Env var missing or invalid)');
+      supabaseServiceKey = DEFAULT_SERVICE_ROLE_KEY;
+    }
     if (!supabaseAnonKey) supabaseAnonKey = DEFAULT_SUPABASE_ANON_KEY;
   }
 
@@ -41,6 +51,16 @@ export const handler: Handler = async (event, context) => {
         error: 'Server Configuration Error: Missing SUPABASE_SERVICE_ROLE_KEY. Please add this environment variable.' 
       }) 
     };
+  }
+
+  // Validate JWT format again to be sure
+  if (supabaseServiceKey.split('.').length !== 3) {
+     console.error('[Admin Security] Invalid Service Key format (not a JWT)');
+     return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: 'Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is not a valid JWT.' })
+     };
   }
 
   // Debug Service Key (Safe Log)

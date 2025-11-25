@@ -82,6 +82,23 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
 
+  const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
+
+  // Determine if current user is the OWNER
+  const isOwner = (() => {
+    try {
+      // Check for master admin bypass
+      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) {
+        return true;
+      }
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
+    } catch {
+      return false;
+    }
+  })();
+
   // Debounce redirect to handle transient auth events on tab focus
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -154,7 +171,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
     { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
-    { id: 'notifications' as TabType, name: 'Notifications', icon: Info },
+    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info }] : []),
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
     { id: 'about' as TabType, name: 'About', icon: Info },
     { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
@@ -180,23 +197,6 @@ export const AdminDashboard: React.FC = () => {
     { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
     { id: 'security' as TabType, name: 'Security', icon: Shield },
   ];
-
-  const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
-
-  // Determine if current user is the OWNER
-  const isOwner = (() => {
-    try {
-      // Check for master admin bypass
-      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) {
-        return true;
-      }
-      const uid = user?.id;
-      if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
-    } catch {
-      return false;
-    }
-  })();
 
   // Determine if current user is an ADMIN (owner OR admin role)
   const isAdmin = (() => {
@@ -366,6 +366,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
       {/* Diagnostics badge */}
+      {isOwner && (
       <div className="sticky top-0 z-[1001] w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 text-xs text-gray-700 shadow-sm">
@@ -396,6 +397,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
         {/* Schema/Bucket readiness banner */}
@@ -709,7 +711,7 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'homepage' && <HomepageManagement />}
-            {activeTab === 'notifications' && <NotificationsManagement />}
+            {activeTab === 'notifications' && isOwner && <NotificationsManagement />}
             {activeTab === 'events' && <EventsManagement />}
             {activeTab === 'homebound' && <HomeBoundSettings />}
             {activeTab === 'schedule' && <ScheduleManagement />}
