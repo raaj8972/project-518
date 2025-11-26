@@ -374,9 +374,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const response = await fetch('/.netlify/functions/list-admin-users', {
-        headers: { 'x-master-key': '9693' }
+        headers: { 'x-master-key': '9693' },
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
         const msg = await response.text();
         throw new Error(msg || 'Failed to fetch admin users');
@@ -1896,6 +1902,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // Fire-and-forget; fetchHeroMedia will cache the result and is single-flight.
     try { fetchHeroMedia('home').catch(() => {}); } catch {}
     fetchData(false);
+
+    // Safety valve: if data fetching hangs for > 15s, force loading off so user isn't stuck
+    const safety = setTimeout(() => {
+      setLoading((l) => {
+        if (l) {
+          console.warn('[Data] fetchData timed out or hung; forcing loading=false');
+          return false;
+        }
+        return l;
+      });
+    }, 15000);
+    
+    return () => clearTimeout(safety);
   }, []);
 
   // Refetch after authentication changes (e.g., RLS allows more rows when logged in)

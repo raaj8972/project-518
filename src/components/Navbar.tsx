@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Calendar, Image, Clock, Users, LogIn } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import BrandLogo3D from './BrandLogo3D';
 
 export const Navbar: React.FC = () => {
@@ -11,8 +12,8 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   // Single subscription to DataContext to avoid multiple context subscribers
   const { homepageSettings, prefetchEvents, prefetchGalleryImages, adminUsers } = useData() as any;
-  // Lightweight auth check (we avoid importing useAuth here to keep navbar lean)
-  const currentUserId = (window as any).__RICORRENZA_USER_ID || null;
+  const { user } = useAuth();
+  const currentUserId = user?.id || null;
 
   // Compute responsive offsets with fallback to base values
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -90,13 +91,13 @@ export const Navbar: React.FC = () => {
 
     // If current user appears in adminUsers, add Admin link that prefetches admin chunk on hover
     try {
-      const uid = currentUserId || (window as any).__RICORRENZA_USER_ID || null;
+      const uid = currentUserId;
       const isAdmin = uid && Array.isArray(adminUsers) && !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
       if (isAdmin) base.splice(base.length - 1, 0, { name: 'Admin', path: '/admin', icon: Users, onHover: () => import('../pages/AdminDashboard').catch(() => {}) });
     } catch {}
 
     return base;
-  }, [prefetchEvents, prefetchGalleryImages, adminUsers]);
+  }, [prefetchEvents, prefetchGalleryImages, adminUsers, currentUserId]);
 
   const isActive = (path: string) => location.pathname === path;
 
