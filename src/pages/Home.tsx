@@ -210,10 +210,10 @@ export const Home: React.FC = () => {
   }, [stopDetailAudio]);
 
   // Heads data and memoized sorted lists (must be before any early return)
-  const enabledFacultyHeads = facultyHeads.filter(head => head.enabled);
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !(m as any).isCouncil);
+  const enabledFacultyHeads = facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== '');
+  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !(m as any).isCouncil && m.image && m.image.trim() !== '');
   // Council members (non-head) are also part of leadership marquee
-  const councilMembers = coreTeamMembers.filter(m => m.enabled && (m as any).isCouncil && !m.is_head);
+  const councilMembers = coreTeamMembers.filter(m => m.enabled && (m as any).isCouncil && !m.is_head && m.image && m.image.trim() !== '');
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
   // Sorted full list of heads for display and navigation
   const sortedCommitteeHeads = React.useMemo(() => (
@@ -1023,7 +1023,9 @@ export const Home: React.FC = () => {
             >
               <React.Suspense fallback={<div className="h-[160px] flex items-center justify-center text-gray-400">Loading partners…</div>}>
               <LogoLoop
-                logos={featuredSponsors.map(s => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
+                logos={featuredSponsors
+                  .filter(s => s.logo && s.logo.trim() !== '')
+                  .map(s => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
                 speed={Math.min(800, Math.max(1, Math.abs(homepageSettings?.sponsors_belt_speed_px_per_sec ?? 140)))}
                 direction={homepageSettings?.sponsors_belt_direction ?? 'left'}
                 pauseOnHover={true}

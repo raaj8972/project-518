@@ -34,11 +34,11 @@ export const Sponsors: React.FC = () => {
     return 'soft';
   };
 
-  const titleSponsors = sponsors.filter(s => s.category === 'Title Sponsor');
-  const coSponsors = sponsors.filter(s => s.category === 'Co Sponsor');
+  const titleSponsors = sponsors.filter(s => s.category === 'Title Sponsor' && s.logo && s.logo.trim() !== '');
+  const coSponsors = sponsors.filter(s => s.category === 'Co Sponsor' && s.logo && s.logo.trim() !== '');
   
   // Filter out title and co-sponsors to get other sponsors
-  const otherSponsors = sponsors.filter(s => s.category !== 'Title Sponsor' && s.category !== 'Co Sponsor');
+  const otherSponsors = sponsors.filter(s => s.category !== 'Title Sponsor' && s.category !== 'Co Sponsor' && s.logo && s.logo.trim() !== '');
 
   // Group other sponsors by category
   const groupedOtherSponsors = otherSponsors.reduce((acc, sponsor) => {
