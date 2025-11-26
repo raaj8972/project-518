@@ -94,7 +94,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     );
 
-    // Listen for global force logout events via Realtime
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Separate effect for Realtime subscription to avoid infinite loop with user dependency
+  useEffect(() => {
+    if (!user) return;
+
     const channel = supabase.channel('admin_security')
       .on(
         'broadcast',
@@ -103,7 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           console.log('Received force logout signal:', payload);
           // If payload has targetUserId, check if it matches current user
           // If no targetUserId, it's a global logout
-          if (!payload.payload?.targetUserId || (user && payload.payload.targetUserId === user.id)) {
+          if (!payload.payload?.targetUserId || payload.payload.targetUserId === user.id) {
             console.log('Force logging out...');
             logout();
           }
@@ -112,10 +120,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       .subscribe();
 
     return () => {
-      subscription.unsubscribe();
       supabase.removeChannel(channel);
     };
-  }, [user]); // Add user dependency to check ID correctly
+  }, [user?.id]);
 
   const checkTOTPStatus = async (user: User) => {
     try {
