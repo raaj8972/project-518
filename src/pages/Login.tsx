@@ -1,25 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Mail, Zap } from 'lucide-react';
-import BrandLogo3D from '../components/BrandLogo3D';
-import { useData } from '../context/DataContext';
+import { Volume2, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import './Login.css';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [totpCode, setTotpCode] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
-  const { homepageSettings } = useData();
-  // Pull host for quick env diagnostics
-  const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
-  const SHOW_SUPABASE = ((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1');
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -71,510 +65,85 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="cyberpunk-theme min-h-screen">
-      {/* Hero Section */}
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/70"></div>
-          </div>
-          
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles removed */}
+    <div className="cyberpunk-theme min-h-screen flex items-center justify-center overflow-hidden relative">
+      {/* Background - Keeping the existing background but ensuring it works with the new box */}
+      <div className="absolute inset-0 z-0">
+        <div className="hero-bg parallax" data-speed="0.3">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
+          <div className="absolute inset-0 bg-black/70"></div>
         </div>
+        <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
+      </div>
 
-        {/* Login Content */}
-        <div className="relative z-10 w-full max-w-md mx-auto px-4">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
-                {requiresTOTP ? (
-                  <div className="relative">
-                    <div className="cyberpunk-icon-container">
-                      <Lock className="h-12 w-12 text-yellow-400" />
-                      <Shield className="h-6 w-6 text-green-400 absolute -top-1 -right-1" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    {(() => {
-                      const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
-                      const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
-                      // helper to convert hex/rgb(a) to rgba with desired alpha
-                      const toRgba = (c?: string, a: number = 1) => {
-                        if (!c) return `rgba(0,255,255,${a})`;
-                        const s = c.trim();
-                        if (s.startsWith('rgba(')) return s.replace(/rgba\(([^)]+)\)/, (_m, inner) => `rgba(${inner.split(',').slice(0,3).join(',')}, ${a})`);
-                        if (s.startsWith('rgb(')) return s.replace(/rgb\(([^)]+)\)/, (_m, inner) => `rgba(${inner}, ${a})`);
-                        if (s.startsWith('#')) {
-                          let r = 0, g = 255, b = 255;
-                          const hex = s.slice(1);
-                          if (hex.length === 3) {
-                            r = parseInt(hex[0] + hex[0], 16);
-                            g = parseInt(hex[1] + hex[1], 16);
-                            b = parseInt(hex[2] + hex[2], 16);
-                          } else if (hex.length >= 6) {
-                            r = parseInt(hex.slice(0,2), 16);
-                            g = parseInt(hex.slice(2,4), 16);
-                            b = parseInt(hex.slice(4,6), 16);
-                          }
-                          return `rgba(${r}, ${g}, ${b}, ${a})`;
-                        }
-                        // default cyan
-                        return `rgba(0,255,255,${a})`;
-                      };
-                      if (!raw) {
-                        return (
-                          <div className="cyberpunk-icon-container">
-                            {/* Fallback small ring if no brand logo configured */}
-                            <div className="h-16 w-16 rounded-full" style={{
-                              borderWidth: 2,
-                              borderColor: toRgba(accent, 0.4),
-                              background: toRgba(accent, 0.10),
-                              boxShadow: `inset 0 0 20px ${toRgba(accent, 0.20)}`
-                            }} />
-                          </div>
-                        );
-                      }
-                      let u = String(raw).trim();
-                      if (u.startsWith('//')) u = 'https:' + u;
-                      if (u.startsWith('http://')) u = 'https://' + u.slice(7);
-                      const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
-                      const sep = u.includes('?') ? '&' : '?';
-                      const src = ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
-                      const size = Math.max(40, Number((homepageSettings as any)?.brand_logo_size_px) || 72);
-                      const glowStrength = Math.max(0.5, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
-                      return (
-                        <div className="relative p-4 rounded-full" style={{
-                          borderWidth: 2,
-                          borderColor: toRgba(accent, 0.30),
-                          background: toRgba(accent, 0.06),
-                          boxShadow: `inset 0 0 20px ${toRgba(accent, 0.15)}`
-                        }}>
-                          <BrandLogo3D
-                            src={src}
-                            size={size}
-                            glowStrength={glowStrength}
-                            glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
-              </div>
-              <h1 className="text-4xl font-black mb-4 cyberpunk-title">
-                {requiresTOTP ? '2FA VERIFICATION' : 'ADMIN'}
-              </h1>
-              <p className="text-lg text-gray-300">
-                {requiresTOTP 
-                  ? 'Enter the 6-digit code from your authenticator app'
-                  : 'Access the RICORRENZA 2025 dashboard'
-                }
-              </p>
-              {SHOW_SUPABASE && supabaseHost && (
-                <p className="mt-2 text-xs text-gray-400">Supabase: {supabaseHost}</p>
+      {/* New Login Box Structure */}
+      <div className="relative z-10">
+        <div className="custom-login-box">
+          <div className="custom-login-content">
+            <div className="custom-login-title">
+              <Volume2 className="w-5 h-5 text-[#ff2770] mr-3" />
+              {requiresTOTP ? 'VERIFY' : 'LOGIN'}
+              <Heart className="w-5 h-5 text-[#ff2770] ml-3 fill-[#ff2770]" />
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              {error && (
+                <div className="text-red-400 text-xs text-center bg-red-900/20 p-2 rounded border border-red-500/30">
+                  {error}
+                </div>
               )}
-            </div>
 
-            {/* Login Form */}
-            <div className="cyberpunk-card">
-              <form onSubmit={handleSubmit} className="space-y-6 p-8">
-                {error && (
-                  <div className="cyberpunk-alert">
-                    <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
-                    <span className="text-red-400 text-sm">{error}</span>
-                  </div>
-                )}
+              {!requiresTOTP ? (
+                <>
+                  <input
+                    type="email"
+                    className="custom-input"
+                    placeholder="Username"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                  <input
+                    type="password"
+                    className="custom-input"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </>
+              ) : (
+                <input
+                  type="text"
+                  className="custom-input text-center tracking-widest text-xl"
+                  placeholder="000000"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ''))}
+                  required
+                  autoFocus
+                />
+              )}
 
-                {!requiresTOTP ? (
-                  <>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                        Admin Email
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="cyberpunk-input pl-10"
-                          placeholder="Enter admin email"
-                          required
-                        />
-                      </div>
-                    </div>
+              <button type="submit" className="custom-button" disabled={isLoading}>
+                {isLoading ? 'Processing...' : (requiresTOTP ? 'Verify Code' : 'Sign in')}
+              </button>
 
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                        Admin Password
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <input
-                          id="password"
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="cyberpunk-input pl-10 pr-12"
-                          placeholder="Enter admin password"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label htmlFor="totpCode" className="block text-sm font-medium text-gray-300 mb-2">
-                      2FA Authentication Code
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Smartphone className="w-5 h-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="totpCode"
-                        type="text"
-                        value={totpCode}
-                        onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="cyberpunk-input pl-10 text-center text-2xl tracking-widest"
-                        placeholder="000000"
-                        maxLength={6}
-                        required
-                      />
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Open your authenticator app and enter the 6-digit code
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-col space-y-3">
-                  <button
-                    type="submit"
-                    disabled={isLoading || (requiresTOTP && totpCode.length !== 6 && totpCode !== '9693')}
-                    className={`cyberpunk-btn cyberpunk-btn-primary w-full ${
-                      isLoading || (requiresTOTP && totpCode.length !== 6 && totpCode !== '9693') ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <span className="relative z-10 flex items-center justify-center">
-                      {isLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin mr-2"></div>
-                          {requiresTOTP ? 'VERIFYING...' : 'AUTHENTICATING...'}
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="mr-2" size={20} />
-                          {requiresTOTP ? 'VERIFY 2FA CODE' : 'ACCESS DASHBOARD'}
-                        </>
-                      )}
-                    </span>
+              <div className="custom-links">
+                {requiresTOTP ? (
+                  <button type="button" onClick={handleBackToPassword} className="custom-link hover:text-white bg-transparent border-none cursor-pointer">
+                    Back to Login
                   </button>
-
-                  {requiresTOTP && (
-                    <button
-                      type="button"
-                      onClick={handleBackToPassword}
-                      className="cyberpunk-btn cyberpunk-btn-secondary w-full"
-                    >
-                      <span className="relative z-10">BACK TO PASSWORD</span>
-                    </button>
-                  )}
-                </div>
-              </form>
-
-              <div className="px-8 pb-8">
-                <div className="text-center text-xs text-gray-500">
-                  <a href="#" className="hover:text-gray-400 transition-colors">
-                    Forgot password? Contact system administrator
-                  </a>
-                </div>
+                ) : (
+                  <>
+                    <a href="#" className="custom-link">Forgot Password</a>
+                    <a href="#" className="custom-link signup">Sign up</a>
+                  </>
+                )}
               </div>
-            </div>
-
-            {/* Security Notice */}
-            <div className="text-center text-xs text-gray-500 mt-8">
-              <div className="flex items-center justify-center mb-2">
-                <Shield className="w-4 h-4 mr-1" />
-                <span>Secure access for RICORRENZA 2025</span>
-              </div>
-              <p>© 2025 College Festival Management</p>
-            </div>
+            </form>
           </div>
         </div>
-      </section>
-
-      <style>{`
-        .cyberpunk-theme {
-          background: #0a0a0a;
-          color: #ffffff;
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-          min-height: 100vh;
-        }
-
-        .hero-section {
-          position: relative;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .cyberpunk-grid {
-          background-image: 
-            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        /* particles CSS removed */
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1);
-            opacity: 0;
-          }
-        }
-
-        .cyberpunk-title {
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .neon-yellow {
-          color: #ffff00;
-          text-shadow: 
-            0 0 2px #ffff00,
-            0 0 4px #ffff00;
-        }
-
-        .neon-green {
-          color: #00ff00;
-          text-shadow: 
-            0 0 2px #00ff00,
-            0 0 4px #00ff00;
-        }
-
-        .cyberpunk-icon-container {
-          position: relative;
-          display: inline-block;
-          padding: 20px;
-          border-radius: 50%;
-        }
-
-        .cyberpunk-card {
-          background: rgba(20, 20, 40, 0.9);
-          border: 1px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
-          backdrop-filter: blur(15px);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .cyberpunk-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
-          animation: borderGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes borderGlow {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-
-        .cyberpunk-input {
-          width: 100%;
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.5);
-          border: 2px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
-          color: white;
-          font-family: 'Orbitron', monospace;
-          transition: all 0.3s ease;
-        }
-
-        .cyberpunk-input:focus {
-          outline: none;
-          border-color: rgba(0, 255, 255, 0.8);
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.3),
-            inset 0 0 10px rgba(0, 255, 255, 0.1);
-        }
-
-        .cyberpunk-input::placeholder {
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .cyberpunk-btn {
-          position: relative;
-          padding: 12px 32px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border: 2px solid;
-          background: transparent;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
-        }
-
-        .cyberpunk-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .cyberpunk-btn:hover::before {
-          left: 100%;
-        }
-
-        .cyberpunk-btn-primary {
-          border-color: #ffff00;
-          color: #ffff00;
-          box-shadow: 
-            0 0 10px rgba(255, 255, 0, 0.2),
-            inset 0 0 10px rgba(255, 255, 0, 0.05);
-        }
-
-        .cyberpunk-btn-primary:hover {
-          background: rgba(255, 255, 0, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 255, 0, 0.4),
-            inset 0 0 20px rgba(255, 255, 0, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
-        }
-
-        .cyberpunk-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-alert {
-          background: rgba(255, 0, 0, 0.1);
-          border: 1px solid rgba(255, 0, 0, 0.3);
-          border-radius: 8px;
-          padding: 12px;
-          display: flex;
-          align-items: center;
-        }
-
-        .scroll-animate {
-          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .scroll-animate.animate-in {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          .cyberpunk-title {
-            font-size: 1.8rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 2rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 1rem !important;
-          }
-          
-          /* particles CSS removed */
-          
-          .cyberpunk-btn {
-            padding: 10px 24px;
-            font-size: 0.9rem;
-            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 10px 100%);
-          }
-          
-          .cyberpunk-input {
-            padding: 10px 14px;
-            font-size: 0.9rem;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .cyberpunk-title {
-            font-size: 1.5rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 1.8rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 0.9rem !important;
-          }
-          
-          .cyberpunk-btn {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
-          }
-          
-          .cyberpunk-input {
-            padding: 8px 12px;
-            font-size: 0.8rem;
-          }
-        }
-      `}</style>
+      </div>
     </div>
   );
 };
