@@ -398,22 +398,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Get IP (optional, best effort)
         let ip = null;
         try {
-          // Use a timeout to prevent hanging
+          // Try Cloudflare trace first (very reliable, CORS friendly)
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
           
-          const res = await fetch('https://api.ipify.org?format=json', { 
-            signal: controller.signal,
-            mode: 'cors' // Explicitly request CORS
+          const res = await fetch('https://www.cloudflare.com/cdn-cgi/trace', { 
+            signal: controller.signal
           });
           clearTimeout(timeoutId);
           
           if (res.ok) {
-            const data = await res.json();
-            ip = data.ip;
+            const text = await res.text();
+            const match = text.match(/ip=(.+)/);
+            if (match) ip = match[1].trim();
           }
         } catch (e) {
-          // Ignore IP fetch errors silently
+          // Fallback to ipify if Cloudflare fails
+          try {
+             const controller = new AbortController();
+             const timeoutId = setTimeout(() => controller.abort(), 2000);
+             const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+             clearTimeout(timeoutId);
+             if (res.ok) {
+               const data = await res.json();
+               ip = data.ip;
+             }
+          } catch (e2) { /* ignore */ }
         }
 
         // Check for existing session record for this user
