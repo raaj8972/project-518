@@ -4,14 +4,31 @@
 
   <url>
     <loc>https://ricorrenza.fun/</loc>
+
     <image:image>
       <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
+    </image:image>
+
+    <image:image>
       <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
+    </image:image>
+
+    <image:image>
       <image:loc>https://ricorrenza.fun/android-chrome-512x512.png</image:loc>
+    </image:image>
+
+    <image:image>
       <image:loc>https://ricorrenza.fun/favicon.ico</image:loc>
+    </image:image>
+
+    <image:image>
       <image:loc>https://ricorrenza.fun/favicon-32x32.png</image:loc>
+    </image:image>
+
+    <image:image>
       <image:loc>https://ricorrenza.fun/android-chrome-192x192.png</image:loc>
     </image:image>
+
   </url>
 
   <url>
