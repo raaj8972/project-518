@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://ricorrenza.fun/sitemap.xml
+Sitemap: https://ricorrenza.fun/sitemap.txt
