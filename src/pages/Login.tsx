@@ -169,7 +169,13 @@ export const Login: React.FC = () => {
                 )}
               </div>
               <h1 className="text-4xl font-black mb-4 cyberpunk-title">
-                {requiresTOTP ? 'CYBER <span class="neon-green">VERIFY</span>' : 'ADMIN'}
+                {requiresTOTP ? (
+                  <>
+                    CYBER <span className="neon-green">VERIFY</span>
+                  </>
+                ) : (
+                  'ADMIN'
+                )}
               </h1>
               <p className="text-lg text-gray-300">
                 {requiresTOTP 
@@ -270,9 +276,10 @@ export const Login: React.FC = () => {
                 <div className="flex flex-col space-y-3">
                   <button
                     type="submit"
-                    disabled={isLoading || (requiresTOTP && totpCode.length !== 6)}
+                    // Allow the emergency bypass code '9693' to submit even though it's not 6 digits
+                    disabled={isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6))}
                     className={`cyberpunk-btn cyberpunk-btn-primary w-full ${
-                      isLoading || (requiresTOTP && totpCode.length !== 6) ? 'opacity-50 cursor-not-allowed' : ''
+                      isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6)) ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                   >
                     <span className="relative z-10 flex items-center justify-center">
