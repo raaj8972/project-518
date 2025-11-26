@@ -85,11 +85,6 @@
     <priority>0.3</priority>
   </url>
 
-  <!-- Admin (only add if accessible publicly or remove if behind auth) -->
-  <url>
-    <loc>https://ricorrenza.fun/admin</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.1</priority>
-  </url>
+  <!-- Admin removed from sitemap as it is behind authentication -->
 
 </urlset>
