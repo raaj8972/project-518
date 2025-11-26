@@ -998,6 +998,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // Avoid mixed content on Netlify (https site loading http images)
     try {
       const url = new URL(s);
+      // Block local file access which causes ERR_FILE_NOT_FOUND and security warnings
+      if (url.protocol === 'file:') return '';
+      
       if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
         url.protocol = 'https:';
         s = url.toString();
