@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
 
-# Canonical sitemap index for crawlers
-Sitemap: https://ricorrenza.fun/sitemap-index.xml
+Sitemap: https://ricorrenza.fun/sitemap.xml
+Sitemap: https://ricorrenza.fun/sitemap.txt
