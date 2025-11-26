@@ -398,12 +398,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // Get IP (optional, best effort)
         let ip = null;
         try {
-          const res = await fetch('https://api.ipify.org?format=json');
+          // Use a timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2000);
+          
+          const res = await fetch('https://api.ipify.org?format=json', { 
+            signal: controller.signal,
+            mode: 'cors' // Explicitly request CORS
+          });
+          clearTimeout(timeoutId);
+          
           if (res.ok) {
             const data = await res.json();
             ip = data.ip;
           }
-        } catch {}
+        } catch (e) {
+          // Ignore IP fetch errors silently
+        }
 
         // Check for existing session record for this user
         const { data: existing } = await supabase
