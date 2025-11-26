@@ -12,12 +12,12 @@ export const Gallery: React.FC = () => {
 
   const selectedCategoryNormalized = (selectedCategory || '').toString().trim().toLowerCase();
 
-  const filteredImages = selectedCategory === 'All'
+  const filteredImages = (selectedCategory === 'All'
     ? galleryImages
     : galleryImages.filter((image: any) => {
         const imgCat = (image?.category || '').toString().trim().toLowerCase();
         return imgCat === selectedCategoryNormalized;
-      });
+      })).filter((img: any) => img.src && img.src.trim() !== '');
 
   // Build images for DomeGallery. Never pass undefined to avoid demo/default images.
   const domeImages = filteredImages.map((img: any) => ({ src: img.src as string, alt: (img.title as string) || '' }));
