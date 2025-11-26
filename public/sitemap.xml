@@ -5,7 +5,9 @@
   <!-- Main pages -->
   <url>
     <loc>https://ricorrenza.fun/</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
     <image:image>
       <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
       <image:caption>RICORRENZA logo</image:caption>
@@ -22,17 +24,23 @@
 
   <url>
     <loc>https://ricorrenza.fun/events</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/schedule</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/gallery</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
     <image:image>
       <image:loc>https://ricorrenza.fun/storage/uploads/cake1.jpg</image:loc>
       <image:caption>Ricorrenza family event cake</image:caption>
@@ -41,33 +49,47 @@
 
   <url>
     <loc>https://ricorrenza.fun/rico-family</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/sponsors</loc>
-    <lastmod>2025-11-22T14:59:18+00:00</lastmod>
+    <lastmod>2025-11-26T10:00:00+00:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/login</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/coming-soon</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/health</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/homebound</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
   </url>
 
   <!-- Admin (only add if accessible publicly or remove if behind auth) -->
   <url>
     <loc>https://ricorrenza.fun/admin</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.1</priority>
   </url>
 
 </urlset>
