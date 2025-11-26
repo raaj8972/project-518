@@ -6,11 +6,7 @@
     <loc>https://ricorrenza.fun/</loc>
 
     <image:image>
-      <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
-    </image:image>
-
-    <image:image>
-      <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
+      <image:loc>https://ricorrenza.fun/android-chrome-192x192.png</image:loc>
     </image:image>
 
     <image:image>
@@ -18,7 +14,15 @@
     </image:image>
 
     <image:image>
-      <image:loc>https://ricorrenza.fun/favicon.ico</image:loc>
+      <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/auto.png</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/favicon-16x16.png</image:loc>
     </image:image>
 
     <image:image>
@@ -26,16 +30,38 @@
     </image:image>
 
     <image:image>
-      <image:loc>https://ricorrenza.fun/android-chrome-192x192.png</image:loc>
+      <image:loc>https://ricorrenza.fun/favicon-96x96.png</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/favicon.ico</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/favicon.svg</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/web-app-manifest-192x192.png</image:loc>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://ricorrenza.fun/web-app-manifest-512x512.png</image:loc>
     </image:image>
 
   </url>
 
   <url>
     <loc>https://ricorrenza.fun/gallery</loc>
+
     <image:image>
       <image:loc>https://ricorrenza.fun/storage/uploads/cake1.jpg</image:loc>
     </image:image>
+
   </url>
 
 </urlset>
