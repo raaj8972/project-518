@@ -4,6 +4,7 @@ import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
 import { useSavingProgress } from '../context/SavingProgressContext';
 import { useData } from '../context/DataContext';
+import { optimizeImage } from '../utils/imageOptimizer';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -233,6 +234,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   // Attempt to compress an image under a target byte size. Returns a File if successful; null if not achievable.
+  // Legacy function kept for reference but replaced by optimizeImage
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const compressImageToTarget = async (file: File, targetBytes: number): Promise<File | null> => {
     try {
       const img = await loadImageFromFile(file);
@@ -408,10 +411,34 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         : isAudioUpload
           ? defaultAudioMaxBytes
           : effectiveImageMaxBytes;
+
+    // Auto-optimize images before size check if possible
+    if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+       try {
+         // Optimize: Resize to max 1920px, convert to WebP/JPEG, quality 0.8
+         const optimized = await optimizeImage(file, {
+           maxWidth: 1920,
+           maxHeight: 1920,
+           quality: 0.8,
+           format: 'auto' // Will use WebP if supported, preserving transparency
+         });
+         file = optimized;
+       } catch (e) {
+         console.warn('Auto-optimization failed', e);
+       }
+    }
+
     if (file.size > maxSize) {
       // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
   if (!isVideoUpload && !isPdfUpload && !isAudioUpload && maxImageBytes) {
-        const compressed = await compressImageToTarget(file, maxImageBytes);
+        // Try aggressive compression if still over limit
+        const compressed = await optimizeImage(file, {
+           maxWidth: 1280,
+           maxHeight: 1280,
+           quality: 0.6,
+           format: 'image/jpeg' // Force JPEG for max compression if size is critical
+        });
+        
         if (!compressed || compressed.size > maxImageBytes * 1.1) {
           setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
           return;

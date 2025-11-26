@@ -1005,6 +1005,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         url.protocol = 'https:';
         s = url.toString();
       }
+
+      // Supabase Image Transformation for rendering optimization
+      // If it's a Supabase Storage URL, append transformation params to ensure we don't load massive originals
+      // Only apply if not already transformed (no ?width or ?height)
+      if (s.includes('/storage/v1/object/public/') && !s.includes('?')) {
+         // Default to a reasonable max width for web (e.g. 1200px) and WebP format
+         // This ensures that even if a user uploaded a 10MB 4000px image, the browser gets a 100KB 1200px WebP
+         // Note: This requires Supabase Image Transformations to be enabled on the project.
+         // If not enabled, these params are just ignored by standard storage.
+         s = `${s}?width=1200&resize=contain&format=webp`;
+      }
+
     } catch {
       // s might be a relative path that isn't storage; keep as-is
     }
