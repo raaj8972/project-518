@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <url>
+    <loc>https://ricorrenza.fun/</loc>
+    <image:image>
+      <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
+      <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
+      <image:loc>https://ricorrenza.fun/android-chrome-512x512.png</image:loc>
+      <image:loc>https://ricorrenza.fun/favicon.ico</image:loc>
+      <image:loc>https://ricorrenza.fun/favicon-32x32.png</image:loc>
+      <image:loc>https://ricorrenza.fun/android-chrome-192x192.png</image:loc>
+    </image:image>
+  </url>
+
+  <url>
+    <loc>https://ricorrenza.fun/gallery</loc>
+    <image:image>
+      <image:loc>https://ricorrenza.fun/storage/uploads/cake1.jpg</image:loc>
+    </image:image>
+  </url>
+
+</urlset>
