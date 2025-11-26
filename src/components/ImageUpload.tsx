@@ -174,37 +174,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     ? fileTypeLabel
     : effectiveFileTypeLabel;
 
-  // Helper: read a File into an HTMLImageElement
-  const loadImageFromFile = (file: File): Promise<HTMLImageElement> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = reader.result as string;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // Helper: draw image to canvas with max dimensions
-  const drawImageToCanvas = (img: HTMLImageElement, maxW: number, maxH: number): HTMLCanvasElement => {
-    const scale = Math.min(1, Math.min(maxW / (img.naturalWidth || img.width), maxH / (img.naturalHeight || img.height)));
-    const w = Math.max(1, Math.round((img.naturalWidth || img.width) * scale));
-    const h = Math.max(1, Math.round((img.naturalHeight || img.height) * scale));
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return canvas;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, w, h);
-    return canvas;
-  };
-
   // Extract storage object path from a public URL for a given bucket
   const extractObjectPathFromPublicUrl = (urlStr: string, bucketId: string): string => {
     try {
@@ -230,42 +199,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       await supabase.storage.from(bucket).remove([objectPath]);
     } catch (e) {
       console.warn('Unable to delete storage object', objectPath, e);
-    }
-  };
-
-  // Attempt to compress an image under a target byte size. Returns a File if successful; null if not achievable.
-  // Legacy function kept for reference but replaced by optimizeImage
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const compressImageToTarget = async (file: File, targetBytes: number): Promise<File | null> => {
-    try {
-      const img = await loadImageFromFile(file);
-      // Start with modest bounds; we'll reduce progressively
-      let maxW = Math.min(img.naturalWidth || img.width, 1280);
-      let maxH = Math.min(img.naturalHeight || img.height, 1280);
-      let quality = 0.82; // good starting point for photos
-
-      let lastBlob: Blob | null = null;
-      for (let i = 0; i < 10; i++) {
-        const canvas = drawImageToCanvas(img, maxW, maxH);
-        const blob: Blob = await new Promise((resolve, reject) => {
-          canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/jpeg', quality);
-        });
-        lastBlob = blob;
-        if (blob.size <= targetBytes) {
-          return new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        }
-        // Alternate lowering quality and dimensions
-        if (i % 2 === 0 && quality > 0.5) {
-          quality = Math.max(0.5, quality * 0.85);
-        } else {
-          maxW = Math.max(320, Math.round(maxW * 0.85));
-          maxH = Math.max(320, Math.round(maxH * 0.85));
-        }
-      }
-      // If we never went under target, return the last attempt if it exists and is only slightly over, else null
-      return lastBlob ? new File([lastBlob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }) : null;
-    } catch {
-      return null;
     }
   };
 
