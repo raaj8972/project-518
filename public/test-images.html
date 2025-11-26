@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Test Images — ricorrenza.fun</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;max-width:1100px;margin:24px auto;padding:0 12px}
+    h1{font-size:20px;margin-bottom:6px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+    .card{border:1px solid #eee;padding:8px;border-radius:6px;background:#fff}
+    .card img{max-width:100%;height:auto;display:block;margin:0 auto}
+    .meta{font-size:12px;color:#444;margin-top:6px;word-break:break-all}
+    header p{font-size:13px;color:#666}
+    a.index{font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Test Images</h1>
+    <p>This page renders images from the <code>/public</code> folder. If any images fail to load, check their URLs or the server headers.</p>
+    <p><a class="index" href="/image-sitemap.xml">View image-sitemap.xml</a> — <a class="index" href="/sitemap-index.xml">View sitemap-index.xml</a></p>
+  </header>
+
+  <section>
+    <h2>Root /</h2>
+    <div class="grid" id="root-grid"></div>
+  </section>
+
+  <section>
+    <h2>/gallery</h2>
+    <div class="grid" id="gallery-grid"></div>
+  </section>
+
+  <script>
+    // Statically list the images discovered by the generator. Keep in sync by re-running the generator.
+    const rootImages = [
+      '/android-chrome-192x192.png',
+      '/android-chrome-512x512.png',
+      '/apple-touch-icon.png',
+      '/auto.png',
+      '/favicon-16x16.png',
+      '/favicon-32x32.png',
+      '/favicon-96x96.png',
+      '/favicon.ico',
+      '/favicon.svg',
+      '/rickshaw.svg',
+      '/web-app-manifest-192x192.png',
+      '/web-app-manifest-512x512.png'
+    ];
+
+    const galleryImages = ['/storage/uploads/cake1.jpg'];
+
+    function makeCard(src){
+      const el = document.createElement('div'); el.className='card';
+      const img = document.createElement('img'); img.src = src; img.alt = '';
+      const meta = document.createElement('div'); meta.className='meta'; meta.textContent = src;
+      el.appendChild(img); el.appendChild(meta);
+      return el;
+    }
+
+    const rootGrid = document.getElementById('root-grid');
+    rootImages.forEach(p=> rootGrid.appendChild(makeCard(p)));
+    const galleryGrid = document.getElementById('gallery-grid');
+    galleryImages.forEach(p=> galleryGrid.appendChild(makeCard(p)));
+  </script>
+</body>
+</html>
