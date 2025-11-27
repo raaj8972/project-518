@@ -39,6 +39,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (error) {
           console.error('Error getting session:', error);
+          // Handle invalid refresh token by forcing sign out and clearing local state
+          const msg = String((error as any)?.message || '').toLowerCase();
+          if (msg.includes('invalid refresh token') || msg.includes('refresh token not found')) {
+            console.warn('Detected invalid refresh token — forcing sign-out to clear stale session');
+            try { await supabase.auth.signOut(); } catch {};
+            setUser(null);
+            setIsAuthenticated(false);
+            setLoading(false);
+            return;
+          }
           // If JWT is invalid/malformed, force sign out to clear bad tokens
           if (error.message && (
             error.message.includes('invalid JWT') || 

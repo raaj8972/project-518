@@ -6,6 +6,7 @@ import { useSavingProgress } from '../context/SavingProgressContext';
 import { useData } from '../context/DataContext';
 import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
 import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
+import { ensureValidSession } from '../lib/authFetch';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -232,9 +233,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : isAudioUpload ? 180_000 : 120_000;
     // Try XHR path to surface real upload progress.
     const tryXHR = async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const access = sessionData?.session?.access_token;
-      if (!access) throw new Error('no-session');
+      // Ensure we have a valid session (will throw 'no-session' if invalid/expired)
+      const access = await ensureValidSession();
       const base = `https://${SUPABASE_HOST}`;
       const endpoint = `${base}/storage/v1/object/${bucket}/${encodeURIComponent(fileName)}`;
       await withTimeout(new Promise<void>((resolve, reject) => {
@@ -275,19 +275,23 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
     try {
       await tryXHR();
-    } catch (e: any) {
+      } catch (e: any) {
       // Fallback to SDK if no session or XHR unsupported
-      if ((e?.message || '').includes('no-session')) {
-        await trySDK();
-      } else {
-        // Try SDK once more in case of other XHR errors
+        if ((e?.message || '').includes('no-session')) {
+          // No active session: try SDK upload which may succeed if anon access allowed,
+          // otherwise surface a clear error to the caller so UI can prompt re-login.
+          try {
+            await trySDK();
+          } catch (ee) {
+            throw new Error('no-session');
+          }
+        }
+        // For other errors, try SDK once more
         try {
           await trySDK();
         } catch (ee) {
-          // Surface the SDK error which usually includes useful status/details (e.g., 401/403, bucket not found)
           throw ee;
         }
-      }
     }
 
     // Get public URL

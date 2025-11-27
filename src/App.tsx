@@ -107,8 +107,14 @@ const GlobalErrorBanner: React.FC = () => {
     };
     const onRej = (e: PromiseRejectionEvent) => {
       const reason = (e.reason && (e.reason.message || String(e.reason))) || 'Unhandled promise rejection';
-      setMsg(reason);
       console.error('Unhandled rejection:', e.reason);
+      // Surface a clearer message for invalid/expired refresh tokens so admins know to re-login
+      const low = String(reason || '').toLowerCase();
+      if (low.includes('invalid refresh token') || low.includes('refresh token not found') || low.includes('refresh token')) {
+        setMsg('Authentication error: your session is no longer valid. Please sign out and sign in again.');
+      } else {
+        setMsg(reason);
+      }
 
       // Auto-recover from stale HTML vs new asset chunk mismatch:
       // If a dynamic import or chunk load fails (common after deploys), reload once with a cache-busting param.
