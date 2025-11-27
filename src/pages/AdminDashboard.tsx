@@ -65,7 +65,7 @@ export const AdminDashboard: React.FC = () => {
     guestArtists,
     auditions,
     memberships,
-    schemaCapabilities,
+    schemaCapabilities: _schemaCapabilities,
     // Diagnostics
     connectionStatus,
     lastError,
@@ -382,7 +382,7 @@ export const AdminDashboard: React.FC = () => {
             <span className="ml-2">•</span>
             <span>Ping: {typeof latencyMs === 'number' ? `${latencyMs} ms` : '—'}</span>
             {lastError && (
-              <span className="ml-2 truncate max-w-[40ch] text-rose-700" title={lastError}>Err: {lastError}</span>
+              <span className="ml-2 truncate max-w-[40ch] text-rose-700" title={lastError ?? undefined}>Err: {lastError}</span>
             )}
             <button
               onClick={() => resubscribeRealtime()}
