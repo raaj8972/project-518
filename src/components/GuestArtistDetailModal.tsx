@@ -63,7 +63,7 @@ const GuestArtistDetailModal: React.FC<{
 
   useEffect(() => {
     if (isOpen && videoRef.current) {
-      videoRef.current.play().catch(() => {});
+      import('../utils/safePlay').then(({ default: safePlay }) => safePlay(videoRef.current)).catch(() => { try { videoRef.current?.play(); } catch {} });
     }
   }, [isOpen]);
 

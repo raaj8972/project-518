@@ -4,7 +4,8 @@ import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
 import { useSavingProgress } from '../context/SavingProgressContext';
 import { useData } from '../context/DataContext';
-import { optimizeImage } from '../utils/imageOptimizer';
+import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
+import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -23,6 +24,10 @@ interface ImageUploadProps {
   hideControls?: boolean;
   // optional override for image size limit (bytes). If not provided, defaults to 5MB for images
   maxImageBytes?: number;
+  // Optional image optimization overrides for this upload (width/quality/format)
+  optimizeOptions?: OptimizationOptions;
+  // Optional video optimization options for video uploads
+  optimizeVideoOptions?: VideoOptimizationOptions;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -37,7 +42,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   cropAspect,
   autoSave = false,
   hideControls = false,
-  maxImageBytes
+  maxImageBytes,
+  optimizeOptions,
+  optimizeVideoOptions
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -47,6 +54,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [pendingImage, setPendingImage] = useState<string>('');
   // Local, immediate preview (data URL) so users can see the selected image even if bucket is private
   const [localPreview, setLocalPreview] = useState<string>('');
+  const [optimizedPreviewMeta, setOptimizedPreviewMeta] = useState<{ size: number; type: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [missingBucket, setMissingBucket] = useState<string | null>(null);
   const [uploadHint, setUploadHint] = useState<string>('');
@@ -348,29 +356,38 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     // Auto-optimize images before size check if possible
     if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
        try {
-         // Optimize: Resize to max 1920px, convert to WebP/JPEG, quality 0.8
-         const optimized = await optimizeImage(file, {
-           maxWidth: 1920,
-           maxHeight: 1920,
-           quality: 0.8,
-           format: 'auto' // Will use WebP if supported, preserving transparency
-         });
+         // Use caller-provided optimization options when supplied, otherwise fall back to sensible defaults
+         const defaultOpts: OptimizationOptions = { maxWidth: 1920, maxHeight: 1920, quality: 0.8, format: 'auto', preserveTransparency: true };
+         const opts = optimizeOptions ? { ...defaultOpts, ...optimizeOptions } : defaultOpts;
+         const optimized = await optimizeImage(file, opts);
+         // Update preview metadata for admin feedback
+         try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type }); } catch {}
          file = optimized;
        } catch (e) {
          console.warn('Auto-optimization failed', e);
        }
     }
 
+    // Auto-optimize videos before upload when possible
+    if (isVideoUpload) {
+      try {
+        const vopts = optimizeVideoOptions || { maxWidth: 1280, maxHeight: 720, bitrate: 800_000, mimeType: 'video/webm;codecs=vp8,opus' };
+        const optimized = await optimizeVideo(file, vopts);
+        // For videos we can also set preview meta using blob type/size
+        try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type || file.type }); } catch {}
+        file = optimized;
+      } catch (e) {
+        console.warn('Video optimization failed', e);
+      }
+    }
+
     if (file.size > maxSize) {
       // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
   if (!isVideoUpload && !isPdfUpload && !isAudioUpload && maxImageBytes) {
-        // Try aggressive compression if still over limit
-        const compressed = await optimizeImage(file, {
-           maxWidth: 1280,
-           maxHeight: 1280,
-           quality: 0.6,
-           format: 'image/jpeg' // Force JPEG for max compression if size is critical
-        });
+    // Try aggressive compression if still over limit.
+    // Respect caller opts but force JPEG for max compression when necessary.
+    const aggressiveBase: OptimizationOptions = { maxWidth: 1280, maxHeight: 1280, quality: 0.6, format: 'image/jpeg' };
+    const compressed = await optimizeImage(file, optimizeOptions ? { ...optimizeOptions, ...aggressiveBase } : aggressiveBase);
         
         if (!compressed || compressed.size > maxImageBytes * 1.1) {
           setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
@@ -809,6 +826,9 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               alt="Selected"
              className="w-full h-24 object-cover rounded-lg border-2 border-gray-300"
             />
+          )}
+          {optimizedPreviewMeta && (
+            <div className="mt-2 text-xs text-gray-500">Optimized: {humanSize(optimizedPreviewMeta.size)} ({optimizedPreviewMeta.type.replace('image/','')})</div>
           )}
           {hideControls && (
             <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-80 group-hover:opacity-100 select-none">

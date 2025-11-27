@@ -379,6 +379,7 @@ export const HeroMediaManagement: React.FC = () => {
                   acceptedTypes="image/*"
                   fileTypeLabel="PNG, JPG, WEBP, GIF up to 5MB"
                   cropAspect={16/9}
+                  optimizeOptions={{ maxWidth: 1920, maxHeight: 1080, quality: 0.82, format: 'auto' }}
                 />
                 {form.image_url && (
                   <div className="mt-2 flex justify-end">
@@ -405,6 +406,7 @@ export const HeroMediaManagement: React.FC = () => {
                   acceptedTypes="image/*"
                   fileTypeLabel="PNG, JPG, WEBP, GIF up to 5MB"
                   cropAspect={9/16}
+                  optimizeOptions={{ maxWidth: 900, maxHeight: 1600, quality: 0.78, format: 'auto' }}
                 />
                 {form.mobile_image_url && (
                   <div className="mt-2 flex justify-end">

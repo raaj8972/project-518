@@ -53,7 +53,7 @@ const GuestArtistVideoModal: React.FC<Props> = ({ isOpen, onClose, artist }) => 
   // Try to autoplay when opened (user gesture likely present from click)
   useEffect(() => {
     if (isOpen && videoRef.current) {
-      videoRef.current.play().catch(() => {/* autoplay might be blocked */});
+      import('../utils/safePlay').then(({ default: safePlay }) => safePlay(videoRef.current)).catch(() => { try { videoRef.current?.play(); } catch {} });
     }
   }, [isOpen]);
 

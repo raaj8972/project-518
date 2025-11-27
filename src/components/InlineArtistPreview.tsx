@@ -49,7 +49,7 @@ const InlineArtistPreview: React.FC<Props> = ({
       entries.forEach((entry) => {
         if (!video) return;
         if (entry.isIntersecting && entry.intersectionRatio > 0.25) {
-          video.play().catch(() => {});
+          import('../utils/safePlay').then(({ default: safePlay }) => safePlay(video)).catch(() => { try { video.play(); } catch {} });
         } else {
           try {
             video.pause();

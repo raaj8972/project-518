@@ -182,11 +182,7 @@ export const Home: React.FC = () => {
     try {
       player.currentTime = 0;
     } catch {}
-    player.play().catch((err) => {
-      try {
-        console.warn('Guest artist detail audio blocked by browser', err);
-      } catch {}
-    });
+    import('../utils/safePlay').then(({ default: safePlay }) => safePlay(player)).catch(() => { try { player.play(); } catch {} });
   }, [stopDetailAudio]);
 
   useEffect(() => () => {

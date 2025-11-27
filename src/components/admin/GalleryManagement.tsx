@@ -395,7 +395,8 @@ export const GalleryManagement: React.FC = () => {
                   currentImage={form.src}
                   bucket="gallery-images"
                   folder="gallery"
-                  cropAspect={16/9}
+                    cropAspect={16/9}
+                    optimizeOptions={{ maxWidth: 1600, maxHeight: 1600, quality: 0.75, format: 'image/webp' }}
                 />
               </div>
             </div>

@@ -131,9 +131,26 @@ const GlobalErrorBanner: React.FC = () => {
     };
     window.addEventListener('error', onErr);
     window.addEventListener('unhandledrejection', onRej);
+    // Capture resource load failures (images/fonts/scripts/styles) which
+    // often don't surface as ErrorEvent with a message. We use capture phase
+    // so we can inspect the target element which failed to load.
+    const onResourceError = (ev: Event) => {
+      try {
+        const t = ev.target as any;
+        if (!t) return;
+        // image, script, link, video, audio
+        const url = t?.src || t?.href;
+        if (!url) return;
+        // Log a friendly, discoverable message; only show to admins via banner
+        console.warn('Resource failed to load:', url, t);
+        if (isAdminOrOwner) setMsg(`Resource failed to load: ${url}`);
+      } catch (e) { /* ignore */ }
+    };
+    window.addEventListener('error', onResourceError, true);
     return () => {
       window.removeEventListener('error', onErr);
       window.removeEventListener('unhandledrejection', onRej);
+      window.removeEventListener('error', onResourceError, true);
     };
   }, []);
 
@@ -308,7 +325,13 @@ function App() {
           ]
         }
       ],
-      ({ future: { v7_relativeSplatPath: true, v7_startTransition: true } } as any)
+      ({
+        future: {
+          v7_startTransition: true,
+          // keep other v7 future flags if desired
+          v7_relativeSplatPath: true
+        }
+      } as any)
     ), []);
 
     return <RouterProvider router={router} />;

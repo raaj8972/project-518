@@ -54,11 +54,19 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
     if (!v) return;
     let cancelled = false;
     v.muted = true;
-    const tryPlay = (attempt = 0) => {
+    const tryPlay = () => {
       if (cancelled) return;
-      v.play()?.catch(() => {
-        if (attempt < 5) setTimeout(() => tryPlay(attempt + 1), 400 * (attempt + 1));
-      });
+      const doPlay = (triesLeft = 3) => {
+        import('../utils/safePlay').then(({ default: safePlay }) => {
+          safePlay(v).then(() => {}).catch(() => {
+            if (triesLeft > 0 && !cancelled) setTimeout(() => doPlay(triesLeft - 1), 300);
+          });
+        }).catch(() => {
+          // Fallback to legacy play call if module import fails
+          try { v.play(); } catch { if (!cancelled && triesLeft > 0) setTimeout(() => doPlay(triesLeft - 1), 300); }
+        });
+      };
+      doPlay(3);
     };
     tryPlay();
     const onPause = () => {
@@ -90,9 +98,18 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   })();
 
   // Preload poster to improve LCP (per-page poster choice)
+  // Only preload when the media is enabled and likely to be used soon.
+  // This prevents browsers warning about unused preloads for resources
+  // that we requested but never actually used (e.g., because the user
+  // didn't navigate to that page or the hero is disabled).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!posterUrl) return;
+  // Only preload if media will be shown (enabled) and either the video
+  // is about to be injected or this is the top-level 'home' page (common LCP target).
+  if (media?.enabled === false) return;
+    const likelySoon = showVideo || pageKey === 'home';
+    if (!likelySoon) return;
     try {
       const existing = Array.from(document.querySelectorAll('link[rel="preload"][as="image"]')).find((l) => (l as HTMLLinkElement).href === posterUrl);
       if (existing) return;
@@ -105,7 +122,7 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
       document.head.appendChild(l);
       return () => { try { document.head.removeChild(l); } catch {} };
     } catch (e) { /* ignore */ }
-  }, [posterUrl]);
+  }, [posterUrl, showVideo, pageKey, media?.enabled]);
 
   // Defer video injection until browser is idle / after load so it doesn't block LCP
   useEffect(() => {
@@ -237,7 +254,7 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
               if (!explicit || explicit === 'auto') recomputeFit(v.videoWidth, v.videoHeight);
-              if (v.paused) { try { v.play(); } catch { /* ignore */ } }
+              if (v.paused) { try { import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => {}); } catch { /* ignore */ } }
             }}
           />
         ) : ((media?.background_type === 'image' || media?.background_type === 'auto') && (media?.image_url || (media as any)?.mobile_image_url)) ? (
