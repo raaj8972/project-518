@@ -32,7 +32,8 @@ export const BrandLogo3D: React.FC<Props> = ({ src, alt = 'Brand', size = 32, gl
             alt={alt}
             decoding="sync"
             loading="eager"
-            fetchPriority="high"
+            // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
+            fetchpriority="high"
             className="brand3d-img"
             style={{ height, width: 'auto' }}
           />

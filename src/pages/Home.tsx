@@ -66,6 +66,7 @@ export const Home: React.FC = () => {
   chiefGuests,
   facultyHeads,
   coreTeamMembers,
+  coreCommittees,
     socialMediaSettings, 
     homepageSettings,
     formSettings,
@@ -1213,9 +1214,15 @@ export const Home: React.FC = () => {
                           }, [m.image]);
                           const isCouncil = Boolean((m as any).isCouncil) && !m.is_head;
                           const roleLower = String(m.role || '').toLowerCase();
-                          // Only treat explicit lead/principal roles as lead web devs
-                          const isLeadWebDev = ['lead developer','lead web developer','principal developer','principal engineer'].some(p => roleLower.includes(p));
+                          const committee = coreCommittees.find(c => c.id === m.committee_id);
+                          const committeeNameLower = String(committee?.name || '').toLowerCase();
                           
+                          // Only treat explicit lead/principal roles as lead web devs AND if they are in a web-related committee
+                          const isLeadWebDev = ['lead developer','lead web developer','principal developer','principal engineer'].some(p => roleLower.includes(p)) && committeeNameLower.includes('web');
+                          
+                          // Special check for Raaj in Tech Team (non-web) to show green
+                          const isTechLeadRaaj = m.name.toLowerCase().includes('raaj') && !isLeadWebDev;
+
                           return (
                             <div
                               className={`w-[232px] sm:w-[262px] md:w-80 cyberpunk-card p-4 sm:p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
@@ -1240,25 +1247,29 @@ export const Home: React.FC = () => {
                                   {isCouncil ? (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-600/90 text-white shadow shadow-red-500/40 ring-1 ring-red-400/70 backdrop-blur-sm leadership-badge">COUNCIL</span>
                                   ) : isLeadWebDev ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow shadow-cyan-400/40 ring-1 ring-cyan-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow shadow-cyan-400/40 ring-1 ring-cyan-300/70 backdrop-blur-sm leadership-badge">WEB DEVELOPER</span>
+                                  ) : isTechLeadRaaj ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow shadow-green-400/40 ring-1 ring-green-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
                                   ) : (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/90 text-black shadow shadow-yellow-400/40 ring-1 ring-yellow-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
                                   )}
                                 </div>
                               </div>
-                              <div className={`font-bold flex items-center text-sm sm:text-base md:text-lg ${isCouncil ? 'text-red-400' : (isLeadWebDev ? 'text-cyan-300' : 'text-white')}`}> 
+                              <div className={`font-bold flex items-center text-sm sm:text-base md:text-lg ${isCouncil ? 'text-red-400' : (isLeadWebDev ? 'text-cyan-300' : (isTechLeadRaaj ? 'text-green-400' : 'text-white'))}`}> 
                                 {isCouncil ? (
                                   <Crown className="w-5 h-5 mr-1 text-red-500 drop-shadow-[0_0_6px_rgba(255,0,0,0.7)] council-crown" />
                                 ) : isLeadWebDev ? (
                                   <span className="webdev-crown-wrapper mr-1" title='Lead Web Developer'>
                                     <Crown className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(56,189,248,0.9)] webdev-crown" />
                                   </span>
+                                ) : isTechLeadRaaj ? (
+                                  <Crown className="w-4 h-4 mr-1 text-green-400 head-crown" />
                                 ) : (
                                   <Crown className="w-4 h-4 mr-1 text-yellow-400 head-crown" />
                                 )}
                                 {m.name}
                               </div>
-                              <div className={`text-xs sm:text-sm md:text-base ${isCouncil ? 'text-red-300' : (isLeadWebDev ? 'text-cyan-300' : 'text-gray-300')}`}>{m.role}</div>
+                              <div className={`text-xs sm:text-sm md:text-base ${isCouncil ? 'text-red-300' : (isLeadWebDev ? 'text-cyan-300' : (isTechLeadRaaj ? 'text-green-300' : 'text-gray-300'))}`}>{m.role}</div>
                               {/* Pass the dynamic glow color to InfiniteMarquee via a custom prop */}
                               <style>{`.im-glow-${m.id} { --im-glow-color: ${glowColor}; }`}</style>
                             </div>

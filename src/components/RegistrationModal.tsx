@@ -754,7 +754,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       type="text"
                       value={formData.team_name}
                       onChange={(e) => handleInputChange('team_name', e.target.value)}
-                      placeholder="Enter team designation"
+                      placeholder="Enter team name"
                       className={`cyberpunk-input pl-12 ${errors.team_name ? 'error' : ''}`}
                     />
                   </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, ExternalLink } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
@@ -24,9 +25,18 @@ export const Events: React.FC = () => {
   })();
   const getCoordinators = (eventId: number) => (eventCoordinators as any)?.filter((c: any) => c.event_id === eventId) || [];
   const eventsRef = useRef<HTMLDivElement>(null);
-  const [registrationModal, setRegistrationModal] = useState<{ isOpen: boolean; eventId: number; eventTitle: string }>(
-    { isOpen: false, eventId: 0, eventTitle: '' }
-  );
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const registerIdParam = searchParams.get('register');
+  const registrationEventId = registerIdParam ? parseInt(registerIdParam, 10) : 0;
+  const registrationEvent = events.find((e: any) => e.id === registrationEventId);
+  
+  const registrationModal = React.useMemo(() => ({
+    isOpen: !!registrationEvent,
+    eventId: registrationEventId,
+    eventTitle: registrationEvent?.title || ''
+  }), [registrationEvent, registrationEventId]);
+
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [glitchActive, _setGlitchActive] = useState(false);
@@ -232,8 +242,16 @@ export const Events: React.FC = () => {
     };
   }, []);
 
-  const openRegistration = (eventId: number, eventTitle: string) => setRegistrationModal({ isOpen: true, eventId, eventTitle });
-  const closeRegistration = () => setRegistrationModal({ isOpen: false, eventId: 0, eventTitle: '' });
+  const openRegistration = (eventId: number, _eventTitle?: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('register', eventId.toString());
+    setSearchParams(newParams, { replace: true });
+  };
+  const closeRegistration = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('register');
+    setSearchParams(newParams, { replace: true });
+  };
   const toggleRules = (id: number) => setExpandedRules((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleFlip = (id: number) => setFlippedCards((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   // removed clipboard/share logic per updated UX (View-only)

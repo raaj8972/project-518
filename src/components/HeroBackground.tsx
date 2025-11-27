@@ -246,7 +246,8 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
               ? ((media as any)?.mobile_image_url || media.image_url)
               : (media.image_url || (media as any)?.mobile_image_url)}
             alt="Hero background"
-            fetchPriority="high"
+            // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
+            fetchpriority="high"
             loading="eager"
             className={`w-full h-full ${mediaObjectClasses}`}
             style={transformStyle}

@@ -26,10 +26,12 @@ export const RicoFamily: React.FC = () => {
     ? (homepageSettings as any).web_dev_role_phrases.map((p: string) => String(p).toLowerCase())
     : ['web developer','lead developer','web design & maintenance','web design and maintenance','web design','developer'];
   // Refined developer role detection: only show cyan styling for lead developer tier
-  const isLeadWebDevRole = (role?: string | null) => {
+  const isLeadWebDevRole = (role?: string | null, committeeName?: string) => {
     const rl = String(role || '').toLowerCase();
+    const cn = String(committeeName || '').toLowerCase();
     if (!rl) return false;
-    return ['lead developer','lead web developer','principal developer','principal engineer'].some(p => rl.includes(p));
+    // Must be a lead role AND in a web-related committee
+    return ['lead developer','lead web developer','principal developer','principal engineer'].some(p => rl.includes(p)) && cn.includes('web');
   };
   const isAnyWebDevRole = (role?: string | null) => {
     const rl = String(role || '').toLowerCase();
@@ -507,21 +509,26 @@ export const RicoFamily: React.FC = () => {
                         </h4>
                         <div className="grid md:grid-cols-2 gap-8">
                           {allCommitteeMembers.filter(m => m.is_head).map(head => {
-                            const lead = isLeadWebDevRole(head.role);
+                            const lead = isLeadWebDevRole(head.role, committee.name);
                             const anyDev = !lead && isAnyWebDevRole(head.role);
+                            // Special check for Raaj in Tech Team (non-web) to show green
+                            const isTechLeadRaaj = head.name.toLowerCase().includes('raaj') && !lead;
+
                             return (
-                              <div key={head.id} className="committee-head-card neon-card overflow-hidden faculty-spotlight">
+                              <div key={head.id} className={`committee-head-card neon-card overflow-hidden faculty-spotlight ${isTechLeadRaaj ? 'tech-lead-raaj' : ''}`}>
                                 <div className="grid md:grid-cols-2 gap-0">
                                   {/* Image Section */}
                                   <div className="relative h-85 md:h-auto overflow-hidden">
                                     <img src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                                     <div className="absolute top-4 right-4">
-                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${lead ? 'text-cyan-300' : 'text-yellow-400'}`} />
+                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${lead ? 'text-cyan-300' : isTechLeadRaaj ? 'text-green-400' : 'text-yellow-400'}`} />
                                     </div>
                                     <div className="absolute bottom-4 left-4 right-4">
                                       {lead ? (
                                         <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
+                                      ) : isTechLeadRaaj ? (
+                                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
                                       ) : (
                                         <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
                                       )}
@@ -529,17 +536,17 @@ export const RicoFamily: React.FC = () => {
                                   </div>
                                   {/* Content Section */}
                                   <div className="p-6 flex flex-col justify-center">
-                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : 'text-white'}`}>{head.name}</h5>
-                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{head.role}</p>
+                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : isTechLeadRaaj ? 'text-green-400 tech-lead-raaj-name' : 'text-white'}`}>{head.name}</h5>
+                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{head.role}</p>
                                     <PreserveNewlines text={head.description} className="text-gray-300 mb-4 leading-relaxed text-sm" />
                                     {head.specialty && (
                                       <div className="mb-4">
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
+                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : isTechLeadRaaj ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
                                       </div>
                                     )}
                                     {head.social_links && Object.values(head.social_links).some(link => link) && (
                                       <div className="flex flex-wrap items-center gap-2 mb-4">
-                                        <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold mr-1">Social Media:</span>
+                                        <span className={`text-[11px] uppercase tracking-wide font-semibold mr-1 ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : 'text-cyan-400'}`}>Social Media:</span>
                                         {head.social_links.instagram && <Instagram3DButtonLink href={head.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${head.name}`} />}
                                         {head.social_links.youtube && <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />}
                                         {head.social_links.facebook && <Facebook3DButtonLink href={head.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${head.name}`} />}
@@ -1035,6 +1042,32 @@ export const RicoFamily: React.FC = () => {
         
         .committee-head-card:hover::before {
           left: 100%;
+        }
+
+        /* Green glow for Raaj in Tech Team */
+        .committee-head-card.tech-lead-raaj {
+          box-shadow: 0 0 15px rgba(34, 197, 94, 0.4), 0 0 30px rgba(34, 197, 94, 0.2);
+        }
+        .committee-head-card.tech-lead-raaj:hover {
+          box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+        }
+        
+        /* Green text glow for Raaj name in Tech Team */
+        .tech-lead-raaj-name {
+          animation: techLeadRaajNameGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes techLeadRaajNameGlow {
+          from {
+            text-shadow: 
+              0 0 5px #22c55e,
+              0 0 10px #22c55e;
+          }
+          to {
+            text-shadow: 
+              0 0 15px #22c55e,
+              0 0 25px #22c55e,
+              0 0 35px #22c55e;
+          }
         }
 
         @keyframes headNameGlow {
@@ -1540,6 +1573,7 @@ export const RicoFamily: React.FC = () => {
 
         .faculty-name { animation: nameGlowYellow 3s ease-in-out infinite alternate; }
         .faculty-name.webdev { animation: nameGlowCyan 3s ease-in-out infinite alternate; }
+        .faculty-name.tech-lead-raaj-name { animation: nameGlowGreen 3s ease-in-out infinite alternate; }
 
         @keyframes nameGlowYellow {
           from { text-shadow: 0 0 2px #ffff00, 0 0 4px #ffff00; }
@@ -1548,6 +1582,10 @@ export const RicoFamily: React.FC = () => {
         @keyframes nameGlowCyan {
           from { text-shadow: 0 0 2px #22d3ee, 0 0 4px #22d3ee; }
           to { text-shadow: 0 0 4px #22d3ee, 0 0 8px #06b6d4, 0 0 14px #0891b2; }
+        }
+        @keyframes nameGlowGreen {
+          from { text-shadow: 0 0 2px #22c55e, 0 0 4px #22c55e; }
+          to { text-shadow: 0 0 4px #22c55e, 0 0 8px #16a34a, 0 0 14px #15803d; }
         }
 
         /* Council red glow */
