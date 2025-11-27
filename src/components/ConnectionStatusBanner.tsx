@@ -1,8 +1,13 @@
 import React from 'react';
-import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
+// Imports commented out - component disabled to avoid exposing backend details
+// import { useData } from '../context/DataContext';
+// import { useAuth } from '../context/AuthContext';
 
 export const ConnectionStatusBanner: React.FC = () => {
+  // Disabled to avoid exposing backend details to users
+  return null;
+
+  /* Original code commented out:
   const { connectionStatus, lastError, refreshAll, showConnectionBanner, adminUsers } = useData() as any;
   const { user } = useAuth();
 
@@ -40,4 +45,5 @@ export const ConnectionStatusBanner: React.FC = () => {
       </div>
     </div>
   );
+  */
 };

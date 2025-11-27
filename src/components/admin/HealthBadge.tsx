@@ -1,7 +1,11 @@
 import React from 'react';
-import { useData } from '../../context/DataContext';
+// import { useData } from '../../context/DataContext';
 
 export const HealthBadge: React.FC = () => {
+  // Disabled to avoid exposing backend details to users
+  return null;
+  
+  /* Original code commented out:
   const { connectionStatus, latencyMs, lastError } = useData();
   const color = connectionStatus === 'ok' ? 'bg-green-600' : connectionStatus === 'degraded' ? 'bg-yellow-500' : 'bg-red-600';
   const pulse = connectionStatus === 'offline' ? 'animate-pulse' : '';
@@ -16,4 +20,5 @@ export const HealthBadge: React.FC = () => {
       </div>
     </div>
   );
+  */
 };

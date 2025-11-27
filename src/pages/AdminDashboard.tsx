@@ -365,8 +365,8 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-      {/* Diagnostics badge */}
-      {isOwner && (
+      {/* Diagnostics badge - hidden to avoid exposing backend details */}
+      {false && isOwner && (
       <div className="sticky top-0 z-[1001] w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 text-xs text-gray-700 shadow-sm">
@@ -400,26 +400,7 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
-        {/* Schema/Bucket readiness banner */}
-        {schemaCapabilities && (
-          (() => {
-            const missing: string[] = [];
-            if (!schemaCapabilities.events_registration_photo_required) missing.push('events.registration_photo_required');
-            if (!schemaCapabilities.events_registration_photo_label) missing.push('events.registration_photo_label');
-            if (!schemaCapabilities.registrations_photo_url) missing.push('registrations.photo_url');
-            if (!schemaCapabilities.storage_registration_photos_bucket) missing.push('storage bucket "registration-photos"');
-            if (missing.length === 0) return null;
-            return (
-              <div className="mb-6 p-4 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-900">
-                <div className="font-semibold mb-1">Registration photo feature not fully enabled</div>
-                <div className="text-sm">Missing: {missing.join(', ')}</div>
-                <div className="text-xs mt-2 text-yellow-800">
-                  Apply the latest SQL migrations in Supabase and run NOTIFY pgrst,'reload schema'. Then refresh this page.
-                </div>
-              </div>
-            );
-          })()
-        )}
+        {/* Schema/Bucket readiness banner - hidden to avoid exposing backend details */}
         <div className="flex flex-col lg:flex-row gap-8 min-w-0">
           {/* Sidebar */}
           <div className="lg:w-64 flex-shrink-0">
