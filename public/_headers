@@ -1,5 +1,4 @@
-/*
-	HTML (always check for fresh content)
+# HTML (always check for fresh content)
 /index.html
 	Cache-Control: public, max-age=0, must-revalidate
 /*.html
