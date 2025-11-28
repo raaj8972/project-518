@@ -288,10 +288,10 @@ export const Sponsors: React.FC = () => {
                           />
                         </div>
                         <div className="flex-1 min-w-0 space-y-2">
-                          <h3 className="text-2xl font-bold text-white group-hover:text-pink-400 transition-colors">
+                          <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white group-hover:text-pink-400 transition-colors break-words">
                             {sponsor.name}
                           </h3>
-                          <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full font-bold whitespace-nowrap leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                          <span className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 text-black rounded-full font-bold leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm break-words max-w-full">
                             {sponsor.category}
                           </span>
                         </div>
@@ -381,10 +381,10 @@ export const Sponsors: React.FC = () => {
                           />
                         </div>
                         <div className="flex-1 min-w-0 space-y-2">
-                          <h3 className="text-2xl font-bold text-white group-hover:text-blue-400 transition-colors">
+                          <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white group-hover:text-blue-400 transition-colors break-words">
                             {sponsor.name}
                           </h3>
-                          <span className="inline-block bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-full font-bold whitespace-nowrap leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm">
+                          <span className="inline-block bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-full font-bold leading-tight px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm break-words max-w-full">
                             {sponsor.category}
                           </span>
                         </div>
