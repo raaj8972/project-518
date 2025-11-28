@@ -180,7 +180,7 @@ export const Login: React.FC = () => {
               <p className="text-lg text-gray-300">
                 {requiresTOTP 
                   ? 'Enter the 6-digit code from your authenticator app'
-                  : 'Access the RICORRENZA 2025 dashboard'
+                  : 'Access the RICORRENZA 2026 dashboard'
                 }
               </p>
               {SHOW_SUPABASE && supabaseHost && (
@@ -322,9 +322,9 @@ export const Login: React.FC = () => {
             <div className="text-center text-xs text-gray-500 mt-8">
               <div className="flex items-center justify-center mb-2">
                 <Shield className="w-4 h-4 mr-1" />
-                <span>Secure access for RICORRENZA 2025</span>
+                <span>Secure access for RICORRENZA 2026</span>
               </div>
-              <p>© 2025 College Festival Management</p>
+              <p>© 2026 College Festival Management</p>
             </div>
           </div>
         </div>

@@ -218,7 +218,7 @@ export const Sponsors: React.FC = () => {
               )}
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              {sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is powered by our incredible partners who believe in the future of innovation and technology.'}
+              {sponsorshipSettings?.intro_text || 'RICORRENZA 2026 is powered by our incredible partners who believe in the future of innovation and technology.'}
             </p>
           </div>
         </div>

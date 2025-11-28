@@ -151,7 +151,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const generateTOTPSecret = (): string => authenticator.generateSecret();
 
   const buildOtpAuthUri = (secret: string, email: string): string => {
-    const issuer = 'RICORRENZA 2025';
+    const issuer = 'RICORRENZA 2026';
     return authenticator.keyuri(email || 'admin', issuer, secret);
   };
 

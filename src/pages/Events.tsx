@@ -465,7 +465,7 @@ export const Events: React.FC = () => {
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-blue-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
-              <Zap className="w-4 h-4 mr-2 animate-pulse" /> EVENTS 2025
+              <Zap className="w-4 h-4 mr-2 animate-pulse" /> EVENTS 2026
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
               <span className="neon-pink">EVENTS</span>

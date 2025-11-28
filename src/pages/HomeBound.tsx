@@ -156,7 +156,7 @@ export const HomeBound: React.FC = () => {
               HOME <span className="neon-purple">BOUND</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              The <span className="neon-pink">official band</span> of RICORRENZA 2025, bringing 
+              The <span className="neon-pink">official band</span> of RICORRENZA 2026, bringing 
               <span className="neon-blue">  beats</span> and 
               <span className="neon-purple">  melodies</span> to life
             </p>
@@ -432,7 +432,7 @@ export const HomeBound: React.FC = () => {
               JOIN THE <span className="neon-pink">BAND</span>
             </h2>
             <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Become part of Home Bound and help create the soundtrack for RICORRENZA 2025
+              Become part of Home Bound and help create the soundtrack for RICORRENZA 2026
             </p>
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">

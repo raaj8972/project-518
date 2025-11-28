@@ -174,7 +174,7 @@ export const Navbar: React.FC = () => {
 
               {/* Title */}
               <span className="text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
-                RICORRENZA {homepageSettings?.brand_year ?? 2025}
+                RICORRENZA {homepageSettings?.brand_year ?? 2026}
               </span>
 
               {/* Right side logo */}

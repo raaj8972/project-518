@@ -409,7 +409,7 @@ export const Home: React.FC = () => {
           <div className="scroll-animate animate-in">
             <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
               <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
-              FESTIVAL 2025
+              FESTIVAL 2026
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
               {homepageSettings?.hero_title || 'RICORRENZA'}
@@ -504,7 +504,7 @@ export const Home: React.FC = () => {
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-6 md:mb-8 expand-width"></div>
                 <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-                  Meet the incredible artists who will light up RICORRENZA 2025
+                  Meet the incredible artists who will light up RICORRENZA 2026
                 </p>
               </div>
             </div>
@@ -690,7 +690,7 @@ export const Home: React.FC = () => {
                   </h2>
                   <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-6 expand-width" />
                   <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-                    {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for RICORRENZA 2025
+                    {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for RICORRENZA 2026
                   </p>
                 </div>
               </div>
@@ -853,7 +853,7 @@ export const Home: React.FC = () => {
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 mx-auto mb-8 expand-width"></div>
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-                  Don't miss these highlighted experiences at RICORRENZA 2025
+                  Don't miss these highlighted experiences at RICORRENZA 2026
                 </p>
                 {hasManyEvents && (
                   <div className="mt-6">
@@ -1325,7 +1325,7 @@ export const Home: React.FC = () => {
                     {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
                       ? aboutSettings.hero_paragraphs
                       : [
-                        "RICORRENZA 2025 is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
+                        "RICORRENZA 2026 is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
                         'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
                         'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
                       ]).map((para, i) => {
@@ -1388,7 +1388,7 @@ export const Home: React.FC = () => {
                     {/* Animated Stats */}
                     <div className="grid grid-cols-2 gap-6 mb-8">
                       {(aboutSettings?.stats?.length ? aboutSettings.stats : [
-                        { value: '2025', label: 'FESTIVAL YEAR' },
+                        { value: '2026', label: 'FESTIVAL YEAR' },
                         { value: '3+', label: 'DAYS OF EVENTS' },
                         { value: '1000+', label: 'PARTICIPANTS' },
                         { value: '∞', label: 'POSSIBILITIES' }
