@@ -1,90 +1,81 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-
-  <!-- Main pages -->
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  
+  <!-- Homepage -->
   <url>
     <loc>https://ricorrenza.fun/</loc>
-    <lastmod>2025-11-26T14:53:35Z</lastmod>
-    <changefreq>weekly</changefreq>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
+    <changefreq>daily</changefreq>
     <priority>1.0</priority>
-    <image:image>
-      <image:loc>https://ricorrenza.fun/rickshaw.svg</image:loc>
-      <image:caption>RICORRENZA logo</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://ricorrenza.fun/apple-touch-icon.png</image:loc>
-      <image:caption>Apple touch icon</image:caption>
-    </image:image>
-    <image:image>
-      <image:loc>https://ricorrenza.fun/android-chrome-512x512.png</image:loc>
-      <image:caption>App icon</image:caption>
-    </image:image>
   </url>
-
+  
+  <!-- Events Page -->
   <url>
     <loc>https://ricorrenza.fun/events</loc>
-    <lastmod>2025-11-26T14:53:34Z</lastmod>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
-
+  
+  <!-- Schedule Page -->
   <url>
     <loc>https://ricorrenza.fun/schedule</loc>
-    <lastmod>2025-11-26T14:53:34Z</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
-
+  
+  <!-- Gallery Page -->
   <url>
     <loc>https://ricorrenza.fun/gallery</loc>
-    <lastmod>2025-11-26T14:53:34Z</lastmod>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-    <image:image>
-      <image:loc>https://ricorrenza.fun/storage/uploads/cake1.jpg</image:loc>
-      <image:caption>Ricorrenza family event cake</image:caption>
-    </image:image>
+    <priority>0.7</priority>
   </url>
-
+  
+  <!-- Rico Family Page -->
   <url>
     <loc>https://ricorrenza.fun/rico-family</loc>
-    <lastmod>2025-11-26T14:53:34Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
-
+  
+  <!-- Sponsors Page -->
   <url>
     <loc>https://ricorrenza.fun/sponsors</loc>
-    <lastmod>2025-11-26T14:53:34Z</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://ricorrenza.fun/login</loc>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.6</priority>
   </url>
-
-  <url>
-    <loc>https://ricorrenza.fun/coming-soon</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
-  <url>
-    <loc>https://ricorrenza.fun/health</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-
+  
+  <!-- Home Bound Page -->
   <url>
     <loc>https://ricorrenza.fun/homebound</loc>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
     <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <!-- Login Page -->
+  <url>
+    <loc>https://ricorrenza.fun/login</loc>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
+    <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
-
-  <!-- Admin removed from sitemap as it is behind authentication -->
+  
+  <!-- Admin Dashboard (low priority for SEO) -->
+  <url>
+    <loc>https://ricorrenza.fun/admin</loc>
+    <lastmod>2025-11-28T17:00:00+05:30</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.1</priority>
+  </url>
 
 </urlset>
