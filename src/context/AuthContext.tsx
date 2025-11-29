@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 
 
 interface AuthContextType {
@@ -16,6 +17,8 @@ interface AuthContextType {
   disableTOTP: () => Promise<boolean>;
   isTOTPEnabled: boolean;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
+  registerPasskey: () => Promise<{ success: boolean; error?: string }>;
+  loginWithPasskey: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -373,6 +376,83 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const registerPasskey = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      if (!user) return { success: false, error: 'Not authenticated' };
+
+      // 1. Get challenge
+      const resp = await fetch('/.netlify/functions/passkey-challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register', userId: user.id, email: user.email }),
+      });
+
+      if (!resp.ok) throw new Error('Failed to get registration challenge');
+      const options = await resp.json();
+
+      // 2. Prompt user
+      const attResp = await startRegistration(options);
+
+      // 3. Verify
+      const verifyResp = await fetch('/.netlify/functions/passkey-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: attResp, userId: user.id }),
+      });
+
+      if (!verifyResp.ok) {
+        const err = await verifyResp.json();
+        throw new Error(err.error || 'Verification failed');
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Passkey registration error:', error);
+      return { success: false, error: error.message || 'Failed to register passkey' };
+    }
+  };
+
+  const loginWithPasskey = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      // 1. Get challenge
+      const resp = await fetch('/.netlify/functions/passkey-challenge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login' }),
+      });
+
+      if (!resp.ok) throw new Error('Failed to get login challenge');
+      const options = await resp.json();
+
+      // 2. Prompt user
+      const asseResp = await startAuthentication(options);
+
+      // 3. Verify
+      const verifyResp = await fetch('/.netlify/functions/passkey-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: asseResp }),
+      });
+
+      if (!verifyResp.ok) {
+        const err = await verifyResp.json();
+        throw new Error(err.error || 'Verification failed');
+      }
+
+      const { redirectUrl } = await verifyResp.json();
+      if (redirectUrl) {
+        // Redirect to magic link to complete login
+        window.location.href = redirectUrl;
+        return { success: true };
+      }
+
+      return { success: false, error: 'No session returned' };
+    } catch (error: any) {
+      console.error('Passkey login error:', error);
+      return { success: false, error: error.message || 'Failed to login with passkey' };
+    }
+  };
+
   // Session Tracking
   useEffect(() => {
     if (!user || isMasterBypassUser(user)) return;
@@ -460,7 +540,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       enableTOTP,
       disableTOTP,
       isTOTPEnabled,
-      updatePassword
+
+      updatePassword,
+      registerPasskey,
+      loginWithPasskey
     }}>
       {children}
     </AuthContext.Provider>

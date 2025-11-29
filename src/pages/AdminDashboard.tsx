@@ -16,7 +16,8 @@ import {
   Star,
   Info,
   Menu,
-  X
+  X,
+  Fingerprint
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -28,6 +29,7 @@ import { RegistrationManagement } from '../components/admin/RegistrationManageme
 import { EventCategoriesManagement } from '../components/admin/EventCategoriesManagement';
 import { SocialMediaManagement } from '../components/admin/SocialMediaManagement';
 import { SecuritySettings } from '../components/admin/SecuritySettings';
+import { BiometricLogin } from '../components/admin/BiometricLogin';
 import { FacultyHeadsManagement } from '../components/admin/FacultyHeadsManagement';
 import { CoreTeamManagement } from '../components/admin/CoreTeamManagement';
 import { SportsTeamManagement } from '../components/admin/SportsTeamManagement';
@@ -52,7 +54,7 @@ import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -199,6 +201,7 @@ export const AdminDashboard: React.FC = () => {
   { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck },
     { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
     { id: 'security' as TabType, name: 'Security', icon: Shield },
+    { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint },
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -219,7 +222,10 @@ export const AdminDashboard: React.FC = () => {
     // Non-owners: do NOT show Overview or Security by default
     const allowedIds = new Set<TabType>();
   // Allow the Security tab for non-owner admins so they can manage their own 2FA
-  if (isAdmin) allowedIds.add('security');
+  if (isAdmin) {
+    allowedIds.add('security');
+    allowedIds.add('biometric-login');
+  }
     // Notifications manager is generally safe; allow for all admins by default
     allowedIds.add('notifications');
     if (myPermissions?.can_events) allowedIds.add('events');
@@ -755,6 +761,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <SecuritySettings />}
+            {activeTab === 'biometric-login' && <BiometricLogin />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
             {activeTab === 'about' && <AboutSettings />}

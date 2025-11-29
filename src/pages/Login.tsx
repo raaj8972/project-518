@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap, Fingerprint } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +16,7 @@ export const Login: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const videoRef = React.useRef<HTMLVideoElement>(null);
   
-  const { login } = useAuth();
+  const { login, loginWithPasskey } = useAuth();
   const navigate = useNavigate();
   const { homepageSettings } = useData();
   // Pull host for quick env diagnostics
@@ -363,6 +363,30 @@ export const Login: React.FC = () => {
                     </button>
                   )}
                 </div>
+
+                {/* Passkey Login */}
+                {!requiresTOTP && (
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setIsLoading(true);
+                        const res = await loginWithPasskey();
+                        setIsLoading(false);
+                        if (res.success) {
+                          navigate('/admin');
+                        } else {
+                          setError(res.error || 'Passkey login failed');
+                        }
+                      }}
+                      className="cyberpunk-btn cyberpunk-btn-secondary w-full flex items-center justify-center"
+                      disabled={isLoading}
+                    >
+                      <Fingerprint className="mr-2" size={20} />
+                      <span className="relative z-10">LOGIN WITH FACE ID</span>
+                    </button>
+                  </div>
+                )}
               </form>
 
               <div className="px-8 pb-8">
