@@ -37,7 +37,8 @@ const FALLBACK_MILESTONES: Milestone[] = [
 ];
 
 interface RoadmapProps {
-  vehicleImage?: string; // path to rickshaw image
+  vehicleImage?: string; // path to vehicle image or video
+  vehicleAudio?: string; // path to audio file for vehicle sound
   height?: number; // px height of the container
   durationMs?: number; // animation loop duration
   vehicleSize?: number; // square size in px
@@ -67,6 +68,7 @@ const buildPathD = (w: number, h: number) => {
 
 const Roadmap: React.FC<RoadmapProps> = ({
   vehicleImage,
+  vehicleAudio,
   height = DEFAULT_HEIGHT,
   durationMs = 18000,
   vehicleSize = 80,
@@ -92,6 +94,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pathRef = useRef<SVGPathElement | null>(null);
   const vehicleRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [positions, setPositions] = useState<{ x: number; y: number; angle: number }[]>([]); // path coords (viewBox space)
   const [scale, setScale] = useState({ x: 1, y: 1 });
   const [viewWidth, setViewWidth] = useState(1200); // dynamic width
@@ -183,6 +186,19 @@ const Roadmap: React.FC<RoadmapProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Audio playback control
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !vehicleAudio) return;
+    
+    if (inView && !reducedMotion) {
+      audio.play().catch(err => console.log('Audio autoplay prevented:', err));
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, [inView, reducedMotion, vehicleAudio]);
 
   // Vehicle animation
   useEffect(() => {
@@ -372,13 +388,25 @@ const Roadmap: React.FC<RoadmapProps> = ({
             style={{ left: 0, top: 0, width: vehicleSize, height: vehicleSize }}
           >
             {vehicleImage ? (
-              <img
-                src={vehicleImage}
-                alt="Rickshaw"
-                className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                draggable={false}
-              />
+              vehicleImage.endsWith('.mp4') || vehicleImage.endsWith('.webm') || vehicleImage.endsWith('.mov') ? (
+                <video
+                  src={vehicleImage}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
+                  onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
+                />
+              ) : (
+                <img
+                  src={vehicleImage}
+                  alt="Ambulance"
+                  className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                  draggable={false}
+                />
+              )
             ) : null}
             {/* Fallback / overlay frame */}
             {!vehicleImage && (
@@ -389,6 +417,16 @@ const Roadmap: React.FC<RoadmapProps> = ({
             )}
           </div>
         </div>
+      {/* Audio element for vehicle sound */}
+      {vehicleAudio && (
+        <audio
+          ref={audioRef}
+          src={vehicleAudio}
+          loop
+          preload="auto"
+          style={{ display: 'none' }}
+        />
+      )}
       <style>{`
         @keyframes dash { to { stroke-dashoffset: -800; } }
       `}</style>

@@ -1,0 +1,158 @@
+<svg width="200" height="300" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bodyWhite" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e8e8e8;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="bodyRed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ff3333;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="windowBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4dd0e1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00acc1;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Siren gradients -->
+    <radialGradient id="redSiren">
+      <stop offset="0%" style="stop-color:#ff0000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#990000;stop-opacity:1" />
+    </radialGradient>
+    
+    <radialGradient id="blueSiren">
+      <stop offset="0%" style="stop-color:#0066ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#003399;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Glow filters -->
+    <filter id="redGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="blueGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="dropShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="2" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.3"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <g transform="translate(100, 150)" filter="url(#dropShadow)">
+    <!-- Shadow -->
+    <ellipse cx="0" cy="95" rx="50" ry="10" fill="#000000" opacity="0.2"/>
+    
+    <!-- === WHEELS (Bottom) === -->
+    <!-- Left wheel -->
+    <g transform="translate(-25, 85)">
+      <circle cx="0" cy="0" r="18" fill="#1a1a1a" stroke="#000000" stroke-width="2"/>
+      <circle cx="0" cy="0" r="13" fill="#333333"/>
+      <circle cx="0" cy="0" r="7" fill="#555555"/>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="1s" repeatCount="indefinite"/>
+        <line x1="0" y1="-10" x2="0" y2="10" stroke="#777777" stroke-width="2"/>
+        <line x1="-10" y1="0" x2="10" y2="0" stroke="#777777" stroke-width="2"/>
+      </g>
+    </g>
+    
+    <!-- Right wheel -->
+    <g transform="translate(25, 85)">
+      <circle cx="0" cy="0" r="18" fill="#1a1a1a" stroke="#000000" stroke-width="2"/>
+      <circle cx="0" cy="0" r="13" fill="#333333"/>
+      <circle cx="0" cy="0" r="7" fill="#555555"/>
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="1s" repeatCount="indefinite"/>
+        <line x1="0" y1="-10" x2="0" y2="10" stroke="#777777" stroke-width="2"/>
+        <line x1="-10" y1="0" x2="10" y2="0" stroke="#777777" stroke-width="2"/>
+      </g>
+    </g>
+    
+    <!-- === MAIN BODY === -->
+    <!-- Bottom section (white) -->
+    <rect x="-45" y="25" width="90" height="60" rx="3" fill="url(#bodyWhite)" stroke="#cccccc" stroke-width="1.5"/>
+    
+    <!-- Red stripe -->
+    <rect x="-45" y="45" width="90" height="18" fill="url(#bodyRed)"/>
+    
+    <!-- Top cabin -->
+    <rect x="-45" y="-50" width="90" height="75" rx="3" fill="url(#bodyWhite)" stroke="#cccccc" stroke-width="1.5"/>
+    
+    <!-- Windshield -->
+    <rect x="-35" y="-45" width="70" height="25" rx="2" fill="url(#windowBlue)" stroke="#00acc1" stroke-width="1.5" opacity="0.9"/>
+    
+    <!-- Side windows -->
+    <rect x="-35" y="-15" width="25" height="20" rx="2" fill="url(#windowBlue)" stroke="#00acc1" stroke-width="1"/>
+    <rect x="10" y="-15" width="25" height="20" rx="2" fill="url(#windowBlue)" stroke="#00acc1" stroke-width="1"/>
+    
+    <!-- Medical cross -->
+    <g transform="translate(0, 55)">
+      <rect x="-3" y="-10" width="6" height="20" fill="#ff0000" rx="1"/>
+      <rect x="-10" y="-3" width="20" height="6" fill="#ff0000" rx="1"/>
+    </g>
+    
+    <!-- AMBULANCE text (vertical reading) -->
+    <text x="0" y="75" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="#00acc1" text-anchor="middle">AMBULANCE</text>
+    
+    <!-- Medical star -->
+    <g transform="translate(0, 40)">
+      <path d="M 0,-5 L 1.5,-1.5 L 5,-1.5 L 2.5,1 L 3.5,4.5 L 0,2.5 L -3.5,4.5 L -2.5,1 L -5,-1.5 L -1.5,-1.5 Z" fill="#00acc1"/>
+    </g>
+    
+    <!-- Front bumper indicators -->
+    <rect x="-40" y="-50" width="8" height="3" rx="1" fill="#ffeb3b"/>
+    <rect x="32" y="-50" width="8" height="3" rx="1" fill="#ffeb3b"/>
+    
+    <!-- === ROOF SIRENS (Top) === -->
+    <g transform="translate(0, -65)">
+      <rect x="-30" y="0" width="60" height="10" rx="5" fill="#333333" stroke="#1a1a1a" stroke-width="1"/>
+      
+      <!-- Red siren -->
+      <g filter="url(#redGlow)">
+        <rect x="-22" y="2" width="16" height="6" rx="3" fill="url(#redSiren)">
+          <animate attributeName="opacity" values="1;0.3;1" dur="0.6s" repeatCount="indefinite"/>
+        </rect>
+        <ellipse cx="-14" cy="5" rx="12" ry="6" fill="#ff0000" opacity="0.3">
+          <animate attributeName="opacity" values="0.5;0.1;0.5" dur="0.6s" repeatCount="indefinite"/>
+        </ellipse>
+      </g>
+      
+      <!-- White siren -->
+      <rect x="-8" y="2" width="16" height="6" rx="3" fill="#ffffff"/>
+      
+      <!-- Blue siren -->
+      <g filter="url(#blueGlow)">
+        <rect x="6" y="2" width="16" height="6" rx="3" fill="url(#blueSiren)">
+          <animate attributeName="opacity" values="0.3;1;0.3" dur="0.6s" repeatCount="indefinite"/>
+        </rect>
+        <ellipse cx="14" cy="5" rx="12" ry="6" fill="#0066ff" opacity="0.3">
+          <animate attributeName="opacity" values="0.1;0.5;0.1" dur="0.6s" repeatCount="indefinite"/>
+        </ellipse>
+      </g>
+    </g>
+    
+    <!-- Door lines -->
+    <line x1="0" y1="10" x2="0" y2="85" stroke="#cccccc" stroke-width="2"/>
+    
+    <!-- Side mirror details -->
+    <rect x="-50" y="0" width="5" height="8" rx="1" fill="#333333"/>
+    <rect x="45" y="0" width="5" height="8" rx="1" fill="#333333"/>
+  </g>
+</svg>
