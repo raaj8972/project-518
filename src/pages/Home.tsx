@@ -708,7 +708,7 @@ export const Home: React.FC = () => {
                       className="cursor-pointer w-[260px] sm:w-[300px] md:w-[340px] flex flex-col bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md rounded-xl shadow-xl ring-1 ring-blue-500/30 overflow-hidden group relative hover:ring-blue-400/50 transition"
                     >
                       <div className="relative h-56 sm:h-60 overflow-hidden">
-                        <img src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                        <img src={cg.image} alt={cg.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         {cg.specialty && (
                           <div className="absolute top-3 left-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
@@ -763,7 +763,7 @@ export const Home: React.FC = () => {
                     <React.Fragment key={cg.id}>
                       <div className="relative group overflow-hidden rounded-xl shadow-xl ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md">
                         <div className="relative h-80 overflow-hidden">
-                          <img src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                          <img src={cg.image} alt={cg.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                           {cg.specialty && (
                             <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
@@ -1912,7 +1912,7 @@ export const Home: React.FC = () => {
           <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950/90 via-black/80 to-purple-950/90 ring-1 ring-blue-500/30 shadow-2xl flex flex-col">
             <div className="flex items-start gap-4 p-5 border-b border-white/10">
               <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-1 ring-blue-400/40 flex-shrink-0">
-                <img src={selectedChiefGuest.image} alt={selectedChiefGuest.name} className="w-full h-full object-cover" />
+                <img src={selectedChiefGuest.image} alt={selectedChiefGuest.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                 {selectedChiefGuest.specialty && (
                   <div className="absolute bottom-2 left-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
