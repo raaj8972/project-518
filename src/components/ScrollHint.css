@@ -7,6 +7,10 @@
   pointer-events: none; /* don't block touches */
 }
 
+.rc-scroll-hint--fadeout {
+  animation: rc-scroll-hint-fadeout 300ms ease-out forwards;
+}
+
 .rc-scroll-hint__card {
   display: flex;
   align-items: center;
@@ -50,7 +54,13 @@
   100% { transform: translateY(0) }
 }
 
+@keyframes rc-scroll-hint-fadeout {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.95); }
+}
+
 /* mobile only */
 @media (min-width: 769px) {
   .rc-scroll-hint { display: none; }
 }
+

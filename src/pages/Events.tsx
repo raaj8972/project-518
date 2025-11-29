@@ -753,7 +753,7 @@ export const Events: React.FC = () => {
                       <div className="h-full overflow-hidden flex flex-col">
                         <div className="p-6 overflow-y-auto flex-1">
                           <h3 className="text-xl font-bold text-white mb-3" style={{ transform: 'translateX(16px)' }}>{event.title}</h3>
-                          <PreserveNewlines text={event.description} className="text-gray-300 mb-4" />
+                          <PreserveNewlines text={event.description} className="text-sm sm:text-base text-gray-300 mb-4" />
                           <div className="space-y-2 mb-4">
                             <div className="flex items-center text-sm text-gray-400"><Calendar size={16} className="mr-2 text-blue-400" />{event.date}</div>
                             <div className="flex items-center text-sm text-gray-400"><Clock size={16} className="mr-2 text-green-400" />{event.time}</div>
