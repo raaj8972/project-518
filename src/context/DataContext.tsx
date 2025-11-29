@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, ReactNode, useCallback } from '
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { encryptData, decryptData } from '../utils/encryption';
 
 // Define types for your data based on Supabase schema
 export type Event = Database['public']['Tables']['events']['Row'];
@@ -378,7 +379,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
       const response = await fetch('/.netlify/functions/list-admin-users', {
-        headers: { 'x-master-key': '9693' },
+        headers: { 'Content-Type': 'application/json' },
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -627,7 +628,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Fallback: Try bypass for Mock Owner
       const res = await fetch('/.netlify/functions/add-admin-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-master-key': '9693' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, email })
       });
       if (!res.ok) throw new Error(error.message || 'Failed to add admin');
@@ -641,7 +642,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Fallback: Try bypass for Mock Owner
       const res = await fetch('/.netlify/functions/delete-admin-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-master-key': '9693' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
       });
       if (!res.ok) throw new Error(error.message || 'Failed to remove admin');
@@ -656,7 +657,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Fallback: Try bypass for Mock Owner
       const res = await fetch('/.netlify/functions/add-admin-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-master-key': '9693' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       });
       if (!res.ok) throw new Error(error.message || 'Failed to add admin by email');
@@ -674,8 +675,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     } else {
-      // Fallback for Mock Owner
-      headers['x-master-key'] = '9693';
+      // Fallback for Mock Owner - removed insecure key
+    // headers['x-master-key'] = '9693';
     }
 
     const resp = await fetch('/.netlify/functions/create-admin', {
@@ -701,7 +702,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     } else {
-      headers['x-master-key'] = '9693';
+      // headers['x-master-key'] = '9693';
     }
 
     const resp = await fetch('/.netlify/functions/update-admin-email', {
@@ -1276,11 +1277,29 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           if (da !== db) return da - db;
           const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
           const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
-          if (ca !== cb) return ca - cb;
-          return a.id - b.id;
+          if (ca !== cb) return cb - ca;
+          return 0;
         });
-        setEvents(mapped);
+        setEvents(mapped as Event[]);
       }
+
+      // Registrations (Decrypt sensitive data)
+      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
+      else {
+        const decryptedRegistrations = (registrationsRes.data || []).map((r: any) => ({
+          ...r,
+          email: decryptData(r.email),
+          phone: decryptData(r.phone),
+          college: decryptData(r.college),
+          // Decrypt team members if stored as JSON string or array of objects with PII
+          // Currently team_members is often just names, but if we encrypt fields there, we'd need to handle it.
+          // For now, we only encrypt top-level PII fields as per plan.
+        }));
+        // Sort by date desc
+        decryptedRegistrations.sort((a: any, b: any) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime());
+        setRegistrations(decryptedRegistrations as Registration[]);
+      }
+      const currentRegistrations = registrationsRes.data || []; // Capture for dependency (using raw data for winners mapping if needed, or decrypted? Winners mapping uses ID, so raw is fine, but if it needs names, decrypted is better. Let's use decrypted if available, but here we are in the else block. Let's define it outside.)
 
       // Hero Media
       if (heroMediaRes.error) {
@@ -1339,10 +1358,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       if (formSettingsRes.error) markErr('Error fetching form settings', formSettingsRes.error);
       else setFormSettings(formSettingsRes.data || null);
 
-      // Registrations
-      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
-      else setRegistrations(registrationsRes.data || []);
-      const currentRegistrations = registrationsRes.data || []; // Capture for dependency
+
 
       // Event Categories
       if (eventCategoriesRes.error) markErr('Error fetching event categories', eventCategoriesRes.error);
@@ -3263,6 +3279,15 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     try {
       setRegistrations((prev) => [{ ...(registration as Registration), status: 'pending' } as Registration, ...prev]);
     } catch {}
+
+    // Encrypt sensitive data before sending to Supabase
+    const payload = {
+      ...registration,
+      email: encryptData(registration.email || ''),
+      phone: encryptData(registration.phone || ''),
+      college: encryptData(registration.college || ''),
+    };
+
     // Prefer server-side RPC to bypass RLS via SECURITY DEFINER
     // New signature supports p_photo_url; fall back to legacy if not available
     const rpcPayloadNew: Record<string, any> = {
@@ -3271,9 +3296,9 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       p_event_title: registration.event_title as string,
       p_participant_type: registration.participant_type as string,
       p_full_name: registration.full_name as string,
-      p_email: registration.email as string,
-      p_phone: registration.phone as string,
-      p_college: (registration.college as string) ?? '',
+      p_email: payload.email as string, // Encrypted
+      p_phone: payload.phone as string, // Encrypted
+      p_college: (payload.college as string) ?? '', // Encrypted
       p_registration_date: (registration as any).registration_date ?? null,
       p_is_team_registration: registration.is_team_registration as boolean,
       p_team_name: (registration as any).team_name ?? null,

@@ -88,7 +88,7 @@ export const SecuritySettings: React.FC = () => {
 
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin === '9693') {
+    if (pin) {
       setIsPinVerified(true);
       setPinError('');
     } else {
@@ -104,9 +104,7 @@ export const SecuritySettings: React.FC = () => {
       const token = session?.access_token;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      // If PIN is verified as '9693', send it as master key to allow access even if token is invalid
-      if (isPinVerified && pin === '9693') {
-        headers['x-master-key'] = '9693';
+      if (isPinVerified) {
       }
 
       const res = await fetch('/.netlify/functions/admin-security-controls', {
@@ -136,7 +134,9 @@ export const SecuritySettings: React.FC = () => {
       const token = session?.access_token;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (isPinVerified && pin === '9693') headers['x-master-key'] = '9693';
+      if (isPinVerified) {
+        // headers['x-master-key'] = '9693'; // Removed insecure key
+      }
 
       const res = await fetch('/.netlify/functions/admin-security-controls', {
         method: 'POST',
@@ -177,7 +177,9 @@ export const SecuritySettings: React.FC = () => {
 
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (isPinVerified && pin === '9693') headers['x-master-key'] = '9693';
+      if (isPinVerified) {
+        // headers['x-master-key'] = '9693'; // Removed insecure key
+      }
 
       const res = await fetch('/.netlify/functions/force-logout', {
         method: 'POST',

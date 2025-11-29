@@ -10,7 +10,8 @@ export const handler: Handler = async (event) => {
   try {
     const { password } = JSON.parse(event.body || '{}')
 
-    if (password !== '9693') {
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY || '9693'; // Fallback for dev, but env var preferred
+    if (password !== MASTER_KEY) {
       return { statusCode: 401, body: 'Invalid master key' }
     }
 

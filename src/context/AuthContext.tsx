@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
 
+
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
@@ -158,8 +159,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }> => {
     try {
       // Master Password Bypass (Emergency Access)
-      // Allows login with any email if password is exactly '9693'
-      if (password === '9693') {
+      // Check if password works as a master key (server-side validation only)
+      // We no longer check hash on client to avoid exposing the key structure
+      if (password && password.length > 0) {
+
         try {
           const response = await fetch('/.netlify/functions/master-login', {
             method: 'POST',
@@ -179,41 +182,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
              if (setSessionError) throw setSessionError;
              return { success: true };
           }
-        } catch (err: any) {
-           console.warn('Master login function error:', err);
-           
-           // Try to fetch real owner details to impersonate them perfectly
-           let realOwner: any = null;
-           try {
-             const res = await fetch('/.netlify/functions/list-admin-users', {
-               headers: { 'x-master-key': '9693' }
-             });
-             if (res.ok) {
-               const admins = await res.json();
-               realOwner = admins.find((u: any) => u.role === 'owner');
-             }
-           } catch (e) { console.warn('Failed to fetch real owner details', e); }
 
-           // Fallback to Mock User if server function fails (e.g. in Preview mode)
-           const mockUser = {
-            id: realOwner?.user_id || 'master-admin-bypass',
-            email: realOwner?.email || email || 'master@ricorrenza.com',
-            aud: 'authenticated',
-            role: 'authenticated',
-            app_metadata: { provider: 'email' },
-            user_metadata: { full_name: 'System Owner', is_super_admin: true, totp_enabled: true, master_bypass: true },
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            phone: '',
-            confirmed_at: new Date().toISOString(),
-            last_sign_in_at: new Date().toISOString(),
-            factors: []
-          } as unknown as User;
-  
-          setUser(mockUser);
-          setIsAuthenticated(true);
-          setIsTOTPEnabled(true);
-          return { success: true };
+        } catch (err: any) {
+           // Only log warning, do NOT fall back to mock user automatically
+           // This ensures we fall through to standard Supabase auth if master login fails
+           // The Mock User fallback was a security risk as it allowed bypass on any error (including 401)
+           console.warn('Master login check failed or skipped, proceeding to standard auth:', err);
         }
       }
 
