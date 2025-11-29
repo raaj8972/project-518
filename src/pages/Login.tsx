@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Mail, Zap } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +13,8 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -38,6 +40,35 @@ export const Login: React.FC = () => {
     animatedElements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
+  }, []);
+
+  // Video auto-restart optimization (simplified to prevent EMFILE error)
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Simple play function
+    const playVideo = () => {
+      video.play().catch(() => {
+        // Silently ignore autoplay errors
+      });
+    };
+
+    // Handle visibility change - restart when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (!document.hidden && video.paused) {
+        playVideo();
+      }
+    };
+
+    // Add event listeners
+    video.addEventListener('loadeddata', playVideo);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      video.removeEventListener('loadeddata', playVideo);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,18 +104,35 @@ export const Login: React.FC = () => {
   return (
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Animated Background */}
-        <div className="absolute inset-0 z-0">
-          <div className="hero-bg parallax" data-speed="0.3">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80"></div>
-            <div className="absolute inset-0 bg-black/70"></div>
-          </div>
+      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
+        {/* Video Background - Fixed to cover entire page */}
+        <div className="fixed inset-0 z-0" style={{ transformStyle: 'preserve-3d', width: '100vw', height: '100vh' }}>
+          {/* Video */}
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full video-3d-effect"
+            style={{ 
+              filter: 'brightness(0.7)',
+              transform: 'translateZ(-50px) scale(1.1)',
+              transformStyle: 'preserve-3d',
+              objectFit: 'cover',
+              objectPosition: 'center'
+            }}
+            onError={(e) => {
+              console.log('Video failed to load, using gradient background');
+              e.currentTarget.style.display = 'none';
+            }}
+          >
+            <source src="/login page video.mp4" type="video/mp4" />
+          </video>
           
-          {/* Cyberpunk Grid Overlay */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20"></div>
-          
-          {/* Floating Particles removed */}
+          {/* Cyberpunk Grid Overlay with 3D effect */}
+          <div className="absolute inset-0 cyberpunk-grid opacity-20" style={{ transform: 'translateZ(20px)', transformStyle: 'preserve-3d' }}></div>
         </div>
 
         {/* Login Content */}
@@ -147,10 +195,10 @@ export const Login: React.FC = () => {
                       const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
                       const sep = u.includes('?') ? '&' : '?';
                       const src = ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
-                      const size = Math.max(40, Number((homepageSettings as any)?.brand_logo_size_px) || 72);
+                      const size = Math.max(45, Number((homepageSettings as any)?.brand_logo_size_px) || 65);
                       const glowStrength = Math.max(0.5, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
                       return (
-                        <div className="relative p-4 rounded-full" style={{
+                        <div className="relative p-3 rounded-full animate-logo-pulse" style={{
                           borderWidth: 2,
                           borderColor: toRgba(accent, 0.30),
                           background: toRgba(accent, 0.06),
@@ -189,7 +237,21 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Login Form */}
-            <div className="cyberpunk-card">
+            {!isFormOpen ? (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsFormOpen(true)}
+                  className="cyberpunk-btn cyberpunk-btn-primary"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <Zap className="mr-2" size={20} />
+                    OPEN ADMIN PANEL
+                  </span>
+                </button>
+              </div>
+            ) : (
+            <div className="cyberpunk-card animate-card-reveal">
               <form onSubmit={handleSubmit} className="space-y-6 p-8">
                 {error && (
                   <div className="cyberpunk-alert">
@@ -201,19 +263,16 @@ export const Login: React.FC = () => {
                 {!requiresTOTP ? (
                   <>
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
                         Admin Email
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Mail className="w-5 h-5 text-gray-400" />
-                        </div>
                         <input
                           id="email"
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="cyberpunk-input pl-10"
+                          className="cyberpunk-input pl-4"
                           placeholder="Enter admin email"
                           required
                         />
@@ -221,19 +280,16 @@ export const Login: React.FC = () => {
                     </div>
 
                     <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
                         Admin Password
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <Lock className="w-5 h-5 text-gray-400" />
-                        </div>
                         <input
                           id="password"
                           type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="cyberpunk-input pl-10 pr-12"
+                          className="cyberpunk-input pl-4 pr-12"
                           placeholder="Enter admin password"
                           required
                         />
@@ -249,7 +305,7 @@ export const Login: React.FC = () => {
                   </>
                 ) : (
                   <div>
-                    <label htmlFor="totpCode" className="block text-sm font-medium text-gray-300 mb-2">
+                    <label htmlFor="totpCode" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
                       2FA Authentication Code
                     </label>
                     <div className="relative">
@@ -261,7 +317,7 @@ export const Login: React.FC = () => {
                         type="text"
                         value={totpCode}
                         onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="cyberpunk-input pl-10 text-center text-2xl tracking-widest"
+                        className="cyberpunk-input pl-12 text-center text-2xl tracking-widest"
                         placeholder="000000"
                         maxLength={6}
                         required
@@ -317,14 +373,14 @@ export const Login: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
-            {/* Security Notice */}
             <div className="text-center text-xs text-gray-500 mt-8">
               <div className="flex items-center justify-center mb-2">
                 <Shield className="w-4 h-4 mr-1" />
                 <span>Secure access for RICORRENZA 2026</span>
               </div>
-              <p>© 2026 College Festival Management</p>
+              <p>© 2026 Ricorrenza fest COMMITTEE</p>
             </div>
           </div>
         </div>
@@ -354,6 +410,20 @@ export const Login: React.FC = () => {
         @keyframes gridMove {
           0% { transform: translate(0, 0); }
           100% { transform: translate(50px, 50px); }
+        }
+
+        /* 3D video floating effect */
+        @keyframes video3DFloat {
+          0%, 100% {
+            transform: translateZ(-50px) scale(1.1) rotateX(0deg);
+          }
+          50% {
+            transform: translateZ(-45px) scale(1.12) rotateX(1deg);
+          }
+        }
+
+        .video-3d-effect {
+          animation: video3DFloat 8s ease-in-out infinite;
         }
 
         /* particles CSS removed */
@@ -527,6 +597,40 @@ export const Login: React.FC = () => {
         .scroll-animate.animate-in {
           opacity: 1 !important;
           transform: translateY(0) !important;
+        }
+
+        /* Card reveal animation */
+        @keyframes cardReveal {
+          0% {
+            opacity: 0;
+            transform: scale(0.9) translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        .animate-card-reveal {
+          animation: cardReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          animation-delay: 0.2s;
+          opacity: 0;
+        }
+
+        /* Logo pulse animation */
+        @keyframes logoPulse {
+          0%, 100% {
+            transform: scale(1);
+            filter: brightness(1);
+          }
+          50% {
+            transform: scale(1.05);
+            filter: brightness(1.2);
+          }
+        }
+
+        .animate-logo-pulse {
+          animation: logoPulse 3s ease-in-out infinite;
         }
 
         /* Mobile optimizations */

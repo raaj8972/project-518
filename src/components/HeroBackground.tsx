@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useData } from '../context/DataContext';
 
+// Helper to check if WebP is supported
+const supportsWebP = (() => {
+  if (typeof window === 'undefined') return false;
+  const canvas = document.createElement('canvas');
+  if (canvas.getContext && canvas.getContext('2d')) {
+    return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  }
+  return false;
+})();
+
 type CleanProps = {
   pageKey: 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors';
   className?: string;
@@ -10,14 +20,37 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   const { heroMedia, fetchHeroMedia } = useData();
   const media = heroMedia?.[pageKey];
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
   // Defer actual video element rendering so the browser can prioritize the poster/image
   const [showVideo, setShowVideo] = useState(false);
+  const [isIntersecting, setIsIntersecting] = useState(pageKey === 'home'); // Home page loads immediately
+  const [isMediaLoaded, setIsMediaLoaded] = useState(false);
+
+  // Intersection Observer for lazy loading (skip for home page)
+  useEffect(() => {
+    if (pageKey === 'home' || typeof window === 'undefined') return;
+    
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsIntersecting(true);
+        }
+      },
+      { rootMargin: '50px' } // Start loading 50px before entering viewport
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [pageKey]);
 
   useEffect(() => {
-    if (!media) fetchHeroMedia(pageKey).catch(() => {});
+    if (!media && isIntersecting) fetchHeroMedia(pageKey).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageKey]);
+  }, [pageKey, isIntersecting]);
 
   useEffect(() => {
     if (!media) return;
@@ -127,10 +160,15 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   // Defer video injection until browser is idle / after load so it doesn't block LCP
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!activeVideoUrl) { setShowVideo(false); return; }
-    // Immediate video loading requested to avoid "not loading" perception
-    setShowVideo(true);
-  }, [activeVideoUrl]);
+    if (!activeVideoUrl || !isIntersecting) { setShowVideo(false); return; }
+    // For home page, load immediately. For others, wait a bit to prioritize text content
+    if (pageKey === 'home') {
+      setShowVideo(true);
+    } else {
+      const timer = setTimeout(() => setShowVideo(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [activeVideoUrl, isIntersecting, pageKey]);
 
   useEffect(() => {
     const prev = document.documentElement.getAttribute('data-theme');
@@ -234,45 +272,74 @@ export const HeroBackground: React.FC<CleanProps> = ({ pageKey, className = '' }
   const needsTransform = effectiveScale !== 1 || persistedOffsetX !== 0 || persistedOffsetY !== 0;
   const transformStyle = needsTransform ? { transform: `translate(${translateXPercent}%, ${translateYPercent}%) scale(${effectiveScale})`, transformOrigin: 'center center' } : undefined;
 
+  // Generate srcset for responsive images
+  const generateSrcSet = (imageUrl: string | undefined | null, mobileUrl: string | undefined | null) => {
+    if (!imageUrl && !mobileUrl) return undefined;
+    const srcset: string[] = [];
+    if (mobileUrl) srcset.push(`${mobileUrl} 768w`);
+    if (imageUrl) srcset.push(`${imageUrl} 1920w`);
+    return srcset.length > 0 ? srcset.join(', ') : undefined;
+  };
+
   return (
-    <div className={`absolute inset-0 z-0 ${className}`}>
-      {showMedia ? (
+    <div ref={containerRef} className={`absolute inset-0 z-0 ${className}`}>
+      {/* Loading skeleton */}
+      {!isMediaLoaded && showMedia && (
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/50 via-gray-800/50 to-gray-900/50 animate-pulse" />
+      )}
+      
+      {showMedia && isIntersecting ? (
         ((media?.background_type === 'video' || media?.background_type === 'auto') && (activeVideoUrl || media.video_url) && showVideo) ? (
           <video
             ref={videoRef}
             src={(activeVideoUrl !== null ? activeVideoUrl : media.video_url) || undefined}
             playsInline
-            preload="auto"
+            preload={pageKey === 'home' ? 'auto' : 'metadata'}
             muted
             autoPlay
             loop
             poster={(activeVideoUrl && activeVideoUrl === (media as any)?.mobile_video_url
               ? (media as any)?.mobile_poster_url || media.poster_url
               : media.poster_url) || undefined}
-            className={`w-full h-full ${mediaObjectClasses}`}
+            className={`w-full h-full ${mediaObjectClasses} transition-opacity duration-300 ${isMediaLoaded ? 'opacity-100' : 'opacity-0'}`}
             style={transformStyle}
             onLoadedMetadata={(e) => {
               const v = e.currentTarget;
+              setIsMediaLoaded(true);
               if (!explicit || explicit === 'auto') recomputeFit(v.videoWidth, v.videoHeight);
               if (v.paused) { try { import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => {}); } catch { /* ignore */ } }
             }}
           />
         ) : ((media?.background_type === 'image' || media?.background_type === 'auto') && (media?.image_url || (media as any)?.mobile_image_url)) ? (
-          <img
-            src={(typeof window !== 'undefined' && (window.innerWidth < 900 || window.innerHeight > window.innerWidth))
-              ? ((media as any)?.mobile_image_url || media.image_url)
-              : (media.image_url || (media as any)?.mobile_image_url)}
-            alt="Hero background"
-            // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
-            fetchpriority="high"
-            loading="eager"
-            className={`w-full h-full ${mediaObjectClasses}`}
-            style={transformStyle}
-            onLoad={(e) => {
-              if (explicit && explicit !== 'auto') return;
-              const el = e.currentTarget; recomputeFit(el.naturalWidth, el.naturalHeight);
-            }}
-          />
+          <picture>
+            {/* WebP format with responsive sizes */}
+            {supportsWebP && media?.image_url && (
+              <source
+                type="image/webp"
+                srcSet={generateSrcSet(media.image_url, (media as any)?.mobile_image_url) || undefined}
+                sizes="100vw"
+              />
+            )}
+            {/* Fallback to original format */}
+            <img
+              src={(typeof window !== 'undefined' && (window.innerWidth < 900 || window.innerHeight > window.innerWidth))
+                ? ((media as any)?.mobile_image_url || media.image_url)
+                : (media.image_url || (media as any)?.mobile_image_url)}
+              srcSet={generateSrcSet(media.image_url, (media as any)?.mobile_image_url) || undefined}
+              sizes="100vw"
+              alt="Hero background"
+              // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
+              fetchpriority={pageKey === 'home' ? 'high' : 'auto'}
+              loading={pageKey === 'home' ? 'eager' : 'lazy'}
+              className={`w-full h-full ${mediaObjectClasses} transition-opacity duration-300 ${isMediaLoaded ? 'opacity-100' : 'opacity-0'}`}
+              style={transformStyle}
+              onLoad={(e) => {
+                setIsMediaLoaded(true);
+                if (explicit && explicit !== 'auto') return;
+                const el = e.currentTarget; recomputeFit(el.naturalWidth, el.naturalHeight);
+              }}
+            />
+          </picture>
         ) : (
           <div className="hero-bg parallax" data-speed="0.3">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-900/80 via-blue-900/60 to-pink-900/80" />
