@@ -617,7 +617,7 @@ export const Sponsors: React.FC = () => {
                         <Mail className="w-8 h-8 mx-auto text-pink-400 pulse-ring" />
                       </div>
                       <div className="font-semibold mb-2 text-white">Email</div>
-                      <div className="text-sm text-gray-300">ricorrenza2025@college.edu</div>
+                      <div className="text-sm text-gray-300">ricorrenza2026@college.edu</div>
                     </div>
                     <div className="scroll-animate opacity-0 transform translate-y-20 hover-float" style={{ animationDelay: '0.1s' }}>
                       <div className="mb-4">

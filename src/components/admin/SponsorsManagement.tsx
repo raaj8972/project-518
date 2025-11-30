@@ -63,7 +63,7 @@ export const SponsorsManagement: React.FC = () => {
 
   const [settingsForm, setSettingsForm] = useLocalStorage('admin_sponsorship_settings_draft', {
     page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
-    intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
+    intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2026 is made possible by the generous support of our sponsors.',
     call_to_action_text: sponsorshipSettings?.call_to_action_text || 'Interested in Sponsoring?',
     brochure_url: sponsorshipSettings?.brochure_url || '',
     brochure_title: sponsorshipSettings?.brochure_title || 'Download Sponsorship Brochure'
@@ -84,7 +84,7 @@ export const SponsorsManagement: React.FC = () => {
       if (!localStorage.getItem('admin_sponsorship_settings_draft') && sponsorshipSettings) {
         setSettingsForm({
           page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
-          intro_text: sponsorshipSettings.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
+          intro_text: sponsorshipSettings.intro_text || 'RICORRENZA 2026 is made possible by the generous support of our sponsors.',
           call_to_action_text: sponsorshipSettings.call_to_action_text || 'Interested in Sponsoring?',
           brochure_url: sponsorshipSettings.brochure_url || '',
           brochure_title: sponsorshipSettings.brochure_title || 'Download Sponsorship Brochure'
@@ -340,7 +340,7 @@ export const SponsorsManagement: React.FC = () => {
   const handleCancelSettings = () => {
     setSettingsForm({
       page_title: (sponsorshipSettings as any)?.page_title || 'OUR SPONSORS',
-      intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2025 is made possible by the generous support of our sponsors.',
+      intro_text: sponsorshipSettings?.intro_text || 'RICORRENZA 2026 is made possible by the generous support of our sponsors.',
       call_to_action_text: sponsorshipSettings?.call_to_action_text || 'Interested in Sponsoring?',
       brochure_url: sponsorshipSettings?.brochure_url || '',
       brochure_title: sponsorshipSettings?.brochure_title || 'Download Sponsorship Brochure'

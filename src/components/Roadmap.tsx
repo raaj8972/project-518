@@ -33,7 +33,7 @@ const FALLBACK_MILESTONES: Milestone[] = [
   { year: '2019', lines: ['Bollywood Artist Mohammad Irfan', 'Bengals Favourite Anupam Roy', 'Waves in Town Band', '10000+ Footfall'] },
   { year: '2022', lines: ['Develop branding & marketing campaigns', '1000+ Footfall', 'DJ Night', 'Guest Artists'] },
   { year: '2023', lines: ['Bollywood Artist Amit Mishra', 'Ehsaas India Band', 'DJ Nights', 'College Band Homeground'] },
-  { year: '2025', lines: ['Commencement of Ricorrenza'] }
+  { year: '2026', lines: ['Commencement of Ricorrenza'] }
 ];
 
 interface RoadmapProps {
@@ -334,8 +334,8 @@ const Roadmap: React.FC<RoadmapProps> = ({
             // Choose final anchor based on resolved side
             let anchorX = leftSide ? candidateLeftX : candidateRightX;
             let anchorY = leftSide ? candidateLeftY : candidateRightY;
-            if (forceLeft && milestone.year === '2025') {
-              // Preserve special outward shift for 2025 hero milestone
+            if (forceLeft && milestone.year === '2026') {
+              // Preserve special outward shift for 2026 hero milestone
               anchorX -= 24;
             }
             // Clamp inside viewport to be safe

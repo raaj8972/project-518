@@ -15,7 +15,7 @@ const DEFAULT_FALLBACK: { year: number; title: string | null; points: string[]; 
   { year: 2019, title: null, points: ['Bollywood Artist Mohammad Irfan','Bengals Favourite Anupam Roy','Waves in Town Band','10000+ Footfall'], side: 'auto' },
   { year: 2022, title: null, points: ['Develop branding & marketing campaigns','1000+ Footfall','DJ Night','Guest Artists'], side: 'auto' },
   { year: 2023, title: null, points: ['Bollywood Artist Amit Mishra','Ehsaas India Band','DJ Nights','College Band Homeground'], side: 'right' },
-  { year: 2025, title: null, points: ['Commencement of Ricorrenza'], side: 'left' }
+  { year: 2026, title: null, points: ['Commencement of Ricorrenza'], side: 'left' }
 ];
 
 export const RoadmapMilestonesAdmin: React.FC = () => {
