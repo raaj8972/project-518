@@ -104,32 +104,19 @@ export const handler: Handler = async (event) => {
       // Since we have the SERVICE_ROLE key, we can use `admin.generateLink({ type: 'magiclink', email: ... })` and get the `action_link`, then parse the token?
       // Or `admin.signOut`?
       
-      // Let's try `admin.generateLink`.
+      
+      // We need the user's email first
+      const { data: userData } = await supabase.auth.admin.getUserById(passkey.user_id);
+      if (!userData || !userData.user) throw new Error('User not found');
+      
+      // Generate a magic link for the user to establish a session
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
-        email: passkey.user_id, // Wait, we need email. We can fetch it.
+        email: userData.user.email!,
+        options: {
+          redirectTo: ORIGIN, // Use the correct origin (ricorrenza.fun or localhost)
+        },
       });
-      
-      // We need the user's email.
-      const { data: userData } = await supabase.auth.admin.getUserById(passkey.user_id);
-      if (!userData?.user?.email) return { statusCode: 500, body: 'User email not found' };
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.admin.generateLink({
-        type: 'magiclink',
-        email: userData.user.email,
-      });
-
-      if (sessionError || !sessionData.properties?.action_link) {
-         throw sessionError || new Error('Failed to generate session');
-      }
-
-      // The action_link contains the access_token and refresh_token in the hash.
-      // We need to extract them or just return the link?
-      // Returning the link requires the client to follow it.
-      // Better: Use `verifyOtp` with the token?
-      
-      // Actually, if we use `generateLink`, it gives us a `hashed_token`.
-      // Let's use `signInWithOtp` on the server? No.
       
       // ALTERNATIVE: Just return the `user` object and a custom "master token" if we are in a custom auth system?
       // But the client expects a Supabase session.
