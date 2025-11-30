@@ -372,18 +372,12 @@ export const Login: React.FC = () => {
                       onClick={async () => {
                         setIsLoading(true);
                         const res = await loginWithPasskey();
-                        setIsLoading(false);
-                        if (res.success) {
-                          navigate('/admin');
-                        } else {
-                          setError(res.error || 'Passkey login failed');
-                        }
-                      }}
-                      className="cyberpunk-btn cyberpunk-btn-secondary w-full flex items-center justify-center"
+                      onClick={handleBiometricLogin}
                       disabled={isLoading}
+                      className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 text-white py-4 rounded-xl font-semibold hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
-                      <Fingerprint className="mr-2" size={20} />
-                      <span className="relative z-10">LOGIN WITH FACE ID</span>
+                      <Fingerprint className="w-5 h-5" />
+                      <span>{isLoading ? 'Authenticating...' : 'LOGIN WITH BIOMETRIC'}</span>
                     </button>
                   </div>
                 )}

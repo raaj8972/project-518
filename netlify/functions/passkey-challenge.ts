@@ -39,18 +39,23 @@ export const handler: Handler = async (event) => {
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
         rpID: RP_ID,
-        userID: Buffer.from(userId), // Convert string to Uint8Array
         userName: email,
+        userID: Buffer.from(userId),
+        timeout: 60000,
         attestationType: 'none',
         excludeCredentials: existingPasskeys?.map(pk => ({
           id: pk.credential_id,
-          transports: pk.transports,
+          type: 'public-key',
+          transports: pk.transports as AuthenticatorTransportFuture[],
         })) || [],
         authenticatorSelection: {
-          residentKey: 'preferred',
-          userVerification: 'preferred',
-          authenticatorAttachment: 'platform', // Face ID / Touch ID
+          // Allow both platform (Face ID, Touch ID, Windows Hello) and cross-platform (USB keys)
+          authenticatorAttachment: undefined, // Don't restrict - works on all devices
+          requireResidentKey: false, // More compatible with older devices
+          residentKey: 'preferred', // Use resident key if available
+          userVerification: 'preferred', // Prefer biometric but allow PIN as fallback
         },
+        supportedAlgorithmIDs: [-7, -257], // ES256 and RS256 for broad compatibility
       });
 
       // Store challenge

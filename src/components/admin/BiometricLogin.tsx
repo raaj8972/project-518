@@ -105,14 +105,19 @@ export const BiometricLogin: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
             <Fingerprint className="w-6 h-6 text-purple-600 mr-3" />
-            <h3 className="text-lg font-semibold text-gray-900">Face ID / Fingerprint</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Biometric Authentication</h3>
           </div>
         </div>
         <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
           <h4 className="font-medium text-purple-900 mb-2">Passwordless Login</h4>
           <p className="text-sm text-purple-700 mb-4">
-            Register your device's biometric authenticator (Face ID, Touch ID, Windows Hello) for faster and more secure login.
+            Register your device's biometric authenticator for faster and more secure login. Works with:
           </p>
+          <ul className="text-sm text-purple-700 mb-4 ml-4 list-disc">
+            <li><strong>iOS:</strong> Face ID, Touch ID</li>
+            <li><strong>Android:</strong> Fingerprint, Face Unlock</li>
+            <li><strong>Desktop:</strong> Windows Hello, Touch ID</li>
+          </ul>
           <button
             onClick={handleRegisterPasskey}
             disabled={isLoading}
@@ -169,7 +174,9 @@ export const BiometricLogin: React.FC = () => {
         <h4 className="font-medium text-blue-900 mb-2">How It Works</h4>
         <ul className="text-sm text-blue-700 space-y-2">
           <li>• Click "Register New Passkey" and follow your device's prompt</li>
-          <li>• Use Face ID, Touch ID, or Windows Hello on supported devices</li>
+          <li>• <strong>iOS:</strong> Use Face ID or Touch ID</li>
+          <li>• <strong>Android:</strong> Use Fingerprint or Face Unlock</li>
+          <li>• <strong>Desktop:</strong> Use Windows Hello, Touch ID, or security keys</li>
           <li>• Log in without entering your password</li>
           <li>• Your biometric data never leaves your device</li>
           <li>• You can register multiple passkeys for different devices</li>
