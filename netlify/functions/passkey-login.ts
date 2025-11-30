@@ -11,11 +11,14 @@ const ORIGIN = RP_ID === 'localhost' ? 'http://localhost:8888' : `https://${RP_I
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
+  // Declare at function scope for error handling
+  let passkey: any = null;
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
   try {
     const { response } = JSON.parse(event.body || '{}');
     if (!response) return { statusCode: 400, body: JSON.stringify({ error: 'Missing response' }) };
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
     const credentialID = response.id;
     
     console.log('Passkey login attempt');
@@ -23,19 +26,22 @@ export const handler: Handler = async (event) => {
     console.log('Credential ID type:', typeof credentialID);
 
     // 1. Find the passkey in DB
-    const { data: passkey, error: passkeyError } = await supabase
+    const { data: passkeyData, error: passkeyError } = await supabase
       .from('passkeys')
       .select('*')
       .eq('credential_id', credentialID)
       .single();
 
-    console.log('Database query result:', { passkey, passkeyError });
-    if (!passkey) {
+    console.log('Database query result:', { passkey: passkeyData, passkeyError });
+    if (!passkeyData) {
       // Let's also try to list all passkeys to debug
       const { data: allPasskeys } = await supabase.from('passkeys').select('credential_id').limit(5);
       console.log('All passkeys in DB:', allPasskeys);
       return { statusCode: 400, body: JSON.stringify({ error: 'Passkey not found' }) };
     }
+
+    // Assign to function-scoped variable for error handling
+    passkey = passkeyData;
 
     // Rate limiting: Check failed attempts
     const failedAttempts = passkey.failed_attempts || 0;
