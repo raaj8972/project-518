@@ -415,38 +415,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const loginWithPasskey = async (): Promise<{ success: boolean; error?: string }> => {
     try {
       // 1. Get challenge
-      const resp = await fetch('/.netlify/functions/passkey-challenge', {
+      const challengeResp = await fetch('/.netlify/functions/passkey-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login' }),
       });
 
-      if (!resp.ok) throw new Error('Failed to get login challenge');
-      const options = await resp.json();
+      if (!challengeResp.ok) throw new Error('Failed to get login challenge');
+      const options = await challengeResp.json();
 
-      // 2. Prompt user
-      const asseResp = await startAuthentication(options);
+      // 2. Prompt user for passkey
+      const assertion = await startAuthentication(options);
 
-      // 3. Verify
+      // 3. Verify with server
       const verifyResp = await fetch('/.netlify/functions/passkey-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: asseResp }),
+        body: JSON.stringify({ response: assertion }),
       });
 
       if (!verifyResp.ok) {
         const err = await verifyResp.json();
-        throw new Error(err.error || 'Verification failed');
+        throw new Error(err.error || 'Login failed');
       }
 
-      const { redirectUrl } = await verifyResp.json();
-      if (redirectUrl) {
-        // Redirect to magic link to complete login
-        window.location.href = redirectUrl;
+      const result = await verifyResp.json();
+      
+      // 4. Handle the magic link redirect
+      if (result.actionLink) {
+        // Redirect to the action link which contains the session tokens
+        window.location.href = result.actionLink;
         return { success: true };
       }
 
-      return { success: false, error: 'No session returned' };
+      throw new Error('No session returned');
     } catch (error: any) {
       console.error('Passkey login error:', error);
       return { success: false, error: error.message || 'Failed to login with passkey' };
