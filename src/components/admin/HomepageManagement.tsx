@@ -493,18 +493,10 @@ export const HomepageManagement: React.FC = () => {
       {!isEditing && (
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Homepage Settings</h3>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
-              <div className="p-3 bg-gray-50 rounded-lg border">
-                <span className="text-gray-900 font-semibold">{homepageSettings?.hero_title || form.hero_title || 'RICORRENZA'}</span>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Background Media</label>
-              <div className="p-3 bg-gray-50 rounded-lg border">
-                <span className="text-gray-700">{(homepageSettings?.hero_media_type || form.hero_media_type) === 'video' ? 'Video' : 'Image'}</span>
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
+            <div className="p-3 bg-gray-50 rounded-lg border">
+              <span className="text-gray-900 font-semibold">{homepageSettings?.hero_title || form.hero_title || 'RICORRENZA'}</span>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-4">Click <strong>Edit Homepage</strong> to modify the hero title, background and other settings.</p>
@@ -799,147 +791,6 @@ export const HomepageManagement: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Descriptive text below the subtitle</p>
               </div>
-            </div>
-
-            {/* Hero Media Form */}
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Background Media Type</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, hero_media_type: 'image' }))}
-                    className={`p-4 border-2 rounded-lg transition-all duration-200 ${
-                      form.hero_media_type === 'image'
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                    <div className="text-sm font-medium">Image</div>
-                    <div className="text-xs text-gray-500">Static background image</div>
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, hero_media_type: 'video' }))}
-                    className={`p-4 border-2 rounded-lg transition-all duration-200 ${
-                      form.hero_media_type === 'video'
-                        ? 'border-purple-500 bg-purple-50 text-purple-700'
-                        : 'border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <Video className="w-8 h-8 mx-auto mb-2" />
-                    <div className="text-sm font-medium">Video</div>
-                    <div className="text-xs text-gray-500">Animated background video</div>
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Background {form.hero_media_type === 'video' ? 'Video' : 'Image'}
-                </label>
-                <ImageUpload
-                  onImageSelect={handleMediaSelect}
-                  currentImage={form.hero_media_url}
-                  bucket={form.hero_media_type === 'video' ? 'hero-video' : 'hero-media'}
-                  folder="background"
-                  acceptedTypes={form.hero_media_type === 'video' ? 'video/mp4,video/quicktime,video/webm' : 'image/*'}
-                  fileTypeLabel={
-                    form.hero_media_type === 'video' 
-                      ? 'MP4 / MOV / WEBM up to 80MB' 
-                      : 'PNG, JPG, WEBP, GIF up to 5MB'
-                  }
-                  cropAspect={form.hero_media_type === 'video' ? undefined : 16/9}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  {form.hero_media_type === 'video' 
-                    ? 'Upload a video file for an animated background. Recommended: 1920x1080, MP4 format, under 50MB'
-                    : 'Upload an image for the hero background. Recommended: 1920x1080 or higher resolution'
-                  }
-                </p>
-                
-                {form.hero_media_url && (
-                  <button
-                    type="button"
-                    onClick={clearMedia}
-                    className="mt-2 text-red-600 hover:text-red-800 text-sm flex items-center"
-                  >
-                    <X size={14} className="mr-1" />
-                    Remove Media
-                  </button>
-                )}
-              </div>
-
-              {/* Preview */}
-              {form.hero_media_url && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Preview</label>
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    {form.hero_media_type === 'video' ? (
-                      <video
-                        src={form.hero_media_url}
-                        className="w-full h-48 object-cover"
-                        controls
-                        muted
-                        loop
-                      />
-                    ) : (
-                      <img
-                        src={form.hero_media_url}
-                        alt="Hero background preview"
-                        className="w-full h-48 object-cover"
-                      />
-                    )}
-                    <div className="p-3 bg-gray-50">
-                      <div className="text-center">
-                        <div className="mb-3">
-                          <label className="block text-sm font-medium text-gray-700">Hero Title</label>
-                          <input
-                            type="text"
-                            value={form.hero_title}
-                            onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
-                          />
-                        </div>
-                        <div className="mb-3">
-                          <label className="block text-sm font-medium text-gray-700">Hero Subtitle</label>
-                          <input
-                            type="text"
-                            value={form.hero_subtitle}
-                            onChange={(e) => setForm(prev => ({ ...prev, hero_subtitle: e.target.value }))}
-                            className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
-                          />
-                        </div>
-                        <h4 className="text-lg font-bold text-gray-900 mb-1">{form.hero_title}</h4>
-                        <p className="text-sm text-gray-600 mb-2">{form.hero_subtitle}</p>
-                        <p className="text-xs text-gray-500">{form.hero_description}</p>
-                      </div>
-                      
-                      {/* Sponsor Logo Preview */}
-                      {homepageSettings?.sponsor_section_enabled && homepageSettings?.sponsor_logos && homepageSettings.sponsor_logos.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <p className="text-xs text-gray-500 mb-2">{homepageSettings.sponsor_section_text}</p>
-                          <div className="flex flex-wrap justify-center items-center gap-4">
-                            {(homepageSettings.sponsor_logos as SponsorLogo[])
-                              .filter((logo: SponsorLogo) => logo.enabled)
-                              .sort((a: SponsorLogo, b: SponsorLogo) => a.order - b.order)
-                              .map((logo: SponsorLogo) => (
-                                <img
-                                  key={logo.id}
-                                  src={sanitizeUrl(logo.logo_url)}
-                                  alt={logo.name}
-                                  className="h-8 opacity-80"
-                                />
-                              ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
