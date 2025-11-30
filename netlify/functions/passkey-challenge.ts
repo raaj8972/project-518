@@ -46,7 +46,7 @@ export const handler: Handler = async (event) => {
         excludeCredentials: existingPasskeys?.map(pk => ({
           id: pk.credential_id,
           type: 'public-key',
-          transports: pk.transports as AuthenticatorTransportFuture[],
+          transports: pk.transports as any[],
         })) || [],
         authenticatorSelection: {
           // Allow both platform (Face ID, Touch ID, Windows Hello) and cross-platform (USB keys)
