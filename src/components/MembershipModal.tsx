@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Building, MessageSquare, CheckCircle, Zap, Terminal, Shield } from 'lucide-react';
+import { X, User, Mail, Phone, Building, CheckCircle, Zap, Terminal, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 interface MembershipModalProps {
@@ -20,7 +20,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { addMembership } = useData();
+  const { addMembership, coreCommittees } = useData();
   const [formData, setFormData] = useState<MembershipData>({
     participant_type: '1st Year',
     full_name: '',
@@ -292,20 +292,23 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
                   )}
                 </div>
 
-                {/* College/Department */}
+                {/* Core Committee/Department */}
                 <div className="cyberpunk-section">
                   <label className="cyberpunk-label">
-                    COLLEGE_DEPARTMENT *
+                    CORE_COMMITTEE *
                   </label>
                   <div className="relative">
                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
-                    <input
-                      type="text"
+                    <select
                       value={formData.college_department}
                       onChange={(e) => handleInputChange('college_department', e.target.value)}
-                      placeholder="Your college and department"
-                      className={`cyberpunk-input pl-12 ${errors.college_department ? 'error' : ''}`}
-                    />
+                      className={`cyberpunk-select pl-12 ${errors.college_department ? 'error' : ''}`}
+                    >
+                      <option value="">Select core committee</option>
+                      {(coreCommittees || []).map(committee => (
+                        <option key={committee.id} value={committee.name}>{committee.name}</option>
+                      ))}
+                    </select>
                   </div>
                   {errors.college_department && (
                     <p className="cyberpunk-error">{errors.college_department}</p>

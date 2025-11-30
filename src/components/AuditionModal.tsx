@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Music, MessageSquare, CheckCircle, Link, Zap, Shield } from 'lucide-react';
+import { X, User, Mail, Phone, Music, Building, CheckCircle, Link, Zap, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 interface AuditionModalProps {
@@ -12,6 +12,7 @@ interface AuditionData {
   full_name: string;
   email: string;
   phone: string;
+  core_committee: string;
   instrument_role: string;
   experience_motivation: string;
   portfolio_link: string;
@@ -21,12 +22,13 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { addAudition } = useData();
+  const { addAudition, coreCommittees } = useData();
   const [formData, setFormData] = useState<AuditionData>({
     participant_type: '1st Year',
     full_name: '',
     email: '',
     phone: '',
+    core_committee: '',
     instrument_role: '',
     experience_motivation: '',
     portfolio_link: ''
@@ -98,6 +100,10 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       newErrors.phone = 'Please enter a valid phone number';
     }
 
+    if (!formData.core_committee.trim()) {
+      newErrors.core_committee = 'Core committee is required';
+    }
+
     if (!formData.instrument_role.trim()) {
       newErrors.instrument_role = 'Instrument/Role is required';
     }
@@ -130,6 +136,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
+        core_committee: formData.core_committee,
         instrument_role: formData.instrument_role,
         experience_motivation: formData.experience_motivation || '',
         portfolio_link: formData.portfolio_link || null,
@@ -188,6 +195,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       full_name: '',
       email: '',
       phone: '',
+      core_committee: '',
       instrument_role: '',
       experience_motivation: '',
       portfolio_link: ''
@@ -330,6 +338,29 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                   </div>
                   {errors.full_name && (
                     <p className="cyberpunk-error">{errors.full_name}</p>
+                  )}
+                </div>
+
+                {/* Core Committee */}
+                <div className="cyberpunk-section">
+                  <label className="cyberpunk-label">
+                    CORE_COMMITTEE *
+                  </label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
+                    <select
+                      value={formData.core_committee}
+                      onChange={(e) => handleInputChange('core_committee', e.target.value)}
+                      className={`cyberpunk-select pl-12 ${errors.core_committee ? 'error' : ''}`}
+                    >
+                      <option value="">Select core committee</option>
+                      {(coreCommittees || []).map(committee => (
+                        <option key={committee.id} value={committee.name}>{committee.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {errors.core_committee && (
+                    <p className="cyberpunk-error">{errors.core_committee}</p>
                   )}
                 </div>
 
