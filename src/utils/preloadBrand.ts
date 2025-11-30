@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 
 /**
  * Dynamically inject preload links for ALL uploaded media across the site
- * Preloads: brand logo, hero media, committee photos, faculty, events, sponsors
+ * Preloads: brand logo, hero media, committee photos, faculty, events, sponsors, guest artists
  * Run this before React mounts to ensure instant loading
  */
 async function preloadBrandAssets() {
@@ -98,6 +98,20 @@ async function preloadBrandAssets() {
       }
     }
 
+    // 6. Fetch guest/featured artists
+    const { data: artists } = await supabase
+      .from('guest_artists')
+      .select('image_url')
+      .not('image_url', 'is', null);
+
+    if (artists) {
+      for (const artist of artists) {
+        if (artist.image_url) {
+          assetsToPreload.push({ url: artist.image_url, type: 'image' });
+        }
+      }
+    }
+
     // Inject preload links for each unique asset
     const uniqueUrls = new Set<string>();
     
@@ -133,7 +147,7 @@ async function preloadBrandAssets() {
       document.head.appendChild(preloadLink);
     }
 
-    console.log(`[Preload] Loaded ${uniqueUrls.size} assets (logos, photos, events, sponsors)`);
+    console.log(`[Preload] Loaded ${uniqueUrls.size} assets (brand, hero, committee, faculty, events, sponsors, artists)`);
   } catch (err) {
     console.warn('[Preload] Failed to preload assets:', err);
   }
