@@ -4,9 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const RP_ID = process.env.CONTEXT === 'production' ? 'ricorrenza.fun' : 'localhost';
+// Use ricorrenza.fun for production, localhost only for local dev
+const RP_ID = process.env.URL?.includes('localhost') || process.env.CONTEXT === 'dev' ? 'localhost' : 'ricorrenza.fun';
 const RP_NAME = 'Ricorrenza Admin';
-const ORIGIN = process.env.CONTEXT === 'production' ? `https://${RP_ID}` : 'http://localhost:8888';
+const ORIGIN = RP_ID === 'localhost' ? 'http://localhost:8888' : `https://${RP_ID}`;
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
