@@ -123,14 +123,44 @@ export const handler: Handler = async (event) => {
         throw new Error('Failed to create session');
       }
 
-      console.log('Link data structure:', JSON.stringify(linkData, null, 2));
+      console.log('Link data keys:', Object.keys(linkData));
+      console.log('Properties keys:', Object.keys(linkData.properties || {}));
 
-      // Extract tokens from the action_link
+      // The generateLink response contains hashed_token which we can use
+      if (linkData.properties.hashed_token) {
+        // Use verifyOtp to convert the hashed token into a session
+        const { data: session, error: sessionError } = await supabase.auth.verifyOtp({
+          type: 'magiclink',
+          token_hash: linkData.properties.hashed_token,
+        });
+        
+        if (sessionError || !session) {
+          console.error('Session verification error:', sessionError);
+          throw new Error('Failed to verify session');
+        }
+        
+        console.log('Session created successfully');
+        
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            success: true,
+            session: {
+              access_token: session.session.access_token,
+              refresh_token: session.session.refresh_token,
+              expires_in: session.session.expires_in,
+              token_type: session.session.token_type,
+            },
+          }),
+        };
+      }
+
+      // Fallback: try to extract from action_link
       const actionLink = linkData.properties?.action_link;
       
       if (!actionLink) {
-        console.error('No action_link in response. Available properties:', Object.keys(linkData.properties || {}));
-        throw new Error('No action link in response');
+        console.error('No hashed_token or action_link in response');
+        throw new Error('No session data in response');
       }
       
       console.log('Action link:', actionLink);
