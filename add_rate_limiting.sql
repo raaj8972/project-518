@@ -1,4 +1,4 @@
---Add failed_attempts and last_attempt_at columns to passkeys table for rate limiting
+-- Add failed_attempts and last_attempt_at columns to passkeys table for rate limiting
 ALTER TABLE public.passkeys 
 ADD COLUMN IF NOT EXISTS failed_attempts integer DEFAULT 0,
 ADD COLUMN IF NOT EXISTS last_attempt_at timestamptz;
