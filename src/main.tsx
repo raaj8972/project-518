@@ -1,12 +1,8 @@
-```typescript
 import './shims/envShims';
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+import './utils/preloadBrand'; // Auto-preload uploaded brand logos
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import './index.css';
-
-// Preload brand logo before React mounts (runs async, non-blocking)
-import './utils/preloadBrand';
 
 const rootEl = document.getElementById('root')!;
 
