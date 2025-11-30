@@ -118,22 +118,32 @@ export const handler: Handler = async (event) => {
         },
       });
       
-      // ALTERNATIVE: Just return the `user` object and a custom "master token" if we are in a custom auth system?
-      // But the client expects a Supabase session.
-      
-      // Let's look at `createSession` again. It exists in `admin.createSession` in some versions.
-      // If not, we can use the `action_link` and fetch it on the server to get the session?
-      // Or just return the `action_link` and let the client `window.location.href` to it?
-      // That would work! It redirects to the app with the session.
-      
       if (linkError || !linkData) throw new Error('Failed to create session');
 
-      // Return the token parts from the magic link
+      // Extract tokens from the action_link
+      const actionLink = linkData.properties.action_link;
+      const url = new URL(actionLink);
+      const hashParams = new URLSearchParams(url.hash.substring(1)); // Remove the '#'
+      
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const expiresIn = hashParams.get('expires_in');
+      
+      if (!accessToken || !refreshToken) {
+        throw new Error('Failed to extract session tokens');
+      }
+
+      // Return the tokens directly so the client can establish the session
       return {
         statusCode: 200,
         body: JSON.stringify({ 
           success: true,
-          actionLink: linkData.properties.action_link,
+          session: {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expires_in: parseInt(expiresIn || '3600'),
+            token_type: 'bearer',
+          },
         }),
       };
     }

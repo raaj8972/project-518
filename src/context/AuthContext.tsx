@@ -441,10 +441,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       const result = await verifyResp.json();
       
-      // 4. Handle the magic link redirect
-      if (result.actionLink) {
-        // Redirect to the action link which contains the session tokens
-        window.location.href = result.actionLink;
+      // 4. Set the session using the returned tokens
+      if (result.session) {
+        const { error } = await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token,
+        });
+        
+        if (error) throw error;
+        
+        // Reload to update the auth state
+        window.location.href = '/admin';
         return { success: true };
       }
 
