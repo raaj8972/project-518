@@ -126,11 +126,14 @@ export const handler: Handler = async (event) => {
       // Or just return the `action_link` and let the client `window.location.href` to it?
       // That would work! It redirects to the app with the session.
       
+      if (linkError || !linkData) throw new Error('Failed to create session');
+
+      // Return the token parts from the magic link
       return {
         statusCode: 200,
         body: JSON.stringify({ 
-          verified: true, 
-          redirectUrl: sessionData.properties.action_link 
+          success: true,
+          actionLink: linkData.properties.action_link,
         }),
       };
     }
