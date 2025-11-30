@@ -17,18 +17,25 @@ export const handler: Handler = async (event) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // 1. Retrieve the challenge from DB
-    // We need to find the challenge associated with this user (or just the challenge string if we passed it back)
-    // For security, we should look up by user_id and ensure it's recent
+    // 1. Fetch the most recent challenge for this user
     const { data: challengeData } = await supabase
       .from('passkey_challenges')
-      .select('challenge')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
 
     if (!challengeData) return { statusCode: 400, body: JSON.stringify({ error: 'Challenge not found or expired' }) };
+
+    // 1.5. Validate challenge hasn't expired (5 minute window)
+    const expiresAt = new Date(challengeData.expires_at);
+    const now = new Date();
+    if (now > expiresAt) {
+      // Delete expired challenge
+      await supabase.from('passkey_challenges').delete().eq('id', challengeData.id);
+      return { statusCode: 400, body: JSON.stringify({ error: 'Challenge expired. Please try again.' }) };
+    }
 
     // 2. Verify the response
     const verification = await verifyRegistrationResponse({
@@ -65,8 +72,8 @@ export const handler: Handler = async (event) => {
 
 
 
-      // Cleanup challenge
-      await supabase.from('passkey_challenges').delete().eq('user_id', userId);
+      // Cleanup challenge (single-use enforcement)
+      await supabase.from('passkey_challenges').delete().eq('id', challengeData.id);
 
       return { statusCode: 200, body: JSON.stringify({ verified: true }) };
     }

@@ -37,6 +37,31 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'Passkey not found' }) };
     }
 
+    // Rate limiting: Check failed attempts
+    const failedAttempts = passkey.failed_attempts || 0;
+    const lastAttemptAt = passkey.last_attempt_at ? new Date(passkey.last_attempt_at) : null;
+    const now = new Date();
+    
+    // If 5 or more failed attempts, check if lockout period (5 minutes) has passed
+    if (failedAttempts >= 5 && lastAttemptAt) {
+      const lockoutEndTime = new Date(lastAttemptAt.getTime() + 5 * 60 * 1000); // 5 minutes
+      if (now < lockoutEndTime) {
+        const remainingMinutes = Math.ceil((lockoutEndTime.getTime() - now.getTime()) / 60000);
+        return { 
+          statusCode: 429, 
+          body: JSON.stringify({ 
+            error: `Too many failed attempts. Please try again in ${remainingMinutes} minute(s).` 
+          }) 
+        };
+      } else {
+        // Lockout period passed, reset counter
+        await supabase
+          .from('passkeys')
+          .update({ failed_attempts: 0, last_attempt_at: null })
+          .eq('id', passkey.id);
+      }
+    }
+
     // 2. Retrieve the challenge (we might need to store it by a session ID or just look for *any* recent challenge if we don't have user ID yet)
     // In a real app, we'd pass a temporary session ID. For simplicity, we'll check the most recent challenge.
     // A better way is to pass the challenge ID back from the client if we stored it there.
@@ -66,6 +91,15 @@ export const handler: Handler = async (event) => {
 
     if (!challengeRecord) return { statusCode: 400, body: JSON.stringify({ error: 'Invalid or expired challenge' }) };
 
+    // Validate challenge hasn't expired
+    const expiresAt = new Date(challengeRecord.expires_at);
+    const nowChallenge = new Date();
+    if (nowChallenge > expiresAt) {
+      // Delete expired challenge
+      await supabase.from('passkey_challenges').delete().eq('id', challengeRecord.id);
+      return { statusCode: 400, body: JSON.stringify({ error: 'Challenge expired. Please try again.' }) };
+    }
+
     // 3. Verify
     const verification = await verifyAuthenticationResponse({
       response,
@@ -83,8 +117,13 @@ export const handler: Handler = async (event) => {
     if (verification.verified) {
       const { newCounter } = verification.authenticationInfo;
 
-      // Update counter
-      await supabase.from('passkeys').update({ counter: newCounter, last_used_at: new Date() }).eq('id', passkey.id);
+      // Update counter and reset failed attempts on successful login
+      await supabase.from('passkeys').update({ 
+        counter: newCounter, 
+        last_used_at: new Date(),
+        failed_attempts: 0,
+        last_attempt_at: null
+      }).eq('id', passkey.id);
 
       // Cleanup challenge
       await supabase.from('passkey_challenges').delete().eq('id', challengeRecord.id);
@@ -108,6 +147,11 @@ export const handler: Handler = async (event) => {
       // We need the user's email first
       const { data: userData } = await supabase.auth.admin.getUserById(passkey.user_id);
       if (!userData || !userData.user) throw new Error('User not found');
+      
+      // Validate user account status
+      if (!userData.user.email_confirmed_at && !userData.user.phone_confirmed_at) {
+        throw new Error('Account not verified');
+      }
       
       // Generate a magic link for the user to establish a session
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
@@ -210,6 +254,16 @@ export const handler: Handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ verified: false }) };
   } catch (error: any) {
     console.error('Login error:', error);
+    
+    // Increment failed attempts if passkey was found
+    if (passkey) {
+      const currentAttempts = (passkey.failed_attempts || 0) + 1;
+      await supabase.from('passkeys').update({
+        failed_attempts: currentAttempts,
+        last_attempt_at: new Date()
+      }).eq('id', passkey.id);
+    }
+    
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
