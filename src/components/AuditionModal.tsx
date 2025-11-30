@@ -420,23 +420,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                 <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your music portfolio or social media</p>
               </div>
 
-              {/* Experience/Motivation */}
-              <div className="cyberpunk-section">
-                <label className="cyberpunk-label">
-                  EXPERIENCE_MOTIVATION (OPTIONAL)
-                </label>
-                <div className="relative">
-                  <MessageSquare className="absolute left-3 top-3 md:top-1/2 md:-translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />
-                  <textarea
-                    value={formData.experience_motivation}
-                    onChange={(e) => handleInputChange('experience_motivation', e.target.value)}
-                    placeholder="Tell us about your musical experience and why you want to join Home Bound..."
-                    rows={4}
-                    className="cyberpunk-textarea pl-12"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1 font-mono">Optional: Share your musical background and motivation</p>
-              </div>
+
 
               {/* Submit Button */}
               <div className="pt-4 border-t border-cyan-500/30">
