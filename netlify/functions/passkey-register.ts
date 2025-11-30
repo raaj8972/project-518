@@ -38,6 +38,7 @@ export const handler: Handler = async (event) => {
       expectedRPID: RP_ID,
     });
 
+
     if (verification.verified && verification.registrationInfo) {
       const { credential } = verification.registrationInfo || {};
       if (!credential || !credential.id || !credential.publicKey) throw new Error('Missing registration info');
@@ -46,17 +47,26 @@ export const handler: Handler = async (event) => {
       const credentialID = credential.id;
       const credentialPublicKey = credential.publicKey;
       const counter = credential.counter;
+      
+      // Convert to base64url for storage
+      const credentialIDString = Buffer.from(credentialID).toString('base64url');
+      
+      console.log('Registering passkey:');
+      console.log('Credential ID (Uint8Array):', credentialID);
+      console.log('Credential ID (base64url):', credentialIDString);
+      console.log('Response ID from client:', response.id);
 
       // 3. Save to DB - convert Uint8Array to base64url string
       const { error } = await supabase.from('passkeys').insert({
         user_id: userId,
-        credential_id: Buffer.from(credentialID).toString('base64url'),
+        credential_id: credentialIDString,
         public_key: Buffer.from(credentialPublicKey).toString('base64url'),
         counter,
         transports: response.response.transports || [],
       });
 
       if (error) throw error;
+
 
       // Cleanup challenge
       await supabase.from('passkey_challenges').delete().eq('user_id', userId);
