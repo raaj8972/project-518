@@ -122,12 +122,28 @@ export const handler: Handler = async (event) => {
 
       // Extract tokens from the action_link
       const actionLink = linkData.properties.action_link;
-      const url = new URL(actionLink);
-      const hashParams = new URLSearchParams(url.hash.substring(1)); // Remove the '#'
+      console.log('Action link:', actionLink);
       
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-      const expiresIn = hashParams.get('expires_in');
+      const url = new URL(actionLink);
+      
+      // Try hash params first (format: #access_token=...)
+      let hashParams = new URLSearchParams(url.hash.substring(1));
+      let accessToken = hashParams.get('access_token');
+      let refreshToken = hashParams.get('refresh_token');
+      let expiresIn = hashParams.get('expires_in');
+      
+      // If not in hash, try query params (format: ?access_token=...)
+      if (!accessToken) {
+        accessToken = url.searchParams.get('access_token');
+        refreshToken = url.searchParams.get('refresh_token');
+        expiresIn = url.searchParams.get('expires_in');
+      }
+      
+      console.log('Extracted tokens:', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken,
+        expiresIn 
+      });
       
       if (!accessToken || !refreshToken) {
         throw new Error('Failed to extract session tokens');
