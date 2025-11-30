@@ -118,10 +118,21 @@ export const handler: Handler = async (event) => {
         },
       });
       
-      if (linkError || !linkData) throw new Error('Failed to create session');
+      if (linkError || !linkData) {
+        console.error('Link generation error:', linkError);
+        throw new Error('Failed to create session');
+      }
+
+      console.log('Link data structure:', JSON.stringify(linkData, null, 2));
 
       // Extract tokens from the action_link
-      const actionLink = linkData.properties.action_link;
+      const actionLink = linkData.properties?.action_link;
+      
+      if (!actionLink) {
+        console.error('No action_link in response. Available properties:', Object.keys(linkData.properties || {}));
+        throw new Error('No action link in response');
+      }
+      
       console.log('Action link:', actionLink);
       
       const url = new URL(actionLink);
@@ -146,6 +157,8 @@ export const handler: Handler = async (event) => {
       });
       
       if (!accessToken || !refreshToken) {
+        console.error('Hash params:', url.hash);
+        console.error('Query params:', url.search);
         throw new Error('Failed to extract session tokens');
       }
 
