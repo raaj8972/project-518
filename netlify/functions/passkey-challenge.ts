@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const RP_ID = process.env.CONTEXT === 'production' ? 'ricorrenza-2026.netlify.app' : 'localhost';
+const RP_ID = process.env.CONTEXT === 'production' ? 'ricorrenza.fun' : 'localhost';
 const RP_NAME = 'Ricorrenza Admin';
 const ORIGIN = process.env.CONTEXT === 'production' ? `https://${RP_ID}` : 'http://localhost:8888';
 
