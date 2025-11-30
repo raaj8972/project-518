@@ -20,7 +20,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { addMembership, coreCommittees } = useData();
+  const { addMembership, coreCommittees, siteSettings } = useData();
   const [formData, setFormData] = useState<MembershipData>({
     participant_type: '1st Year',
     full_name: '',
@@ -44,14 +44,20 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
     });
   }, [isSubmitted]);
 
-  const participantTypes = [
-    '1st Year',
-    '2nd Year', 
-    '3rd Year',
-    '4th Year',
-    'Intern',
-    'PG (Post Graduate)'
-  ];
+  const participantTypes = React.useMemo(() => {
+    try {
+      const s = (siteSettings as any)?.registration_participant_types;
+      if (Array.isArray(s) && s.length) return s;
+    } catch {}
+    return [
+      '1st Year',
+      '2nd Year', 
+      '3rd Year',
+      '4th Year',
+      'Intern',
+      'PG (Post Graduate)'
+    ];
+  }, [siteSettings]);
 
   // Glitch effect trigger
   useEffect(() => {
