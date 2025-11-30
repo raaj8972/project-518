@@ -134,7 +134,7 @@ export const handler: Handler = async (event) => {
           token_hash: linkData.properties.hashed_token,
         });
         
-        if (sessionError || !session) {
+        if (sessionError || !session?.session) {
           console.error('Session verification error:', sessionError);
           throw new Error('Failed to verify session');
         }
