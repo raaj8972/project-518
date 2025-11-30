@@ -43,29 +43,26 @@ export const handler: Handler = async (event) => {
       const { credential } = verification.registrationInfo || {};
       if (!credential || !credential.id || !credential.publicKey) throw new Error('Missing registration info');
 
-      // credential.id and credential.publicKey are already Uint8Arrays
-      const credentialID = credential.id;
+      // Use response.id directly - it's already base64url encoded and matches what the browser sends during login
+      const credentialID = response.id;
       const credentialPublicKey = credential.publicKey;
       const counter = credential.counter;
       
-      // Convert to base64url for storage
-      const credentialIDString = Buffer.from(credentialID).toString('base64url');
-      
       console.log('Registering passkey:');
-      console.log('Credential ID (Uint8Array):', credentialID);
-      console.log('Credential ID (base64url):', credentialIDString);
-      console.log('Response ID from client:', response.id);
+      console.log('Credential ID to save:', credentialID);
+      console.log('User ID:', userId);
 
-      // 3. Save to DB - convert Uint8Array to base64url string
+      // 3. Save to DB
       const { error } = await supabase.from('passkeys').insert({
         user_id: userId,
-        credential_id: credentialIDString,
+        credential_id: credentialID, // Already base64url from response.id
         public_key: Buffer.from(credentialPublicKey).toString('base64url'),
         counter,
         transports: response.response.transports || [],
       });
 
       if (error) throw error;
+
 
 
       // Cleanup challenge
