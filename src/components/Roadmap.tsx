@@ -363,14 +363,15 @@ const Roadmap: React.FC<RoadmapProps> = ({
                   >
                     {milestone.year}
                   </h3>
-                  <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300 list-disc pl-4`}>
+                  <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300 list-none pl-0`}>
                     {milestone.lines.map((l, j) => (
                       <li
                         key={j}
-                        className={`transition-all duration-500 ${active ? 'opacity-100' : 'opacity-80'} ${isRevealed ? 'translate-x-0 opacity-100' : (leftSide ? 'translate-x-2 opacity-0' : '-translate-x-2 opacity-0')}`}
+                        className={`transition-all duration-500 ${active ? 'opacity-100' : 'opacity-80'} ${isRevealed ? 'translate-x-0 opacity-100' : (leftSide ? 'translate-x-2 opacity-0' : '-translate-x-2 opacity-0')} flex items-start gap-2`}
                         style={{ transitionDelay: isRevealed ? `${120 + j * 80}ms` : '0ms' }}
                       >
-                        {l}
+                        <span className="heartbeat-bullet inline-block w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 flex-shrink-0" />
+                        <span className="flex-1">{l}</span>
                       </li>
                     ))}
                   </ul>
@@ -429,6 +430,14 @@ const Roadmap: React.FC<RoadmapProps> = ({
       )}
       <style>{`
         @keyframes dash { to { stroke-dashoffset: -800; } }
+        @keyframes heartbeat {
+          0%, 100% { transform: scale(1); }
+          10%, 30% { transform: scale(0.9); }
+          20%, 40% { transform: scale(1.1); }
+        }
+        .heartbeat-bullet {
+          animation: heartbeat 1.5s ease-in-out infinite;
+        }
       `}</style>
     </section>
   );
