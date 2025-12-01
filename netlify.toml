@@ -3,6 +3,14 @@
   command = "npm run build"
   publish = "dist"
 
+# Netlify Image CDN configuration
+[images]
+  # Enable remote image fetching (for Supabase images)
+  remote_images = [
+    "https://*.supabase.co/*",
+    "https://*.supabase.in/*"
+  ]
+
 # Ensure clean URLs and SPA history fallback
 [[redirects]]
   from = "/api/*"
