@@ -102,8 +102,8 @@ const Roadmap: React.FC<RoadmapProps> = ({
   // Mobile responsiveness heuristics
   const isMobile = containerWidth > 0 && containerWidth < 640;
   const effectiveHeight = isMobile ? Math.min(height, 900) : height; // reduce vertical scroll load on small screens
-  const milestoneWidth = isMobile ? 240 : 340;
-  const sideNormalDistance = isMobile ? Math.min(textNormalDistance, 90) : textNormalDistance;
+  const milestoneWidth = isMobile ? 160 : 340;
+  const sideNormalDistance = isMobile ? Math.min(textNormalDistance, 60) : textNormalDistance;
 
   const pathD = buildPathD(viewWidth, effectiveHeight);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -363,7 +363,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                   >
                     {milestone.year}
                   </h3>
-                  <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300`}>
+                  <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300 list-disc pl-4`}>
                     {milestone.lines.map((l, j) => (
                       <li
                         key={j}
