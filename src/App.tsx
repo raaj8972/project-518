@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import React from 'react';
+import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home'; // keep Home eager for fast first paint
@@ -21,7 +22,9 @@ const RicoFamily = React.lazy(() => import('./pages/RicoFamily').then(m => ({ de
 const Sponsors = React.lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
+
 const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
+const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
@@ -327,7 +330,7 @@ function App() {
             { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
             { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
             { path: 'health', element: <Home /> },
-            { path: '*', element: <Home /> }
+            { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
           ]
         }
       ],
@@ -348,7 +351,9 @@ function App() {
       <DataProvider>
         <ToastProvider>
           <SavingProgressProvider>
-            <InnerRouter />
+            <HelmetProvider>
+              <InnerRouter />
+            </HelmetProvider>
           </SavingProgressProvider>
         </ToastProvider>
       </DataProvider>

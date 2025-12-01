@@ -4,6 +4,7 @@ import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap, Fingerprint } 
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { SEO } from '../components/SEO';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -103,6 +104,11 @@ export const Login: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Login" 
+        description="Admin login for RICORRENZA 2026 management dashboard." 
+        canonical="https://ricorrenza.fun/login" 
+      />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
         {/* Video Background - Fixed to cover entire page */}

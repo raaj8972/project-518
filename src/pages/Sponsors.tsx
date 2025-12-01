@@ -5,6 +5,7 @@ import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
+import { SEO } from '../components/SEO';
 
 export const Sponsors: React.FC = () => {
   const { sponsors, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
@@ -194,6 +195,11 @@ export const Sponsors: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Sponsors" 
+        description="Our valued partners and sponsors for RICORRENZA 2026." 
+        canonical="https://ricorrenza.fun/sponsors" 
+      />
       {/* One-time mobile scroll hint */}
       <ScrollHint />
       {/* Hero Section */}

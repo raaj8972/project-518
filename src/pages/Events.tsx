@@ -11,6 +11,7 @@ import { RegistrationModal } from '../components/RegistrationModal';
 import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
+import { SEO } from '../components/SEO';
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -452,6 +453,11 @@ export const Events: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Events" 
+        description="Explore the diverse range of cultural, technical, and sports events at RICORRENZA 2026." 
+        canonical="https://ricorrenza.fun/events" 
+      />
       {/* One-time mobile scroll hint */}
       <ScrollHint />
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}

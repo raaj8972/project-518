@@ -11,6 +11,7 @@ import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
 import ScrollHint from '../components/ScrollHint';
+import { SEO } from '../components/SEO';
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee')) as unknown as React.ComponentType<any>;
 const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal')) as unknown as React.ComponentType<any>;
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
@@ -200,6 +201,11 @@ export const RicoFamily: React.FC = () => {
 
   return (
   <div className="neon-theme min-h-screen">
+    <SEO 
+      title="Rico Family" 
+      description="Meet the team behind RICORRENZA 2026 - Faculty, Council, and Committee members." 
+      canonical="https://ricorrenza.fun/rico-family" 
+    />
     {/* One-time mobile scroll hint */}
     <ScrollHint />
       <style>{`

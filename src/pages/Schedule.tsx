@@ -7,6 +7,7 @@ import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import HeroBackground from '../components/HeroBackground';
 // Registration is disabled on Schedule; users will open the event card instead.
 import ScrollHint from '../components/ScrollHint';
+import { SEO } from '../components/SEO';
 
 export const Schedule: React.FC = () => {
   const { schedule, loading, events, guestArtists, eventCoordinators } = useData() as any;
@@ -224,6 +225,11 @@ export const Schedule: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Schedule" 
+        description="Check the complete timeline of events for RICORRENZA 2026." 
+        canonical="https://ricorrenza.fun/schedule" 
+      />
       {/* One-time mobile scroll hint */}
       <ScrollHint />
       {/* Hero Section */}

@@ -6,6 +6,7 @@ import PreserveNewlines from '../components/PreserveNewlines';
 import { AuditionModal } from '../components/AuditionModal';
 import FlipCard, { FlipCardHandle } from '../components/FlipCard';
 import ScrollHint from '../components/ScrollHint';
+import { SEO } from '../components/SEO';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings } = useData();
@@ -134,6 +135,11 @@ export const HomeBound: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Home Bound" 
+        description="The official band of RICORRENZA 2026." 
+        canonical="https://ricorrenza.fun/home-bound" 
+      />
       {/* One-time mobile scroll hint */}
       <ScrollHint />
       {/* Hero Section */}

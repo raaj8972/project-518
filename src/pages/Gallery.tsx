@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import DomeGallery from '../components/DomeGallery';
+import { SEO } from '../components/SEO';
 
 export const Gallery: React.FC = () => {
   const { galleryImages, eventCategories, loading } = useData() as any;
@@ -100,6 +101,11 @@ export const Gallery: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO 
+        title="Gallery" 
+        description="Relive the best moments from past RICORRENZA festivals." 
+        canonical="https://ricorrenza.fun/gallery" 
+      />
       {/* Hero Section */}
       {/* Hero Section removed as per request */}
 

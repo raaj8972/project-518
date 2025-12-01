@@ -20,6 +20,7 @@ const Roadmap = React.lazy(() => import('../components/Roadmap'));
 // import Sparkle3D from '../components/Sparkle3D';
 import PreserveNewlines from '../components/PreserveNewlines';
 import InlineArtistPreview from '../components/InlineArtistPreview';
+import { SEO } from '../components/SEO';
 
 const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|ogv|ogg|avi)$/i;
 const looksLikeVideoAsset = (url?: string | null) => {
@@ -394,6 +395,7 @@ export const Home: React.FC = () => {
 
   return (
     <div className="cyberpunk-theme min-h-screen">
+      <SEO />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Media via unified component */}
