@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import DomeGallery from '../components/DomeGallery';
-import HeroBackground from '../components/HeroBackground';
 
 export const Gallery: React.FC = () => {
   const { galleryImages, eventCategories, loading } = useData() as any;
@@ -102,31 +101,10 @@ export const Gallery: React.FC = () => {
   return (
     <div className="cyberpunk-theme min-h-screen">
       {/* Hero Section */}
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-        <HeroBackground pageKey="gallery" />
-
-        {/* Floating Particles removed */}
-
-        {/* Hero Content */}
-        <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
-            <div className="inline-flex items-center bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm">
-              <ImageIcon className="w-4 h-4 mr-2 animate-pulse" />
-              DIGITAL MEMORIES
-            </div>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title">
-              <span className="neon-purple">GALLERY</span>
-            </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              Relive the <span className="neon-pink">magic</span> of RICORRENZA through our 
-              <span className="neon-blue"> curated collection</span> of digital memories
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Hero Section removed as per request */}
 
       {/* Category Filter (optional) */}
-      <section className="py-12 relative">
+      <section className="py-12 pt-24 relative">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="flex justify-center mb-8">
