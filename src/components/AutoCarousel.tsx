@@ -10,6 +10,8 @@ interface AutoCarouselProps {
   showDots?: boolean;
   className?: string;
   showPause?: boolean;
+  // Stop auto-advance permanently after user interaction (arrows/dots)
+  stopOnInteraction?: boolean;
 }
 
 export const AutoCarousel: React.FC<AutoCarouselProps> = ({
@@ -20,7 +22,8 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   showArrows = true,
   showDots = true,
   className = '',
-  showPause = false
+  showPause = false,
+  stopOnInteraction = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Separate manual pause from hover pause so the pause button is respected
@@ -29,7 +32,8 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   const [isVisible, setIsVisible] = useState(true);
   const [pageCount, setPageCount] = useState(1);
   const [currentPage, setCurrentPage] = useState(0);
-  const isPaused = isManualPaused || (pauseOnHover && isHovering) || !!paused;
+  const [hasInteracted, setHasInteracted] = useState(false);
+  const isPaused = isManualPaused || (pauseOnHover && isHovering) || !!paused || (stopOnInteraction && hasInteracted);
 
 
   useEffect(() => {
@@ -95,6 +99,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   }, [intervalMs, isPaused, isVisible, pageCount, currentPage]);
 
   const onPrev = () => {
+    if (stopOnInteraction) setHasInteracted(true);
     const el = containerRef.current;
     if (!el) return;
     const prev = Math.max(0, currentPage - 1);
@@ -102,6 +107,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
   };
 
   const onNext = () => {
+    if (stopOnInteraction) setHasInteracted(true);
     const el = containerRef.current;
     if (!el) return;
     const next = Math.min(pageCount - 1, currentPage + 1);
@@ -159,6 +165,7 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
               key={i}
               type="button"
               onClick={() => {
+                if (stopOnInteraction) setHasInteracted(true);
                 const el = containerRef.current; if (!el) return; el.scrollTo({ left: el.clientWidth * i, behavior: 'smooth' });
               }}
               aria-label={`Go to slide ${i + 1}`}

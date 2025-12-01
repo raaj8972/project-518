@@ -933,9 +933,9 @@ export const Home: React.FC = () => {
 
       {/* Featured Gallery */}
       {featuredImages.length > 0 && (
-  <section className="pt-20 pb-0 relative overflow-hidden">
+  <section className="pt-20 pb-16 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
-          <div className="container mx-auto px-4 relative z-10">
+          <div className="container mx-auto px-0 md:px-4 relative z-10">
             <div className="scroll-animate animate-in">
               <div className="text-center mb-16">
                 <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
@@ -955,31 +955,57 @@ export const Home: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {featuredImages.map((image, index) => (
-                <div
-                  key={image.id}
-                  className="scroll-animate opacity-0 transform translate-y-20 hover-float"
-                  style={{ animationDelay: `${index * 0.1}s` }}
+            {/* Large Carousel Slider */}
+            <ChunkErrorBoundary fallback={<div className="h-[400px] flex items-center justify-center text-red-300 bg-red-900/30 border border-red-800 rounded">Failed to load gallery. <button onClick={() => window.location.reload()} className="ml-2 underline">Reload</button></div>}>
+              <React.Suspense fallback={<div className="h-[400px] flex items-center justify-center text-gray-400">Loading gallery…</div>}>
+                <AutoCarousel
+                  intervalMs={5000}
+                  pauseOnHover
+                  stopOnInteraction
+                  showArrows
+                  showDots
+                  className="mt-4"
                 >
-                  <div className="cyberpunk-card group overflow-hidden">
-                    <div className="aspect-w-4 aspect-h-3 relative overflow-hidden">
-                      <img
-                        src={image.src}
-                        alt={image.title}
-                        className="w-full h-48 object-cover transition-transform duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300"></div>
-                      
-                      <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <h4 className="text-white text-sm font-semibold">{image.title}</h4>
-                        <p className="text-gray-300 text-xs">{image.category} • {image.year}</p>
+                  {featuredImages.map((image) => (
+                    <div
+                      key={image.id}
+                      className="w-full max-w-5xl mx-auto"
+                    >
+                      <div className="cyberpunk-card group overflow-hidden">
+                        <div className="relative h-[400px] md:h-[500px] lg:h-[600px] overflow-hidden">
+                          <img
+                            src={image.src}
+                            alt={image.title}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                          
+                          {/* Image Info Overlay */}
+                          <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                            <div className="max-w-4xl">
+                              <div className="flex items-center gap-3 mb-3">
+                                <span className="bg-gradient-to-r from-green-400 to-teal-500 text-black px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-lg">
+                                  FEATURED
+                                </span>
+                                <span className="text-green-300 text-xs md:text-sm font-medium">
+                                  {image.category}
+                                </span>
+                                <span className="text-gray-400 text-xs md:text-sm">
+                                  {image.year}
+                                </span>
+                              </div>
+                              <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2">
+                                {image.title}
+                              </h3>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  ))}
+                </AutoCarousel>
+              </React.Suspense>
+            </ChunkErrorBoundary>
 
             {/* View all button added above when lists are long */}
           </div>
