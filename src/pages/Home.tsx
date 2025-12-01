@@ -1321,8 +1321,9 @@ export const Home: React.FC = () => {
   {/* Roadmap Section */}
   <React.Suspense fallback={<div className="h-[220px] flex items-center justify-center text-gray-400">Loading roadmap…</div>}>
     <Roadmap 
-      vehicleImage="/ambulance-animated.svg" 
-      vehicleSize={110} 
+      vehicleImage="/ambulance-side.png" 
+      vehicleSize={160} 
+      durationMs={40000}
       offsetAlong={12} 
       offsetNormal={-8}
       // vehicleAudio="/ambulance-siren.mp3" // Uncomment when you add the sound file

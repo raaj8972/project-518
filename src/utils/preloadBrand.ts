@@ -42,16 +42,16 @@ async function preloadBrandAssets() {
       }
     }
 
-    // 2. Fetch core committee photos
+    // 2. Fetch core team member photos
     const { data: committee } = await supabase
-      .from('core_committee')
-      .select('photo_url')
-      .not('photo_url', 'is', null);
+      .from('core_team_members')
+      .select('image')
+      .not('image', 'is', null);
 
     if (committee) {
       for (const member of committee) {
-        if (member.photo_url) {
-          assetsToPreload.push({ url: member.photo_url, type: 'image' });
+        if (member.image) {
+          assetsToPreload.push({ url: member.image, type: 'image' });
         }
       }
     }
@@ -59,13 +59,13 @@ async function preloadBrandAssets() {
     // 3. Fetch faculty heads photos
     const { data: faculty } = await supabase
       .from('faculty_heads')
-      .select('photo_url')
-      .not('photo_url', 'is', null);
+      .select('image')
+      .not('image', 'is', null);
 
     if (faculty) {
       for (const head of faculty) {
-        if (head.photo_url) {
-          assetsToPreload.push({ url: head.photo_url, type: 'image' });
+        if (head.image) {
+          assetsToPreload.push({ url: head.image, type: 'image' });
         }
       }
     }
@@ -73,13 +73,13 @@ async function preloadBrandAssets() {
     // 4. Fetch event images
     const { data: events } = await supabase
       .from('events')
-      .select('image_url')
-      .not('image_url', 'is', null);
+      .select('image')
+      .not('image', 'is', null);
 
     if (events) {
       for (const event of events) {
-        if (event.image_url) {
-          assetsToPreload.push({ url: event.image_url, type: 'image' });
+        if (event.image) {
+          assetsToPreload.push({ url: event.image, type: 'image' });
         }
       }
     }
@@ -87,13 +87,13 @@ async function preloadBrandAssets() {
     // 5. Fetch sponsors
     const { data: sponsors } = await supabase
       .from('sponsors')
-      .select('logo_url')
-      .not('logo_url', 'is', null);
+      .select('logo')
+      .not('logo', 'is', null);
 
     if (sponsors) {
       for (const sponsor of sponsors) {
-        if (sponsor.logo_url) {
-          assetsToPreload.push({ url: sponsor.logo_url, type: 'image' });
+        if (sponsor.logo) {
+          assetsToPreload.push({ url: sponsor.logo, type: 'image' });
         }
       }
     }
