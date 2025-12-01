@@ -52,8 +52,11 @@ const GuestArtistDetailModal: React.FC<{
 }> = ({ isOpen, onClose, artist }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  const [videoError, setVideoError] = React.useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
+    setVideoError(false); // Reset error state on open
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -62,10 +65,10 @@ const GuestArtistDetailModal: React.FC<{
   }, [isOpen, onClose]);
 
   useEffect(() => {
-    if (isOpen && videoRef.current) {
+    if (isOpen && videoRef.current && !videoError) {
       import('../utils/safePlay').then(({ default: safePlay }) => safePlay(videoRef.current)).catch(() => { try { videoRef.current?.play(); } catch {} });
     }
-  }, [isOpen]);
+  }, [isOpen, videoError]);
 
   if (!isOpen || !artist) return null;
   const youTubeId = artist.youtube_url ? getYouTubeId(artist.youtube_url) : null;
@@ -77,7 +80,7 @@ const GuestArtistDetailModal: React.FC<{
         <div className="relative w-full max-w-5xl bg-[#0b0f1a] text-white rounded-xl shadow-2xl border border-white/10">
           {/* Header with image and small play badge */}
           <div className="relative w-full h-64 md:h-80 overflow-hidden">
-            {artist.video_url ? (
+            {artist.video_url && !videoError ? (
               <video
                 ref={videoRef}
                 src={artist.video_url}
@@ -88,6 +91,10 @@ const GuestArtistDetailModal: React.FC<{
                 loop
                 muted
                 controls
+                onError={() => {
+                  console.warn('Video playback failed, falling back to image/YouTube');
+                  setVideoError(true);
+                }}
               />
             ) : youTubeId ? (
               <iframe

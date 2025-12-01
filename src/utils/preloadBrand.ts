@@ -101,13 +101,12 @@ async function preloadBrandAssets() {
     // 6. Fetch guest/featured artists
     const { data: artists } = await supabase
       .from('guest_artists')
-      .select('image_url')
-      .not('image_url', 'is', null);
+      .select('image');
 
     if (artists) {
       for (const artist of artists) {
-        if (artist.image_url) {
-          assetsToPreload.push({ url: artist.image_url, type: 'image' });
+        if (artist.image) {
+          assetsToPreload.push({ url: artist.image, type: 'image' });
         }
       }
     }

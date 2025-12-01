@@ -13,6 +13,11 @@ export default async function safePlay(media: HTMLMediaElement | null | undefine
             if (process.env.NODE_ENV !== 'production') console.warn('safePlay: playback aborted', err);
             return;
           }
+          // NotSupportedError indicates invalid media source or format
+          if (err && err.name === 'NotSupportedError') {
+             if (process.env.NODE_ENV !== 'production') console.warn('safePlay: media not supported', err);
+             return;
+          }
         } catch {}
         // For other errors, log at debug level but don't throw.
         if (process.env.NODE_ENV !== 'production') console.error('safePlay: error playing media', err);
