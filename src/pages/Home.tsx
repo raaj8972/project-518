@@ -959,9 +959,7 @@ export const Home: React.FC = () => {
             <ChunkErrorBoundary fallback={<div className="h-[400px] flex items-center justify-center text-red-300 bg-red-900/30 border border-red-800 rounded">Failed to load gallery. <button onClick={() => window.location.reload()} className="ml-2 underline">Reload</button></div>}>
               <React.Suspense fallback={<div className="h-[400px] flex items-center justify-center text-gray-400">Loading gallery…</div>}>
                 <AutoCarousel
-                  intervalMs={5000}
-                  pauseOnHover
-                  stopOnInteraction
+                  paused={true}
                   showArrows
                   showDots
                   className="mt-4"
