@@ -227,7 +227,7 @@ export const BandManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Artist Name"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -237,7 +237,7 @@ export const BandManagement: React.FC = () => {
                   value={form.role}
                   onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
                   placeholder="Lead Singer, Guitarist, Drummer, etc."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -247,7 +247,7 @@ export const BandManagement: React.FC = () => {
                   value={form.specialty}
                   onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
                   placeholder="e.g., Vocals, Guitar, Electronic Music"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -255,7 +255,7 @@ export const BandManagement: React.FC = () => {
                 <select
                   value={form.category}
                   onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select a category</option>
                   <option value="Vocals">Vocals</option>
@@ -273,7 +273,7 @@ export const BandManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description about the band member..."
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -284,7 +284,7 @@ export const BandManagement: React.FC = () => {
                     value={form.order_position}
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div className="flex items-end space-x-4">
@@ -323,7 +323,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, instagram: e.target.value }
                       }))}
                       placeholder="Instagram profile URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -336,7 +336,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, youtube: e.target.value }
                       }))}
                       placeholder="YouTube channel URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -349,7 +349,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, spotify: e.target.value }
                       }))}
                       placeholder="Spotify artist URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>
@@ -365,7 +365,7 @@ export const BandManagement: React.FC = () => {
                         value={achievement}
                         onChange={(e) => updateAchievement(index, e.target.value)}
                         placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <button
                         type="button"
@@ -436,26 +436,26 @@ export const BandManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Full name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="text"
                   value={form.role}
                   onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
                   placeholder="Role/Position"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="text"
                   value={form.specialty}
                   onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
                   placeholder="Specialty"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <select
                   value={form.category}
                   onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select category</option>
                   <option value="Vocals">Vocals</option>
@@ -470,7 +470,7 @@ export const BandManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <input
@@ -479,7 +479,7 @@ export const BandManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
                     placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <div className="flex items-center space-x-2">
                     <label className="flex items-center">
@@ -515,7 +515,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, instagram: e.target.value }
                       }))}
                       placeholder="Instagram URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -528,7 +528,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, youtube: e.target.value }
                       }))}
                       placeholder="YouTube URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -541,7 +541,7 @@ export const BandManagement: React.FC = () => {
                         social_links: { ...prev.social_links, spotify: e.target.value }
                       }))}
                       placeholder="Spotify URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>

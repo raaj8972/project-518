@@ -332,7 +332,7 @@ export const HeroMediaManagement: React.FC = () => {
             <select
               value={selectedPage}
               onChange={(e) => setSelectedPage(e.target.value as PageKey)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             >
               {Object.entries(PAGE_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
@@ -345,7 +345,7 @@ export const HeroMediaManagement: React.FC = () => {
             <select
               value={form.background_type}
               onChange={(e) => setForm((p) => ({ ...p, background_type: e.target.value as any }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             >
               <option value="image">Image</option>
               <option value="video">Video</option>

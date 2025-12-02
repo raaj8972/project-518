@@ -96,7 +96,7 @@ const InlineArtistPreview: React.FC<Props> = ({
           className={mediaClass}
         />
       ) : resolvedImage ? (
-        <img src={resolvedImage} alt="preview" className={mediaClass} />
+        <img loading="lazy" decoding="async" src={resolvedImage} alt="preview" className={mediaClass} />
       ) : (
         <div className="w-full h-full bg-gradient-to-br from-slate-950 via-slate-900 to-black" />
       )}

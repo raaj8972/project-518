@@ -466,7 +466,7 @@ export const Schedule: React.FC = () => {
                                   <div className="mt-3 p-3 sm:p-4 rounded-lg border border-white/10 bg-white/5">
                                     <div className="flex gap-3 items-start">
                                       {img ? (
-                                        <img src={img} alt={linkedTitle || 'event'} className="w-20 h-20 object-contain bg-black rounded-md border border-white/10 flex-shrink-0" />
+                                        <img loading="lazy" decoding="async" src={img} alt={linkedTitle || 'event'} className="w-20 h-20 object-contain bg-black rounded-md border border-white/10 flex-shrink-0" />
                                       ) : null}
                                       <div className="flex-1 min-w-0">
                                         {linkedTitle && <div className="text-white font-semibold text-sm sm:text-base mb-1">{linkedTitle}</div>}

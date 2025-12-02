@@ -287,7 +287,7 @@ export const SportsTeamManagement: React.FC = () => {
               value={marqueeSpeed === '' ? '' : marqueeSpeed}
               onChange={(e) => setMarqueeSpeed(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
               onBlur={() => setMarqueeSpeed((prev) => (typeof prev === 'number' && !isNaN(prev) ? Math.min(800, Math.max(1, prev)) : 140))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
             />
           </div>
           <div>
@@ -295,7 +295,7 @@ export const SportsTeamManagement: React.FC = () => {
             <select
               value={marqueeDirection}
               onChange={(e) => setMarqueeDirection(e.target.value as 'left' | 'right')}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
             >
               <option value="left">Left</option>
               <option value="right">Right</option>
@@ -340,7 +340,7 @@ export const SportsTeamManagement: React.FC = () => {
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="e.g., Football, Cricket, Badminton"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -350,7 +350,7 @@ export const SportsTeamManagement: React.FC = () => {
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description of this sport/committee"
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -361,7 +361,7 @@ export const SportsTeamManagement: React.FC = () => {
                         value={committeeForm.order_position}
                         onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min={1}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-end">
@@ -480,7 +480,7 @@ export const SportsTeamManagement: React.FC = () => {
                       type="text"
                       value={memberForm.name}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -489,7 +489,7 @@ export const SportsTeamManagement: React.FC = () => {
                       type="text"
                       value={memberForm.role}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -498,7 +498,7 @@ export const SportsTeamManagement: React.FC = () => {
                       value={memberForm.description}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -508,7 +508,7 @@ export const SportsTeamManagement: React.FC = () => {
                         type="text"
                         value={memberForm.specialty}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div>
@@ -517,7 +517,7 @@ export const SportsTeamManagement: React.FC = () => {
                         type="number"
                         value={memberForm.order_position}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                   </div>
@@ -536,7 +536,7 @@ export const SportsTeamManagement: React.FC = () => {
                     <select
                       value={memberForm.committee_id}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     >
                       <option value={0}>Unassigned</option>
                       {sortedCommittees.map(c => (
@@ -559,7 +559,7 @@ export const SportsTeamManagement: React.FC = () => {
                       type="tel"
                       value={memberForm.phone}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>

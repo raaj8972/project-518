@@ -181,7 +181,7 @@ export const GalleryManagement: React.FC = () => {
               min={100}
               step={10}
               onChange={(e) => { setSettingsForm(s => ({ ...s, scroll_per_item: onNum(e.target.value, s.scroll_per_item) })); setDirty(true); }}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             />
           </div>
           <div>
@@ -192,7 +192,7 @@ export const GalleryManagement: React.FC = () => {
               min={200}
               step={50}
               onChange={(e) => { setSettingsForm(s => ({ ...s, distance: onNum(e.target.value, s.distance) })); setDirty(true); }}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             />
           </div>
           <div>
@@ -203,7 +203,7 @@ export const GalleryManagement: React.FC = () => {
               min={0}
               step={5}
               onChange={(e) => { setSettingsForm(s => ({ ...s, background_blur_px: onNum(e.target.value, s.background_blur_px) })); setDirty(true); }}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             />
           </div>
           <div>
@@ -214,7 +214,7 @@ export const GalleryManagement: React.FC = () => {
               min={0}
               step={1}
               onChange={(e) => { setSettingsForm(s => ({ ...s, card_blur_max: onNum(e.target.value, s.card_blur_max) })); setDirty(true); }}
-              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
             />
           </div>
         </div>
@@ -237,7 +237,7 @@ export const GalleryManagement: React.FC = () => {
                 step={50}
                 value={settingsForm.reveal_duration_ms}
                 onChange={(e) => { setSettingsForm(s => ({ ...s, reveal_duration_ms: onNum(e.target.value, s.reveal_duration_ms || 800) })); setDirty(true); }}
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               />
             </div>
             <div>
@@ -245,7 +245,7 @@ export const GalleryManagement: React.FC = () => {
               <select
                 value={settingsForm.reveal_orientation}
                 onChange={(e) => { setSettingsForm(s => ({ ...s, reveal_orientation: (e.target.value as 'horizontal'|'vertical') })); setDirty(true); }}
-                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               >
                 <option value="horizontal">Horizontal</option>
                 <option value="vertical">Vertical</option>
@@ -348,7 +348,7 @@ export const GalleryManagement: React.FC = () => {
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Image title"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -356,7 +356,7 @@ export const GalleryManagement: React.FC = () => {
                 <select
                   value={form.category}
                   onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select category</option>
                   {eventCategories.map(category => (
@@ -371,7 +371,7 @@ export const GalleryManagement: React.FC = () => {
                   value={form.year}
                   onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))}
                   placeholder="2025"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div className="flex items-center">
@@ -439,12 +439,12 @@ export const GalleryManagement: React.FC = () => {
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Image title"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <select
                   value={form.category}
                   onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select category</option>
                   {eventCategories.map(category => (
@@ -456,7 +456,7 @@ export const GalleryManagement: React.FC = () => {
                   value={form.year}
                   onChange={(e) => setForm(prev => ({ ...prev, year: e.target.value }))}
                   placeholder="Year"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="flex items-center">
                   <input

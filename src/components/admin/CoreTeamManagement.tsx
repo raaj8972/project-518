@@ -385,7 +385,7 @@ export const CoreTeamManagement: React.FC = () => {
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="e.g., Technical Team"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -395,7 +395,7 @@ export const CoreTeamManagement: React.FC = () => {
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description of the committee's responsibilities"
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -407,7 +407,7 @@ export const CoreTeamManagement: React.FC = () => {
                         onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min="1"
                         max="10"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-end">
@@ -507,14 +507,14 @@ export const CoreTeamManagement: React.FC = () => {
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Committee name"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                     <textarea
                       value={committeeForm.description}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
                       placeholder="Description"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <input
@@ -530,7 +530,7 @@ export const CoreTeamManagement: React.FC = () => {
                         min="1"
                         max="10"
                         placeholder="Order"
-                        className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-center space-x-4">
@@ -705,7 +705,7 @@ export const CoreTeamManagement: React.FC = () => {
                     <select
                       value={memberForm.committee_id}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     >
                       <option value={0}>Unassigned</option>
                       {sortedCommittees.map(committee => (
@@ -723,7 +723,7 @@ export const CoreTeamManagement: React.FC = () => {
                         value={memberForm.name}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="John Smith"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div>
@@ -733,7 +733,7 @@ export const CoreTeamManagement: React.FC = () => {
                         value={memberForm.role}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
                         placeholder="Team Lead"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                   </div>
@@ -744,7 +744,7 @@ export const CoreTeamManagement: React.FC = () => {
                       value={memberForm.phone}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
                       placeholder="+91 98765 43210 (optional)"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -754,7 +754,7 @@ export const CoreTeamManagement: React.FC = () => {
                       value={memberForm.specialty}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
                       placeholder="e.g., Full-Stack Development"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -764,7 +764,7 @@ export const CoreTeamManagement: React.FC = () => {
                       onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description of the team member's role and contributions"
                       rows={4}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -775,7 +775,7 @@ export const CoreTeamManagement: React.FC = () => {
                         value={memberForm.order_position}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min="1"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-end">
@@ -825,7 +825,7 @@ export const CoreTeamManagement: React.FC = () => {
                             social_links: { ...prev.social_links, instagram: e.target.value }
                           }))}
                           placeholder="Instagram profile URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div className="flex items-center space-x-2">
@@ -838,7 +838,7 @@ export const CoreTeamManagement: React.FC = () => {
                             social_links: { ...prev.social_links, youtube: e.target.value }
                           }))}
                           placeholder="YouTube channel URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div className="flex items-center space-x-2">
@@ -851,7 +851,7 @@ export const CoreTeamManagement: React.FC = () => {
                             social_links: { ...prev.social_links, spotify: e.target.value }
                           }))}
                           placeholder="Spotify artist URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                     </div>
@@ -866,7 +866,7 @@ export const CoreTeamManagement: React.FC = () => {
                             value={achievement}
                             onChange={(e) => updateAchievement(index, e.target.value)}
                             placeholder="Achievement or accomplishment"
-                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <button
                             type="button"
@@ -978,7 +978,7 @@ export const CoreTeamManagement: React.FC = () => {
                           <select
                             value={memberForm.committee_id}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           >
                             {sortedCommittees.map(c => (
                               <option key={c.id} value={c.id}>{c.name}</option>
@@ -988,32 +988,32 @@ export const CoreTeamManagement: React.FC = () => {
                             type="text"
                             value={memberForm.name}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="text"
                             value={memberForm.role}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="tel"
                             value={memberForm.phone}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
                             placeholder="Phone (optional)"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="text"
                             value={memberForm.specialty}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <textarea
                             value={memberForm.description}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
                             rows={2}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           
                           {/* Social Links editing */}
@@ -1028,7 +1028,7 @@ export const CoreTeamManagement: React.FC = () => {
                                   social_links: { ...prev.social_links, instagram: e.target.value }
                                 }))}
                                 placeholder="Instagram URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                               />
                             </div>
                             <div className="flex items-center space-x-2">
@@ -1041,7 +1041,7 @@ export const CoreTeamManagement: React.FC = () => {
                                   social_links: { ...prev.social_links, youtube: e.target.value }
                                 }))}
                                 placeholder="YouTube URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                               />
                             </div>
                             <div className="flex items-center space-x-2">
@@ -1054,7 +1054,7 @@ export const CoreTeamManagement: React.FC = () => {
                                   social_links: { ...prev.social_links, spotify: e.target.value }
                                 }))}
                                 placeholder="Spotify URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                               />
                             </div>
                           </div>

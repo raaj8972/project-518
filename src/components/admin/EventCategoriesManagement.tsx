@@ -233,7 +233,7 @@ export const EventCategoriesManagement: React.FC = () => {
                   value={categoryForm.name}
                   onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g., Cultural, Technical, Sports"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -243,7 +243,7 @@ export const EventCategoriesManagement: React.FC = () => {
                   onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description of this category"
                   rows={3}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
             </div>
@@ -322,7 +322,7 @@ export const EventCategoriesManagement: React.FC = () => {
                       type="text"
                       value={categoryForm.name}
                       onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -331,7 +331,7 @@ export const EventCategoriesManagement: React.FC = () => {
                       value={categoryForm.description}
                       onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
                       rows={2}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>

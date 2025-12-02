@@ -593,7 +593,7 @@ export const SponsorsManagement: React.FC = () => {
             value={settingsForm.page_title}
             onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
             placeholder="OUR SPONSORS"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
           />
         </div>
       </div>
@@ -699,7 +699,7 @@ export const SponsorsManagement: React.FC = () => {
                       value={form.name}
                       onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Company or organization name"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -707,7 +707,7 @@ export const SponsorsManagement: React.FC = () => {
                     <select
                       value={form.category}
                       onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     >
                       <option value="">Select sponsorship category</option>
                       {allCategories.map(category => (
@@ -729,7 +729,7 @@ export const SponsorsManagement: React.FC = () => {
                       onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description about the sponsor"
                       rows={4}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -739,7 +739,7 @@ export const SponsorsManagement: React.FC = () => {
                       value={form.website}
                       onChange={(e) => setForm(prev => ({ ...prev, website: e.target.value }))}
                       placeholder="https://sponsor-website.com"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
@@ -750,7 +750,7 @@ export const SponsorsManagement: React.FC = () => {
                         value={form.order_position}
                         onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min="1"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-end">
@@ -829,12 +829,12 @@ export const SponsorsManagement: React.FC = () => {
                             value={form.name}
                             onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="Sponsor name"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <select
                             value={form.category}
                             onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           >
                             <option value="">Select category</option>
                             {/* Allow selecting both package-derived and existing sponsor-only categories to avoid losing current values */}
@@ -847,14 +847,14 @@ export const SponsorsManagement: React.FC = () => {
                             onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                             rows={3}
                             placeholder="Description"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="url"
                             value={form.website}
                             onChange={(e) => setForm(prev => ({ ...prev, website: e.target.value }))}
                             placeholder="Website URL"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <div className="grid grid-cols-2 gap-4">
                             <input
@@ -863,7 +863,7 @@ export const SponsorsManagement: React.FC = () => {
                               onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                               min="1"
                               placeholder="Display order"
-                              className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                              className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                             />
                             <label className="flex items-center">
                               <input
@@ -1122,7 +1122,7 @@ export const SponsorsManagement: React.FC = () => {
                         });
                       }}
                       placeholder="e.g., Platinum Sponsor, Gold Sponsor"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -1132,7 +1132,7 @@ export const SponsorsManagement: React.FC = () => {
                       value={packageForm.price}
                       onChange={(e) => setPackageForm(prev => ({ ...prev, price: e.target.value }))}
                       placeholder="e.g., ₹50,000, Contact Us"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -1188,7 +1188,7 @@ export const SponsorsManagement: React.FC = () => {
                         value={packageForm.order_position}
                         onChange={(e) => setPackageForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min="1"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                     <div className="flex items-end">
@@ -1215,7 +1215,7 @@ export const SponsorsManagement: React.FC = () => {
                             value={benefit}
                             onChange={(e) => updateBenefit(index, e.target.value)}
                             placeholder="Package benefit"
-                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <button
                             type="button"
@@ -1275,19 +1275,19 @@ export const SponsorsManagement: React.FC = () => {
                         value={packageForm.tier}
                         onChange={(e) => setPackageForm(prev => ({ ...prev, tier: e.target.value }))}
                         placeholder="Tier name"
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <input
                         type="text"
                         value={packageForm.price}
                         onChange={(e) => setPackageForm(prev => ({ ...prev, price: e.target.value }))}
                         placeholder="Price"
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <select
                         value={packageForm.color}
                         onChange={(e) => setPackageForm(prev => ({ ...prev, color: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       >
                         {predefinedColors.map(color => (
                           <option key={color} value={color}>
@@ -1333,7 +1333,7 @@ export const SponsorsManagement: React.FC = () => {
                                 value={benefit}
                                 onChange={(e) => updateBenefit(index, e.target.value)}
                                 placeholder="Package benefit"
-                                className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                                className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                               />
                               <button
                                 type="button"
@@ -1362,7 +1362,7 @@ export const SponsorsManagement: React.FC = () => {
                           onChange={(e) => setPackageForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                           min="1"
                           placeholder="Order"
-                          className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                         <label className="flex items-center">
                           <input
@@ -1552,7 +1552,7 @@ export const SponsorsManagement: React.FC = () => {
                     value={settingsForm.page_title}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
                     placeholder="OUR SPONSORS"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -1562,7 +1562,7 @@ export const SponsorsManagement: React.FC = () => {
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, intro_text: e.target.value }))}
                     placeholder="Introduction text for the sponsors page"
                     rows={4}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -1572,7 +1572,7 @@ export const SponsorsManagement: React.FC = () => {
                     value={settingsForm.call_to_action_text}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, call_to_action_text: e.target.value }))}
                     placeholder="e.g., Interested in Sponsoring?"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -1582,7 +1582,7 @@ export const SponsorsManagement: React.FC = () => {
                     value={settingsForm.brochure_title}
                     onChange={(e) => setSettingsForm(prev => ({ ...prev, brochure_title: e.target.value }))}
                     placeholder="Download button text"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -1625,7 +1625,7 @@ export const SponsorsManagement: React.FC = () => {
                           placeholder="https://example.com/brochure.pdf"
                           value={settingsForm.brochure_url}
                           onChange={(e) => setSettingsForm(prev => ({ ...prev, brochure_url: e.target.value }))}
-                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                         />
                         <a
                           href={settingsForm.brochure_url || '#'}
@@ -1753,7 +1753,7 @@ export const SponsorsManagement: React.FC = () => {
                           icon: selectedType?.icon || 'Mail'
                         }));
                       }}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                     >
                       {contactTypes.map(type => (
                         <option key={type.value} value={type.value}>{type.label}</option>
@@ -1767,7 +1767,7 @@ export const SponsorsManagement: React.FC = () => {
                       value={contactForm.title}
                       onChange={(e) => setContactForm(prev => ({ ...prev, title: e.target.value }))}
                       placeholder="e.g., Email Us, Call Us"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -1777,7 +1777,7 @@ export const SponsorsManagement: React.FC = () => {
                       value={contactForm.content}
                       onChange={(e) => setContactForm(prev => ({ ...prev, content: e.target.value }))}
                       placeholder="Contact information (email, phone, address, etc.)"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                     />
                   </div>
                 </div>
@@ -1825,7 +1825,7 @@ export const SponsorsManagement: React.FC = () => {
                                 icon: selectedType?.icon || 'Mail'
                               }));
                             }}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                           >
                             {contactTypes.map(type => (
                               <option key={type.value} value={type.value}>{type.label}</option>
@@ -1838,7 +1838,7 @@ export const SponsorsManagement: React.FC = () => {
                             type="text"
                             value={contactForm.title}
                             onChange={(e) => setContactForm(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                           />
                         </div>
                         <div className="md:col-span-2">
@@ -1847,7 +1847,7 @@ export const SponsorsManagement: React.FC = () => {
                             type="text"
                             value={contactForm.content}
                             onChange={(e) => setContactForm(prev => ({ ...prev, content: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400"
+                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 text-gray-900"
                           />
                         </div>
                         <div className="md:col-span-2 flex justify-end space-x-2">

@@ -277,7 +277,7 @@ export const RicoFamily: React.FC = () => {
               renderItem={(head: any) => (
                 <div className="w-72 md:w-80 neon-card p-5">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
-                    <img src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   </div>
                   <div className="font-bold text-white text-center">{head.name}</div>
                   <div className="text-sm text-gray-300 text-center">{head.title}</div>
@@ -312,7 +312,7 @@ export const RicoFamily: React.FC = () => {
                   <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${lead ? 'ring-1 ring-cyan-500/40' : ''}`}> 
                     {/* Image */}
                     <div className="relative h-80 md:h-full overflow-hidden">
-                      <img src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
+                      <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
                       <div className="absolute top-4 right-4 flex items-center gap-2">
                         <Crown className={`w-7 h-7 ${lead ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
@@ -444,7 +444,7 @@ export const RicoFamily: React.FC = () => {
                 renderItem={(m: any) => (
                   <div className="w-64 neon-card borderless p-4">
                     <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                      <img src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                     </div>
                     <div className="font-bold text-white flex items-center">
                       <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
@@ -525,7 +525,7 @@ export const RicoFamily: React.FC = () => {
                                 <div className="grid md:grid-cols-2 gap-0">
                                   {/* Image Section */}
                                   <div className="relative h-85 md:h-auto overflow-hidden">
-                                    <img src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
+                                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                                     <div className="absolute top-4 right-4">
                                       <Crown className={`w-6 h-6 animate-pulse pulse-ring ${lead ? 'text-cyan-300' : isTechLeadRaaj ? 'text-green-400' : 'text-yellow-400'}`} />
@@ -799,7 +799,7 @@ export const RicoFamily: React.FC = () => {
                           renderItem={(head: any) => (
                             <div className="w-64 neon-card borderless p-4">
                               <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
                               </div>
                               <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                               <div className="text-sm text-gray-300">{head.role}</div>
@@ -833,7 +833,7 @@ export const RicoFamily: React.FC = () => {
                           <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${idx * 0.12}s` }}>
                             <div className="neon-card h-full overflow-hidden p-2">
                               <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                                <img src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
+                                <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                                 <div className="absolute top-1.5 right-1.5">
                                   <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />
@@ -907,7 +907,7 @@ export const RicoFamily: React.FC = () => {
                             renderItem={(head: any) => (
                               <div key={head.id} className="w-64 neon-card borderless p-4">
                                 <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                  <img src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
                                 </div>
                                 <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                                 <div className="text-sm text-gray-300">{head.role}</div>
@@ -938,7 +938,7 @@ export const RicoFamily: React.FC = () => {
                             <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
                               <div className="neon-card h-full overflow-hidden p-2">
                                 <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                                  <img src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
+                                  <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
                                   <div className="absolute top-1.5 right-1.5">
                                     <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />

@@ -149,36 +149,36 @@ export const ChiefGuestManagement: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Name *</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Title *</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Specialty</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.specialty} onChange={e=>setForm(f=>({...f,specialty:e.target.value}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.specialty} onChange={e=>setForm(f=>({...f,specialty:e.target.value}))} />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Instagram</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.social_links.instagram||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,instagram:e.target.value}}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.social_links.instagram||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,instagram:e.target.value}}))} />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">YouTube</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.social_links.youtube||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,youtube:e.target.value}}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.social_links.youtube||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,youtube:e.target.value}}))} />
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Spotify</label>
-            <input className="w-full border rounded px-3 py-2 text-sm" value={form.social_links.spotify||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,spotify:e.target.value}}))} />
+            <input className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.social_links.spotify||''} onChange={e=>setForm(f=>({...f,social_links:{...f.social_links,spotify:e.target.value}}))} />
           </div>
         </div>
         <div>
           <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Description / Bio *</label>
-          <textarea rows={4} className="w-full border rounded px-3 py-2 text-sm" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} />
+          <textarea rows={4} className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} />
         </div>
         <div>
           <label className="block text-xs font-semibold uppercase text-gray-600 mb-1">Achievements (one per line)</label>
-          <textarea rows={3} className="w-full border rounded px-3 py-2 text-sm" value={form.achievementsRaw} onChange={e=>setForm(f=>({...f,achievementsRaw:e.target.value}))} />
+          <textarea rows={3} className="w-full border rounded px-3 py-2 text-sm text-gray-900" value={form.achievementsRaw} onChange={e=>setForm(f=>({...f,achievementsRaw:e.target.value}))} />
         </div>
         <div>
           <label className="block text-xs font-semibold uppercase text-gray-600 mb-2">Image *</label>

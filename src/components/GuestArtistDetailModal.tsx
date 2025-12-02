@@ -106,7 +106,7 @@ const GuestArtistDetailModal: React.FC<{
                 allowFullScreen
               />
             ) : artist.image ? (
-              <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+              <img loading="lazy" decoding="async" src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full bg-gray-800" />
             )}

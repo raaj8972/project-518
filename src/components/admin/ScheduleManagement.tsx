@@ -313,7 +313,7 @@ export const ScheduleManagement: React.FC = () => {
                 type="date"
                 value={dayForm.date}
                 onChange={(e) => setDayForm(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               />
             </div>
             <div>
@@ -323,7 +323,7 @@ export const ScheduleManagement: React.FC = () => {
                 value={dayForm.day}
                 onChange={(e) => setDayForm(prev => ({ ...prev, day: e.target.value }))}
                 placeholder="e.g., Day 1, Friday"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               />
             </div>
             <div>
@@ -333,7 +333,7 @@ export const ScheduleManagement: React.FC = () => {
                 value={dayForm.title}
                 onChange={(e) => setDayForm(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="e.g., Cultural Day"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               />
             </div>
           </div>
@@ -473,7 +473,7 @@ export const ScheduleManagement: React.FC = () => {
                           value={eventForm.time}
                           onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
                           placeholder="09:00"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div>
@@ -483,7 +483,7 @@ export const ScheduleManagement: React.FC = () => {
                           value={eventForm.title}
                           onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
                           placeholder="Event title"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div>
@@ -493,7 +493,7 @@ export const ScheduleManagement: React.FC = () => {
                           value={eventForm.venue}
                           onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
                           placeholder="Venue name"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div className="col-span-2 lg:col-span-1">
@@ -501,7 +501,7 @@ export const ScheduleManagement: React.FC = () => {
                         <select
                           value={eventForm.type}
                           onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         >
                           <option value="">Select type</option>
                           {eventCategories.map(category => (
@@ -516,7 +516,7 @@ export const ScheduleManagement: React.FC = () => {
                           value={eventForm.duration}
                           onChange={(e) => setEventForm(prev => ({ ...prev, duration: e.target.value }))}
                           placeholder="2 hours"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                       </div>
                       <div>
@@ -606,24 +606,24 @@ export const ScheduleManagement: React.FC = () => {
                             step={60}
                             value={eventForm.time}
                             onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="text"
                             value={eventForm.title}
                             onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <input
                             type="text"
                             value={eventForm.venue}
                             onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <select
                             value={eventForm.type}
                             onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           >
                             {eventCategories.map(category => (
                               <option key={category.id} value={category.name}>{category.name}</option>
@@ -633,7 +633,7 @@ export const ScheduleManagement: React.FC = () => {
                             type="text"
                             value={eventForm.duration}
                             onChange={(e) => setEventForm(prev => ({ ...prev, duration: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                           />
                           <div className="lg:col-span-5 flex justify-end space-x-2 mt-2">
                             <button

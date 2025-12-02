@@ -230,19 +230,19 @@ export const RoadmapMilestonesAdmin: React.FC = () => {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Year</label>
-            <input type="number" value={form.year} onChange={e=>setForm(f=>({...f,year:parseInt(e.target.value,10)}))} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input type="number" value={form.year} onChange={e=>setForm(f=>({...f,year:parseInt(e.target.value,10)}))} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Title (optional)</label>
-            <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Points (one per line)</label>
-            <textarea value={form.points} onChange={e=>setForm(f=>({...f,points:e.target.value}))} rows={6} className="w-full bg-white border border-gray-300 rounded px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <textarea value={form.points} onChange={e=>setForm(f=>({...f,points:e.target.value}))} rows={6} className="w-full bg-white border border-gray-300 rounded px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Side</label>
-            <select value={side} onChange={e=>setSide(e.target.value as any)} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <select value={side} onChange={e=>setSide(e.target.value as any)} className="w-full bg-white border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900">
               <option value="auto">Auto</option>
               <option value="left">Left</option>
               <option value="right">Right</option>

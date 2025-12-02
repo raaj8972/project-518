@@ -104,7 +104,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 										className="focus:outline-none"
 										title="View large"
 									>
-										<img src={it.publicUrl} alt={it.name} className="w-10 h-10 object-cover rounded border border-gray-200 hover:opacity-90" />
+										<img loading="lazy" decoding="async" src={`${it.publicUrl}?width=100&height=100`} alt={it.name} width="40" height="40" className="w-10 h-10 object-cover rounded border border-gray-200 hover:opacity-90" />
 									</button>
 								</td>
 								<td className="px-4 py-2 text-sm break-all">

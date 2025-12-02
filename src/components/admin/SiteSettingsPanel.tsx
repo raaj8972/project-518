@@ -85,7 +85,7 @@ export const SiteSettingsPanel: React.FC = () => {
                   type="datetime-local"
                   value={local.coming_soon_until}
                   onChange={(e) => setLocal((s) => ({ ...s, coming_soon_until: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
               </div>
@@ -96,7 +96,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <input
                 value={local.coming_soon_title}
                 onChange={(e) => setLocal((s) => ({ ...s, coming_soon_title: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 placeholder="Coming Soon"
               />
             </div>
@@ -105,7 +105,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <input
                 value={local.homepage_hero_title}
                 onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 placeholder="RICORRENZA"
               />
               <p className="text-xs text-gray-500 mt-1">Quick shortcut to edit the homepage hero title (also available in Homepage management).</p>
@@ -115,7 +115,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <textarea
                 value={local.coming_soon_message}
                 onChange={(e) => setLocal((s) => ({ ...s, coming_soon_message: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-h-[96px]"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-h-[96px] text-gray-900"
                 placeholder="We are preparing something amazing. Please check back soon."
               />
             </div>
@@ -124,7 +124,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <select
                 value={local.events_poster_fit}
                 onChange={(e) => setLocal((s) => ({ ...s, events_poster_fit: (e.target.value === 'cover' ? 'cover' : 'contain') }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
               >
                 <option value="contain">Contain (no cropping)</option>
                 <option value="cover">Cover (fill card, may crop)</option>
@@ -138,7 +138,7 @@ export const SiteSettingsPanel: React.FC = () => {
               <input
                 value={local.coming_soon_ended_text}
                 onChange={(e) => setLocal((s) => ({ ...s, coming_soon_ended_text: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 placeholder={"We'll be back soon"}
               />
               <p className="text-xs text-gray-500 mt-1">Shown once the countdown ends while the site is still closed.</p>

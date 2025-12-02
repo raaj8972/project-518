@@ -330,7 +330,7 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Artist Name"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -340,7 +340,7 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Singer, Performer, etc."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -350,7 +350,7 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.specialty}
                   onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
                   placeholder="e.g., Pop Music, Classical, Electronic"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -360,7 +360,7 @@ export const GuestArtistManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description about the guest artist..."
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -370,7 +370,7 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.youtube_url}
                   onChange={(e) => setForm(prev => ({ ...prev, youtube_url: e.target.value }))}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -395,7 +395,7 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.watch_live_url}
                   onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
                   placeholder="https://www.youtube.com/live/... or other platform"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -421,7 +421,7 @@ export const GuestArtistManagement: React.FC = () => {
                     value={form.detail_music_url}
                     onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
                     placeholder="https://cdn.example.com/audio/loop.mp3"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <p className="text-xs text-gray-500">
                     Upload or paste a direct MP3/OGG link. The track will autoplay, loop, and stop when the modal closes.
@@ -436,7 +436,7 @@ export const GuestArtistManagement: React.FC = () => {
                     value={form.order_position}
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div className="flex items-end space-x-4">
@@ -471,7 +471,7 @@ export const GuestArtistManagement: React.FC = () => {
                       type="date"
                       value={form.performance_date}
                       onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -480,7 +480,7 @@ export const GuestArtistManagement: React.FC = () => {
                       type="time"
                       value={form.performance_time}
                       onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -490,7 +490,7 @@ export const GuestArtistManagement: React.FC = () => {
                       value={form.venue}
                       onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
                       placeholder="Venue"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>
@@ -528,7 +528,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, instagram: e.target.value }
                       }))}
                       placeholder="Instagram profile URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -541,7 +541,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, youtube: e.target.value }
                       }))}
                       placeholder="YouTube channel URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -554,7 +554,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, spotify: e.target.value }
                       }))}
                       placeholder="Spotify artist URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>
@@ -570,7 +570,7 @@ export const GuestArtistManagement: React.FC = () => {
                         value={achievement}
                         onChange={(e) => updateAchievement(index, e.target.value)}
                         placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <button
                         type="button"
@@ -697,42 +697,42 @@ export const GuestArtistManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Artist name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Title/Role"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="text"
                   value={form.specialty}
                   onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
                   placeholder="Specialty"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="url"
                   value={form.video}
                   onChange={(e) => setForm(prev => ({ ...prev, video: e.target.value }))}
                   placeholder="Video URL"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="url"
                   value={form.watch_live_url}
                   onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
                   placeholder="Live Stream URL"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700">Detail Modal Music (Optional, MP3)</label>
@@ -757,7 +757,7 @@ export const GuestArtistManagement: React.FC = () => {
                       value={form.detail_music_url}
                       onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
                       placeholder="https://cdn.example.com/audio/loop.mp3"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                     <p className="text-[11px] text-gray-500">
                       Upload or paste a direct MP3/OGG link. The track will autoplay and loop until the modal closes.
@@ -771,7 +771,7 @@ export const GuestArtistManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
                     placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <div className="flex items-center space-x-2">
                     <label className="flex items-center">
@@ -802,7 +802,7 @@ export const GuestArtistManagement: React.FC = () => {
                       type="date"
                       value={form.performance_date}
                       onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -810,7 +810,7 @@ export const GuestArtistManagement: React.FC = () => {
                       type="time"
                       value={form.performance_time}
                       onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div>
@@ -819,7 +819,7 @@ export const GuestArtistManagement: React.FC = () => {
                       value={form.venue}
                       onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
                       placeholder="Venue"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>
@@ -854,7 +854,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, instagram: e.target.value }
                       }))}
                       placeholder="Instagram URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -867,7 +867,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, youtube: e.target.value }
                       }))}
                       placeholder="YouTube URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -880,7 +880,7 @@ export const GuestArtistManagement: React.FC = () => {
                         social_links: { ...prev.social_links, spotify: e.target.value }
                       }))}
                       placeholder="Spotify URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>
                 </div>

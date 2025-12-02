@@ -646,7 +646,7 @@ export const EventsManagement: React.FC = () => {
                   value={eventForm.title}
                   onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Event title"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               {/* Map URL removed */}
@@ -657,7 +657,7 @@ export const EventsManagement: React.FC = () => {
                   value={eventForm.watch_live_url || ''}
                   onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
                   placeholder="https://..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">Will appear 60 minutes before start, disabled until live begins.</p>
               </div>
@@ -666,7 +666,7 @@ export const EventsManagement: React.FC = () => {
                 <select
                   value={eventForm.category}
                   onChange={(e) => setEventForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select Category</option>
                     {eventCategories.map((category: any) => (
@@ -681,7 +681,7 @@ export const EventsManagement: React.FC = () => {
                   onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Event description"
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -691,7 +691,7 @@ export const EventsManagement: React.FC = () => {
                     type="date"
                     value={eventForm.date}
                     onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -701,7 +701,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.time}
                     onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
                     placeholder="e.g., 10:00 AM - 2:00 PM"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
               </div>
@@ -762,7 +762,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.venue}
                     onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
                     placeholder="Event venue"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -772,7 +772,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.participants}
                     onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
                     placeholder="e.g., 100+ students"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
               </div>
@@ -786,7 +786,7 @@ export const EventsManagement: React.FC = () => {
                     max_participants: e.target.value ? parseInt(e.target.value) : undefined 
                   }))}
                   placeholder="Maximum number of participants"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -799,7 +799,7 @@ export const EventsManagement: React.FC = () => {
                         value={highlight}
                         onChange={(e) => updateHighlight(index, e.target.value)}
                         placeholder="Event highlight"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <button
                         type="button"
@@ -848,7 +848,7 @@ export const EventsManagement: React.FC = () => {
                           value={rule}
                           onChange={(e) => updateRule(index, e.target.value)}
                           placeholder="Event rule"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                         />
                         <button type="button" onClick={() => removeRule(index)} className="text-red-600 hover:text-red-800 p-1"><X size={16} /></button>
                       </div>
@@ -863,7 +863,7 @@ export const EventsManagement: React.FC = () => {
                           <div className="text-sm font-semibold text-gray-700">Section {idx+1}</div>
                           <button type="button" onClick={()=>removeSection(idx)} className="text-red-600 text-xs">Remove section</button>
                         </div>
-                        <input className="w-full p-2 text-sm border rounded mb-2" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
+                        <input className="w-full p-2 text-sm border rounded mb-2 text-gray-900" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
                         <div className="space-y-3">
                           {(sec.blocks || []).map((b, bIdx) => (
                             <div key={bIdx} className="border border-dashed border-gray-300 rounded p-2 bg-white">
@@ -877,11 +877,11 @@ export const EventsManagement: React.FC = () => {
                                   <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px]">Remove</button>
                                 </div>
                               </div>
-                              <input className="w-full p-1.5 text-xs border rounded mb-2" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
+                              <input className="w-full p-1.5 text-xs border rounded mb-2 text-gray-900" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
                               <div className="space-y-1">
                                 {(b.items || []).map((p, pIdx) => (
                                   <div key={pIdx} className="flex items-center gap-2">
-                                    <input className="flex-1 p-1.5 text-xs border rounded" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                    <input className="flex-1 p-1.5 text-xs border rounded text-gray-900" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
                                     <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600"><X size={11} /></button>
                                   </div>
                                 ))}
@@ -1084,7 +1084,7 @@ export const EventsManagement: React.FC = () => {
                   value={(eventForm as any).registration_photo_label || ''}
                   onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_label: e.target.value } as any))}
                   placeholder="e.g., Participant Photo, College ID Photo, etc."
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown to users on the registration form. Leave blank to use default.</p>
               </div>
@@ -1095,7 +1095,7 @@ export const EventsManagement: React.FC = () => {
                     type="datetime-local"
                     value={eventForm.registration_opens_at || ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <p className="text-xs text-gray-500 mt-1">Users will see countdown until this time. After it passes, event can show "Live Now" if registration is open.</p>
                 </div>
@@ -1107,7 +1107,7 @@ export const EventsManagement: React.FC = () => {
                   placeholder="https://..."
                   value={eventForm.watch_live_url || ''}
                   onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown 60 min before start (disabled until live) and during the event.</p>
               </div>
@@ -1242,12 +1242,12 @@ export const EventsManagement: React.FC = () => {
                   value={eventForm.title}
                   onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Event title"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <select
                   value={eventForm.category}
                   onChange={(e) => setEventForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 >
                   <option value="">Select Category</option>
                   {eventCategories.map((category: any) => (
@@ -1259,7 +1259,7 @@ export const EventsManagement: React.FC = () => {
                   onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="Event description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <input
@@ -1267,7 +1267,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.participants || ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
                     placeholder="Participants (e.g., 100+ students)"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <input
                     type="number"
@@ -1275,7 +1275,7 @@ export const EventsManagement: React.FC = () => {
                     value={typeof eventForm.max_participants === 'number' ? String(eventForm.max_participants) : ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, max_participants: e.target.value ? Number(e.target.value) : undefined }))}
                     placeholder="Max participants (optional)"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1283,14 +1283,14 @@ export const EventsManagement: React.FC = () => {
                     type="date"
                     value={eventForm.date}
                     onChange={(e) => setEventForm(prev => ({ ...prev, date: e.target.value }))}
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <input
                     type="text"
                     value={eventForm.time}
                     onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
                     placeholder="Time"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2">
@@ -1299,7 +1299,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.participants || ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, participants: e.target.value }))}
                     placeholder="Participants (optional)"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <input
                     type="number"
@@ -1307,7 +1307,7 @@ export const EventsManagement: React.FC = () => {
                     value={typeof eventForm.max_participants === 'number' ? String(eventForm.max_participants) : ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, max_participants: e.target.value ? Number(e.target.value) : undefined }))}
                     placeholder="Max participants (optional)"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 {/* Per-event participant types editor (edit mode) - select from site-level list with per-type limits */}
@@ -1408,7 +1408,7 @@ export const EventsManagement: React.FC = () => {
                   value={eventForm.venue}
                   onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
                   placeholder="Venue"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 {/* Watch Live URL (edit mode) */}
                 <div>
@@ -1418,7 +1418,7 @@ export const EventsManagement: React.FC = () => {
                     value={eventForm.watch_live_url || ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
                     placeholder="https://..."
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <p className="text-[10px] text-gray-500 mt-1">Appears 60 min before start (disabled until live) and during event.</p>
                 </div>
@@ -1446,7 +1446,7 @@ export const EventsManagement: React.FC = () => {
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                       {eventForm.rules.map((rule, index) => (
                         <div key={index} className="flex items-center space-x-2">
-                          <input type="text" value={rule} onChange={(e) => updateRule(index, e.target.value)} placeholder="Event rule" className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400" />
+                          <input type="text" value={rule} onChange={(e) => updateRule(index, e.target.value)} placeholder="Event rule" className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900" />
                           <button type="button" onClick={() => removeRule(index)} className="text-red-600 hover:text-red-800 p-1"><X size={12} /></button>
                         </div>
                       ))}
@@ -1460,7 +1460,7 @@ export const EventsManagement: React.FC = () => {
                             <div className="text-xs font-semibold text-gray-700">Section {idx+1}</div>
                             <button type="button" onClick={()=>removeSection(idx)} className="text-red-600 text-[11px]">Remove</button>
                           </div>
-                          <input className="w-full p-1.5 text-xs border rounded mb-1" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
+                          <input className="w-full p-1.5 text-xs border rounded mb-1 text-gray-900" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
                           <div className="space-y-2">
                             {(sec.blocks || []).map((b, bIdx) => (
                               <div key={bIdx} className="border border-dashed border-gray-300 rounded p-2 bg-white">
@@ -1474,11 +1474,11 @@ export const EventsManagement: React.FC = () => {
                                     <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px]">Remove</button>
                                   </div>
                                 </div>
-                                <input className="w-full p-1.5 text-xs border rounded mb-1" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
+                                <input className="w-full p-1.5 text-xs border rounded mb-1 text-gray-900" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
                                 <div className="space-y-1">
                                   {(b.items || []).map((p, pIdx) => (
                                     <div key={pIdx} className="flex items-center gap-2">
-                                      <input className="flex-1 p-1.5 text-xs border rounded" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                      <input className="flex-1 p-1.5 text-xs border rounded text-gray-900" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
                                       <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600"><X size={11} /></button>
                                     </div>
                                   ))}
@@ -1500,7 +1500,7 @@ export const EventsManagement: React.FC = () => {
                       placeholder="https://drive.google.com/... or https://...pdf"
                       value={eventForm.rules_link || ''}
                       onChange={(e) => setEventForm(prev => ({ ...prev, rules_link: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">Add a link to a PDF or Google Drive file for full rules. This will show a View/Share control on the public event card.</p>
                   </div>
@@ -1578,7 +1578,7 @@ export const EventsManagement: React.FC = () => {
                         type="datetime-local"
                         value={eventForm.registration_opens_at || ''}
                         onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                     </div>
                   )}
@@ -1591,7 +1591,7 @@ export const EventsManagement: React.FC = () => {
                     value={(eventForm as any).registration_photo_label || ''}
                     onChange={(e) => setEventForm(prev => ({ ...prev, registration_photo_label: e.target.value } as any))}
                     placeholder="e.g., Participant Photo, College ID Photo, etc."
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
 

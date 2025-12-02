@@ -206,19 +206,19 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
 
       <form onSubmit={onAdd} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <input
-          className="border rounded px-3 py-2 text-sm"
+          className="border rounded px-3 py-2 text-sm text-gray-900"
           placeholder="Auth User ID (UUID) — optional"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
         />
         <input
-          className="border rounded px-3 py-2 text-sm"
+          className="border rounded px-3 py-2 text-sm text-gray-900"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
-          className="border rounded px-3 py-2 text-sm"
+          className="border rounded px-3 py-2 text-sm text-gray-900"
           placeholder="Password (owner only create)"
           type="password"
           value={password}

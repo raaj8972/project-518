@@ -234,7 +234,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Dr. John Smith"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -244,7 +244,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Festival Director & Department Head"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div>
@@ -254,7 +254,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description about the faculty head..."
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -265,7 +265,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.email}
                     onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="name@example.com (optional)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div>
@@ -275,7 +275,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.phone}
                     onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="+91 98765 43210 (optional)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
               </div>
@@ -288,21 +288,21 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.instagram}
                     onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
                     placeholder="Instagram URL (e.g., https://instagram.com/yourhandle)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
                   />
                   <input
                     type="url"
                     value={form.youtube}
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
                     placeholder="YouTube URL (e.g., https://youtube.com/@yourchannel)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-gray-900"
                   />
                   <input
                     type="url"
                     value={(form as any).facebook}
                     onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
                     placeholder="Facebook URL (e.g., https://facebook.com/yourpage)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
               </div>
@@ -314,7 +314,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.order_position}
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 <div className="flex items-end">
@@ -339,7 +339,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                         value={achievement}
                         onChange={(e) => updateAchievement(index, e.target.value)}
                         placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                       />
                       <button
                         type="button"
@@ -409,14 +409,14 @@ export const FacultyHeadsManagement: React.FC = () => {
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Full name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Title/Position"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <input
@@ -424,14 +424,14 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.email}
                     onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
                     placeholder="Email (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <input
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
                     placeholder="Phone (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
                 {/* Social links for edit */}
@@ -441,21 +441,21 @@ export const FacultyHeadsManagement: React.FC = () => {
                     value={form.instagram}
                     onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
                     placeholder="Instagram URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
                   />
                   <input
                     type="url"
                     value={form.youtube}
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
                     placeholder="YouTube URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400 text-gray-900"
                   />
                   <input
                     type="url"
                     value={(form as any).facebook}
                     onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
                     placeholder="Facebook URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <textarea
@@ -463,7 +463,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <input
@@ -472,7 +472,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
                     placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                   <label className="flex items-center">
                     <input
@@ -496,7 +496,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                           value={achievement}
                           onChange={(e) => updateAchievement(index, e.target.value)}
                           placeholder="Achievement"
-                          className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400"
+                          className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
                         />
                         <button
                           type="button"
