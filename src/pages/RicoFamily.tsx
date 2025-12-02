@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, startTransition } from 'react';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
 import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
@@ -270,14 +270,14 @@ export const RicoFamily: React.FC = () => {
               centerGlow={true}
               arrowSize={48}
               paused={facultyPaused}
-              onItemClick={(item: any) => { setSelectedFaculty(item); setFacultyModalOpen(true); setFacultyPaused(true); }}
+              onItemClick={(item: any) => { startTransition(() => { setSelectedFaculty(item); setFacultyModalOpen(true); setFacultyPaused(true); }); }}
               pauseOnHover={true}
               showArrows={true}
               className="py-6"
               renderItem={(head: any) => (
                 <div className="w-72 md:w-80 neon-card p-5">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
-                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="font-bold text-white text-center">{head.name}</div>
                   <div className="text-sm text-gray-300 text-center">{head.title}</div>
@@ -312,7 +312,7 @@ export const RicoFamily: React.FC = () => {
                   <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${lead ? 'ring-1 ring-cyan-500/40' : ''}`}> 
                     {/* Image */}
                     <div className="relative h-80 md:h-full overflow-hidden">
-                      <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
+                      <img decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
                       <div className="absolute top-4 right-4 flex items-center gap-2">
                         <Crown className={`w-7 h-7 ${lead ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
@@ -444,7 +444,7 @@ export const RicoFamily: React.FC = () => {
                 renderItem={(m: any) => (
                   <div className="w-64 neon-card borderless p-4">
                     <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                      <img loading="lazy" decoding="async" src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="font-bold text-white flex items-center">
                       <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
@@ -806,7 +806,7 @@ export const RicoFamily: React.FC = () => {
                               <div className="mt-3 text-center">
                                 <button
                                   className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                  onClick={() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }}
+                                  onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
                                 >
                                   More
                                 </button>
@@ -845,7 +845,7 @@ export const RicoFamily: React.FC = () => {
                                 <div className="mt-2 text-center">
                                   <button
                                     className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                    onClick={() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }}
+                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
                                     aria-label={`More about ${member.name}`}
                                   >
                                     More
@@ -914,7 +914,7 @@ export const RicoFamily: React.FC = () => {
                                 <div className="mt-3 text-center">
                                   <button
                                     className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                    onClick={() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }}
+                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
                                   >
                                     More
                                   </button>
@@ -950,7 +950,7 @@ export const RicoFamily: React.FC = () => {
                                   <div className="mt-2 text-center">
                                     <button
                                       className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                      onClick={() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }}
+                                      onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
                                       aria-label={`More about ${member.name}`}
                                     >
                                       More
@@ -973,7 +973,7 @@ export const RicoFamily: React.FC = () => {
 
       {/* Legacy Core Team Section (fallback if no committees) */}
   {/* Sports profile modal */}
-  <SportsProfileModal open={sportsModalOpen} onClose={() => setSportsModalOpen(false)} person={selectedSportsPerson} />
+  <SportsProfileModal open={sportsModalOpen} onClose={() => startTransition(() => setSportsModalOpen(false))} person={selectedSportsPerson} />
       {enabledCommittees.length === 0 && (
         <section className="py-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
@@ -1196,7 +1196,7 @@ export const RicoFamily: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
               {formSettings?.membership_form_enabled ? (
                 <button 
-                  onClick={() => setMembershipModal(true)}
+                  onClick={() => startTransition(() => setMembershipModal(true))}
                   className="neon-btn neon-btn-primary group text-lg px-8 py-4 hover-float"
                 >
                   <span className="relative z-10 flex items-center">
@@ -1223,14 +1223,14 @@ export const RicoFamily: React.FC = () => {
       {formSettings?.membership_form_enabled && (
         <MembershipModal
           isOpen={membershipModal}
-          onClose={() => setMembershipModal(false)}
+          onClose={() => startTransition(() => setMembershipModal(false))}
         />
       )}
 
       {/* Faculty Profile Modal */}
       <FacultyProfileModal
         open={facultyModalOpen}
-        onClose={() => { setFacultyModalOpen(false); setFacultyPaused(false); }}
+        onClose={() => { startTransition(() => { setFacultyModalOpen(false); setFacultyPaused(false); }); }}
         person={selectedFaculty ? {
           name: selectedFaculty.name,
           title: selectedFaculty.title,

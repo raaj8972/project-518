@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, startTransition } from 'react';
 import { Music, Star, Instagram, Youtube, AlignJustify as Spotify, ArrowRight, Mic, Guitar, Headphones, Volume2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
@@ -444,7 +444,7 @@ export const HomeBound: React.FC = () => {
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
               {formSettings?.audition_form_enabled ? (
                 <button 
-                  onClick={() => setAuditionModal(true)}
+                  onClick={() => startTransition(() => setAuditionModal(true))}
                   className="cyberpunk-btn cyberpunk-btn-primary group text-lg px-8 py-4 hover-float"
                 >
                   <span className="relative z-10 flex items-center">
@@ -487,7 +487,7 @@ export const HomeBound: React.FC = () => {
       {formSettings?.audition_form_enabled && (
         <AuditionModal
           isOpen={auditionModal}
-          onClose={() => setAuditionModal(false)}
+          onClose={() => startTransition(() => setAuditionModal(false))}
         />
       )}
 
