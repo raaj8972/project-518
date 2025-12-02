@@ -12,7 +12,7 @@ export interface AdminPresence {
   last_activity_at: string;
   created_at: string;
   updated_at: string;
-  // Cursor tracking
+  // Cursor tracking (merged from broadcast)
   cursor_x?: number;
   cursor_y?: number;
   screen_w?: number;
@@ -24,22 +24,27 @@ interface PresenceUpdate {
   page?: string;
   section?: string;
   isTyping?: boolean;
-  cursorX?: number;
-  cursorY?: number;
-  screenW?: number;
-  screenH?: number;
+}
+
+interface CursorUpdate {
+  x: number;
+  y: number;
+  screenW: number;
+  screenH: number;
   focusedElement?: string;
 }
 
 export const useAdminPresence = () => {
   const { user } = useAuth();
   const [otherAdmins, setOtherAdmins] = useState<AdminPresence[]>([]);
+  const [cursors, setCursors] = useState<Record<string, CursorUpdate>>({});
   const [isSubscribed, setIsSubscribed] = useState(false);
   const heartbeatInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mouseThrottle = useRef<number>(0);
+  const channelRef = useRef<any>(null);
 
-  // Update presence
+  // Update presence (DB - Low Frequency)
   const updatePresence = useCallback(async (update: PresenceUpdate) => {
     if (!user) return;
 
@@ -53,24 +58,30 @@ export const useAdminPresence = () => {
       if (update.page !== undefined) data.current_page = update.page;
       if (update.section !== undefined) data.current_section = update.section;
       if (update.isTyping !== undefined) data.is_typing = update.isTyping;
-      
-      // Cursor data
-      if (update.cursorX !== undefined) data.cursor_x = update.cursorX;
-      if (update.cursorY !== undefined) data.cursor_y = update.cursorY;
-      if (update.screenW !== undefined) data.screen_w = update.screenW;
-      if (update.screenH !== undefined) data.screen_h = update.screenH;
-      if (update.focusedElement !== undefined) data.focused_element = update.focusedElement;
 
       await supabase
         .from('admin_presence')
         .upsert(data, { onConflict: 'user_id' });
     } catch (error) {
-      // Silent error for high-frequency updates
-      // console.error('Error updating presence:', error);
+      // Silent error
     }
   }, [user]);
 
-  // Set typing status with auto-clear after 3 seconds
+  // Broadcast cursor (Realtime - High Frequency)
+  const broadcastCursor = useCallback((update: CursorUpdate) => {
+    if (!channelRef.current || !user) return;
+    
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'cursor-pos',
+      payload: { 
+        user_id: user.id, 
+        ...update 
+      }
+    });
+  }, [user]);
+
+  // Set typing status
   const setTyping = useCallback((isTyping: boolean) => {
     updatePresence({ isTyping });
 
@@ -90,7 +101,6 @@ export const useAdminPresence = () => {
     if (!user) return;
 
     try {
-      // Increased tolerance to 2 minutes to handle background tabs
       const twoMinutesAgo = new Date(Date.now() - 120000).toISOString();
       
       const { data, error } = await supabase
@@ -107,37 +117,50 @@ export const useAdminPresence = () => {
     }
   }, [user]);
 
-  // Subscribe to presence changes
+  // Subscribe to presence changes & Broadcast
   useEffect(() => {
     if (!user) return;
 
-    // Initial fetch
     fetchPresence();
 
-    // Subscribe to real-time changes
-    const channel = supabase
-      .channel('admin_presence_updates')
+    const channel = supabase.channel('admin_presence_updates');
+    channelRef.current = channel;
+
+    channel
+      // Listen for DB changes (Status)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'admin_presence'
-        },
-        () => {
-          fetchPresence();
+        { event: '*', schema: 'public', table: 'admin_presence' },
+        () => fetchPresence()
+      )
+      // Listen for Cursor Broadcasts
+      .on(
+        'broadcast',
+        { event: 'cursor-pos' },
+        (payload) => {
+          if (payload.payload.user_id !== user.id) {
+            setCursors(prev => ({
+              ...prev,
+              [payload.payload.user_id]: {
+                x: payload.payload.x,
+                y: payload.payload.y,
+                screenW: payload.payload.screenW,
+                screenH: payload.payload.screenH,
+                focusedElement: payload.payload.focusedElement
+              }
+            }));
+          }
         }
       )
       .subscribe((status) => {
         setIsSubscribed(status === 'SUBSCRIBED');
       });
 
-    // Heartbeat to update last_activity_at every 15 seconds
+    // Heartbeat
     heartbeatInterval.current = setInterval(() => {
       updatePresence({});
     }, 15000);
 
-    // Force heartbeat on visibility change (tab focus)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         updatePresence({});
@@ -145,19 +168,18 @@ export const useAdminPresence = () => {
       }
     };
     
-    // Track mouse movement (throttled)
+    // Track mouse movement (Broadcast)
     const handleMouseMove = (e: MouseEvent) => {
       const now = Date.now();
-      if (now - mouseThrottle.current > 100) { // Max 10 updates per second
+      if (now - mouseThrottle.current > 50) { // 20fps (smoother than DB)
         mouseThrottle.current = now;
         
-        // Calculate percentage position to handle different screen sizes
         const x = e.clientX / window.innerWidth;
         const y = e.clientY / window.innerHeight;
         
-        updatePresence({
-          cursorX: x,
-          cursorY: y,
+        broadcastCursor({
+          x,
+          y,
           screenW: window.innerWidth,
           screenH: window.innerHeight
         });
@@ -169,18 +191,14 @@ export const useAdminPresence = () => {
 
     return () => {
       supabase.removeChannel(channel);
-      if (heartbeatInterval.current) {
-        clearInterval(heartbeatInterval.current);
-      }
-      if (typingTimeout.current) {
-        clearTimeout(typingTimeout.current);
-      }
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [user, fetchPresence, updatePresence]);
+  }, [user, fetchPresence, updatePresence, broadcastCursor]);
 
-  // Cleanup on unmount - remove presence
+  // Cleanup
   useEffect(() => {
     return () => {
       if (user) {
@@ -195,8 +213,18 @@ export const useAdminPresence = () => {
     };
   }, [user]);
 
+  // Merge DB presence with real-time cursors
+  const adminsWithCursors = otherAdmins.map(admin => ({
+    ...admin,
+    cursor_x: cursors[admin.user_id]?.x,
+    cursor_y: cursors[admin.user_id]?.y,
+    screen_w: cursors[admin.user_id]?.screenW,
+    screen_h: cursors[admin.user_id]?.screenH,
+    focused_element: cursors[admin.user_id]?.focusedElement
+  }));
+
   return {
-    otherAdmins,
+    otherAdmins: adminsWithCursors,
     isSubscribed,
     updatePresence,
     setTyping

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Users, X, ChevronRight, Pen, Send } from 'lucide-react';
-import { AdminPresence } from '../hooks/useAdminPresence';
+import { Users, X, ChevronRight, Pen, Send, Eye, EyeOff } from 'lucide-react';
+import { AdminPresence } from '../../hooks/useAdminPresence';
 
 interface AdminPresencePanelProps {
   admins: AdminPresence[];
   isOpen: boolean;
   onToggle: () => void;
   onNavigate?: (page: string) => void;
-  onSendMessage?: (userId: string, message: string) => Promise<void>;
+  onSendMessage?: (userId: string, message: string) => Promise<any>;
+  hiddenCursors?: string[];
+  onToggleCursor?: (userId: string) => void;
 }
 
 // Generate consistent color for each admin based on email
@@ -48,7 +50,9 @@ export const AdminPresencePanel: React.FC<AdminPresencePanelProps> = ({
   isOpen,
   onToggle,
   onNavigate,
-  onSendMessage
+  onSendMessage,
+  hiddenCursors = [],
+  onToggleCursor
 }) => {
   const [messageInputs, setMessageInputs] = useState<Record<string, string>>({});
   const [sendingTo, setSendingTo] = useState<string | null>(null);
@@ -145,6 +149,7 @@ export const AdminPresencePanel: React.FC<AdminPresencePanelProps> = ({
               };
 
               const canNavigate = admin.current_page && pageToTab[admin.current_page];
+              const isCursorHidden = hiddenCursors.includes(admin.user_id);
 
               return (
                 <div
@@ -169,8 +174,23 @@ export const AdminPresencePanel: React.FC<AdminPresencePanelProps> = ({
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
+                      <div className="font-medium text-gray-900 truncate flex items-center gap-2">
                         {admin.email?.split('@')[0]}
+                        {/* Cursor Toggle */}
+                        {onToggleCursor && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleCursor(admin.user_id);
+                            }}
+                            className={`p-1 rounded-full hover:bg-gray-200 transition-colors ${
+                              isCursorHidden ? 'text-gray-400' : 'text-blue-500'
+                            }`}
+                            title={isCursorHidden ? "Show cursor" : "Hide cursor"}
+                          >
+                            {isCursorHidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                          </button>
+                        )}
                       </div>
                       
                       {/* Current Page/Section */}

@@ -259,7 +259,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
           <tbody>
             {(filtered || []).map((u) => (
               <tr key={u.user_id} className="border-t hover:bg-gray-50">
-                <td className="px-2 py-2">{u.email}</td>
+                <td className="px-2 py-2 text-gray-900">{u.email}</td>
                 <td className="px-2 py-2">
                   {u.role === 'owner' || u.is_primary ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-100 text-yellow-800 text-xs font-medium">owner</span>
@@ -309,7 +309,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                               alert(e?.message || 'Failed to update permission');
                             }
                           }}
-                          className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-gray-50 transition-all"
+                          className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-gray-50 transition-all text-gray-700"
                         >
                           {(perm[u.user_id]?.[key] ? <ToggleRight className="w-4 h-4 text-green-600"/> : <ToggleLeft className="w-4 h-4 text-gray-400"/>)}
                           {label}
@@ -319,7 +319,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                   )}
                 </td>
                 <td className="px-2 py-2 font-mono text-[11px] text-gray-700 break-all">{u.user_id}</td>
-                <td className="px-2 py-2">{new Date(u.created_at).toLocaleString()}</td>
+                <td className="px-2 py-2 text-gray-900">{new Date(u.created_at).toLocaleString()}</td>
                 <td className="px-2 py-2">
                   {u.role === 'owner' || u.is_primary ? (
                     <span className="text-gray-400 text-xs">Cannot remove owner</span>

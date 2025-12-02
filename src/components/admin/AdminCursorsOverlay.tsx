@@ -4,6 +4,7 @@ import { AdminPresence } from '../../hooks/useAdminPresence';
 
 interface AdminCursorsOverlayProps {
   admins: AdminPresence[];
+  hiddenCursors?: string[];
 }
 
 // Generate consistent color for each admin based on email
@@ -23,12 +24,13 @@ const getAdminColor = (email: string): string => {
   return colors[hash % colors.length];
 };
 
-export const AdminCursorsOverlay: React.FC<AdminCursorsOverlayProps> = ({ admins }) => {
+export const AdminCursorsOverlay: React.FC<AdminCursorsOverlayProps> = ({ admins, hiddenCursors = [] }) => {
   // Filter for active admins with cursor data
   const activeCursors = admins.filter(admin => {
     const lastActivity = new Date(admin.last_activity_at).getTime();
     const isActive = Date.now() - lastActivity < 120000; // 2 minutes tolerance
-    return isActive && admin.cursor_x !== undefined && admin.cursor_y !== undefined;
+    const isHidden = hiddenCursors.includes(admin.user_id);
+    return isActive && !isHidden && admin.cursor_x !== undefined && admin.cursor_y !== undefined;
   });
 
   if (activeCursors.length === 0) return null;

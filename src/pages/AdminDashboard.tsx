@@ -95,9 +95,22 @@ export const AdminDashboard: React.FC = () => {
 
   // Admin presence tracking
   const { otherAdmins, updatePresence } = useAdminPresence();
+  const [hiddenCursors, setHiddenCursors] = useLocalStorage<string[]>('admin_hidden_cursors', []);
+
+  const toggleCursorVisibility = (userId: string) => {
+    setHiddenCursors(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
 
   // Admin messaging
   const { unreadMessages, sendMessage, markAsRead } = useAdminMessages();
+
+  // ... existing code ...
+
+
 
   // Track page changes for presence
   useEffect(() => {
@@ -380,12 +393,12 @@ export const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Real-time Cursors Overlay */}
-      <AdminCursorsOverlay admins={otherAdmins} />
+      {/* Real-time Cursors Overlay - Only visible to Owner */}
+      {isOwner && <AdminCursorsOverlay admins={otherAdmins} hiddenCursors={hiddenCursors} />}
 
       {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-50 w-full">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               {/* Mobile menu button */}
@@ -444,7 +457,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Diagnostics badge - hidden to avoid exposing backend details */}
       {false && isOwner && (
       <div className="sticky top-0 z-[1001] w-full">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+        <div className="px-4 sm:px-6 lg:px-8 pt-2">
           <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 text-xs text-gray-700 shadow-sm">
             {/* Hide Supabase host unless explicitly enabled via env for debugging */}
             {((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1') && (
@@ -475,94 +488,93 @@ export const AdminDashboard: React.FC = () => {
       </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 overflow-x-auto">
-        {/* Schema/Bucket readiness banner - hidden to avoid exposing backend details */}
-        <div className="flex flex-col lg:flex-row gap-8 min-w-0">
-          {/* Mobile backdrop */}
-          {isSidebarOpen && (
-            <div
-              className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-              onClick={() => setIsSidebarOpen(false)}
-            />
-          )}
-          
-          {/* Sidebar */}
-          <div
-            className={`
-              fixed lg:static inset-y-0 left-0 z-40 lg:z-0
-              w-64 lg:w-64 flex-shrink-0
-              transform transition-transform duration-300 ease-in-out
-              ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-            `}
-          >
-            <nav className="bg-white rounded-lg shadow-md p-4 h-full lg:h-auto overflow-y-auto">
-              {/* Mobile close button */}
-              <div className="lg:hidden flex justify-between items-center mb-4 pb-3 border-b">
-                <span className="font-semibold text-gray-900">Menu</span>
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                  aria-label="Close menu"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <ul className="space-y-2">
-                {visibleTabs.length === 0 && !isOwner && (
-                  <li className="text-sm text-gray-600 p-2 rounded bg-gray-50">
-                    No sections assigned yet. Ask the owner to grant you access.
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <div
+          className={`
+            fixed lg:static inset-y-0 left-0 z-40 lg:z-0
+            w-64 flex-shrink-0 bg-white border-r border-gray-200
+            transform transition-transform duration-300 ease-in-out
+            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          `}
+        >
+          <nav className="h-full overflow-y-auto p-4">
+            {/* Mobile close button */}
+            <div className="lg:hidden flex justify-between items-center mb-4 pb-3 border-b">
+              <span className="font-semibold text-gray-900">Menu</span>
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                aria-label="Close menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <ul className="space-y-1">
+              {visibleTabs.length === 0 && !isOwner && (
+                <li className="text-sm text-gray-600 p-2 rounded bg-gray-50">
+                  No sections assigned yet. Ask the owner to grant you access.
+                </li>
+              )}
+              {visibleTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <li key={tab.id}>
+                    <button
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setIsSidebarOpen(false); // Close sidebar on mobile when tab is selected
+                      }}
+                      className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-yellow-50 text-yellow-700'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 mr-3 flex-shrink-0 ${activeTab === tab.id ? 'text-yellow-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
+                      <span className="flex-1 text-left">{tab.name}</span>
+                      {tab.id === 'registrations' && pendingRegistrations > 0 && (
+                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          {pendingRegistrations}
+                        </span>
+                      )}
+                      {tab.id === 'auditions' && pendingAuditions > 0 && (
+                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          {pendingAuditions}
+                        </span>
+                      )}
+                      {tab.id === 'memberships' && pendingMemberships > 0 && (
+                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                          {pendingMemberships}
+                        </span>
+                      )}
+                      {tab.id === 'security' && isTOTPEnabled && (
+                        <span className="ml-auto">
+                          <Shield className="w-4 h-4 text-green-600" />
+                        </span>
+                      )}
+                    </button>
                   </li>
-                )}
-                {visibleTabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <li key={tab.id}>
-                      <button
-                        onClick={() => {
-                          setActiveTab(tab.id);
-                          setIsSidebarOpen(false); // Close sidebar on mobile when tab is selected
-                        }}
-                        className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
-                          activeTab === tab.id
-                            ? 'bg-yellow-100 text-yellow-800 font-medium'
-                            : 'text-gray-600 hover:bg-gray-100'
-                        }`}
-                      >
-                        <Icon className="w-5 h-5 mr-3 flex-shrink-0" />
-                        <span className="flex-1">{tab.name}</span>
-                        {tab.id === 'registrations' && pendingRegistrations > 0 && (
-                          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                            {pendingRegistrations}
-                          </span>
-                        )}
-                        {tab.id === 'auditions' && pendingAuditions > 0 && (
-                          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                            {pendingAuditions}
-                          </span>
-                        )}
-                        {tab.id === 'memberships' && pendingMemberships > 0 && (
-                          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                            {pendingMemberships}
-                          </span>
-                        )}
-                        {tab.id === 'security' && isTOTPEnabled && (
-                          <span className="ml-auto">
-                            <Shield className="w-4 h-4 text-green-600" />
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
+                );
+              })}
+            </ul>
+          </nav>
+        </div>
 
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
+        {/* Mobile backdrop */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-gray-600 bg-opacity-75 z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto">
             {!isOwner && visibleTabs.length === 0 && (
-              <div className="bg-white rounded-lg shadow-md p-8">
+              <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No admin sections available</h3>
                 <p className="text-gray-600">Your account is authenticated but doesn’t have access to any admin sections yet. Please contact the owner to grant permissions.</p>
               </div>
@@ -574,13 +586,13 @@ export const AdminDashboard: React.FC = () => {
                   {stats.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                      <div key={stat.name} className="bg-white rounded-lg shadow-md p-6">
+                      <div key={stat.name} className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
                         <div className="flex items-center">
-                          <div className={`${stat.color} p-3 rounded-lg`}>
-                            <Icon className="w-6 h-6 text-white" />
+                          <div className={`${stat.color} p-3 rounded-lg bg-opacity-10`}>
+                            <Icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
                           </div>
                           <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-600">{stat.name}</p>
+                            <p className="text-sm font-medium text-gray-500">{stat.name}</p>
                             <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                           </div>
                         </div>
@@ -826,19 +838,19 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
       
-      {/* Admin Presence Panel - Only for Owners */}
+      {/* Admin Presence Panel */}
       {isOwner && (
-        <AdminPresencePanel
+        <AdminPresencePanel 
           admins={otherAdmins}
           isOpen={isPresencePanelOpen}
           onToggle={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
-          onNavigate={(tabId) => setActiveTab(tabId as TabType)}
-          onSendMessage={async (userId, message) => {
-            const result = await sendMessage(userId, message);
-            if (!result.success) {
-              alert('Failed to send message: ' + (result.error || 'Unknown error'));
-            }
+          onNavigate={(page) => {
+            setActiveTab(page as TabType);
+            navigate('/admin');
           }}
+          onSendMessage={sendMessage}
+          hiddenCursors={hiddenCursors}
+          onToggleCursor={toggleCursorVisibility}
         />
       )}
 
