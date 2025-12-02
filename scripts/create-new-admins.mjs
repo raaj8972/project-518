@@ -18,7 +18,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 const newAdmins = [
   { email: 'avik@rico.com', password: 'raja8972' },
-  { email: 'panda@rico.com', password: 'raja8972' }
+  { email: 'panda@rico.com', password: 'raja8972' },
+  { email: 'avirup@rico.com', password: 'avirup@2026' }
 ];
 
 const permissions = {
