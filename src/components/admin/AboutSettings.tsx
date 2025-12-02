@@ -122,11 +122,11 @@ export const AboutSettings: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Hero Title</label>
-            <input value={heroTitle} onChange={(e)=>setHeroTitle(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="ABOUT RICORRENZA" />
+            <input value={heroTitle} onChange={(e)=>setHeroTitle(e.target.value)} className="w-full border rounded px-3 py-2 text-gray-900" placeholder="ABOUT RICORRENZA" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Hero Heading</label>
-            <input value={heroHeading} onChange={(e)=>setHeroHeading(e.target.value)} className="w-full border rounded px-3 py-2" placeholder="THE FUTURE IS NOW" />
+            <input value={heroHeading} onChange={(e)=>setHeroHeading(e.target.value)} className="w-full border rounded px-3 py-2 text-gray-900" placeholder="THE FUTURE IS NOW" />
           </div>
         </div>
 
@@ -135,7 +135,7 @@ export const AboutSettings: React.FC = () => {
           <div className="space-y-2">
             {paragraphs.map((p, i) => (
               <div key={i} className="flex gap-2">
-                <textarea value={p} onChange={(e)=>updateItem(setParagraphs, i, e.target.value)} className="flex-1 border rounded px-3 py-2" rows={3} placeholder="Enter paragraph..." />
+                <textarea value={p} onChange={(e)=>updateItem(setParagraphs, i, e.target.value)} className="flex-1 border rounded px-3 py-2 text-gray-900" rows={3} placeholder="Enter paragraph..." />
                 <button className="p-2 text-red-600" onClick={()=>removeItem(setParagraphs, i)} title="Remove">
                   <Trash className="w-5 h-5" />
                 </button>
@@ -150,11 +150,11 @@ export const AboutSettings: React.FC = () => {
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Section Name</label>
-            <input value={tracksLabel} onChange={e => setTracksLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2" placeholder="Innovation Tracks" />
+            <input value={tracksLabel} onChange={e => setTracksLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2 text-gray-900" placeholder="Innovation Tracks" />
             <div className="space-y-2">
               {tracks.map((t, i) => (
                 <div key={i} className="flex gap-2">
-                  <input value={t} onChange={(e)=>updateItem(setTracks, i, e.target.value)} className="flex-1 border rounded px-3 py-2" placeholder="Track name" />
+                  <input value={t} onChange={(e)=>updateItem(setTracks, i, e.target.value)} className="flex-1 border rounded px-3 py-2 text-gray-900" placeholder="Track name" />
                   <button className="p-2 text-red-600" onClick={()=>removeItem(setTracks, i)} title="Remove">
                     <Trash className="w-5 h-5" />
                   </button>
@@ -167,11 +167,11 @@ export const AboutSettings: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Section Name</label>
-            <input value={zonesLabel} onChange={e => setZonesLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2" placeholder="Experience Zones" />
+            <input value={zonesLabel} onChange={e => setZonesLabel(e.target.value)} className="w-full border rounded px-3 py-2 mb-2 text-gray-900" placeholder="Experience Zones" />
             <div className="space-y-2">
               {zones.map((z, i) => (
                 <div key={i} className="flex gap-2">
-                  <input value={z} onChange={(e)=>updateItem(setZones, i, e.target.value)} className="flex-1 border rounded px-3 py-2" placeholder="Zone name" />
+                  <input value={z} onChange={(e)=>updateItem(setZones, i, e.target.value)} className="flex-1 border rounded px-3 py-2 text-gray-900" placeholder="Zone name" />
                   <button className="p-2 text-red-600" onClick={()=>removeItem(setZones, i)} title="Remove">
                     <Trash className="w-5 h-5" />
                   </button>
@@ -189,8 +189,8 @@ export const AboutSettings: React.FC = () => {
           <div className="space-y-2">
             {stats.map((s, i) => (
               <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-                <input value={s.value} onChange={(e)=>updateStat(i, { value: e.target.value })} className="border rounded px-3 py-2" placeholder="Value (e.g., 2025)" />
-                <input value={s.label} onChange={(e)=>updateStat(i, { label: e.target.value })} className="border rounded px-3 py-2 md:col-span-2" placeholder="Label (e.g., FESTIVAL YEAR)" />
+                <input value={s.value} onChange={(e)=>updateStat(i, { value: e.target.value })} className="border rounded px-3 py-2 text-gray-900" placeholder="Value (e.g., 2025)" />
+                <input value={s.label} onChange={(e)=>updateStat(i, { label: e.target.value })} className="border rounded px-3 py-2 md:col-span-2 text-gray-900" placeholder="Label (e.g., FESTIVAL YEAR)" />
                 <button className="p-2 text-red-600" onClick={()=>removeStat(i)} title="Remove"><Trash className="w-5 h-5" /></button>
               </div>
             ))}

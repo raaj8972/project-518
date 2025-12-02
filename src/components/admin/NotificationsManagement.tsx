@@ -192,7 +192,7 @@ export const NotificationsManagement: React.FC = () => {
       <div className="border border-gray-200 rounded-lg p-4 mb-6">
         <div className="grid md:grid-cols-2 gap-3">
           <input
-            type="text" placeholder="Title (optional)" className="border rounded px-3 py-2"
+            type="text" placeholder="Title (optional)" className="border rounded px-3 py-2 text-gray-900"
             value={draft.title} onChange={(e)=>setDraft((d)=>({...d, title: e.target.value}))}
           />
           <div>
@@ -200,7 +200,7 @@ export const NotificationsManagement: React.FC = () => {
               list="notif-type-suggestions"
               type="text"
               placeholder="Type (e.g., info, success, warning, error, or custom)"
-              className="border rounded px-3 py-2 w-full"
+              className="border rounded px-3 py-2 w-full text-gray-900"
               value={draft.type}
               onChange={(e)=>setDraft((d)=>({...d, type: e.target.value}))}
             />
@@ -214,11 +214,11 @@ export const NotificationsManagement: React.FC = () => {
             </datalist>
           </div>
           <input
-            type="url" placeholder="Link URL (optional)" className="border rounded px-3 py-2"
+            type="url" placeholder="Link URL (optional)" className="border rounded px-3 py-2 text-gray-900"
             value={draft.link_url} onChange={(e)=>setDraft((d)=>({...d, link_url: e.target.value}))}
           />
           <input
-            type="number" placeholder="Priority (default 0)" className="border rounded px-3 py-2"
+            type="number" placeholder="Priority (default 0)" className="border rounded px-3 py-2 text-gray-900"
             value={draft.priority} onChange={(e)=>setDraft((d)=>({...d, priority: Number(e.target.value)}))}
           />
           <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -227,24 +227,24 @@ export const NotificationsManagement: React.FC = () => {
           </label>
         </div>
         <textarea
-          className="mt-3 w-full border rounded px-3 py-2 min-h-[90px]"
+          className="mt-3 w-full border rounded px-3 py-2 min-h-[90px] text-gray-900"
           placeholder="Message"
           value={draft.message}
           onChange={(e)=>setDraft((d)=>({...d, message: e.target.value}))}
         />
         <div className="grid md:grid-cols-2 gap-3 mt-3">
           <label className="text-sm text-gray-700">Starts At
-            <input type="datetime-local" className="w-full border rounded px-3 py-2 mt-1" value={draft.starts_at}
+            <input type="datetime-local" className="w-full border rounded px-3 py-2 mt-1 text-gray-900" value={draft.starts_at}
               onChange={(e)=>setDraft((d)=>({...d, starts_at: e.target.value}))}
             />
           </label>
           <label className="text-sm text-gray-700">Ends At (optional)
-            <input type="datetime-local" className="w-full border rounded px-3 py-2 mt-1" value={draft.ends_at}
+            <input type="datetime-local" className="w-full border rounded px-3 py-2 mt-1 text-gray-900" value={draft.ends_at}
               onChange={(e)=>setDraft((d)=>({...d, ends_at: e.target.value}))}
             />
           </label>
           <label className="text-sm text-gray-700">Auto Dismiss (seconds, optional)
-            <input type="number" min={0} placeholder="e.g., 4 for 4s" className="w-full border rounded px-3 py-2 mt-1"
+            <input type="number" min={0} placeholder="e.g., 4 for 4s" className="w-full border rounded px-3 py-2 mt-1 text-gray-900"
               value={draft.auto_dismiss_seconds}
               onChange={(e)=>setDraft((d)=>({...d, auto_dismiss_seconds: e.target.value}))}
             />
@@ -299,25 +299,25 @@ export const NotificationsManagement: React.FC = () => {
             {(rows || []).map((n: any) => (
               <tr key={n.id} className="border-t">
                 <td className="py-2 pr-3 align-top">
-                  <input className="border rounded px-2 py-1 w-48" defaultValue={n.title || ''}
+                  <input className="border rounded px-2 py-1 w-48 text-gray-900" defaultValue={n.title || ''}
                     onBlur={(e)=>handlePatch(n.id, { title: e.target.value })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
                   <input
                     list="notif-type-suggestions"
-                    className="border rounded px-2 py-1 w-32"
+                    className="border rounded px-2 py-1 w-32 text-gray-900"
                     defaultValue={n.type || 'info'}
                     onBlur={(e)=>handlePatch(n.id, { type: e.target.value })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <textarea className="border rounded px-2 py-1 w-72 min-h-[60px]" defaultValue={n.message}
+                  <textarea className="border rounded px-2 py-1 w-72 min-h-[60px] text-gray-900" defaultValue={n.message}
                     onBlur={(e)=>handlePatch(n.id, { message: e.target.value })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <input className="border rounded px-2 py-1 w-48" defaultValue={n.link_url || ''}
+                  <input className="border rounded px-2 py-1 w-48 text-gray-900" defaultValue={n.link_url || ''}
                     onBlur={(e)=>handlePatch(n.id, { link_url: e.target.value || null })}
                   />
                 </td>
@@ -327,22 +327,22 @@ export const NotificationsManagement: React.FC = () => {
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <input type="datetime-local" className="border rounded px-2 py-1" defaultValue={toLocalInput(n.starts_at)}
+                  <input type="datetime-local" className="border rounded px-2 py-1 text-gray-900" defaultValue={toLocalInput(n.starts_at)}
                     onBlur={(e)=>handlePatch(n.id, { starts_at: e.target.value })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <input type="datetime-local" className="border rounded px-2 py-1" defaultValue={toLocalInput(n.ends_at)}
+                  <input type="datetime-local" className="border rounded px-2 py-1 text-gray-900" defaultValue={toLocalInput(n.ends_at)}
                     onBlur={(e)=>handlePatch(n.id, { ends_at: e.target.value })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <input type="number" className="border rounded px-2 py-1 w-20" defaultValue={n.priority ?? 0}
+                  <input type="number" className="border rounded px-2 py-1 w-20 text-gray-900" defaultValue={n.priority ?? 0}
                     onBlur={(e)=>handlePatch(n.id, { priority: Number(e.target.value || 0) })}
                   />
                 </td>
                 <td className="py-2 pr-3 align-top">
-                  <input type="number" className="border rounded px-2 py-1 w-24" defaultValue={n.auto_dismiss_seconds ?? ''}
+                  <input type="number" className="border rounded px-2 py-1 w-24 text-gray-900" defaultValue={n.auto_dismiss_seconds ?? ''}
                     onBlur={(e)=>handlePatch(n.id, { auto_dismiss_seconds: e.target.value === '' ? null : Number(e.target.value) })}
                   />
                 </td>

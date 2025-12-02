@@ -520,7 +520,7 @@ export const HomepageManagement: React.FC = () => {
                     value={form.hero_title}
                     onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
                     placeholder="RICORRENZA"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Main hero title shown prominently on the homepage</p>
@@ -541,7 +541,7 @@ export const HomepageManagement: React.FC = () => {
                         const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                         setForm(prev=>({ ...prev, brand_year: val }));
                       }}
-                      className="w-full border rounded px-3 py-2"
+                      className="w-full border rounded px-3 py-2 text-gray-900"
                       placeholder={`${new Date().getFullYear()}`}
                     />
                     <p className="text-xs text-gray-500 mt-1">Draft only. Click “Save Branding” to apply.</p>
@@ -645,7 +645,7 @@ export const HomepageManagement: React.FC = () => {
                         const val = (e.target.value === 'right' ? 'right' : 'left') as 'left'|'right';
                         setForm(prev=>({ ...prev, brand_logo_side: val }));
                       }}
-                      className="w-full border rounded px-3 py-2"
+                      className="w-full border rounded px-3 py-2 text-gray-900"
                     >
                       <option value="left">Left of text</option>
                       <option value="right">Right of text</option>
@@ -704,12 +704,12 @@ export const HomepageManagement: React.FC = () => {
                       <input type="number" value={form.brand_logo_offset_x_sm_px === '' ? '' : (form.brand_logo_offset_x_sm_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_x_sm_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                       <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
                       <input type="number" value={form.brand_logo_offset_y_sm_px === '' ? '' : (form.brand_logo_offset_y_sm_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_y_sm_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                     </div>
                     {/* md */}
                     <div>
@@ -718,12 +718,12 @@ export const HomepageManagement: React.FC = () => {
                       <input type="number" value={form.brand_logo_offset_x_md_px === '' ? '' : (form.brand_logo_offset_x_md_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_x_md_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                       <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
                       <input type="number" value={form.brand_logo_offset_y_md_px === '' ? '' : (form.brand_logo_offset_y_md_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_y_md_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                     </div>
                     {/* lg */}
                     <div>
@@ -732,12 +732,12 @@ export const HomepageManagement: React.FC = () => {
                       <input type="number" value={form.brand_logo_offset_x_lg_px === '' ? '' : (form.brand_logo_offset_x_lg_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_x_lg_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                       <label className="block text-xs text-gray-700 mt-2 mb-1">Y (px)</label>
                       <input type="number" value={form.brand_logo_offset_y_lg_px === '' ? '' : (form.brand_logo_offset_y_lg_px as any)} onChange={(e)=>{
                         const v = e.target.value === '' ? '' : parseInt(e.target.value,10);
                         setForm(p=>({ ...p, brand_logo_offset_y_lg_px: (e.target.value === '' ? '' : v) as any }));
-                      }} className="w-full p-2 border rounded" />
+                      }} className="w-full p-2 border rounded text-gray-900" />
                     </div>
                   </div>
                   {/* Actions for branding saves */}
@@ -771,7 +771,7 @@ export const HomepageManagement: React.FC = () => {
                     value={form.hero_subtitle}
                     onChange={(e) => setForm(prev => ({ ...prev, hero_subtitle: e.target.value }))}
                     placeholder="Experience the Future"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Subtitle text below the main title</p>
@@ -786,7 +786,7 @@ export const HomepageManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, hero_description: e.target.value }))}
                     placeholder="Experience the future of Healthcare, Technology, and Creativity"
                     rows={4}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Descriptive text below the subtitle</p>
