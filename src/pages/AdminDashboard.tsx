@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Calendar, 
@@ -196,8 +196,10 @@ export const AdminDashboard: React.FC = () => {
     }
     
     // Logout and navigate immediately
-    logout(); // Don't await - let it run in background
-    navigate('/'); // Navigate instantly
+    startTransition(() => {
+      logout(); // Don't await - let it run in background
+      navigate('/'); // Navigate instantly
+    });
   };
 
   // Optional inactivity/visibility auto-logout with generous thresholds
