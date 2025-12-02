@@ -787,28 +787,6 @@ export const EventsManagement: React.FC = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Coordinator Name</label>
-                  <input
-                    type="text"
-                    value={eventForm.coordinator_name || ''}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_name: e.target.value }))}
-                    placeholder="Name of coordinator"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Coordinator Phone</label>
-                  <input
-                    type="tel"
-                    value={eventForm.coordinator_phone || ''}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_phone: e.target.value }))}
-                    placeholder="e.g., +91 90000 00000"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Venue</label>
                   <input
                     type="text"
@@ -1141,73 +1119,6 @@ export const EventsManagement: React.FC = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">Shown to users on the registration form. Leave blank to use default.</p>
               </div>
-                {/* Per-event registration form fields editor */}
-                <div className="mt-4 p-3 border rounded bg-gray-50">
-                  <h4 className="font-medium mb-2">Registration Form Fields (per-event overrides)</h4>
-                  <p className="text-sm text-gray-500 mb-2">Order, show/hide and require fields for this event. New fields added here are stored on the event and override site defaults.</p>
-                  <div>
-                    <ul className="space-y-2">
-                      {(eventForm.registration_form_fields || []).map((f: any, idx: number) => (
-                        <li key={f.key || idx} draggable onDragStart={() => setDragIndex(idx)} onDragOver={(e) => {
-                          e.preventDefault();
-                          if (dragIndex === null || dragIndex === idx) return;
-                          setEventForm(prev => {
-                            const arr = [...(prev.registration_form_fields || [])];
-                            const [item] = arr.splice(dragIndex, 1);
-                            arr.splice(idx, 0, item);
-                            return { ...prev, registration_form_fields: arr } as any;
-                          });
-                          setDragIndex(idx);
-                        }} className="flex items-center justify-between p-2 bg-white border rounded">
-                          <div>
-                            <div className="font-medium">{f.label || f.key}</div>
-                            <div className="text-sm text-slate-500">{f.type}{f.type === 'select' && f.options ? ` — options: ${Array.isArray(f.options) ? f.options.join(', ') : String(f.options)}` : ''}</div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <label className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" checked={!!f.visible} onChange={() => setEventForm(prev => {
-                                const arr = (prev.registration_form_fields || []).slice(); arr[idx] = { ...arr[idx], visible: !arr[idx].visible }; return { ...prev, registration_form_fields: arr } as any;
-                              })} />
-                              <span>Show</span>
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                              <input type="checkbox" checked={!!f.required} onChange={() => setEventForm(prev => {
-                                const arr = (prev.registration_form_fields || []).slice(); arr[idx] = { ...arr[idx], required: !arr[idx].required }; return { ...prev, registration_form_fields: arr } as any;
-                              })} />
-                              <span>Required</span>
-                            </label>
-                            <button onClick={() => setEventForm(prev => ({ ...prev, registration_form_fields: (prev.registration_form_fields || []).filter((_, j) => j !== idx) } as any))} className="text-red-600 text-sm">Delete</button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <input className="border rounded p-2" placeholder="key (lowercase_snake)" value={(eventForm as any).new_field_key || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_key: e.target.value } as any))} />
-                      <input className="border rounded p-2" placeholder="Label" value={(eventForm as any).new_field_label || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_label: e.target.value } as any))} />
-                      <select className="border rounded p-2" value={(eventForm as any).new_field_type || 'text'} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_type: e.target.value } as any))}>
-                        <option value="text">text</option>
-                        <option value="email">email</option>
-                        <option value="tel">tel</option>
-                        <option value="date">date</option>
-                        <option value="select">select (comma-separated options)</option>
-                        <option value="photo">photo</option>
-                      </select>
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input className="border rounded p-2 flex-1" placeholder="Options (comma separated) — only for select" value={(eventForm as any).new_field_options || ''} onChange={(e) => setEventForm(prev => ({ ...prev, new_field_options: e.target.value } as any))} />
-                      <button onClick={() => {
-                        const key = String((eventForm as any).new_field_key || '').trim();
-                        const label = String((eventForm as any).new_field_label || '').trim();
-                        const type = String((eventForm as any).new_field_type || 'text');
-                        if (!key || !/^[a-z0-9_]+$/.test(key)) { alert('Field key required (lowercase, numbers, underscore)'); return; }
-                        if (!label) { alert('Field label required'); return; }
-                        const opts = String((eventForm as any).new_field_options || '').split(',').map(s => s.trim()).filter(Boolean);
-                        setEventForm(prev => ({ ...prev, registration_form_fields: [...(prev.registration_form_fields || []), { key, label, type, visible: true, required: false, options: opts.length ? opts : undefined }], new_field_key: '', new_field_label: '', new_field_type: 'text', new_field_options: '' } as any));
-                      }} className="px-3 py-2 bg-green-600 text-white rounded">Add Field</button>
-                    </div>
-                  </div>
-                </div>
               {eventForm.registration_timer_enabled && (
                 <div className="mt-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At (optional)</label>
