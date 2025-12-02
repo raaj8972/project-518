@@ -53,6 +53,10 @@ import RegistrationPhotosPanel from '../components/admin/RegistrationPhotosPanel
 import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
 import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
 import { ConnectionOverview } from '../components/admin/ConnectionOverview';
+import { AdminPresencePanel } from '../components/admin/AdminPresencePanel';
+import { useAdminPresence } from '../hooks/useAdminPresence';
+import { AdminMessageToastContainer } from '../components/admin/AdminMessageToast';
+import { useAdminMessages } from '../hooks/useAdminMessages';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications';
 
@@ -86,7 +90,49 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isPresencePanelOpen, setIsPresencePanelOpen] = useLocalStorage<boolean>('admin_presence_panel_open', false);
 
+  // Admin presence tracking
+  const { otherAdmins, updatePresence } = useAdminPresence();
+
+  // Admin messaging
+  const { unreadMessages, sendMessage, markAsRead } = useAdminMessages();
+
+  // Track page changes for presence
+  useEffect(() => {
+    const pageNames: Record<TabType, string> = {
+      overview: 'Overview',
+      homepage: 'Homepage',
+      'hero-media': 'Hero Media',
+      homebound: 'Home Bound Settings',
+      about: 'About',
+      events: 'Events Management',
+      schedule: 'Schedule',
+      gallery: 'Gallery',
+      sponsors: 'Sponsors',
+      registrations: 'Registrations',
+      'reg-photos': 'Registration Photos',
+      categories: 'Categories',
+      social: 'Social Media',
+      faculty: 'Faculty Heads',
+      'core-team': 'Core Team',
+      'sports-team': 'Sports Team',
+      band: 'Home Bound Band',
+      'guest-artists': 'Guest Artists',
+      'chief-guests': 'Chief Guests',
+      auditions: 'Auditions',
+      memberships: 'Memberships',
+      'form-settings': 'Form Settings',
+      'registration-modal': 'Registration Modal',
+      roadmap: 'Roadmap',
+      security: 'Security',
+      'biometric-login': 'Biometric Login',
+      'site-settings': 'Site Settings',
+      'admin-users': 'Admin Users',
+      notifications: 'Notifications'
+    };
+    updatePresence({ page: pageNames[activeTab] || activeTab });
+  }, [activeTab, updatePresence]);
   const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
 
   // Determine if current user is the OWNER
@@ -129,8 +175,15 @@ export const AdminDashboard: React.FC = () => {
   }, [authLoading, isAuthenticated, navigate]);
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/');
+    // Clear any pending logout timers to prevent interference
+    if (logoutTimer.current) {
+      clearTimeout(logoutTimer.current);
+      logoutTimer.current = null;
+    }
+    
+    // Logout and navigate immediately
+    logout(); // Don't await - let it run in background
+    navigate('/'); // Navigate instantly
   };
 
   // Optional inactivity/visibility auto-logout with generous thresholds
@@ -768,6 +821,33 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+      
+      {/* Admin Presence Panel - Only for Owners */}
+      {isOwner && (
+        <AdminPresencePanel
+          admins={otherAdmins}
+          isOpen={isPresencePanelOpen}
+          onToggle={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
+          onNavigate={(tabId) => setActiveTab(tabId as TabType)}
+          onSendMessage={async (userId, message) => {
+            const result = await sendMessage(userId, message);
+            if (!result.success) {
+              alert('Failed to send message: ' + (result.error || 'Unknown error'));
+            }
+          }}
+        />
+      )}
+
+      {/* Message Toasts for all admins */}
+      <AdminMessageToastContainer
+        messages={unreadMessages}
+        onDismiss={markAsRead}
+        getUserEmail={(userId: string) => {
+          // Find user email from admin users list
+          const admin = adminUsers?.find(a => a.user_id === userId);
+          return admin?.email || null;
+        }}
+      />
     </div>
   );
 };

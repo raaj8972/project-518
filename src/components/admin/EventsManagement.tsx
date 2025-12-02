@@ -75,7 +75,6 @@ export const EventsManagement: React.FC = () => {
   const [newCoordinator, setNewCoordinator] = useState<{ name: string; phone: string }>({ name: '', phone: '' });
   // Draft coordinators when creating a brand new event (before it has an id)
   const [draftCoordinators, setDraftCoordinators] = useState<Array<{ name: string; phone?: string | null }>>([]);
-  const [newEventParticipantType, setNewEventParticipantType] = useState('');
   const [autoOpenEnabled, setAutoOpenEnabled] = useState<boolean>(() => {
     try { return (localStorage.getItem('admin_auto_open_enabled') === 'true'); } catch { return false; }
   });
@@ -525,36 +524,6 @@ export const EventsManagement: React.FC = () => {
     }));
   };
 
-  const addEventParticipantType = () => {
-    const t = (newEventParticipantType || '').trim();
-    if (!t) return;
-    setEventForm(prev => ({ ...prev, registration_participant_types: [...(prev.registration_participant_types || []), t] } as any));
-    setNewEventParticipantType('');
-  };
-
-  const removeEventParticipantType = (idx: number) => {
-    setEventForm(prev => {
-      const list = (prev.registration_participant_types || []).slice();
-      const removed = list.splice(idx, 1)[0];
-      // Also prune any quota set for the removed type
-      const quotasBase = ((prev as any).registration_participant_quotas || {}) as Record<string, number>;
-      const quotas = { ...quotasBase };
-      if (removed && Object.prototype.hasOwnProperty.call(quotas, removed)) {
-        delete quotas[removed];
-      }
-      return { ...prev, registration_participant_types: list, registration_participant_quotas: quotas } as any;
-    });
-  };
-
-  const moveEventParticipantType = (from: number, to: number) => {
-    setEventForm(prev => {
-      const list = (prev.registration_participant_types || []).slice();
-      if (to < 0 || to >= list.length) return prev;
-      const item = list.splice(from, 1)[0];
-      list.splice(to, 0, item);
-      return { ...prev, registration_participant_types: list } as any;
-    });
-  };
 
   const updateHighlight = (index: number, value: string) => {
     setEventForm(prev => ({

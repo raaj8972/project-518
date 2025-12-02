@@ -120,7 +120,7 @@ export const Login: React.FC = () => {
             loop
             muted
             playsInline
-            preload="auto"
+            preload="metadata"
             className="absolute inset-0 w-full h-full video-3d-effect"
             style={{ 
               filter: 'brightness(0.7)',
@@ -442,6 +442,16 @@ export const Login: React.FC = () => {
           100% { transform: translate(50px, 50px); }
         }
 
+        /* Reduced animations on mobile for performance */
+        @media (max-width: 768px) {
+          .video-3d-effect {
+            animation: none !important;
+          }
+          .cyberpunk-grid {
+            animation: none !important;
+          }
+        }
+
         /* 3D video floating effect */
         @keyframes video3DFloat {
           0%, 100% {
@@ -453,7 +463,8 @@ export const Login: React.FC = () => {
         }
 
         .video-3d-effect {
-          animation: video3DFloat 8s ease-in-out infinite;
+          /* Reduced animation for performance */
+          will-change: transform;
         }
 
         /* particles CSS removed */

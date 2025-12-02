@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, ToggleLeft, ToggleRight, Lock, Edit } from 'lucide-react';
 
 interface AdminUsersPanelProps {
@@ -37,6 +38,8 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
   const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary;
 
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
+  
+  // Initial load of permissions
   useEffect(() => {
     (async () => {
       try {
@@ -63,6 +66,53 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
       } catch {}
     })();
   }, [listAdminPermissions]);
+
+  // Realtime sync for permission changes - update local state when other admins change
+  useEffect(() => {
+    const channel = supabase
+      .channel('admin-users-panel-permissions')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'admin_permissions'
+      }, (payload: any) => {
+        const row = payload.new || payload.old;
+        if (!row?.user_id) return;
+        
+        console.log(`[Realtime] Permission update for ${row.user_id}:`, payload.eventType, row);
+
+        if (payload.eventType === 'DELETE') {
+          setPerm(p => {
+            const next = { ...p };
+            delete next[row.user_id];
+            return next;
+          });
+        } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          setPerm(p => ({
+            ...p,
+            [row.user_id]: {
+              can_events: !!row.can_events,
+              can_schedule: !!row.can_schedule,
+              can_gallery: !!row.can_gallery,
+              can_sponsors: !!row.can_sponsors,
+              can_registrations: !!row.can_registrations,
+              can_registration_photos: !!row.can_registration_photos,
+              can_faculty: !!row.can_faculty,
+              can_core_team: !!row.can_core_team,
+              can_guest_artists: !!row.can_guest_artists,
+              can_chief_guests: !!row.can_chief_guests,
+              can_homebound: !!row.can_homebound,
+              can_sports: !!row.can_sports,
+            }
+          }));
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -242,14 +292,24 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                           onClick={async () => {
                             if (!setAdminPermission) return;
                             const next = !perm[u.user_id]?.[key];
+                            console.log(`[Toggle] Clicking ${label} for ${u.email}. Next: ${next}`);
+                            
+                            // Optimistic update - update UI immediately
+                            setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: next } }));
+                            
                             try {
+                              // Sync with database in background
+                              console.log(`[Toggle] Syncing to DB...`);
                               await setAdminPermission(u.user_id, { [key]: next } as any);
-                              setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: next } }));
+                              console.log(`[Toggle] DB Sync success`);
                             } catch (e: any) {
+                              console.error(`[Toggle] DB Sync failed:`, e);
+                              // Rollback on error
+                              setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: !next } }));
                               alert(e?.message || 'Failed to update permission');
                             }
                           }}
-                          className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-gray-50"
+                          className="inline-flex items-center gap-1 text-xs border rounded px-2 py-1 hover:bg-gray-50 transition-all"
                         >
                           {(perm[u.user_id]?.[key] ? <ToggleRight className="w-4 h-4 text-green-600"/> : <ToggleLeft className="w-4 h-4 text-gray-400"/>)}
                           {label}

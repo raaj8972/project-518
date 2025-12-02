@@ -601,7 +601,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const listAdminPermissions = async () => {
+  const listAdminPermissions = useCallback(async () => {
     // Skip when unauthenticated to avoid 400s from RLS or bad filters
     try {
       const user = (await supabase.auth.getUser()).data.user;
@@ -612,7 +612,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       .select('*');
     if (error) throw new Error(error.message);
     return (data || []) as any;
-  };
+  }, []);
 
   const setAdminPermission = async (userId: string, patch: Partial<AdminPermission>) => {
     // Owner-only: server-side RLS enforces this
@@ -2121,6 +2121,58 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
         if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
           scheduleResubscribe(`Realtime(${s}) admin_users`);
+        }
+      });
+    try { realtimeChannelsRef.current.add(channel); } catch {}
+    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
+  }, []);
+
+  // Realtime: admin_permissions updates - so permission changes reflect immediately
+  useEffect(() => {
+    const channelName = 'ctx-admin-permissions';
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_permissions' }, async (payload: any) => {
+        try {
+          // Get current user ID
+          const userId = (await supabase.auth.getUser()).data.user?.id;
+          if (!userId) return;
+
+          const row = payload.new || payload.old;
+          
+          // Only update if this change affects the current user
+          if (row?.user_id === userId) {
+            if (payload.eventType === 'DELETE') {
+              // Permissions removed - clear all permissions
+              setMyPermissions({});
+            } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              // Permissions added or updated
+              const p: any = row;
+              setMyPermissions({
+                can_events: !!p.can_events,
+                can_schedule: !!p.can_schedule,
+                can_gallery: !!p.can_gallery,
+                can_sponsors: !!p.can_sponsors,
+                can_registrations: !!p.can_registrations,
+                can_registration_photos: !!p.can_registration_photos,
+                can_faculty: !!p.can_faculty,
+                can_core_team: !!p.can_core_team,
+                can_guest_artists: !!p.can_guest_artists,
+                can_chief_guests: !!p.can_chief_guests,
+                can_homebound: !!p.can_homebound,
+                can_sports: !!p.can_sports,
+              });
+            }
+          }
+        } catch (err) {
+          console.error('[DataContext] Error handling admin_permissions realtime update:', err);
+        }
+      })
+      .subscribe((status: any) => {
+        const s = String(status);
+        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
+        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+          scheduleResubscribe(`Realtime(${s}) admin_permissions`);
         }
       });
     try { realtimeChannelsRef.current.add(channel); } catch {}
