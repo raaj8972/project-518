@@ -57,6 +57,7 @@ import { AdminPresencePanel } from '../components/admin/AdminPresencePanel';
 import { useAdminPresence } from '../hooks/useAdminPresence';
 import { AdminMessageToastContainer } from '../components/admin/AdminMessageToast';
 import { useAdminMessages } from '../hooks/useAdminMessages';
+import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications';
 
@@ -378,7 +379,10 @@ export const AdminDashboard: React.FC = () => {
   // loading already handled above
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 admin-root">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Real-time Cursors Overlay */}
+      <AdminCursorsOverlay admins={otherAdmins} />
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -607,10 +607,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) return [] as any[];
     } catch { return [] as any[]; }
+    
+    console.log('[DataContext] Fetching admin_permissions...');
     const { data, error } = await supabase
       .from('admin_permissions' as any)
       .select('*');
-    if (error) throw new Error(error.message);
+      
+    if (error) {
+      console.error('[DataContext] Error fetching admin_permissions:', error);
+      throw new Error(error.message);
+    }
+    
+    console.log('[DataContext] admin_permissions data:', data);
     return (data || []) as any;
   }, []);
 
