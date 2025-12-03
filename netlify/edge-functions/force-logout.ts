@@ -17,12 +17,37 @@ export default async (request: Request) => {
 
   try {
     // Get environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://isfqhascrdzaoebhuohs.supabase.co';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Missing environment variables:', {
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseServiceKey,
+        keyLength: supabaseServiceKey?.length || 0
+      });
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Missing required environment variables' }),
+        { status: 500, headers }
+      );
+    }
+
+    // Validate service key format (should have 3 parts separated by dots)
+    const keyParts = supabaseServiceKey.split('.');
+    if (keyParts.length !== 3) {
+      console.error('Invalid service key format:', {
+        parts: keyParts.length,
+        keyPrefix: supabaseServiceKey.substring(0, 20)
+      });
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error: Invalid service key format' }),
+        { status: 500, headers }
+      );
+    }
 
     // Initialize Supabase with service role
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey.trim(), {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
