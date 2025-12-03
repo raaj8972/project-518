@@ -1,5 +1,5 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { useData } from '../context/DataContext';
@@ -710,7 +710,7 @@ export const Home: React.FC = () => {
                       className="cursor-pointer w-[260px] sm:w-[300px] md:w-[340px] flex flex-col bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md rounded-xl shadow-xl ring-1 ring-blue-500/30 overflow-hidden group relative hover:ring-blue-400/50 transition"
                     >
                       <div className="relative h-56 sm:h-60 overflow-hidden">
-                        <img loading="lazy" decoding="async" src={cg.image} alt={cg.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                        <img loading="lazy" decoding="async" src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                         {cg.specialty && (
                           <div className="absolute top-3 left-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
@@ -765,7 +765,7 @@ export const Home: React.FC = () => {
                     <React.Fragment key={cg.id}>
                       <div className="relative group overflow-hidden rounded-xl shadow-xl ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-900/40 via-black/50 to-purple-900/40 backdrop-blur-md">
                         <div className="relative h-80 overflow-hidden">
-                          <img loading="lazy" decoding="async" src={cg.image} alt={cg.name} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
+                          <img loading="lazy" decoding="async" src={cg.image} alt={cg.name} className="w-full h-full object-cover transition-transform duration-[3500ms] group-hover:scale-110" />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                           {cg.specialty && (
                             <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
@@ -1140,7 +1140,7 @@ export const Home: React.FC = () => {
                   OUR <span className="neon-white">LEADERSHIP</span>
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-amber-500 mx-auto mb-4 expand-width"></div>
-                <p className="text-gray-300">Faculty leadership and heads of our core committees</p>
+                <p className="text-gray-300">Faculty leadership and heads of our core committees. Meet the entire team on our <Link to="/rico-family" className="text-blue-400 hover:text-blue-300 underline font-semibold">Rico Family page</Link>.</p>
               </div>
 
               {/* Faculty Heads */}
@@ -1184,7 +1184,7 @@ export const Home: React.FC = () => {
                     renderItem={(head: any) => (
                       <div className={`w-72 md:w-80 cyberpunk-card p-5 transition-shadow duration-150 ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}>
                         <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
-                          <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" decoding="async" className="w-full h-full object-cover"/>
+                          <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover"/>
                         </div>
                         <div className="font-bold text-white text-base md:text-lg text-center">{head.name}</div>
                         <div className="text-sm md:text-base text-gray-300 text-center">{head.title}</div>
@@ -1263,7 +1263,7 @@ export const Home: React.FC = () => {
                               }}
                             >
                               <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 sm:mb-4 bg-black/30 flex items-center justify-center">
-                                <img loading="lazy" decoding="async" src={m.image} alt={m.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
                                 {/* Hover badge for council / committee */}
                                 <div className="absolute top-2 left-2">
                                   {isCouncil ? (
@@ -1939,7 +1939,7 @@ export const Home: React.FC = () => {
           <div className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl bg-gradient-to-br from-blue-950/90 via-black/80 to-purple-950/90 ring-1 ring-blue-500/30 shadow-2xl flex flex-col">
             <div className="flex items-start gap-4 p-5 border-b border-white/10">
               <div className="relative w-40 h-40 rounded-xl overflow-hidden ring-1 ring-blue-400/40 flex-shrink-0">
-                <img loading="lazy" decoding="async" src={selectedChiefGuest.image} alt={selectedChiefGuest.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                <img loading="lazy" decoding="async" src={selectedChiefGuest.image} alt={selectedChiefGuest.name} className="w-full h-full object-cover" />
                 {selectedChiefGuest.specialty && (
                   <div className="absolute bottom-2 left-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-[10px] font-semibold px-2 py-1 rounded-full shadow-lg flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
