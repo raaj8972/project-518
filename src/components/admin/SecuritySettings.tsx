@@ -166,54 +166,42 @@ export const SecuritySettings: React.FC = () => {
     if (!confirm(confirmMsg)) return;
 
     try {
-      // Safely get session, ignoring errors if we have the master key
-      let token: string | undefined;
-      try {
-        const { data } = await supabase.auth.getSession();
-        token = data?.session?.access_token;
-      } catch (e) {
-        console.warn('Session error ignored during force logout:', e);
+      setMessage({ type: 'success', text: 'Logging out...' });
+      
+      // For self-logout, just clear local session and redirect
+      if (isSelf) {
+        // Force client-side logout immediately
+        try {
+          await supabase.auth.signOut();
+        } catch (e) {
+          console.warn('SignOut error ignored:', e);
+        }
+        
+        // Clear all Supabase auth data from localStorage
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-')) localStorage.removeItem(key);
+        });
+        
+        // Redirect to login
+        window.location.href = '/';
+        return;
       }
 
+      // For other users, use the admin security controls
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (isPinVerified) {
-        // headers['x-master-key'] = '9693'; // Removed insecure key
-      }
 
-      const res = await fetch('/.netlify/functions/force-logout', {
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ targetUserId: userId })
+        body: JSON.stringify({ action: 'force_logout', targetUserId: userId })
       });
 
       if (res.ok) {
         setMessage({ type: 'success', text: 'User logged out successfully' });
-        
-        // Broadcast logout event to all connected clients
-        await supabase.channel('admin_security').send({
-          type: 'broadcast',
-          event: 'force_logout',
-          payload: { targetUserId: userId }
-        });
-
-        if (isSelf) {
-          // Force client-side logout immediately, ignoring errors
-          try {
-            await supabase.auth.signOut();
-          } catch (e) {
-            console.warn('SignOut error ignored:', e);
-          }
-          // Clear local storage manually to be sure
-          localStorage.removeItem('supabase.auth.token');
-          // Also clear any other supabase keys
-          Object.keys(localStorage).forEach(key => {
-            if (key.startsWith('sb-')) localStorage.removeItem(key);
-          });
-          window.location.href = '/';
-        } else {
-          fetchUsersStatus();
-        }
+        fetchUsersStatus();
       } else {
         const err = await res.json().catch(() => ({}));
         const errorText = err.details ? `${err.error}: ${err.details}` : (err.error || 'Failed to logout user');
