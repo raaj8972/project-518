@@ -1,5 +1,4 @@
-/// &lt;reference path="./types.d.ts" /&gt;
-// @ts-ignore - ESM URL imports work in Deno runtime
+// @ts-nocheck - This file runs in Deno runtime (Netlify Edge Functions), not Node.js
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export default async (request: Request) => {
