@@ -17,7 +17,7 @@ const Spotify = ({ className }: { className?: string }) => (
 );
 
 export const CoreTeamManagement: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -120,7 +120,7 @@ export const CoreTeamManagement: React.FC = () => {
     if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
+      savingProgress.withSteps(3, 'Preparing…');
       if (requiresApproval) {
         await submitForApproval(
           'core_committee',
@@ -156,7 +156,7 @@ export const CoreTeamManagement: React.FC = () => {
     if (!committeeForm.name || !committeeForm.name.trim()) return;
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
+      savingProgress.withSteps(3, 'Preparing…');
       if (requiresApproval) {
         await submitForApproval(
           'core_committee',
@@ -241,11 +241,13 @@ export const CoreTeamManagement: React.FC = () => {
     // Prepare payload with optional fields; treat 0 as "no committee"
     const payload = {
       ...memberForm,
+      is_council: memberForm.isCouncil,
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
+    delete payload.isCouncil;
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
+      savingProgress.withSteps(3, 'Preparing…');
       if (requiresApproval) {
         await submitForApproval(
           'core_team_member',
@@ -261,7 +263,7 @@ export const CoreTeamManagement: React.FC = () => {
             description: memberForm.description,
             specialty: memberForm.specialty,
             achievements: memberForm.achievements,
-            isCouncil: memberForm.isCouncil,
+            is_council: memberForm.isCouncil,
             phone: memberForm.phone,
             social_links: memberForm.social_links
           }
@@ -292,7 +294,7 @@ export const CoreTeamManagement: React.FC = () => {
     } as any;
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
+      savingProgress.withSteps(3, 'Preparing…');
       if (requiresApproval) {
         await submitForApproval(
           'core_team_member',
@@ -420,7 +422,7 @@ export const CoreTeamManagement: React.FC = () => {
       const member = coreTeamMembers.find(m => m.id === id);
       const current = (member as any)?.isCouncil ?? false;
       if (typeof updateCoreTeamMember === 'function') {
-        const payload: any = { isCouncil: !current };
+        const payload: any = { is_council: !current };
         if (!current) {
           // turning council on -> ensure member is not a committee head
           payload.is_head = false;

@@ -19,7 +19,10 @@ export const Events: React.FC = () => {
 
   const isOwner = (() => {
     try {
-      const uid = user?.id;
+      // Only check owner status if user is logged in
+      if (!user) return false;
+      
+      const uid = user.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
       return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
     } catch { return false; }

@@ -799,7 +799,7 @@ export const RicoFamily: React.FC = () => {
                           renderItem={(head: any) => (
                             <div className="w-64 neon-card borderless p-4">
                               <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
                               </div>
                               <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                               <div className="text-sm text-gray-300">{head.role}</div>
@@ -907,7 +907,7 @@ export const RicoFamily: React.FC = () => {
                             renderItem={(head: any) => (
                               <div key={head.id} className="w-64 neon-card borderless p-4">
                                 <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} loading="lazy" className="w-full h-full object-cover" />
+                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
                                 </div>
                                 <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
                                 <div className="text-sm text-gray-300">{head.role}</div>

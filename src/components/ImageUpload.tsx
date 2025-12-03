@@ -715,15 +715,34 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const removeFile = async () => {
-    const imageToRemove = pendingImage || currentImage;
-    if (imageToRemove && imageToRemove.includes(bucket)) {
-      await deleteFromStorageByPublicUrl(imageToRemove);
+    // Confirm deletion
+    if (!confirm('Are you sure you want to delete this file?')) {
+      return;
     }
-    if (pendingImage) {
-      setPendingImage('');
-      setHasUnsavedChanges(false);
-    } else {
+
+    try {
+      const imageToRemove = pendingImage || currentImage;
+      
+      // Delete from storage if it's in the current bucket
+      if (imageToRemove && imageToRemove.includes(bucket)) {
+        await deleteFromStorageByPublicUrl(imageToRemove);
+      }
+      
+      // Clear the image in the UI
+      if (pendingImage) {
+        setPendingImage('');
+        setHasUnsavedChanges(false);
+      }
+      
+      // Always notify parent to clear the image
       onImageSelect('');
+      
+      // Clear local preview
+      setLocalPreview('');
+      
+    } catch (err) {
+      console.error('Failed to delete file:', err);
+      alert('Failed to delete file. Please try again.');
     }
   };
 
