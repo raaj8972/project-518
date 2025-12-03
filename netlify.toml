@@ -18,6 +18,38 @@
   status = 200
 
 # SPA fallback for client-side routes
+# IMPORTANT: Exclude static files from SPA redirect
+[[redirects]]
+  from = "/sitemap.xml"
+  to = "/sitemap.xml"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap-index.xml"
+  to = "/sitemap-index.xml"
+  status = 200
+
+[[redirects]]
+  from = "/image-sitemap.xml"
+  to = "/image-sitemap.xml"
+  status = 200
+
+[[redirects]]
+  from = "/sitemap.txt"
+  to = "/sitemap.txt"
+  status = 200
+
+[[redirects]]
+  from = "/robots.txt"
+  to = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.ico"
+  status = 200
+
+# Catch-all SPA fallback (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
