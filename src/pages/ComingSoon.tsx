@@ -2,14 +2,29 @@ import React from 'react';
 import { useData } from '../context/DataContext';
 import { CountdownTimer } from '../components/CountdownTimer';
 
-export const ComingSoon: React.FC = () => {
-  const { siteSettings } = useData();
-  const until = siteSettings?.coming_soon_until ? new Date(siteSettings.coming_soon_until) : null;
-  const enabled = !!siteSettings?.coming_soon_enabled;
-  const hardClosed = !!siteSettings?.site_closed;
-  const endedText = (siteSettings as any)?.coming_soon_ended_text || "We'll be back soon";
-  const csTitle = (siteSettings as any)?.coming_soon_title || null;
-  const csMessage = (siteSettings as any)?.coming_soon_message || null;
+interface ComingSoonProps {
+  previewSettings?: {
+    site_closed?: boolean;
+    coming_soon_enabled?: boolean;
+    coming_soon_until?: string | null;
+    coming_soon_title?: string | null;
+    coming_soon_message?: string | null;
+    coming_soon_ended_text?: string | null;
+  };
+}
+
+export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings }) => {
+  const { siteSettings: globalSettings } = useData();
+  
+  // Use preview settings if provided, otherwise fall back to global settings
+  const settings = previewSettings || globalSettings;
+  
+  const until = settings?.coming_soon_until ? new Date(settings.coming_soon_until) : null;
+  const enabled = !!settings?.coming_soon_enabled;
+  const hardClosed = !!settings?.site_closed;
+  const endedText = (settings as any)?.coming_soon_ended_text || "We'll be back soon";
+  const csTitle = (settings as any)?.coming_soon_title || null;
+  const csMessage = (settings as any)?.coming_soon_message || null;
   const showTimer = enabled && !!until;
 
   return (

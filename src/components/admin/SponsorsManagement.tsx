@@ -6,6 +6,7 @@ import { ImageUpload } from '../ImageUpload';
 import type { Sponsor, SponsorshipPackage, ContactSection } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 type SubTabType = 'sponsors' | 'packages' | 'settings';
 
@@ -28,6 +29,12 @@ export const SponsorsManagement: React.FC = () => {
     deleteContactSection
   } = useData();
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
 
   const [activeSubTab, setActiveSubTab] = useState<SubTabType>('sponsors');
   const [isAdding, setIsAdding] = useState(false);
@@ -172,10 +179,22 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      await addSponsor(form);
-      setIsAdding(false);
-      resetForm();
-      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+      if (requiresApproval) {
+        const result = await submitForApproval('sponsor', 'create', form);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setIsAdding(false);
+          resetForm();
+          try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await addSponsor(form);
+        setIsAdding(false);
+        resetForm();
+        try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding sponsor:', error);
       alert('Failed to add sponsor. Please try again.');
@@ -189,17 +208,29 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      await updateSponsor(id, form);
-      steps.next('Finalizing');
-      setEditing(null);
-      resetForm();
-      try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+      if (requiresApproval) {
+        const result = await submitForApproval('sponsor', 'update', form, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setEditing(null);
+          resetForm();
+          try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Validating');
+        await updateSponsor(id, form);
+        steps.next('Finalizing');
+        setEditing(null);
+        resetForm();
+        try { localStorage.removeItem('admin_sponsor_form_draft'); } catch {}
+        savingProgress.done();
+      }
     } catch (error) {
       console.error('Error updating sponsor:', error);
       alert('Failed to update sponsor. Please try again.');
-    } finally {
       savingProgress.done();
     }
   };
@@ -207,7 +238,16 @@ export const SponsorsManagement: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this sponsor? This action cannot be undone.')) {
       try {
-        await deleteSponsor(id);
+        if (requiresApproval) {
+          const result = await submitForApproval('sponsor', 'delete', {}, id);
+          if (result.success) {
+            alert('Request submitted for approval. An owner will review your changes.');
+          } else {
+            alert(`Failed to submit for approval: ${result.error}`);
+          }
+        } else {
+          await deleteSponsor(id);
+        }
       } catch (error) {
         console.error('Error deleting sponsor:', error);
         alert('Failed to delete sponsor. Please try again.');
@@ -217,7 +257,20 @@ export const SponsorsManagement: React.FC = () => {
 
   const handleToggleFeatured = async (id: number) => {
     try {
-      await toggleSponsorFeatured(id);
+      if (requiresApproval) {
+        // Find the sponsor to get current state
+        const sponsor = sponsors.find(s => s.id === id);
+        if (!sponsor) return;
+        
+        const result = await submitForApproval('sponsor', 'update', { featured: !sponsor.featured }, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await toggleSponsorFeatured(id);
+      }
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');
@@ -249,10 +302,23 @@ export const SponsorsManagement: React.FC = () => {
         ...packageForm,
         benefits: (packageForm.benefits || []).map((b) => (b || '').trim()).filter(Boolean),
       };
-      await addSponsorshipPackage(sanitized);
-      setIsAddingPackage(false);
-      resetPackageForm();
-      try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+      
+      if (requiresApproval) {
+        const result = await submitForApproval('sponsorship_package', 'create', sanitized);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setIsAddingPackage(false);
+          resetPackageForm();
+          try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await addSponsorshipPackage(sanitized);
+        setIsAddingPackage(false);
+        resetPackageForm();
+        try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding sponsorship package:', error);
       alert('Failed to add sponsorship package. Please try again.');
@@ -266,22 +332,35 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
       // Sanitize: trim and drop empty benefits
       const sanitized = {
         ...packageForm,
         benefits: (packageForm.benefits || []).map((b) => (b || '').trim()).filter(Boolean),
       };
-      await updateSponsorshipPackage(id, sanitized);
-      steps.next('Finalizing');
-      setEditingPackage(null);
-      resetPackageForm();
-      try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+      
+      if (requiresApproval) {
+        const result = await submitForApproval('sponsorship_package', 'update', sanitized, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setEditingPackage(null);
+          resetPackageForm();
+          try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Validating');
+        await updateSponsorshipPackage(id, sanitized);
+        steps.next('Finalizing');
+        setEditingPackage(null);
+        resetPackageForm();
+        try { localStorage.removeItem('admin_sponsor_package_form_draft'); } catch {}
+        savingProgress.done();
+      }
     } catch (error) {
       console.error('Error updating sponsorship package:', error);
       alert('Failed to update sponsorship package. Please try again.');
-    } finally {
       savingProgress.done();
     }
   };
@@ -289,7 +368,16 @@ export const SponsorsManagement: React.FC = () => {
   const handleDeletePackage = async (id: number) => {
     if (confirm('Are you sure you want to delete this sponsorship package? This action cannot be undone.')) {
       try {
-        await deleteSponsorshipPackage(id);
+        if (requiresApproval) {
+          const result = await submitForApproval('sponsorship_package', 'delete', {}, id);
+          if (result.success) {
+            alert('Request submitted for approval. An owner will review your changes.');
+          } else {
+            alert(`Failed to submit for approval: ${result.error}`);
+          }
+        } else {
+          await deleteSponsorshipPackage(id);
+        }
       } catch (error) {
         console.error('Error deleting sponsorship package:', error);
         alert('Failed to delete sponsorship package. Please try again.');
@@ -299,7 +387,19 @@ export const SponsorsManagement: React.FC = () => {
 
   const handleTogglePackageEnabled = async (id: number) => {
     try {
-      await toggleSponsorshipPackageEnabled(id);
+      if (requiresApproval) {
+        const pkg = sponsorshipPackages.find(p => p.id === id);
+        if (!pkg) return;
+        
+        const result = await submitForApproval('sponsorship_package', 'update', { enabled: !pkg.enabled }, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await toggleSponsorshipPackageEnabled(id);
+      }
     } catch (error) {
       console.error('Error toggling package status:', error);
       alert('Failed to update package status. Please try again.');
@@ -322,17 +422,33 @@ export const SponsorsManagement: React.FC = () => {
 
   const handleSaveSettings = async () => {
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      await updateSponsorshipSettings(settingsForm);
-      steps.next('Finalizing');
-      setIsEditingSettings(false);
-      alert('Sponsorship settings updated successfully!');
-      try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
+      if (requiresApproval) {
+        // For settings, we treat it as an update to a singleton 'sponsorship_settings' entity
+        // We might need to handle ID if it exists, or just pass '1' or similar if it's a singleton table row
+        // Assuming sponsorshipSettings has an ID, or we use a fixed ID for singleton
+        const settingsId = (sponsorshipSettings as any)?.id || 1; 
+        
+        const result = await submitForApproval('sponsorship_settings', 'update', settingsForm, settingsId);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setIsEditingSettings(false);
+          try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Validating');
+        await updateSponsorshipSettings(settingsForm);
+        steps.next('Finalizing');
+        setIsEditingSettings(false);
+        alert('Sponsorship settings updated successfully!');
+        try { localStorage.removeItem('admin_sponsorship_settings_draft'); } catch {}
+        savingProgress.done();
+      }
     } catch (error) {
       console.error('Error updating sponsorship settings:', error);
       alert('Failed to update sponsorship settings. Please try again.');
-    } finally {
       savingProgress.done();
     }
   };
@@ -355,10 +471,22 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      await addContactSection(contactForm);
-      setIsAddingContact(false);
-      resetContactForm();
-      try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+      if (requiresApproval) {
+        const result = await submitForApproval('contact_section', 'create', contactForm);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setIsAddingContact(false);
+          resetContactForm();
+          try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await addContactSection(contactForm);
+        setIsAddingContact(false);
+        resetContactForm();
+        try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding contact section:', error);
       alert('Failed to add contact section. Please try again.');
@@ -372,17 +500,29 @@ export const SponsorsManagement: React.FC = () => {
     }
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      await updateContactSection(id, contactForm);
-      steps.next('Finalizing');
-      setEditingContact(null);
-      resetContactForm();
-      try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+      if (requiresApproval) {
+        const result = await submitForApproval('contact_section', 'update', contactForm, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setEditingContact(null);
+          resetContactForm();
+          try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Validating');
+        await updateContactSection(id, contactForm);
+        steps.next('Finalizing');
+        setEditingContact(null);
+        resetContactForm();
+        try { localStorage.removeItem('admin_sponsor_contact_form_draft'); } catch {}
+        savingProgress.done();
+      }
     } catch (error) {
       console.error('Error updating contact section:', error);
       alert('Failed to update contact section. Please try again.');
-    } finally {
       savingProgress.done();
     }
   };
@@ -390,7 +530,16 @@ export const SponsorsManagement: React.FC = () => {
   const handleDeleteContact = async (id: number) => {
     if (confirm('Are you sure you want to delete this contact section?')) {
       try {
-        await deleteContactSection(id);
+        if (requiresApproval) {
+          const result = await submitForApproval('contact_section', 'delete', {}, id);
+          if (result.success) {
+            alert('Request submitted for approval. An owner will review your changes.');
+          } else {
+            alert(`Failed to submit for approval: ${result.error}`);
+          }
+        } else {
+          await deleteContactSection(id);
+        }
       } catch (error) {
         console.error('Error deleting contact section:', error);
         alert('Failed to delete contact section. Please try again.');
@@ -1171,7 +1320,7 @@ export const SponsorsManagement: React.FC = () => {
                                 : 'border-gray-300 hover:border-gray-400'
                             }`}
                           >
-                            <IconComponent size={20} className="mx-auto" />
+                            <IconComponent size={20} className="mx-auto text-gray-900" />
                           </button>
                         );
                       })}
@@ -1314,7 +1463,7 @@ export const SponsorsManagement: React.FC = () => {
                                     : 'border-gray-300 hover:border-gray-400'
                                 }`}
                               >
-                                <IconComponent size={20} className="mx-auto" />
+                                <IconComponent size={20} className="mx-auto text-gray-900" />
                               </button>
                             );
                           })}

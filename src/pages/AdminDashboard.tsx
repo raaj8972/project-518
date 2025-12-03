@@ -17,7 +17,8 @@ import {
   Info,
   Menu,
   X,
-  Fingerprint
+  Fingerprint,
+  CheckCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -58,8 +59,9 @@ import { useAdminPresence } from '../hooks/useAdminPresence';
 import { AdminMessageToastContainer } from '../components/admin/AdminMessageToast';
 import { useAdminMessages } from '../hooks/useAdminMessages';
 import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
+import { OwnerApprovalCenter } from '../components/admin/OwnerApprovalCenter';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -143,7 +145,8 @@ export const AdminDashboard: React.FC = () => {
       'biometric-login': 'Biometric Login',
       'site-settings': 'Site Settings',
       'admin-users': 'Admin Users',
-      notifications: 'Notifications'
+      notifications: 'Notifications',
+      'owner-approvals': 'Owner Approvals'
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
   }, [activeTab, updatePresence]);
@@ -195,10 +198,12 @@ export const AdminDashboard: React.FC = () => {
       logoutTimer.current = null;
     }
     
-    // Logout and navigate immediately
+    // Wait for logout to complete to ensure session is cleared
+    await logout();
+    
+    // Then navigate (wrap in startTransition to prevent React suspension)
     startTransition(() => {
-      logout(); // Don't await - let it run in background
-      navigate('/'); // Navigate instantly
+      navigate('/');
     });
   };
 
@@ -246,6 +251,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
     { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
     ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info }] : []),
+    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Owner Approvals', icon: CheckCircle }] : []),
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
     { id: 'about' as TabType, name: 'About', icon: Info },
     { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
@@ -833,6 +839,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'biometric-login' && <BiometricLogin />}
+            {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
             {activeTab === 'about' && <AboutSettings />}

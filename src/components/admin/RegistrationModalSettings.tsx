@@ -161,12 +161,12 @@ export const RegistrationModalSettings: React.FC = () => {
       {!isEditing && (
         <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
           <div>
-            <h3 className="font-semibold mb-2">Participant Types</h3>
-            <div className="text-sm text-gray-700">{(draft.participantTypes || []).join(', ')}</div>
+            <h3 className="font-semibold mb-2 text-gray-900">Participant Types</h3>
+            <div className="text-sm text-gray-900">{(draft.participantTypes || []).join(', ')}</div>
           </div>
           <div>
-            <h3 className="font-semibold mt-2 mb-2">Institution / College field</h3>
-            <div className="text-sm text-gray-700">
+            <h3 className="font-semibold mt-2 mb-2 text-gray-900">Institution / College field</h3>
+            <div className="text-sm text-gray-900">
               {(draft as any).registrationInstitutionVisible ? (
                 <span>Visible to viewers — {(draft as any).registrationInstitutionOptional ? 'Optional' : 'Required'}</span>
               ) : (
@@ -180,7 +180,7 @@ export const RegistrationModalSettings: React.FC = () => {
       {isEditing && (
         <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
           <div>
-            <h3 className="font-semibold mb-2">Institution / College field</h3>
+            <h3 className="font-semibold mb-2 text-gray-900">Institution / College field</h3>
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2 text-sm text-gray-700">
                 <input
@@ -205,7 +205,7 @@ export const RegistrationModalSettings: React.FC = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Participant Types</label>
             <div className="flex gap-2">
-              <input value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="New type (e.g. Student)" className="border rounded p-2 flex-1" />
+              <input value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="New type (e.g. Student)" className="border rounded p-2 flex-1 text-gray-900" />
               <button onClick={addParticipantType} className="px-3 py-2 bg-green-600 text-white rounded">Add</button>
             </div>
             <ul className="mt-3 space-y-2">
@@ -214,7 +214,7 @@ export const RegistrationModalSettings: React.FC = () => {
                   <div className="flex items-center gap-2 w-full">
                     <Move className="text-slate-400" />
                     <input
-                      className="flex-1 border rounded px-2 py-1"
+                      className="flex-1 border rounded px-2 py-1 text-gray-900"
                       value={t}
                       onChange={(e) => updateParticipantType(i, e.target.value)}
                     />
@@ -222,7 +222,7 @@ export const RegistrationModalSettings: React.FC = () => {
                     <input
                       type="number"
                       min={0}
-                      className="w-28 border rounded px-2 py-1 ml-2"
+                      className="w-28 border rounded px-2 py-1 ml-2 text-gray-900"
                       value={(draft as any).participantQuotas?.[t] ?? ''}
                       onChange={(e) => setDraft(prev => ({
                         ...prev,
@@ -243,7 +243,7 @@ export const RegistrationModalSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
-            <button onClick={handleCancel} className="px-4 py-2 rounded border">Cancel</button>
+            <button onClick={handleCancel} className="px-4 py-2 rounded border text-gray-900">Cancel</button>
             <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-500">
               {saving ? 'Saving…' : 'Save Settings'}
             </button>
@@ -253,9 +253,9 @@ export const RegistrationModalSettings: React.FC = () => {
 
       {/* Preview panel: show admins a small mock registration modal using the current draft values */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="font-semibold mb-3">Preview</h3>
+        <h3 className="font-semibold mb-3 text-gray-900">Preview</h3>
         <div className="flex items-center gap-3">
-          <p className="text-sm text-gray-600">Open a live preview of the registration modal using the draft values.</p>
+          <p className="text-sm text-gray-700">Open a live preview of the registration modal using the draft values.</p>
           <button
             className="px-3 py-2 bg-indigo-600 text-white rounded"
             onClick={() => setShowPreview(true)}

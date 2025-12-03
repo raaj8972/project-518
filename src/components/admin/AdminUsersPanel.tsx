@@ -33,6 +33,9 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     can_homebound?: boolean;
     can_sports?: boolean;
   }>>({});
+  
+  // Track approval requirements
+  const [requiresApproval, setRequiresApproval] = useState<Record<string, boolean>>({});
 
   const currentUserAdmin = useMemo(() => adminUsers?.find(u => u.user_id === user?.id), [adminUsers, user]);
   const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary;
@@ -63,6 +66,17 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
           };
         }
         setPerm(map);
+        
+        // Also load requires_approval settings
+        const { data: admins } = await supabase
+          .from('admin_users')
+          .select('user_id, requires_approval');
+        
+        const approvalMap: Record<string, boolean> = {};
+        admins?.forEach(a => {
+          approvalMap[a.user_id] = !!a.requires_approval;
+        });
+        setRequiresApproval(approvalMap);
       } catch {}
     })();
   }, [listAdminPermissions]);
@@ -177,6 +191,33 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
       setTimeout(() => setCopied(false), 1500);
     } catch {}
   };
+  
+  // Toggle approval requirement for an admin
+  const toggleApprovalRequirement = async (uid: string) => {
+    const current = requiresApproval[uid] || false;
+    const next = !current;
+    
+    // Optimistic UI update
+    setRequiresApproval(prev => ({ ...prev, [uid]: next }));
+    
+    try {
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ 
+          requires_approval: next,
+          approval_enabled_by: next ? user?.id : null,
+          approval_enabled_at: next ? new Date().toISOString() : null
+        })
+        .eq('user_id', uid);
+      
+      if (error) throw error;
+    } catch (e: any) {
+      console.error('Failed to toggle approval requirement:', e);
+      // Rollback on error
+      setRequiresApproval(prev => ({ ...prev, [uid]: current }));
+      alert(e?.message || 'Failed to update approval setting');
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -251,6 +292,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
               <th className="px-2 py-2">Email</th>
               <th className="px-2 py-2">Role</th>
               <th className="px-2 py-2">Permissions</th>
+              {isOwner && <th className="px-2 py-2 text-center">Requires Approval</th>}
               <th className="px-2 py-2">User ID</th>
               <th className="px-2 py-2">Added</th>
               <th className="px-2 py-2 w-20">Actions</th>
@@ -318,6 +360,35 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                     </div>
                   )}
                 </td>
+                {isOwner && (
+                  <td className="px-2 py-2 text-center">
+                    {u.role === 'owner' || u.is_primary ? (
+                      <span className="text-gray-400 text-xs">N/A</span>
+                    ) : (
+                      <button
+                        onClick={() => toggleApprovalRequirement(u.user_id)}
+                        className={`inline-flex items-center gap-1 text-xs border rounded px-3 py-1.5 hover:bg-gray-50 transition-all ${
+                          requiresApproval[u.user_id]
+                            ? 'bg-yellow-50 border-yellow-300 text-yellow-700'
+                            : 'bg-gray-50 border-gray-300 text-gray-600'
+                        }`}
+                        title={requiresApproval[u.user_id] ? 'Changes require owner approval' : 'Changes go live immediately'}
+                      >
+                        {requiresApproval[u.user_id] ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            Approval Required
+                          </>
+                        ) : (
+                          <>
+                            <ToggleLeft className="w-4 h-4" />
+                            No Approval
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </td>
+                )}
                 <td className="px-2 py-2 font-mono text-[11px] text-gray-700 break-all">{u.user_id}</td>
                 <td className="px-2 py-2 text-gray-900">{new Date(u.created_at).toLocaleString()}</td>
                 <td className="px-2 py-2">

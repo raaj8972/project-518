@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 import PreserveNewlines from '../PreserveNewlines';
 
 // Spotify icon component since it's not in lucide-react
@@ -16,8 +17,15 @@ const Spotify = ({ className }: { className?: string }) => (
 );
 
 export const CoreTeamManagement: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
+
   const { 
     coreCommittees,
     coreTeamMembers,
@@ -37,6 +45,12 @@ export const CoreTeamManagement: React.FC = () => {
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [editingCommittee, setEditingCommittee] = useState<number | null>(null);
   const [editingMember, setEditingMember] = useState<number | null>(null);
+  
+  // Drag and drop state
+  const [draggedCommittee, setDraggedCommittee] = useState<number | null>(null);
+  const [draggedMember, setDraggedMember] = useState<number | null>(null);
+  const [dragOverCommittee, setDragOverCommittee] = useState<number | null>(null);
+  const [dragOverMember, setDragOverMember] = useState<number | null>(null);
 
   const [committeeForm, setCommitteeForm] = useLocalStorage('admin_core_committee_form_draft', {
     name: '',
@@ -107,12 +121,29 @@ export const CoreTeamManagement: React.FC = () => {
     
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      steps.next('Saving to database');
-      await addCoreCommittee(committeeForm);
-      setIsAddingCommittee(false);
-      resetCommitteeForm();
-      try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'core_committee',
+          'create',
+          {
+            name: committeeForm.name,
+            description: committeeForm.description,
+            color: committeeForm.color,
+            is_core: committeeForm.is_core,
+            order_position: committeeForm.order_position,
+            enabled: committeeForm.enabled
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAddingCommittee(false);
+        resetCommitteeForm();
+        try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      } else {
+        await addCoreCommittee(committeeForm);
+        setIsAddingCommittee(false);
+        resetCommitteeForm();
+        try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding committee:', error);
       alert('Failed to add committee. Please try again.');
@@ -126,12 +157,30 @@ export const CoreTeamManagement: React.FC = () => {
     
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      steps.next('Saving to database');
-      await updateCoreCommittee(id, committeeForm);
-      setEditingCommittee(null);
-      resetCommitteeForm();
-      try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'core_committee',
+          'update',
+          {
+            name: committeeForm.name,
+            description: committeeForm.description,
+            color: committeeForm.color,
+            is_core: committeeForm.is_core,
+            order_position: committeeForm.order_position,
+            enabled: committeeForm.enabled
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditingCommittee(null);
+        resetCommitteeForm();
+        try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      } else {
+        await updateCoreCommittee(id, committeeForm);
+        setEditingCommittee(null);
+        resetCommitteeForm();
+        try { localStorage.removeItem('admin_core_committee_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error updating committee:', error);
       alert('Failed to update committee. Please try again.');
@@ -154,7 +203,17 @@ export const CoreTeamManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Deleting');
-      await deleteCoreCommittee(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'core_committee',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteCoreCommittee(id);
+        }
     } catch (error) {
       console.error('Error deleting committee:', error);
       alert('Failed to delete committee. Please try again.');
@@ -187,12 +246,36 @@ export const CoreTeamManagement: React.FC = () => {
     
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      steps.next('Saving to database');
-      await addCoreTeamMember(payload);
-      setIsAddingMember(false);
-      resetMemberForm();
-      try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'core_team_member',
+          'create',
+          {
+            name: memberForm.name,
+            role: memberForm.role,
+            image: memberForm.image,
+            committee_id: memberForm.committee_id,
+            is_head: memberForm.is_head,
+            order_position: memberForm.order_position,
+            enabled: memberForm.enabled,
+            description: memberForm.description,
+            specialty: memberForm.specialty,
+            achievements: memberForm.achievements,
+            isCouncil: memberForm.isCouncil,
+            phone: memberForm.phone,
+            social_links: memberForm.social_links
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAddingMember(false);
+        resetMemberForm();
+        try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      } else {
+        await addCoreTeamMember(payload);
+        setIsAddingMember(false);
+        resetMemberForm();
+        try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding team member:', error);
       alert('Failed to add team member. Please try again.');
@@ -210,12 +293,37 @@ export const CoreTeamManagement: React.FC = () => {
     
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      steps.next('Saving to database');
-      await updateCoreTeamMember(id, payload);
-      setEditingMember(null);
-      resetMemberForm();
-      try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'core_team_member',
+          'update',
+          {
+            name: memberForm.name,
+            role: memberForm.role,
+            image: memberForm.image,
+            committee_id: memberForm.committee_id,
+            is_head: memberForm.is_head,
+            order_position: memberForm.order_position,
+            enabled: memberForm.enabled,
+            description: memberForm.description,
+            specialty: memberForm.specialty,
+            achievements: memberForm.achievements,
+            is_council: memberForm.isCouncil,
+            phone: memberForm.phone,
+            social_links: memberForm.social_links
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditingMember(null);
+        resetMemberForm();
+        try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      } else {
+        await updateCoreTeamMember(id, payload);
+        setEditingMember(null);
+        resetMemberForm();
+        try { localStorage.removeItem('admin_core_member_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error updating team member:', error);
       alert('Failed to update team member. Please try again.');
@@ -229,7 +337,17 @@ export const CoreTeamManagement: React.FC = () => {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
         steps.next('Deleting');
-        await deleteCoreTeamMember(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'core_team_member',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteCoreTeamMember(id);
+        }
       } catch (error) {
         console.error('Error deleting team member:', error);
         alert('Failed to delete team member. Please try again.');
@@ -313,6 +431,132 @@ export const CoreTeamManagement: React.FC = () => {
       console.error('Failed to toggle council flag', e);
       alert('Failed to toggle council flag. Please try again.');
     }
+  };
+
+  // Committee drag handlers
+  const handleCommitteeDragStart = (e: React.DragEvent, id: number) => {
+    setDraggedCommittee(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleCommitteeDragOver = (e: React.DragEvent, id: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverCommittee(id);
+  };
+
+  const handleCommitteeDragLeave = () => {
+    setDragOverCommittee(null);
+  };
+
+  const handleCommitteeDrop = async (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    setDragOverCommittee(null);
+    
+    if (!draggedCommittee || draggedCommittee === targetId) {
+      setDraggedCommittee(null);
+      return;
+    }
+
+    const draggedIndex = sortedCommittees.findIndex(c => c.id === draggedCommittee);
+    const targetIndex = sortedCommittees.findIndex(c => c.id === targetId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedCommittee(null);
+      return;
+    }
+
+    try {
+      const steps = savingProgress.withSteps(3, 'Reordering…');
+      steps.next('Updating positions');
+      
+      // Create new array with reordered items
+      const newOrder = [...sortedCommittees];
+      const [removed] = newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, removed);
+      
+      // Update order_position for all affected committees
+      steps.next('Saving changes');
+      for (let i = 0; i < newOrder.length; i++) {
+        if (newOrder[i].order_position !== i + 1) {
+          await updateCoreCommittee(newOrder[i].id, { order_position: i + 1 });
+        }
+      }
+    } catch (error) {
+      console.error('Error reordering committees:', error);
+      alert('Failed to reorder committees. Please try again.');
+    } finally {
+      savingProgress.done();
+      setDraggedCommittee(null);
+    }
+  };
+
+  const handleCommitteeDragEnd = () => {
+    setDraggedCommittee(null);
+    setDragOverCommittee(null);
+  };
+
+  // Member drag handlers
+  const handleMemberDragStart = (e: React.DragEvent, id: number) => {
+    setDraggedMember(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleMemberDragOver = (e: React.DragEvent, id: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverMember(id);
+  };
+
+  const handleMemberDragLeave = () => {
+    setDragOverMember(null);
+  };
+
+  const handleMemberDrop = async (e: React.DragEvent, targetId: number) => {
+    e.preventDefault();
+    setDragOverMember(null);
+    
+    if (!draggedMember || draggedMember === targetId) {
+      setDraggedMember(null);
+      return;
+    }
+
+    const draggedIndex = sortedMembers.findIndex(m => m.id === draggedMember);
+    const targetIndex = sortedMembers.findIndex(m => m.id === targetId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedMember(null);
+      return;
+    }
+
+    try {
+      const steps = savingProgress.withSteps(3, 'Reordering…');
+      steps.next('Updating positions');
+      
+      // Create new array with reordered items
+      const newOrder = [...sortedMembers];
+      const [removed] = newOrder.splice(draggedIndex, 1);
+      newOrder.splice(targetIndex, 0, removed);
+      
+      // Update order_position for all affected members
+      steps.next('Saving changes');
+      for (let i = 0; i < newOrder.length; i++) {
+        if (newOrder[i].order_position !== i + 1) {
+          await updateCoreTeamMember(newOrder[i].id, { order_position: i + 1 });
+        }
+      }
+    } catch (error) {
+      console.error('Error reordering members:', error);
+      alert('Failed to reorder members. Please try again.');
+    } finally {
+      savingProgress.done();
+      setDraggedMember(null);
+    }
+  };
+
+  const handleMemberDragEnd = () => {
+    setDraggedMember(null);
+    setDragOverMember(null);
   };
 
   return (
@@ -589,9 +833,24 @@ export const CoreTeamManagement: React.FC = () => {
                       className="h-3"
                       style={{ backgroundColor: committee.color }}
                     />
-                    <div className="p-4">
+                    <div 
+                      className={`p-4 cursor-move transition-all ${
+                        draggedCommittee === committee.id ? 'opacity-50 scale-95' : ''
+                      } ${
+                        dragOverCommittee === committee.id ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
+                      }`}
+                      draggable={editingCommittee !== committee.id}
+                      onDragStart={(e) => handleCommitteeDragStart(e, committee.id)}
+                      onDragOver={(e) => handleCommitteeDragOver(e, committee.id)}
+                      onDragLeave={handleCommitteeDragLeave}
+                      onDrop={(e) => handleCommitteeDrop(e, committee.id)}
+                      onDragEnd={handleCommitteeDragEnd}
+                    >
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-bold text-lg text-gray-900">{committee.name}</h4>
+                        <div className="flex items-center space-x-2">
+                          <GripVertical className="w-4 h-4 text-gray-400" />
+                          <h4 className="font-bold text-lg text-gray-900">{committee.name}</h4>
+                        </div>
                         <div className="flex items-center space-x-2">
                           {committee.is_core && (
                             <Crown className="w-4 h-4 text-yellow-500" />
@@ -1101,15 +1360,28 @@ export const CoreTeamManagement: React.FC = () => {
                           )}
                         </div>
                       ) : (
-                        <div>
+                        <div 
+                          className={`cursor-move transition-all ${
+                            draggedMember === member.id ? 'opacity-50 scale-95' : ''
+                          } ${
+                            dragOverMember === member.id ? 'ring-2 ring-yellow-400 ring-offset-2 rounded-lg' : ''
+                          }`}
+                          draggable={editingMember !== member.id}
+                          onDragStart={(e) => handleMemberDragStart(e, member.id)}
+                          onDragOver={(e) => handleMemberDragOver(e, member.id)}
+                          onDragLeave={handleMemberDragLeave}
+                          onDrop={(e) => handleMemberDrop(e, member.id)}
+                          onDragEnd={handleMemberDragEnd}
+                        >
                           <div className="flex items-center mb-3">
+                            <GripVertical className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
                             <img
                               src={member.image}
                               alt={member.name}
                               className="w-12 h-12 object-cover rounded mr-3"
                             />
                             <div className="flex-grow">
-                              <h5 className="font-semibold text-sm">{member.name}</h5>
+                              <h5 className="font-semibold text-sm text-gray-900">{member.name}</h5>
                               <p className={(member as any).isCouncil ? "text-xs text-red-600" : "text-xs text-yellow-600"}>{member.role}</p>
                               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
                                 {member.specialty}

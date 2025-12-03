@@ -7,6 +7,7 @@ import EventWinnersEditor from './EventWinnersEditor';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const EventsManagement: React.FC = () => {
   const { 
@@ -30,6 +31,7 @@ export const EventsManagement: React.FC = () => {
     lastEventReorderError,
   } = useData() as any;
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [savingAdd, setSavingAdd] = useState(false);
   const [savingUpdate, setSavingUpdate] = useState(false);
 
@@ -292,11 +294,11 @@ export const EventsManagement: React.FC = () => {
       alert('Please fill in all required fields (title, description, and image)');
       return;
     }
+    
     try {
       setSavingAdd(true);
-      // Insert event and any drafted coordinators in one go
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
-      await addEventWithCoordinators({
+      const eventData = {
         ...eventForm,
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
@@ -305,16 +307,38 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-  current_registrations: 0,
-  registration_participant_types: eventForm.registration_participant_types || undefined,
-  registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
-    registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
+        current_registrations: 0,
+        registration_participant_types: eventForm.registration_participant_types || undefined,
+        registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
+        registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         team_max_members: (eventForm as any).team_max_members ?? null,
-      } as any, draftCoordinators);
-      setIsAddingEvent(false);
-      resetEventForm();
-      setDraftCoordinators([]);
-      try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+        coordinators: draftCoordinators // Include coordinators in the data
+      };
+      
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        // Submit for owner approval
+        const result = await submitForApproval('event', 'create', eventData);
+        if (result.success) {
+          alert('✓ Event submitted for owner approval!\n\nYour event will be published once the owner reviews and approves it.');
+          setIsAddingEvent(false);
+          resetEventForm();
+          setDraftCoordinators([]);
+          try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        // Direct save (no approval required)
+        await addEventWithCoordinators(eventData as any, draftCoordinators);
+        alert('✓ Event added successfully!');
+        setIsAddingEvent(false);
+        resetEventForm();
+        setDraftCoordinators([]);
+        try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+      }
     } catch (error: any) {
       console.error('Error adding event:', error);
       alert(error?.message || 'Failed to add event. Please try again.');
@@ -334,7 +358,7 @@ export const EventsManagement: React.FC = () => {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
-      await updateEvent(id, {
+      const eventData = {
         ...eventForm,
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
@@ -342,15 +366,35 @@ export const EventsManagement: React.FC = () => {
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-  registration_participant_types: (eventForm as any).registration_participant_types || null,
-  registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
+        registration_participant_types: (eventForm as any).registration_participant_types || null,
+        registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         team_max_members: (eventForm as any).team_max_members ?? null,
-      } as any);
-      steps.next('Finalizing');
-      setEditingEvent(null);
-      resetEventForm();
-      try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+      };
+      
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        // Submit for owner approval
+        const result = await submitForApproval('event', 'update', eventData, id);
+        if (result.success) {
+          alert('✓ Event update submitted for owner approval!\n\nChanges will be published once the owner reviews and approves them.');
+          setEditingEvent(null);
+          resetEventForm();
+          try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        // Direct update (no approval required)
+        await updateEvent(id, eventData as any);
+        steps.next('Finalizing');
+        alert('✓ Event updated successfully!');
+        setEditingEvent(null);
+        resetEventForm();
+        try { localStorage.removeItem('admin_events_form_draft'); } catch {}
+      }
     } catch (error: any) {
       console.error('Error updating event:', error);
       alert(error?.message || 'Failed to update event. Please try again.');
@@ -361,19 +405,49 @@ export const EventsManagement: React.FC = () => {
   };
 
   const handleDeleteEvent = async (id: number) => {
-    if (confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-      try {
+    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) return;
+    
+    try {
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        // Get event data for the approval record
+        const event = events.find((e: any) => e.id === id);
+        const result = await submitForApproval('event', 'delete', event || { id }, id);
+        if (result.success) {
+          alert('✓ Event deletion submitted for owner approval!');
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        // Direct delete
         await deleteEvent(id);
-      } catch (error) {
-        console.error('Error deleting event:', error);
-        alert('Failed to delete event. Please try again.');
+        alert('✓ Event deleted successfully!');
       }
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      alert('Failed to delete event. Please try again.');
     }
   };
 
   const handleToggleFeatured = async (id: number) => {
     try {
-      await toggleEventFeatured(id);
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        const event = events.find((e: any) => e.id === id);
+        const newValue = !event?.featured;
+        const result = await submitForApproval('event', 'update', { featured: newValue }, id);
+        if (result.success) {
+          alert(`✓ Featured status change submitted for owner approval!`);
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        await toggleEventFeatured(id);
+      }
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');
@@ -382,7 +456,21 @@ export const EventsManagement: React.FC = () => {
 
   const handleToggleVisibility = async (id: number) => {
     try {
-      await toggleEventVisibility(id);
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        const event = events.find((e: any) => e.id === id);
+        const newValue = !event?.visible;
+        const result = await submitForApproval('event', 'update', { visible: newValue }, id);
+        if (result.success) {
+          alert(`✓ Visibility change submitted for owner approval!`);
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        await toggleEventVisibility(id);
+      }
     } catch (error) {
       console.error('Error toggling visibility:', error);
       alert('Failed to update visibility. Please try again.');
@@ -391,7 +479,21 @@ export const EventsManagement: React.FC = () => {
 
   const handleToggleRegistration = async (id: number) => {
     try {
-      await toggleEventRegistration(id);
+      // Check if current admin requires approval
+      const needsApproval = await checkRequiresApproval();
+      
+      if (needsApproval) {
+        const event = events.find((e: any) => e.id === id);
+        const newValue = !event?.registration_open;
+        const result = await submitForApproval('event', 'update', { registration_open: newValue }, id);
+        if (result.success) {
+          alert(`✓ Registration status change submitted for owner approval!`);
+        } else {
+          throw new Error(result.error || 'Failed to submit for approval');
+        }
+      } else {
+        await toggleEventRegistration(id);
+      }
     } catch (error) {
       console.error('Error toggling registration:', error);
       alert('Failed to update registration status. Please try again.');
@@ -712,7 +814,7 @@ export const EventsManagement: React.FC = () => {
                   {draftCoordinators.map((c, idx) => (
                     <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                       <input
-                        className="col-span-5 p-2 text-sm border rounded"
+                        className="col-span-5 p-2 text-sm border rounded text-gray-900"
                         value={c.name}
                         onChange={(e)=>{
                           const v = e.target.value; setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, name: v }: row));
@@ -720,7 +822,7 @@ export const EventsManagement: React.FC = () => {
                         placeholder="Name"
                       />
                       <input
-                        className="col-span-5 p-2 text-sm border rounded"
+                        className="col-span-5 p-2 text-sm border rounded text-gray-900"
                         value={c.phone || ''}
                         onChange={(e)=>{
                           const v = e.target.value; setDraftCoordinators(prev=>prev.map((row,i)=> i===idx? { ...row, phone: v }: row));
@@ -736,8 +838,8 @@ export const EventsManagement: React.FC = () => {
                   ))}
                 </div>
                 <div className="grid grid-cols-12 gap-2 mt-2">
-                  <input className="col-span-5 p-2 text-sm border rounded" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
-                  <input className="col-span-5 p-2 text-sm border rounded" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
+                  <input className="col-span-5 p-2 text-sm border rounded text-gray-900" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
+                  <input className="col-span-5 p-2 text-sm border rounded text-gray-900" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
                   <button
                     type="button"
                     onClick={()=>{
@@ -898,7 +1000,7 @@ export const EventsManagement: React.FC = () => {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-4">
-                <label className="flex items-center">
+                <label className="flex items-center text-gray-900">
                   <input
                     type="checkbox"
                     checked={eventForm.registration_open}
@@ -907,7 +1009,7 @@ export const EventsManagement: React.FC = () => {
                   />
                   Registration Open
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center text-gray-900">
                   <input
                     type="checkbox"
                     checked={!!eventForm.registration_timer_enabled}
@@ -916,7 +1018,7 @@ export const EventsManagement: React.FC = () => {
                   />
                   Enable Timer (optional)
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center text-gray-900">
                   <input
                     type="checkbox"
                     checked={!!(eventForm as any).registration_photo_required}
@@ -925,7 +1027,7 @@ export const EventsManagement: React.FC = () => {
                   />
                   Require Photo During Registration
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center text-gray-900">
                   <input
                     type="checkbox"
                     checked={eventForm.featured}
@@ -934,7 +1036,7 @@ export const EventsManagement: React.FC = () => {
                   />
                   Featured Event
                 </label>
-                <label className="flex items-center">
+                <label className="flex items-center text-gray-900">
                   <input
                     type="checkbox"
                     checked={eventForm.visible}
@@ -949,10 +1051,10 @@ export const EventsManagement: React.FC = () => {
                   aria-label="Default Registration Mode and Max Team Members horizontal scroller"
                 >
                   <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
-                  <label className="flex items-center text-sm">
+                  <label className="flex items-center text-sm text-gray-900">
                     <input type="radio" name="registration_default_mode" className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
                   </label>
-                  <label className="flex items-center text-sm">
+                  <label className="flex items-center text-sm text-gray-900">
                     <input type="radio" name="registration_default_mode" className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
                   </label>
                 </div>
@@ -986,7 +1088,7 @@ export const EventsManagement: React.FC = () => {
                     <div className="flex items-center gap-2 mb-1">
                       <button
                         type="button"
-                        className="text-xs px-2 py-1 border rounded"
+                        className="text-xs px-2 py-1 border rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                         onClick={() => {
                           const list = (siteSettings as any).registration_participant_types as string[];
                           setEventForm(prev => ({ ...prev, registration_participant_types: [...list] } as any));
@@ -994,7 +1096,7 @@ export const EventsManagement: React.FC = () => {
                       >Select all</button>
                       <button
                         type="button"
-                        className="text-xs px-2 py-1 border rounded"
+                        className="text-xs px-2 py-1 border rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                         onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [] as string[], registration_participant_quotas: {} as any } as any))}
                       >Clear all</button>
                     </div>
@@ -1018,13 +1120,13 @@ export const EventsManagement: React.FC = () => {
                                   });
                                 }}
                               />
-                              <span className="text-sm min-w-[120px]">{t}</span>
+                              <span className="text-sm min-w-[120px] text-gray-900">{t}</span>
                             </label>
                             <label className="text-xs text-gray-600">Limit</label>
                             <input
                               type="number"
                               min={0}
-                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : ''}`}
+                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-500 placeholder:text-gray-500' : ''}`}
                               placeholder={selected ? 'Unlimited' : 'Unavailable'}
                               title="Check to enable this type. Leave blank for unlimited. Set 0 to close."
                               value={limitVal}
@@ -1137,7 +1239,7 @@ export const EventsManagement: React.FC = () => {
                   enableCropper={false}
                 />
                 <div className="mt-2 flex items-center gap-3">
-                  <label className="flex items-center text-sm">
+                  <label className="flex items-center text-sm text-gray-900">
                     <input
                       type="checkbox"
                       checked={(eventForm as any).prefer_video || false}
@@ -1146,7 +1248,7 @@ export const EventsManagement: React.FC = () => {
                     />
                     Prefer video over image on the event card
                   </label>
-                  <label className="flex items-center text-sm">
+                  <label className="flex items-center text-sm text-gray-900">
                     <input
                       type="checkbox"
                       checked={(eventForm as any).motion_poster_autoplay || false}
@@ -1318,7 +1420,7 @@ export const EventsManagement: React.FC = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <button
                           type="button"
-                          className="text-xs px-2 py-1 border rounded"
+                          className="text-xs px-2 py-1 border rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                           onClick={() => {
                             const list = (siteSettings as any).registration_participant_types as string[];
                             setEventForm(prev => ({ ...prev, registration_participant_types: [...list] } as any));
@@ -1326,7 +1428,7 @@ export const EventsManagement: React.FC = () => {
                         >Select all</button>
                         <button
                           type="button"
-                          className="text-xs px-2 py-1 border rounded"
+                          className="text-xs px-2 py-1 border rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
                           onClick={() => setEventForm(prev => ({ ...prev, registration_participant_types: [] as string[], registration_participant_quotas: {} as any } as any))}
                         >Clear all</button>
                       </div>
@@ -1350,7 +1452,7 @@ export const EventsManagement: React.FC = () => {
                                     });
                                   }}
                                 />
-                                <span className="text-sm min-w-[120px]">{t}</span>
+                                <span className="text-sm min-w-[120px] text-gray-900">{t}</span>
                               </label>
                               <label className="text-xs text-gray-600">Limit</label>
                               <input
@@ -1460,26 +1562,26 @@ export const EventsManagement: React.FC = () => {
                             <div className="text-xs font-semibold text-gray-700">Section {idx+1}</div>
                             <button type="button" onClick={()=>removeSection(idx)} className="text-red-600 text-[11px]">Remove</button>
                           </div>
-                          <input className="w-full p-1.5 text-xs border rounded mb-1 text-gray-900" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
+                          <input className="w-full p-1.5 text-xs border border-gray-300 rounded mb-1 text-gray-900 bg-white focus:ring-1 focus:ring-yellow-400 focus:outline-none" placeholder="Heading (optional)" value={sec.heading || ''} onChange={(e)=>updateSectionField(idx,'heading',e.target.value)} />
                           <div className="space-y-2">
                             {(sec.blocks || []).map((b, bIdx) => (
                               <div key={bIdx} className="border border-dashed border-gray-300 rounded p-2 bg-white">
                                 <div className="flex items-center justify-between mb-1">
                                   <div className="text-[11px] font-semibold text-gray-700">Points block {bIdx+1}</div>
                                   <div className="flex items-center gap-2">
-                                    <select className="text-[11px] border rounded p-1" value={b.style || 'number'} onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}>
+                                    <select className="text-[11px] border border-gray-300 rounded p-1 bg-white text-gray-900 focus:ring-1 focus:ring-yellow-400 focus:outline-none" value={b.style || 'number'} onChange={(e)=>updateBlockField(idx,bIdx,{ style: (e.target.value as 'bullet'|'number') })}>
                                       <option value="number">Numbered</option>
                                       <option value="bullet">Bullets</option>
                                     </select>
-                                    <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px]">Remove</button>
+                                    <button type="button" onClick={()=>removeBlock(idx,bIdx)} className="text-red-600 text-[11px] hover:text-red-800">Remove</button>
                                   </div>
                                 </div>
-                                <input className="w-full p-1.5 text-xs border rounded mb-1 text-gray-900" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
+                                <input className="w-full p-1.5 text-xs border border-gray-300 rounded mb-1 text-gray-900 bg-white focus:ring-1 focus:ring-yellow-400 focus:outline-none" placeholder="Block title (optional)" value={b.title || ''} onChange={(e)=>updateBlockField(idx,bIdx,{ title: e.target.value })} />
                                 <div className="space-y-1">
                                   {(b.items || []).map((p, pIdx) => (
                                     <div key={pIdx} className="flex items-center gap-2">
-                                      <input className="flex-1 p-1.5 text-xs border rounded text-gray-900" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
-                                      <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600"><X size={11} /></button>
+                                      <input className="flex-1 p-1.5 text-xs border border-gray-300 rounded text-gray-900 bg-white focus:ring-1 focus:ring-yellow-400 focus:outline-none" placeholder={`Point ${pIdx+1}`} value={p} onChange={(e)=>updateItem(idx,bIdx,pIdx,e.target.value)} />
+                                      <button type="button" onClick={()=>removeItem(idx,bIdx,pIdx)} className="text-red-600 hover:text-red-800"><X size={11} /></button>
                                     </div>
                                   ))}
                                   <button type="button" onClick={()=>addItem(idx,bIdx)} className="text-blue-600 hover:text-blue-700 text-[11px] flex items-center"><Plus size={11} className="mr-1" />Add point</button>
@@ -1529,7 +1631,7 @@ export const EventsManagement: React.FC = () => {
                     className="mt-1"
                   />
                   <div className="mt-2">
-                    <label className="flex items-center text-sm">
+                    <label className="flex items-center text-sm text-gray-900">
                       <input
                         type="checkbox"
                         checked={(eventForm as any).prefer_video || false}
@@ -1553,7 +1655,7 @@ export const EventsManagement: React.FC = () => {
                 </div>
                 {/* Timer settings (edit) */}
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <label className="flex items-center">
+                  <label className="flex items-center text-gray-900">
                     <input
                       type="checkbox"
                       checked={!!eventForm.registration_timer_enabled}
@@ -1562,7 +1664,7 @@ export const EventsManagement: React.FC = () => {
                     />
                     Enable Timer (optional)
                   </label>
-                  <label className="flex items-center">
+                  <label className="flex items-center text-gray-900">
                     <input
                       type="checkbox"
                       checked={!!(eventForm as any).registration_photo_required}
@@ -1602,10 +1704,10 @@ export const EventsManagement: React.FC = () => {
                     aria-label="Default Registration Mode and Max Team Members horizontal scroller"
                   >
                     <div className="text-sm font-medium text-gray-700">Default Registration Mode</div>
-                    <label className="flex items-center text-sm">
+                    <label className="flex items-center text-sm text-gray-900">
                       <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="individual" checked={(eventForm as any).registration_default_mode === 'individual'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'individual' } as any))} /> Individual
                     </label>
-                    <label className="flex items-center text-sm">
+                    <label className="flex items-center text-sm text-gray-900">
                       <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
                     </label>
                     <div className="ml-4 flex items-center gap-2 min-w-[280px]">
@@ -1650,12 +1752,12 @@ export const EventsManagement: React.FC = () => {
                 </div>
                 {/* Coordinators management */}
                 <div className="mt-4 border-t pt-3">
-                  <div className="text-sm font-semibold mb-2">Coordinators</div>
+                  <div className="text-sm font-semibold mb-2 text-gray-900">Coordinators</div>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
                     {coordinatorsFor(event.id).map((c, idx, list) => (
                       <div key={c.id} className="grid grid-cols-12 gap-2 items-center">
-                        <input className="col-span-5 p-1 text-sm border rounded" value={c.name} onChange={(e)=>updateCoordinatorField(c.id,'name',e.target.value)} />
-                        <input className="col-span-5 p-1 text-sm border rounded" value={c.phone || ''} onChange={(e)=>updateCoordinatorField(c.id,'phone',e.target.value)} />
+                        <input className="col-span-5 p-1 text-sm border rounded text-gray-900" value={c.name} onChange={(e)=>updateCoordinatorField(c.id,'name',e.target.value)} />
+                        <input className="col-span-5 p-1 text-sm border rounded text-gray-900" value={c.phone || ''} onChange={(e)=>updateCoordinatorField(c.id,'phone',e.target.value)} />
                         <div className="col-span-2 flex items-center gap-1">
                           <button type="button" onClick={()=>moveCoordinator(event.id, c.id, -1)} disabled={idx===0} className={`p-1 ${idx===0? 'text-gray-300':'text-gray-600 hover:text-gray-800'}`} title="Move up"><ArrowUp size={12} /></button>
                           <button type="button" onClick={()=>moveCoordinator(event.id, c.id, 1)} disabled={idx===list.length-1} className={`p-1 ${idx===list.length-1? 'text-gray-300':'text-gray-600 hover:text-gray-800'}`} title="Move down"><ArrowDown size={12} /></button>
@@ -1665,15 +1767,15 @@ export const EventsManagement: React.FC = () => {
                     ))}
                   </div>
                   <div className="grid grid-cols-12 gap-2 mt-2">
-                    <input className="col-span-5 p-1 text-sm border rounded" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
-                    <input className="col-span-5 p-1 text-sm border rounded" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
+                    <input className="col-span-5 p-1 text-sm border rounded text-gray-900" value={newCoordinator.name} onChange={(e)=>setNewCoordinator(prev=>({...prev,name:e.target.value}))} placeholder="Name" />
+                    <input className="col-span-5 p-1 text-sm border rounded text-gray-900" value={newCoordinator.phone} onChange={(e)=>setNewCoordinator(prev=>({...prev,phone:e.target.value}))} placeholder="Phone" />
                     <button type="button" onClick={()=>addCoordinator(event.id)} className="col-span-2 bg-green-600 text-white rounded text-xs px-2">Add</button>
                   </div>
 
                   {/* Winners management (show once per event) */}
                   <div className="mt-4 border-t pt-3">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
-                      <div className="text-sm font-semibold">Winners</div>
+                      <div className="text-sm font-semibold text-gray-900">Winners</div>
                     </div>
                     <EventWinnersEditor eventId={event.id} />
                   </div>
@@ -1738,7 +1840,7 @@ export const EventsManagement: React.FC = () => {
                 </div>
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-lg">{event.title}</h3>
+                    <h3 className="font-bold text-lg text-gray-900">{event.title}</h3>
                     <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
                       {event.category}
                     </span>

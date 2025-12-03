@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, ChevronDown, ChevronUp, Link as LinkIcon, Unlink, Loader2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { ScheduleDay, ScheduleEvent } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const ScheduleManagement: React.FC = () => {
   const { 
@@ -19,6 +20,12 @@ export const ScheduleManagement: React.FC = () => {
     deleteScheduleEvent 
   } = useData();
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
 
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [editingDay, setEditingDay] = useState<number | null>(null);
@@ -103,10 +110,26 @@ export const ScheduleManagement: React.FC = () => {
     
     try {
       setLoading(prev => ({ ...prev, addDay: true }));
-      await addScheduleDay(dayForm);
-      setIsAddingDay(false);
-      resetDayForm();
-      try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'schedule_day',
+          'create',
+          {
+            date: dayForm.date,
+            day: dayForm.day,
+            title: dayForm.title,
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAddingDay(false);
+        resetDayForm();
+        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      } else {
+        await addScheduleDay(dayForm);
+        setIsAddingDay(false);
+        resetDayForm();
+        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      }
       setBanner({ type: 'success', message: 'Schedule day added successfully.' });
     } catch (error) {
       console.error('Error adding schedule day:', error);
@@ -126,11 +149,27 @@ export const ScheduleManagement: React.FC = () => {
       setLoading(prev => ({ ...prev, updateDay: true }));
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
-      await updateScheduleDay(id, dayForm);
-      steps.next('Finalizing');
-      setEditingDay(null);
-      resetDayForm();
-      try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'schedule_day',
+          'update',
+          {
+            date: dayForm.date,
+            day: dayForm.day,
+            title: dayForm.title,
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditingDay(null);
+        resetDayForm();
+        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      } else {
+        await updateScheduleDay(id, dayForm);
+        setEditingDay(null);
+        resetDayForm();
+        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
+      }
       setBanner({ type: 'success', message: 'Schedule day updated.' });
     } catch (error) {
       console.error('Error updating schedule day:', error);
@@ -145,7 +184,17 @@ export const ScheduleManagement: React.FC = () => {
     if (confirm('Are you sure you want to delete this day and all its events?')) {
       try {
         setLoading(prev => ({ ...prev, deleteDayId: id }));
-        await deleteScheduleDay(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'schedule_day',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteScheduleDay(id);
+        }
         setBanner({ type: 'success', message: 'Schedule day deleted.' });
       } catch (error) {
         console.error('Error deleting schedule day:', error);
@@ -169,10 +218,31 @@ export const ScheduleManagement: React.FC = () => {
     
     try {
       setLoading(prev => ({ ...prev, addEvent: true }));
-      await addScheduleEvent(dayId, eventForm);
-      setIsAddingEvent(null);
-      resetEventForm();
-      try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'schedule_event',
+          'create',
+          {
+            schedule_day_id: dayId,
+            time: eventForm.time,
+            title: eventForm.title,
+            venue: eventForm.venue,
+            type: eventForm.type,
+            duration: eventForm.duration,
+            event_id: eventForm.event_id || null,
+            guest_artist_id: eventForm.guest_artist_id || null,
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAddingEvent(null);
+        resetEventForm();
+        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      } else {
+        await addScheduleEvent(dayId, eventForm);
+        setIsAddingEvent(null);
+        resetEventForm();
+        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      }
       setBanner({ type: 'success', message: 'Schedule event added.' });
     } catch (error: any) {
       const msg = error?.message || 'Unknown error';
@@ -193,11 +263,31 @@ export const ScheduleManagement: React.FC = () => {
       setLoading(prev => ({ ...prev, updateEvent: true }));
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
-      await updateScheduleEvent(eventId, eventForm);
-      steps.next('Finalizing');
-      setEditingEvent(null);
-      resetEventForm();
-      try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'schedule_event',
+          'update',
+          {
+            time: eventForm.time,
+            title: eventForm.title,
+            venue: eventForm.venue,
+            type: eventForm.type,
+            duration: eventForm.duration,
+            event_id: eventForm.event_id || null,
+            guest_artist_id: eventForm.guest_artist_id || null,
+          },
+          eventId
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditingEvent(null);
+        resetEventForm();
+        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      } else {
+        await updateScheduleEvent(eventId, eventForm);
+        setEditingEvent(null);
+        resetEventForm();
+        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
+      }
       setBanner({ type: 'success', message: 'Schedule event updated.' });
     } catch (error) {
       console.error('Error updating schedule event:', error);
@@ -567,7 +657,7 @@ export const ScheduleManagement: React.FC = () => {
                           type="text"
                           value={eventForm.venue}
                           onChange={(e) => setEventForm((prev: any) => ({ ...prev, venue: e.target.value }))}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                         />
                       </div>
                     </div>

@@ -1,15 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Star, Eye, EyeOff, Music, Play, Instagram, Youtube, AlignJustify as Spotify, Calendar, MapPin, Timer } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GuestArtist } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 type CardMediaMode = 'image' | 'video';
 
 export const GuestArtistManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
+
   const { 
     guestArtists,
     addGuestArtist,
@@ -98,32 +106,66 @@ export const GuestArtistManagement: React.FC = () => {
         performance_at = isNaN(local.getTime()) ? null : local.toISOString();
       }
       steps.next('Saving to database');
-      await addGuestArtist({
-        name: form.name,
-        title: form.title,
-        image: form.image,
-        video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-        video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-        youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-        watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-  detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-        card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-        card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-        description: form.description,
-        specialty: form.specialty,
-        achievements: form.achievements,
-        order_position: form.order_position,
-        enabled: form.enabled,
-        is_featured: form.is_featured,
-        performance_at,
-        venue: form.venue || null,
-        countdown_enabled: !!form.countdown_enabled,
-        live_now_enabled: form.live_now_enabled !== false,
-        social_links: form.social_links,
-      });
-      setIsAdding(false);
-      resetForm();
-      try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'guest_artist',
+          'create',
+          {
+            name: form.name,
+            title: form.title,
+            image: form.image,
+            video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+            video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+            youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+            watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+            detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+            card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+            card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
+            description: form.description,
+            specialty: form.specialty,
+            achievements: form.achievements,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            is_featured: form.is_featured,
+            performance_at,
+            venue: form.venue || null,
+            countdown_enabled: !!form.countdown_enabled,
+            live_now_enabled: form.live_now_enabled !== false,
+            social_links: form.social_links,
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAdding(false);
+        resetForm();
+        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      } else {
+        await addGuestArtist({
+          name: form.name,
+          title: form.title,
+          image: form.image,
+          video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+          video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+          youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+          watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+          detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+          card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+          card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
+          description: form.description,
+          specialty: form.specialty,
+          achievements: form.achievements,
+          order_position: form.order_position,
+          enabled: form.enabled,
+          is_featured: form.is_featured,
+          performance_at,
+          venue: form.venue || null,
+          countdown_enabled: !!form.countdown_enabled,
+          live_now_enabled: form.live_now_enabled !== false,
+          social_links: form.social_links,
+        });
+        setIsAdding(false);
+        resetForm();
+        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding guest artist:', error);
       alert('Failed to add guest artist. Please try again.');
@@ -149,32 +191,67 @@ export const GuestArtistManagement: React.FC = () => {
         performance_at = null;
       }
       steps.next('Saving to database');
-      await updateGuestArtist(id, {
-        name: form.name,
-        title: form.title,
-        image: form.image,
-        video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-        video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-        youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-        watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-  detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-        card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-        card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-        description: form.description,
-        specialty: form.specialty,
-        achievements: form.achievements,
-        order_position: form.order_position,
-        enabled: form.enabled,
-        is_featured: form.is_featured,
-        performance_at,
-        venue: form.venue || null,
-        countdown_enabled: !!form.countdown_enabled,
-        live_now_enabled: form.live_now_enabled !== false,
-        social_links: form.social_links,
-      });
-      setEditing(null);
-      resetForm();
-      try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'guest_artist',
+          'update',
+          {
+            name: form.name,
+            title: form.title,
+            image: form.image,
+            video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+            video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+            youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+            watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+            detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+            card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+            card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
+            description: form.description,
+            specialty: form.specialty,
+            achievements: form.achievements,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            is_featured: form.is_featured,
+            performance_at,
+            venue: form.venue || null,
+            countdown_enabled: !!form.countdown_enabled,
+            live_now_enabled: form.live_now_enabled !== false,
+            social_links: form.social_links,
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditing(null);
+        resetForm();
+        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      } else {
+        await updateGuestArtist(id, {
+          name: form.name,
+          title: form.title,
+          image: form.image,
+          video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
+          video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
+          youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
+          watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
+          detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
+          card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
+          card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
+          description: form.description,
+          specialty: form.specialty,
+          achievements: form.achievements,
+          order_position: form.order_position,
+          enabled: form.enabled,
+          is_featured: form.is_featured,
+          performance_at,
+          venue: form.venue || null,
+          countdown_enabled: !!form.countdown_enabled,
+          live_now_enabled: form.live_now_enabled !== false,
+          social_links: form.social_links,
+        });
+        setEditing(null);
+        resetForm();
+        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error updating guest artist:', error);
       const msg = (error as any)?.message || String(error);
@@ -192,7 +269,17 @@ export const GuestArtistManagement: React.FC = () => {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
         steps.next('Deleting');
-        await deleteGuestArtist(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'guest_artist',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteGuestArtist(id);
+        }
       } catch (error) {
         console.error('Error deleting guest artist:', error);
         alert('Failed to delete guest artist. Please try again.');
@@ -206,7 +293,17 @@ export const GuestArtistManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Updating');
-      await toggleGuestArtistEnabled(id);
+      if (requiresApproval) {
+        await submitForApproval(
+          'guest_artist',
+          'update',
+          { enabled: !guestArtists.find(a => a.id === id)?.enabled },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await toggleGuestArtistEnabled(id);
+      }
     } catch (error) {
       console.error('Error toggling guest artist status:', error);
       const msg = (error as any)?.message || String(error);
@@ -220,7 +317,17 @@ export const GuestArtistManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Updating');
-      await toggleGuestArtistFeatured(id);
+      if (requiresApproval) {
+        await submitForApproval(
+          'guest_artist',
+          'update',
+          { is_featured: !guestArtists.find(a => a.id === id)?.is_featured },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await toggleGuestArtistFeatured(id);
+      }
     } catch (error) {
       console.error('Error toggling featured status:', error);
       const msg = (error as any)?.message || String(error);
@@ -620,7 +727,7 @@ export const GuestArtistManagement: React.FC = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-4 text-sm">
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-900">
                     <input
                       type="radio"
                       className="mr-2"
@@ -633,7 +740,7 @@ export const GuestArtistManagement: React.FC = () => {
                     />
                     Image
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-900">
                     <input
                       type="radio"
                       className="mr-2"
@@ -830,7 +937,7 @@ export const GuestArtistManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, countdown_enabled: e.target.checked }))}
                     className="mr-2"
                   />
-                  <span className="text-xs">Show countdown on public site</span>
+                  <span className="text-xs text-gray-900">Show countdown on public site</span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -839,7 +946,7 @@ export const GuestArtistManagement: React.FC = () => {
                     onChange={(e) => setForm(prev => ({ ...prev, live_now_enabled: e.target.checked }))}
                     className="mr-2"
                   />
-                  <span className="text-xs">Show LIVE NOW when event starts</span>
+                  <span className="text-xs text-gray-900">Show LIVE NOW when event starts</span>
                 </label>
                 
                 {/* Social Links editing */}
@@ -910,7 +1017,7 @@ export const GuestArtistManagement: React.FC = () => {
                     )}
                   </div>
                   <div className="flex items-center gap-4 text-sm">
-                    <label className="inline-flex items-center">
+                    <label className="inline-flex items-center text-gray-900">
                       <input
                         type="radio"
                         className="mr-2"
@@ -923,7 +1030,7 @@ export const GuestArtistManagement: React.FC = () => {
                       />
                       Image
                     </label>
-                    <label className="inline-flex items-center">
+                    <label className="inline-flex items-center text-gray-900">
                       <input
                         type="radio"
                         className="mr-2"

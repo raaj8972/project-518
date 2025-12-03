@@ -1,13 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Users, Crown, Eye, EyeOff } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { FacultyHead } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const FacultyHeadsManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
+
   const { 
     facultyHeads, 
     addFacultyHead, 
@@ -69,11 +77,34 @@ export const FacultyHeadsManagement: React.FC = () => {
       delete payload.youtube;
   delete payload.facebook;
       if (Object.keys(social_links).length > 0) payload.social_links = social_links;
-      steps.next('Saving to database');
-      await addFacultyHead(payload);
-      setIsAdding(false);
-      resetForm();
-      try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'faculty_head',
+          'create',
+          {
+            name: form.name,
+            title: form.title,
+            image: form.image,
+            description: form.description,
+            email: form.email,
+            phone: form.phone,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            social_links: Object.keys(social_links).length > 0 ? social_links : undefined,
+            achievements: form.achievements
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setIsAdding(false);
+        resetForm();
+        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      } else {
+        steps.next('Saving to database');
+        await addFacultyHead(payload);
+        setIsAdding(false);
+        resetForm();
+        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error adding faculty head:', error);
       const msg = (error as any)?.message || String(error);
@@ -116,11 +147,35 @@ export const FacultyHeadsManagement: React.FC = () => {
         // Omit the property entirely to avoid unknown-column updates when DB lacks social_links
         delete payload.social_links;
       }
-      steps.next('Saving to database');
-      await updateFacultyHead(id, payload);
-      setEditing(null);
-      resetForm();
-      try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      if (requiresApproval) {
+        await submitForApproval(
+          'faculty_head',
+          'update',
+          {
+            name: form.name,
+            title: form.title,
+            image: form.image,
+            description: form.description,
+            email: form.email,
+            phone: form.phone,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            social_links: Object.keys(merged).length > 0 ? merged : undefined,
+            achievements: form.achievements
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+        setEditing(null);
+        resetForm();
+        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      } else {
+        steps.next('Saving to database');
+        await updateFacultyHead(id, payload);
+        setEditing(null);
+        resetForm();
+        try { localStorage.removeItem('admin_faculty_head_form_draft'); } catch {}
+      }
     } catch (error) {
       console.error('Error updating faculty head:', error);
       const msg = (error as any)?.message || String(error);
@@ -135,7 +190,17 @@ export const FacultyHeadsManagement: React.FC = () => {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
         steps.next('Deleting');
-        await deleteFacultyHead(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'faculty_head',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteFacultyHead(id);
+        }
       } catch (error) {
         console.error('Error deleting faculty head:', error);
         alert('Failed to delete faculty head. Please try again.');
@@ -149,7 +214,17 @@ export const FacultyHeadsManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Updating');
-      await toggleFacultyHeadEnabled(id);
+      if (requiresApproval) {
+        await submitForApproval(
+          'faculty_head',
+          'update',
+          { enabled: !facultyHeads.find(h => h.id === id)?.enabled },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await toggleFacultyHeadEnabled(id);
+      }
     } catch (error) {
       console.error('Error toggling faculty head status:', error);
       alert('Failed to update faculty head status. Please try again.');

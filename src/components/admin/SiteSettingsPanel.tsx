@@ -2,9 +2,17 @@ import React from 'react';
 import { useData } from '../../context/DataContext';
 import { Calendar, Save } from 'lucide-react';
 import { ComingSoon } from '../../pages/ComingSoon';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const SiteSettingsPanel: React.FC = () => {
   const { siteSettings, updateSiteSettings } = useData();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = React.useState(false);
+
+  React.useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
+
   const [local, setLocal] = React.useState({
     site_closed: false,
     coming_soon_enabled: false,
@@ -12,7 +20,6 @@ export const SiteSettingsPanel: React.FC = () => {
     coming_soon_title: '',
     coming_soon_message: '',
     coming_soon_ended_text: '',
-    events_poster_fit: 'contain' as 'contain' | 'cover',
     // Small convenience: allow editing the homepage hero title from Site Settings
     homepage_hero_title: '',
     registration_institution_visible: true,
@@ -31,7 +38,6 @@ export const SiteSettingsPanel: React.FC = () => {
       coming_soon_title: siteSettings.coming_soon_title || '',
       coming_soon_message: siteSettings.coming_soon_message || '',
       coming_soon_ended_text: (siteSettings as any).coming_soon_ended_text || '',
-      events_poster_fit: ((siteSettings as any).events_poster_fit === 'cover' ? 'cover' : 'contain'),
       homepage_hero_title: (siteSettings as any)?.homepage_hero_title || '',
       registration_institution_visible: (siteSettings as any)?.registration_institution_visible !== false,
       registration_institution_optional: (siteSettings as any)?.registration_institution_optional === true,
@@ -44,21 +50,38 @@ export const SiteSettingsPanel: React.FC = () => {
   const onSave = async () => {
     setSaving(true);
     try {
-      await updateSiteSettings({
+      const newSettings = {
         site_closed: local.site_closed,
         coming_soon_enabled: local.coming_soon_enabled,
         coming_soon_until: local.coming_soon_until ? new Date(local.coming_soon_until).toISOString() : null,
         coming_soon_title: local.coming_soon_title || null,
         coming_soon_message: local.coming_soon_message || null,
         coming_soon_ended_text: local.coming_soon_ended_text || null,
-        events_poster_fit: local.events_poster_fit,
         // optional homepage hero title (stored in site_settings)
         homepage_hero_title: local.homepage_hero_title || null,
         registration_institution_visible: !!local.registration_institution_visible,
         registration_institution_optional: !!local.registration_institution_optional,
         registration_participant_types: Array.isArray(local.registration_participant_types) ? local.registration_participant_types : null,
-      } as any);
-      setSavedAt(Date.now());
+      };
+
+      if (requiresApproval) {
+        // Assuming siteSettings has an ID, or we use a fixed ID for singleton
+        const settingsId = (siteSettings as any)?.id || 1;
+        
+        const result = await submitForApproval('site_settings', 'update', newSettings, settingsId);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setSavedAt(Date.now());
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await updateSiteSettings(newSettings as any);
+        setSavedAt(Date.now());
+      }
+    } catch (error) {
+      console.error('Error saving site settings:', error);
+      alert('Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -119,18 +142,6 @@ export const SiteSettingsPanel: React.FC = () => {
                 placeholder="We are preparing something amazing. Please check back soon."
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Events poster fit</label>
-              <select
-                value={local.events_poster_fit}
-                onChange={(e) => setLocal((s) => ({ ...s, events_poster_fit: (e.target.value === 'cover' ? 'cover' : 'contain') }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-              >
-                <option value="contain">Contain (no cropping)</option>
-                <option value="cover">Cover (fill card, may crop)</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Contain shows full image with letterboxing; Cover fills the card but may crop on some screens.</p>
-            </div>
             {/* Institution visibility controls moved to Registration admin panel */}
 
             <div>
@@ -157,8 +168,10 @@ export const SiteSettingsPanel: React.FC = () => {
           </div>
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-700">Public Preview</div>
-            <div className="aspect-video bg-black">
-              <ComingSoon />
+            <div className="aspect-video bg-black relative">
+              <div className="absolute inset-0 transform scale-[0.4] origin-top-left w-[250%] h-[250%]">
+                <ComingSoon previewSettings={local} />
+              </div>
             </div>
           </div>
         </div>

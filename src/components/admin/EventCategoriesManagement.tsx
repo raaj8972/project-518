@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Palette, AlertCircle } from 'lucide-react';
+import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useData } from '../../context/DataContext';
+import { useApprovals } from '../../hooks/useApprovals';
 import type { EventCategory } from '../../context/DataContext';
 
 export const EventCategoriesManagement: React.FC = () => {
@@ -11,6 +13,14 @@ export const EventCategoriesManagement: React.FC = () => {
     deleteEventCategory 
     , reorderEventCategories
   } = useData();
+
+  const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingCategory, setEditingCategory] = useState<number | null>(null);
@@ -42,7 +52,20 @@ export const EventCategoriesManagement: React.FC = () => {
     }
     
     try {
-      await addEventCategory({ name, description, color });
+      if (requiresApproval) {
+        await submitForApproval(
+          'event_category',
+          'create',
+          {
+            name: name,
+            description: description,
+            color: color
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await addEventCategory({ name, description, color });
+      }
       setIsAdding(false);
       resetForm();
     } catch (error: any) {
@@ -66,7 +89,21 @@ export const EventCategoriesManagement: React.FC = () => {
     }
     
     try {
-      await updateEventCategory(id, { name, description, color });
+      if (requiresApproval) {
+        await submitForApproval(
+          'event_category',
+          'update',
+          {
+            name: name,
+            description: description,
+            color: color
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await updateEventCategory(id, { name, description, color });
+      }
       setEditingCategory(null);
       resetForm();
     } catch (error: any) {
@@ -82,7 +119,17 @@ export const EventCategoriesManagement: React.FC = () => {
   const handleDeleteCategory = async (id: number) => {
     if (confirm('Are you sure you want to delete this category? This action cannot be undone and may affect existing events.')) {
       try {
-        await deleteEventCategory(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'event_category',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteEventCategory(id);
+        }
       } catch (error: any) {
         console.error('Error deleting category:', error?.message || error, error);
         setError(
@@ -126,11 +173,30 @@ export const EventCategoriesManagement: React.FC = () => {
 
   const persistReorder = async () => {
     if (!reorderEventCategories) return;
-    const ok = await reorderEventCategories(orderList);
-    if (ok) {
-      setReorderMode(false);
-      setOrderList([]);
-    } else {
+    try {
+      if (requiresApproval) {
+        // For reordering, we might need a special action or just update each item
+        // But reordering usually involves multiple updates. 
+        // For simplicity, let's assume we can't easily approve bulk reorders yet, 
+        // or we just warn the user. 
+        // Or better, we submit a special 'reorder' action if backend supports it, 
+        // or just loop and submit updates (might be spammy).
+        // Let's alert for now or try to submit one by one.
+        alert('Reordering requires approval. This feature is not fully supported in approval mode yet.');
+        // Alternatively, we could just allow it if it's not critical, or implement a bulk update.
+        // Let's try to submit updates for each changed item.
+        /*
+        for (const cat of reorderedCategories) {
+           await submitForApproval('event_category', 'update', { order_position: cat.order_position }, cat.id);
+        }
+        */
+      } else {
+        await reorderEventCategories(orderList);
+        setReorderMode(false);
+        setOrderList([]);
+      }
+    } catch (error) {
+      console.error('Error reordering categories:', error);
       setError('Failed to persist category order. Please try again.');
     }
   };

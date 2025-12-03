@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, AlignJustify as Spotify } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -6,10 +6,18 @@ import type { BandMember } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const BandManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
+
   const { 
     bandMembers,
     addBandMember,
@@ -70,7 +78,28 @@ export const BandManagement: React.FC = () => {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       steps.next('Saving to database');
-      await addBandMember(form);
+      if (requiresApproval) {
+        await submitForApproval(
+          'band_member',
+          'create',
+          {
+            name: form.name,
+            role: form.role,
+            image: form.image,
+            description: form.description,
+            specialty: form.specialty,
+            category: form.category,
+            achievements: form.achievements,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            is_featured: form.is_featured,
+            social_links: form.social_links
+          }
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await addBandMember(form);
+      }
       setIsAdding(false);
       resetForm();
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
@@ -93,7 +122,29 @@ export const BandManagement: React.FC = () => {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       steps.next('Saving to database');
-      await updateBandMember(id, form);
+      if (requiresApproval) {
+        await submitForApproval(
+          'band_member',
+          'update',
+          {
+            name: form.name,
+            role: form.role,
+            image: form.image,
+            description: form.description,
+            specialty: form.specialty,
+            category: form.category,
+            achievements: form.achievements,
+            order_position: form.order_position,
+            enabled: form.enabled,
+            is_featured: form.is_featured,
+            social_links: form.social_links
+          },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await updateBandMember(id, form);
+      }
       setEditing(null);
       resetForm();
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
@@ -111,7 +162,17 @@ export const BandManagement: React.FC = () => {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
         steps.next('Deleting');
-        await deleteBandMember(id);
+        if (requiresApproval) {
+          await submitForApproval(
+            'band_member',
+            'delete',
+            {},
+            id
+          );
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          await deleteBandMember(id);
+        }
       } catch (error) {
         console.error('Error deleting band member:', error);
         alert('Failed to delete band member. Please try again.');
@@ -125,7 +186,17 @@ export const BandManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Updating');
-      await toggleBandMemberEnabled(id);
+      if (requiresApproval) {
+        await submitForApproval(
+          'band_member',
+          'update',
+          { enabled: !bandMembers.find(m => m.id === id)?.enabled },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await toggleBandMemberEnabled(id);
+      }
     } catch (error) {
       console.error('Error toggling band member status:', error);
       alert('Failed to update band member status. Please try again.');
@@ -138,7 +209,17 @@ export const BandManagement: React.FC = () => {
     try {
       const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Updating');
-      await toggleBandMemberFeatured(id);
+      if (requiresApproval) {
+        await submitForApproval(
+          'band_member',
+          'update',
+          { is_featured: !bandMembers.find(m => m.id === id)?.is_featured },
+          id
+        );
+        alert('Request submitted for approval. An owner will review your changes.');
+      } else {
+        await toggleBandMemberFeatured(id);
+      }
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');

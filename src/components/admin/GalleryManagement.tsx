@@ -4,6 +4,7 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { GalleryImage } from '../../context/DataContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useApprovals } from '../../hooks/useApprovals';
 
 export const GalleryManagement: React.FC = () => {
   const { 
@@ -17,6 +18,12 @@ export const GalleryManagement: React.FC = () => {
     updateGallerySettings
   } = useData();
   const savingProgress = useSavingProgress();
+  const { submitForApproval, checkRequiresApproval } = useApprovals();
+  const [requiresApproval, setRequiresApproval] = useState(false);
+
+  useEffect(() => {
+    checkRequiresApproval().then(setRequiresApproval);
+  }, []);
 
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
@@ -70,15 +77,34 @@ export const GalleryManagement: React.FC = () => {
   const handleSaveSettings = async () => {
     try {
       setSaving(true);
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      await updateGallerySettings({ ...settingsForm });
-      steps.next('Finalizing');
-      setDirty(false);
-      setSavedAt(Date.now());
+      
+      if (requiresApproval) {
+        // For settings, we treat it as an update to a singleton 'gallery_settings' entity
+        // Assuming gallerySettings has an ID, or we use a fixed ID for singleton
+        const settingsId = (gallerySettings as any)?.id || 1; 
+        
+        const result = await submitForApproval('gallery_settings', 'update', settingsForm, settingsId);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setDirty(false);
+          setSavedAt(Date.now());
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Validating');
+        await updateGallerySettings({ ...settingsForm });
+        steps.next('Finalizing');
+        setDirty(false);
+        setSavedAt(Date.now());
+        savingProgress.done();
+      }
+    } catch (error) {
+      console.error('Error saving gallery settings:', error);
+      alert('Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
-      savingProgress.done();
       // Clear success note after a short delay
       setTimeout(() => setSavedAt(null), 2000);
     }
@@ -101,9 +127,20 @@ export const GalleryManagement: React.FC = () => {
     }
     
     try {
-      await addGalleryImage(form);
-      setIsAdding(false);
-      resetForm();
+      if (requiresApproval) {
+        const result = await submitForApproval('gallery_image', 'create', form);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setIsAdding(false);
+          resetForm();
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await addGalleryImage(form);
+        setIsAdding(false);
+        resetForm();
+      }
     } catch (error) {
       console.error('Error adding gallery image:', error);
       alert('Failed to add image. Please try again.');
@@ -117,16 +154,27 @@ export const GalleryManagement: React.FC = () => {
     }
     
     try {
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Uploading/validating');
-      await updateGalleryImage(id, form);
-      steps.next('Finalizing');
-      setEditing(null);
-      resetForm();
+      if (requiresApproval) {
+        const result = await submitForApproval('gallery_image', 'update', form, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+          setEditing(null);
+          resetForm();
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        const steps = savingProgress.withSteps(3, 'Preparing…');
+        steps.next('Uploading/validating');
+        await updateGalleryImage(id, form);
+        steps.next('Finalizing');
+        setEditing(null);
+        resetForm();
+        savingProgress.done();
+      }
     } catch (error) {
       console.error('Error updating gallery image:', error);
       alert('Failed to update image. Please try again.');
-    } finally {
       savingProgress.done();
     }
   };
@@ -134,7 +182,16 @@ export const GalleryManagement: React.FC = () => {
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this image? This action cannot be undone.')) {
       try {
-        await deleteGalleryImage(id);
+        if (requiresApproval) {
+          const result = await submitForApproval('gallery_image', 'delete', {}, id);
+          if (result.success) {
+            alert('Request submitted for approval. An owner will review your changes.');
+          } else {
+            alert(`Failed to submit for approval: ${result.error}`);
+          }
+        } else {
+          await deleteGalleryImage(id);
+        }
       } catch (error) {
         console.error('Error deleting gallery image:', error);
         alert('Failed to delete image. Please try again.');
@@ -144,7 +201,19 @@ export const GalleryManagement: React.FC = () => {
 
   const handleToggleFeatured = async (id: number) => {
     try {
-      await toggleGalleryImageFeatured(id);
+      if (requiresApproval) {
+        const image = galleryImages.find(i => i.id === id);
+        if (!image) return;
+        
+        const result = await submitForApproval('gallery_image', 'update', { featured: !image.featured }, id);
+        if (result.success) {
+          alert('Request submitted for approval. An owner will review your changes.');
+        } else {
+          alert(`Failed to submit for approval: ${result.error}`);
+        }
+      } else {
+        await toggleGalleryImageFeatured(id);
+      }
     } catch (error) {
       console.error('Error toggling featured status:', error);
       alert('Failed to update featured status. Please try again.');

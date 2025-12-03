@@ -261,8 +261,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       setIsAuthenticated(false);
       setIsTOTPEnabled(false);
+      
+      // Clear local storage to ensure complete logout
+      localStorage.removeItem('supabase.auth.token');
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) localStorage.removeItem(key);
+      });
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if signOut fails, clear local state
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsTOTPEnabled(false);
+      localStorage.removeItem('supabase.auth.token');
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) localStorage.removeItem(key);
+      });
     }
   };
 

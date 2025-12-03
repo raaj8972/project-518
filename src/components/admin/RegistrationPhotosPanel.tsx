@@ -78,7 +78,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between">
-				<h2 className="text-xl font-semibold">Registration Photos</h2>
+				<h2 className="text-xl font-semibold text-gray-900">Registration Photos</h2>
 				{usage && (
 					<div className="text-sm text-gray-600">
 						{usage.count} files · {(usage.totalBytes / (1024*1024)).toFixed(1)} MB
@@ -150,9 +150,9 @@ export const RegistrationPhotosPanel: React.FC = () => {
 				</table>
 			</div>
 			<div className="flex items-center justify-between">
-				<button disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))} className="px-3 py-1 rounded border disabled:opacity-50">Prev</button>
-				<div className="text-sm text-gray-600">Page {page} / {totalPages}</div>
-				<button disabled={page>=totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 rounded border disabled:opacity-50">Next</button>
+				<button disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))} className="px-3 py-1 rounded border disabled:opacity-50 text-gray-900">Prev</button>
+				<div className="text-sm text-gray-900">Page {page} / {totalPages}</div>
+				<button disabled={page>=totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 rounded border disabled:opacity-50 text-gray-900">Next</button>
 			</div>
 
 			{/* Lightbox Viewer */}
