@@ -1,91 +1,29 @@
-# Netlify configuration for Vite + React SPA
 [build]
   command = "npm run build"
   publish = "dist"
 
-# Netlify Image CDN configuration
-[images]
-  # Enable remote image fetching (for Supabase images)
-  remote_images = [
-    "https://*.supabase.co/*",
-    "https://*.supabase.in/*"
-  ]
+[[edge_functions]]
+  function = "force-logout"
+  path = "/api/force-logout"
 
-# Ensure clean URLs and SPA history fallback
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+[functions]
+  directory = "netlify/functions"
 
-# SPA fallback for client-side routes
-# IMPORTANT: Exclude static files from SPA redirect
-[[redirects]]
-  from = "/sitemap.xml"
-  to = "/sitemap.xml"
-  status = 200
+# Environment variables (set these in Netlify dashboard)
+# SUPABASE_URL - Your Supabase project URL
+# SUPABASE_SERVICE_ROLE_KEY - Your Supabase service role key (keep secret!)
+# SUPABASE_ANON_KEY - Your Supabase anon/public key
 
-[[redirects]]
-  from = "/sitemap-index.xml"
-  to = "/sitemap-index.xml"
-  status = 200
-
-[[redirects]]
-  from = "/image-sitemap.xml"
-  to = "/image-sitemap.xml"
-  status = 200
-
-[[redirects]]
-  from = "/sitemap.txt"
-  to = "/sitemap.txt"
-  status = 200
-
-[[redirects]]
-  from = "/robots.txt"
-  to = "/robots.txt"
-  status = 200
-
-[[redirects]]
-  from = "/favicon.ico"
-  to = "/favicon.ico"
-  status = 200
-
-# Catch-all SPA fallback (must be last)
+# Redirects for SPA
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-# Include environment variables for Supabase at build/runtime in Netlify UI (not in repo)
-# VITE_SUPABASE_URL
-# VITE_SUPABASE_ANON_KEY
-
-# Netlify Scheduled Function: run heartbeat every 15 minutes
-# Using per-function config block per official docs
-[functions."heartbeat-schedule"]
-  # Cron: every 15 minutes (UTC)
-  schedule = "*/15 * * * *"
-
-[functions]
-  # Increase timeout a bit for external calls
-  node_bundler = "esbuild"
-  included_files = []
-  directory = "netlify/functions"
-
-# Caching and security headers
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Cache-Control = "no-store, must-revalidate"
+  conditions = {Role = ["*"]}
 
 [[headers]]
-  for = "/assets/*"
+  for = "/api/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "interest-cohort=()"
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"

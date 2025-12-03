@@ -168,9 +168,37 @@ export const SecuritySettings: React.FC = () => {
     try {
       setMessage({ type: 'success', text: 'Logging out...' });
       
-      // For self-logout, just clear local session and redirect
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token && !isSelf) {
+        setMessage({ type: 'error', text: 'Not authenticated' });
+        return;
+      }
+
+      // Call edge function to sign out user on server
+      if (token) {
+        const headers: Record<string, string> = { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        };
+
+        const res = await fetch('/api/force-logout', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ targetUserId: userId })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to logout user');
+        }
+      }
+
+      // For self-logout, clear local session and redirect
       if (isSelf) {
-        // Force client-side logout immediately
+        // Clear client-side auth
         try {
           await supabase.auth.signOut();
         } catch (e) {
@@ -181,34 +209,17 @@ export const SecuritySettings: React.FC = () => {
         Object.keys(localStorage).forEach(key => {
           if (key.startsWith('sb-')) localStorage.removeItem(key);
         });
+        localStorage.removeItem('supabase.auth.token');
         
         // Redirect to login
         window.location.href = '/';
-        return;
-      }
-
-      // For other users, use the admin security controls
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ action: 'force_logout', targetUserId: userId })
-      });
-
-      if (res.ok) {
+      } else {
+        // For other users, just refresh the list
         setMessage({ type: 'success', text: 'User logged out successfully' });
         fetchUsersStatus();
-      } else {
-        const err = await res.json().catch(() => ({}));
-        const errorText = err.details ? `${err.error}: ${err.details}` : (err.error || 'Failed to logout user');
-        setMessage({ type: 'error', text: errorText });
       }
     } catch (e: any) {
-      setMessage({ type: 'error', text: `Error logging out user: ${e.message || 'Unknown error'}` });
+      setMessage({ type: 'error', text: `Error: ${e.message || 'Failed to logout user'}` });
     }
   };
 

@@ -1,0 +1,127 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+export default async (request: Request) => {
+  // CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+  };
+
+  // Handle preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
+  try {
+    // Get environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://isfqhascrdzaoebhuohs.supabase.co';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || 
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
+
+    // Initialize Supabase with service role
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    // Parse request body
+    const { targetUserId } = await request.json();
+
+    if (!targetUserId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing targetUserId' }),
+        { status: 400, headers }
+      );
+    }
+
+    // Get the requesting user from Authorization header
+    const authHeader = request.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { status: 401, headers }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers }
+      );
+    }
+
+    // Check if user is admin/owner or targeting themselves
+    const isSelf = user.id === targetUserId;
+    
+    if (!isSelf) {
+      // Check if user is admin/owner
+      const { data: adminUser } = await supabaseAdmin
+        .from('admin_users')
+        .select('role, is_primary')
+        .eq('user_id', user.id)
+        .single();
+
+      const isAuthorized = adminUser?.role === 'owner' || 
+                          adminUser?.is_primary || 
+                          user.user_metadata?.is_super_admin;
+
+      if (!isAuthorized) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized: Owner access required' }),
+          { status: 403, headers }
+        );
+      }
+    }
+
+    // Sign out the target user (invalidates all their sessions)
+    const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(targetUserId);
+
+    if (signOutError) {
+      console.error('Sign out error:', signOutError);
+      // Don't fail if user is already signed out
+      if (!signOutError.message.includes('not found')) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to sign out user: ' + signOutError.message }),
+          { status: 500, headers }
+        );
+      }
+    }
+
+    // Clear admin sessions table
+    await supabaseAdmin
+      .from('admin_sessions')
+      .delete()
+      .eq('user_id', targetUserId);
+
+    // Clear admin presence table
+    await supabaseAdmin
+      .from('admin_presence')
+      .delete()
+      .eq('user_id', targetUserId);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'User logged out successfully',
+        isSelf 
+      }),
+      { status: 200, headers }
+    );
+
+  } catch (error) {
+    console.error('Edge function error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error: ' + (error?.message || 'Unknown') }),
+      { status: 500, headers }
+    );
+  }
+};
+
+export const config = { path: '/api/force-logout' };
