@@ -41,10 +41,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
+        
         if (error) {
-          console.error('Error getting session:', error);
-          // Handle invalid refresh token by forcing sign out and clearing local state
+          // Suppress expected JWT/auth errors during logout
           const msg = String((error as any)?.message || '').toLowerCase();
+          const isAuthError = msg.includes('invalid jwt') || 
+                             msg.includes('malformed') || 
+                             msg.includes('signature') ||
+                             msg.includes('auth session missing') ||
+                             msg.includes('invalid refresh token') ||
+                             msg.includes('refresh token not found');
+          
+          if (!isAuthError) {
+            console.error('Error getting session:', error);
+          }
+          
+          // Handle invalid refresh token by forcing sign out and clearing local state
           if (msg.includes('invalid refresh token') || msg.includes('refresh token not found')) {
             console.warn('Detected invalid refresh token — forcing sign-out to clear stale session');
             try { await supabase.auth.signOut(); } catch {};
@@ -54,12 +66,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             return;
           }
           // If JWT is invalid/malformed, force sign out to clear bad tokens
-          if (error.message && (
-            error.message.includes('invalid JWT') || 
-            error.message.includes('malformed') || 
-            error.message.includes('signature') ||
-            error.message.includes('Auth session missing')
-          )) {
+          if (msg.includes('invalid jwt') || 
+              msg.includes('malformed') || 
+              msg.includes('signature') ||
+              msg.includes('auth session missing')) {
             console.log('Clearing invalid session...');
             await supabase.auth.signOut().catch(() => {});
             setUser(null);
