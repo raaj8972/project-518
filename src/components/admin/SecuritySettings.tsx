@@ -177,17 +177,20 @@ export const SecuritySettings: React.FC = () => {
         return;
       }
 
-      // Call edge function to sign out user on server
+      // Call the working Netlify function instead of edge function
       if (token) {
         const headers: Record<string, string> = { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         };
 
-        const res = await fetch('/api/force-logout', {
+        const res = await fetch('/.netlify/functions/admin-security-controls', {
           method: 'POST',
           headers,
-          body: JSON.stringify({ targetUserId: userId })
+          body:JSON.stringify({ 
+            action: 'force_logout',
+            targetUserId: userId 
+          })
         });
 
         if (!res.ok) {
