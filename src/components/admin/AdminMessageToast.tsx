@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, User } from 'lucide-react';
-import { AdminMessage } from '../hooks/useAdminMessages';
+import { AdminMessage } from '../../hooks/useAdminMessages';
 
 interface AdminMessageToastProps {
   message: AdminMessage;

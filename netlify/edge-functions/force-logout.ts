@@ -1,3 +1,5 @@
+/// &lt;reference path="./types.d.ts" /&gt;
+// @ts-ignore - ESM URL imports work in Deno runtime
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 export default async (request: Request) => {
@@ -115,7 +117,7 @@ export default async (request: Request) => {
       { status: 200, headers }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Edge function error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error: ' + (error?.message || 'Unknown') }),

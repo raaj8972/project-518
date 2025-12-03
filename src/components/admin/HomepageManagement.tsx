@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SUPABASE_ENV_OK, SUPABASE_HOST } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { Save, X, Image as ImageIcon, Video, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown, Wand2 } from 'lucide-react';
+import { Save, X, AlertCircle, Type, FileText, Plus, Trash2, ExternalLink, ArrowUp, ArrowDown, Wand2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import LogoLoop from '../LogoLoop';
 import InfiniteMarquee from '../InfiniteMarquee';
@@ -102,11 +102,7 @@ export const HomepageManagement: React.FC = () => {
     committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
   });
 
-  const handleMediaSelect = (url: string) => {
-    setForm(prev => ({ ...prev, hero_media_url: url }));
-    setMessage({ type: 'success', text: 'Background media selected. Click Save Changes to apply.' });
-    setTimeout(() => setMessage(null), 2000);
-  };
+
 
   const handleRemoveLogoBg = async (logoId: string) => {
     const logo = form.sponsor_logos.find(l => l.id === logoId);
@@ -303,9 +299,7 @@ export const HomepageManagement: React.FC = () => {
     return publicUrl;
   };
 
-  const clearMedia = () => {
-    setForm(prev => ({ ...prev, hero_media_url: '' }));
-  };
+
 
   const addSponsorLogo = () => {
     const newLogo: SponsorLogo = {
