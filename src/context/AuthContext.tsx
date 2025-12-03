@@ -39,6 +39,42 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Check for existing session
     const getSession = async () => {
       try {
+        // Pre-emptively check for corrupted tokens in localStorage and clear them
+        try {
+          const storageKey = 'ricorrenza_2025_auth';
+          const storedAuth = localStorage.getItem(`sb-${storageKey.split('_')[0]}-auth-token`) || 
+                            localStorage.getItem('sb-isfqhascrdzaoebhuohs-auth-token');
+          
+          if (storedAuth) {
+            try {
+              const parsed = JSON.parse(storedAuth);
+              const accessToken = parsed?.access_token || parsed?.currentSession?.access_token;
+              
+              // Check if token looks malformed (not 3 segments)
+              if (accessToken && typeof accessToken === 'string') {
+                const segments = accessToken.split('.');
+                if (segments.length !== 3) {
+                  console.log('Clearing malformed JWT from localStorage');
+                  // Clear all Supabase auth keys
+                  Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-')) localStorage.removeItem(key);
+                  });
+                  localStorage.removeItem('supabase.auth.token');
+                }
+              }
+            } catch (e) {
+              // If we can't parse the stored auth, clear it
+              console.log('Clearing unparseable auth data from localStorage');
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-')) localStorage.removeItem(key);
+              });
+              localStorage.removeItem('supabase.auth.token');
+            }
+          }
+        } catch (e) {
+          // Ignore localStorage access errors
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         
         
