@@ -107,6 +107,15 @@ export default async (request: Request) => {
     }
 
     // Sign out the target user (invalidates all their sessions)
+    console.log('Attempting to sign out user:', {
+      targetUserId,
+      urlConfigured: !!supabaseUrl,
+      keyConfigured: !!supabaseServiceKey,
+      keyLength: supabaseServiceKey.length,
+      keyStart: supabaseServiceKey.substring(0, 20),
+      keyEnd: supabaseServiceKey.substring(supabaseServiceKey.length - 20)
+    });
+
     const { error: signOutError } = await supabaseAdmin.auth.admin.signOut(targetUserId);
 
     if (signOutError) {
