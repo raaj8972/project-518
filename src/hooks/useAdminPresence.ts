@@ -207,7 +207,13 @@ export const useAdminPresence = () => {
           .delete()
           .eq('user_id', user.id)
           .then(({ error }) => {
-            if (error) console.error('Error cleaning up presence:', error);
+            // Ignore auth errors during cleanup as the user might be logging out
+            if (error && 
+                !error.message.includes('JWT') && 
+                !error.message.includes('Unauthorized') &&
+                !error.message.includes('secret/key')) {
+              console.error('Error cleaning up presence:', error);
+            }
           });
       }
     };
