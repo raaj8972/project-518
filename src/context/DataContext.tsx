@@ -1173,9 +1173,13 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const markErr = (label: string, err: any) => {
       hadErrors = true;
       const msg = (err && (err.message || err.toString())) || 'Unknown error';
+      // Suppress auth errors during logout (expected when session is invalidated)
+      const isAuthError = msg.includes('JWT') || msg.includes('Unauthorized') || msg.includes('secret/key') || msg.includes('Invalid API key');
+      if (!isAuthError) {
+        console.error(label, err);
+      }
       // keep last error message for UI
       setLastError(`${label}: ${msg}`);
-      console.error(label, err);
     };
     try {
       // Lightweight connectivity ping first to catch obvious offline issues
