@@ -1238,6 +1238,43 @@ export const CoreTeamManagement: React.FC = () => {
                     <div key={member.id} className={`border border-gray-200 rounded-lg p-4 hover:border-yellow-300 transition-colors ${editingMember === member.id ? 'md:col-span-2 lg:col-span-3' : ''}`}>
                       {editingMember === member.id ? (
                         <div className="space-y-3">
+                          {/* Action Buttons - Top */}
+                          <div className="w-full flex justify-between items-center pb-3 border-b border-gray-200">
+                            <div className="flex space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingMember(null);
+                                  resetMemberForm();
+                                }}
+                                className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
+                              >
+                                <X size={12} className="mr-1" />
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateMember(member.id)}
+                                disabled={!memberForm.name.trim() || !memberForm.image}
+                                className={`px-3 py-1 rounded flex items-center transition-colors ${
+                                  memberForm.name.trim() && memberForm.image
+                                    ? 'bg-yellow-400 text-black hover:bg-yellow-300'
+                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                <Save size={12} className="mr-1" />
+                                Save
+                              </button>
+                            </div>
+                            <div className="flex-1 text-right">
+                              {(!memberForm.name.trim() || !memberForm.image) && (
+                                <p className="text-xs text-red-600 flex flex-col items-end space-y-0.5">
+                                  {!memberForm.name.trim() && <span>Name required</span>}
+                                  {!memberForm.image && <span>Photo required</span>}
+                                </p>
+                              )}
+                            </div>
+                          </div>
                           <select
                             value={memberForm.committee_id}
                             onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
@@ -1330,38 +1367,6 @@ export const CoreTeamManagement: React.FC = () => {
                             className="h-24"
                             cropAspect={1}
                           />
-                          <div className="w-full flex justify-end space-x-2 mt-2 pt-4 border-t border-gray-200">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingMember(null);
-                                resetMemberForm();
-                              }}
-                              className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
-                            >
-                              <X size={12} className="mr-1" />
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdateMember(member.id)}
-                              disabled={!memberForm.name.trim() || !memberForm.image}
-                              className={`px-3 py-1 rounded flex items-center transition-colors ${
-                                memberForm.name.trim() && memberForm.image
-                                  ? 'bg-yellow-400 text-black hover:bg-yellow-300'
-                                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              <Save size={12} className="mr-1" />
-                              Save
-                            </button>
-                          </div>
-                          {(!memberForm.name.trim() || !memberForm.image) && (
-                            <p className="mt-1 text-xs text-red-600 flex flex-col space-y-0.5">
-                              {!memberForm.name.trim() && <span>Member name is required.</span>}
-                              {!memberForm.image && <span>Profile photo is required.</span>}
-                            </p>
-                          )}
                         </div>
                       ) : (
                         <div 
