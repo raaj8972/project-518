@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Users, UserPlus, AlertCircle, FileText, ChevronDown, ChevronUp, Zap, Play, ExternalLink } from 'lucide-react';
+import { Play, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
@@ -12,6 +12,7 @@ import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import OptimizedImage from '../components/OptimizedImage';
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -638,9 +639,26 @@ export const Events: React.FC = () => {
                     >
                       <div className="flip-front-media">
                         {/* Blurred cover layer to fill width while keeping main poster full (no crop) */}
-                        <div className="poster-fill" style={{ backgroundImage: `url(${event.image})` }} />
+                        <div className="poster-fill" style={{ position: 'relative', overflow: 'hidden' }}>
+                          <OptimizedImage
+                            src={event.image}
+                            alt={`${event.title} background`}
+                            className="w-full h-full object-cover"
+                            style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+                          />
+                        </div>
                         {/* Main poster layer (contain or cover per setting) */}
-                        <div className="poster-main" style={{ backgroundImage: `url(${event.image})`, backgroundSize: posterFit }} />
+                        <div className="poster-main" style={{ position: 'relative' }}>
+                          <OptimizedImage
+                            src={event.image}
+                            alt={event.title}
+                            priority={index < 3}
+                            aspectRatio="5/6"
+                            quality={85}
+                            className="w-full h-full"
+                            style={{ objectFit: posterFit }}
+                          />
+                        </div>
                       </div>
                       {/* Render motion poster video only when one of:
                           - motion_poster_autoplay (always show and autoplay),
