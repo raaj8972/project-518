@@ -28,6 +28,7 @@ export const RegistrationManagement: React.FC = () => {
   const [bulkRejecting, setBulkRejecting] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
     // Allow other admin panels to pre-fill the search via localStorage key
     const [searchTerm, setSearchTerm] = useState(() => {
       try {
@@ -115,6 +116,7 @@ export const RegistrationManagement: React.FC = () => {
   const filteredRegistrations = registrations.filter(registration => {
     const matchesEvent = selectedEvent === 'all' || registration.event_title === selectedEvent;
     const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
+    const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
     const matchesSearch = searchTerm === '' || 
       registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -135,7 +137,7 @@ export const RegistrationManagement: React.FC = () => {
       }
     } catch {}
     
-    return matchesEvent && matchesStatus && matchesSearch && matchesDate;
+    return matchesEvent && matchesStatus && matchesCategory && matchesSearch && matchesDate;
   });
 
   // Selection helpers (needs filteredRegistrations)
@@ -156,8 +158,9 @@ export const RegistrationManagement: React.FC = () => {
     finally { setBulkDeleting(false); }
   };
 
-  // Get unique event titles for filter dropdown
+  // Get unique event titles and categories for filter dropdowns
   const uniqueEvents = Array.from(new Set(registrations.map(reg => reg.event_title)));
+  const uniqueCategories = Array.from(new Set(registrations.map(reg => (reg as any).event_category).filter(Boolean)));
   
   // Compute counts per event for the dropdown
   const eventCounts = useMemo(() => {
@@ -546,7 +549,7 @@ export const RegistrationManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-5 gap-4">
+        <div className="grid md:grid-cols-6 gap-4">
           {/* Event Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Event</label>
@@ -561,6 +564,26 @@ export const RegistrationManagement: React.FC = () => {
                 {uniqueEvents.map(eventTitle => (
                   <option key={eventTitle} value={eventTitle}>
                     {eventTitle} ({eventCounts[eventTitle] || 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Category Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+            <div className="relative">
+              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="all">All Categories</option>
+                {uniqueCategories.map(category => (
+                  <option key={category} value={category}>
+                    {category}
                   </option>
                 ))}
               </select>
@@ -638,6 +661,7 @@ export const RegistrationManagement: React.FC = () => {
             onClick={() => {
               setSelectedEvent('all');
               setSelectedStatus('all');
+              setSelectedCategory('all');
               setSearchTerm('');
               setDateFrom('');
               setDateTo('');

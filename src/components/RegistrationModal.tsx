@@ -783,7 +783,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                         const isPlaceholder = idx === 0 && (type.toLowerCase().includes('select') || type.trim().startsWith('.'));
                         return (
                           <option key={type} value={type} disabled={isFull || isPlaceholder} title={isFull ? 'Full for this event' : ''}>
-                            {isFull ? `${type} (full)` : type}
+                            {isFull ? `${type} - FULL` : type}
                           </option>
                         );
                       })}

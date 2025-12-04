@@ -454,6 +454,20 @@ export const Events: React.FC = () => {
 
   // mapsUrlFor helper removed (we compute inline where needed)
 
+  // Helper to check if a field is yet to be announced
+  const getFieldDisplay = (value: string | null | undefined): { text: string; isUnannounced: boolean } => {
+    if (!value || !value.trim()) {
+      return { text: '- Yet to be announced', isUnannounced: true };
+    }
+    const trimmed = value.trim();
+    // Check for common placeholder values
+    const placeholders = ['-', '—', 'tba', 't.b.a', 'to be announced', 'tbd', 'to be decided', 'na', 'n/a', 'not available'];
+    if (placeholders.includes(trimmed.toLowerCase())) {
+      return { text: '- Yet to be announced', isUnannounced: true };
+    }
+    return { text: trimmed, isUnannounced: false };
+  };
+
   return (
     <div className="cyberpunk-theme min-h-screen">
       <SEO 
@@ -764,13 +778,43 @@ export const Events: React.FC = () => {
                           <h3 className="text-xl font-bold text-white mb-3" style={{ transform: 'translateX(16px)' }}>{event.title}</h3>
                           <PreserveNewlines text={event.description} className="text-sm sm:text-base text-gray-300 mb-4" />
                           <div className="space-y-2 mb-4">
-                            <div className="flex items-center text-sm text-gray-400"><Calendar size={16} className="mr-2 text-blue-400" />{event.date}</div>
-                            <div className="flex items-center text-sm text-gray-400"><Clock size={16} className="mr-2 text-green-400" />{event.time}</div>
-                            <div className="flex items-center text-sm text-gray-400">
-                              <MapPin size={16} className="mr-2 text-purple-400" />
-                              <span>{event.venue}</span>
-                            </div>
-                            {(event as any).participants && String((event as any).participants).trim() && (
+                            {(() => {
+                              const dateInfo = getFieldDisplay(event.date);
+                              const timeInfo = getFieldDisplay(event.time);
+                              const venueInfo = getFieldDisplay(event.venue);
+                              return (
+                                <>
+                                  <div className="flex items-center text-sm text-gray-400">
+                                    <Calendar size={16} className={`mr-2 ${dateInfo.isUnannounced ? 'text-amber-400' : 'text-blue-400'}`} />
+                                    <span className={dateInfo.isUnannounced ? 'text-amber-400 font-medium' : 'text-gray-300'}
+                                      style={dateInfo.isUnannounced 
+                                        ? { filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.4))' } 
+                                        : { filter: 'drop-shadow(0 0 6px rgba(96, 165, 250, 0.3))' }}>
+                                      {dateInfo.text}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm text-gray-400">
+                                    <Clock size={16} className={`mr-2 ${timeInfo.isUnannounced ? 'text-amber-400' : 'text-green-400'}`} />
+                                    <span className={timeInfo.isUnannounced ? 'text-amber-400 font-medium' : 'text-gray-300'}
+                                      style={timeInfo.isUnannounced 
+                                        ? { filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.4))' } 
+                                        : { filter: 'drop-shadow(0 0 6px rgba(74, 222, 128, 0.3))' }}>
+                                      {timeInfo.text}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center text-sm text-gray-400">
+                                    <MapPin size={16} className={`mr-2 ${venueInfo.isUnannounced ? 'text-amber-400' : 'text-purple-400'}`} />
+                                    <span className={venueInfo.isUnannounced ? 'text-amber-400 font-medium' : 'text-gray-300'}
+                                      style={venueInfo.isUnannounced 
+                                        ? { filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.4))' } 
+                                        : { filter: 'drop-shadow(0 0 6px rgba(192, 132, 252, 0.3))' }}>
+                                      {venueInfo.text}
+                                    </span>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                            {(event as any).participants && String((event as any).participants).trim() && String((event as any).participants).trim() !== '0' && (
                               <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-pink-400" />{(event as any).participants} participants</div>
                             )}
                             {(() => {
@@ -789,7 +833,10 @@ export const Events: React.FC = () => {
                                       {coords.map((c: any) => {
                                         const n = String(c.name ?? '').trim();
                                         const p = String(c.phone ?? '').trim();
-                                        return <div key={c.id}>{n}{p ? ` • ${p}` : ''}</div>;
+                                        // Skip if name or phone is a placeholder symbol
+                                        if (n === 'Ø' || n === '∅' || n === '—' || n === '-' || p === 'Ø' || p === '∅' || p === '—') return null;
+                                        if (!n && !p) return null;
+                                        return <div key={c.id}>{n}{p ? ` · ${p}` : ''}</div>;
                                       })}
                                     </div>
                                   </div>
@@ -803,22 +850,18 @@ export const Events: React.FC = () => {
                               const n = String(nRaw ?? '').trim();
                               const p = String(pRaw ?? '').trim();
                               if (!n && !p) return null;
-                              if ((n === '0' || n === '-' || n === '—') && !p) return null;
+                              if ((n === '0' || n === '-' || n === '—' || n === 'Ø' || n === '∅') && !p) return null;
+                              if ((p === '0' || p === '-' || p === '—' || p === 'Ø' || p === '∅') && !n) return null;
+                              // Don't show if both are just placeholder values
+                              if ((n === '0' || n === '-' || n === '—' || n === 'Ø' || n === '∅') && (p === '0' || p === '-' || p === '—' || p === 'Ø' || p === '∅')) return null;
                               return (
                                 <div className="mt-2 text-sm text-gray-300">
                                   <div className="font-semibold text-gray-200">Coordinator</div>
-                                  <div className="text-gray-400">{n || ''}{p ? ` • ${p}` : ''}</div>
+                                  <div className="text-gray-400">{(n && n !== '0' && n !== '-' && n !== '—' && n !== 'Ø' && n !== '∅') ? n : ''}{(p && p !== '0' && p !== '-' && p !== '—' && p !== 'Ø' && p !== '∅') ? ` · ${p}` : ''}</div>
                                 </div>
                               );
                             })()}
-                            {event.max_participants && (
-                              <div className="mt-3">
-                                <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Registrations</span><span>{event.current_registrations || 0} / {event.max_participants}</span></div>
-                                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-                                  <div className="bg-gradient-to-r from-pink-500 to-purple-500 h-2 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (((event.current_registrations || 0) / (event.max_participants || 1)) * 100))}%` }} />
-                                </div>
-                              </div>
-                            )}
+                            {/* Max participants counter removed - only visible to admins in admin panel */}
                           </div>
                           {event.highlights?.length ? (
                             <div className="mb-4">

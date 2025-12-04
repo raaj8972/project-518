@@ -300,6 +300,10 @@ export const EventsManagement: React.FC = () => {
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       const eventData = {
         ...eventForm,
+        // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
+        date: eventForm.date?.trim() || null,
+        time: eventForm.time?.trim() || null,
+        venue: eventForm.venue?.trim() || null,
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
@@ -360,6 +364,10 @@ export const EventsManagement: React.FC = () => {
       const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
       const eventData = {
         ...eventForm,
+        // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
+        date: eventForm.date?.trim() || null,
+        time: eventForm.time?.trim() || null,
+        venue: eventForm.venue?.trim() || null,
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
@@ -807,6 +815,16 @@ export const EventsManagement: React.FC = () => {
                   />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Venue</label>
+                <input
+                  type="text"
+                  value={eventForm.venue}
+                  onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                  placeholder="Event venue location"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                />
+              </div>
               {/* Coordinators (draft while creating a new event) */}
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <div className="text-sm font-semibold text-gray-700 mb-2">Coordinators</div>
@@ -890,6 +908,16 @@ export const EventsManagement: React.FC = () => {
                   placeholder="Maximum number of participants"
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                 />
+                <label className="flex items-center text-sm text-gray-700 mt-2">
+                  <input
+                    type="checkbox"
+                    checked={(eventForm as any).show_max_participants !== false}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, show_max_participants: e.target.checked } as any))}
+                    className="mr-2"
+                  />
+                  Show participant counter on event card
+                </label>
+                <p className="text-xs text-gray-500">Display registration progress bar when max participants is set</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Event Highlights</label>
@@ -1126,7 +1154,7 @@ export const EventsManagement: React.FC = () => {
                             <input
                               type="number"
                               min={0}
-                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-500 placeholder:text-gray-500' : ''}`}
+                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-500 placeholder:text-gray-500' : 'text-gray-900'}`}
                               placeholder={selected ? 'Unlimited' : 'Unavailable'}
                               title="Check to enable this type. Leave blank for unlimited. Set 0 to close."
                               value={limitVal}
@@ -1395,6 +1423,13 @@ export const EventsManagement: React.FC = () => {
                     className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                   />
                 </div>
+                <input
+                  type="text"
+                  value={eventForm.venue}
+                  onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
+                  placeholder="Venue"
+                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                />
                 <div className="grid grid-cols-2 gap-2 mt-2">
                   <input
                     type="text"
@@ -1458,7 +1493,7 @@ export const EventsManagement: React.FC = () => {
                               <input
                                 type="number"
                                 min={0}
-                                className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : ''}`}
+                                className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : 'text-gray-900'}`}
                                 placeholder="Unlimited"
                                 title="Set per-event limit (0 = closed, blank = unlimited)"
                                 value={limitVal}
