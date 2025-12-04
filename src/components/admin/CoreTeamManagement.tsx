@@ -290,8 +290,10 @@ export const CoreTeamManagement: React.FC = () => {
     if (!memberForm.name || !memberForm.name.trim() || !memberForm.image) return;
     const payload = {
       ...memberForm,
+      is_council: memberForm.isCouncil,
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
+    delete payload.isCouncil; // Remove camelCase field
     
     try {
       savingProgress.withSteps(3, 'Preparing…');
