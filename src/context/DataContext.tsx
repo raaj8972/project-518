@@ -1737,7 +1737,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const prefetchEvents = async () => {
     try {
       const [{ data: eventsData }, { data: eventCoordinatorsData }] = await Promise.all([
-        supabase.from('events').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: true }),
+        supabase.from('events').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false }),
         supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true })
       ] as any);
       if (eventsData) setEvents((eventsData || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) })));

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
+import { VideoUpload } from '../VideoUpload';
 import EventWinnersEditor from './EventWinnersEditor';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -290,8 +291,8 @@ export const EventsManagement: React.FC = () => {
   };
 
   const handleAddEvent = async () => {
-    if (!eventForm.title || !eventForm.description || !eventForm.image) {
-      alert('Please fill in all required fields (title, description, and image)');
+    if (!eventForm.title || !eventForm.description) {
+      alert('Please fill in all required fields (title and description)');
       return;
     }
     
@@ -336,7 +337,9 @@ export const EventsManagement: React.FC = () => {
         }
       } else {
         // Direct save (no approval required)
-        await addEventWithCoordinators(eventData as any, draftCoordinators);
+        // Extract coordinators before passing to addEventWithCoordinators
+        const { coordinators, ...eventDataWithoutCoordinators } = eventData;
+        await addEventWithCoordinators(eventDataWithoutCoordinators as any, coordinators);
         alert('✓ Event added successfully!');
         setIsAddingEvent(false);
         resetEventForm();
@@ -352,8 +355,8 @@ export const EventsManagement: React.FC = () => {
   };
 
   const handleUpdateEvent = async (id: number) => {
-    if (!eventForm.title || !eventForm.description || !eventForm.image) {
-      alert('Please fill in all required fields (title, description, and image)');
+    if (!eventForm.title || !eventForm.description) {
+      alert('Please fill in all required fields (title and description)');
       return;
     }
     
@@ -1244,48 +1247,38 @@ export const EventsManagement: React.FC = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Event Image</label>
                 <ImageUpload
                   onImageSelect={(url) => setEventForm(prev => ({ ...prev, image: url }))}
                   currentImage={eventForm.image}
                   bucket="event-images"
                   folder="events"
-                    cropAspect={16/9}
+                    cropAspect={5/6}
+                    enableCropper={true}
                     maxImageBytes={20 * 1024 * 1024}
-                    fileTypeLabel={`PNG or JPG up to 20MB. ${posterGuideline}`}
+                    fileTypeLabel={`PNG or JPG up to 20MB. Aspect ratio 5:6 (49x59.4cm)`}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Motion Poster (Video)</label>
-                <ImageUpload
-                  onImageSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
-                  currentImage={eventForm.motion_poster_url || ''}
+                <VideoUpload
+                  onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
+                  currentVideo={eventForm.motion_poster_url || ''}
                   bucket="event-images"
                   folder="events/motion-posters"
-                  acceptedTypes="video/*"
-                  fileTypeLabel="MP4, MOV, WEBM up to 50MB"
-                  enableCropper={false}
+                  maxSizeMB={50}
                 />
-                <div className="mt-2 flex items-center gap-3">
-                  <label className="flex items-center text-sm text-gray-900">
-                    <input
-                      type="checkbox"
-                      checked={(eventForm as any).prefer_video || false}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, prefer_video: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    Prefer video over image on the event card
-                  </label>
-                  <label className="flex items-center text-sm text-gray-900">
-                    <input
-                      type="checkbox"
-                      checked={(eventForm as any).motion_poster_autoplay || false}
-                      onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    Auto-play motion poster on card
-                  </label>
-                </div>
+              </div>
+              <div className="mt-2">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={(eventForm as any).motion_poster_autoplay || false}
+                    onChange={(e) => setEventForm(prev => ({ ...prev, motion_poster_autoplay: e.target.checked }))}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-gray-900">Auto-play motion poster on event card</span>
+                </label>
               </div>
             </div>
           </div>
@@ -1663,6 +1656,7 @@ export const EventsManagement: React.FC = () => {
                     acceptedTypes="video/*"
                     fileTypeLabel="MP4, MOV, WEBM up to 50MB"
                     enableCropper={false}
+                    maxImageBytes={50 * 1024 * 1024}
                     className="mt-1"
                   />
                   <div className="mt-2">

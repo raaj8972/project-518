@@ -57,7 +57,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [localPreview, setLocalPreview] = useState<string>('');
   const [optimizedPreviewMeta, setOptimizedPreviewMeta] = useState<{ size: number; type: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [missingBucket, setMissingBucket] = useState<string | null>(null);
+  const [missingBucket, setMissingBucket] = useState<string>(''); 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteCountdown, setDeleteCountdown] = useState(2);
   const [uploadHint, setUploadHint] = useState<string>('');
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -326,25 +328,29 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const handleFileSelect = async (file: File) => {
-    if (isVideoUpload) {
-      if (!file.type.startsWith('video/')) {
-        setError('Please select a video file (MP4 or MOV)');
-        return;
-      }
-    } else if (isPdfUpload) {
-      if (file.type !== 'application/pdf') {
-        setError('Please select a PDF file');
-        return;
-      }
-    } else if (isAudioUpload) {
-      if (!file.type.startsWith('audio/')) {
-        setError('Please select an audio file (MP3 or OGG)');
-        return;
-      }
-    } else {
-      if (!file.type.startsWith('image/')) {
-        setError('Please select an image file');
-        return;
+    // Skip type validation if acceptedTypes is "*"
+    if (acceptedTypes !== '*') {
+      if (isVideoUpload) {
+        if (!file.type.startsWith('video/')) {
+          setError('Please select a video file (MP4 or MOV)');
+          return;
+        }
+      } else if (isPdfUpload) {
+        if (file.type !== 'application/pdf') {
+          setError('Please select a PDF file');
+          return;
+        }
+      } else if (isAudioUpload) {
+        if (!file.type.startsWith('audio/')) {
+          setError('Please select an audio file (MP3 or OGG)');
+          return;
+        }
+      } else {
+        // Only check for image if NOT a video/pdf/audio upload
+        if (!file.type.startsWith('image/')) {
+          setError('Please select an image file');
+          return;
+        }
       }
     }
 
@@ -715,10 +721,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const removeFile = async () => {
-    // Confirm deletion
-    if (!confirm('Are you sure you want to delete this file?')) {
-      return;
-    }
+    setShowDeleteConfirm(false);
 
     try {
       const imageToRemove = pendingImage || currentImage;
@@ -744,6 +747,22 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       console.error('Failed to delete file:', err);
       alert('Failed to delete file. Please try again.');
     }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+    setDeleteCountdown(2);
+    
+    // Countdown timer
+    const timer = setInterval(() => {
+      setDeleteCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const getFileName = (url: string) => {
@@ -899,9 +918,8 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               )}
               <button
                 type="button"
-                onClick={removeFile}
-                disabled={uploading}
-                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
+                onClick={handleDeleteClick}
+                className="w-full px-3 py-1 text-red-600 hover:bg-red-50 rounded flex items-center justify-center gap-2"
               >
                 Delete
               </button>
@@ -1068,6 +1086,31 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                 <button type="button" onClick={confirmFullImageUpload} disabled={uploading} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm">Use Full Photo</button>
                 <button type="button" onClick={confirmCropAndUpload} disabled={uploading} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm">Crop & Upload</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete this image?</h3>
+            <p className="text-gray-600 text-sm mb-4">This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={removeFile}
+                disabled={deleteCountdown > 0}
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteCountdown > 0 ? `Wait ${deleteCountdown}s` : 'OK'}
+              </button>
             </div>
           </div>
         </div>
