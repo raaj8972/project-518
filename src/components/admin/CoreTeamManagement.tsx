@@ -1235,7 +1235,7 @@ export const CoreTeamManagement: React.FC = () => {
                 {committeeMembers.length > 0 ? (
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {committeeMembers.map((member) => (
-                    <div key={member.id} className="border border-gray-200 rounded-lg p-4 hover:border-yellow-300 transition-colors">
+                    <div key={member.id} className={`border border-gray-200 rounded-lg p-4 hover:border-yellow-300 transition-colors ${editingMember === member.id ? 'md:col-span-2 lg:col-span-3' : ''}`}>
                       {editingMember === member.id ? (
                         <div className="space-y-3">
                           <select
