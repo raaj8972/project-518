@@ -5,7 +5,6 @@ import WatchLiveButton from '../components/WatchLiveButton';
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
-import OptimizedImage from '../components/OptimizedImage';
 const LogoLoop = React.lazy(() => import('../components/LogoLoop'));
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
 import { getDominantColor } from '../utils/getDominantColor';
@@ -886,12 +885,11 @@ export const Home: React.FC = () => {
                 >
                   <div className="cyberpunk-card group h-full overflow-hidden">
                     <div className="relative h-72 md:h-80 overflow-hidden bg-black">
-                      <OptimizedImage
+                      <img
                         src={event.image}
                         alt={event.title}
-                        priority={index === 0}
-                        aspectRatio="5/6"
-                        quality={85}
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                        decoding="async"
                         className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
@@ -978,11 +976,11 @@ export const Home: React.FC = () => {
                     >
                       <div className="cyberpunk-card group overflow-hidden">
                         <div className="relative h-[400px] md:h-[500px] lg:h-[600px] overflow-hidden">
-                          <OptimizedImage
+                          <img
                             src={image.src}
                             alt={image.title}
-                            aspectRatio="16/10"
-                            quality={85}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>

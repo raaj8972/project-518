@@ -12,7 +12,6 @@ import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
-import OptimizedImage from '../components/OptimizedImage';
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -639,22 +638,14 @@ export const Events: React.FC = () => {
                     >
                       <div className="flip-front-media">
                         {/* Blurred cover layer to fill width while keeping main poster full (no crop) */}
-                        <div className="poster-fill" style={{ position: 'relative', overflow: 'hidden' }}>
-                          <OptimizedImage
-                            src={event.image}
-                            alt={`${event.title} background`}
-                            className="w-full h-full object-cover"
-                            style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
-                          />
-                        </div>
+                        <div className="poster-fill" style={{ backgroundImage: `url(${event.image})` }} />
                         {/* Main poster layer (contain or cover per setting) */}
-                        <div className="poster-main" style={{ position: 'relative' }}>
-                          <OptimizedImage
+                        <div className="poster-main">
+                          <img
                             src={event.image}
                             alt={event.title}
-                            priority={index < 3}
-                            aspectRatio="5/6"
-                            quality={85}
+                            loading={index < 3 ? 'eager' : 'lazy'}
+                            decoding="async"
                             className="w-full h-full"
                             style={{ objectFit: posterFit }}
                           />
