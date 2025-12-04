@@ -95,13 +95,25 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   const participantTypes = React.useMemo(() => {
     try {
-      // Prefer per-event override on the event row, fall back to site settings, then built-in default
+      // Get global participant types order from site settings
+      const globalTypes = (siteSettings as any)?.registration_participant_types;
+      
+      // Check if this event has specific participant types enabled
       const ev = events.find((e: any) => e.id === eventId) as any;
-      const evTypes = ev?.registration_participant_types;
-      if (Array.isArray(evTypes) && evTypes.length) return evTypes;
-      const s = (siteSettings as any)?.registration_participant_types;
-      if (Array.isArray(s) && s.length) return s;
+      const eventEnabledTypes = ev?.registration_participant_types;
+      
+      // If event has specific types, filter the global list to only show those
+      // This preserves the ORDER from Registration Modal Settings
+      if (Array.isArray(eventEnabledTypes) && eventEnabledTypes.length && Array.isArray(globalTypes) && globalTypes.length) {
+        const enabledSet = new Set(eventEnabledTypes);
+        return globalTypes.filter((t: string) => enabledSet.has(t));
+      }
+      
+      // Fall back to global types if no per-event selection
+      if (Array.isArray(globalTypes) && globalTypes.length) return globalTypes;
     } catch {}
+    
+    // Built-in default fallback
     return [
       '1st Year',
       '2nd Year', 

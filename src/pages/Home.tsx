@@ -880,17 +880,17 @@ export const Home: React.FC = () => {
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className="hover-float w-72 md:w-96 scroll-animate animate-in"
+                  className="hover-float w-60 sm:w-64 md:w-72 scroll-animate animate-in"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
                   <div className="cyberpunk-card group h-full overflow-hidden">
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-72 md:h-80 overflow-hidden bg-black">
                       <img
                         src={event.image}
                         alt={event.title}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
 
                       <div className="absolute top-4 left-4">
                         <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-ring">
@@ -906,8 +906,9 @@ export const Home: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="p-6">
-                      <p className="text-gray-300 text-sm mb-4 line-clamp-3">{event.description}</p>
+                    <div className="p-4 md:p-5">
+                      <h3 className="text-lg md:text-xl font-bold text-white mb-2">{event.title}</h3>
+                      <p className="text-gray-300 text-sm mb-4 line-clamp-2">{event.description}</p>
                       <div className="flex justify-between items-center">
                         <div className="text-xs text-gray-500">
                           {event.date} • {event.venue}

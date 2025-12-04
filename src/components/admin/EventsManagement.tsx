@@ -1132,15 +1132,18 @@ export const EventsManagement: React.FC = () => {
                       >Clear all</button>
                     </div>
                     {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
+                      // Detect placeholder options (like 'select batch') but show them disabled
+                      const isPlaceholder = t.toLowerCase().includes('select') || t.trim().startsWith('.');
                       const selected = (eventForm.registration_participant_types || []).includes(t);
                       const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
                       return (
-                        <div key={t} className="flex items-center justify-between p-2 border rounded">
+                        <div key={t} className={`flex items-center justify-between p-2 border rounded ${isPlaceholder ? 'bg-gray-50 opacity-60' : ''}`}>
                           <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 checked={selected}
+                                disabled={isPlaceholder}
                                 onChange={(e) => {
                                   const checked = e.target.checked;
                                   setEventForm(prev => {
@@ -1150,18 +1153,19 @@ export const EventsManagement: React.FC = () => {
                                     return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
                                   });
                                 }}
+                                className={isPlaceholder ? 'cursor-not-allowed' : ''}
                               />
-                              <span className="text-sm min-w-[120px] text-gray-900">{t}</span>
+                              <span className={`text-sm min-w-[120px] ${isPlaceholder ? 'text-gray-400 italic' : 'text-gray-900'}`}>{t}</span>
                             </label>
                             <label className="text-xs text-gray-600">Limit</label>
                             <input
                               type="number"
                               min={0}
-                              className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-500 placeholder:text-gray-500' : 'text-gray-900'}`}
+                              className={`w-28 border rounded px-2 py-1 ${!selected || isPlaceholder ? 'bg-gray-100 text-gray-500 placeholder:text-gray-500' : 'text-gray-900'}`}
                               placeholder={selected ? 'Unlimited' : 'Unavailable'}
-                              title="Check to enable this type. Leave blank for unlimited. Set 0 to close."
+                              title={isPlaceholder ? 'Placeholder option - cannot be selected' : 'Check to enable this type. Leave blank for unlimited. Set 0 to close.'}
                               value={limitVal}
-                              disabled={!selected}
+                              disabled={!selected || isPlaceholder}
                               onChange={(e) => {
                                 const raw = e.target.value;
                                 setEventForm(prev => {
@@ -1461,15 +1465,18 @@ export const EventsManagement: React.FC = () => {
                         >Clear all</button>
                       </div>
                       {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {
+                        // Detect placeholder options (like 'select batch') but show them disabled
+                        const isPlaceholder = t.toLowerCase().includes('select') || t.trim().startsWith('.');
                         const selected = (eventForm.registration_participant_types || []).includes(t);
                         const limitVal = ((eventForm as any).registration_participant_quotas?.[t] ?? '') as any;
                         return (
-                          <div key={t} className="flex items-center justify-between p-2 border rounded">
+                          <div key={t} className={`flex items-center justify-between p-2 border rounded ${isPlaceholder ? 'bg-gray-50 opacity-60' : ''}`}>
                             <div className="flex items-center gap-3">
                               <label className="flex items-center gap-2">
                                 <input
                                   type="checkbox"
                                   checked={selected}
+                                  disabled={isPlaceholder}
                                   onChange={(e) => {
                                     const checked = e.target.checked;
                                     setEventForm(prev => {
@@ -1479,18 +1486,19 @@ export const EventsManagement: React.FC = () => {
                                       return { ...prev, registration_participant_types: Array.from(cur), registration_participant_quotas: quotas } as any;
                                     });
                                   }}
+                                  className={isPlaceholder ? 'cursor-not-allowed' : ''}
                                 />
-                                <span className="text-sm min-w-[120px] text-gray-900">{t}</span>
+                                <span className={`text-sm min-w-[120px] ${isPlaceholder ? 'text-gray-400 italic' : 'text-gray-900'}`}>{t}</span>
                               </label>
                               <label className="text-xs text-gray-600">Limit</label>
                               <input
                                 type="number"
                                 min={0}
-                                className={`w-28 border rounded px-2 py-1 ${!selected ? 'bg-gray-100 text-gray-400' : 'text-gray-900'}`}
+                                className={`w-28 border rounded px-2 py-1 ${!selected || isPlaceholder ? 'bg-gray-100 text-gray-400' : 'text-gray-900'}`}
                                 placeholder="Unlimited"
-                                title="Set per-event limit (0 = closed, blank = unlimited)"
+                                title={isPlaceholder ? 'Placeholder option - cannot be selected' : 'Set per-event limit (0 = closed, blank = unlimited)'}
                                 value={limitVal}
-                                disabled={!selected}
+                                disabled={!selected || isPlaceholder}
                                 onChange={(e) => {
                                   const raw = e.target.value;
                                   setEventForm(prev => {
