@@ -29,7 +29,7 @@ export const AboutSettings: React.FC = () => {
   const [tracksLabel, setTracksLabel] = useState<string>(aboutSettings?.tracksLabel ?? 'Innovation Tracks');
   const [zonesLabel, setZonesLabel] = useState<string>(aboutSettings?.zonesLabel ?? 'Experience Zones');
   const [stats, setStats] = useState<Array<{ value: string; label: string }>>(aboutSettings?.stats ?? [
-    { value: '2025', label: 'FESTIVAL YEAR' },
+    { value: '2026', label: 'FESTIVAL YEAR' },
     { value: '3+', label: 'DAYS OF EVENTS' },
     { value: '1000+', label: 'PARTICIPANTS' },
     { value: '∞', label: 'POSSIBILITIES' },

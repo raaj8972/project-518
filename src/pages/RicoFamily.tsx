@@ -341,12 +341,12 @@ export const RicoFamily: React.FC = () => {
                                       headerHighlightRules={[
                                         // General Secretary header line highlight (red glow) — match full phrase
                                         {
-                                          pattern: /^\s*as\s+the\s+(?:(?:g(?:\.\s*)?s(?:\.|\b))(?:\s*\/\s*gen(?:e)?ral\s+secretary)?|gen(?:e)?ral\s+secretary)\s+of\s+ricorrenza\s*2025/i,
+                                          pattern: /^\s*as\s+the\s+(?:(?:g(?:\.\s*)?s(?:\.|\b))(?:\s*\/\s*gen(?:e)?ral\s+secretary)?|gen(?:e)?ral\s+secretary)\s+of\s+ricorrenza\s*2026/i,
                                           className: 'text-red-400 font-semibold drop-shadow-[0_0_12px_rgba(248,113,113,1)] drop-shadow-[0_0_28px_rgba(248,113,113,0.55)]'
                                         },
                                         // President header line highlight (blue glow) — match full phrase
                                         {
-                                          pattern: /^\s*as\s+the\s+president\s+of\s+ricorrenza\s*2025/i,
+                                          pattern: /^\s*as\s+the\s+president\s+of\s+ricorrenza\s*2026/i,
                                           className: 'text-blue-400 font-semibold drop-shadow-[0_0_12px_rgba(96,165,250,1)] drop-shadow-[0_0_28px_rgba(96,165,250,0.55)]'
                                         }
                                       ]}

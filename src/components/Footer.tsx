@@ -63,7 +63,7 @@ export const Footer: React.FC = () => {
         <div className="mt-4">
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
           <div className="py-4 flex items-center justify-center gap-1 text-xs text-gray-300/80">
-            <span>© 2025-2027 RICORRENZA • All rights reserved for this website to Raaj</span>
+            <span>© 2026-2027 RICORRENZA • All rights reserved for this website to Raaj</span>
             <a 
               href="https://www.instagram.com/i_amraaj__?igsh=a2ZxaTBubnpmYmhu&utm_source=qr" 
               target="_blank" 
