@@ -174,16 +174,21 @@ export const RegistrationManagement: React.FC = () => {
     return counts;
   }, [registrations]);
 
-  // Compute counts per participant type for the dropdown
+  // Compute counts per participant type for the dropdown (filtered by selected event)
   const participantTypeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    registrations.forEach(r => {
+    // Filter by selected event first to show event-specific batch counts
+    const eventFilteredRegs = selectedEvent === 'all' 
+      ? registrations 
+      : registrations.filter(r => r.event_title === selectedEvent);
+    
+    eventFilteredRegs.forEach(r => {
       if (r.participant_type) {
         counts[r.participant_type] = (counts[r.participant_type] || 0) + 1;
       }
     });
     return counts;
-  }, [registrations]);
+  }, [registrations, selectedEvent]);
 
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected') => {
     try {
