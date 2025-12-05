@@ -29,6 +29,7 @@ export const RegistrationManagement: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
     // Allow other admin panels to pre-fill the search via localStorage key
     const [searchTerm, setSearchTerm] = useState(() => {
       try {
@@ -117,6 +118,7 @@ export const RegistrationManagement: React.FC = () => {
     const matchesEvent = selectedEvent === 'all' || registration.event_title === selectedEvent;
     const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
+    const matchesParticipantType = selectedParticipantType === 'all' || registration.participant_type === selectedParticipantType;
     const matchesSearch = searchTerm === '' || 
       registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -137,7 +139,7 @@ export const RegistrationManagement: React.FC = () => {
       }
     } catch {}
     
-    return matchesEvent && matchesStatus && matchesCategory && matchesSearch && matchesDate;
+    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate;
   });
 
   // Selection helpers (needs filteredRegistrations)
@@ -158,15 +160,27 @@ export const RegistrationManagement: React.FC = () => {
     finally { setBulkDeleting(false); }
   };
 
-  // Get unique event titles and categories for filter dropdowns
+  // Get unique event titles, categories, and participant types for filter dropdowns
   const uniqueEvents = Array.from(new Set(registrations.map(reg => reg.event_title)));
   const uniqueCategories = Array.from(new Set(registrations.map(reg => (reg as any).event_category).filter(Boolean)));
+  const uniqueParticipantTypes = Array.from(new Set(registrations.map(reg => reg.participant_type).filter(Boolean)));
   
   // Compute counts per event for the dropdown
   const eventCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     registrations.forEach(r => {
       counts[r.event_title] = (counts[r.event_title] || 0) + 1;
+    });
+    return counts;
+  }, [registrations]);
+
+  // Compute counts per participant type for the dropdown
+  const participantTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    registrations.forEach(r => {
+      if (r.participant_type) {
+        counts[r.participant_type] = (counts[r.participant_type] || 0) + 1;
+      }
     });
     return counts;
   }, [registrations]);
@@ -549,7 +563,7 @@ export const RegistrationManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-6 gap-4">
+        <div className="grid md:grid-cols-7 gap-4">
           {/* Event Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Event</label>
@@ -608,6 +622,26 @@ export const RegistrationManagement: React.FC = () => {
             </div>
           </div>
 
+          {/* Participant Type Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Type</label>
+            <div className="relative">
+              <Users className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <select
+                value={selectedParticipantType}
+                onChange={(e) => setSelectedParticipantType(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="all">All Types ({registrations.length})</option>
+                {uniqueParticipantTypes.map(type => (
+                  <option key={type} value={type}>
+                    {type} ({participantTypeCounts[type] || 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Date From */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">From date</label>
@@ -662,6 +696,7 @@ export const RegistrationManagement: React.FC = () => {
               setSelectedEvent('all');
               setSelectedStatus('all');
               setSelectedCategory('all');
+              setSelectedParticipantType('all');
               setSearchTerm('');
               setDateFrom('');
               setDateTo('');
@@ -850,11 +885,11 @@ export const RegistrationManagement: React.FC = () => {
                           <div className="grid md:grid-cols-2 gap-4">
                             <div>
                               <h4 className="font-semibold text-gray-900 mb-2">Registration Details</h4>
-                              <div className="space-y-1 text-sm">
-                                <div><strong>Registration ID:</strong> {registration.id}</div>
-                                <div><strong>Participant Type:</strong> {registration.participant_type}</div>
-                                <div><strong>College:</strong> {registration.college}</div>
-                                <div><strong>Registration Date:</strong> {new Date(registration.registration_date).toLocaleString()}</div>
+                              <div className="space-y-1 text-sm text-gray-900">
+                                <div><strong className="text-gray-900">Registration ID:</strong> {registration.id}</div>
+                                <div><strong className="text-gray-900">Participant Type:</strong> {registration.participant_type}</div>
+                                <div><strong className="text-gray-900">College:</strong> {registration.college}</div>
+                                <div><strong className="text-gray-900">Registration Date:</strong> {new Date(registration.registration_date).toLocaleString()}</div>
                               </div>
                             </div>
                             {((registration as any).photo_url) && (

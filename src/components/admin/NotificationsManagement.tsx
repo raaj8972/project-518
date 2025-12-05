@@ -280,19 +280,19 @@ export const NotificationsManagement: React.FC = () => {
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="text-left text-gray-600">
-              <th className="py-2 pr-3">Title</th>
-              <th className="py-2 pr-3">Type</th>
-              <th className="py-2 pr-3">Message</th>
-              <th className="py-2 pr-3">Link</th>
-              <th className="py-2 pr-3">Visible</th>
-              <th className="py-2 pr-3">Starts</th>
-              <th className="py-2 pr-3">Ends</th>
-              <th className="py-2 pr-3">Priority</th>
-              <th className="py-2 pr-3">Auto Dismiss (s)</th>
-              <th className="py-2 pr-3">Text Color</th>
-              <th className="py-2 pr-3">Glow Color</th>
-              <th className="py-2 pr-3">Actions</th>
+            <tr className="text-left text-gray-900 bg-gray-100">
+              <th className="py-2 pr-3 font-semibold">Title</th>
+              <th className="py-2 pr-3 font-semibold">Type</th>
+              <th className="py-2 pr-3 font-semibold">Message</th>
+              <th className="py-2 pr-3 font-semibold">Link</th>
+              <th className="py-2 pr-3 font-semibold">Visible</th>
+              <th className="py-2 pr-3 font-semibold">Starts</th>
+              <th className="py-2 pr-3 font-semibold">Ends</th>
+              <th className="py-2 pr-3 font-semibold">Priority</th>
+              <th className="py-2 pr-3 font-semibold">Auto Dismiss (s)</th>
+              <th className="py-2 pr-3 font-semibold">Text Color</th>
+              <th className="py-2 pr-3 font-semibold">Glow Color</th>
+              <th className="py-2 pr-3 font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody>

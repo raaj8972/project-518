@@ -1,15 +1,15 @@
 import { supabase } from '../lib/supabase';
 
 /**
- * Dynamically inject preload links for ALL uploaded media across the site
- * Preloads: brand logo, hero media, committee photos, faculty, events, sponsors, guest artists
- * Run this before React mounts to ensure instant loading
+ * Preload ONLY critical above-the-fold assets for instant homepage loading
+ * Preloads: brand logo, hero media, and homepage sponsor logos
+ * Other assets are lazy-loaded via OptimizedImage/OptimizedVideo components
  */
 async function preloadBrandAssets() {
   try {
     const assetsToPreload: Array<{ url: string; type: 'image' | 'video' }> = [];
 
-    // 1. Fetch homepage settings (brand logo + hero media)
+    // Fetch only homepage settings (brand logo + hero media + homepage sponsors)
     const { data: homepage } = await supabase
       .from('homepage_settings')
       .select('brand_logo_url, hero_media_url, sponsor_logos')
@@ -17,12 +17,12 @@ async function preloadBrandAssets() {
       .maybeSingle();
 
     if (homepage) {
-      // Brand logo
+      // Brand logo (critical - visible immediately)
       if (homepage.brand_logo_url) {
         assetsToPreload.push({ url: homepage.brand_logo_url, type: 'image' });
       }
 
-      // Hero media (image or video)
+      // Hero media (critical - LCP element)
       if (homepage.hero_media_url) {
         const ext = homepage.hero_media_url.split('.').pop()?.toLowerCase();
         const isVideo = ['mp4', 'webm', 'ogg', 'mov'].includes(ext || '');
@@ -32,81 +32,12 @@ async function preloadBrandAssets() {
         });
       }
 
-      // Sponsor logos from homepage_settings
+      // Sponsor logos from homepage_settings (visible on homepage)
       if (homepage.sponsor_logos && Array.isArray(homepage.sponsor_logos)) {
         for (const sponsor of homepage.sponsor_logos) {
           if (sponsor?.logo_url) {
             assetsToPreload.push({ url: sponsor.logo_url, type: 'image' });
           }
-        }
-      }
-    }
-
-    // 2. Fetch core team member photos
-    const { data: committee } = await supabase
-      .from('core_team_members')
-      .select('image')
-      .not('image', 'is', null);
-
-    if (committee) {
-      for (const member of committee) {
-        if (member.image) {
-          assetsToPreload.push({ url: member.image, type: 'image' });
-        }
-      }
-    }
-
-    // 3. Fetch faculty heads photos
-    const { data: faculty } = await supabase
-      .from('faculty_heads')
-      .select('image')
-      .not('image', 'is', null);
-
-    if (faculty) {
-      for (const head of faculty) {
-        if (head.image) {
-          assetsToPreload.push({ url: head.image, type: 'image' });
-        }
-      }
-    }
-
-    // 4. Fetch event images
-    const { data: events } = await supabase
-      .from('events')
-      .select('image')
-      .not('image', 'is', null);
-
-    if (events) {
-      for (const event of events) {
-        if (event.image) {
-          assetsToPreload.push({ url: event.image, type: 'image' });
-        }
-      }
-    }
-
-    // 5. Fetch sponsors
-    const { data: sponsors } = await supabase
-      .from('sponsors')
-      .select('logo')
-      .not('logo', 'is', null);
-
-    if (sponsors) {
-      for (const sponsor of sponsors) {
-        if (sponsor.logo) {
-          assetsToPreload.push({ url: sponsor.logo, type: 'image' });
-        }
-      }
-    }
-
-    // 6. Fetch guest/featured artists
-    const { data: artists } = await supabase
-      .from('guest_artists')
-      .select('image');
-
-    if (artists) {
-      for (const artist of artists) {
-        if (artist.image) {
-          assetsToPreload.push({ url: artist.image, type: 'image' });
         }
       }
     }
@@ -146,7 +77,7 @@ async function preloadBrandAssets() {
       document.head.appendChild(preloadLink);
     }
 
-    console.log(`[Preload] Loaded ${uniqueUrls.size} assets (brand, hero, committee, faculty, events, sponsors, artists)`);
+    console.log(`[Preload] Loaded ${uniqueUrls.size} critical assets (brand logo, hero media, homepage sponsors)`);
   } catch (err) {
     console.warn('[Preload] Failed to preload assets:', err);
   }

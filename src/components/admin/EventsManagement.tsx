@@ -117,6 +117,7 @@ export const EventsManagement: React.FC = () => {
   registration_participant_quotas: {} as Record<string, number>,
     // registration_default_mode: 'individual' | 'team' — owner can set default per event
     registration_default_mode: 'individual' as 'individual' | 'team',
+    registration_mode_locked: false as boolean,
   team_max_members: undefined as number | undefined,
     max_participants: undefined as number | undefined,
     featured: false,
@@ -277,6 +278,7 @@ export const EventsManagement: React.FC = () => {
   registration_participant_types: [],
   registration_participant_quotas: {},
       registration_default_mode: 'individual',
+      registration_mode_locked: false,
   team_max_members: undefined,
       max_participants: undefined,
       featured: false,
@@ -316,6 +318,7 @@ export const EventsManagement: React.FC = () => {
         registration_participant_types: eventForm.registration_participant_types || undefined,
         registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
+        registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
         coordinators: draftCoordinators // Include coordinators in the data
       };
@@ -380,6 +383,7 @@ export const EventsManagement: React.FC = () => {
         registration_participant_types: (eventForm as any).registration_participant_types || null,
         registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
+        registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
       };
       
@@ -536,6 +540,7 @@ export const EventsManagement: React.FC = () => {
   registration_participant_types: (event as any).registration_participant_types || [],
     registration_participant_quotas: ((event as any).registration_participant_quotas || {}) as any,
       registration_default_mode: (event as any).registration_default_mode || 'individual',
+      registration_mode_locked: (event as any).registration_mode_locked ?? false,
   team_max_members: (event as any).team_max_members ?? undefined,
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
@@ -1088,7 +1093,11 @@ export const EventsManagement: React.FC = () => {
                   <label className="flex items-center text-sm text-gray-900">
                     <input type="radio" name="registration_default_mode" className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
                   </label>
+                  <label className="flex items-center text-sm text-gray-900 border-l pl-4 border-gray-300">
+                    <input type="checkbox" className="mr-2" checked={(eventForm as any).registration_mode_locked ?? false} onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} /> Lock Mode
+                  </label>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">When locked, users cannot switch between individual and team modes.</p>
                 <p className="sm:hidden text-xs text-gray-500 mt-1">Tip: Swipe sideways on the row above to see all controls.</p>
                 <div className="mt-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1 min-w-[180px]">Max Team Members (team mode)</label>
@@ -1746,6 +1755,9 @@ export const EventsManagement: React.FC = () => {
                     </label>
                     <label className="flex items-center text-sm text-gray-900">
                       <input type="radio" name={`registration_default_mode_row_${event.id}`} className="mr-2" value="team" checked={(eventForm as any).registration_default_mode === 'team'} onChange={() => setEventForm(prev => ({ ...prev, registration_default_mode: 'team' } as any))} /> Team
+                    </label>
+                    <label className="flex items-center text-sm text-gray-900 border-l pl-2 border-gray-300">
+                      <input type="checkbox" className="mr-2" checked={(eventForm as any).registration_mode_locked ?? false} onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} /> Lock
                     </label>
                     <div className="ml-4 flex items-center gap-2 min-w-[280px]">
                       <label className="text-sm text-gray-700">Max Team Members</label>

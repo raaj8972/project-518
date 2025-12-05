@@ -173,6 +173,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     return map;
   }, [siteSettings, events, eventId]);
 
+  // Check if registration mode is locked for this event
+  const isModeLocked = useMemo(() => {
+    try {
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      return Boolean(ev?.registration_mode_locked);
+    } catch {
+      return false;
+    }
+  }, [events, eventId]);
+
   // Initialize team/individual mode when modal opens based on event-level default, then site settings, then 'individual'
   useEffect(() => {
     if (!isOpen) return;
@@ -719,40 +729,42 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 </div>
               )}
 
-              {/* Registration Type Toggle */}
-              <div className="cyberpunk-section">
-                <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">REGISTRATION_TYPE</h3>
-                <div className="cyberpunk-card w-full p-3 bg-gray-900/30">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                    <label className="cyberpunk-radio-label">
-                      <input
-                        type="radio"
-                        name="registrationType"
-                        checked={!formData.is_team_registration}
-                        onChange={() => {
-                          handleInputChange('is_team_registration', false);
-                          handleInputChange('total_members', 1);
-                        }}
-                        className="cyberpunk-radio"
-                      />
-                      <span className="font-mono text-xs sm:text-sm">INDIVIDUAL_MODE</span>
-                    </label>
-                    <label className="cyberpunk-radio-label">
-                      <input
-                        type="radio"
-                        name="registrationType"
-                        checked={formData.is_team_registration}
-                        onChange={() => {
-                          handleInputChange('is_team_registration', true);
-                          handleInputChange('total_members', formData.team_members.length);
-                        }}
-                        className="cyberpunk-radio"
-                      />
-                      <span className="font-mono text-xs sm:text-sm">TEAM_MODE</span>
-                    </label>
+              {/* Registration Type Toggle - Only show when mode is not locked */}
+              {!isModeLocked && (
+                <div className="cyberpunk-section">
+                  <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">REGISTRATION_TYPE</h3>
+                  <div className="cyberpunk-card w-full p-3 bg-gray-900/30">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                      <label className="cyberpunk-radio-label">
+                        <input
+                          type="radio"
+                          name="registrationType"
+                          checked={!formData.is_team_registration}
+                          onChange={() => {
+                            handleInputChange('is_team_registration', false);
+                            handleInputChange('total_members', 1);
+                          }}
+                          className="cyberpunk-radio"
+                        />
+                        <span className="font-mono text-xs sm:text-sm">INDIVIDUAL_MODE</span>
+                      </label>
+                      <label className="cyberpunk-radio-label">
+                        <input
+                          type="radio"
+                          name="registrationType"
+                          checked={formData.is_team_registration}
+                          onChange={() => {
+                            handleInputChange('is_team_registration', true);
+                            handleInputChange('total_members', formData.team_members.length);
+                          }}
+                          className="cyberpunk-radio"
+                        />
+                        <span className="font-mono text-xs sm:text-sm">TEAM_MODE</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Team Name (if team registration) */}
               {formData.is_team_registration && (
