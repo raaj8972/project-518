@@ -936,7 +936,7 @@ export const RegistrationManagement: React.FC = () => {
                               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {safeTeamMembers(registration).map((member: any, index: number) => (
                                   <div key={index} className="bg-white p-3 rounded border">
-                                    <div className="font-medium text-sm">{member.name}</div>
+                                    <div className="font-medium text-sm text-gray-900">{member.name}</div>
                                     <div className="text-xs text-gray-600">{member.email}</div>
                                     <div className="text-xs text-gray-600">{member.phone}</div>
                                   </div>
