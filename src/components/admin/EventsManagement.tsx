@@ -119,6 +119,7 @@ export const EventsManagement: React.FC = () => {
     registration_default_mode: 'individual' as 'individual' | 'team',
     registration_mode_locked: false as boolean,
   team_max_members: undefined as number | undefined,
+  team_required_size: undefined as number | undefined,
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
@@ -280,6 +281,7 @@ export const EventsManagement: React.FC = () => {
       registration_default_mode: 'individual',
       registration_mode_locked: false,
   team_max_members: undefined,
+  team_required_size: undefined,
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -320,6 +322,8 @@ export const EventsManagement: React.FC = () => {
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
+        team_required_size: (eventForm as any).team_required_size ?? null,
+        max_participants: (eventForm as any).max_participants ?? null,
         coordinators: draftCoordinators // Include coordinators in the data
       };
       
@@ -385,6 +389,8 @@ export const EventsManagement: React.FC = () => {
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
+        team_required_size: (eventForm as any).team_required_size ?? null,
+        max_participants: (eventForm as any).max_participants ?? null,
       };
       
       // Check if current admin requires approval
@@ -542,6 +548,7 @@ export const EventsManagement: React.FC = () => {
       registration_default_mode: (event as any).registration_default_mode || 'individual',
       registration_mode_locked: (event as any).registration_mode_locked ?? false,
   team_max_members: (event as any).team_max_members ?? undefined,
+  team_required_size: (event as any).team_required_size ?? undefined,
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
@@ -1097,24 +1104,64 @@ export const EventsManagement: React.FC = () => {
                     <input type="checkbox" className="mr-2" checked={(eventForm as any).registration_mode_locked ?? false} onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} /> Lock Mode
                   </label>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">When locked, users cannot switch between individual and team modes.</p>
-                <p className="sm:hidden text-xs text-gray-500 mt-1">Tip: Swipe sideways on the row above to see all controls.</p>
-                <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1 min-w-[180px]">Max Team Members (team mode)</label>
-                  <input
-                    type="number"
-                    min={2}
-                    max={50}
-                    value={(eventForm as any).team_max_members ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                      setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
-                    }}
-                    placeholder="Default 50"
-                    className="w-32 sm:w-40 px-3 py-2 border rounded"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Leave blank to use the global default (50). Applies when users choose Team mode.</p>
+                <p className="text-xs text-gray-600 mt-1">When locked, users cannot switch between individual and team modes.</p>
+                <p className="sm:hidden text-xs text-gray-600 mt-1">Tip: Swipe sideways on the row above to see all controls.</p>
+                
+                {/* Team Size Configuration */}
+                <div className="mt-4 border-t pt-4">
+                  <label className="flex items-center text-sm font-medium text-gray-900 mb-2">
+                    <input 
+                      type="checkbox" 
+                      className="mr-2" 
+                      checked={!!((eventForm as any).team_required_size)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setEventForm(prev => ({ ...prev, team_required_size: 2, team_max_members: undefined } as any));
+                        } else {
+                          setEventForm(prev => ({ ...prev, team_required_size: undefined } as any));
+                        }
+                      }}
+                    />
+                    Require Exact Team Size
+                  </label>
+                  
+                  {(eventForm as any).team_required_size ? (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Required Team Size</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={50}
+                        value={(eventForm as any).team_required_size ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                          setEventForm(prev => ({ ...prev, team_required_size: Number.isNaN(Number(v)) ? undefined : n } as any));
+                        }}
+                        placeholder="e.g., 5"
+                        className="w-32 sm:w-40 px-3 py-2 border rounded text-gray-900"
+                      />
+                      <p className="text-xs text-gray-600 mt-1">Teams must have exactly this many members</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-900 mb-1">Max Team Members (team mode)</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={50}
+                        value={(eventForm as any).team_max_members ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                          setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                        }}
+                        placeholder="Default 50"
+                        className="w-32 sm:w-40 px-3 py-2 border rounded text-gray-900"
+                      />
+                      <p className="text-xs text-gray-600 mt-1">Maximum allowed team size (flexible 2-max)</p>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* Per-event participant types editor - choose from site-level list and set per-type limits */}
@@ -1759,25 +1806,61 @@ export const EventsManagement: React.FC = () => {
                     <label className="flex items-center text-sm text-gray-900 border-l pl-2 border-gray-300">
                       <input type="checkbox" className="mr-2" checked={(eventForm as any).registration_mode_locked ?? false} onChange={(e) => setEventForm(prev => ({ ...prev, registration_mode_locked: e.target.checked } as any))} /> Lock
                     </label>
-                    <div className="ml-4 flex items-center gap-2 min-w-[280px]">
-                      <label className="text-sm text-gray-700">Max Team Members</label>
-                      <input
-                        type="number"
-                        min={2}
-                        max={50}
-                        value={(eventForm as any).team_max_members ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                          setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
-                        }}
-                        placeholder="Default 50"
-                        className="w-24 sm:w-28 px-2 py-1 border rounded"
-                      />
+                    
+                    {/* Team Size Controls */}
+                    <div className="ml-4 flex items-center gap-2 min-w-[320px]">
+                      <label className="flex items-center text-sm text-gray-900">
+                        <input 
+                          type="checkbox" 
+                          className="mr-2" 
+                          checked={!!((eventForm as any).team_required_size)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEventForm(prev => ({ ...prev, team_required_size: 2, team_max_members: undefined } as any));
+                            } else {
+                              setEventForm(prev => ({ ...prev, team_required_size: undefined } as any));
+                            }
+                          }}
+                        />
+                        Exact Size
+                      </label>
+                      {(eventForm as any).team_required_size ? (
+                        <input
+                          type="number"
+                          min={2}
+                          max={50}
+                          value={(eventForm as any).team_required_size ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                            setEventForm(prev => ({ ...prev, team_required_size: Number.isNaN(Number(v)) ? undefined : n } as any));
+                          }}
+                          placeholder="e.g., 5"
+                          className="w-20 px-2 py-1 border rounded text-gray-900"
+                          title="Required team size"
+                        />
+                      ) : (
+                        <>
+                          <label className="text-sm text-gray-700">Max:</label>
+                          <input
+                            type="number"
+                            min={2}
+                            max={50}
+                            value={(eventForm as any).team_max_members ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                              setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                            }}
+                            placeholder="50"
+                            className="w-20 px-2 py-1 border rounded text-gray-900"
+                          />
+                        </>
+                      )}
                     </div>
                     
                   </div>
-                  <p className="sm:hidden text-[11px] text-gray-500 mt-1">Swipe sideways on the row above to reveal Registration Mode.</p>
+                  <p className="text-xs text-amber-600 font-medium mt-1 bg-amber-50 px-2 py-1 rounded">← Scroll sideways in the row above to see Team Size settings →</p>
                   <button
                     type="button"
                     onClick={() => {

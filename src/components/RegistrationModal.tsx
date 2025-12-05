@@ -73,15 +73,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [quotaFullMap, setQuotaFullMap] = useState<Record<string, boolean>>({});
   const [quotaBlocked, setQuotaBlocked] = useState<{ title?: string; message: string } | null>(null);
 
-  // Determine per-event team member limit (when team mode). Null/undefined falls back to global default (50)
-  const teamLimit = React.useMemo(() => {
+
+  // Determine per-event team member requirements. Returns { required, max }
+  // If required is set, teams MUST have exactly that many members
+  // If not required, teams can have 2 to max members
+  const teamLimits = React.useMemo(() => {
     try {
       const ev = events.find((e: any) => e.id === eventId) as any;
-      const n = Number(ev?.team_max_members);
-      if (!Number.isNaN(n) && n > 0) return n;
+      const requiredSize = Number(ev?.team_required_size);
+      const maxSize = Number(ev?.team_max_members);
+      
+      // If exact size is required, return that as both required and max
+      if (!Number.isNaN(requiredSize) && requiredSize >= 2) {
+        return { required: requiredSize, max: requiredSize };
+      }
+      
+      // Otherwise, flexible team size with max limit
+      const limit = !Number.isNaN(maxSize) && maxSize > 0 ? maxSize : 50;
+      return { required: null, max: limit };
     } catch {}
-    return 50; // default cap when not configured on event
+    return { required: null, max: 50 }; // default: flexible 2-50
   }, [events, eventId]);
+
 
   // Precompute spark vectors when success state appears
   const sparkVectors = useMemo(() => {
@@ -288,8 +301,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (formData.total_members < 2) {
         newErrors.total_members = 'Team must have at least 2 members';
       }
-      if (formData.total_members > teamLimit) {
-        newErrors.total_members = `Team cannot exceed ${teamLimit} members for this event`;
+      if (formData.total_members > teamLimits.max) {
+        const msg = teamLimits.required 
+          ? `Teams must have exactly ${teamLimits.required} members for this event`
+          : `Team cannot exceed ${teamLimits.max} members for this event`;
+        newErrors.total_members = msg;
+      }
+      
+      // If exact size is required, enforce it
+      if (teamLimits.required && formData.total_members !== teamLimits.required) {
+        newErrors.total_members = `Teams must have exactly ${teamLimits.required} members for this event`;
       }
 
       formData.team_members.forEach((member, index) => {
@@ -555,7 +576,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const addTeamMember = () => {
-    if (formData.team_members.length < teamLimit) {
+    // Check total_members (leader + team array) against limit, not array length
+    if (formData.total_members < teamLimits.max) {
       setFormData(prev => ({
         ...prev,
         team_members: [...prev.team_members, { name: '', email: '', phone: '' }],
@@ -1001,12 +1023,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                 <div className="cyberpunk-section">
                   <div className="flex justify-between items-center mb-4">
                     <label className="cyberpunk-label">
-                      TEAM_MEMBERS * (TOTAL: {formData.total_members}{teamLimit ? ` / MAX ${teamLimit}` : ''})
+                      TEAM_MEMBERS * (TOTAL: {formData.total_members}{teamLimits.required ? ` / REQUIRED ${teamLimits.required}` : teamLimits.max ? ` / MAX ${teamLimits.max}` : ''})
                     </label>
                     <button
                       type="button"
                       onClick={addTeamMember}
-                      disabled={formData.team_members.length >= teamLimit}
+                      disabled={formData.total_members >= teamLimits.max}
                       className="cyberpunk-btn cyberpunk-btn-secondary text-xs sm:text-sm"
                     >
                       <span className="relative z-10 flex items-center">
@@ -1079,8 +1101,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   {errors.total_members && (
                     <p className="cyberpunk-error">{errors.total_members}</p>
                   )}
-                  {!errors.total_members && formData.team_members.length >= teamLimit && (
+                  {!errors.total_members && formData.total_members >= teamLimits.max && !teamLimits.required && (
                     <p className="text-xs text-gray-400 mt-1">Team member limit reached for this event.</p>
+                  )}
+                  {!errors.total_members && teamLimits.required && formData.total_members < teamLimits.required && (
+                    <p className="text-xs text-gray-400 mt-1">Add {teamLimits.required - formData.total_members} more member(s) to meet the required team size.</p>
                   )}
                 </div>
               )}
