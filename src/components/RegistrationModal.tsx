@@ -386,6 +386,30 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       return;
     }
 
+    // Check for duplicate registration (same email for same event)
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data: existingRegistrations, error: duplicateCheckError } = await supabase
+        .from('registrations')
+        .select('id, status, full_name')
+        .eq('event_id', eventId)
+        .eq('email', formData.email.toLowerCase().trim())
+        .in('status', ['pending', 'approved']);
+      
+      if (!duplicateCheckError && existingRegistrations && existingRegistrations.length > 0) {
+        const existing = existingRegistrations[0];
+        const statusText = existing.status === 'approved' ? 'approved' : 'pending approval';
+        setQuotaBlocked({ 
+          title: 'DUPLICATE REGISTRATION DETECTED', 
+          message: `The email "${formData.email}" has already been registered for this event (Status: ${statusText}). Each email can register only once per event. If you need to update your registration, please contact the event organizers.` 
+        });
+        return;
+      }
+    } catch (e) {
+      console.warn('[RegistrationModal] duplicate check failed', e);
+      // Continue with registration if duplicate check fails (fail open)
+    }
+
     // Enforce participant-type quotas if configured (prefer per-event, approved-only) with server-side guard
     try {
       const ev = (() => { try { return events.find((e: any) => e.id === eventId) as any; } catch { return undefined; } })();
