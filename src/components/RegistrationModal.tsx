@@ -317,11 +317,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         if (!member.name.trim()) {
           newErrors[`team_member_${index}_name`] = 'Member name is required';
         }
-        if (!member.email.trim()) {
-          newErrors[`team_member_${index}_email`] = 'Member email is required';
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email)) {
-          newErrors[`team_member_${index}_email`] = 'Please enter a valid email address';
-        }
         if (!member.phone.trim()) {
           newErrors[`team_member_${index}_phone`] = 'Member phone is required';
         }
@@ -1038,7 +1033,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                     </button>
                   </div>
                   
-                  <div className="space-y-3 max-h-40 overflow-y-auto cyberpunk-scrollbar">
+                  <div className="space-y-3 max-h-96 overflow-y-auto cyberpunk-scrollbar">
                     {formData.team_members.map((member, index) => (
                       <div key={index} className="cyberpunk-card bg-gray-900/30 p-3">
                         <div className="flex justify-between items-center mb-3">
@@ -1065,19 +1060,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                             />
                             {errors[`team_member_${index}_name`] && (
                               <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_name`]}</p>
-                            )}
-                          </div>
-                          
-                          <div>
-                            <input
-                              type="email"
-                              value={member.email}
-                              onChange={(e) => updateTeamMember(index, 'email', e.target.value)}
-                              placeholder="Member email"
-                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_email`] ? 'error' : ''}`}
-                            />
-                            {errors[`team_member_${index}_email`] && (
-                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_email`]}</p>
                             )}
                           </div>
                           
