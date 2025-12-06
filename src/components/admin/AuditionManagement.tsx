@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock } from 'lucide-react';
+import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { exportAuditionsToExcel } from '../../utils/excelExport';
+import { exportAuditionsToPDF, exportAuditionsByStatus } from '../../utils/pdfExport';
 // import type { Audition } from '../../context/DataContext';
 
 export const AuditionManagement: React.FC = () => {
@@ -90,8 +91,26 @@ export const AuditionManagement: React.FC = () => {
 
   const exportOptions = [
     {
-      label: 'Export All Auditions',
-      action: () => exportAuditionsToExcel(filteredAuditions, 'all-auditions.xlsx')
+      label: 'Export Excel',
+      icon: Download,
+      action: () => exportAuditionsToExcel(filteredAuditions, 'all-auditions.xlsx'),
+      color: 'bg-green-600 hover:bg-green-500'
+    },
+    {
+      label: 'Export PDF',
+      icon: FileText,
+      action: () => exportAuditionsToPDF(filteredAuditions, {
+        filename: 'auditions-report.pdf',
+        title: 'Audition Applications Report',
+        includeDetails: true
+      }),
+      color: 'bg-red-600 hover:bg-red-500'
+    },
+    {
+      label: 'PDF by Status',
+      icon: FileText,
+      action: () => exportAuditionsByStatus(filteredAuditions),
+      color: 'bg-purple-600 hover:bg-purple-500'
     }
   ];
 
@@ -104,16 +123,19 @@ export const AuditionManagement: React.FC = () => {
           <p className="text-gray-600">Manage Home Bound band audition applications</p>
         </div>
         <div className="flex items-center space-x-2">
-          {exportOptions.map((option, index) => (
-            <button
-              key={index}
-              onClick={option.action}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-500 transition-colors flex items-center"
-            >
-              <Download size={16} className="mr-2" />
-              {option.label}
-            </button>
-          ))}
+          {exportOptions.map((option, index) => {
+            const IconComponent = option.icon;
+            return (
+              <button
+                key={index}
+                onClick={option.action}
+                className={`${option.color} text-white px-4 py-2 rounded-lg transition-colors flex items-center shadow-md hover:shadow-lg`}
+              >
+                <IconComponent size={16} className="mr-2" />
+                {option.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
