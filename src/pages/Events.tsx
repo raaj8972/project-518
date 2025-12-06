@@ -44,8 +44,81 @@ export const Events: React.FC = () => {
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [glitchActive, _setGlitchActive] = useState(false);
+
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionMedia, setTransitionMedia] = useState<{url: string, type: 'video' | 'image', poster?: string} | null>(null);
+  const transitionVideoRef = useRef<HTMLVideoElement>(null);
+  const [scrambleText, setScrambleText] = useState("ACCESSING REGISTRATION...");
+  
+  // Matrix Scramble Effect
+  useEffect(() => {
+    if (!isTransitioning) {
+      setScrambleText("ACCESSING REGISTRATION...");
+      return;
+    }
+
+    const TARGET_TEXT = "ACCESSING REGISTRATION...";
+    const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&";
+    let iteration = 0;
+    
+    const interval = setInterval(() => {
+      setScrambleText(prev => 
+        TARGET_TEXT.split("").map((letter, index) => {
+          if (index < iteration) {
+            return TARGET_TEXT[index];
+          }
+          return CHARS[Math.floor(Math.random() * CHARS.length)];
+        }).join("")
+      );
+      
+      if (iteration >= TARGET_TEXT.length) {
+        clearInterval(interval);
+      }
+      
+      iteration += 1/2; // Speed of decoding (lower = slower)
+    }, 30); // Update frequency
+
+    return () => clearInterval(interval);
+  }, [isTransitioning]);
+  
+  // Robust video playback effect with Audio Fade Out
+  useEffect(() => {
+    if (isTransitioning && transitionMedia?.type === 'video' && transitionVideoRef.current) {
+      const vid = transitionVideoRef.current;
+      vid.playbackRate = 2.0;
+      vid.volume = 1.0; // Reset volume
+      
+      const playVideo = async () => {
+        try {
+          await vid.play();
+        } catch (err) {
+          console.warn('Autoplay blocked', err);
+          vid.muted = true;
+          try { await vid.play(); } catch (e) { console.error('Play failed', e); }
+        }
+      };
+      
+      playVideo();
+
+      // Audio Fade Out starting at 3.2s (transition ends at 4.0s)
+      const fadeStart = setTimeout(() => {
+        if (!vid) return;
+        const fadeInterval = setInterval(() => {
+          if (vid.volume > 0.1) {
+            vid.volume -= 0.1;
+          } else {
+            vid.volume = 0;
+            clearInterval(fadeInterval);
+          }
+        }, 50); // Drop 0.1 every 50ms (approx 0.5s total fade)
+        return () => clearInterval(fadeInterval);
+      }, 3200);
+
+      return () => clearTimeout(fadeStart);
+    }
+  }, [isTransitioning, transitionMedia]);
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
   // Events that are actually shown (respecting visibility flag)
@@ -246,10 +319,38 @@ export const Events: React.FC = () => {
     };
   }, []);
 
-  const openRegistration = (eventId: number, _eventTitle?: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('register', eventId.toString());
-    setSearchParams(newParams, { replace: true });
+  const openRegistration = (eventId: number, eventTitle?: string) => {
+    // Find event to get video
+    const ev = events.find((e: any) => e.id === eventId);
+    
+    // Check if we have a valid video to play
+    const hasVideo = ev && (ev as any).motion_poster_url;
+    
+    if (hasVideo) {
+      // Haptic feedback for "button press" feel
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(50); // Short buzz
+      }
+      
+      setTransitionMedia({ url: (ev as any).motion_poster_url, type: 'video' });
+      setIsTransitioning(true);
+      
+      // Delay actual navigation to allow animation to play
+      // 4s total transition
+      setTimeout(() => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('register', eventId.toString());
+        setSearchParams(newParams, { replace: true });
+        
+        // Short delay to clear transition after modal likely prompts
+        setTimeout(() => setIsTransitioning(false), 200);
+      }, 4000); 
+    } else {
+      // No video, open immediately
+      const newParams = new URLSearchParams(searchParams);
+      newParams.set('register', eventId.toString());
+      setSearchParams(newParams, { replace: true });
+    }
   };
   const closeRegistration = () => {
     const newParams = new URLSearchParams(searchParams);
@@ -478,6 +579,32 @@ export const Events: React.FC = () => {
       {/* One-time mobile scroll hint */}
       <ScrollHint />
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
+      
+      {isTransitioning && (
+      <div className="speedramp-overlay">
+        <div className="crt-lines" />
+        <div className="speedramp-frame">
+            {transitionMedia?.type === 'video' ? (
+              <video
+                src={transitionMedia.url}
+                className="speedramp-video"
+                playsInline
+                preload="auto"
+                ref={transitionVideoRef}
+              />
+            ) : transitionMedia?.type === 'image' ? (
+              <img
+                src={transitionMedia.url}
+                className="speedramp-video" // Reuse class for same anim
+                alt="Transition"
+              />
+            ) : (
+              <div className="speedramp-video bg-gray-900" />
+            )}
+          </div>
+          <div className="speedramp-text">{scrambleText}</div>
+        </div>
+      )}
 
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
           <div className="absolute inset-0 z-0">
@@ -657,7 +784,11 @@ export const Events: React.FC = () => {
                           - owner_hover_reveal (owner preview behavior).
                         Otherwise show only the static image (default behavior).
                       */}
-                      {((event as any).motion_poster_autoplay || (event as any).prefer_video || (isOwner && (event as any).owner_hover_reveal)) && event.motion_poster_url ? (
+                      {/* Always render video if URL exists to ensure preloading (cached for transition)
+                          Control visibility via opacity/CSS instead of unmounting.
+                          Prioritize loading for the first few items.
+                      */}
+                      {event.motion_poster_url ? (
                         <video
                           id={`event-video-${event.id}`}
                           className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ ((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
@@ -665,9 +796,10 @@ export const Events: React.FC = () => {
                           {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { autoPlay: true } : {})}
                           muted
                           playsInline
-                          preload="auto"
                           loop
                           poster={event.image}
+                          preload={index < 6 ? "auto" : "metadata"}
+                          {...(index < 3 ? { fetchPriority: "high" } as any : {})}
                         />
                       ) : null}
 

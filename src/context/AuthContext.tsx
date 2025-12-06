@@ -252,7 +252,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const low = String(msg).toLowerCase();
         // Friendlier guidance for network/CORS/env issues often surfaced as "TypeError: Load failed" or "Failed to fetch"
         if (low.includes('load failed') || low.includes('failed to fetch')) {
-          msg = 'Network error: Could not reach Supabase. Check internet, ad blockers, or that the Supabase URL/key match this environment.';
+          msg = 'Network Error';
         }
         return { success: false, error: msg };
       }

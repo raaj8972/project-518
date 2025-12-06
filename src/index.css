@@ -695,3 +695,105 @@ img {
 @media (max-width: 380px) {
   .hide-edge-fades-xs { display: none !important; }
 }
+
+/* Speedramp Registration Transition Overlay */
+.speedramp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: impactShake 0.4s ease-in-out 3.6s forwards; /* Shake right before end */
+  overflow: hidden;
+}
+
+@keyframes impactShake {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 4px); }
+  40% { transform: translate(4px, -4px); }
+  60% { transform: translate(-4px, -4px); }
+  80% { transform: translate(4px, 4px); }
+  100% { transform: translate(0, 0); }
+}
+
+.speedramp-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  opacity: 1;
+  /* Optional: "Frame it" - maybe a slight inset or border, but user said "frame it" implies viewing it.
+     Let's keep it full screen for maximum impact or add a cinematic border. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crt-lines {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  );
+  background-size: 100% 4px; /* Scanline spacing */
+  z-index: 55;
+  pointer-events: none;
+  animation: scanlineMove 10s linear infinite;
+}
+
+@keyframes scanlineMove {
+  from { background-position: 0 0; }
+  to { background-position: 0 100%; }
+}
+
+
+
+.speedramp-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Start slightly scaled up or normal? */
+  transform: scale(1) translate3d(0,0,0); /* Force GPU */
+  will-change: transform;
+  animation: speedZoom 4s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+  filter: contrast(1.2) brightness(1.1);
+}
+
+.speedramp-text {
+  position: absolute;
+  bottom: clamp(10%, 15vh, 20%); /* Adjust position based on screen height */
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: clamp(1.1rem, 5vw, 2.5rem); /* Responsive size */
+  font-weight: 900;
+  letter-spacing: clamp(0.05rem, 0.4vw, 0.15rem);
+  /* Dynamic color adaptation based on video background */
+  mix-blend-mode: difference;
+  /* Responsive glow */
+  text-shadow: 
+    0 0 clamp(5px, 1vw, 20px) rgba(255, 255, 255, 0.8), 
+    0 0 clamp(10px, 2vw, 40px) rgba(34, 211, 238, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  /* Responsive cursor thickness */
+  border-right: clamp(3px, 0.6vw, 6px) solid #22d3ee; 
+  width: 0;
+  animation: typing 0.8s steps(25, end) forwards, blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0; }
+  to { width: 26ch; } /* "ACCESSING REGISTRATION..." = 25 chars + buffer */
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: #22d3ee; }
+}
