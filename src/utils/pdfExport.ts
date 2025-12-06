@@ -2,10 +2,98 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Audition } from '../context/DataContext';
 
+// Watermark cache - stores pre-loaded watermark image data
+let watermarkCache: { url: string; dataUrl: string } | null = null;
+
+/**
+ * Preload watermark image from URL and cache as base64 data URL
+ */
+export const preloadWatermark = async (url: string): Promise<string | null> => {
+  if (!url) return null;
+  
+  // Return cached if same URL
+  if (watermarkCache && watermarkCache.url === url) {
+    return watermarkCache.dataUrl;
+  }
+  
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        watermarkCache = { url, dataUrl };
+        resolve(dataUrl);
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Failed to preload watermark:', error);
+    return null;
+  }
+};
+
+/**
+ * Add watermark to a PDF page
+ * Uses GState for transparency - large centered watermark at low opacity
+ */
+const addWatermarkToPage = (doc: jsPDF, watermarkDataUrl: string | null) => {
+  if (!watermarkDataUrl) return;
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  // Large watermark - 60% of page, centered
+  const wmWidth = pageWidth * 0.6;
+  const wmHeight = pageHeight * 0.6;
+  const x = (pageWidth - wmWidth) / 2;
+  const y = (pageHeight - wmHeight) / 2;
+  
+  try {
+    // Save graphics state, set opacity, add image, restore
+    doc.saveGraphicsState();
+    // @ts-ignore - GState exists but types may not include it
+    const gState = new (doc as any).GState({ opacity: 0.12 }); // 12% opacity for readability
+    doc.setGState(gState);
+    doc.addImage(watermarkDataUrl, 'PNG', x, y, wmWidth, wmHeight);
+    doc.restoreGraphicsState();
+  } catch (error) {
+    console.error('Failed to add watermark:', error);
+  }
+};
+
+/**
+ * Add stamp to bottom right corner of a PDF page
+ * Stamp is fully opaque and sized appropriately
+ */
+const addStampToPage = (doc: jsPDF, stampDataUrl: string | null) => {
+  if (!stampDataUrl) return;
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  
+  // Stamp at bottom right - 70mm x 70mm for excellent visibility
+  const stampSize = 70;
+  const margin = 10;
+  const x = pageWidth - stampSize - margin;
+  const y = pageHeight - stampSize - margin;
+  
+  try {
+    doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+  } catch (error) {
+    console.error('Failed to add stamp:', error);
+  }
+};
+
 interface PDFExportOptions {
   filename?: string;
   title?: string;
   includeDetails?: boolean;
+  watermarkDataUrl?: string | null;
+  stampDataUrl?: string | null;
 }
 
 /**
@@ -20,7 +108,9 @@ export const exportAuditionsToPDF = (
   const {
     filename = 'auditions-report.pdf',
     title = 'Audition Applications Report',
-    includeDetails = true
+    includeDetails = true,
+    watermarkDataUrl,
+    stampDataUrl
   } = options;
 
   // Create new PDF document
@@ -139,26 +229,8 @@ export const exportAuditionsToPDF = (
       }
     },
     margin: { left: 10, right: 10 },
-    didDrawPage: (data) => {
-      // Add page numbers
-      const pageCount = (doc as any).internal.getNumberOfPages();
-      doc.setFontSize(9);
-      doc.setTextColor(150);
-      doc.text(
-        `Page ${data.pageNumber} of ${pageCount}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
 
-      // Add footer
-      doc.setFontSize(8);
-      doc.text(
-        'Home Bound Band - Ricorrenza 2026',
-        10,
-        pageHeight - 10
-      );
-    }
+    // Decorations applied in post-processing loop
   });
 
   // Add detailed information section if requested
@@ -257,6 +329,38 @@ export const exportAuditionsToPDF = (
     });
   }
 
+  // Apply decorations (Watermark, Stamp, Footer, Page Numbers) to ALL pages
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Add watermark
+    addWatermarkToPage(doc, watermarkDataUrl || null);
+
+    // Footer & Page Numbers
+    const pWidth = doc.internal.pageSize.getWidth();
+    const pHeight = doc.internal.pageSize.getHeight();
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      pWidth / 2,
+      pHeight - 10,
+      { align: 'center' }
+    );
+
+    doc.setFontSize(8);
+    doc.text(
+      'Home Bound Band - Ricorrenza 2026',
+      10,
+      pHeight - 10
+    );
+    
+    // Add stamp at bottom right
+    addStampToPage(doc, stampDataUrl || null);
+  }
+
   // Save the PDF
   doc.save(filename);
 };
@@ -264,7 +368,7 @@ export const exportAuditionsToPDF = (
 /**
  * Export auditions grouped by status
  */
-export const exportAuditionsByStatus = (auditions: Audition[]) => {
+export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?: string | null, stampDataUrl?: string | null) => {
   const groupedAuditions = {
     pending: auditions.filter(a => a.status === 'pending'),
     reviewed: auditions.filter(a => a.status === 'reviewed'),
@@ -364,7 +468,461 @@ export const exportAuditionsByStatus = (auditions: Audition[]) => {
         5: { cellWidth: 25, halign: 'center' }
       },
       margin: { left: 10, right: 10 },
+      // Decorations applied in post-processing loop
+    });
+  });
+
+  // Apply decorations (Watermark, Stamp, Footer, Page Numbers) to ALL pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    
+    // Watermark
+    addWatermarkToPage(doc, watermarkDataUrl || null);
+    
+    // Page numbers & Footer
+    const pWidth = doc.internal.pageSize.getWidth();
+    const pHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${totalPages}`,
+      pWidth / 2,
+      pHeight - 10,
+      { align: 'center' }
+    );
+
+    doc.setFontSize(8);
+    doc.text(
+      'Home Bound Band - Ricorrenza 2026',
+      10,
+      pHeight - 10
+    );
+    
+    // Stamp
+    addStampToPage(doc, stampDataUrl || null);
+  }
+
+  doc.save('auditions-by-status.pdf');
+};
+
+/**
+ * Enhanced PDF Export for Registrations
+ */
+
+import type { Registration } from '../context/DataContext';
+
+// Helper to safely parse team members
+const safeTeamMembers = (r: any): any[] => {
+  const tm = (r as any)?.team_members;
+  if (Array.isArray(tm)) return tm;
+  if (typeof tm === 'string') {
+    try {
+      const parsed = JSON.parse(tm);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+};
+
+interface RegistrationPDFOptions {
+  filename?: string;
+  title?: string;
+  watermarkDataUrl?: string | null;
+  stampDataUrl?: string | null;
+}
+
+/**
+ * Export registrations to a formatted PDF document
+ */
+export const exportRegistrationsToPDF = (
+  registrations: Registration[],
+  options: RegistrationPDFOptions = {}
+) => {
+  const {
+    filename = 'registrations-report.pdf',
+    title = 'Event Registrations Report',
+    watermarkDataUrl = null,
+    stampDataUrl = null
+  } = options;
+
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Title
+  doc.setFontSize(20);
+  doc.setTextColor(40, 40, 40);
+  doc.text(title, pageWidth / 2, 15, { align: 'center' });
+
+  // Timestamp
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  const timestamp = new Date().toLocaleString('en-IN', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata'
+  });
+  doc.text(`Generated on: ${timestamp}`, pageWidth / 2, 22, { align: 'center' });
+
+  // Summary statistics
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  const totalCount = registrations.length;
+  const pendingCount = registrations.filter(r => r.status === 'pending').length;
+  const approvedCount = registrations.filter(r => r.status === 'approved').length;
+  const rejectedCount = registrations.filter(r => r.status === 'rejected').length;
+  const teamCount = registrations.filter(r => r.is_team_registration).length;
+  const individualCount = totalCount - teamCount;
+
+  const summaryText = `Total: ${totalCount} | Individual: ${individualCount} | Team: ${teamCount} | Pending: ${pendingCount} | Approved: ${approvedCount} | Rejected: ${rejectedCount}`;
+  doc.text(summaryText, pageWidth / 2, 28, { align: 'center' });
+
+  // Prepare table data
+  const tableData = registrations.map(reg => {
+    const teamInfo = reg.is_team_registration 
+      ? `${reg.team_name} (${reg.total_members} members)`
+      : 'Individual';
+    
+    return [
+      reg.full_name,
+      reg.participant_type,
+      reg.event_title,
+      teamInfo,
+      reg.email,
+      reg.phone,
+      reg.college || 'N/A',
+      reg.status.charAt(0).toUpperCase() + reg.status.slice(1),
+      new Date(reg.registration_date).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    ];
+  });
+
+  // Create main table
+  autoTable(doc, {
+    startY: 35,
+    head: [['Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: [52, 152, 219],
+      textColor: 255,
+      fontSize: 9,
+      fontStyle: 'bold',
+      halign: 'center'
+    },
+    bodyStyles: {
+      fontSize: 8,
+      textColor: 50
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245]
+    },
+    columnStyles: {
+      0: { cellWidth: 30, fontStyle: 'bold' }, // Name
+      1: { cellWidth: 20 }, // Type
+      2: { cellWidth: 35 }, // Event
+      3: { cellWidth: 30 }, // Team/Individual
+      4: { cellWidth: 45 }, // Email
+      5: { cellWidth: 25 }, // Phone
+      6: { cellWidth: 30 }, // College
+      7: { cellWidth: 20, halign: 'center' }, // Status
+      8: { cellWidth: 22, halign: 'center' } // Date
+    },
+    didDrawCell: (data) => {
+      // Color code status cells
+      if (data.column.index === 7 && data.section === 'body') {
+        const status = data.cell.raw as string;
+        let fillColor: [number, number, number] = [255, 255, 255];
+        
+        if (status === 'Pending') {
+          fillColor = [255, 243, 205]; // Yellow
+        } else if (status === 'Approved') {
+          fillColor = [209, 250, 229]; // Green
+        } else if (status === 'Rejected') {
+          fillColor = [254, 226, 226]; // Red
+        }
+        
+        doc.setFillColor(...fillColor);
+        doc.rect(
+          data.cell.x,
+          data.cell.y,
+          data.cell.width,
+          data.cell.height,
+          'F'
+        );
+        
+        // Redraw text
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(8);
+        doc.text(
+          status,
+          data.cell.x + data.cell.width / 2,
+          data.cell.y + data.cell.height / 2 + 1.5,
+          { align: 'center' }
+        );
+      }
+    },
+    margin: { left: 10, right: 10 },
+
+    // didDrawPage removed - we will apply decorations to all pages at the end
+  });
+
+  // Add team details page if there are team registrations
+  const teamRegistrations = registrations.filter(r => r.is_team_registration);
+  
+  if (teamRegistrations.length > 0) {
+    doc.addPage();
+    
+    doc.setFontSize(16);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Team Registration Details', 15, 20);
+
+    let currentY = 30;
+    const leftMargin = 15;
+    const rightMargin = pageWidth - 15;
+    const contentWidth = rightMargin - leftMargin;
+
+    teamRegistrations.forEach((reg, index) => {
+      // Check if we need a new page
+      if (currentY > pageHeight - 70) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      // Team header
+      doc.setFillColor(240, 240, 240);
+      doc.rect(leftMargin, currentY - 5, contentWidth, 10, 'F');
+      
+      doc.setFontSize(12);
+      doc.setTextColor(52, 152, 219);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${index + 1}. ${reg.team_name || 'Team'}`, leftMargin + 2, currentY);
+      
+      // Status badge
+      const statusText = reg.status.charAt(0).toUpperCase() + reg.status.slice(1);
+      const statusWidth = doc.getTextWidth(statusText) + 6;
+      let statusColor: [number, number, number] = [255, 193, 7];
+      
+      if (reg.status === 'approved') statusColor = [76, 175, 80];
+      if (reg.status === 'rejected') statusColor = [244, 67, 54];
+      
+      doc.setFillColor(...statusColor);
+      doc.roundedRect(rightMargin - statusWidth - 2, currentY - 4, statusWidth, 7, 2, 2, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(statusText, rightMargin - statusWidth / 2 - 2, currentY, { align: 'center' });
+
+      currentY += 10;
+
+      // Team details
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+
+      const details = [
+        `Event: ${reg.event_title}`,
+        `Team Leader: ${reg.full_name}`,
+        `Email: ${reg.email}`,
+        `Phone: ${reg.phone}`,
+        `College: ${reg.college || 'N/A'}`,
+        `Total Members: ${reg.total_members}`,
+        `Registration Date: ${new Date(reg.registration_date).toLocaleString('en-IN')}`
+      ];
+
+      details.forEach(detail => {
+        doc.text(detail, leftMargin + 2, currentY);
+        currentY += 5;
+      });
+
+      // Team members list
+      const members = safeTeamMembers(reg);
+      if (members.length > 0) {
+        currentY += 2;
+        doc.setFont('helvetica', 'bold');
+        doc.text('Team Members:', leftMargin + 2, currentY);
+        currentY += 5;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        
+        members.forEach((member: any, idx: number) => {
+          if (currentY > pageHeight - 20) {
+            doc.addPage();
+            currentY = 20;
+          }
+          
+          const memberText = `${idx + 1}. ${member.name || 'N/A'} - ${member.phone || 'N/A'}`;
+          doc.text(memberText, leftMargin + 4, currentY);
+          currentY += 4;
+        });
+      }
+
+      currentY += 10; // Space before next team
+    });
+  }
+
+  // Apply decorations (Watermark, Stamp, Footer, Page Numbers) to ALL pages
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Add watermark (behind content if possible, but jsPDF layering is order-based. 
+    // Since content is already drawn, watermark might overlay if opaque, but ours is transparent)
+    // To be truly behind, we'd need to add it before content, but manual pages make that hard.
+    // Given the low opacity (12%), overlaying is usually acceptable or even desired for watermark effect.
+    addWatermarkToPage(doc, watermarkDataUrl);
+
+    // Footer & Page Numbers
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text(
+      `Page ${i} of ${pageCount}`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    );
+
+    doc.setFontSize(8);
+    doc.text(
+      'Ricorrenza 2026',
+      10,
+      pageHeight - 10
+    );
+    
+    // Add stamp at bottom right
+    addStampToPage(doc, stampDataUrl);
+  }
+
+  doc.save(filename);
+};
+
+/**
+ * Export registrations grouped by event
+ */
+export const exportRegistrationsByEvent = (registrations: Registration[], watermarkDataUrl?: string | null, stampDataUrl?: string | null) => {
+  // Group by event
+  const eventGroups: Record<string, Registration[]> = {};
+  registrations.forEach(reg => {
+    if (!eventGroups[reg.event_title]) {
+      eventGroups[reg.event_title] = [];
+    }
+    eventGroups[reg.event_title].push(reg);
+  });
+
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Title page
+  doc.setFontSize(24);
+  doc.setTextColor(52, 152, 219);
+  doc.text('Event Registrations', pageWidth / 2, pageHeight / 2 - 20, { align: 'center' });
+  
+  doc.setFontSize(16);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Grouped by Event Report', pageWidth / 2, pageHeight / 2 - 5, { align: 'center' });
+  
+  doc.setFontSize(12);
+  const timestamp = new Date().toLocaleString('en-IN', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata'
+  });
+  doc.text(timestamp, pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
+
+  // Process each event group
+  const eventColors: Record<number, [number, number, number]> = {
+    0: [52, 152, 219],  // Blue
+    1: [155, 89, 182],  // Purple
+    2: [46, 204, 113],  // Green
+    3: [241, 196, 15],  // Yellow
+    4: [231, 76, 60]    // Red
+  };
+
+  Object.entries(eventGroups).forEach(([eventTitle, eventRegs], groupIndex) => {
+    const color = eventColors[groupIndex % 5] || [52, 152, 219];
+    
+    doc.addPage();
+
+    // Event header
+    doc.setFillColor(...color);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text(eventTitle, pageWidth / 2, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    const stats = `Total: ${eventRegs.length} | Pending: ${eventRegs.filter(r => r.status === 'pending').length} | Approved: ${eventRegs.filter(r => r.status === 'approved').length} | Rejected: ${eventRegs.filter(r => r.status === 'rejected').length}`;
+    doc.text(stats, pageWidth / 2, 25, { align: 'center' });
+
+    // Table data
+    const tableData = eventRegs.map(reg => [
+      reg.full_name,
+      reg.participant_type,
+      reg.is_team_registration ? `${reg.team_name} (${reg.total_members})` : 'Individual',
+      reg.email,
+      reg.phone,
+      reg.college || 'N/A',
+      reg.status.charAt(0).toUpperCase() + reg.status.slice(1),
+      new Date(reg.registration_date).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short'
+      })
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Name', 'Type', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: color,
+        textColor: 255,
+        fontSize: 9,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: 50
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      columnStyles: {
+        0: { cellWidth: 35, fontStyle: 'bold' },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 50 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 35 },
+        6: { cellWidth: 20, halign: 'center' },
+        7: { cellWidth: 20, halign: 'center' }
+      },
+      margin: { left: 10, right: 10 },
       didDrawPage: (data) => {
+        // Add watermark
+        addWatermarkToPage(doc, watermarkDataUrl || null);
+        
         const pageCount = (doc as any).internal.getNumberOfPages();
         doc.setFontSize(9);
         doc.setTextColor(150);
@@ -374,9 +932,140 @@ export const exportAuditionsByStatus = (auditions: Audition[]) => {
           pageHeight - 10,
           { align: 'center' }
         );
+        
+        // Add stamp at bottom right
+        addStampToPage(doc, stampDataUrl || null);
       }
     });
   });
 
-  doc.save('auditions-by-status.pdf');
+  doc.save('registrations-by-event.pdf');
+};
+
+/**
+ * Export registrations grouped by status
+ */
+export const exportRegistrationsByStatus = (registrations: Registration[], watermarkDataUrl?: string | null, stampDataUrl?: string | null) => {
+  const doc = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Title page
+  doc.setFontSize(24);
+  doc.setTextColor(52, 152, 219);
+  doc.text('Event Registrations', pageWidth / 2, pageHeight / 2 - 20, { align: 'center' });
+  
+  doc.setFontSize(16);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Grouped by Status Report', pageWidth / 2, pageHeight / 2 - 5, { align: 'center' });
+  
+  doc.setFontSize(12);
+  const timestamp = new Date().toLocaleString('en-IN', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata'
+  });
+  doc.text(timestamp, pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
+
+  // Group by status
+  const statusGroups: Array<{
+    status: 'pending' | 'approved' | 'rejected';
+    title: string;
+    color: [number, number, number];
+  }> = [
+    { status: 'pending', title: 'Pending Registrations', color: [255, 193, 7] },
+    { status: 'approved', title: 'Approved Registrations', color: [76, 175, 80] },
+    { status: 'rejected', title: 'Rejected Registrations', color: [244, 67, 54] }
+  ];
+
+  statusGroups.forEach(({ status, title, color }) => {
+    const statusRegs = registrations.filter(r => r.status === status);
+    
+    if (statusRegs.length === 0) return;
+
+    doc.addPage();
+
+    // Status header
+    doc.setFillColor(...color);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+    
+    doc.setFontSize(18);
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, pageWidth / 2, 15, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Total: ${statusRegs.length} registration${statusRegs.length !== 1 ? 's' : ''}`, pageWidth / 2, 25, { align: 'center' });
+
+    // Table data
+    const tableData = statusRegs.map(reg => [
+      reg.full_name,
+      reg.participant_type,
+      reg.event_title,
+      reg.is_team_registration ? `${reg.team_name} (${reg.total_members})` : 'Individual',
+      reg.email,
+      reg.phone,
+      reg.college || 'N/A',
+      new Date(reg.registration_date).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      })
+    ]);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Date']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: color,
+        textColor: 255,
+        fontSize: 9,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: 50
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      columnStyles: {
+        0: { cellWidth: 35, fontStyle: 'bold' },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 38 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 48 },
+        5: { cellWidth: 28 },
+        6: { cellWidth: 35 },
+        7: { cellWidth: 24, halign: 'center' }
+      },
+      margin: { left: 10, right: 10 },
+      didDrawPage: (data) => {
+        // Add watermark
+        addWatermarkToPage(doc, watermarkDataUrl || null);
+        
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+        
+        // Add stamp at bottom right
+        addStampToPage(doc, stampDataUrl || null);
+      }
+    });
+  });
+
+  doc.save('registrations-by-status.pdf');
 };

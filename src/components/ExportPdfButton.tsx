@@ -7,9 +7,11 @@ type Props = {
   columns: string[];
   filename?: string;
   className?: string;
+  watermarkDataUrl?: string | null;
+  stampDataUrl?: string | null;
 };
 
-export const ExportPdfButton: React.FC<Props> = ({ rows, columns, filename = 'export.pdf', className }) => {
+export const ExportPdfButton: React.FC<Props> = ({ rows, columns, filename = 'export.pdf', className, watermarkDataUrl, stampDataUrl }) => {
   const [loading, setLoading] = React.useState(false);
 
   const handleExport = async () => {
@@ -29,7 +31,7 @@ export const ExportPdfButton: React.FC<Props> = ({ rows, columns, filename = 'ex
       }
       if (validated.length !== columns.length) console.warn('ExportPdfButton: some requested columns were ignored', columns.filter(c => !isRegistrationColumnKey(c)));
 
-  await exportPdf(rows, validated, { baseFileName: filename });
+  await exportPdf(rows, validated, { baseFileName: filename, watermarkDataUrl, stampDataUrl });
     } catch (err) {
       console.error('PDF export failed', err);
       // Keep UI simple for now; the app has a Toast/Alert system if needed.

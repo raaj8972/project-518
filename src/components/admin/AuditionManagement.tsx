@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText } from 'lucide-react';
+import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText, Upload } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { exportAuditionsToExcel } from '../../utils/excelExport';
-import { exportAuditionsToPDF, exportAuditionsByStatus } from '../../utils/pdfExport';
+import { exportAuditionsToPDF, exportAuditionsByStatus, preloadWatermark } from '../../utils/pdfExport';
+import { supabase } from '../../lib/supabase';
 // import type { Audition } from '../../context/DataContext';
 
 export const AuditionManagement: React.FC = () => {
@@ -11,6 +12,146 @@ export const AuditionManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAudition, setExpandedAudition] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  
+  // Watermark & Stamp State
+  const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
+  const [watermarkDataUrl, setWatermarkDataUrl] = useState<string | null>(null);
+  const [uploadingWatermark, setUploadingWatermark] = useState(false);
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
+  const [uploadingStamp, setUploadingStamp] = useState(false);
+
+  // Load saved watermark and stamp on component mount
+  React.useEffect(() => {
+    const loadAssets = async () => {
+      // Load Watermark
+      const { data: wmList } = await supabase.storage.from('pdf-watermarks').list();
+      const wmFile = wmList?.find(f => f.name === 'watermark.png' || f.name === 'watermark.svg');
+      if (wmFile) {
+        const { data } = supabase.storage.from('pdf-watermarks').getPublicUrl(wmFile.name);
+        // Add timestamp to bypass cache
+        const publicUrl = `${data.publicUrl}?t=${new Date().getTime()}`;
+        setWatermarkUrl(publicUrl);
+        const dataUrl = await preloadWatermark(publicUrl);
+        setWatermarkDataUrl(dataUrl);
+      }
+
+      // Load Stamp
+      const { data: stList } = await supabase.storage.from('pdf-watermarks').list();
+      const stFile = stList?.find(f => f.name === 'stamp.png' || f.name === 'stamp.svg');
+      if (stFile) {
+        const { data } = supabase.storage.from('pdf-watermarks').getPublicUrl(stFile.name);
+        const publicUrl = `${data.publicUrl}?t=${new Date().getTime()}`;
+        setStampUrl(publicUrl);
+        const dataUrl = await preloadWatermark(publicUrl); // Reusing preloadWatermark for stamp
+        setStampDataUrl(dataUrl);
+      }
+    };
+    loadAssets();
+  }, []);
+
+  const handleWatermarkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      const file = event.target.files[0];
+      if (!file.type.includes('image/png') && !file.type.includes('image/svg')) {
+        alert('Please upload a PNG or SVG file.');
+        return;
+      }
+      
+      setUploadingWatermark(true);
+      
+      // Determine file extension
+      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const fileName = `watermark.${fileExt}`;
+      
+      // Delete existing files first to avoid confusion
+      await supabase.storage.from('pdf-watermarks').remove(['watermark.png', 'watermark.svg']);
+
+      const { data, error } = await supabase.storage
+        .from('pdf-watermarks')
+        .upload(fileName, file, { cacheControl: '0', upsert: true });
+
+      if (error) throw error;
+
+      const { data: publicData } = supabase.storage.from('pdf-watermarks').getPublicUrl(fileName);
+      const publicUrl = `${publicData.publicUrl}?t=${new Date().getTime()}`;
+      setWatermarkUrl(publicUrl);
+      const dataUrl = await preloadWatermark(publicUrl);
+      setWatermarkDataUrl(dataUrl);
+    } catch (error) {
+      console.error('Error uploading watermark:', error);
+      alert('Failed to upload watermark.');
+    } finally {
+      setUploadingWatermark(false);
+    }
+  };
+
+  const handleWatermarkDelete = async () => {
+    if (!confirm('Are you sure you want to remove the PDF watermark?')) return;
+    try {
+      setUploadingWatermark(true);
+      await supabase.storage.from('pdf-watermarks').remove(['watermark.png', 'watermark.svg']);
+      setWatermarkUrl(null);
+      setWatermarkDataUrl(null);
+    } catch (error) {
+      console.error('Error deleting watermark:', error);
+    } finally {
+      setUploadingWatermark(false);
+    }
+  };
+
+  const handleStampUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      const file = event.target.files[0];
+      if (!file.type.includes('image/png') && !file.type.includes('image/svg')) {
+        alert('Please upload a PNG or SVG file.');
+        return;
+      }
+      
+      setUploadingStamp(true);
+      
+      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const fileName = `stamp.${fileExt}`;
+      
+      // Delete existing files first
+      await supabase.storage.from('pdf-watermarks').remove(['stamp.png', 'stamp.svg']);
+
+      const { error } = await supabase.storage
+        .from('pdf-watermarks')
+        .upload(fileName, file, { cacheControl: '0', upsert: true });
+
+      if (error) throw error;
+
+      const { data: publicData } = supabase.storage.from('pdf-watermarks').getPublicUrl(fileName);
+      const publicUrl = `${publicData.publicUrl}?t=${new Date().getTime()}`;
+      setStampUrl(publicUrl);
+      const dataUrl = await preloadWatermark(publicUrl);
+      setStampDataUrl(dataUrl);
+    } catch (error) {
+      console.error('Error uploading stamp:', error);
+      alert('Failed to upload stamp.');
+    } finally {
+      setUploadingStamp(false);
+    }
+  };
+
+  const handleStampDelete = async () => {
+    if (!confirm('Are you sure you want to remove the stamp?')) return;
+    try {
+      setUploadingStamp(true);
+      await supabase.storage.from('pdf-watermarks').remove(['stamp.png', 'stamp.svg']);
+      setStampUrl(null);
+      setStampDataUrl(null);
+    } catch (error) {
+      console.error('Error deleting stamp:', error);
+    } finally {
+      setUploadingStamp(false);
+    }
+  };
 
   // Filter auditions based on selected filters
   const filteredAuditions = auditions.filter(audition => {
@@ -102,14 +243,16 @@ export const AuditionManagement: React.FC = () => {
       action: () => exportAuditionsToPDF(filteredAuditions, {
         filename: 'auditions-report.pdf',
         title: 'Audition Applications Report',
-        includeDetails: true
+        includeDetails: true,
+        watermarkDataUrl,
+        stampDataUrl
       }),
       color: 'bg-red-600 hover:bg-red-500'
     },
     {
       label: 'PDF by Status',
       icon: FileText,
-      action: () => exportAuditionsByStatus(filteredAuditions),
+      action: () => exportAuditionsByStatus(filteredAuditions, watermarkDataUrl, stampDataUrl),
       color: 'bg-purple-600 hover:bg-purple-500'
     }
   ];
@@ -136,6 +279,110 @@ export const AuditionManagement: React.FC = () => {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      {/* Watermark and Stamp Tools */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* PDF Watermark Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <FileText className="mr-2 text-blue-600" size={20} />
+            PDF Watermark
+          </h3>
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0 w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative">
+              {watermarkUrl ? (
+                <img src={watermarkUrl} alt="Watermark" className="w-full h-full object-contain opacity-50" />
+              ) : (
+                <span className="text-xs text-gray-400 text-center px-1">No Watermark</span>
+              )}
+              {uploadingWatermark && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-3">
+              <p className="text-sm text-gray-600">
+                Upload a PNG or SVG to use as a watermark on all PDF exports. 
+                Ideally transparent and light.
+              </p>
+              <div className="flex space-x-2">
+                <label className={`flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md cursor-pointer hover:bg-blue-500 transition-colors ${uploadingWatermark ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload size={14} className="mr-1.5" />
+                  Upload Watermark
+                  <input 
+                    type="file" 
+                    accept="image/png,image/svg+xml" 
+                    className="hidden" 
+                    onChange={handleWatermarkUpload}
+                    disabled={uploadingWatermark}
+                  />
+                </label>
+                {watermarkUrl && (
+                  <button 
+                    onClick={handleWatermarkDelete}
+                    disabled={uploadingWatermark}
+                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Digital Stamp Section */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <CheckCircle className="mr-2 text-amber-600" size={20} />
+            Digital Stamp
+          </h3>
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0 w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative">
+              {stampUrl ? (
+                <img src={stampUrl} alt="Stamp" className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-xs text-gray-400 text-center px-1">No Stamp</span>
+              )}
+              {uploadingStamp && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-3">
+              <p className="text-sm text-gray-600">
+                Upload an official stamp (PNG/SVG) to appear at the bottom right of PDF pages.
+              </p>
+              <div className="flex space-x-2">
+                <label className={`flex items-center px-3 py-1.5 bg-amber-600 text-white text-sm rounded-md cursor-pointer hover:bg-amber-500 transition-colors ${uploadingStamp ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload size={14} className="mr-1.5" />
+                  Upload Stamp
+                  <input 
+                    type="file" 
+                    accept="image/png,image/svg+xml" 
+                    className="hidden" 
+                    onChange={handleStampUpload}
+                    disabled={uploadingStamp}
+                  />
+                </label>
+                {stampUrl && (
+                  <button 
+                    onClick={handleStampDelete}
+                    disabled={uploadingStamp}
+                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

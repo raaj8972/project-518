@@ -137,6 +137,8 @@ export interface PdfExportOptions {
   landscape?: boolean;
   fontSize?: number;
   photoThumbSize?: number; // px size of photo thumb inside cell
+  watermarkDataUrl?: string | null; // optional watermark image data URL
+  stampDataUrl?: string | null; // optional stamp image data URL
 }
 
 export const exportPdf = async (rows: Registration[], columns: RegistrationColumnKey[], opts: PdfExportOptions = {}) => {
@@ -433,6 +435,34 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
         try { (doc as any).addImage(img.dataUrl, img.format, x, y, w, h); } catch { /* ignore draw errors */ }
       },
       didDrawPage: () => {
+        // Add watermark if provided
+        if (opts.watermarkDataUrl) {
+          try {
+            const pW = (doc as any).internal.pageSize.getWidth();
+            const pH = (doc as any).internal.pageSize.getHeight();
+            const wmW = pW * 0.6;
+            const wmH = pH * 0.6;
+            const x = (pW - wmW) / 2;
+            const y = (pH - wmH) / 2;
+            doc.saveGraphicsState();
+            const gState = new (doc as any).GState({ opacity: 0.12 });
+            doc.setGState(gState);
+            doc.addImage(opts.watermarkDataUrl, 'PNG', x, y, wmW, wmH);
+            doc.restoreGraphicsState();
+          } catch (e) { console.error('Watermark failed:', e); }
+        }
+        // Add stamp at right edge, vertically centered (not overlapping table)
+        if (opts.stampDataUrl) {
+          try {
+            const pW = (doc as any).internal.pageSize.getWidth();
+            const pH = (doc as any).internal.pageSize.getHeight();
+            const stampSize = 60;
+            const marginRight = -15; // Shifted further right
+            const x = pW - stampSize - marginRight;
+            const y = (pH - stampSize) / 2; // Vertically centered
+            doc.addImage(opts.stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+          } catch (e) { console.error('Stamp failed:', e); }
+        }
         doc.setFontSize(9);
         doc.text(`${base} • Rows: ${sliceBody.length} • Generated: ${new Date().toLocaleString()}${total>1?` • Part ${index+1}/${total}`:''}`, 14, 8);
       }

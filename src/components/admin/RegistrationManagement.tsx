@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban, RefreshCw, FileText } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { supabase } from '../../lib/supabase';
-import { exportRegistrationsToExcel, exportRegistrationsByEvent, exportRegistrationsByStatus } from '../../utils/excelExport';
+import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, RegistrationColumnKey } from '../../utils/reportExport';
+import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark } from '../../utils/pdfExport';
 import ExportPdfButton from '../../components/ExportPdfButton';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
 
@@ -62,6 +63,16 @@ export const RegistrationManagement: React.FC = () => {
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
 
+  // Watermark state
+  const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
+  const [watermarkDataUrl, setWatermarkDataUrl] = useState<string | null>(null);
+  const [uploadingWatermark, setUploadingWatermark] = useState(false);
+
+  // Stamp state (bottom corner image)
+  const [stampUrl, setStampUrl] = useState<string | null>(null);
+  const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
+  const [uploadingStamp, setUploadingStamp] = useState(false);
+
   // Map registration.id -> preview URL (signed if bucket is private)
   const [photoPreviewMap, setPhotoPreviewMap] = useState<Record<string, string>>({});
 
@@ -112,6 +123,179 @@ export const RegistrationManagement: React.FC = () => {
     })();
     return () => { cancelled = true; };
   }, [rowsNeedingPreview]);
+
+  // Load existing watermark from Supabase storage on mount
+  useEffect(() => {
+    const loadWatermark = async () => {
+      try {
+        const { data } = await supabase.storage
+          .from('pdf-watermarks')
+          .getPublicUrl('watermark.png');
+        
+        if (data?.publicUrl) {
+          // Check if file actually exists by fetching it
+          const response = await fetch(data.publicUrl, { method: 'HEAD' });
+          if (response.ok) {
+            setWatermarkUrl(data.publicUrl);
+            const dataUrl = await preloadWatermark(data.publicUrl);
+            setWatermarkDataUrl(dataUrl);
+          }
+        }
+      } catch (error) {
+        console.log('No existing watermark found');
+      }
+    };
+    loadWatermark();
+  }, []);
+
+  // Handle watermark upload to Supabase
+  const handleWatermarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.includes('png') && !file.type.includes('svg')) {
+      push({ message: 'Please upload a PNG or SVG file for the watermark.', type: 'error' });
+      return;
+    }
+    
+    try {
+      setUploadingWatermark(true);
+      
+      // Get file extension
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const fileName = `watermark.${ext}`;
+      
+      // Upload to Supabase storage (replace existing)
+      const { error } = await supabase.storage
+        .from('pdf-watermarks')
+        .upload(fileName, file, { 
+          cacheControl: '0',
+          upsert: true 
+        });
+      
+      if (error) throw error;
+      
+      // Get public URL
+      const { data } = await supabase.storage
+        .from('pdf-watermarks')
+        .getPublicUrl(fileName);
+      
+      if (data?.publicUrl) {
+        // Add cache buster
+        const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
+        setWatermarkUrl(urlWithCacheBuster);
+        const dataUrl = await preloadWatermark(urlWithCacheBuster);
+        setWatermarkDataUrl(dataUrl);
+        push({ message: 'Watermark uploaded successfully!', type: 'success' });
+      }
+    } catch (error) {
+      console.error('Watermark upload failed:', error);
+      push({ message: 'Failed to upload watermark.', type: 'error' });
+    } finally {
+      setUploadingWatermark(false);
+    }
+  };
+
+  // Delete watermark from Supabase
+  const handleWatermarkDelete = async () => {
+    try {
+      await supabase.storage
+        .from('pdf-watermarks')
+        .remove(['watermark.png', 'watermark.svg']);
+      
+      setWatermarkUrl(null);
+      setWatermarkDataUrl(null);
+      push({ message: 'Watermark removed.', type: 'success' });
+    } catch (error) {
+      console.error('Failed to delete watermark:', error);
+    }
+  };
+
+  // Load existing stamp from Supabase storage on mount
+  useEffect(() => {
+    const loadStamp = async () => {
+      try {
+        // Try PNG first, then SVG
+        for (const ext of ['png', 'svg']) {
+          const { data } = await supabase.storage
+            .from('pdf-watermarks')
+            .getPublicUrl(`stamp.${ext}`);
+          
+          if (data?.publicUrl) {
+            const response = await fetch(data.publicUrl, { method: 'HEAD' });
+            if (response.ok) {
+              setStampUrl(data.publicUrl);
+              const dataUrl = await preloadWatermark(data.publicUrl);
+              setStampDataUrl(dataUrl);
+              break;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('No existing stamp found');
+      }
+    };
+    loadStamp();
+  }, []);
+
+  // Handle stamp upload to Supabase
+  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.includes('png') && !file.type.includes('svg')) {
+      push({ message: 'Please upload a PNG or SVG file for the stamp.', type: 'error' });
+      return;
+    }
+    
+    try {
+      setUploadingStamp(true);
+      
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const fileName = `stamp.${ext}`;
+      
+      const { error } = await supabase.storage
+        .from('pdf-watermarks')
+        .upload(fileName, file, { 
+          cacheControl: '0',
+          upsert: true 
+        });
+      
+      if (error) throw error;
+      
+      const { data } = await supabase.storage
+        .from('pdf-watermarks')
+        .getPublicUrl(fileName);
+      
+      if (data?.publicUrl) {
+        const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
+        setStampUrl(urlWithCacheBuster);
+        const dataUrl = await preloadWatermark(urlWithCacheBuster);
+        setStampDataUrl(dataUrl);
+        push({ message: 'Stamp uploaded successfully!', type: 'success' });
+      }
+    } catch (error) {
+      console.error('Stamp upload failed:', error);
+      push({ message: 'Failed to upload stamp.', type: 'error' });
+    } finally {
+      setUploadingStamp(false);
+    }
+  };
+
+  // Delete stamp from Supabase
+  const handleStampDelete = async () => {
+    try {
+      await supabase.storage
+        .from('pdf-watermarks')
+        .remove(['stamp.png', 'stamp.svg']);
+      
+      setStampUrl(null);
+      setStampDataUrl(null);
+      push({ message: 'Stamp removed.', type: 'success' });
+    } catch (error) {
+      console.error('Failed to delete stamp:', error);
+    }
+  };
 
   // Filter registrations based on selected filters
   const filteredRegistrations = registrations.filter(registration => {
@@ -284,14 +468,6 @@ export const RegistrationManagement: React.FC = () => {
     {
       label: 'Export All Registrations',
       action: () => exportRegistrationsToExcel(filteredRegistrations, 'all-registrations.xlsx')
-    },
-    {
-      label: 'Export by Event',
-      action: () => exportRegistrationsByEvent(filteredRegistrations)
-    },
-    {
-      label: 'Export by Status',
-      action: () => exportRegistrationsByStatus(filteredRegistrations)
     }
   ];
 
@@ -399,129 +575,234 @@ export const RegistrationManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Registration Management</h2>
-          <p className="text-gray-600">Manage event registrations and participant data</p>
-        </div>
-        <div className="flex items-center space-x-2 flex-wrap justify-end">
-          {/* PDF exclude toggle */}
-          <label className="flex items-center space-x-2 text-sm text-gray-700 mr-2">
-            <input
-              type="checkbox"
-              checked={pdfExcludeIdCollege}
-              onChange={(e)=>setPdfExcludeIdCollege(e.target.checked)}
-            />
-            <span>PDF: exclude ID & College</span>
-          </label>
-          <label className="flex items-center space-x-2 text-sm text-gray-700 mr-2">
-            <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
-            <span>Select all (visible)</span>
-          </label>
-          <button
-            onClick={() => setShowColumnModal(true)}
-            className="flex items-center bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-            title="Choose export columns & presets"
-          >
-            <Filter size={16} className="mr-2" /> Columns
-          </button>
-          <button
-            onClick={doBulkDelete}
-            disabled={bulkDeleting || selectedIds.size === 0}
-            className={`flex items-center bg-red-700 text-white px-4 py-2 rounded-lg transition-colors ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
-            title="Delete selected registrations"
-          >
-            {bulkDeleting ? (
-              <>
+      <div className="space-y-4">
+        {/* Title Row */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Registration Management</h2>
+            <p className="text-gray-600">Manage event registrations and participant data</p>
+          </div>
+          
+          {/* Quick Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleBulkApprove}
+              disabled={bulkSaving}
+              className={`flex items-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors text-sm ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
+              title="Approve all pending registrations"
+            >
+              {bulkSaving ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Deleting…
+              ) : <FileCheck size={16} className="mr-1" />}
+              Bulk Approve
+            </button>
+            <button
+              onClick={handleBulkReject}
+              disabled={bulkRejecting}
+              className={`flex items-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors text-sm ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
+              title="Reject all pending registrations"
+            >
+              {bulkRejecting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              ) : <Ban size={16} className="mr-1" />}
+              Bulk Reject
+            </button>
+            <button
+              onClick={doBulkDelete}
+              disabled={bulkDeleting || selectedIds.size === 0}
+              className={`flex items-center bg-red-700 text-white px-3 py-2 rounded-lg transition-colors text-sm ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
+              title="Delete selected registrations"
+            >
+              {bulkDeleting ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+              ) : <Trash2 size={16} className="mr-1" />}
+              Delete Selected
+            </button>
+          </div>
+        </div>
+
+        {/* Export & Tools Row */}
+        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+          {/* Watermark Upload Section */}
+          <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-gray-200">
+            <span className="text-sm font-medium text-gray-600">PDF Watermark:</span>
+            {watermarkUrl ? (
+              <>
+                <img 
+                  src={watermarkUrl} 
+                  alt="Watermark preview" 
+                  className="h-8 w-auto opacity-50 border border-gray-300 rounded"
+                />
+                <span className="text-xs text-green-600 font-medium">Active</span>
+                <button
+                  onClick={handleWatermarkDelete}
+                  className="text-xs text-red-600 hover:text-red-700 underline"
+                >
+                  Remove
+                </button>
               </>
             ) : (
-              <>
-                <Trash2 size={16} className="mr-2" /> Delete Selected
-              </>
+              <span className="text-xs text-gray-500">No watermark set</span>
             )}
-          </button>
-          <button
-            onClick={handleBulkApprove}
-            disabled={bulkSaving}
-            className={`flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
-            title="Approve all pending registrations (respecting current filters)"
-          >
-            {bulkSaving ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            ) : <FileCheck size={16} className="mr-2" />}
-            Bulk Approve
-          </button>
-          <button
-            onClick={handleBulkReject}
-            disabled={bulkRejecting}
-            className={`flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-500 transition-colors ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
-            title="Reject all pending registrations (respecting current filters)"
-          >
-            {bulkRejecting ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            ) : <Ban size={16} className="mr-2" />}
-            Bulk Reject
-          </button>
-          <ExportPdfButton
-            rows={filteredRegistrations}
-            columns={pdfColumns}
-            filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
-            className={`flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg transition-colors ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-purple-500'}`}
-          />
-          <button
-            onClick={doExcel}
-            disabled={exportingGeneric}
-            className={`flex items-center bg-emerald-600 text-white px-4 py-2 rounded-lg transition-colors ${exportingGeneric ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-500'}`}
-          >
-            {exportingGeneric ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> : <Download size={16} className="mr-2" />}
-            Excel (Custom)
-          </button>
-          <button
-            onClick={doCsv}
-            disabled={exportingGeneric}
-            className={`flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg transition-colors ${exportingGeneric ? 'opacity-60 cursor-not-allowed' : 'hover:bg-indigo-500'}`}
-          >
-            {exportingGeneric ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" /> : <Download size={16} className="mr-2" />}
-            CSV
-          </button>
-          {/* Institution visibility controls (owner-managed) */}
-          <div className="ml-4 flex items-center space-x-3">
-            <label className="flex items-center space-x-2 text-sm text-gray-700">
-              <input type="checkbox" checked={registrationInstitutionVisible} onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)} />
-              <span>Show Institution field</span>
+            <label className={`flex items-center bg-gray-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-500 transition-colors ${uploadingWatermark ? 'opacity-60 cursor-wait' : ''}`}>
+              {uploadingWatermark ? 'Uploading...' : 'Upload PNG/SVG'}
+              <input
+                type="file"
+                accept="image/png,image/svg+xml"
+                onChange={handleWatermarkUpload}
+                className="hidden"
+                disabled={uploadingWatermark}
+              />
             </label>
-            <label className="flex items-center space-x-2 text-sm text-gray-700">
-              <input type="checkbox" checked={registrationInstitutionOptional} onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)} disabled={!registrationInstitutionVisible} />
-              <span>Optional</span>
+
+            <span className="text-gray-300 mx-2">|</span>
+
+            {/* Stamp Upload Section */}
+            <span className="text-sm font-medium text-gray-600">Stamp:</span>
+            {stampUrl ? (
+              <>
+                <img 
+                  src={stampUrl} 
+                  alt="Stamp preview" 
+                  className="h-8 w-auto border border-gray-300 rounded"
+                />
+                <span className="text-xs text-green-600 font-medium">Active</span>
+                <button
+                  onClick={handleStampDelete}
+                  className="text-xs text-red-600 hover:text-red-700 underline"
+                >
+                  Remove
+                </button>
+              </>
+            ) : (
+              <span className="text-xs text-gray-500">No stamp set</span>
+            )}
+            <label className={`flex items-center bg-amber-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-amber-500 transition-colors ${uploadingStamp ? 'opacity-60 cursor-wait' : ''}`}>
+              {uploadingStamp ? 'Uploading...' : 'Upload Stamp'}
+              <input
+                type="file"
+                accept="image/png,image/svg+xml"
+                onChange={handleStampUpload}
+                className="hidden"
+                disabled={uploadingStamp}
+              />
             </label>
-            <button className={`px-3 py-1 rounded bg-yellow-600 text-white text-sm ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} disabled={savingRegSettings}
-              onClick={async () => {
-                try {
-                  setSavingRegSettings(true);
-                  await updateSiteSettings({ registration_institution_visible: registrationInstitutionVisible, registration_institution_optional: registrationInstitutionOptional } as any);
-                } catch (e) { console.error(e); } finally { setSavingRegSettings(false); }
-              }}
-            >Save</button>
           </div>
-          {exportOptions.map((option, index) => (
+          
+          {/* PDF Exports */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 mr-2">PDF Export:</span>
+            <ExportPdfButton
+              rows={filteredRegistrations}
+              columns={pdfColumns}
+              filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
+              className={`flex items-center bg-slate-600 text-white px-3 py-1.5 rounded-lg transition-colors text-sm ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-slate-500'}`}
+              watermarkDataUrl={watermarkDataUrl}
+              stampDataUrl={stampDataUrl}
+            />
             <button
-              key={index}
-              onClick={option.action}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-500 transition-colors flex items-center"
+              onClick={() => exportRegistrationsToPDF(filteredRegistrations, {
+                filename: `registrations-report-${new Date().toISOString().slice(0,10)}.pdf`,
+                title: 'Event Registrations Report',
+                watermarkDataUrl,
+                stampDataUrl
+              })}
+              className="flex items-center bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-500 transition-colors text-sm"
+              title="Export detailed PDF with team information"
             >
-              <Download size={16} className="mr-2" />
-              {option.label}
+              <FileText size={14} className="mr-1" />
+              Detailed
             </button>
-          ))}
-          <button
-            onClick={handleResetSequence}
-            className="flex items-center bg-orange-700 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-            title="Reset Registration ID sequence to 1 (Use only after deleting all registrations)"
-          >
-            <RefreshCw size={16} className="mr-2" /> Reset IDs
-          </button>
+            <button
+              onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+              className="flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-500 transition-colors text-sm"
+              title="Export PDF grouped by event"
+            >
+              <FileText size={14} className="mr-1" />
+              By Event
+            </button>
+            <button
+              onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+              className="flex items-center bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-500 transition-colors text-sm"
+              title="Export PDF grouped by status"
+            >
+              <FileText size={14} className="mr-1" />
+              By Status
+            </button>
+            
+            <span className="text-gray-300 mx-2">|</span>
+            
+            <span className="text-sm font-medium text-gray-600 mr-2">Excel:</span>
+            {exportOptions.map((option, index) => (
+              <button
+                key={index}
+                onClick={option.action}
+                className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-500 transition-colors flex items-center text-sm"
+              >
+                <Download size={14} className="mr-1" />
+                Export All
+              </button>
+            ))}
+          </div>
+
+          {/* Settings Row */}
+          <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
+            <button
+              onClick={() => setShowColumnModal(true)}
+              className="flex items-center bg-gray-700 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+              title="Choose export columns & presets"
+            >
+              <Filter size={14} className="mr-1" /> Columns
+            </button>
+            
+            <label className="flex items-center space-x-1.5 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={pdfExcludeIdCollege}
+                onChange={(e)=>setPdfExcludeIdCollege(e.target.checked)}
+                className="rounded"
+              />
+              <span>PDF: exclude ID & College</span>
+            </label>
+            
+            <label className="flex items-center space-x-1.5 text-sm text-gray-700">
+              <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="rounded" />
+              <span>Select all visible</span>
+            </label>
+
+            <span className="text-gray-300">|</span>
+
+            <div className="flex items-center gap-2">
+              <label className="flex items-center space-x-1.5 text-sm text-gray-700">
+                <input type="checkbox" checked={registrationInstitutionVisible} onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)} className="rounded" />
+                <span>Show Institution</span>
+              </label>
+              <label className="flex items-center space-x-1.5 text-sm text-gray-700">
+                <input type="checkbox" checked={registrationInstitutionOptional} onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)} disabled={!registrationInstitutionVisible} className="rounded" />
+                <span>Optional</span>
+              </label>
+              <button 
+                className={`px-2 py-1 rounded bg-yellow-600 text-white text-xs ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} 
+                disabled={savingRegSettings}
+                onClick={async () => {
+                  try {
+                    setSavingRegSettings(true);
+                    await updateSiteSettings({ registration_institution_visible: registrationInstitutionVisible, registration_institution_optional: registrationInstitutionOptional } as any);
+                  } catch (e) { console.error(e); } finally { setSavingRegSettings(false); }
+                }}
+              >Save</button>
+            </div>
+
+            <span className="text-gray-300">|</span>
+
+            <button
+              onClick={handleResetSequence}
+              className="flex items-center bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-500 transition-colors text-sm"
+              title="Reset Registration ID sequence to 1"
+            >
+              <RefreshCw size={14} className="mr-1" /> Reset IDs
+            </button>
+          </div>
         </div>
       </div>
 
