@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText, Upload } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText, Upload, RotateCcw } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { exportAuditionsToExcel } from '../../utils/excelExport';
 import { exportAuditionsToPDF, exportAuditionsByStatus, preloadWatermark } from '../../utils/pdfExport';
@@ -7,7 +8,14 @@ import { supabase } from '../../lib/supabase';
 // import type { Audition } from '../../context/DataContext';
 
 export const AuditionManagement: React.FC = () => {
-  const { auditions, updateAuditionStatus, deleteAudition } = useData();
+  const { auditions, updateAuditionStatus, deleteAudition, adminUsers } = useData();
+  const { user } = useAuth();
+
+  const isOwner = useMemo(() => {
+    const admin = adminUsers?.find(u => u.user_id === user?.id);
+    return admin?.role === 'owner' || admin?.is_primary;
+  }, [adminUsers, user]);
+
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAudition, setExpandedAudition] = useState<string | null>(null);
@@ -577,6 +585,15 @@ export const AuditionManagement: React.FC = () => {
                             <Trash2 size={16} />
                           )}
                         </button>
+                        {audition.status !== 'pending' && isOwner && (
+                          <button
+                            onClick={() => handleStatusUpdate(audition.id, 'pending')}
+                            className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100 transition-colors"
+                            title="Undo (Revert to Pending)"
+                          >
+                            <RotateCcw size={16} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

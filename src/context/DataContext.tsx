@@ -11,7 +11,7 @@ export type GalleryImage = Database['public']['Tables']['gallery_images']['Row']
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
 export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[] };
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
-export type Registration = Database['public']['Tables']['registrations']['Row'];
+export type Registration = Database['public']['Tables']['registrations']['Row'] & { deleted_at?: string | null };
 export type SponsorshipSettings = Database['public']['Tables']['sponsorship_settings']['Row'] & { contactSections: ContactSection[] };
 export type ContactSection = Database['public']['Tables']['contact_sections']['Row'];
 export type EventCategory = Database['public']['Tables']['event_categories']['Row'];
@@ -80,6 +80,7 @@ interface DataContextType {
   sponsors: Sponsor[];  
   schedule: ScheduleDay[];
   registrations: Registration[];
+  deletedRegistrations: Registration[];
   sponsorshipSettings: SponsorshipSettings | null;
   eventCategories: EventCategory[];
   facultyHeads: FacultyHead[];
@@ -160,11 +161,15 @@ interface DataContextType {
   updateScheduleEvent: (id: number, event: Partial<ScheduleEvent>) => Promise<void>;
   deleteScheduleEvent: (id: number) => Promise<void>;
   addRegistration: (registration: Partial<Registration>) => Promise<void>;
-  updateRegistrationStatus: (id: string, status: 'approved' | 'rejected') => Promise<void>;
+  updateRegistrationStatus: (id: string, status: 'approved' | 'rejected' | 'pending') => Promise<void>;
   bulkApproveRegistrations?: (ids: string[]) => Promise<void>;
   bulkRejectRegistrations?: (ids: string[]) => Promise<void>;
   bulkDeleteRegistrations?: (ids: string[]) => Promise<void>;
   deleteRegistration: (id: string) => Promise<void>;
+  restoreRegistration: (id: string) => Promise<void>;
+  permanentDeleteRegistration: (id: string) => Promise<void>;
+  bulkRestoreRegistrations: (ids: string[]) => Promise<void>;
+  bulkPermanentDeleteRegistrations: (ids: string[]) => Promise<void>;
   resetRegistrationIdSequence?: () => Promise<void>;
   updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
@@ -302,6 +307,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [deletedRegistrations, setDeletedRegistrations] = useState<Registration[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
   const [eventCategories, setEventCategories] = useState<EventCategory[]>([]);
   const [eventWinners, setEventWinners] = useState<Array<{
@@ -1309,7 +1315,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }));
         // Sort by date desc
         decryptedRegistrations.sort((a: any, b: any) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime());
-        setRegistrations(decryptedRegistrations as Registration[]);
+        const allRegistrations = decryptedRegistrations as Registration[];
+        setRegistrations(allRegistrations.filter(r => !r.deleted_at));
+        setDeletedRegistrations(allRegistrations.filter(r => r.deleted_at));
       }
       const currentRegistrations = registrationsRes.data || []; // Capture for dependency (using raw data for winners mapping if needed, or decrypted? Winners mapping uses ID, so raw is fine, but if it needs names, decrypted is better. Let's use decrypted if available, but here we are in the else block. Let's define it outside.)
 
@@ -3414,7 +3422,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     fetchData(true).catch((e) => console.warn('[Data] background refresh after registration failed', e));
   };
 
-  const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected') => {
+  const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
     const { error } = await supabase.from('registrations').update({ status }).eq('id', id);
     if (error) throw error;
     await fetchData(true);
@@ -3444,6 +3452,19 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   const deleteRegistration = async (id: string) => {
+    // Soft delete: set deleted_at to NOW()
+    const { error } = await supabase.from('registrations').update({ deleted_at: new Date().toISOString() }).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const restoreRegistration = async (id: string) => {
+    const { error } = await supabase.from('registrations').update({ deleted_at: null }).eq('id', id);
+    if (error) throw error;
+    await fetchData(true);
+  };
+
+  const permanentDeleteRegistration = async (id: string) => {
     const { error, data: deletedReg } = await supabase.from('registrations').delete().eq('id', id).select('*').single();
     if (error) throw error;
     // Best-effort: free storage if photo exists
@@ -3458,12 +3479,18 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     await fetchData(true);
   };
 
-  const resetRegistrationIdSequence = async () => {
-    const { error } = await supabase.rpc('reset_registration_id_sequence');
-    if (error) throw error;
+  const bulkRestoreRegistrations = async (ids: string[]) => {
+    if (!ids.length) return;
+    const CHUNK = 100;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from('registrations').update({ deleted_at: null }).in('id', slice);
+      if (error) throw error;
+    }
+    await fetchData(true);
   };
 
-  const bulkDeleteRegistrations = async (ids: string[]) => {
+  const bulkPermanentDeleteRegistrations = async (ids: string[]) => {
     if (!ids?.length) return;
     const CHUNK = 100;
     for (let i = 0; i < ids.length; i += CHUNK) {
@@ -3498,6 +3525,22 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
           await supabase.from('events').update({ current_registrations: newCount }).eq('id', event.id);
         }
       }
+    }
+    await fetchData(true);
+  };
+
+  const resetRegistrationIdSequence = async () => {
+    const { error } = await supabase.rpc('reset_registration_id_sequence');
+    if (error) throw error;
+  };
+
+  const bulkDeleteRegistrations = async (ids: string[]) => {
+    if (!ids.length) return;
+    const CHUNK = 100;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from('registrations').update({ deleted_at: new Date().toISOString() }).in('id', slice);
+      if (error) throw error;
     }
     await fetchData(true);
   };
@@ -4601,6 +4644,11 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   bulkRejectRegistrations,
   bulkDeleteRegistrations,
         deleteRegistration,
+        restoreRegistration,
+        permanentDeleteRegistration,
+        bulkRestoreRegistrations,
+        bulkPermanentDeleteRegistrations,
+        deletedRegistrations,
         resetRegistrationIdSequence,
         updateSponsorshipSettings,
   addContactSection,

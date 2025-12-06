@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Play, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap } from 'lucide-react';
+import { Play, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap, Phone } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
@@ -784,7 +784,7 @@ export const Events: React.FC = () => {
                       })()}
                       <div className="h-full overflow-hidden flex flex-col">
                         <div className="p-6 overflow-y-auto flex-1">
-                          <h3 className="text-xl font-bold text-white mb-3" style={{ transform: 'translateX(16px)' }}>{event.title}</h3>
+                          <h3 className="text-xl font-bold text-white mb-3" style={{ transform: 'translateX(16px)', textShadow: '0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(103, 232, 249, 0.4)' }}>{event.title}</h3>
                           <PreserveNewlines text={event.description} className="text-sm sm:text-base text-gray-300 mb-4" />
                           <div className="space-y-2 mb-4">
                             {(() => {
@@ -845,7 +845,20 @@ export const Events: React.FC = () => {
                                         // Skip if name or phone is a placeholder symbol
                                         if (n === 'Ø' || n === '∅' || n === '—' || n === '-' || p === 'Ø' || p === '∅' || p === '—') return null;
                                         if (!n && !p) return null;
-                                        return <div key={c.id}>{n}{p ? ` · ${p}` : ''}</div>;
+                                        return (
+                                          <div key={c.id} className="flex items-center flex-wrap gap-x-2">
+                                            <span className="text-cyan-300 font-medium" style={{ textShadow: '0 0 8px rgba(103, 232, 249, 0.6)' }}>{n}</span>
+                                            {p && (
+                                              <>
+                                                <span className="text-gray-600">·</span>
+                                                <a href={`tel:${p}`} className="inline-flex items-center gap-1 hover:text-white transition-colors" onClick={(e) => e.stopPropagation()}>
+                                                  <Phone size={12} className="text-green-400" />
+                                                  {p}
+                                                </a>
+                                              </>
+                                            )}
+                                          </div>
+                                        );
                                       })}
                                     </div>
                                   </div>
@@ -860,13 +873,23 @@ export const Events: React.FC = () => {
                               const p = String(pRaw ?? '').trim();
                               if (!n && !p) return null;
                               if ((n === '0' || n === '-' || n === '—' || n === 'Ø' || n === '∅') && !p) return null;
-                              if ((p === '0' || p === '-' || p === '—' || p === 'Ø' || p === '∅') && !n) return null;
                               // Don't show if both are just placeholder values
                               if ((n === '0' || n === '-' || n === '—' || n === 'Ø' || n === '∅') && (p === '0' || p === '-' || p === '—' || p === 'Ø' || p === '∅')) return null;
                               return (
                                 <div className="mt-2 text-sm text-gray-300">
                                   <div className="font-semibold text-gray-200">Coordinator</div>
-                                  <div className="text-gray-400">{(n && n !== '0' && n !== '-' && n !== '—' && n !== 'Ø' && n !== '∅') ? n : ''}{(p && p !== '0' && p !== '-' && p !== '—' && p !== 'Ø' && p !== '∅') ? ` · ${p}` : ''}</div>
+                                  <div className="text-gray-400 flex items-center flex-wrap gap-x-2">
+                                    <span className="text-cyan-300 font-medium" style={{ textShadow: '0 0 8px rgba(103, 232, 249, 0.6)' }}>{(n && n !== '0' && n !== '-' && n !== '—' && n !== 'Ø' && n !== '∅') ? n : ''}</span>
+                                    {(p && p !== '0' && p !== '-' && p !== '—' && p !== 'Ø' && p !== '∅') && (
+                                      <>
+                                        <span className="text-gray-600">·</span>
+                                        <a href={`tel:${p}`} className="inline-flex items-center gap-1 hover:text-white transition-colors" onClick={(e) => e.stopPropagation()}>
+                                          <Phone size={12} className="text-green-400" />
+                                          {p}
+                                        </a>
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               );
                             })()}

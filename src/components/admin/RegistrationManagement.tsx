@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, FileCheck, Ban, RefreshCw, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
+import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
-import { REGISTRATION_COLUMNS, EXPORT_PRESETS, exportCsv, exportExcel, RegistrationColumnKey } from '../../utils/reportExport';
+import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark } from '../../utils/pdfExport';
 import ExportPdfButton from '../../components/ExportPdfButton';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
@@ -23,7 +24,14 @@ const safeTeamMembers = (r: any): any[] => {
 };
 
 export const RegistrationManagement: React.FC = () => {
-  const { registrations, updateRegistrationStatus, deleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings } = useData();
+  const { registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers } = useData();
+  const { user } = useAuth();
+  
+  const isOwner = useMemo(() => {
+    const admin = adminUsers?.find(u => u.user_id === user?.id);
+    return admin?.role === 'owner' || admin?.is_primary;
+  }, [adminUsers, user]);
+
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -31,6 +39,7 @@ export const RegistrationManagement: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
     // Allow other admin panels to pre-fill the search via localStorage key
     const [searchTerm, setSearchTerm] = useState(() => {
       try {
@@ -49,7 +58,6 @@ export const RegistrationManagement: React.FC = () => {
   const [selectedColumns, setSelectedColumns] = useState<RegistrationColumnKey[]>(EXPORT_PRESETS.full);
   const [exportPreset, setExportPreset] = useState<string>('full');
   const [splitThreshold, setSplitThreshold] = useState<number>(0);
-  const [exportingGeneric, setExportingGeneric] = useState<boolean>(false);
   // Institution visibility controls (moved from Site Settings into Registration admin)
   const [registrationInstitutionVisible, setRegistrationInstitutionVisible] = useState<boolean>(true);
   const [registrationInstitutionOptional, setRegistrationInstitutionOptional] = useState<boolean>(false);
@@ -298,7 +306,8 @@ export const RegistrationManagement: React.FC = () => {
   };
 
   // Filter registrations based on selected filters
-  const filteredRegistrations = registrations.filter(registration => {
+  const sourceRegistrations = viewMode === 'trash' ? deletedRegistrations : registrations;
+  const filteredRegistrations = sourceRegistrations.filter(registration => {
     const matchesEvent = selectedEvent === 'all' || registration.event_title === selectedEvent;
     const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
@@ -338,10 +347,27 @@ export const RegistrationManagement: React.FC = () => {
   const doBulkDelete = async () => {
     const ids = filteredRegistrations.map(r => r.id).filter(id => selectedIds.has(id));
     if (!ids.length) { push({ message: 'Select at least one row to delete.', type: 'info' }); return; }
-    if (!confirm(`Delete ${ids.length} registration(s)? This cannot be undone.`)) return;
-    try { setBulkDeleting(true); await (bulkDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Deleted ${ids.length} registrations.`, type: 'success' }); }
-    catch (e) { console.error(e); push({ message: 'Bulk delete failed.', type: 'error' }); }
-    finally { setBulkDeleting(false); }
+    
+    if (viewMode === 'trash') {
+      if (!confirm(`PERMANENTLY DELETE ${ids.length} registration(s)?\n\nThis cannot be undone.`)) return;
+      try { setBulkDeleting(true); await (bulkPermanentDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Permanently deleted ${ids.length} registrations.`, type: 'success' }); }
+      catch (e) { console.error(e); push({ message: 'Bulk permanent delete failed.', type: 'error' }); }
+      finally { setBulkDeleting(false); }
+    } else {
+      if (!confirm(`Move ${ids.length} registration(s) to Trash?`)) return;
+      try { setBulkDeleting(true); await (bulkDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Moved ${ids.length} registrations to Trash.`, type: 'success' }); }
+      catch (e) { console.error(e); push({ message: 'Move to trash failed.', type: 'error' }); }
+      finally { setBulkDeleting(false); }
+    }
+  };
+
+  const doBulkRestore = async () => {
+    const ids = filteredRegistrations.map(r => r.id).filter(id => selectedIds.has(id));
+    if (!ids.length) { push({ message: 'Select at least one row to restore.', type: 'info' }); return; }
+    if (!confirm(`Restore ${ids.length} registration(s)?`)) return;
+    try { setBulkSaving(true); await (bulkRestoreRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Restored ${ids.length} registrations.`, type: 'success' }); }
+    catch (e) { console.error(e); push({ message: 'Bulk restore failed.', type: 'error' }); }
+    finally { setBulkSaving(false); }
   };
 
   // Get unique event titles, categories, and participant types for filter dropdowns
@@ -374,7 +400,7 @@ export const RegistrationManagement: React.FC = () => {
     return counts;
   }, [registrations, selectedEvent]);
 
-  const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected') => {
+  const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected' | 'pending') => {
     try {
       console.log('Updating status for registration:', registrationId, 'to:', newStatus);
       await updateRegistrationStatus(registrationId, newStatus);
@@ -387,44 +413,53 @@ export const RegistrationManagement: React.FC = () => {
 
   const handleDeleteRegistration = async (registrationId: string) => {
     // Prevent multiple delete attempts
-    if (deletingIds.has(registrationId)) {
-      console.log('Delete already in progress for:', registrationId);
-      return;
-    }
+    if (deletingIds.has(registrationId)) return;
 
-    const registration = registrations.find(r => r.id === registrationId);
+    const registration = registrations.concat(deletedRegistrations).find(r => r.id === registrationId);
     if (!registration) {
-      console.error('Registration not found:', registrationId);
       push({ message: 'Registration not found.', type: 'error' });
       return;
     }
 
-    const confirmMessage = `Are you sure you want to delete the registration for "${registration.full_name}" (${registration.event_title})?\n\nThis action cannot be undone.`;
+    const isTrash = viewMode === 'trash';
+    const confirmMessage = isTrash
+      ? `PERMANENTLY DELETE registration for "${registration.full_name}"?\n\nThis cannot be undone.`
+      : `Move registration for "${registration.full_name}" to Trash?`;
     
     if (confirm(confirmMessage)) {
-      // Add to deleting set to prevent duplicate requests
       setDeletingIds(prev => new Set(prev).add(registrationId));
-      
       try {
-        console.log('Starting deletion process for registration:', registrationId);
-        await deleteRegistration(registrationId);
-        console.log('Registration deleted successfully');
-        
-        // Close expanded view if this registration was expanded
-        if (expandedRegistration === registrationId) {
-          setExpandedRegistration(null);
+        if (isTrash) {
+          await permanentDeleteRegistration(registrationId);
+          push({ message: 'Registration permanently deleted.', type: 'success' });
+        } else {
+          await deleteRegistration(registrationId);
+          push({ message: 'Registration moved to Trash.', type: 'success' });
         }
+        if (expandedRegistration === registrationId) setExpandedRegistration(null);
       } catch (error) {
         console.error('Error deleting registration:', error);
-        push({ message: 'Failed to delete registration. Please try again.', type: 'error' });
+        push({ message: 'Failed to delete registration.', type: 'error' });
       } finally {
-        // Remove from deleting set
-        setDeletingIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(registrationId);
-          return newSet;
-        });
+        setDeletingIds(prev => { const n = new Set(prev); n.delete(registrationId); return n; });
       }
+    }
+  };
+
+  const handleRestoreRegistration = async (registrationId: string) => {
+    if (bulkSaving) return;
+    const registration = deletedRegistrations.find(r => r.id === registrationId);
+    if (!confirm(`Restore registration for "${registration?.full_name || 'Unknown'}"?`)) return;
+    
+    try {
+      setBulkSaving(true); 
+      await restoreRegistration(registrationId);
+      push({ message: 'Registration restored.', type: 'success' });
+    } catch (e) {
+      console.error(e);
+      push({ message: 'Restore failed.', type: 'error' });
+    } finally {
+      setBulkSaving(false);
     }
   };
 
@@ -523,17 +558,7 @@ export const RegistrationManagement: React.FC = () => {
     setSelectedColumns(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
   };
 
-  const doCsv = async () => {
-    if (exportingGeneric) return;
-    if (!filteredRegistrations.length) { push({ message: 'No rows.', type: 'info' }); return; }
-    setExportingGeneric(true);
-    try { exportCsv(filteredRegistrations, selectedColumns, `registrations-${Date.now()}.csv`); push({ message: 'CSV downloaded.', type: 'success' }); } catch(e:any){ push({ message: 'CSV export failed: '+e.message, type: 'error'});} finally { setExportingGeneric(false);} }
 
-  const doExcel = async () => {
-    if (exportingGeneric) return;
-    if (!filteredRegistrations.length) { push({ message: 'No rows.', type: 'info' }); return; }
-    setExportingGeneric(true);
-    try { await exportExcel(filteredRegistrations, selectedColumns, `registrations-${Date.now()}.xlsx`); push({ message: 'Excel downloaded.', type: 'success' }); } catch(e:any){ push({ message: 'Excel export failed: '+e.message, type: 'error'});} finally { setExportingGeneric(false);} }
 
   // Compute columns for PDF export:
   // 1. Respect "PDF: exclude ID & College" checkbox
@@ -590,23 +615,47 @@ export const RegistrationManagement: React.FC = () => {
               disabled={bulkSaving}
               className={`flex items-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors text-sm ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
               title="Approve all pending registrations"
+              hidden={viewMode === 'trash'}
             >
-              {bulkSaving ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : <FileCheck size={16} className="mr-1" />}
-              Bulk Approve
+              <CheckCircle size={16} className="mr-2" />
+              Approve All
             </button>
+            
             <button
               onClick={handleBulkReject}
               disabled={bulkRejecting}
               className={`flex items-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors text-sm ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
               title="Reject all pending registrations"
+              hidden={viewMode === 'trash'}
             >
-              {bulkRejecting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : <Ban size={16} className="mr-1" />}
-              Bulk Reject
+              <XCircle size={16} className="mr-2" />
+              Reject All
             </button>
+
+            {/* Trash View Toggle */}
+            <button
+              onClick={() => setViewMode(prev => prev === 'active' ? 'trash' : 'active')}
+              className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
+                viewMode === 'trash'
+                  ? 'bg-gray-800 text-white hover:bg-gray-700'
+                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <Trash2 size={16} className="mr-2" />
+              {viewMode === 'trash' ? 'Back to Active' : `Trash (${deletedRegistrations.length})`}
+            </button>
+
+            {viewMode === 'trash' && (
+              <button
+                onClick={doBulkRestore}
+                disabled={bulkSaving}
+                className="flex items-center bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors text-sm"
+              >
+                <RotateCcw size={16} className="mr-2" />
+                Restore Selected
+              </button>
+            )}
+
             <button
               onClick={doBulkDelete}
               disabled={bulkDeleting || selectedIds.size === 0}
@@ -1042,7 +1091,7 @@ export const RegistrationManagement: React.FC = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                  {viewMode === 'trash' ? 'Deleted On' : 'Date'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -1112,55 +1161,101 @@ export const RegistrationManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(registration.registration_date).toLocaleDateString()}
+                      {viewMode === 'trash' ? (
+                        <div>
+                          <div>{new Date((registration as any).deleted_at).toLocaleDateString()}</div>
+                          <div className="text-xs text-red-500">
+                            {Math.max(0, 7 - Math.floor((Date.now() - new Date((registration as any).deleted_at).getTime()) / (1000 * 60 * 60 * 24)))} days left
+                          </div>
+                        </div>
+                      ) : (
+                        new Date(registration.registration_date).toLocaleDateString()
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
+                      {viewMode === 'active' ? (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setExpandedRegistration(
+                        expandedRegistration === registration.id ? null : registration.id
+                      )}
+                      className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
+                      title="View Details"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    {registration.status === 'pending' && (
+                      <>
                         <button
-                          onClick={() => setExpandedRegistration(
-                            expandedRegistration === registration.id ? null : registration.id
-                          )}
-                          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
-                          title="View Details"
+                          onClick={() => handleStatusUpdate(registration.id, 'approved')}
+                          className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                          title="Approve Registration"
                         >
-                          <Eye size={16} />
+                          <CheckCircle size={16} />
                         </button>
-                        {registration.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleStatusUpdate(registration.id, 'approved')}
-                              className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
-                              title="Approve Registration"
-                            >
-                              <CheckCircle size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleStatusUpdate(registration.id, 'rejected')}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Reject Registration"
-                            >
-                              <XCircle size={16} />
-                            </button>
-                          </>
+                        <button
+                          onClick={() => handleStatusUpdate(registration.id, 'rejected')}
+                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
+                          title="Reject Registration"
+                        >
+                          <XCircle size={16} />
+                        </button>
+                      </>
+                    )}
+                    {registration.status !== 'pending' && isOwner && (
+                      <button
+                        onClick={() => handleStatusUpdate(registration.id, 'pending')}
+                        className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100 transition-colors"
+                        title="Undo (Revert to Pending)"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteRegistration(registration.id)}
+                      disabled={deletingIds.has(registration.id)}
+                      className={`p-1 rounded transition-colors ${
+                        deletingIds.has(registration.id)
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-red-600 hover:text-red-900 hover:bg-red-50'
+                      }`}
+                      title="Move to Trash"
+                    >
+                      {deletingIds.has(registration.id) ? (
+                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </div>
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleRestoreRegistration(registration.id)}
+                        className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition-colors"
+                        title="Restore Registration"
+                      >
+                        <RotateCcw size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRegistration(registration.id)}
+                        disabled={deletingIds.has(registration.id)}
+                        className={`p-1 rounded transition-colors ${
+                          deletingIds.has(registration.id)
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-red-600 hover:text-red-900 hover:bg-red-50'
+                        }`}
+                        title="Permanently Delete"
+                      >
+                        {deletingIds.has(registration.id) ? (
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Trash2 size={16} />
                         )}
-                        <button
-                          onClick={() => handleDeleteRegistration(registration.id)}
-                          disabled={deletingIds.has(registration.id)}
-                          className={`p-1 rounded transition-colors ${
-                            deletingIds.has(registration.id)
-                              ? 'text-gray-400 cursor-not-allowed'
-                              : 'text-red-600 hover:text-red-900 hover:bg-red-50'
-                          }`}
-                          title={deletingIds.has(registration.id) ? 'Deleting...' : 'Delete Registration'}
-                        >
-                          {deletingIds.has(registration.id) ? (
-                            <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
-                      </div>
-                    </td>
+                      </button>
+                    </div>
+                  )}
+                </td>
                   </tr>
                   
                   {/* Expanded Details Row */}
