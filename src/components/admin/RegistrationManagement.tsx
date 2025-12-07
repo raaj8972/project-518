@@ -24,7 +24,7 @@ const safeTeamMembers = (r: any): any[] => {
 };
 
 export const RegistrationManagement: React.FC = () => {
-  const { registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers } = useData();
+  const { events, registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers, eventCoordinators } = useData();
   const { user } = useAuth();
   
   const isOwner = useMemo(() => {
@@ -51,6 +51,7 @@ export const RegistrationManagement: React.FC = () => {
       } catch {}
       return '';
     });
+  const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [pdfExporting] = useState(false);
@@ -453,6 +454,9 @@ export const RegistrationManagement: React.FC = () => {
         if (reg) {
           try {
             const token = (await supabase.auth.getSession()).data.session?.access_token;
+            // Get event details to include in email
+            const event = events.find(e => e.id === reg.event_id);
+
             if (token) {
                 // Fire and forget (don't block UI) or await to confirm?
                 // Let's await to show feedback, but catch errors so status update isn't seen as failed
@@ -466,7 +470,17 @@ export const RegistrationManagement: React.FC = () => {
                         registrationId: reg.id,
                         email: reg.email,
                         fullName: reg.full_name,
-                        eventTitle: reg.event_title
+                        eventTitle: reg.event_title,
+                        eventDate: event?.date || 'TBA',
+                        eventTime: event?.time || 'TBA',
+                        eventVenue: event?.venue || 'TBA',
+                        provider: emailProvider,
+                        coordinators: eventCoordinators
+                            // @ts-ignore
+                            .filter(c => c.event_id === reg.event_id)
+                            // @ts-ignore
+                            .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
+                            .join(', ')
                     })
                 }).then(async (res) => {
                     if (res.ok) {
@@ -474,11 +488,11 @@ export const RegistrationManagement: React.FC = () => {
                     } else {
                         const err = await res.json();
                         console.warn('Email failed:', err);
-                        push({ message: `Status updated, but email failed: ${err.error || 'Check server logs'}`, type: 'warning' });
+                        push({ message: `Status updated, but email failed: ${err.error || 'Check server logs'}`, type: 'error' });
                     }
                 }).catch(e => {
                      console.error('Email fetch error:', e);
-                     push({ message: 'Status updated, but failed to send email.', type: 'warning' });
+                     push({ message: 'Status updated, but failed to send email.', type: 'error' });
                 });
                 return; // Return early because we handle the toast in the promise
             }
@@ -689,12 +703,29 @@ export const RegistrationManagement: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="space-y-4">
-        {/* Title Row */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Registration Management</h2>
-            <p className="text-gray-600">Manage event registrations and participant data</p>
-          </div>
+        {/* Header and Filters */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Registrations</h2>
+          <p className="text-gray-600">Manage participant registrations</p>
+        </div>
+        
+        <div className="flex items-center gap-3">
+             <div className="flex items-center bg-gray-100 rounded-lg px-2 border border-gray-200">
+                <span className="text-xs text-gray-500 mr-2 font-medium">Email Via:</span>
+                <select 
+                    value={emailProvider}
+                    onChange={(e) => setEmailProvider(e.target.value as any)}
+                    className="bg-transparent border-none py-2 text-sm focus:ring-0 cursor-pointer text-gray-900"
+                >
+                    <option value="smtp">Hostinger (SMTP)</option>
+                    <option value="resend">Resend API</option>
+                </select>
+             </div>
+             
+             {/* Stats Cards (existing or other buttons) */}
+        </div>
+      </div>
           
           {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
@@ -941,7 +972,6 @@ export const RegistrationManagement: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
 
       {showColumnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

@@ -10,9 +10,7 @@
   function = "force-logout"
   path = "/api/force-logout"
 
-[[edge_functions]]
-  function = "send-confirmation"
-  path = "/api/send-confirmation"
+
 
 [functions]
   directory = "netlify/functions"
@@ -21,6 +19,12 @@
 # SUPABASE_URL - Your Supabase project URL
 # SUPABASE_SERVICE_ROLE_KEY - Your Supabase service role key (keep secret!)
 # SUPABASE_ANON_KEY - Your Supabase anon/public key
+
+# API Routes - Redirect to Netlify Functions (Node.js)
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
 
 # Redirects for SPA - fallback to index.html for client-side routing
 [[redirects]]

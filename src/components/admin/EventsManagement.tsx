@@ -409,9 +409,72 @@ export const EventsManagement: React.FC = () => {
         }
       } else {
         // Direct update (no approval required)
+        
+        // Detect changes before saving to ask for notification later
+        const originalEvent = events.find((e: any) => e.id === id);
+        const hasScheduleChanges = originalEvent && (
+          (originalEvent.date || '') !== (eventData.date || '') ||
+          (originalEvent.time || '') !== (eventData.time || '') ||
+          (originalEvent.venue || '') !== (eventData.venue || '')
+        );
+
         await updateEvent(id, eventData as any);
         steps.next('Finalizing');
-        alert('✓ Event updated successfully!');
+
+        // Notification Logic
+        if (hasScheduleChanges) {
+           // Small delay to ensure UI updates or simply confirm
+           // Use explicit confirm
+           const shouldNotify = confirm(
+             'Event Date/Time/Venue has changed.\n\nDo you want to send an EMAIL NOTIFICATION to all approved participants about this update?'
+           );
+           
+           if (shouldNotify) {
+              steps.next('Sending Emails');
+              try {
+                // Dynamically import supabase to get session if needed, or use useAuth? 
+                // We don't have auth token easily accessible in this scope unless we passed it.
+                // Assuming we can get it from supabase.auth
+                const { supabase } = await import('../../lib/supabase');
+                const token = (await supabase.auth.getSession()).data.session?.access_token;
+
+                if (token) {
+                    const notifyRes = await fetch('/api/notify-event-update', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json', 
+                            'Authorization': `Bearer ${token}` 
+                        },
+                        body: JSON.stringify({
+                            eventId: id,
+                            eventTitle: eventData.title,
+                            changes: true,
+                            newDetails: {
+                                date: eventData.date,
+                                time: eventData.time,
+                                venue: eventData.venue
+                            }
+                        })
+                    });
+                    const notifyResult = await notifyRes.json();
+                    if (notifyRes.ok) {
+                        alert(`✓ Update Saved & Notified: ${notifyResult.success_count} emails sent.`);
+                    } else {
+                        console.warn('Notify failed', notifyResult);
+                        alert(`✓ Update Saved, but Notification Failed: ${notifyResult.error}`);
+                    }
+                }
+              } catch (notifyErr) {
+                 console.error('Notify Error', notifyErr);
+                 alert('✓ Update Saved, but failed to initiate notifications.');
+              }
+           } else {
+             alert('✓ Event updated successfully! (Participants were NOT notified)');
+           }
+        } else {
+            alert('✓ Event updated successfully!');
+        }
+
         setEditingEvent(null);
         resetEventForm();
         try { localStorage.removeItem('admin_events_form_draft'); } catch {}

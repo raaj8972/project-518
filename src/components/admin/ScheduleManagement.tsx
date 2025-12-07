@@ -34,6 +34,8 @@ export const ScheduleManagement: React.FC = () => {
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
 
   // Inline banner state (replaces alert())
+  const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
+
   const [banner, setBanner] = useState<null | { type: 'success' | 'error' | 'info'; message: string }>(null);
 
   // Loading flags for UX feedback and double-submit prevention
@@ -383,13 +385,67 @@ export const ScheduleManagement: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900">Schedule Management</h2>
           <p className="text-gray-600">Manage festival days and events</p>
         </div>
-        <button
-          onClick={() => setIsAddingDay(true)}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
-        >
-          <Plus size={16} className="mr-2" />
-          Add Day
-        </button>
+        <div className="flex items-center space-x-3">
+             <select 
+                value={emailProvider}
+                onChange={(e) => setEmailProvider(e.target.value as any)}
+                className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-sm mr-2 text-gray-900"
+                title="Select Email Service"
+            >
+                <option value="smtp">Via Hostinger</option>
+                <option value="resend">Via Resend</option>
+            </select>
+
+            <button
+            onClick={async () => {
+                const confirmed = confirm(
+                    `📢 BROADCAST SCHEDULE?\n\nSending via: ${emailProvider.toUpperCase()}\n\nThis will send an email to ALL distinct approved participants.\n\nAre you sure?`
+                );
+                if (!confirmed) return;
+
+                try {
+                    setBanner({ type: 'info', message: 'Broadcasting emails... please wait.' });
+                    // @ts-ignore
+                    const { supabase } = await import('../../lib/supabase');
+                    const token = (await supabase.auth.getSession()).data.session?.access_token;
+                    
+                    if (!token) throw new Error('Not authenticated');
+                    
+                    const res = await fetch('/api/broadcast-schedule', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}` 
+                        },
+                        body: JSON.stringify({ provider: emailProvider })
+                    });
+                    const result = await res.json();
+                    
+                    if (res.ok) {
+                        setBanner({ type: 'success', message: `Emails Sent! Success: ${result.sent} / ${result.total_unique} (Batch limit 100)` });
+                    } else {
+                        console.error(result);
+                        setBanner({ type: 'error', message: `Broadcast failed: ${result.error || 'Check logs'}` });
+                    }
+                } catch (e: any) {
+                    console.error(e);
+                    setBanner({ type: 'error', message: `Broadcast failed: ${e.message}` });
+                }
+            }}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors flex items-center"
+            title="Send email to all participants"
+            >
+            <LinkIcon size={16} className="mr-2" />
+            Broadcast Schedule
+            </button>
+            <button
+            onClick={() => setIsAddingDay(true)}
+            className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+            >
+            <Plus size={16} className="mr-2" />
+            Add Day
+            </button>
+        </div>
       </div>
 
       {/* Add Day Form */}
