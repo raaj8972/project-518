@@ -30,7 +30,7 @@ export default async (req: Request) => {
     if (!adminUser) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers });
 
     // Parse Body
-    const { eventId, eventTitle, newDetails, provider = 'smtp' } = await req.json();
+    const { eventId, eventTitle, newDetails, provider = 'smtp', updateType = 'schedule', message, rules } = await req.json();
 
     // Fetch Registrants
     const { data: registrations } = await supabaseAdmin
@@ -59,29 +59,71 @@ export default async (req: Request) => {
         `;
     }
 
-    const { date, time, venue } = newDetails;
-    const emailSubject = `Update: ${eventTitle} Details Changed`;
-    const emailHtmlRaw = `
-      <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-        <h2 style="color: #ea580c;">Event Update Alert</h2>
-        <p>Dear Participant,</p>
-        <p><strong>Registration ID: {{REG_ID}}</strong></p>
-        {{TEAM_MEMBERS}}
-        <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
-        <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0;"><strong>New Event Details:</strong></p>
-            <ul style="list-style: none; padding: 0; margin: 0;">
-                <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> ${date || 'TBA'}</li>
-                <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> ${time || 'TBA'}</li>
-                <li>📍 <strong>Venue:</strong> ${venue || 'TBA'}</li>
-            </ul>
-        </div>
-        <p>Please make a note of these changes.</p>
-        ${coordinatorsHtml}
-        <p>Best regards,<br/>The RICO Tech-Team</p>
-      </div>
-    `;
+    let emailSubject = '';
+    let emailHtmlTemplate = '';
 
+    if (updateType === 'rules') {
+        emailSubject = `Update: Rules Changed for ${eventTitle}`;
+        emailHtmlTemplate = `
+          <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
+            <h2 style="color: #ea580c;">Event Rules Update</h2>
+            <p>Dear Participant,</p>
+            <p><strong>Registration ID: {{REG_ID}}</strong></p>
+            {{TEAM_MEMBERS}}
+            <p>There has been an important update to the <strong>Rules & Regulations</strong> for <strong>${eventTitle}</strong>.</p>
+            
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0; color: #c2410c;"><strong>Attention Required:</strong></p>
+                <p style="margin-top: 5px;">The rules have been updated. Here are the current rules:</p>
+                
+                ${rules && Array.isArray(rules) && rules.length > 0 ? `
+                    <ul style="margin-top: 15px; padding-left: 20px; color: #333;">
+                        ${rules.map((r: any) => {
+                            const text = typeof r === 'string' ? r : r.text;
+                            const isNew = typeof r === 'object' && r.highlight;
+                            const style = isNew 
+                                ? "margin-bottom: 5px; background-color: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #854d0e;" 
+                                : "margin-bottom: 5px;";
+                            const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px;">[NEW]</span>' : '';
+                            return `<li style="${style}">${badge}${text}</li>`;
+                        }).join('')}
+                    </ul>
+                ` : '<p style="font-style:italic; color:#666;">Please check website for details.</p>'}
+
+                ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
+            </div>
+
+            <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
+            ${coordinatorsHtml}
+            <p>Best regards,<br/>The RICO Tech-Team</p>
+          </div>
+        `;
+    } else {
+        // Default: Schedule/Venue Update
+        const { date, time, venue } = newDetails || {};
+        emailSubject = `Update: ${eventTitle} Details Changed`;
+        emailHtmlTemplate = `
+          <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
+            <h2 style="color: #ea580c;">Event Update Alert</h2>
+            <p>Dear Participant,</p>
+            <p><strong>Registration ID: {{REG_ID}}</strong></p>
+            {{TEAM_MEMBERS}}
+            <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
+            <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0;"><strong>New Event Details:</strong></p>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> ${date || 'TBA'}</li>
+                    <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> ${time || 'TBA'}</li>
+                    <li>📍 <strong>Venue:</strong> ${venue || 'TBA'}</li>
+                </ul>
+                ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
+            </div>
+            <p>Please make a note of these changes.</p>
+            ${coordinatorsHtml}
+            <p>Best regards,<br/>The RICO Tech-Team</p>
+          </div>
+        `;
+    }
     // Send Loops (Node.js handles concurrency better than Deno Edge usually)
     // We can use Promise.all but we should be careful with SMTP connection limits if using 'smtp'.
     // Resend handles concurrent HTTP requests fine.
@@ -103,7 +145,7 @@ export default async (req: Request) => {
             const res = await sendEmail({
                 to: reg.email,
                 subject: emailSubject,
-                html: emailHtmlRaw
+                html: emailHtmlTemplate
                     .replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`)
                     .replace('{{REG_ID}}', reg.id)
                     .replace('{{TEAM_MEMBERS}}', (() => {
@@ -134,7 +176,7 @@ export default async (req: Request) => {
                     provider: provider,
                     event_id: eventId,
                     registration_id: reg.id,
-                    details: { eventTitle, newDetails }
+                    details: { eventTitle, newDetails, updateType }
                 });
             }
             else {
@@ -146,7 +188,7 @@ export default async (req: Request) => {
                     provider: provider,
                     event_id: eventId,
                     registration_id: reg.id,
-                    details: { eventTitle, newDetails, error: res.error }
+                    details: { eventTitle, newDetails, error: res.error, updateType }
                 });
             }
         } catch (e: any) {
@@ -158,7 +200,7 @@ export default async (req: Request) => {
                 provider: provider,
                 event_id: eventId,
                 registration_id: reg.id,
-                details: { eventTitle, newDetails, error: e.message }
+                details: { eventTitle, newDetails, error: e.message, updateType }
             });
         }
     }
@@ -176,13 +218,13 @@ export default async (req: Request) => {
                 html: `
                     <h3>Update Broadcast Complete</h3>
                     <p>You successfully sent an event update for <strong>${eventTitle}</strong>.</p>
+                    <p><strong>Type:</strong> ${updateType}</p>
                     <ul>
                         <li><strong>Total Approved Registrants:</strong> ${registrations.length}</li>
                         <li><strong>Emails Attempted (Batch):</strong> ${batch.length}</li>
                         <li><strong>Successfully Sent:</strong> ${successCount}</li>
                         <li><strong>Failed:</strong> ${errors.length}</li>
                     </ul>
-                    <p>The participants have been notified of the new details (Date: ${date}, Time: ${time}, Venue: ${venue}).</p>
                 `,
                 provider: provider as 'smtp' | 'resend'
             });

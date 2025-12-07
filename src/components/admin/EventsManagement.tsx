@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
@@ -10,7 +10,10 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 
+import { useToast } from '../../components/ToastProvider';
+
 export const EventsManagement: React.FC = () => {
+  const { push } = useToast();
   const { 
     events, 
     eventCategories,
@@ -35,6 +38,75 @@ export const EventsManagement: React.FC = () => {
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [savingAdd, setSavingAdd] = useState(false);
   const [savingUpdate, setSavingUpdate] = useState(false);
+
+  const handleManualNotify = async (event: any) => {
+    // 1. Ask for type
+    const choice = prompt(
+        `Send Notification for: "${event.title}"\n\nType '1' for SCHEDULE/VENUE Update\nType '2' for RULES/REGULATIONS Update\nType '3' for GENERAL Update (Schedule template)`
+    );
+    
+    if (!choice) return;
+
+    let updateType = 'schedule';
+    let defaultMsg = '';
+
+    if (choice === '2' || choice.toLowerCase().includes('rule')) {
+        updateType = 'rules';
+        defaultMsg = 'Please check the website for updated rules.';
+    } else if (choice === '1' || choice === '3' || choice.toLowerCase().includes('sched')) {
+        updateType = 'schedule';
+        defaultMsg = 'Please note the latest details.';
+    } else {
+        return; // Invalid or cancelled
+    }
+
+    // 2. Custom Message
+    const message = prompt('Optional: Add a custom message to the email:', defaultMsg) || '';
+
+    // 3. Confirm
+    if(!confirm(`Send "${updateType.toUpperCase()}" notification to ALL approved participants of "${event.title}"?\n\nMessage: "${message}"`)) {
+        return;
+    }
+
+    try {
+        const { supabase } = await import('../../lib/supabase');
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) throw new Error('No auth token');
+
+        push({ message: 'Sending notifications...', type: 'info' });
+
+        const res = await fetch('/api/notify-event-update', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+                eventId: event.id,
+                eventTitle: event.title,
+                updateType: updateType,
+                message: message,
+                rules: event.rules, // Pass current rules
+                newDetails: {
+                    date: event.date,
+                    time: event.time,
+                    venue: event.venue
+                }
+            })
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+            push({ message: `Success: Sent ${result.sent} emails.`, type: 'success' });
+        } else {
+            console.error(result);
+            push({ message: `Failed: ${result.error}`, type: 'error' });
+        }
+    } catch (e: any) {
+        console.error(e);
+        push({ message: `Error: ${e.message}`, type: 'error' });
+    }
+  };
 
   // ---- Rules (structured) helpers (v2) ----
   type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
@@ -400,7 +472,7 @@ export const EventsManagement: React.FC = () => {
         // Submit for owner approval
         const result = await submitForApproval('event', 'update', eventData, id);
         if (result.success) {
-          alert('✓ Event update submitted for owner approval!\n\nChanges will be published once the owner reviews and approves them.');
+          push({ message: 'Event update submitted for owner approval!', type: 'success' });
           setEditingEvent(null);
           resetEventForm();
           try { localStorage.removeItem('admin_events_form_draft'); } catch {}
@@ -418,23 +490,44 @@ export const EventsManagement: React.FC = () => {
           (originalEvent.venue || '') !== (eventData.venue || '')
         );
 
+        // Detect Rule Changes
+        // Simple JSON stringify comparison to detect any change in the rules array structure or content
+        const rulesChanged = JSON.stringify(originalEvent?.rules || []) !== JSON.stringify(eventData.rules || []);
+
         await updateEvent(id, eventData as any);
         steps.next('Finalizing');
 
         // Notification Logic
-        if (hasScheduleChanges) {
-           // Small delay to ensure UI updates or simply confirm
-           // Use explicit confirm
-           const shouldNotify = confirm(
-             'Event Date/Time/Venue has changed.\n\nDo you want to send an EMAIL NOTIFICATION to all approved participants about this update?'
-           );
+        if (hasScheduleChanges || rulesChanged) {
+           let shouldNotify = false;
+           let updateType = 'schedule';
+           let customMsg = '';
+
+           if (hasScheduleChanges && rulesChanged) {
+             shouldNotify = confirm(
+               'Both Schedule (Date/Time/Venue) AND Rules have changed.\n\nDo you want to send a COMBINED EMAIL NOTIFICATION to all approved participants?'
+             );
+             if (shouldNotify) {
+                 updateType = 'schedule'; // We use schedule layout but append rule message
+                 customMsg = prompt('Optional: Add a note about the rule changes:', 'Rules & Regulations have also been updated. Please review them on the website.') || '';
+             }
+           } else if (hasScheduleChanges) {
+             shouldNotify = confirm(
+               'Event Date/Time/Venue has changed.\n\nDo you want to send an EMAIL NOTIFICATION to all approved participants about this update?'
+             );
+           } else if (rulesChanged) {
+             shouldNotify = confirm(
+               'Event Rules have changed.\n\nDo you want to send an EMAIL NOTIFICATION to all approved participants about this rule change?'
+             );
+             if (shouldNotify) {
+                 updateType = 'rules';
+                 customMsg = prompt('Optional: Add a short message to include in the email:', 'Please review the updated rules.') || '';
+             }
+           }
            
            if (shouldNotify) {
               steps.next('Sending Emails');
               try {
-                // Dynamically import supabase to get session if needed, or use useAuth? 
-                // We don't have auth token easily accessible in this scope unless we passed it.
-                // Assuming we can get it from supabase.auth
                 const { supabase } = await import('../../lib/supabase');
                 const token = (await supabase.auth.getSession()).data.session?.access_token;
 
@@ -448,7 +541,12 @@ export const EventsManagement: React.FC = () => {
                         body: JSON.stringify({
                             eventId: id,
                             eventTitle: eventData.title,
-                            changes: true,
+                            updateType: updateType,
+                            message: customMsg,
+                            rules: eventData.rules?.map((r: string) => ({
+                                text: r,
+                                highlight: !originalEvent.rules?.includes(r)
+                            })), // Identify new rules
                             newDetails: {
                                 date: eventData.date,
                                 time: eventData.time,
@@ -458,21 +556,26 @@ export const EventsManagement: React.FC = () => {
                     });
                     const notifyResult = await notifyRes.json();
                     if (notifyRes.ok) {
-                        alert(`✓ Update Saved & Notified: ${notifyResult.success_count} emails sent.`);
+                        // Use useToast via prop/context if available, otherwise fallback to alert or window hook?
+                        // This component uses hooks... but we need to pass `push` if available or use alert if local toast not in scope in this block?
+                        // `EventsManagement` does not have `push` destructured from `useToast()` ?? 
+                        // Ah, I need to check lines 1-50 imports. I don't see `useToast` used in `EventsManagement` top level.
+                        // I will add `const { push } = useToast();` at the top of component.
+                        push({ message: `Update Saved & Notified: ${notifyResult.sent} emails sent.`, type: 'success' });
                     } else {
                         console.warn('Notify failed', notifyResult);
-                        alert(`✓ Update Saved, but Notification Failed: ${notifyResult.error}`);
+                        push({ message: `Update Saved, but Notification Failed: ${notifyResult.error}`, type: 'error' });
                     }
                 }
               } catch (notifyErr) {
                  console.error('Notify Error', notifyErr);
-                 alert('✓ Update Saved, but failed to initiate notifications.');
+                 push({ message: 'Update Saved, but failed to initiate notifications.', type: 'error' });
               }
            } else {
-             alert('✓ Event updated successfully! (Participants were NOT notified)');
+             push({ message: 'Event updated successfully! (Participants were NOT notified)', type: 'info' });
            }
         } else {
-            alert('✓ Event updated successfully!');
+            push({ message: 'Event updated successfully!', type: 'success' });
         }
 
         setEditingEvent(null);
@@ -2134,6 +2237,14 @@ export const EventsManagement: React.FC = () => {
                       </button>
                     </div>
                     <div className="flex space-x-1">
+                      <button
+                        type="button"
+                        onClick={() => handleManualNotify(event)}
+                        className="bg-purple-600 text-white p-1 rounded hover:bg-purple-500 transition-colors"
+                        title="Send Notification"
+                      >
+                        <Bell size={14} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => startEditingEvent(event)}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle, X, Send } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
@@ -1398,6 +1398,25 @@ export const RegistrationManagement: React.FC = () => {
                         </button>
                       </>
                     )}
+                    {registration.status === 'approved' && (
+                        <button
+                            onClick={async () => {
+                                if (confirm(`Resend confirmation email to ${registration.full_name}?`)) {
+                                    const success = await sendApprovalEmail(registration);
+                                    if (success) {
+                                        push({ message: `Email sent to ${registration.full_name}`, type: 'success' });
+                                    } else {
+                                        push({ message: `Failed to send email to ${registration.full_name}`, type: 'error' });
+                                    }
+                                }
+                            }}
+                            className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
+                            title="Resend Confirmation Email"
+                        >
+                            <Send size={16} />
+                        </button>
+                    )}
+
                     {registration.status !== 'pending' && isOwner && (
                       <button
                         onClick={() => handleStatusUpdate(registration.id, 'pending')}
