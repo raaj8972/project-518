@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, startTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
 import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
@@ -18,7 +19,31 @@ const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarous
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal')) as unknown as React.ComponentType<any>;
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
 
-// Local FacultyHead type removed; rely on DataContext types instead
+// Isolated Glitch Overlay Component to prevent parent re-renders
+const GlitchOverlay = React.memo(() => {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActive(true);
+      setTimeout(() => setActive(false), 200);
+    }, 12000);
+    return () => clearInterval(timer);
+  }, []);
+  return <div className={`glitch-overlay ${active ? 'active' : ''}`}></div>;
+});
+
+// Preload Component for Carousel Images (Performance Optimization)
+const CarouselImagePreloader: React.FC<{ images: string[] }> = React.memo(({ images }) => {
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <>
+      {images.slice(0, 6).map((url, i) => (
+        <link key={`preload-${i}`} rel="preload" as="image" href={url} />
+      ))}
+    </>,
+    document.head
+  );
+});
 
 export const RicoFamily: React.FC = () => {
   const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, formSettings, homepageSettings } = useData();
@@ -39,7 +64,11 @@ export const RicoFamily: React.FC = () => {
     if (!rl) return false;
     return webDevPhraseList.some((p: string) => rl.includes(p));
   };
-  const [glitchActive, setGlitchActive] = useState(false);
+  
+  // Sports profile modal state (RESTORED)
+  const [sportsModalOpen, setSportsModalOpen] = useState(false);
+  const [selectedSportsPerson, setSelectedSportsPerson] = useState<any | null>(null);
+
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
@@ -139,15 +168,6 @@ export const RicoFamily: React.FC = () => {
     .filter(m => m.enabled && (m as any).isCouncil && !m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
-  // Glitch effect trigger
-  useEffect(() => {
-    const glitchTimer = setInterval(() => {
-      setGlitchActive(true);
-      setTimeout(() => setGlitchActive(false), 200);
-    }, 12000);
-    return () => clearInterval(glitchTimer);
-  }, []);
-
   // Intersection Observer for scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -165,39 +185,122 @@ export const RicoFamily: React.FC = () => {
     animatedElements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [enabledFacultyHeads, enabledCommittees]); // Re-run when faculty heads or committees change
+  }, [enabledFacultyHeads, enabledCommittees]);
 
   // Parallax effect
+  // Parallax effect (Optimized with requestAnimationFrame)
   useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.pageYOffset;
-      const parallaxElements = document.querySelectorAll('.parallax');
-      
-      parallaxElements.forEach((element) => {
-        const speed = parseFloat(element.getAttribute('data-speed') || '0.5');
-        const yPos = -(scrolled * speed);
-        (element as HTMLElement).style.transform = `translateY(${yPos}px)`;
-      });
+    let ticking = false;
+    
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrolled = window.pageYOffset;
+          const parallaxElements = document.querySelectorAll('.parallax');
+          
+          parallaxElements.forEach((element) => {
+            const speed = parseFloat(element.getAttribute('data-speed') || '0.5');
+            const yPos = -(scrolled * speed);
+            (element as HTMLElement).style.transform = `translateY(${yPos}px)`;
+          });
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // Stable, GPU-friendly marquee adornments (Safari-safe)
-  // We avoid animating CSS filter on the marquee container to prevent flicker.
-  // Scanline and neon glow are handled via CSS keyframes instead of JS timelines.
+  // --- HERO CAROUSEL LOGIC ---
+  const carouselMembers = React.useMemo(() => {
+    let base = [...councilMembers, ...committeeHeads].filter(m => m.image);
+    if (base.length === 0) return [];
+    while (base.length < 6) { base = [...base, ...base]; }
+    if (base.length > 30) base = base.slice(0, 30);
+    return base;
+  }, [councilMembers, committeeHeads]);
+
+  const [rotationIndex, setRotationIndex] = useState(0); 
+  const [isZoomed, setIsZoomed] = useState(false); 
+  const [transitionDuration, setTransitionDuration] = useState(3000);
+
+  // Shuffle Helper (Fisher-Yates)
+  const shuffleArray = (array: number[]) => {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  // Queue to track non-repeating random sequence
+  const shuffledQueue = useRef<number[]>([]);
+
   useEffect(() => {
-    // No imperative animation needed; styles handled in CSS.
-    // This effect is kept in case we later need to toggle classes or measure.
+    if (carouselMembers.length === 0) return;
+    const cycleDuration = 10000;
+    
+    if (shuffledQueue.current.length === 0) {
+        shuffledQueue.current = shuffleArray(Array.from({ length: carouselMembers.length }, (_, i) => i));
+    }
+
+    const rotateInterval = setInterval(() => {
+      setIsZoomed(false);
+      setTransitionDuration(3000);
+      
+      setRotationIndex(prev => {
+         if (shuffledQueue.current.length === 0) {
+             let newBatch = shuffleArray(Array.from({ length: carouselMembers.length }, (_, i) => i));
+             const currentFace = prev % carouselMembers.length;
+             if (newBatch[0] === currentFace && newBatch.length > 1) {
+                 [newBatch[0], newBatch[newBatch.length - 1]] = [newBatch[newBatch.length - 1], newBatch[0]];
+             }
+             shuffledQueue.current = newBatch;
+         }
+         const targetFace = shuffledQueue.current.pop()!;
+         const count = carouselMembers.length;
+         const currentFace = prev % count;
+         let diff = (targetFace - currentFace + count) % count;
+         if (diff === 0) diff = count; 
+         return prev + diff + count; 
+      });
+
+      setTimeout(() => {
+        setTransitionDuration(1500);
+        setIsZoomed(true);
+      }, 3200); 
+    }, cycleDuration);
+
+    const initialZoomTimeout = setTimeout(() => {
+        setTransitionDuration(1500);
+        setIsZoomed(true);
+    }, 1000);
+
+    return () => {
+      clearInterval(rotateInterval);
+      clearTimeout(initialZoomTimeout);
+    };
+  }, [carouselMembers.length]);
+
+  // Determine Mobile State
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile(); 
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Check if social media links should be shown
-  // Social media settings available via context if needed
-
-  // Sports profile modal state
-  const [sportsModalOpen, setSportsModalOpen] = useState(false);
-  const [selectedSportsPerson, setSelectedSportsPerson] = useState<any | null>(null);
+  const faceCount = carouselMembers.length;
+  const faceTitle = 360 / Math.max(1, faceCount);
+  // Universal Height (Mobile Size fit for Desktop as requested)
+  const faceHeight = 35; 
+  const faceWidthStr = isMobile ? 'w-[65vw] -ml-[32.5vw]' : 'w-[320px] -ml-[160px]';
+  const faceHeightStr = 'h-[35vh] -mt-[17.5vh]';
+  const radius = Math.round(((faceHeight / 2) / Math.tan(Math.PI / Math.max(1, faceCount))) * 1.05);
 
   return (
   <div className="neon-theme min-h-screen">
@@ -206,37 +309,136 @@ export const RicoFamily: React.FC = () => {
       description="Meet the team behind RICORRENZA 2026 - Faculty, Council, and Committee members." 
       canonical="https://ricorrenza.fun/rico-family" 
     />
-    {/* One-time mobile scroll hint */}
     <ScrollHint />
+    {/* Preload hero carousel images for smooth experience */}
+    <CarouselImagePreloader images={carouselMembers.map(m => m.image)} />
       <style>{`
         @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>
-      {/* Hero Section */}
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section className="hero-section group relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '2000px' }}>
         <HeroBackground pageKey="ricofamily" />
 
-        {/* Floating Particles removed */}
+        {/* Glitch Overlay (Isolated) */}
+        <GlitchOverlay />
+        
+        {/* DARK OVERLAY FOR READABILITY */}
+        <div className="absolute inset-0 z-10 bg-black/80 pointer-events-none" />
 
-        {/* Glitch Overlay */}
-        <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`}></div>
-
-        {/* Hero Content */}
-        <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
-            <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm">
-              <Users className="w-5 h-4 mr-2 animate-pulse" />
-              Fest Architects
+        {/* RESTORED HERO CONTENT OVERLAY */}
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
+          <div className="text-center text-white max-w-6xl mx-auto px-4">
+            <div className="scroll-animate opacity-0 transform translate-y-20 animate-in">
+                <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm">
+                  <Users className="w-5 h-4 mr-2 animate-pulse" />
+                  Fest Architects
+                </div>
+                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 neon-title">
+                  RICO <span className="neon-blue">FAMILY</span>
+                </h1>
+                <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8 drop-shadow-md">
+                  Meet the <span className="neon-pink">visionaries</span>, 
+                  <span className="neon-purple"> innovators</span>, and 
+                  <span className="neon-blue"> leaders</span> who make RICORRENZA possible
+                </p>
             </div>
-            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 neon-title ${glitchActive ? 'glitch-active' : ''}`}>
-              RICO <span className="neon-blue">FAMILY</span>
-            </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              Meet the <span className="neon-pink">visionaries</span>, 
-              <span className="neon-purple"> innovators</span>, and 
-              <span className="neon-blue"> leaders</span> who make RICORRENZA possible
-            </p>
           </div>
         </div>
+
+        {/* 3D Rotating Drum */}
+        {carouselMembers.length > 0 && (
+          <div 
+            className={`absolute top-1/2 left-1/2 ${faceWidthStr} ${faceHeightStr} ease-in-out`}
+            style={{
+              transformStyle: 'preserve-3d',
+              transitionProperty: 'transform',
+              transitionDuration: `${transitionDuration}ms`,
+              transform: `rotateX(${-rotationIndex * faceTitle}deg)`
+            }}
+          >
+            {carouselMembers.map((member: any, idx: number) => {
+              const angle = faceTitle * idx;
+              const isActive = idx === rotationIndex % faceCount;
+              const isItemZoomed = isActive && isZoomed;
+  
+              // ... colors ...
+              const isLead = isLeadWebDevRole(member.role);
+              const isCouncil = member.isCouncil;
+              const isTech = String(member.role || '').toLowerCase().includes('tech');
+              const glowColor = isLead ? 'from-cyan-500/60 to-blue-600/60' 
+                : isCouncil ? 'from-red-600/60 to-orange-600/60'
+                : isTech ? 'from-green-500/60 to-emerald-600/60'
+                : 'from-purple-600/60 to-pink-600/60';
+
+              return (
+                <div 
+                  key={`hero-member-${member.id}-${idx}`}
+                  className={`absolute inset-0 w-full h-full backface-hidden transition-opacity duration-500 ${isItemZoomed ? 'opacity-100' : 'opacity-15'}`}
+                  style={{
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transitionProperty: 'transform',
+                    transitionDuration: `${transitionDuration}ms`,
+                    transform: isItemZoomed && isMobile
+                      ? `rotateX(${angle}deg) translateZ(${radius + 15}vh) scale(1.1)` 
+                      : `rotateX(${angle}deg) translateZ(${radius}vh)`,
+                    height: '35vh',
+                    zIndex: isItemZoomed ? 100 : 0
+                  }}
+                > 
+                  <div className={`w-full h-full relative transition-all duration-1000 ${isActive ? 'scale-100' : 'scale-90 brightness-90' } ${isItemZoomed ? 'p-0' : 'p-2'}`}>
+                    {/* Active Glow */}
+                    {isActive && (
+                      <div className={`absolute -inset-16 md:-inset-32 bg-gradient-to-r ${glowColor} blur-[40px] md:blur-[80px] opacity-100 rounded-full animate-pulse z-[-1]`} />
+                    )}
+                    
+                    <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/50 border border-white/10">
+                      <img
+                        className={`w-full h-full object-cover object-top shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
+                        src={member.image}
+                        alt={member.name}
+                        loading="eager"
+                      />
+                      
+                      {/* Text Overlay (Visible always to identify person) */}
+                      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-center transition-opacity duration-500 ${isItemZoomed ? 'opacity-0' : 'opacity-100'}`}>
+                         <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-1 drop-shadow-lg">{member.name}</h3>
+                         <p className={`text-sm font-bold uppercase tracking-widest ${isCouncil ? 'text-red-400' : 'text-cyan-400'}`}>{member.role}</p>
+                      </div>
+
+                      {/* Shine Effect */}
+                      {isActive && !isItemZoomed && (
+                        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden rounded-xl">
+                          <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] animate-shine" />
+                        </div>
+                      )}
+                    </div>
+                  
+                    {/* Reflection Effect at bottom (Hide when zoomed) */}
+                    {!isItemZoomed && (
+                        <div className="absolute top-full left-0 w-full h-[60%] bg-gradient-to-b from-white/30 to-transparent transform scale-y-[-1] opacity-50 mask-image-gradient" aria-hidden="true" />
+                    )}
+                  </div>
+                  {/* Inline styles for the shine & reflection animation */}
+                  <style>{`
+                    @keyframes shine {
+                        0% { left: -100%; opacity: 0; }
+                        50% { opacity: 0.5; }
+                        100% { left: 200%; opacity: 0; }
+                    }
+                    .animate-shine {
+                        animation: shine 3s infinite linear;
+                    }
+                    .mask-image-gradient {
+                        -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+                        mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+                    }
+                  `}</style>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* Faculty Head Section — 3D coverflow autoplay */}

@@ -633,7 +633,76 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
   return (
     <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4">
-      <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col">
+      <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col relative">
+        
+        {/* Cyber Smoke Effect Layer */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="smoke-blob smoke-1" />
+          <div className="smoke-blob smoke-2" />
+          <div className="smoke-blob smoke-3" />
+        </div>
+        <style>{`
+          @keyframes smoke-rise {
+            0% { transform: translateY(20%) scale(1); opacity: 0; }
+            20% { opacity: 0.8; }
+            50% { opacity: 0.6; transform: translateY(-40%) scale(1.4); }
+            100% { transform: translateY(-100%) scale(1.8); opacity: 0; }
+          }
+          .smoke-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(45px);
+            animation: smoke-rise 10s infinite ease-in-out;
+            bottom: -100px;
+            mix-blend-mode: screen;
+            will-change: transform, opacity; /* Hardware acceleration hint */
+          }
+          
+          /* Mobile optimization: Reduce expensive blur radius & animation load */
+          @media (max-width: 640px) {
+            .smoke-blob {
+              filter: blur(25px); /* Cheaper blur for mobile GPU */
+              opacity: 0.5; /* Slightly subtler on small screens */
+            }
+          }
+
+          /* Accessibility: Respect simplified motion preferences */
+          @media (prefers-reduced-motion: reduce) {
+            .smoke-blob {
+              animation: none;
+              opacity: 0.4;
+              transform: translateY(-20%) scale(1.2); /* Static state */
+            }
+          }
+
+          .smoke-1 {
+            width: 350px; height: 350px;
+            background: radial-gradient(circle, rgba(168,85,247,0.6) 0%, transparent 70%); /* Purple */
+            left: -10%;
+            animation-duration: 12s;
+            animation-delay: 0s;
+          }
+          .smoke-2 {
+            width: 450px; height: 450px;
+            background: radial-gradient(circle, rgba(6,182,212,0.5) 0%, transparent 70%); /* Cyan */
+            right: -10%;
+            animation-duration: 15s;
+            animation-delay: -5s;
+          }
+          .smoke-3 {
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%); /* Pink */
+            left: 30%;
+            animation-duration: 14s;
+            animation-delay: -7s;
+          }
+          /* Ensure form content sits above smoke and has its own stacking context */
+          .cyberpunk-header, .cyberpunk-success-container, form {
+            position: relative;
+            z-index: 10; 
+          }
+        `}</style>
+        
         {/* Header */}
         <div className={`cyberpunk-header p-4 sm:p-6 border-b border-cyan-500/30 flex-shrink-0 ${glitchActive ? 'glitch-active' : ''}`}>
           <div className="flex justify-between items-center">

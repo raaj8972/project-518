@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Play, ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap, Phone } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap, Phone } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
@@ -12,6 +12,41 @@ import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+
+// Preload Component for Hero Carousel Media (Performance Optimization)
+const HeroMediaPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) => {
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <>
+      {events.slice(0, 4).map((event) => (
+        <React.Fragment key={`preload-${event.id}`}>
+          {event.poster_url && (
+            <link rel="preload" as="image" href={event.poster_url} />
+          )}
+          {event.motion_poster_url && (
+            <link rel="preload" as="video" href={event.motion_poster_url} />
+          )}
+        </React.Fragment>
+      ))}
+    </>,
+    document.head
+  );
+});
+
+// Preload Component for Speedramp Transition Videos (Performance Optimization)
+const SpeedrampTransitionPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) => {
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <>
+      {events.map((event) => (
+        event.motion_poster_url && (
+          <link key={`speedramp-${event.id}`} rel="preload" as="video" href={event.motion_poster_url} />
+        )
+      ))}
+    </>,
+    document.head
+  );
+});
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -64,8 +99,8 @@ export const Events: React.FC = () => {
     let iteration = 0;
     
     const interval = setInterval(() => {
-      setScrambleText(prev => 
-        TARGET_TEXT.split("").map((letter, index) => {
+      setScrambleText(_ => 
+        TARGET_TEXT.split("").map((_, index) => {
           if (index < iteration) {
             return TARGET_TEXT[index];
           }
@@ -78,7 +113,7 @@ export const Events: React.FC = () => {
       }
       
       iteration += 1/2; // Speed of decoding (lower = slower)
-    }, 30); // Update frequency
+    }, 60); // Update frequency slowed to 60ms to prevent hanging on mobile
 
     return () => clearInterval(interval);
   }, [isTransitioning]);
@@ -87,7 +122,7 @@ export const Events: React.FC = () => {
   useEffect(() => {
     if (isTransitioning && transitionMedia?.type === 'video' && transitionVideoRef.current) {
       const vid = transitionVideoRef.current;
-      vid.playbackRate = 2.0;
+      // vid.playbackRate = 2.0; // Removed high-speed playback to prevent freezing on Android
       vid.volume = 1.0; // Reset volume
       
       const playVideo = async () => {
@@ -319,7 +354,10 @@ export const Events: React.FC = () => {
     };
   }, []);
 
-  const openRegistration = (eventId: number, eventTitle?: string) => {
+  // Store target event ID for registration (used after transition completes)
+  const pendingRegistrationId = useRef<number | null>(null);
+
+  const openRegistration = (eventId: number) => {
     // Find event to get video
     const ev = events.find((e: any) => e.id === eventId);
     
@@ -332,19 +370,13 @@ export const Events: React.FC = () => {
         navigator.vibrate(50); // Short buzz
       }
       
+      // Store event ID to open modal AFTER video ends
+      pendingRegistrationId.current = eventId;
+      
       setTransitionMedia({ url: (ev as any).motion_poster_url, type: 'video' });
       setIsTransitioning(true);
       
-      // Delay actual navigation to allow animation to play
-      // 4s total transition
-      setTimeout(() => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set('register', eventId.toString());
-        setSearchParams(newParams, { replace: true });
-        
-        // Short delay to clear transition after modal likely prompts
-        setTimeout(() => setIsTransitioning(false), 200);
-      }, 4000); 
+      // Note: Modal will open when video 'ended' event fires (see video element onEnded handler)
     } else {
       // No video, open immediately
       const newParams = new URLSearchParams(searchParams);
@@ -569,6 +601,77 @@ export const Events: React.FC = () => {
     return { text: trimmed, isUnannounced: false };
   };
 
+  // Motion poster carousel for Hero Section (True 3D Vertical Ring)
+  const motionPosterEvents = React.useMemo(() => {
+    let base = (events as any[]).filter((e: any) => e.motion_poster_url && e.visible !== false);
+    if (base.length === 0) return [];
+    // Ensure we have enough items for a nice cylinder shape (min 6 faces)
+    // If fewer, duplicate them
+    while (base.length < 6) {
+      base = [...base, ...base];
+    }
+    // Cap at a reasonable number to prevent performance issues if many events exist
+    return base.slice(0, 12);
+  }, [events]);
+  
+  const [rotationIndex, setRotationIndex] = useState(0); 
+  const [isZoomed, setIsZoomed] = useState(false); // State for "Fit to Screen" mode
+  const [transitionDuration, setTransitionDuration] = useState(3000); // Dynamic duration
+
+  useEffect(() => {
+    if (motionPosterEvents.length === 0) return;
+    
+    // Cycle Timing (Total ~10s) - Adjusted to safely fit 5s videos:
+    // 0ms: Set Slow Duration (3s) -> Trigger Spin (+2/3 items)
+    // 3200ms: Set Fast Duration (1.5s) -> Trigger Zoom In
+    // 4700ms: Fully Zoomed (Video plays clearly)
+    // 10000ms: Cycle Repeats (Trigger Zoom Out / Spin)
+    // "Clear View" Duration: 10000 - 4700 = 5300ms (~5.3s) -> Perfect for 4-5s videos.
+    
+    const cycleDuration = 10000;
+    
+    const rotateInterval = setInterval(() => {
+      // 1. Prepare for Spin (Zoom Out ensured, Slow Duration)
+      setIsZoomed(false);
+      setTransitionDuration(3000);
+      
+      // Randomly rotate 2 or 3 items to give a "spinning drum" feel
+      const randomSteps = 2 + Math.floor(Math.random() * 2); 
+      setRotationIndex(prev => prev + randomSteps);
+
+      // 2. Schedule Zoom In after rotation finishes
+      setTimeout(() => {
+        setTransitionDuration(1500); // Faster for the "punch" in
+        // Small delay to let state apply before triggering transform? 
+        // React batching might require a tick, but usually fine.
+        setIsZoomed(true);
+      }, 3200); 
+
+    }, cycleDuration);
+
+    // Initial Zoom trigger on mount
+    const initialZoomTimeout = setTimeout(() => {
+        setTransitionDuration(1500);
+        setIsZoomed(true);
+    }, 1000);
+
+    return () => {
+      clearInterval(rotateInterval);
+      clearTimeout(initialZoomTimeout);
+    };
+  }, [motionPosterEvents.length]);
+
+  // Cylinder Math
+  const faceCount = motionPosterEvents.length;
+  // Use a fixed virtual height for the "cards" on the ring.
+  // We'll use a value relative to viewport or fixed pixels.
+  // 58vh height faces
+  const faceHeight = 58; // vh
+  const faceTitle = 360 / faceCount;
+  // radius = (w / 2) / tan(theta/2) -> here h/2 for vertical
+  // We use a slight multiplier (1.1) to push them out a bit more for spacing
+  const radius = Math.round(((faceHeight / 2) / Math.tan(Math.PI / faceCount)) * 1.5); 
+
   return (
     <div className="cyberpunk-theme min-h-screen">
       <SEO 
@@ -578,6 +681,10 @@ export const Events: React.FC = () => {
       />
       {/* One-time mobile scroll hint */}
       <ScrollHint />
+      {/* Preload hero carousel media for smooth experience */}
+      <HeroMediaPreloader events={motionPosterEvents} />
+      {/* Preload speedramp transition videos for instant playback */}
+      <SpeedrampTransitionPreloader events={filteredEvents} />
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
       
       {isTransitioning && (
@@ -589,8 +696,54 @@ export const Events: React.FC = () => {
                 src={transitionMedia.url}
                 className="speedramp-video"
                 playsInline
+                autoPlay
+                muted // Essential for Android/iOS autoplay compliance
                 preload="auto"
                 ref={transitionVideoRef}
+                style={{ objectFit: 'cover' }} // Ensure it fills screen properly
+                onTimeUpdate={(e) => {
+                  // Limit speedramp to 4 seconds only
+                  const video = e.currentTarget;
+                  if (video.currentTime >= 4) {
+                    video.pause();
+                    // Trigger modal after 4s
+                    if (pendingRegistrationId.current !== null) {
+                      const newParams = new URLSearchParams(searchParams);
+                      newParams.set('register', pendingRegistrationId.current.toString());
+                      setSearchParams(newParams, { replace: true });
+                      
+                      setTimeout(() => {
+                        setIsTransitioning(false);
+                        pendingRegistrationId.current = null;
+                      }, 200);
+                    }
+                  }
+                }}
+                onError={() => {
+                  // Network error: Skip transition and open modal immediately
+                  if (pendingRegistrationId.current !== null) {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('register', pendingRegistrationId.current.toString());
+                    setSearchParams(newParams, { replace: true });
+                    
+                    setIsTransitioning(false);
+                    pendingRegistrationId.current = null;
+                  }
+                }}
+                onEnded={() => {
+                  // Fallback: Video ended naturally (if shorter than 4s)
+                  if (pendingRegistrationId.current !== null) {
+                    const newParams = new URLSearchParams(searchParams);
+                    newParams.set('register', pendingRegistrationId.current.toString());
+                    setSearchParams(newParams, { replace: true });
+                    
+                    // Clear transition after modal opens
+                    setTimeout(() => {
+                      setIsTransitioning(false);
+                      pendingRegistrationId.current = null;
+                    }, 200);
+                  }
+                }}
               />
             ) : transitionMedia?.type === 'image' ? (
               <img
@@ -606,11 +759,131 @@ export const Events: React.FC = () => {
         </div>
       )}
 
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 z-0">
-          <HeroBackground pageKey="events" />
-          {/* Floating Particles removed */}
+      <section className="hero-section relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
+          <div className="absolute inset-0 z-0 bg-black">
+          
+          {/* Default Hero Background (always rendered as base/fallback) */}
+          <div className={`absolute inset-0 transition-opacity duration-1000 ${motionPosterEvents.length > 0 ? 'opacity-0' : 'opacity-100'}`}>
+             <HeroBackground pageKey="events" />
+          </div>
+
+          {/* 3D Rotating Drum Container */}
+          {motionPosterEvents.length > 0 && (
+            <div 
+              className="absolute top-1/2 left-1/2 w-[80vw] -ml-[40vw] md:w-[360px] md:-ml-[180px] h-[58vh] -mt-[29vh] ease-in-out" 
+              style={{
+                transformStyle: 'preserve-3d',
+                transitionProperty: 'transform',
+                transitionDuration: `${transitionDuration}ms`,
+                // Direct 3D: Just rotate on X axis (Vertical Drum)
+                // No extra tilt, clean symmetric view.
+                transform: `rotateX(${-rotationIndex * faceTitle}deg)`
+              }}
+            >
+              {motionPosterEvents.map((ev: any, idx: number) => {
+                // Calculate position for this face
+                const angle = faceTitle * idx;
+                const isActive = idx === rotationIndex % faceCount;
+                
+                // Zoom Logic
+                // If active AND zoomed, we override the 3D cylinder transform to bring it "to camera"
+                // We use a massive TranslateZ to bring it close, or Scale.
+                // NOTE: In a true preserve-3d scene, scaling might clip if container isn't huge.
+                // Translating on Z axis is often safer for "coming to camera".
+                // Since our radius is ~40-100vh, we pull it forward by 'radius' + extra.
+                
+                const isItemZoomed = isActive && isZoomed;
+
+                // Deterministic Glow Color Generator based on Event ID or Title
+                // This ensures "change glow according to cards" as requested
+                const getGlowStyle = (id: string | number) => {
+                  const colors = [
+                    'from-pink-600/60 to-purple-600/60',   // Default Neon
+                    'from-cyan-500/60 to-blue-600/60',     // Cyber Blue
+                    'from-green-500/60 to-emerald-600/60', // Toxic Green
+                    'from-yellow-500/60 to-orange-600/60', // Solar Flare
+                    'from-red-600/60 to-rose-600/60',      // Crimson
+                    'from-violet-600/60 to-fuchsia-600/60',// Synthetic Violet
+                    'from-teal-400/60 to-indigo-600/60',   // Ocean
+                  ];
+                  // Simple hash of the ID/String to pick a consistent color
+                  const hash = String(id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                  return colors[hash % colors.length];
+                };
+
+                const glowGradient = getGlowStyle(ev.id || idx);
+
+                return (
+                  <div 
+                    key={`hero-video-${ev.id}-${idx}`}
+                    className="absolute inset-0 w-full h-full backface-hidden will-change-transform ease-in-out"
+                    style={{
+                      willChange: 'transform',
+                      transitionProperty: 'transform',
+                      transitionDuration: `${transitionDuration}ms`,
+                      transform: isItemZoomed 
+                        ? `rotateX(${angle}deg) translateZ(${radius + 50}vh) scale(1.45)` 
+                        : `rotateX(${angle}deg) translateZ(${radius}vh)`,
+                      height: '58vh', // Match container height
+                      zIndex: isItemZoomed ? 100 : 0 // Ensure it sits on top when zoomed
+                    }}
+                  > 
+                    <div className={`w-full h-full relative transition-all duration-1000 ${isActive ? 'opacity-100 scale-100' : 'opacity-70 scale-90 brightness-90' } ${isItemZoomed ? 'p-0' : 'p-2'}`}>
+                      {/* Glow Effect for Active Item (Hidden when zoomed to avoid artifacting edges) */}
+                      {isActive && !isItemZoomed && (
+                        <div className={`absolute -inset-16 md:-inset-32 bg-gradient-to-r ${glowGradient} blur-[40px] md:blur-[80px] opacity-100 rounded-full animate-pulse z-[-1]`} />
+                      )}
+                      
+                      <div className="relative w-full h-full overflow-hidden rounded-xl">
+                        <video
+                          className={`w-full h-full object-cover shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
+                          src={ev.motion_poster_url}
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                          preload="auto"
+                          {...({ fetchPriority: "high" } as any)} // Hint browser to prioritize this hero content
+                          poster={ev.image} 
+                        />
+                        
+                        {/* Shine / Sheen Effect */}
+                        {isActive && !isItemZoomed && (
+                          <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden rounded-xl">
+                            <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] animate-shine" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Reflection Effect at bottom (Hide when zoomed) */}
+                      {!isItemZoomed && (
+                         <div className="absolute top-full left-0 w-full h-[60%] bg-gradient-to-b from-white/30 to-transparent transform scale-y-[-1] opacity-50 mask-image-gradient" aria-hidden="true" />
+                      )}
+                    </div>
+                    {/* Inline styles for the shine animation */}
+                    <style>{`
+                      @keyframes shine {
+                        0% { left: -100%; opacity: 0; }
+                        50% { opacity: 0.5; }
+                        100% { left: 200%; opacity: 0; }
+                      }
+                      .animate-shine {
+                        animation: shine 3s infinite linear;
+                      }
+                      .mask-image-gradient {
+                        -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+                        mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+                      }
+                    `}</style>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className={`glitch-overlay ${glitchActive ? 'active' : ''}`} />
+          {/* Dimming Overlay to decrease overall hero opacity/intensity per user request */}
+          <div className="absolute inset-0 bg-black/60 z-5 pointer-events-none transition-opacity duration-1000" />
         </div>
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
@@ -625,11 +898,7 @@ export const Events: React.FC = () => {
               <span className="neon-purple glow-text"> cutting-edge events</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-              <div className="cyberpunk-btn cyberpunk-btn-primary hover-float">
-                <span className="relative z-10 flex items-center">
-                  <Play className="mr-2" size={20} /> EXPLORE EVENTS
-                </span>
-              </div>
+              {/* Button Removed per user request */}
             </div>
           </div>
         </div>
@@ -637,7 +906,7 @@ export const Events: React.FC = () => {
 
       {/* Winners Section moved below the events grid */}
 
-      <section className="py-12 relative">
+      <section className="py-4 relative">
         <div className="container mx-auto px-4">
           {/* Debug: show owner/admin info when ?debug_owner=1 is present */}
           {new URLSearchParams(window.location.search).get('debug_owner') === '1' && (
@@ -653,7 +922,7 @@ export const Events: React.FC = () => {
             </div>
           )}
           <div className="scroll-animate opacity-0 transform translate-y-10">
-            <div className="flex justify-center mb-8">
+            <div className="flex justify-center mb-2">
               <div className="cyberpunk-card w-full md:max-w-5xl lg:max-w-6xl xl:max-w-7xl p-3 md:p-4">
                 <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
                   {categories.map((category: string) => (
@@ -672,7 +941,7 @@ export const Events: React.FC = () => {
         </div>
       </section>
 
-      <section className="py-12 relative">
+      <section className="py-4 relative">
         <div className="container mx-auto px-4" ref={eventsRef}>
               {showDebugPanel && (
                 <div className="mb-6 p-3 rounded-lg bg-black/60 text-sm text-white">
@@ -1180,7 +1449,7 @@ export const Events: React.FC = () => {
                             <div className="p-6 pt-0">
                           {canRegisterNow(event) ? (
                             <button
-                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); openRegistration(event.id, event.title); }}
+                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); openRegistration(event.id); }}
                               disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
                               className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
                             >

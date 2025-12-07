@@ -217,6 +217,10 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+  /* 3D Utilities */
+  .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .backface-visible { backface-visibility: visible; -webkit-backface-visibility: visible; }
+
   /* Larger tap targets on touch devices */
   .tap-target {
     min-height: 2.5rem; /* 40px */
