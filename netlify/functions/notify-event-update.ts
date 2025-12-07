@@ -46,12 +46,10 @@ export default async (req: Request) => {
     const defaultStampUrl = await findFileUrl('stamp');
     const stampUrl = emailStampUrl || defaultStampUrl;
 
-    const watermarkStyle = watermarkUrl ? `
-        background-image: url('${watermarkUrl}');
-        background-repeat: no-repeat;
-        background-position: 46% 100%;
-        background-size: 219%;
-        opacity: 0.19;
+    const watermarkHtml = watermarkUrl ? `
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
+            <img src="${watermarkUrl}" alt="" style="width: 220%; max-width: none; opacity: 0.19; position: absolute; bottom: 0; left: -60%;" />
+        </div>
     ` : '';
 
 
@@ -195,13 +193,7 @@ export default async (req: Request) => {
               <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
                 
                 <!-- Watermark Layer -->
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
-                            background-image: url('${watermarkUrl}'); 
-                            background-repeat: no-repeat; 
-                            background-position: center; 
-                            background-size: 80%; 
-                            opacity: 0.10;">
-                </div>
+                ${watermarkHtml}
 
                 <div style="position: relative; z-index: 1;">
                     <h2 style="color: #ea580c;">Event Update Alert</h2>
@@ -219,8 +211,8 @@ export default async (req: Request) => {
                     <p>Please make a note of these changes.</p>
                     ${coordinatorsHtml}
                     ${stampUrl ? `
-                    <div style="text-align: right; margin: -40px 0 10px 0; opacity: 0.8;">
-                        <img src="${stampUrl}" alt="Stamp" style="width: 400px; height: auto; transform: translate(111px, -188px);" />
+                    <div style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
+                        <img src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
                     </div>` : ''}
                     <div style="margin-top: 10px;">
                         <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
