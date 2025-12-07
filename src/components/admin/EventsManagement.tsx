@@ -543,10 +543,14 @@ export const EventsManagement: React.FC = () => {
                             eventTitle: eventData.title,
                             updateType: updateType,
                             message: customMsg,
-                            rules: eventData.rules?.map((r: string) => ({
-                                text: r,
-                                highlight: !originalEvent.rules?.includes(r)
-                            })), // Identify new rules
+                            rules: eventData.rules?.map((r: string) => {
+                                const cleanRule = r.trim();
+                                const isNew = !originalEvent.rules?.some((existing: string) => existing.trim() === cleanRule);
+                                return {
+                                    text: r,
+                                    highlight: isNew
+                                };
+                            }), // Identify new rules by checking trimmed existence
                             newDetails: {
                                 date: eventData.date,
                                 time: eventData.time,
