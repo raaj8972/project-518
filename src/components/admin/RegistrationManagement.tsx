@@ -445,6 +445,54 @@ export const RegistrationManagement: React.FC = () => {
     return counts;
   }, [registrations, selectedEvent]);
 
+  // Helper to send approval email (extracted for reuse)
+  const sendApprovalEmail = async (reg: any) => { // using any to avoid type gymnastics with the join
+    try {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      // Get event details to include in email
+      const event = events.find(e => e.id === reg.event_id);
+
+      if (token) {
+          const res = await fetch('/api/send-confirmation', {
+              method: 'POST',
+              headers: { 
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                  registrationId: reg.id,
+                  email: reg.email,
+                  fullName: reg.full_name,
+                  eventTitle: reg.event_title,
+                  eventDate: event?.date || 'TBA',
+                  eventTime: event?.time || 'TBA',
+                  eventVenue: event?.venue || 'TBA',
+                  provider: emailProvider,
+                  coordinators: eventCoordinators
+                      // @ts-ignore
+                      .filter(c => c.event_id === reg.event_id)
+                      // @ts-ignore
+                      .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
+                      .join(', '),
+                  teamMembers: safeTeamMembers(reg)
+              })
+          });
+
+          if (!res.ok) {
+              const err = await res.json();
+              console.warn(`Email failed for ${reg.email}:`, err);
+              // We return false or throw to indicate failure, but for bulk ops we might want to just log
+              return { success: false, error: err.error || 'Server error' };
+          }
+          return { success: true };
+      }
+    } catch (emailErr: any) {
+       console.error('Failed to initiate email:', emailErr);
+       return { success: false, error: emailErr.message };
+    }
+    return { success: false, error: 'No token' };
+  };
+
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected' | 'pending') => {
     try {
       console.log('Updating status for registration:', registrationId, 'to:', newStatus);
@@ -454,61 +502,15 @@ export const RegistrationManagement: React.FC = () => {
       if (newStatus === 'approved') {
         const reg = registrations.find(r => r.id === registrationId);
         if (reg) {
-          try {
-            const token = (await supabase.auth.getSession()).data.session?.access_token;
-            // Get event details to include in email
-            const event = events.find(e => e.id === reg.event_id);
-
-            if (token) {
-                // Fire and forget (don't block UI) or await to confirm?
-                // Let's await to show feedback, but catch errors so status update isn't seen as failed
-                fetch('/api/send-confirmation', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        registrationId: reg.id,
-                        email: reg.email,
-                        fullName: reg.full_name,
-                        eventTitle: reg.event_title,
-                        eventDate: event?.date || 'TBA',
-                        eventTime: event?.time || 'TBA',
-                        eventVenue: event?.venue || 'TBA',
-                        provider: emailProvider,
-                        coordinators: eventCoordinators
-                            // @ts-ignore
-                            .filter(c => c.event_id === reg.event_id)
-                            // @ts-ignore
-                            .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
-                            .join(', '),
-                        teamMembers: safeTeamMembers(reg)
-                    })
-                }).then(async (res) => {
-                    if (res.ok) {
-                        push({ message: `Status updated & Email sent to ${reg.full_name}!`, type: 'success' });
-                    } else {
-                        const err = await res.json();
-                        console.warn('Email failed:', err);
-                        push({ message: `Status updated, but email failed: ${err.error || 'Check server logs'}`, type: 'error' });
-                    }
-                }).catch(e => {
-                     console.error('Email fetch error:', e);
-                     push({ message: 'Status updated, but failed to send email.', type: 'error' });
-                });
-                return; // Return early because we handle the toast in the promise
+            const result = await sendApprovalEmail(reg);
+            if (result.success) {
+                push({ message: `Status updated & Email sent to ${reg.full_name}!`, type: 'success' });
+            } else {
+                push({ message: `Status updated, but email failed: ${result.error}`, type: 'error' });
             }
-          } catch (emailErr) {
-             console.error('Failed to initiate email:', emailErr);
-          }
         }
-      }
-
-      console.log('Status updated successfully');
-      // Only show generic success if we didn't do the email logic (e.g. rejected/pending)
-      if (newStatus !== 'approved') {
-         push({ message: 'Registration status updated.', type: 'success' }); // Added explicit feedback for non-email cases
+      } else {
+         push({ message: 'Registration status updated.', type: 'success' });
       }
     } catch (error) {
       console.error('Error updating registration status:', error);
@@ -632,19 +634,44 @@ export const RegistrationManagement: React.FC = () => {
   ];
 
   const handleBulkApprove = async () => {
-    const pending = filteredRegistrations.filter(r => r.status === 'pending').map(r => r.id);
-    if (!pending.length) {
+    // Determine which items are pending in the current view
+    const pendingRegs = filteredRegistrations.filter(r => r.status === 'pending');
+    
+    if (!pendingRegs.length) {
       push({ message: 'No pending registrations in current filter.', type: 'info' });
       return;
     }
-    if (!confirm(`Approve ${pending.length} pending registration(s)?`)) return;
+    if (!confirm(`Approve ${pendingRegs.length} pending registration(s)?\nThis will trigger emails for all of them.`)) return;
+    
     try {
       setBulkSaving(true);
-      await (bulkApproveRegistrations?.(pending));
-      push({ message: `Approved ${pending.length} registrations.`, type: 'success' });
+      const ids = pendingRegs.map(r => r.id);
+      
+      // Update DB status first
+      await (bulkApproveRegistrations?.(ids));
+      push({ message: `Approved ${pendingRegs.length} registrations. Sending emails...`, type: 'success' });
+      
+      // Send emails sequentially (or parallel with limit) to avoid rate limits
+      // Using sequence to be safe and provide granular feedback if needed, 
+      // but purely sequential might be slow. Let's do small batches or just parallel catch-all.
+      // Netlify functions might time out if we wait for all.
+      // For now, let's just fire them off.
+      let sentCount = 0;
+      const CHUNK_SIZE = 5; 
+      
+      for (let i = 0; i < pendingRegs.length; i += CHUNK_SIZE) {
+          const chunk = pendingRegs.slice(i, i + CHUNK_SIZE);
+          await Promise.all(chunk.map(async (reg) => {
+              const res = await sendApprovalEmail(reg);
+              if (res && res.success) sentCount++;
+          }));
+      }
+
+      push({ message: `Sent ${sentCount}/${pendingRegs.length} confirmation emails.`, type: 'success' });
+
     } catch (e) {
       console.error(e);
-      push({ message: 'Bulk approve failed.', type: 'error' });
+      push({ message: 'Bulk approve partially failed.', type: 'error' });
     } finally {
       setBulkSaving(false);
     }
