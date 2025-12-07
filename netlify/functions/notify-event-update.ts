@@ -35,7 +35,7 @@ export default async (req: Request) => {
     // Fetch Registrants
     const { data: registrations } = await supabaseAdmin
         .from('registrations')
-        .select('email, full_name')
+        .select('email, full_name, id, team_members')
         .eq('event_id', eventId)
         .eq('status', 'approved');
 
@@ -65,6 +65,8 @@ export default async (req: Request) => {
       <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
         <h2 style="color: #ea580c;">Event Update Alert</h2>
         <p>Dear Participant,</p>
+        <p><strong>Registration ID: {{REG_ID}}</strong></p>
+        {{TEAM_MEMBERS}}
         <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
         <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0 0 10px 0;"><strong>New Event Details:</strong></p>
@@ -76,7 +78,7 @@ export default async (req: Request) => {
         </div>
         <p>Please make a note of these changes.</p>
         ${coordinatorsHtml}
-        <p>Best regards,<br/>The RICO Team</p>
+        <p>Best regards,<br/>The RICO Tech-Team</p>
       </div>
     `;
 
@@ -92,6 +94,8 @@ export default async (req: Request) => {
 
     let successCount = 0;
     const errors = [];
+    const logs = [];
+
 
     // Simple sequential or small-batch approach if SMTP
     for (const reg of batch) {
@@ -99,13 +103,72 @@ export default async (req: Request) => {
             const res = await sendEmail({
                 to: reg.email,
                 subject: emailSubject,
-                html: emailHtmlRaw.replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`),
+                html: emailHtmlRaw
+                    .replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`)
+                    .replace('{{REG_ID}}', reg.id)
+                    .replace('{{TEAM_MEMBERS}}', (() => {
+                        const tm = reg.team_members;
+                        let list = [];
+                        if (Array.isArray(tm)) list = tm;
+                        else if (typeof tm === 'string') { try { list = JSON.parse(tm); } catch {} }
+                        
+                        if (list.length > 0) {
+                            const names = list.map((m: any) => m.name || m).join(', ');
+                            return `
+                                <div style="margin: 15px 0; padding: 10px; background-color: #f8fafc; border-radius: 4px;">
+                                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Team Members</p>
+                                    <p style="margin: 0; color: #334155;">${names}</p>
+                                </div>
+                            `;
+                        }
+                        return '';
+                    })()),
                 provider: provider as 'smtp' | 'resend'
             });
-            if (res.success) successCount++;
+            if (res.success) {
+                successCount++;
+                logs.push({
+                    recipient_email: reg.email,
+                    template_type: 'update',
+                    status: 'sent',
+                    provider: provider,
+                    event_id: eventId,
+                    registration_id: reg.id,
+                    details: { eventTitle, newDetails }
+                });
+            }
             else errors.push({ email: reg.email, error: res.error });
         } catch (e: any) {
              errors.push({ email: reg.email, error: e.message });
+        }
+    }
+
+    if (logs.length > 0) {
+        await supabaseAdmin.from('email_logs').insert(logs);
+    }
+
+    // --- Admin Notification ---
+    if (user.email) {
+        try {
+            await sendEmail({
+                to: user.email,
+                subject: `Broadcast Summary: ${eventTitle}`,
+                html: `
+                    <h3>Update Broadcast Complete</h3>
+                    <p>You successfully sent an event update for <strong>${eventTitle}</strong>.</p>
+                    <ul>
+                        <li><strong>Total Approved Registrants:</strong> ${registrations.length}</li>
+                        <li><strong>Emails Attempted (Batch):</strong> ${batch.length}</li>
+                        <li><strong>Successfully Sent:</strong> ${successCount}</li>
+                        <li><strong>Failed:</strong> ${errors.length}</li>
+                    </ul>
+                    <p>The participants have been notified of the new details (Date: ${date}, Time: ${time}, Venue: ${venue}).</p>
+                `,
+                provider: provider as 'smtp' | 'resend'
+            });
+            console.log('Admin notification sent to:', user.email);
+        } catch (adminErr) {
+            console.error('Failed to notify admin:', adminErr);
         }
     }
 

@@ -47,7 +47,18 @@ export default async (req: Request) => {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers });
     }
 
-    const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators } = await req.json();
+    const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators, teamMembers } = await req.json();
+
+    let teamHtml = '';
+    if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
+        const membersList = teamMembers.map((m: any) => m.name || m).join(', ');
+        teamHtml = `
+            <div style="margin: 20px 0; padding: 15px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <p style="margin: 0 0 5px 0; color: #475569; font-size: 14px;"><strong>Team Members:</strong></p>
+                <p style="margin: 0; color: #334155;">${membersList}</p>
+            </div>
+        `;
+    }
 
     const coordinatorsHtml = coordinators ? `
         <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
@@ -56,12 +67,26 @@ export default async (req: Request) => {
         </div>
     ` : '';
 
+
+    const isTBA = eventDate === 'TBA' || eventTime === 'TBA' || eventVenue === 'TBA' || !eventDate || !eventTime || !eventVenue;
+    const tbaMessage = isTBA ? 
+        `<p style="margin-top: 15px; background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; border: 1px solid #ffeeba;">
+            <strong>Note:</strong> Some event details are currently "To Be Announced". 
+            When updated, you will be informed through <strong>Email and WhatsApp</strong>.
+         </p>` : '';
+
     const emailHtml = `
       <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
         <h2 style="color: #0d9488;">Registration Approved!</h2>
         <p>Dear <strong>${fullName}</strong>,</p>
         <p>We are pleased to inform you that your registration for <strong>${eventTitle}</strong> has been approved.</p>
         
+        <div style="margin: 20px 0; padding: 15px; background-color: #f0fdfa; border-radius: 8px; border: 1px solid #ccfbf1;">
+            <p style="margin: 0; font-size: 18px; color: #0f766e;"><strong>Registration ID: ${registrationId}</strong></p>
+        </div>
+
+        ${teamHtml}
+
         <div style="margin-bottom: 20px; padding: 10px; border-left: 4px solid #0d9488; background-color: #f9fafb;">
             <p style="margin: 0 0 10px 0;"><strong>Event Details:</strong></p>
             <ul style="list-style: none; padding: 0; margin: 0;">
@@ -70,12 +95,14 @@ export default async (req: Request) => {
                 <li>📍 <strong>Venue:</strong> ${eventVenue || 'TBA'}</li>
             </ul>
         </div>
+        
+        ${tbaMessage}
 
         <p>Please present this ID at the venue entrance.</p>
         
         ${coordinatorsHtml}
 
-        <p style="margin-top: 30px;">Best regards,<br/>The RICO Team</p>
+        <p style="margin-top: 30px;">Best regards,<br/>The RICO Tech-Team</p>
       </div>
     `;
 
@@ -87,6 +114,17 @@ export default async (req: Request) => {
     });
 
     if (result.success) {
+        // Log to DB
+        await supabaseAdmin.from('email_logs').insert({
+            recipient_email: email,
+            template_type: 'confirmation',
+            status: 'sent',
+            provider: provider,
+            event_id: (await supabaseAdmin.from('events').select('id').eq('title', eventTitle).single()).data?.id, // Best effort lookup
+            registration_id: registrationId, // storing the custom ID string for reference
+            details: { eventTitle, eventDate, provider }
+        });
+
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     } else {
         return new Response(JSON.stringify({ error: 'Failed to send email via SMTP', details: result.error }), { status: 500, headers });

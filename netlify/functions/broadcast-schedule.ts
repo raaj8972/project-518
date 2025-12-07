@@ -62,7 +62,7 @@ export default async (req: Request) => {
             <a href="https://ricorrenza.fun/schedule" style="background-color: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Schedule</a>
         </div>
         <p>Plan your days and get ready for the excitement!</p>
-        <p>Best regards,<br/>The RICO Team</p>
+        <p>Best regards,<br/>The RICO Tech-Team</p>
       </div>
     `;
 

@@ -53,6 +53,8 @@ export const RegistrationManagement: React.FC = () => {
     });
   const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
+  const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
+  const [logsLoading, setLogsLoading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [pdfExporting] = useState(false);
   const [showColumnModal, setShowColumnModal] = useState(false);
@@ -480,11 +482,12 @@ export const RegistrationManagement: React.FC = () => {
                             .filter(c => c.event_id === reg.event_id)
                             // @ts-ignore
                             .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
-                            .join(', ')
+                            .join(', '),
+                        teamMembers: safeTeamMembers(reg)
                     })
                 }).then(async (res) => {
                     if (res.ok) {
-                        push({ message: 'Status updated & Email sent!', type: 'success' });
+                        push({ message: `Status updated & Email sent to ${reg.full_name}!`, type: 'success' });
                     } else {
                         const err = await res.json();
                         console.warn('Email failed:', err);
@@ -576,6 +579,26 @@ export const RegistrationManagement: React.FC = () => {
       }
     } catch (e: any) {
       push({ message: 'Failed to reset sequence: ' + e.message, type: 'error' });
+    }
+
+  };
+
+  const fetchEmailLogs = async (regId: string) => {
+    setLogsLoading(true);
+    setEmailLogs([]);
+    try {
+        const { data, error } = await supabase
+            .from('email_logs')
+            .select('*')
+            .eq('registration_id', regId) // Assuming we added this column to logs
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setEmailLogs(data || []);
+    } catch (err) {
+        console.error('Error fetching logs:', err);
+    } finally {
+        setLogsLoading(false);
     }
   };
 
@@ -1320,9 +1343,11 @@ export const RegistrationManagement: React.FC = () => {
                       {viewMode === 'active' ? (
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => setExpandedRegistration(
-                        expandedRegistration === registration.id ? null : registration.id
-                      )}
+                      onClick={() => {
+                        const newId = expandedRegistration === registration.id ? null : registration.id;
+                        setExpandedRegistration(newId);
+                        if (newId) fetchEmailLogs(newId); // Fetch logs
+                      }}
                       className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
                       title="View Details"
                     >
@@ -1464,6 +1489,42 @@ export const RegistrationManagement: React.FC = () => {
                               </div>
                             </div>
                           )}
+                          {/* Notification History */}
+                          <div className="mt-6 border-t pt-4">
+                            <h4 className="font-semibold text-gray-900 mb-2">Notification History</h4>
+                            {logsLoading ? (
+                                <p className="text-sm text-gray-500">Loading logs...</p>
+                            ) : emailLogs.length > 0 ? (
+                                <div className="bg-white rounded border overflow-hidden">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sent At</th>
+                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200">
+                                            {emailLogs.map((log) => (
+                                                <tr key={log.id}>
+                                                    <td className="px-3 py-2 text-sm text-gray-900">{new Date(log.created_at).toLocaleString()}</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-900 capitalize">{log.template_type}</td>
+                                                    <td className="px-3 py-2 text-sm">
+                                                        <span className={`px-2 py-0.5 rounded text-xs ${log.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {log.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-2 text-sm text-gray-500 uppercase">{log.provider}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-500">No emails sent yet.</p>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
