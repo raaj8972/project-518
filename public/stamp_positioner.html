@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Stamp Positioner Tool</title>
+<style>
+  body { background: #f3f4f6; padding: 20px; font-family: sans-serif; }
+  .wrapper { background: white; max-width: 600px; margin: 0 auto; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: relative; }
+  .controls { position: fixed; bottom: 0; left: 0; right: 0; background: #333; color: white; padding: 20px; display: flex; gap: 20px; justify-content: center; align-items: center; z-index: 100; }
+  .control-group { display: flex; flex-direction: column; align-items: center; }
+  label { margin-bottom: 5px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  input[type=range] { width: 200px; }
+  .value-display { font-family: monospace; color: #fbbf24; font-size: 14px; margin-top: 5px; }
+  .output { background: black; padding: 10px; border-radius: 4px; font-family: monospace; color: #4ade80; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+    <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+        <p style="margin: 0 0 10px 0; color: #666;"><strong>Need Help? Contact Coordinators:</strong></p>
+        <p style="margin: 0; font-size: 14px; color: #444;">Alice (9876543210), Bob (8765432109)</p>
+    </div>
+
+    <!-- STAMP CONTAINER -->
+    <div id="stamp-container" style="text-align: right; margin: -40px 0 10px 0; opacity: 0.8; position: relative;">
+        <img src="https://isfqhascrdzaoebhuohs.supabase.co/storage/v1/object/sign/pdf-watermarks/email_stamp.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zNDNmNjVmMC0xZjRkLTRjMTMtOThjNS00NGMwM2FlODNhNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYtd2F0ZXJtYXJrcy9lbWFpbF9zdGFtcC5wbmciLCJpYXQiOjE3NjUxNDA3NzMsImV4cCI6MTc2NTE0NDM3M30.YL4A_HUioIqQnMWLbQdrGoZ0ZYkK7tqiJgiKBpfVAs8" 
+             alt="Stamp" 
+             id="stamp-img"
+             style="width: 250px; height: auto; transform: translate(0px, 0px);" />
+    </div>
+
+    <div style="margin-top: 10px;">
+        <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+    </div>
+</div>
+
+<div style="height: 150px;"></div> <!-- Spacer -->
+
+<div class="controls">
+    <div class="control-group">
+        <label>Vertical Position (Y)</label>
+        <input type="range" min="-200" max="200" value="0" id="rangeY">
+        <span class="value-display" id="valY">0px</span>
+    </div>
+    <div class="control-group">
+        <label>Horizontal Position (X)</label>
+        <input type="range" min="-200" max="200" value="0" id="rangeX">
+        <span class="value-display" id="valX">0px</span>
+    </div>
+    <div class="control-group">
+        <label>Stamp Size</label>
+        <input type="range" min="50" max="400" value="250" id="rangeSize">
+        <span class="value-display" id="valSize">250px</span>
+    </div>
+    <div class="output" id="cssOutput">
+        Drag sliders to position!
+    </div>
+</div>
+
+<script>
+    const stampImg = document.getElementById('stamp-img');
+    const rangeY = document.getElementById('rangeY');
+    const rangeX = document.getElementById('rangeX');
+    const rangeSize = document.getElementById('rangeSize');
+    const valY = document.getElementById('valY');
+    const valX = document.getElementById('valX');
+    const valSize = document.getElementById('valSize');
+    const cssOutput = document.getElementById('cssOutput');
+
+    function update() {
+        const y = rangeY.value;
+        const x = rangeX.value;
+        const size = rangeSize.value;
+
+        // Apply visual updates
+        stampImg.style.transform = `translate(${x}px, ${y}px)`;
+        stampImg.style.width = `${size}px`;
+
+        // Update displays
+        valY.textContent = `${y}px`;
+        valX.textContent = `${x}px`;
+        valSize.textContent = `${size}px`;
+
+        // Generate text for user
+        cssOutput.innerHTML = `
+            Width: <strong>${size}px</strong><br/>
+            Translate X: <strong>${x}px</strong><br/>
+            Translate Y: <strong>${y}px</strong>
+        `;
+    }
+
+    rangeY.addEventListener('input', update);
+    rangeX.addEventListener('input', update);
+    rangeSize.addEventListener('input', update);
+</script>
+
+</body>
+</html>

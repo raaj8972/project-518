@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import { VideoUpload } from '../VideoUpload';
+import { supabase } from '../../lib/supabase';
 import EventWinnersEditor from './EventWinnersEditor';
 import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
@@ -11,6 +12,43 @@ import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 
 import { useToast } from '../../components/ToastProvider';
+
+
+// ---- Rules (structured) helpers (v2) ----
+type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
+type RuleSection = { heading?: string; blocks?: RuleBlock[] };
+type RuleSectionV1 = { heading?: string; subheading?: string; points?: string[] };
+const STRUCTURED_MARK = '__SR__';
+const isStructuredRules = (rules: string[] | null | undefined): boolean => Array.isArray(rules) && rules.length === 1 && typeof rules[0] === 'string' && rules[0].startsWith(STRUCTURED_MARK);
+const normalizeV1toV2 = (list: RuleSectionV1[]): RuleSection[] => {
+  return (list || []).map((s) => ({
+    heading: s.heading,
+    blocks: [
+      ...(s.points && s.points.length ? [{ kind: 'points', style: 'number', title: s.subheading, items: s.points }] as RuleBlock[] : [])
+    ]
+  }));
+};
+const unpackStructured = (rules: string[] | null | undefined): RuleSection[] => {
+  try {
+    if (!isStructuredRules(rules)) return [];
+    const s = (rules as string[])[0].slice(STRUCTURED_MARK.length);
+    const parsed = JSON.parse(s);
+    if (parsed?.v === 2 && Array.isArray(parsed.sections)) return parsed.sections as RuleSection[];
+    if (Array.isArray(parsed?.sections)) return normalizeV1toV2(parsed.sections as RuleSectionV1[]);
+    return [];
+  } catch { return []; }
+};
+const packStructured = (sections: RuleSection[]): string[] => [STRUCTURED_MARK + JSON.stringify({ v: 2, sections })];
+const computeRulesCount = (rules: string[] | null | undefined): number => {
+  if (!rules || rules.length === 0) return 0;
+  if (isStructuredRules(rules)) {
+    const sections = unpackStructured(rules);
+    if (!sections.length) return 0;
+    const pts = sections.reduce((sum, s) => sum + (s.blocks || []).reduce((acc, b) => acc + (b.items?.filter(p=>p && p.trim()).length || 0), 0), 0);
+    return pts || sections.length;
+  }
+  return rules.filter(r => r && r.trim()).length;
+};
 
 export const EventsManagement: React.FC = () => {
   const { push } = useToast();
@@ -33,7 +71,7 @@ export const EventsManagement: React.FC = () => {
     // Reorder
     reorderEvents,
     lastEventReorderError,
-  } = useData() as any;
+  } = (useData() || {}) as any;
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [savingAdd, setSavingAdd] = useState(false);
@@ -47,15 +85,26 @@ export const EventsManagement: React.FC = () => {
   const [sendingManualNotify, setSendingManualNotify] = useState(false);
 
   const handleManualNotify = (event: any) => {
-    setManualNotifyEvent(event);
+    // Clone so we can modify rules for display without affecting store
+    const evt = { ...event };
+
+    // Flatten structured rules for manual selection
+    if (evt.rules && isStructuredRules(evt.rules)) {
+        const sections = unpackStructured(evt.rules);
+        const flat: string[] = [];
+        sections.forEach(sec => {
+            if (sec.heading) flat.push(`<strong>${sec.heading}</strong>`);
+            sec.blocks?.forEach(block => {
+                if (block.title) flat.push(`<em>${block.title}</em>`);
+                block.items.forEach(item => flat.push(item));
+            });
+        });
+        evt.rules = flat;
+    }
+
+    setManualNotifyEvent(evt);
     setManualNotifyType('rules'); // Default to rules as it's the complex one
     setManualNotifyMessage('Please check the website for updated rules.');
-    
-    // Smart Pre-select: Check for "newly added" looking rules (e.g. if we had a history)
-    // Since this is manual trigger, we don't have "old version" to compare against easily unless we stored it.
-    // So we will start with NONE selected, or ALL selected? 
-    // User said "allow admin to click check to highlight".
-    // Let's start with NONE selected to be safe, so they explicitly choose what to highlight.
     setManualNotifyHighlights(new Set());
   };
 
@@ -113,41 +162,74 @@ export const EventsManagement: React.FC = () => {
     }
   };
 
-  // ---- Rules (structured) helpers (v2) ----
-  type RuleBlock = { kind: 'points'; style?: 'bullet' | 'number'; title?: string; items: string[] };
-  type RuleSection = { heading?: string; blocks?: RuleBlock[] };
-  type RuleSectionV1 = { heading?: string; subheading?: string; points?: string[] };
-  const STRUCTURED_MARK = '__SR__';
-  const isStructuredRules = (rules: string[] | null | undefined): boolean => Array.isArray(rules) && rules.length === 1 && typeof rules[0] === 'string' && rules[0].startsWith(STRUCTURED_MARK);
-  const normalizeV1toV2 = (list: RuleSectionV1[]): RuleSection[] => {
-    return (list || []).map((s) => ({
-      heading: s.heading,
-      blocks: [
-        ...(s.points && s.points.length ? [{ kind: 'points', style: 'number', title: s.subheading, items: s.points }] as RuleBlock[] : [])
-      ]
-    }));
-  };
-  const unpackStructured = (rules: string[] | null | undefined): RuleSection[] => {
+  // ---- Email Stamp Helpers ----
+  const [emailStampUrl, setEmailStampUrl] = useState<string | null>(null);
+  const [uploadingEmailStamp, setUploadingEmailStamp] = useState(false);
+
+  useEffect(() => {
+    const loadEmailStamp = async () => {
+        const { data: stList } = await supabase.storage.from('pdf-watermarks').list();
+        const stFile = stList?.find((f: any) => f.name === 'email_stamp.png' || f.name === 'email_stamp.svg');
+        if (stFile) {
+            // Signed URL for 1 hour is enough for preview
+             const { data } = await supabase.storage.from('pdf-watermarks').createSignedUrl(stFile.name, 3600);
+             if (data?.signedUrl) setEmailStampUrl(data.signedUrl);
+        }
+    };
+    loadEmailStamp();
+  }, []);
+
+  const handleEmailStampUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
-      if (!isStructuredRules(rules)) return [];
-      const s = (rules as string[])[0].slice(STRUCTURED_MARK.length);
-      const parsed = JSON.parse(s);
-      if (parsed?.v === 2 && Array.isArray(parsed.sections)) return parsed.sections as RuleSection[];
-      if (Array.isArray(parsed?.sections)) return normalizeV1toV2(parsed.sections as RuleSectionV1[]);
-      return [];
-    } catch { return []; }
-  };
-  const packStructured = (sections: RuleSection[]): string[] => [STRUCTURED_MARK + JSON.stringify({ v: 2, sections })];
-  const computeRulesCount = (rules: string[] | null | undefined): number => {
-    if (!rules || rules.length === 0) return 0;
-    if (isStructuredRules(rules)) {
-      const sections = unpackStructured(rules);
-      if (!sections.length) return 0;
-      const pts = sections.reduce((sum, s) => sum + (s.blocks || []).reduce((acc, b) => acc + (b.items?.filter(p=>p && p.trim()).length || 0), 0), 0);
-      return pts || sections.length;
+      if (!event.target.files || event.target.files.length === 0) return;
+      
+      const file = event.target.files[0];
+      if (!file.type.includes('image/png') && !file.type.includes('image/svg')) {
+        alert('Please upload a PNG or SVG file.');
+        return;
+      }
+      
+      setUploadingEmailStamp(true);
+      
+      const fileExt = file.type.includes('image/svg') ? 'svg' : 'png';
+      const fileName = `email_stamp.${fileExt}`;
+      
+      // Delete existing files first
+      await supabase.storage.from('pdf-watermarks').remove(['email_stamp.png', 'email_stamp.svg']);
+
+      const { error } = await supabase.storage
+        .from('pdf-watermarks')
+        .upload(fileName, file, { cacheControl: '0', upsert: true });
+
+      if (error) throw error;
+
+      // Get signed url for preview
+      const { data } = await supabase.storage.from('pdf-watermarks').createSignedUrl(fileName, 3600);
+      setEmailStampUrl(data?.signedUrl || null);
+      push({ message: 'Email stamp uploaded successfully!', type: 'success' });
+    } catch (error: any) {
+      console.error('Error uploading stamp:', error);
+      push({ message: 'Failed to upload stamp.', type: 'error' });
+    } finally {
+      setUploadingEmailStamp(false);
     }
-    return rules.filter(r => r && r.trim()).length;
   };
+
+  const handleEmailStampDelete = async () => {
+    if (!confirm('Are you sure you want to remove the email stamp?')) return;
+    try {
+      setUploadingEmailStamp(true);
+      await supabase.storage.from('pdf-watermarks').remove(['email_stamp.png', 'email_stamp.svg']);
+      setEmailStampUrl(null);
+      push({ message: 'Email stamp removed.', type: 'success' });
+    } catch (error) {
+      console.error('Error deleting stamp:', error);
+    } finally {
+      setUploadingEmailStamp(false);
+    }
+  };
+
+
 
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [editingEvent, setEditingEvent] = useState<number | null>(null);
@@ -931,6 +1013,56 @@ export const EventsManagement: React.FC = () => {
           Add Event
           </button>
         </div>
+      </div>
+
+      {/* Email Configuration (Email Stamp) */}
+      <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <Upload className="mr-2 text-indigo-600" size={20} />
+            Email Stamp Configuration
+          </h3>
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0 w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative">
+              {emailStampUrl ? (
+                <img src={emailStampUrl} alt="Email Stamp" className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-xs text-gray-400 text-center px-1">No Stamp</span>
+              )}
+              {uploadingEmailStamp && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-3">
+              <p className="text-sm text-gray-600">
+                Upload a specific stamp for email notifications (PNG/SVG). This will override the shared PDF stamp in emails.
+              </p>
+              <div className="flex space-x-2">
+                <label className={`flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md cursor-pointer hover:bg-indigo-500 transition-colors ${uploadingEmailStamp ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Upload size={14} className="mr-1.5" />
+                  Upload Email Stamp
+                  <input 
+                    type="file" 
+                    accept="image/png,image/svg+xml" 
+                    className="hidden" 
+                    onChange={handleEmailStampUpload}
+                    disabled={uploadingEmailStamp}
+                  />
+                </label>
+                {emailStampUrl && (
+                  <button 
+                    onClick={handleEmailStampDelete}
+                    disabled={uploadingEmailStamp}
+                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
       </div>
 
       {/* Add Event Form */}
@@ -2419,7 +2551,7 @@ export const EventsManagement: React.FC = () => {
                                                     }}
                                                     className="mt-1"
                                                 />
-                                                <span className="text-sm text-gray-700 leading-snug">{display}</span>
+                                                <span className="text-sm text-gray-700 leading-snug" dangerouslySetInnerHTML={{ __html: display }} />
                                             </label>
                                         );
                                     })

@@ -26,8 +26,35 @@ export default async (req: Request) => {
     const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
     if (!user) return new Response(JSON.stringify({ error: 'Invalid Token' }), { status: 401, headers });
 
-    const { data: adminUser } = await supabaseAdmin.from('admin_users').select('role').eq('user_id', user.id).single();
-    if (!adminUser) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers });
+    // Fetch Watermark and Stamp URLs dynamically to handle .png or .svg
+    const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
+    
+    // Helper to find file
+    const findFileUrl = async (prefix: string) => {
+        const file = bucketFiles?.find((f: any) => f.name === `${prefix}.png` || f.name === `${prefix}.svg`);
+        if (file) {
+            // Use signed URL to ensure access even if bucket is private (10 years expiry)
+            const { data } = await supabaseAdmin.storage.from('pdf-watermarks').createSignedUrl(file.name, 315360000);
+            return data?.signedUrl;
+        }
+        return null;
+    };
+
+    const watermarkUrl = (await findFileUrl('watermark')) || 'https://ricorrenza.fun/logo.png'; // Fallback to logo if no watermark
+    // Prefer 'email_stamp' (specific) over 'stamp' (shared)
+    const emailStampUrl = await findFileUrl('email_stamp');
+    const defaultStampUrl = await findFileUrl('stamp');
+    const stampUrl = emailStampUrl || defaultStampUrl;
+
+    const watermarkStyle = watermarkUrl ? `
+        background-image: url('${watermarkUrl}');
+        background-repeat: no-repeat;
+        background-position: 46% 100%;
+        background-size: 219%;
+        opacity: 0.19;
+    ` : '';
+
+
 
     // Parse Body
     const { eventId, eventTitle, newDetails, provider = 'smtp', updateType = 'schedule', message, rules } = await req.json();
@@ -48,116 +75,162 @@ export default async (req: Request) => {
         .select('name, phone')
         .eq('event_id', eventId);
     
-    let coordinatorsHtml = '';
-    if (coordinators && coordinators.length > 0) {
-        const coordString = coordinators.map((c: any) => `${c.name}${c.phone ? ` (${c.phone})` : ''}`).join(', ');
-        coordinatorsHtml = `
-            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-                <p style="margin: 0 0 10px 0; color: #666;"><strong>Need Help? Contact Coordinators:</strong></p>
-                <p style="margin: 0; font-size: 14px; color: #444;">${coordString}</p>
-            </div>
-        `;
-    }
+    // Send Emails (Parallel Batches of 5)
 
-    let emailSubject = '';
-    let emailHtmlTemplate = '';
 
-    if (updateType === 'rules') {
-        emailSubject = `Update: Rules Changed for ${eventTitle}`;
-        emailHtmlTemplate = `
-          <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-            <h2 style="color: #ea580c;">Event Rules Update</h2>
-            <p>Dear Participant,</p>
-            <p><strong>Registration ID: {{REG_ID}}</strong></p>
-            {{TEAM_MEMBERS}}
-            <p>There has been an important update to the <strong>Rules & Regulations</strong> for <strong>${eventTitle}</strong>.</p>
-            
-            <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; color: #c2410c;"><strong>Attention Required:</strong></p>
-                <p style="margin-top: 5px;">The rules have been updated. Here are the current rules:</p>
+    // Helper to generate email body
+    const getEmailBody = (reg: any) => {
+        let teamMembersHtml = '';
+        if (reg.team_members && Array.isArray(reg.team_members) && reg.team_members.length > 0) {
+            teamMembersHtml = `
+                <div style="background-color: #fce7f3; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #fbcfe8;">
+                    <p style="margin: 0; font-weight: bold; color: #be185d; font-size: 13px;">Team Members:</p>
+                    <ul style="margin: 5px 0 0 0; padding-left: 20px; color: #831843;">
+                        ${reg.team_members.map((m: any) => `<li>${m.name || m}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        let coordinatorsHtml = '';
+        if (coordinators && coordinators.length > 0) {
+            coordinatorsHtml = `
+                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                    <p style="margin: 0; font-weight: bold; color: #555;">Event Coordinators:</p>
+                    <ul style="margin: 5px 0 0 0; padding-left: 0; list-style: none;">
+                        ${coordinators.map((c: any) => `<li style="color: #666;">${c.name}: <a href="tel:${c.phone}" style="color: #2563eb; text-decoration: none;">${c.phone}</a></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        let emailHtmlTemplate = '';
+        let emailSubject = '';
+
+        if (updateType === 'rules') {
+            emailSubject = `Important: Rules Update for ${eventTitle}`;
+            emailHtmlTemplate = `
+              <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
                 
-                ${rules && Array.isArray(rules) && rules.length > 0 ? `
-                    <div style="margin-top: 15px; color: #333;">
-                        ${rules.map((r: any) => {
-                            let text = typeof r === 'string' ? r : r.text;
-                            const isNew = typeof r === 'object' && r.highlight;
-                            const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>' : '';
-                            const highlightStyle = isNew ? "background-color: #fef08a; padding: 2px 5px; border-radius: 4px;" : "";
+                <!-- Watermark Layer (Mimicking PDF opacity: 0.12) -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
+                            background-image: url('${watermarkUrl}'); 
+                            background-repeat: no-repeat; 
+                            background-position: center; 
+                            background-size: 80%; 
+                            opacity: 0.10;">
+                </div>
 
-                            // Handle Structured Rules (__SR__)
-                            if (text.startsWith('__SR__')) {
-                                try {
-                                    const json = JSON.parse(text.substring(6)); // Remove __SR__
-                                    if (json.sections) {
-                                        return json.sections.map((sec: any) => `
-                                            <div style="margin-bottom: 15px; ${highlightStyle}">
-                                                ${sec.heading ? `<p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">${badge}${sec.heading}</p>` : (isNew ? `<p style="margin:0;">${badge}</p>` : '')}
-                                                ${sec.blocks ? sec.blocks.map((b: any) => `
-                                                    <div style="margin-bottom: 10px;">
-                                                        ${b.title ? `<p style="font-weight: 500; margin: 0 0 5px 0; font-size: 14px;">${b.title}</p>` : ''}
-                                                        <${b.style === 'number' ? 'ol' : 'ul'} style="margin: 0; padding-left: 20px;">
-                                                            ${b.items.map((item: string) => `<li style="margin-bottom: 3px;">${item}</li>`).join('')}
-                                                        </${b.style === 'number' ? 'ol' : 'ul'} >
+                <div style="position: relative; z-index: 1;">
+                    <h2 style="color: #ea580c;">Rules & Regulations Update</h2>
+                    <p>Dear Participant,</p>
+                    <p><strong>Registration ID: ${reg.id}</strong></p>
+                    ${teamMembersHtml}
+                    <p>The rules for <strong>${eventTitle}</strong> have been updated.</p>
+                    
+                    <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #c2410c;">Current Rules</h3>
+                        ${rules && Array.isArray(rules) && rules.length > 0 ? `
+                            <div style="margin-top: 15px; color: #333;">
+                                ${rules.map((r: any) => {
+                                    let text = typeof r === 'string' ? r : r.text;
+                                    const isNew = typeof r === 'object' && r.highlight;
+                                    const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>' : '';
+                                    const highlightStyle = isNew ? "background-color: #fef08a; padding: 2px 5px; border-radius: 4px;" : "";
+
+                                    // Handle Structured Rules (__SR__)
+                                    if (text.startsWith('__SR__')) {
+                                        try {
+                                            const json = JSON.parse(text.substring(6)); // Remove __SR__
+                                            if (json.sections) {
+                                                return json.sections.map((sec: any) => `
+                                                    <div style="margin-bottom: 15px; ${highlightStyle}">
+                                                        ${sec.heading ? `<p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">${badge}${sec.heading}</p>` : (isNew ? `<p style="margin:0;">${badge}</p>` : '')}
+                                                        ${sec.blocks ? sec.blocks.map((b: any) => `
+                                                            <div style="margin-bottom: 10px;">
+                                                                ${b.title ? `<p style="font-weight: 500; margin: 0 0 5px 0; font-size: 14px;">${b.title}</p>` : ''}
+                                                                <${b.style === 'number' ? 'ol' : 'ul'} style="margin: 0; padding-left: 20px;">
+                                                                    ${b.items.map((item: string) => `<li style="margin-bottom: 3px;">${item}</li>`).join('')}
+                                                                </${b.style === 'number' ? 'ol' : 'ul'} >
+                                                            </div>
+                                                        `).join('') : ''}
                                                     </div>
-                                                `).join('') : ''}
-                                            </div>
-                                        `).join('');
+                                                `).join('');
+                                            }
+                                        } catch (e) {
+                                            console.error('Failed to parse structured rule', e);
+                                            return `<p style="color: #991b1b; ${highlightStyle}">${badge}Error rendering rule</p>`; 
+                                        }
                                     }
-                                } catch (e) {
-                                    console.error('Failed to parse structured rule', e);
-                                    return `<p style="color: #991b1b; ${highlightStyle}">${badge}Error rendering rule</p>`; 
-                                }
-                            }
 
-                            // Classic Simple Rule
-                            const style = isNew 
-                                ? "margin-bottom: 5px; background-color: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #854d0e;" 
-                                : "margin-bottom: 5px;";
-                            return `<li style="${style}">${badge}${text}</li>`;
-                        }).join('')}
+                                    // Classic Simple Rule
+                                    const style = isNew 
+                                        ? "margin-bottom: 5px; background-color: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #854d0e;" 
+                                        : "margin-bottom: 5px;";
+                                    return `<li style="${style}">${badge}${text}</li>`;
+                                }).join('')}
+                            </div>
+                        ` : '<p style="font-style:italic; color:#666;">Please check website for details.</p>'}
+
+                        ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
                     </div>
-                ` : '<p style="font-style:italic; color:#666;">Please check website for details.</p>'}
 
-                ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
-            </div>
+                    <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
+                    ${coordinatorsHtml}
+                    <div style="margin-top: 0; display: flex; align-items: flex-end; justify-content: space-between;">
+                        <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+                        ${stampUrl ? `
+                        <div style="opacity: 0.8; position: relative; top: -90px; left: -150px;">
+                            <img src="${stampUrl}" alt="Stamp" style="width: 80px; height: auto;" />
+                        </div>` : ''}
+                    </div>
+                </div>
+              </div>
+            `;
+        } else {
+            // Default: Schedule/Venue Update
+            const { date, time, venue } = newDetails || {};
+            emailSubject = `Update: ${eventTitle} Details Changed`;
+            emailHtmlTemplate = `
+              <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
+                
+                <!-- Watermark Layer -->
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
+                            background-image: url('${watermarkUrl}'); 
+                            background-repeat: no-repeat; 
+                            background-position: center; 
+                            background-size: 80%; 
+                            opacity: 0.10;">
+                </div>
 
-            <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
-            ${coordinatorsHtml}
-            <p>Best regards,<br/>The RICO Tech-Team</p>
-          </div>
-        `;
-    } else {
-        // Default: Schedule/Venue Update
-        const { date, time, venue } = newDetails || {};
-        emailSubject = `Update: ${eventTitle} Details Changed`;
-        emailHtmlTemplate = `
-          <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-            <h2 style="color: #ea580c;">Event Update Alert</h2>
-            <p>Dear Participant,</p>
-            <p><strong>Registration ID: {{REG_ID}}</strong></p>
-            {{TEAM_MEMBERS}}
-            <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
-            <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0 0 10px 0;"><strong>New Event Details:</strong></p>
-                <ul style="list-style: none; padding: 0; margin: 0;">
-                    <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> ${date || 'TBA'}</li>
-                    <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> ${time || 'TBA'}</li>
-                    <li>📍 <strong>Venue:</strong> ${venue || 'TBA'}</li>
-                </ul>
-                ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
-            </div>
-            <p>Please make a note of these changes.</p>
-            ${coordinatorsHtml}
-            <p>Best regards,<br/>The RICO Tech-Team</p>
-          </div>
-        `;
-    }
-    // Send Loops (Node.js handles concurrency better than Deno Edge usually)
-    // We can use Promise.all but we should be careful with SMTP connection limits if using 'smtp'.
-    // Resend handles concurrent HTTP requests fine.
-    // Hostinger SMTP likely has a connection limit (e.g. 10 simultaneous).
-    // Let's use a small concurrency limit manually or just rely on Nodemailer pooling (it has built-in pooling).
-    // We will just fire them off.
+                <div style="position: relative; z-index: 1;">
+                    <h2 style="color: #ea580c;">Event Update Alert</h2>
+                    <p>Dear Participant,</p>
+                    <p><strong>Registration ID: ${reg.id}</strong></p>
+                    ${teamMembersHtml}
+                    <p>There has been an update to the details for <strong>${eventTitle}</strong>.</p>
+                    <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="margin-top: 0; color: #c2410c;">New Schedule / Venue</h3>
+                        <p><strong>Date:</strong> ${date || 'As scheduled'}</p>
+                        <p><strong>Time:</strong> ${time || 'As scheduled'}</p>
+                        <p><strong>Venue:</strong> ${venue || 'As per details'}</p>
+                        ${message ? `<p style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
+                    </div>
+                    <p>Please make a note of these changes.</p>
+                    ${coordinatorsHtml}
+                    ${stampUrl ? `
+                    <div style="text-align: right; margin: -40px 0 10px 0; opacity: 0.8;">
+                        <img src="${stampUrl}" alt="Stamp" style="width: 400px; height: auto; transform: translate(111px, -188px);" />
+                    </div>` : ''}
+                    <div style="margin-top: 10px;">
+                        <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+                    </div>
+                </div>
+              </div>
+            `;
+        }
+        return { subject: emailSubject, html: emailHtmlTemplate };
+    };
 
     const batch = registrations.slice(0, 100); // 100 limit still safe 
     console.log(`Sending update to ${batch.length} users via ${provider}`);
@@ -173,29 +246,13 @@ export default async (req: Request) => {
         const chunk = batch.slice(i, i + CONCURRENCY);
         await Promise.all(chunk.map(async (reg) => {
             try {
+                // Generate email body for this specific registrant (includes team members, id, watermarks)
+                const { subject, html } = getEmailBody(reg);
+
                 const res = await sendEmail({
                     to: reg.email,
-                    subject: emailSubject,
-                    html: emailHtmlTemplate
-                        .replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`)
-                        .replace('{{REG_ID}}', reg.id)
-                        .replace('{{TEAM_MEMBERS}}', (() => {
-                            const tm = reg.team_members;
-                            let list = [];
-                            if (Array.isArray(tm)) list = tm;
-                            else if (typeof tm === 'string') { try { list = JSON.parse(tm); } catch {} }
-                            
-                            if (list.length > 0) {
-                                const names = list.map((m: any) => m.name || m).join(', ');
-                                return `
-                                    <div style="margin: 15px 0; padding: 10px; background-color: #f8fafc; border-radius: 4px;">
-                                        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Team Members</p>
-                                        <p style="margin: 0; color: #334155;">${names}</p>
-                                    </div>
-                                `;
-                            }
-                            return '';
-                        })()),
+                    subject: subject,
+                    html: html.replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`),
                     provider: provider as 'smtp' | 'resend'
                 });
                 if (res.success) {
