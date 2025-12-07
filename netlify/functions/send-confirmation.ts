@@ -113,18 +113,18 @@ export default async (req: Request) => {
         provider: provider as 'smtp' | 'resend'
     });
 
-    if (result.success) {
-        // Log to DB
-        await supabaseAdmin.from('email_logs').insert({
-            recipient_email: email,
-            template_type: 'confirmation',
-            status: 'sent',
-            provider: provider,
-            event_id: (await supabaseAdmin.from('events').select('id').eq('title', eventTitle).single()).data?.id, // Best effort lookup
-            registration_id: registrationId, // storing the custom ID string for reference
-            details: { eventTitle, eventDate, provider }
-        });
+    // Log to DB (Success or Failure)
+    await supabaseAdmin.from('email_logs').insert({
+        recipient_email: email,
+        template_type: 'confirmation',
+        status: result.success ? 'sent' : 'failed',
+        provider: provider,
+        event_id: (await supabaseAdmin.from('events').select('id').eq('title', eventTitle).single()).data?.id,
+        registration_id: registrationId,
+        details: { eventTitle, eventDate, provider, error: result.error }
+    });
 
+    if (result.success) {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     } else {
         return new Response(JSON.stringify({ error: 'Failed to send email via SMTP', details: result.error }), { status: 500, headers });

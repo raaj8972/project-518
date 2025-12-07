@@ -1503,6 +1503,7 @@ export const RegistrationManagement: React.FC = () => {
                                                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                                                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                                 <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Provider</th>
+                                                <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200">
@@ -1511,11 +1512,26 @@ export const RegistrationManagement: React.FC = () => {
                                                     <td className="px-3 py-2 text-sm text-gray-900">{new Date(log.created_at).toLocaleString()}</td>
                                                     <td className="px-3 py-2 text-sm text-gray-900 capitalize">{log.template_type}</td>
                                                     <td className="px-3 py-2 text-sm">
-                                                        <span className={`px-2 py-0.5 rounded text-xs ${log.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                            {log.status}
+                                                        <span className={`px-2 py-0.5 rounded text-xs inline-flex items-center gap-1 ${log.status === 'sent' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {log.status === 'sent' ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                            <span className="capitalize">{log.status}</span>
                                                         </span>
                                                     </td>
                                                     <td className="px-3 py-2 text-sm text-gray-500 uppercase">{log.provider}</td>
+                                                    <td className="px-3 py-2 text-sm text-gray-500 font-mono text-xs">
+                                                        {log.template_type === 'update' && log.details?.newDetails ? (
+                                                            <div className="space-y-1">
+                                                                <div className="text-orange-700 font-medium">Updates:</div>
+                                                                {log.details.newDetails.date && <div>📅 {log.details.newDetails.date}</div>}
+                                                                {log.details.newDetails.time && <div>⏰ {log.details.newDetails.time}</div>}
+                                                                {log.details.newDetails.venue && <div>📍 {log.details.newDetails.venue}</div>}
+                                                            </div>
+                                                        ) : log.template_type === 'confirmation' ? (
+                                                            <span>Event: {log.details?.eventTitle}</span>
+                                                        ) : (
+                                                            <span className="truncate max-w-xs block" title={JSON.stringify(log.details)}>{JSON.stringify(log.details || {})}</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

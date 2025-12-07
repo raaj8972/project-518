@@ -137,9 +137,29 @@ export default async (req: Request) => {
                     details: { eventTitle, newDetails }
                 });
             }
-            else errors.push({ email: reg.email, error: res.error });
+            else {
+                errors.push({ email: reg.email, error: res.error });
+                logs.push({
+                    recipient_email: reg.email,
+                    template_type: 'update',
+                    status: 'failed',
+                    provider: provider,
+                    event_id: eventId,
+                    registration_id: reg.id,
+                    details: { eventTitle, newDetails, error: res.error }
+                });
+            }
         } catch (e: any) {
              errors.push({ email: reg.email, error: e.message });
+             logs.push({
+                recipient_email: reg.email,
+                template_type: 'update',
+                status: 'failed',
+                provider: provider,
+                event_id: eventId,
+                registration_id: reg.id,
+                details: { eventTitle, newDetails, error: e.message }
+            });
         }
     }
 
