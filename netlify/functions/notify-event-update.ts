@@ -109,15 +109,14 @@ export default async (req: Request) => {
             emailSubject = `Important: Rules Update for ${eventTitle}`;
             emailHtmlTemplate = `
               <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
-                
+                <style>
+                    @media only screen and (max-width: 600px) {
+                        .stamp-img { width: 180px !important; }
+                        .stamp-wrapper { margin-top: -80px !important; margin-bottom: 10px !important; }
+                    }
+                </style>
                 <!-- Watermark Layer (Mimicking PDF opacity: 0.12) -->
-                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
-                            background-image: url('${watermarkUrl}'); 
-                            background-repeat: no-repeat; 
-                            background-position: center; 
-                            background-size: 80%; 
-                            opacity: 0.10;">
-                </div>
+                ${watermarkHtml}
 
                 <div style="position: relative; z-index: 1;">
                     <h2 style="color: #ea580c;">Rules & Regulations Update</h2>
@@ -178,8 +177,8 @@ export default async (req: Request) => {
                     <div style="margin-top: 0; display: flex; align-items: flex-end; justify-content: space-between;">
                         <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
                         ${stampUrl ? `
-                        <div style="opacity: 0.8; position: relative; top: -90px; left: -150px;">
-                            <img src="${stampUrl}" alt="Stamp" style="width: 80px; height: auto;" />
+                        <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
+                            <img class="stamp-img" src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
                         </div>` : ''}
                     </div>
                 </div>
@@ -191,7 +190,12 @@ export default async (req: Request) => {
             emailSubject = `Update: ${eventTitle} Details Changed`;
             emailHtmlTemplate = `
               <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
-                
+                <style>
+                    @media only screen and (max-width: 600px) {
+                        .stamp-img { width: 180px !important; }
+                        .stamp-wrapper { margin-top: -80px !important; margin-bottom: 10px !important; }
+                    }
+                </style>
                 <!-- Watermark Layer -->
                 ${watermarkHtml}
 
@@ -211,8 +215,8 @@ export default async (req: Request) => {
                     <p>Please make a note of these changes.</p>
                     ${coordinatorsHtml}
                     ${stampUrl ? `
-                    <div style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
-                        <img src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
+                    <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
+                        <img class="stamp-img" src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
                     </div>` : ''}
                     <div style="margin-top: 10px;">
                         <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
