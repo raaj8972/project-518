@@ -52,7 +52,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [photoEnabled, setPhotoEnabled] = useState<boolean>(false);
   type ErrorsMap = Record<string, string | undefined>;
   const [formData, setFormData] = useState<RegistrationData>({
-    participant_type: '1st Year',
+    participant_type: '',
     full_name: '',
     email: '',
     phone: '',
@@ -126,15 +126,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       if (Array.isArray(globalTypes) && globalTypes.length) return globalTypes;
     } catch {}
     
-    // Built-in default fallback
-    return [
-      '1st Year',
-      '2nd Year', 
-      '3rd Year',
-      '4th Year',
-      'Intern',
-      'PG (Post Graduate)'
-    ];
+    // Built-in default fallback: No hardcoded types to prevent legacy/wrong options appearing.
+    // If site settings fail, we prefer an empty list so the admin notices the configuration error
+    // rather than users registering with wrong types (like "1st Year").
+    return [];
   }, [siteSettings, events, eventId]);
 
   // Form field visibility/required configuration (site-level defaults can override)
