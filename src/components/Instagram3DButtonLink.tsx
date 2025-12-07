@@ -75,20 +75,7 @@ export const Instagram3DButtonLink: React.FC<Props> = ({
       {showPulse && (
         <span className="absolute inset-[-6px] rounded-full border border-pink-400/20 scale-90 opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
       )}
-      <Instagram3DIcon size={iconSize} />
-      <style>{`
-        @keyframes igFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(2.5deg); } }
-        .ig-3d {
-          animation: igFloat 4.5s ease-in-out infinite;
-          filter: drop-shadow(0 8px 18px rgba(221,42,123,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
-          transition: transform 220ms ease, filter 220ms ease;
-          will-change: transform, filter;
-        }
-        .group:hover .ig-3d {
-          transform: translateY(-2px) rotate(8deg) scale(1.12);
-          filter: drop-shadow(0 14px 24px rgba(221,42,123,0.40)) drop-shadow(0 6px 12px rgba(0,0,0,0.5));
-        }
-      `}</style>
+      <Instagram3DIcon size={iconSize} className="social-3d-icon" />
     </a>
   );
 };

@@ -33,20 +33,7 @@ const HeroMediaPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) 
   );
 });
 
-// Preload Component for Speedramp Transition Videos (Performance Optimization)
-const SpeedrampTransitionPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) => {
-  if (typeof document === 'undefined') return null;
-  return createPortal(
-    <>
-      {events.map((event) => (
-        event.motion_poster_url && (
-          <link key={`speedramp-${event.id}`} rel="preload" as="video" href={event.motion_poster_url} />
-        )
-      ))}
-    </>,
-    document.head
-  );
-});
+
 
 export const Events: React.FC = () => {
   const { events, eventCoordinators, eventWinners = [], connectionStatus, lastError, refreshAll, siteSettings, adminUsers, updateEvent } = useData() as any;
@@ -82,79 +69,8 @@ export const Events: React.FC = () => {
 
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitionMedia, setTransitionMedia] = useState<{url: string, type: 'video' | 'image', poster?: string} | null>(null);
-  const transitionVideoRef = useRef<HTMLVideoElement>(null);
-  const speedrampTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [scrambleText, setScrambleText] = useState("ACCESSING REGISTRATION...");
+
   
-  // Matrix Scramble Effect
-  useEffect(() => {
-    if (!isTransitioning) {
-      setScrambleText("ACCESSING REGISTRATION...");
-      return;
-    }
-
-    const TARGET_TEXT = "ACCESSING REGISTRATION...";
-    const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%&";
-    let iteration = 0;
-    
-    const interval = setInterval(() => {
-      setScrambleText(_ => 
-        TARGET_TEXT.split("").map((_, index) => {
-          if (index < iteration) {
-            return TARGET_TEXT[index];
-          }
-          return CHARS[Math.floor(Math.random() * CHARS.length)];
-        }).join("")
-      );
-      
-      if (iteration >= TARGET_TEXT.length) {
-        clearInterval(interval);
-      }
-      
-      iteration += 1/2; // Speed of decoding (lower = slower)
-    }, 60); // Update frequency slowed to 60ms to prevent hanging on mobile
-
-    return () => clearInterval(interval);
-  }, [isTransitioning]);
-  
-  // Robust video playback effect with Audio Fade Out
-  useEffect(() => {
-    if (isTransitioning && transitionMedia?.type === 'video' && transitionVideoRef.current) {
-      const vid = transitionVideoRef.current;
-      // vid.playbackRate = 2.0; // Removed high-speed playback to prevent freezing on Android
-      vid.volume = 1.0; // Reset volume
-      
-      const playVideo = async () => {
-        try {
-          await vid.play();
-        } catch (err) {
-          console.warn('Autoplay blocked', err);
-          vid.muted = true;
-          try { await vid.play(); } catch (e) { console.error('Play failed', e); }
-        }
-      };
-      
-      playVideo();
-
-      // Audio Fade Out starting at 3.2s (transition ends at 4.0s)
-      const fadeStart = setTimeout(() => {
-        if (!vid) return;
-        const fadeInterval = setInterval(() => {
-          if (vid.volume > 0.1) {
-            vid.volume -= 0.1;
-          } else {
-            vid.volume = 0;
-            clearInterval(fadeInterval);
-          }
-        }, 50); // Drop 0.1 every 50ms (approx 0.5s total fade)
-        return () => clearInterval(fadeInterval);
-      }, 3200);
-
-      return () => clearTimeout(fadeStart);
-    }
-  }, [isTransitioning, transitionMedia]);
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
 
   // Events that are actually shown (respecting visibility flag)
@@ -355,47 +271,19 @@ export const Events: React.FC = () => {
     };
   }, []);
 
-  // Store target event ID for registration (used after transition completes)
-  const pendingRegistrationId = useRef<number | null>(null);
+
+
 
   const openRegistration = (eventId: number) => {
-    // Find event to get video
-    const ev = events.find((e: any) => e.id === eventId);
-    
-    // Check if we have a valid video to play
-    const hasVideo = ev && (ev as any).motion_poster_url;
-    
-    if (hasVideo) {
-      // Haptic feedback for "button press" feel
-      if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(50); // Short buzz
-      }
-      
-      // Store event ID to open modal AFTER video ends
-      pendingRegistrationId.current = eventId;
-      
-      setTransitionMedia({ url: (ev as any).motion_poster_url, type: 'video' });
-      setIsTransitioning(true);
-      
-      // Safety timeout: If video doesn't start within 4s (buffering/slow network), open modal anyway
-      speedrampTimeoutRef.current = setTimeout(() => {
-        if (pendingRegistrationId.current !== null) {
-          const newParams = new URLSearchParams(searchParams);
-          newParams.set('register', pendingRegistrationId.current.toString());
-          setSearchParams(newParams, { replace: true });
-          
-          setIsTransitioning(false);
-          pendingRegistrationId.current = null;
-        }
-      }, 4000);
-      
-      // Note: Modal will open when video 'ended' event fires OR timeout triggers
-    } else {
-      // No video, open immediately
-      const newParams = new URLSearchParams(searchParams);
-      newParams.set('register', eventId.toString());
-      setSearchParams(newParams, { replace: true });
+    // Haptic feedback for "button press" feel
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(50); // Short buzz
     }
+    
+    // Open modal immediately - speedramp removed for performance
+    const newParams = new URLSearchParams(searchParams);
+    newParams.set('register', eventId.toString());
+    setSearchParams(newParams, { replace: true });
   };
   const closeRegistration = () => {
     const newParams = new URLSearchParams(searchParams);
@@ -696,96 +584,10 @@ export const Events: React.FC = () => {
       <ScrollHint />
       {/* Preload hero carousel media for smooth experience */}
       <HeroMediaPreloader events={motionPosterEvents} />
-      {/* Preload speedramp transition videos for instant playback */}
-      <SpeedrampTransitionPreloader events={filteredEvents} />
+
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
       
-      {isTransitioning && (
-      <div className="speedramp-overlay">
-        <div className="crt-lines" />
-        <div className="speedramp-frame">
-            {transitionMedia?.type === 'video' ? (
-              <video
-                src={transitionMedia.url}
-                className="speedramp-video"
-                playsInline
-                autoPlay
-                muted // Essential for Android/iOS autoplay compliance
-                preload="auto"
-                ref={transitionVideoRef}
-                style={{ objectFit: 'cover' }} // Ensure it fills screen properly
-                onTimeUpdate={(e) => {
-                  // Limit speedramp to 4 seconds only
-                  const video = e.currentTarget;
-                  if (video.currentTime >= 4) {
-                    video.pause();
-                    // Clear timeout - video played successfully
-                    if (speedrampTimeoutRef.current) {
-                      clearTimeout(speedrampTimeoutRef.current);
-                      speedrampTimeoutRef.current = null;
-                    }
-                    // Trigger modal after 4s
-                    if (pendingRegistrationId.current !== null) {
-                      const newParams = new URLSearchParams(searchParams);
-                      newParams.set('register', pendingRegistrationId.current.toString());
-                      setSearchParams(newParams, { replace: true });
-                      
-                      setTimeout(() => {
-                        setIsTransitioning(false);
-                        pendingRegistrationId.current = null;
-                      }, 200);
-                    }
-                  }
-                }}
-                onError={() => {
-                  // Clear timeout - video errored
-                  if (speedrampTimeoutRef.current) {
-                    clearTimeout(speedrampTimeoutRef.current);
-                    speedrampTimeoutRef.current = null;
-                  }
-                  // Network error: Skip transition and open modal immediately
-                  if (pendingRegistrationId.current !== null) {
-                    const newParams = new URLSearchParams(searchParams);
-                    newParams.set('register', pendingRegistrationId.current.toString());
-                    setSearchParams(newParams, { replace: true });
-                    
-                    setIsTransitioning(false);
-                    pendingRegistrationId.current = null;
-                  }
-                }}
-                onEnded={() => {
-                  // Clear timeout - video ended
-                  if (speedrampTimeoutRef.current) {
-                    clearTimeout(speedrampTimeoutRef.current);
-                    speedrampTimeoutRef.current = null;
-                  }
-                  // Fallback: Video ended naturally (if shorter than 4s)
-                  if (pendingRegistrationId.current !== null) {
-                    const newParams = new URLSearchParams(searchParams);
-                    newParams.set('register', pendingRegistrationId.current.toString());
-                    setSearchParams(newParams, { replace: true });
-                    
-                    // Clear transition after modal opens
-                    setTimeout(() => {
-                      setIsTransitioning(false);
-                      pendingRegistrationId.current = null;
-                    }, 200);
-                  }
-                }}
-              />
-            ) : transitionMedia?.type === 'image' ? (
-              <img
-                src={transitionMedia.url}
-                className="speedramp-video" // Reuse class for same anim
-                alt="Transition"
-              />
-            ) : (
-              <div className="speedramp-video bg-gray-900" />
-            )}
-          </div>
-          <div className="speedramp-text">{scrambleText}</div>
-        </div>
-      )}
+
 
       <section className="hero-section relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
           <div className="absolute inset-0 z-0 bg-black">

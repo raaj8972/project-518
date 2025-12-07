@@ -801,3 +801,89 @@ img {
   from, to { border-color: transparent; }
   50% { border-color: #22d3ee; }
 }
+
+
+/* 3D Social Buttons - Global Optimized Classes */
+
+/* Floating animation keyframes */
+@keyframes igFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(2.5deg); } }
+@keyframes fbFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-2.5deg); } }
+@keyframes ytFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.05); } }
+@keyframes phFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(3deg); } }
+@keyframes emFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-3deg); } }
+
+/* Base class for all 3D social icons */
+.social-3d-icon {
+  animation-duration: 4.5s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  transition: transform 220ms ease, filter 220ms ease;
+  will-change: transform; /* Optimized: removed 'filter' from will-change to save GPU memory */
+}
+
+/* Specific icon animations and filters */
+.ig-3d {
+  animation-name: igFloat;
+  /* Filter only enabled on non-mobile devices via media query below */
+}
+.fb-3d {
+  animation-name: fbFloat;
+}
+.yt-3d {
+  animation-name: ytFloat;
+}
+.ph-3d {
+  animation-name: phFloat;
+}
+.em-3d {
+  animation-name: emFloat;
+}
+
+/* Hover effects (Desktop only) */
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .social-3d-icon {
+    transform: translateY(-2px) rotate(var(--hover-rotate, 0deg)) scale(1.12);
+    filter: drop-shadow(0 14px 24px var(--shadow-color-primary)) drop-shadow(0 6px 12px var(--shadow-color-secondary));
+  }
+}
+
+/* Default shadow variables (can be overridden per icon type) */
+.ig-3d { 
+  --hover-rotate: 8deg; 
+  --shadow-color-primary: rgba(221,42,123,0.40); 
+  --shadow-color-secondary: rgba(0,0,0,0.5);
+  /* Base drop shadow for desktop */
+  filter: drop-shadow(0 8px 18px rgba(221,42,123,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
+}
+.fb-3d {
+  --hover-rotate: -8deg;
+  --shadow-color-primary: rgba(24,119,242,0.40);
+  --shadow-color-secondary: rgba(0,0,0,0.5);
+  filter: drop-shadow(0 8px 18px rgba(24,119,242,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
+}
+.yt-3d {
+  --hover-rotate: 0deg;
+  --shadow-color-primary: rgba(255,0,0,0.40);
+  --shadow-color-secondary: rgba(0,0,0,0.5);
+  filter: drop-shadow(0 8px 18px rgba(255,0,0,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
+}
+.ph-3d {
+  --hover-rotate: 6deg;
+  --shadow-color-primary: rgba(34,197,94,0.40);
+  --shadow-color-secondary: rgba(0,0,0,0.5);
+  filter: drop-shadow(0 8px 18px rgba(34,197,94,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
+}
+.em-3d {
+  --hover-rotate: -6deg;
+  --shadow-color-primary: rgba(234,179,8,0.40);
+  --shadow-color-secondary: rgba(0,0,0,0.5);
+  filter: drop-shadow(0 8px 18px rgba(234,179,8,0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
+}
+
+/* MOBILE OPTIMIZATION: Disable expensive filters and animations */
+@media (max-width: 768px) {
+  .social-3d-icon {
+    animation: none !important; /* Disable floating on mobile */
+    filter: none !important; /* IMPORTANT: Disable drop-shadows on mobile to prevent crashes */
+  }
+}

@@ -82,21 +82,8 @@ const Facebook3DButtonLink: React.FC<Props> = ({
         <span className="absolute inset-[-6px] rounded-full border border-blue-400/20 scale-90 opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
       )}
       <div className="flex items-center justify-center">
-        <Facebook3DIcon size={iconSize} />
+        <Facebook3DIcon size={iconSize} className="social-3d-icon" />
       </div>
-      <style>{`
-        @keyframes fbFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(1.6deg); } }
-        .fb-3d {
-          animation: fbFloat 4.5s ease-in-out infinite;
-          filter: drop-shadow(0 8px 18px rgba(59,89,152,0.28)) drop-shadow(0 3px 8px rgba(0,0,0,0.32));
-          transition: transform 220ms ease, filter 220ms ease;
-          will-change: transform, filter;
-        }
-        .group:hover .fb-3d {
-          transform: translateY(-2px) rotate(8deg) scale(1.12);
-          filter: drop-shadow(0 14px 24px rgba(59,89,152,0.36)) drop-shadow(0 6px 12px rgba(0,0,0,0.44));
-        }
-      `}</style>
     </a>
   );
 };

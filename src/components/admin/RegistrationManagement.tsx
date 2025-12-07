@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
@@ -70,6 +70,43 @@ export const RegistrationManagement: React.FC = () => {
   // Date range filter
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+
+  // Compute duplicates map:
+  // We flag a registration as duplicate if another active registration exists 
+  // with the same (event_title + email) OR (event_title + phone).
+  const duplicateIds = useMemo(() => {
+    const dupes = new Set<string>();
+    const emailMap = new Map<string, string[]>();
+    const phoneMap = new Map<string, string[]>();
+
+    // Only check active registrations (not trash)
+    registrations.forEach(r => {
+      // Key: Event + Email
+      if (r.email) {
+        const k = `${r.event_title.trim()}|${r.email.trim().toLowerCase()}`;
+        if (!emailMap.has(k)) emailMap.set(k, []);
+        emailMap.get(k)?.push(r.id);
+      }
+      // Key: Event + Phone
+      if (r.phone) {
+         // Normalize phone: strip spaces/dashes for comparison if needed, 
+         // but simple trim is safer with varying formats
+        const k = `${r.event_title.trim()}|${r.phone.trim()}`;
+        if (!phoneMap.has(k)) phoneMap.set(k, []);
+        phoneMap.get(k)?.push(r.id);
+      }
+    });
+
+    // Collect IDs that appear in groups > 1
+    for (const ids of emailMap.values()) {
+      if (ids.length > 1) ids.forEach(id => dupes.add(id));
+    }
+    for (const ids of phoneMap.values()) {
+      if (ids.length > 1) ids.forEach(id => dupes.add(id));
+    }
+    return dupes;
+  }, [registrations]);
 
   // Watermark state
   const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
@@ -316,7 +353,12 @@ export const RegistrationManagement: React.FC = () => {
       registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.college.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Duplicate filter
+    const matchesDuplicate = showDuplicatesOnly ? duplicateIds.has(registration.id) : true;
 
     // Date range filter (inclusive). Uses local timezone for inputs.
     let matchesDate = true;
@@ -332,7 +374,7 @@ export const RegistrationManagement: React.FC = () => {
       }
     } catch {}
     
-    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate;
+    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate;
   });
 
   // Selection helpers (needs filteredRegistrations)
@@ -404,7 +446,53 @@ export const RegistrationManagement: React.FC = () => {
     try {
       console.log('Updating status for registration:', registrationId, 'to:', newStatus);
       await updateRegistrationStatus(registrationId, newStatus);
+      
+      // If approved, trigger confirmation email
+      if (newStatus === 'approved') {
+        const reg = registrations.find(r => r.id === registrationId);
+        if (reg) {
+          try {
+            const token = (await supabase.auth.getSession()).data.session?.access_token;
+            if (token) {
+                // Fire and forget (don't block UI) or await to confirm?
+                // Let's await to show feedback, but catch errors so status update isn't seen as failed
+                fetch('/api/send-confirmation', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        registrationId: reg.id,
+                        email: reg.email,
+                        fullName: reg.full_name,
+                        eventTitle: reg.event_title
+                    })
+                }).then(async (res) => {
+                    if (res.ok) {
+                        push({ message: 'Status updated & Email sent!', type: 'success' });
+                    } else {
+                        const err = await res.json();
+                        console.warn('Email failed:', err);
+                        push({ message: `Status updated, but email failed: ${err.error || 'Check server logs'}`, type: 'warning' });
+                    }
+                }).catch(e => {
+                     console.error('Email fetch error:', e);
+                     push({ message: 'Status updated, but failed to send email.', type: 'warning' });
+                });
+                return; // Return early because we handle the toast in the promise
+            }
+          } catch (emailErr) {
+             console.error('Failed to initiate email:', emailErr);
+          }
+        }
+      }
+
       console.log('Status updated successfully');
+      // Only show generic success if we didn't do the email logic (e.g. rejected/pending)
+      if (newStatus !== 'approved') {
+         push({ message: 'Registration status updated.', type: 'success' }); // Added explicit feedback for non-email cases
+      }
     } catch (error) {
       console.error('Error updating registration status:', error);
       push({ message: 'Failed to update registration status. Please try again.', type: 'error' });
@@ -898,6 +986,25 @@ export const RegistrationManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Special Filters Row */}
+        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
+           <label className={`flex items-center space-x-2 text-sm font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer ${showDuplicatesOnly ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              <div className="relative flex items-center">
+                <input 
+                  type="checkbox" 
+                  checked={showDuplicatesOnly} 
+                  onChange={(e) => setShowDuplicatesOnly(e.target.checked)} 
+                  className="peer appearance-none w-4 h-4 border border-gray-400 rounded checked:bg-amber-600 checked:border-amber-600 focus:ring-amber-500" 
+                />
+                <CheckCircle className="absolute w-3 h-3 text-white hidden peer-checked:block pointer-events-none left-0.5" />
+              </div>
+              <span className="flex items-center">
+                <AlertTriangle size={14} className="mr-1.5" />
+                Show Duplicates Only
+              </span>
+           </label>
+        </div>
+
         <div className="grid md:grid-cols-7 gap-4">
           {/* Event Filter */}
           <div>
@@ -1035,6 +1142,7 @@ export const RegistrationManagement: React.FC = () => {
               setSearchTerm('');
               setDateFrom('');
               setDateTo('');
+              setShowDuplicatesOnly(false);
             }}
             className="text-sm text-blue-600 hover:text-blue-800"
           >
@@ -1124,6 +1232,12 @@ export const RegistrationManagement: React.FC = () => {
                         <div>
                           <div className="text-sm font-medium text-gray-900">
                             {registration.full_name}
+                            {duplicateIds.has(registration.id) && (
+                              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded textxs font-medium bg-amber-100 text-amber-800" title="Possible duplicate registration (same email/phone for this event)">
+                                <AlertTriangle size={12} className="mr-1" />
+                                Duplicate
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <Mail size={12} className="mr-1" />

@@ -215,6 +215,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   }, [isOpen, events, eventId, siteSettings, participantTypes]);
 
   // Glitch effect trigger and derive per-event photo requirement from events data
+  // CRITICAL: Reset submission state when modal opens or event changes
+  useEffect(() => {
+    if (isOpen) {
+      setIsSubmitting(false); // Reset to allow new submission
+      setQuotaBlocked(null); // Clear any previous quota/duplicate errors
+    }
+  }, [isOpen, eventId]); // Reset when modal opens OR event changes
+
   useEffect(() => {
     if (isOpen) {
       // Suppress public notifications while registration modal is open
@@ -408,83 +416,83 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
 
     // Check for duplicate registration (same email for same event)
+    // Check for duplicate registration (same email OR phone for same event)
     try {
       const { supabase } = await import('../lib/supabase');
+      // Using .or() with filter by event_id requires careful grouping to avoid (event_id AND email) OR phone
+      // Supabase JS .or() applies to the rows that match previous filters if chained correctly, 
+      // but to be safe and explicit with the precedence:
+      // We want: event_id = X AND (email = Y OR phone = Z) AND status IN (...)
+      
       const { data: existingRegistrations, error: duplicateCheckError } = await supabase
         .from('registrations')
-        .select('id, status, full_name')
+        .select('id, status, full_name, email, phone')
         .eq('event_id', eventId)
-        .eq('email', formData.email.toLowerCase().trim())
+        .or(`email.eq.${formData.email.toLowerCase().trim()},phone.eq.${formData.phone.trim()}`)
+        // We only care if the previous attempt was approved or pending (if rejected, they can try again?)
+        // Usually rejected means rejected, but maybe they want to fix it. 
+        // Let's assume 'rejected' allows re-registration unless we want to strict block.
+        // For now, blocking pending/approved is the standard "duplicate" prevention.
         .in('status', ['pending', 'approved']);
       
-      if (!duplicateCheckError && existingRegistrations && existingRegistrations.length > 0) {
+      if (duplicateCheckError) {
+        throw duplicateCheckError; // Fail closed if check errors
+      }
+
+      if (existingRegistrations && existingRegistrations.length > 0) {
         const existing = existingRegistrations[0];
         const statusText = existing.status === 'approved' ? 'approved' : 'pending approval';
+        
+        let msg = '';
+        if (existing.email.toLowerCase() === formData.email.toLowerCase().trim()) {
+           msg = `The email "${formData.email}" has already been registered for this event (Status: ${statusText}).`;
+        } else {
+           msg = `The phone number "${formData.phone}" has already been registered for this event (Status: ${statusText}).`;
+        }
+        
         setQuotaBlocked({ 
-          title: 'DUPLICATE REGISTRATION DETECTED', 
-          message: `The email "${formData.email}" has already been registered for this event (Status: ${statusText}). Each email can register only once per event. If you need to update your registration, please contact the event organizers.` 
+          title: 'DUPLICATE REGISTRATION', 
+          message: `${msg} You can only register once per event. Please contact organizers if this is an error.` 
         });
-        setIsSubmitting(false); // Re-enable button
+        setIsSubmitting(false);
         return;
       }
     } catch (e) {
-      console.warn('[RegistrationModal] duplicate check failed', e);
-      // Continue with registration if duplicate check fails (fail open)
+      console.error('[RegistrationModal] duplicate check failed', e);
+      // STRICT: If we can't verify uniqueness, do we block?
+      // "make sure that no duplicate restration done" -> implies fail-safe.
+      // However, network errors shouldn't permanently block.
+      // Let's show a generic error to try again.
+      setErrors({ submit: 'Unable to verify registration status. Please check your connection and try again.' });
+      setIsSubmitting(false);
+      return;
     }
 
-    // Enforce participant-type quotas if configured (prefer per-event, approved-only) with server-side guard
-    try {
-      const ev = (() => { try { return events.find((e: any) => e.id === eventId) as any; } catch { return undefined; } })();
-      const quotas = (ev?.registration_participant_quotas as Record<string, number> | undefined) 
-        || ((siteSettings as any)?.registration_participant_quotas as Record<string, number> | undefined);
-      const pType = formData.participant_type;
-      const maxForType = quotas && typeof quotas[pType] === 'number' ? quotas[pType] : undefined;
-      if (typeof maxForType === 'number') {
-        // 0 means closed
-        if (maxForType <= 0) {
-          setQuotaBlocked({ title: 'REGISTRATIONS CLOSED', message: `${pType} is currently closed for this event.` });
-          setIsSubmitting(false);
-          return;
-        }
-
-        // If our pre-check already marked this type as full, block immediately
-        if (quotaFullMap[pType]) {
-          setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event.` });
-          setIsSubmitting(false);
-          return;
-        }
-        try {
-          const { supabase } = await import('../lib/supabase');
-          // Count approved rows for this participant_type for the current event only
-          const { count: approvedCount, error: approvedError } = await supabase
-            .from('registrations')
-            .select('id', { count: 'exact', head: true })
-            .eq('event_id', eventId)
-            .eq('participant_type', pType)
-            .eq('status', 'approved');
-          if (!approvedError && typeof approvedCount === 'number' && approvedCount >= maxForType) {
-            // Block and show friendly message
-            setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event. Limit of ${maxForType} approved registrations reached.` });
-           setIsSubmitting(false);
-            return;
-          }
-
-          // Also enforce soft cap on total submissions (pending + approved). This prevents
-          // new submissions from slipping through if approvals are pending but capacity is reached.
-          const { count: totalCount, error: totalError } = await supabase
-            .from('registrations')
-            .select('id', { count: 'exact', head: true })
-            .eq('event_id', eventId)
-            .eq('participant_type', pType)
-            .in('status', ['pending', 'approved']);
-          if (!totalError && typeof totalCount === 'number' && totalCount >= maxForType) {
-            setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType}. Maximum submissions reached for this type.` });
+      // Enforce participant-type quotas if configured - use server-side RPC for speed
+      try {
+        const ev = (() => { try { return events.find((e: any) => e.id === eventId) as any; } catch { return undefined; } })();
+        const quotas = (ev?.registration_participant_quotas as Record<string, number> | undefined) 
+          || ((siteSettings as any)?.registration_participant_quotas as Record<string, number> | undefined);
+        const pType = formData.participant_type;
+        const maxForType = quotas && typeof quotas[pType] === 'number' ? quotas[pType] : undefined;
+        if (typeof maxForType === 'number') {
+          // 0 means closed
+          if (maxForType <= 0) {
+            setQuotaBlocked({ title: 'REGISTRATIONS CLOSED', message: `${pType} is currently closed for this event.` });
             setIsSubmitting(false);
             return;
           }
 
-          // Server-side authoritative check (SECURITY DEFINER) not affected by RLS
+          // If our pre-check already marked this type as full, block immediately
+          if (quotaFullMap[pType]) {
+            setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event.` });
+            setIsSubmitting(false);
+            return;
+          }
+          
+          // OPTIMIZED: Only use server-side authoritative check (fast, single query)
           try {
+            const { supabase } = await import('../lib/supabase');
             const { data: rows } = await supabase.rpc('check_registration_quota', { e_id: eventId, p_type: pType });
             const row = Array.isArray(rows) ? rows[0] : undefined;
             if (row && row.is_full) {
@@ -492,16 +500,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
               setIsSubmitting(false);
               return;
             }
-          } catch {}
-        } catch (e) {
-          // If counting fails (e.g., RLS), block conservatively when quotas exist to avoid overbooking
-          console.warn('[RegistrationModal] quota check failed, blocking conservatively', e);
-          setQuotaBlocked({ title: 'REGISTRATIONS TEMPORARILY UNAVAILABLE', message: `Unable to verify remaining capacity for ${pType}. Please try again later or choose another participant type.` });
-          setIsSubmitting(false);
-          return;
+          } catch (e) {
+            // If server check fails, allow through (fail open for better UX)
+            console.warn('[RegistrationModal] Server quota check failed, allowing registration', e);
+          }
         }
-      }
-    } catch {}
+      } catch {}
 
     try {
       // Generate sequential registration ID from server (RICO-<n>) with fallback
@@ -542,14 +546,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       console.log('Submitting registration data:', registrationData);
 
       // Submit to Supabase
-      const start = performance.now();
       await addRegistration(registrationData);
-      // Ensure a minimum UX timing so the spinner doesn't flash too fast or too slow
-      const elapsed = performance.now() - start;
-      const minDelay = 250; // ms
-      if (elapsed < minDelay) {
-        await new Promise((r) => setTimeout(r, minDelay - elapsed));
-      }
       setIsSubmitted(true);
     } catch (err) {
       console.error('Registration submission error:', err);

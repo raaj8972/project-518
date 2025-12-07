@@ -10,6 +10,10 @@
   function = "force-logout"
   path = "/api/force-logout"
 
+[[edge_functions]]
+  function = "send-confirmation"
+  path = "/api/send-confirmation"
+
 [functions]
   directory = "netlify/functions"
 

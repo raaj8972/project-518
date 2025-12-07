@@ -64,6 +64,15 @@ export const RicoFamily: React.FC = () => {
     if (!rl) return false;
     return webDevPhraseList.some((p: string) => rl.includes(p));
   };
+
+  // Determine Mobile State (Moved up to prevent hoisting issues)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile(); 
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   
   // Sports profile modal state (RESTORED)
   const [sportsModalOpen, setSportsModalOpen] = useState(false);
@@ -193,6 +202,7 @@ export const RicoFamily: React.FC = () => {
     let ticking = false;
     
     const onScroll = () => {
+      if (isMobile) return; // Disable parallax on mobile to prevent scroll crashes
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const scrolled = window.pageYOffset;
@@ -218,9 +228,11 @@ export const RicoFamily: React.FC = () => {
     let base = [...councilMembers, ...committeeHeads].filter(m => m.image);
     if (base.length === 0) return [];
     while (base.length < 6) { base = [...base, ...base]; }
-    if (base.length > 30) base = base.slice(0, 30);
+    // Mobile optimization: Limit to 12 items to prevent memory crashes
+    const maxItems = isMobile ? 12 : 30;
+    if (base.length > maxItems) base = base.slice(0, maxItems);
     return base;
-  }, [councilMembers, committeeHeads]);
+  }, [councilMembers, committeeHeads, isMobile]);
 
   const [rotationIndex, setRotationIndex] = useState(0); 
   const [isZoomed, setIsZoomed] = useState(false); 
@@ -285,14 +297,7 @@ export const RicoFamily: React.FC = () => {
     };
   }, [carouselMembers.length]);
 
-  // Determine Mobile State
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile(); 
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+
 
   const faceCount = carouselMembers.length;
   const faceTitle = 360 / Math.max(1, faceCount);
@@ -310,8 +315,11 @@ export const RicoFamily: React.FC = () => {
       canonical="https://ricorrenza.fun/rico-family" 
     />
     <ScrollHint />
-    {/* Preload hero carousel images for smooth experience */}
-    <CarouselImagePreloader images={carouselMembers.map(m => m.image)} />
+    {/* Preload hero carousel images for smooth experience - Optimized for mobile */}
+    <CarouselImagePreloader images={carouselMembers.map(m => {
+       if (isMobile && m.image?.includes('supabase')) return `${m.image}?width=400&resize=cover`;
+       return m.image;
+    })} />
       <style>{`
         @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
       `}</style>
@@ -387,15 +395,15 @@ export const RicoFamily: React.FC = () => {
                   }}
                 > 
                   <div className={`w-full h-full relative transition-all duration-1000 ${isActive ? 'scale-100' : 'scale-90 brightness-90' } ${isItemZoomed ? 'p-0' : 'p-2'}`}>
-                    {/* Active Glow */}
-                    {isActive && (
+                    {/* Active Glow - Disabled on mobile for performance */}
+                    {isActive && !isMobile && (
                       <div className={`absolute -inset-16 md:-inset-32 bg-gradient-to-r ${glowColor} blur-[40px] md:blur-[80px] opacity-100 rounded-full animate-pulse z-[-1]`} />
                     )}
                     
                     <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/50 border border-white/10">
                       <img
                         className={`w-full h-full object-cover object-top shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
-                        src={member.image}
+                        src={isMobile && member.image?.includes('supabase') ? `${member.image}?width=400&resize=cover` : member.image}
                         alt={member.name}
                         loading="eager"
                       />
@@ -406,16 +414,16 @@ export const RicoFamily: React.FC = () => {
                          <p className={`text-sm font-bold uppercase tracking-widest ${isCouncil ? 'text-red-400' : 'text-cyan-400'}`}>{member.role}</p>
                       </div>
 
-                      {/* Shine Effect */}
-                      {isActive && !isItemZoomed && (
+                      {/* Shine Effect - Disabled on mobile */}
+                      {isActive && !isItemZoomed && !isMobile && (
                         <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden rounded-xl">
                           <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] animate-shine" />
                         </div>
                       )}
                     </div>
                   
-                    {/* Reflection Effect at bottom (Hide when zoomed) */}
-                    {!isItemZoomed && (
+                    {/* Reflection Effect at bottom (Disabled on mobile) */}
+                    {!isItemZoomed && !isMobile && (
                         <div className="absolute top-full left-0 w-full h-[60%] bg-gradient-to-b from-white/30 to-transparent transform scale-y-[-1] opacity-50 mask-image-gradient" aria-hidden="true" />
                     )}
                   </div>
@@ -479,7 +487,7 @@ export const RicoFamily: React.FC = () => {
               renderItem={(head: any) => (
                 <div className="w-72 md:w-80 neon-card p-5">
                   <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
-                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
+                    <img loading="lazy" decoding="async" src={isMobile && head.image?.includes('supabase') ? `${head.image}?width=400&resize=cover` : head.image} alt={head.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="font-bold text-white text-center">{head.name}</div>
                   <div className="text-sm text-gray-300 text-center">{head.title}</div>

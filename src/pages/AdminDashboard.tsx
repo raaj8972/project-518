@@ -22,44 +22,45 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { EventsManagement } from '../components/admin/EventsManagement';
-import { ScheduleManagement } from '../components/admin/ScheduleManagement';
-import { GalleryManagement } from '../components/admin/GalleryManagement';
-import { SponsorsManagement } from '../components/admin/SponsorsManagement';
-import { RegistrationManagement } from '../components/admin/RegistrationManagement';
-import { EventCategoriesManagement } from '../components/admin/EventCategoriesManagement';
-import { SocialMediaManagement } from '../components/admin/SocialMediaManagement';
-import { SecuritySettings } from '../components/admin/SecuritySettings';
-import { BiometricLogin } from '../components/admin/BiometricLogin';
-import { FacultyHeadsManagement } from '../components/admin/FacultyHeadsManagement';
-import { CoreTeamManagement } from '../components/admin/CoreTeamManagement';
-import { SportsTeamManagement } from '../components/admin/SportsTeamManagement';
-import { BandManagement } from '../components/admin/BandManagement';
-import { GuestArtistManagement } from '../components/admin/GuestArtistManagement';
-import { ChiefGuestManagement } from '../components/admin/ChiefGuestManagement';
-import { HomepageManagement } from '../components/admin/HomepageManagement';
-import { AuditionManagement } from '../components/admin/AuditionManagement';
-import { MembershipManagement } from '../components/admin/MembershipManagement';
-import { FormSettingsManagement } from '../components/admin/FormSettingsManagement';
-import RegistrationModalSettings from '../components/admin/RegistrationModalSettings';
-import { HomeBoundSettings } from '../components/admin/HomeBoundSettings';
-import { RoadmapMilestonesAdmin } from '../components/admin/RoadmapMilestonesAdmin';
-import { HeroMediaManagement } from '../components/admin/HeroMediaManagement';
-import { AboutSettings } from '../components/admin/AboutSettings';
-import { NotificationsManagement } from '../components/admin/NotificationsManagement';
+// Lazy load admin panels to reduce initial bundle size
+const EventsManagement = React.lazy(() => import('../components/admin/EventsManagement').then(m => ({ default: m.EventsManagement })));
+const ScheduleManagement = React.lazy(() => import('../components/admin/ScheduleManagement').then(m => ({ default: m.ScheduleManagement })));
+const GalleryManagement = React.lazy(() => import('../components/admin/GalleryManagement').then(m => ({ default: m.GalleryManagement })));
+const SponsorsManagement = React.lazy(() => import('../components/admin/SponsorsManagement').then(m => ({ default: m.SponsorsManagement })));
+const RegistrationManagement = React.lazy(() => import('../components/admin/RegistrationManagement').then(m => ({ default: m.RegistrationManagement })));
+const EventCategoriesManagement = React.lazy(() => import('../components/admin/EventCategoriesManagement').then(m => ({ default: m.EventCategoriesManagement })));
+const SocialMediaManagement = React.lazy(() => import('../components/admin/SocialMediaManagement').then(m => ({ default: m.SocialMediaManagement })));
+const SecuritySettings = React.lazy(() => import('../components/admin/SecuritySettings').then(m => ({ default: m.SecuritySettings })));
+const BiometricLogin = React.lazy(() => import('../components/admin/BiometricLogin').then(m => ({ default: m.BiometricLogin })));
+const FacultyHeadsManagement = React.lazy(() => import('../components/admin/FacultyHeadsManagement').then(m => ({ default: m.FacultyHeadsManagement })));
+const CoreTeamManagement = React.lazy(() => import('../components/admin/CoreTeamManagement').then(m => ({ default: m.CoreTeamManagement })));
+const SportsTeamManagement = React.lazy(() => import('../components/admin/SportsTeamManagement').then(m => ({ default: m.SportsTeamManagement })));
+const BandManagement = React.lazy(() => import('../components/admin/BandManagement').then(m => ({ default: m.BandManagement })));
+const GuestArtistManagement = React.lazy(() => import('../components/admin/GuestArtistManagement').then(m => ({ default: m.GuestArtistManagement })));
+const ChiefGuestManagement = React.lazy(() => import('../components/admin/ChiefGuestManagement').then(m => ({ default: m.ChiefGuestManagement })));
+const HomepageManagement = React.lazy(() => import('../components/admin/HomepageManagement').then(m => ({ default: m.HomepageManagement })));
+const AuditionManagement = React.lazy(() => import('../components/admin/AuditionManagement').then(m => ({ default: m.AuditionManagement })));
+const MembershipManagement = React.lazy(() => import('../components/admin/MembershipManagement').then(m => ({ default: m.MembershipManagement })));
+const FormSettingsManagement = React.lazy(() => import('../components/admin/FormSettingsManagement').then(m => ({ default: m.FormSettingsManagement })));
+const RegistrationModalSettings = React.lazy(() => import('../components/admin/RegistrationModalSettings'));
+const HomeBoundSettings = React.lazy(() => import('../components/admin/HomeBoundSettings').then(m => ({ default: m.HomeBoundSettings })));
+const RoadmapMilestonesAdmin = React.lazy(() => import('../components/admin/RoadmapMilestonesAdmin').then(m => ({ default: m.RoadmapMilestonesAdmin })));
+const HeroMediaManagement = React.lazy(() => import('../components/admin/HeroMediaManagement').then(m => ({ default: m.HeroMediaManagement })));
+const AboutSettings = React.lazy(() => import('../components/admin/AboutSettings').then(m => ({ default: m.AboutSettings })));
+const NotificationsManagement = React.lazy(() => import('../components/admin/NotificationsManagement').then(m => ({ default: m.NotificationsManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { HealthBadge } from '../components/admin/HealthBadge';
-import { StorageOverview } from '../components/admin/StorageOverview';
-import RegistrationPhotosPanel from '../components/admin/RegistrationPhotosPanel';
-import { SiteSettingsPanel } from '../components/admin/SiteSettingsPanel';
-import { AdminUsersPanel } from '../components/admin/AdminUsersPanel';
-import { ConnectionOverview } from '../components/admin/ConnectionOverview';
-import { AdminPresencePanel } from '../components/admin/AdminPresencePanel';
+const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
+const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
+const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
+const AdminUsersPanel = React.lazy(() => import('../components/admin/AdminUsersPanel').then(m => ({ default: m.AdminUsersPanel })));
+const ConnectionOverview = React.lazy(() => import('../components/admin/ConnectionOverview').then(m => ({ default: m.ConnectionOverview })));
+const AdminPresencePanel = React.lazy(() => import('../components/admin/AdminPresencePanel').then(m => ({ default: m.AdminPresencePanel })));
 import { useAdminPresence } from '../hooks/useAdminPresence';
 import { AdminMessageToastContainer } from '../components/admin/AdminMessageToast';
 import { useAdminMessages } from '../hooks/useAdminMessages';
 import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
-import { OwnerApprovalCenter } from '../components/admin/OwnerApprovalCenter';
+const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals';
 
@@ -578,9 +579,15 @@ export const AdminDashboard: React.FC = () => {
           />
         )}
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+      {/* Main Content Area */}
+      <div className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-8">
+        <div className="mx-auto max-w-7xl">
+          <React.Suspense fallback={
+            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+               <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+               <p>Loading panel...</p>
+            </div>
+          }>
             {!isOwner && visibleTabs.length === 0 && (
               <div className="bg-white rounded-lg shadow-sm p-8 text-center">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No admin sections available</h3>
@@ -842,7 +849,8 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
-            {activeTab === 'about' && <AboutSettings />}
+  {activeTab === 'about' && <AboutSettings />}
+            </React.Suspense>
           </div>
         </div>
       </div>

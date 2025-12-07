@@ -82,17 +82,7 @@ export const Email3DButtonLink: React.FC<Props> = ({
       {showPulse && (
         <span className="absolute inset-[-6px] rounded-full border border-sky-400/25 scale-90 opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
       )}
-  <Email3DIcon size={iconSize} />
-      <style>{`
-        @keyframes emailFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(3deg); } }
-        .email-3d {
-          animation: emailFloat 4.5s ease-in-out infinite;
-          filter: drop-shadow(0 8px 18px rgba(0, 229, 255, 0.32)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
-          transition: transform 220ms ease, filter 220ms ease;
-          will-change: transform, filter;
-        }
-        .group:hover .email-3d { transform: translateY(-2px) rotate(8deg) scale(1.12); filter: drop-shadow(0 14px 24px rgba(41,121,255,0.42)) drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
-      `}</style>
+  <Email3DIcon size={iconSize} className="social-3d-icon" />
     </a>
   );
 };

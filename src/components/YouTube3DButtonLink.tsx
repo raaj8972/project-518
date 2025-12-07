@@ -65,20 +65,7 @@ export const YouTube3DButtonLink: React.FC<Props> = ({
       {showPulse && (
         <span className="absolute inset-[-6px] rounded-full border border-red-400/25 scale-90 opacity-0 group-hover:opacity-100 group-hover:animate-pulse" />
       )}
-      <YouTube3DIcon size={iconSize} />
-      <style>{`
-        @keyframes ytFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-2.5deg); } }
-        .yt-3d {
-          animation: ytFloat 4.5s ease-in-out infinite;
-          filter: drop-shadow(0 8px 18px rgba(255,0,0,0.35)) drop-shadow(0 3px 8px rgba(0,0,0,0.38));
-          transition: transform 220ms ease, filter 220ms ease;
-          will-change: transform, filter;
-        }
-        .group:hover .yt-3d {
-          transform: translateY(-2px) rotate(-8deg) scale(1.12);
-          filter: drop-shadow(0 14px 24px rgba(255,0,0,0.45)) drop-shadow(0 6px 12px rgba(0,0,0,0.5));
-        }
-      `}</style>
+      <YouTube3DIcon size={iconSize} className="social-3d-icon" />
     </a>
   );
 };
