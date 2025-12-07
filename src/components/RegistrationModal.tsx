@@ -398,7 +398,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // CRITICAL FIX: Disable button IMMEDIATELY to prevent double-click duplicates
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     if (!validateForm()) {
+      setIsSubmitting(false); // Re-enable if validation fails
       return;
     }
 
@@ -419,6 +424,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           title: 'DUPLICATE REGISTRATION DETECTED', 
           message: `The email "${formData.email}" has already been registered for this event (Status: ${statusText}). Each email can register only once per event. If you need to update your registration, please contact the event organizers.` 
         });
+        setIsSubmitting(false); // Re-enable button
         return;
       }
     } catch (e) {
@@ -437,12 +443,14 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         // 0 means closed
         if (maxForType <= 0) {
           setQuotaBlocked({ title: 'REGISTRATIONS CLOSED', message: `${pType} is currently closed for this event.` });
+          setIsSubmitting(false);
           return;
         }
 
         // If our pre-check already marked this type as full, block immediately
         if (quotaFullMap[pType]) {
           setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event.` });
+          setIsSubmitting(false);
           return;
         }
         try {
@@ -457,6 +465,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           if (!approvedError && typeof approvedCount === 'number' && approvedCount >= maxForType) {
             // Block and show friendly message
             setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType} in this event. Limit of ${maxForType} approved registrations reached.` });
+           setIsSubmitting(false);
             return;
           }
 
@@ -470,6 +479,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             .in('status', ['pending', 'approved']);
           if (!totalError && typeof totalCount === 'number' && totalCount >= maxForType) {
             setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType}. Maximum submissions reached for this type.` });
+            setIsSubmitting(false);
             return;
           }
 
@@ -479,6 +489,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             const row = Array.isArray(rows) ? rows[0] : undefined;
             if (row && row.is_full) {
               setQuotaBlocked({ title: 'REGISTRATIONS FULL', message: `Registration is closed for ${pType}. Limit reached (${row.max ?? 'N/A'}).` });
+              setIsSubmitting(false);
               return;
             }
           } catch {}
@@ -486,12 +497,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           // If counting fails (e.g., RLS), block conservatively when quotas exist to avoid overbooking
           console.warn('[RegistrationModal] quota check failed, blocking conservatively', e);
           setQuotaBlocked({ title: 'REGISTRATIONS TEMPORARILY UNAVAILABLE', message: `Unable to verify remaining capacity for ${pType}. Please try again later or choose another participant type.` });
+          setIsSubmitting(false);
           return;
         }
       }
     } catch {}
-
-  setIsSubmitting(true);
 
     try {
       // Generate sequential registration ID from server (RICO-<n>) with fallback

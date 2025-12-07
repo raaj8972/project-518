@@ -85,6 +85,7 @@ export const Events: React.FC = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionMedia, setTransitionMedia] = useState<{url: string, type: 'video' | 'image', poster?: string} | null>(null);
   const transitionVideoRef = useRef<HTMLVideoElement>(null);
+  const speedrampTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [scrambleText, setScrambleText] = useState("ACCESSING REGISTRATION...");
   
   // Matrix Scramble Effect
@@ -376,7 +377,19 @@ export const Events: React.FC = () => {
       setTransitionMedia({ url: (ev as any).motion_poster_url, type: 'video' });
       setIsTransitioning(true);
       
-      // Note: Modal will open when video 'ended' event fires (see video element onEnded handler)
+      // Safety timeout: If video doesn't start within 4s (buffering/slow network), open modal anyway
+      speedrampTimeoutRef.current = setTimeout(() => {
+        if (pendingRegistrationId.current !== null) {
+          const newParams = new URLSearchParams(searchParams);
+          newParams.set('register', pendingRegistrationId.current.toString());
+          setSearchParams(newParams, { replace: true });
+          
+          setIsTransitioning(false);
+          pendingRegistrationId.current = null;
+        }
+      }, 4000);
+      
+      // Note: Modal will open when video 'ended' event fires OR timeout triggers
     } else {
       // No video, open immediately
       const newParams = new URLSearchParams(searchParams);
@@ -706,6 +719,11 @@ export const Events: React.FC = () => {
                   const video = e.currentTarget;
                   if (video.currentTime >= 4) {
                     video.pause();
+                    // Clear timeout - video played successfully
+                    if (speedrampTimeoutRef.current) {
+                      clearTimeout(speedrampTimeoutRef.current);
+                      speedrampTimeoutRef.current = null;
+                    }
                     // Trigger modal after 4s
                     if (pendingRegistrationId.current !== null) {
                       const newParams = new URLSearchParams(searchParams);
@@ -720,6 +738,11 @@ export const Events: React.FC = () => {
                   }
                 }}
                 onError={() => {
+                  // Clear timeout - video errored
+                  if (speedrampTimeoutRef.current) {
+                    clearTimeout(speedrampTimeoutRef.current);
+                    speedrampTimeoutRef.current = null;
+                  }
                   // Network error: Skip transition and open modal immediately
                   if (pendingRegistrationId.current !== null) {
                     const newParams = new URLSearchParams(searchParams);
@@ -731,6 +754,11 @@ export const Events: React.FC = () => {
                   }
                 }}
                 onEnded={() => {
+                  // Clear timeout - video ended
+                  if (speedrampTimeoutRef.current) {
+                    clearTimeout(speedrampTimeoutRef.current);
+                    speedrampTimeoutRef.current = null;
+                  }
                   // Fallback: Video ended naturally (if shorter than 4s)
                   if (pendingRegistrationId.current !== null) {
                     const newParams = new URLSearchParams(searchParams);
