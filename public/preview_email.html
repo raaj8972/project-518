@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Email Preview: Rules Update</title>
+</head>
+<body style="background-color: #f3f4f6; padding: 40px; font-family: sans-serif;">
+
+    <!-- Email Container -->
+    <div style="background-color: white; font-family: sans-serif; line-height: 1.5; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <h2 style="color: #ea580c; margin-top: 0;">Event Rules Update</h2>
+        <p>Dear <strong>John Doe</strong>,</p>
+        <p><strong>Registration ID: #RICO-8821</strong></p>
+        
+        <p>There has been an important update to the <strong>Rules & Regulations</strong> for <strong>Brains And Brawn</strong>.</p>
+        
+        <div style="background: #fff7ed; border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #c2410c;"><strong>Attention Required:</strong></p>
+            <p style="margin-top: 5px;">The rules have been updated. Here are the current rules:</p>
+            
+            <div style="margin-top: 15px; color: #333;">
+                
+                <!-- Example 1: Existing Simple Rule -->
+                <li style="margin-bottom: 5px;">Entry fees: 30 rupees per person.</li>
+                <li style="margin-bottom: 5px;">Mixed batch teams are allowed.</li>
+
+                <!-- Example 2: NEW Structured Rule (The Logic I Implemented) -->
+                <!-- The backend logic detects '__SR__' and renders this HTML: -->
+                <div style="margin-bottom: 15px; background-color: #fef08a; padding: 5px 10px; border-radius: 4px;">
+                    <p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">
+                        <span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>
+                        Electronics Policy
+                    </p>
+                    <div style="margin-bottom: 10px;">
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 3px;">No mobile phones allowed during the rounds.</li>
+                            <li style="margin-bottom: 3px;">Smart watches must be submitted at the desk.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <!-- Example 3: Existing Structured Rule (Not New) -->
+                 <div style="margin-bottom: 15px;">
+                    <p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">
+                        General Guidelines
+                    </p>
+                    <div style="margin-bottom: 10px;">
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li style="margin-bottom: 3px;">Decisions of the judges are final.</li>
+                            <li style="margin-bottom: 3px;">Report 15 minutes before your slot.</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+
+            <p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: Strict action will be taken for policy violations.</p>
+        </div>
+
+        <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
+        
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
+            <p style="margin: 0 0 10px 0; color: #666;"><strong>Need Help? Contact Coordinators:</strong></p>
+            <p style="margin: 0; font-size: 14px; color: #444;">Alice (9876543210), Bob (8765432109)</p>
+        </div>
+
+        <p>Best regards,<br/>The RICO Tech-Team</p>
+    </div>
+
+</body>
+</html>

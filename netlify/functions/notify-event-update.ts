@@ -77,17 +77,45 @@ export default async (req: Request) => {
                 <p style="margin-top: 5px;">The rules have been updated. Here are the current rules:</p>
                 
                 ${rules && Array.isArray(rules) && rules.length > 0 ? `
-                    <ul style="margin-top: 15px; padding-left: 20px; color: #333;">
+                    <div style="margin-top: 15px; color: #333;">
                         ${rules.map((r: any) => {
-                            const text = typeof r === 'string' ? r : r.text;
+                            let text = typeof r === 'string' ? r : r.text;
                             const isNew = typeof r === 'object' && r.highlight;
+                            const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>' : '';
+                            const highlightStyle = isNew ? "background-color: #fef08a; padding: 2px 5px; border-radius: 4px;" : "";
+
+                            // Handle Structured Rules (__SR__)
+                            if (text.startsWith('__SR__')) {
+                                try {
+                                    const json = JSON.parse(text.substring(6)); // Remove __SR__
+                                    if (json.sections) {
+                                        return json.sections.map((sec: any) => `
+                                            <div style="margin-bottom: 15px; ${highlightStyle}">
+                                                ${sec.heading ? `<p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">${badge}${sec.heading}</p>` : (isNew ? `<p style="margin:0;">${badge}</p>` : '')}
+                                                ${sec.blocks ? sec.blocks.map((b: any) => `
+                                                    <div style="margin-bottom: 10px;">
+                                                        ${b.title ? `<p style="font-weight: 500; margin: 0 0 5px 0; font-size: 14px;">${b.title}</p>` : ''}
+                                                        <${b.style === 'number' ? 'ol' : 'ul'} style="margin: 0; padding-left: 20px;">
+                                                            ${b.items.map((item: string) => `<li style="margin-bottom: 3px;">${item}</li>`).join('')}
+                                                        </${b.style === 'number' ? 'ol' : 'ul'} >
+                                                    </div>
+                                                `).join('') : ''}
+                                            </div>
+                                        `).join('');
+                                    }
+                                } catch (e) {
+                                    console.error('Failed to parse structured rule', e);
+                                    return `<p style="color: #991b1b; ${highlightStyle}">${badge}Error rendering rule</p>`; 
+                                }
+                            }
+
+                            // Classic Simple Rule
                             const style = isNew 
                                 ? "margin-bottom: 5px; background-color: #fef08a; padding: 2px 5px; border-radius: 4px; font-weight: bold; color: #854d0e;" 
                                 : "margin-bottom: 5px;";
-                            const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px;">[NEW]</span>' : '';
                             return `<li style="${style}">${badge}${text}</li>`;
                         }).join('')}
-                    </ul>
+                    </div>
                 ` : '<p style="font-style:italic; color:#666;">Please check website for details.</p>'}
 
                 ${message ? `<p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: ${message}</p>` : ''}
@@ -135,74 +163,78 @@ export default async (req: Request) => {
     console.log(`Sending update to ${batch.length} users via ${provider}`);
 
     let successCount = 0;
-    const errors = [];
-    const logs = [];
+    const errors: any[] = [];
+    const logs: any[] = [];
 
 
-    // Simple sequential or small-batch approach if SMTP
-    for (const reg of batch) {
-        try {
-            const res = await sendEmail({
-                to: reg.email,
-                subject: emailSubject,
-                html: emailHtmlTemplate
-                    .replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`)
-                    .replace('{{REG_ID}}', reg.id)
-                    .replace('{{TEAM_MEMBERS}}', (() => {
-                        const tm = reg.team_members;
-                        let list = [];
-                        if (Array.isArray(tm)) list = tm;
-                        else if (typeof tm === 'string') { try { list = JSON.parse(tm); } catch {} }
-                        
-                        if (list.length > 0) {
-                            const names = list.map((m: any) => m.name || m).join(', ');
-                            return `
-                                <div style="margin: 15px 0; padding: 10px; background-color: #f8fafc; border-radius: 4px;">
-                                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Team Members</p>
-                                    <p style="margin: 0; color: #334155;">${names}</p>
-                                </div>
-                            `;
-                        }
-                        return '';
-                    })()),
-                provider: provider as 'smtp' | 'resend'
-            });
-            if (res.success) {
-                successCount++;
-                logs.push({
-                    recipient_email: reg.email,
-                    template_type: 'update',
-                    status: 'sent',
-                    provider: provider,
-                    event_id: eventId,
-                    registration_id: reg.id,
-                    details: { eventTitle, newDetails, updateType }
+    // Optimized: Send in chunks to prevent timeout, but limit concurrency for SMTP safety
+    const CONCURRENCY = 5; 
+    for (let i = 0; i < batch.length; i += CONCURRENCY) {
+        const chunk = batch.slice(i, i + CONCURRENCY);
+        await Promise.all(chunk.map(async (reg) => {
+            try {
+                const res = await sendEmail({
+                    to: reg.email,
+                    subject: emailSubject,
+                    html: emailHtmlTemplate
+                        .replace('Dear Participant,', `Dear <strong>${reg.full_name}</strong>,`)
+                        .replace('{{REG_ID}}', reg.id)
+                        .replace('{{TEAM_MEMBERS}}', (() => {
+                            const tm = reg.team_members;
+                            let list = [];
+                            if (Array.isArray(tm)) list = tm;
+                            else if (typeof tm === 'string') { try { list = JSON.parse(tm); } catch {} }
+                            
+                            if (list.length > 0) {
+                                const names = list.map((m: any) => m.name || m).join(', ');
+                                return `
+                                    <div style="margin: 15px 0; padding: 10px; background-color: #f8fafc; border-radius: 4px;">
+                                        <p style="margin: 0 0 5px 0; font-size: 12px; color: #64748b; text-transform: uppercase;">Team Members</p>
+                                        <p style="margin: 0; color: #334155;">${names}</p>
+                                    </div>
+                                `;
+                            }
+                            return '';
+                        })()),
+                    provider: provider as 'smtp' | 'resend'
                 });
-            }
-            else {
-                errors.push({ email: reg.email, error: res.error });
-                logs.push({
+                if (res.success) {
+                    successCount++;
+                    logs.push({
+                        recipient_email: reg.email,
+                        template_type: 'update',
+                        status: 'sent',
+                        provider: provider,
+                        event_id: eventId,
+                        registration_id: reg.id,
+                        details: { eventTitle, newDetails, updateType }
+                    });
+                }
+                else {
+                    errors.push({ email: reg.email, error: res.error });
+                    logs.push({
+                        recipient_email: reg.email,
+                        template_type: 'update',
+                        status: 'failed',
+                        provider: provider,
+                        event_id: eventId,
+                        registration_id: reg.id,
+                        details: { eventTitle, newDetails, error: res.error, updateType }
+                    });
+                }
+            } catch (e: any) {
+                 errors.push({ email: reg.email, error: e.message });
+                 logs.push({
                     recipient_email: reg.email,
                     template_type: 'update',
                     status: 'failed',
                     provider: provider,
                     event_id: eventId,
                     registration_id: reg.id,
-                    details: { eventTitle, newDetails, error: res.error, updateType }
+                    details: { eventTitle, newDetails, error: e.message, updateType }
                 });
             }
-        } catch (e: any) {
-             errors.push({ email: reg.email, error: e.message });
-             logs.push({
-                recipient_email: reg.email,
-                template_type: 'update',
-                status: 'failed',
-                provider: provider,
-                event_id: eventId,
-                registration_id: reg.id,
-                details: { eventTitle, newDetails, error: e.message, updateType }
-            });
-        }
+        }));
     }
 
     if (logs.length > 0) {
