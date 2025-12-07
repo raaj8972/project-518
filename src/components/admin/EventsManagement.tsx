@@ -39,41 +39,43 @@ export const EventsManagement: React.FC = () => {
   const [savingAdd, setSavingAdd] = useState(false);
   const [savingUpdate, setSavingUpdate] = useState(false);
 
-  const handleManualNotify = async (event: any) => {
-    // 1. Ask for type
-    const choice = prompt(
-        `Send Notification for: "${event.title}"\n\nType '1' for SCHEDULE/VENUE Update\nType '2' for RULES/REGULATIONS Update\nType '3' for GENERAL Update (Schedule template)`
-    );
+  // Manual Notification Modal State
+  const [manualNotifyEvent, setManualNotifyEvent] = useState<any | null>(null);
+  const [manualNotifyType, setManualNotifyType] = useState<'schedule' | 'rules'>('rules');
+  const [manualNotifyMessage, setManualNotifyMessage] = useState('');
+  const [manualNotifyHighlights, setManualNotifyHighlights] = useState<Set<string>>(new Set()); // Rule strings to highlight
+  const [sendingManualNotify, setSendingManualNotify] = useState(false);
+
+  const handleManualNotify = (event: any) => {
+    setManualNotifyEvent(event);
+    setManualNotifyType('rules'); // Default to rules as it's the complex one
+    setManualNotifyMessage('Please check the website for updated rules.');
     
-    if (!choice) return;
+    // Smart Pre-select: Check for "newly added" looking rules (e.g. if we had a history)
+    // Since this is manual trigger, we don't have "old version" to compare against easily unless we stored it.
+    // So we will start with NONE selected, or ALL selected? 
+    // User said "allow admin to click check to highlight".
+    // Let's start with NONE selected to be safe, so they explicitly choose what to highlight.
+    setManualNotifyHighlights(new Set());
+  };
 
-    let updateType = 'schedule';
-    let defaultMsg = '';
+  const sendManualNotification = async () => {
+    if (!manualNotifyEvent) return;
+    
+    // Validate
+    if (!confirm(`Send "${manualNotifyType.toUpperCase()}" notification to approved participants?`)) return;
 
-    if (choice === '2' || choice.toLowerCase().includes('rule')) {
-        updateType = 'rules';
-        defaultMsg = 'Please check the website for updated rules.';
-    } else if (choice === '1' || choice === '3' || choice.toLowerCase().includes('sched')) {
-        updateType = 'schedule';
-        defaultMsg = 'Please note the latest details.';
-    } else {
-        return; // Invalid or cancelled
-    }
-
-    // 2. Custom Message
-    const message = prompt('Optional: Add a custom message to the email:', defaultMsg) || '';
-
-    // 3. Confirm
-    if(!confirm(`Send "${updateType.toUpperCase()}" notification to ALL approved participants of "${event.title}"?\n\nMessage: "${message}"`)) {
-        return;
-    }
-
+    setSendingManualNotify(true);
     try {
         const { supabase } = await import('../../lib/supabase');
         const token = (await supabase.auth.getSession()).data.session?.access_token;
         if (!token) throw new Error('No auth token');
 
-        push({ message: 'Sending notifications...', type: 'info' });
+        // Prepare rules with highlights
+        const rulesPayload = manualNotifyEvent.rules?.map((r: string) => ({
+            text: r,
+            highlight: manualNotifyType === 'rules' && manualNotifyHighlights.has(r) // Only highlight if type is rules AND selected
+        }));
 
         const res = await fetch('/api/notify-event-update', {
             method: 'POST',
@@ -82,15 +84,15 @@ export const EventsManagement: React.FC = () => {
                 'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify({
-                eventId: event.id,
-                eventTitle: event.title,
-                updateType: updateType,
-                message: message,
-                rules: event.rules, // Pass current rules
+                eventId: manualNotifyEvent.id,
+                eventTitle: manualNotifyEvent.title,
+                updateType: manualNotifyType,
+                message: manualNotifyMessage,
+                rules: rulesPayload, 
                 newDetails: {
-                    date: event.date,
-                    time: event.time,
-                    venue: event.venue
+                    date: manualNotifyEvent.date,
+                    time: manualNotifyEvent.time,
+                    venue: manualNotifyEvent.venue
                 }
             })
         });
@@ -98,6 +100,7 @@ export const EventsManagement: React.FC = () => {
         const result = await res.json();
         if (res.ok) {
             push({ message: `Success: Sent ${result.sent} emails.`, type: 'success' });
+            setManualNotifyEvent(null); // Close modal
         } else {
             console.error(result);
             push({ message: `Failed: ${result.error}`, type: 'error' });
@@ -105,6 +108,8 @@ export const EventsManagement: React.FC = () => {
     } catch (e: any) {
         console.error(e);
         push({ message: `Error: ${e.message}`, type: 'error' });
+    } finally {
+        setSendingManualNotify(false);
     }
   };
 
@@ -2336,6 +2341,116 @@ export const EventsManagement: React.FC = () => {
           filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
         }
       `}</style>
+
+      {/* Manual Notification Modal */}
+      {manualNotifyEvent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+                    <div>
+                        <h3 className="font-bold text-gray-900">Send Notification</h3>
+                        <p className="text-xs text-gray-500">{manualNotifyEvent.title}</p>
+                    </div>
+                    <button onClick={() => setManualNotifyEvent(null)} className="text-gray-500 hover:text-gray-700">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="p-4 overflow-y-auto space-y-4">
+                    {/* Step 1: Type */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Notification Type</label>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => { setManualNotifyType('rules'); setManualNotifyMessage('Please check the website for updated rules.'); }}
+                                className={`flex-1 py-2 px-3 rounded border text-sm font-medium transition-colors ${manualNotifyType === 'rules' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                            >
+                                <FileText size={16} className="inline mr-2" />
+                                Rules Update
+                            </button>
+                            <button 
+                                onClick={() => { setManualNotifyType('schedule'); setManualNotifyMessage('Please note the latest details.'); }}
+                                className={`flex-1 py-2 px-3 rounded border text-sm font-medium transition-colors ${manualNotifyType === 'schedule' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
+                            >
+                                <Calendar size={16} className="inline mr-2" />
+                                Schedule/Venue
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Step 2: Message */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Custom Message</label>
+                        <textarea
+                            value={manualNotifyMessage}
+                            onChange={e => setManualNotifyMessage(e.target.value)}
+                            className="w-full p-2 border rounded text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            rows={3}
+                            placeholder="Add a note for participants..."
+                        />
+                    </div>
+
+                    {/* Step 3: Rule Selection (Only for Rules type) */}
+                    {manualNotifyType === 'rules' && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-900 mb-2">Select Changed Rules (Highlights)</label>
+                            <div className="text-xs text-gray-500 mb-2 bg-blue-50 p-2 rounded">
+                                Check the rules that are <strong>NEW</strong> or <strong>CHANGED</strong>. These will be highlighted in yellow in the email.
+                            </div>
+                            <div className="border rounded max-h-48 overflow-y-auto bg-gray-50 divide-y">
+                                {manualNotifyEvent.rules && manualNotifyEvent.rules.length > 0 ? (
+                                    manualNotifyEvent.rules.map((rule: string, idx: number) => {
+                                        // If it's structured, show simplified preview
+                                        const isStruct = rule.startsWith('__SR__');
+                                        const display = isStruct ? '(Structured Rule Section) ' + rule.substring(0, 50) : rule;
+                                        
+                                        return (
+                                            <label key={idx} className="flex items-start gap-3 p-2 hover:bg-white cursor-pointer transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={manualNotifyHighlights.has(rule)}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setManualNotifyHighlights(prev => {
+                                                            const next = new Set(prev);
+                                                            if (checked) next.add(rule); else next.delete(rule);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className="mt-1"
+                                                />
+                                                <span className="text-sm text-gray-700 leading-snug">{display}</span>
+                                            </label>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="p-4 text-center text-gray-500 text-sm italic">No rules found for this event.</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">
+                    <button 
+                        onClick={() => setManualNotifyEvent(null)}
+                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={sendManualNotification}
+                        disabled={sendingManualNotify}
+                        className="px-6 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-500 disabled:opacity-50 flex items-center"
+                    >
+                        {sendingManualNotify ? <Loader2 size={16} className="animate-spin mr-2" /> : <Bell size={16} className="mr-2" />}
+                        {sendingManualNotify ? 'Sending...' : 'Send Notification'}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
