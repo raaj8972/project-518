@@ -673,7 +673,7 @@ export const Events: React.FC = () => {
                           loop
                           playsInline
                           preload="auto"
-                          {...({ fetchPriority: "high" } as any)} // Hint browser to prioritize this hero content
+                          {...({ fetchpriority: "high" } as any)} // Hint browser to prioritize this hero content
                           poster={ev.image} 
                         />
                         
@@ -898,7 +898,7 @@ export const Events: React.FC = () => {
                           loop
                           poster={event.image}
                           preload={index < 6 ? "auto" : "metadata"}
-                          {...(index < 3 ? { fetchPriority: "high" } as any : {})}
+                          {...(index < 3 ? { fetchpriority: "high" } as any : {})}
                         />
                       ) : null}
 

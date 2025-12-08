@@ -454,7 +454,11 @@ export const AdminDashboard: React.FC = () => {
                 Auto-logout on inactivity
               </label>
               <button
-                onClick={() => navigate('/')}
+                onClick={() => {
+                  startTransition(() => {
+                    navigate('/');
+                  });
+                }}
                 className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-2 sm:mr-4 border-r border-gray-300 pr-2 sm:pr-4"
                 title="Go to Website Home"
               >
