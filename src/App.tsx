@@ -183,8 +183,22 @@ function App() {
     const isAdminRoute = location.pathname.startsWith('/admin');
     const isLoginRoute = location.pathname === '/login';
     const isHealthRoute = location.pathname === '/health';
-    const { siteSettings, loading } = useData();
-  // adminUsers and user are not needed here after notification gating logic changed
+    const { user } = useAuth();
+    const { siteSettings, loading, adminUsers } = useData();
+    
+    // Determine if current user is an admin/owner to bypass maintenance
+    const isAdminOrOwner = React.useMemo(() => {
+      try {
+        const uid = user?.id;
+        if (!uid || !Array.isArray(adminUsers)) return false;
+        // Check for super admin metadata or admin table entry
+        if (user?.user_metadata?.is_super_admin) return true;
+        return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+      } catch {
+        return false;
+      }
+    }, [user, adminUsers]);
+
     // Controlled splash: keep the splash visible at least MIN_SPLASH_MS and fade out
     // over FADE_MS when loading becomes false. This prevents an abrupt switch to
     // the Home UI when the data layer finishes very quickly.
@@ -242,7 +256,8 @@ function App() {
           <GlobalErrorBanner />
           <ConnectionStatusBanner />
           {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
-          {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute ? (
+          {/* Admin Bypass: If user is admin/owner, they can access site even if gated */}
+          {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute && !isAdminOrOwner ? (
             <ComingSoon />
           ) : (
             <>

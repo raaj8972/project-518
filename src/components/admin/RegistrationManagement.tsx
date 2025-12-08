@@ -585,6 +585,11 @@ export const RegistrationManagement: React.FC = () => {
 
   };
 
+
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isSendingRejection, setIsSendingRejection] = useState(false);
+
   const fetchEmailLogs = async (regId: string) => {
     setLogsLoading(true);
     setEmailLogs([]);
@@ -592,7 +597,7 @@ export const RegistrationManagement: React.FC = () => {
         const { data, error } = await supabase
             .from('email_logs')
             .select('*')
-            .eq('registration_id', regId) // Assuming we added this column to logs
+            .eq('registration_id', regId)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -601,6 +606,58 @@ export const RegistrationManagement: React.FC = () => {
         console.error('Error fetching logs:', err);
     } finally {
         setLogsLoading(false);
+    }
+  };
+  
+  const handleRejectClick = (id: string) => {
+    setRejectingId(id);
+    setRejectionReason('');
+  };
+
+  const confirmRejection = async () => {
+    if (!rejectingId) return;
+    if (!rejectionReason.trim()) {
+        push({ message: 'Please provide a reason for rejection.', type: 'error'});
+        return;
+    }
+
+    try {
+        setIsSendingRejection(true);
+        // 1. Update status
+        await updateRegistrationStatus(rejectingId, 'rejected');
+        
+        // 2. Send Email
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (token) {
+             const res = await fetch('/api/send-rejection', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    registrationId: rejectingId,
+                    reason: rejectionReason,
+                    provider: emailProvider,
+                    siteUrl: window.location.origin // Pass current origin for re-registration link
+                })
+            });
+            
+            if (!res.ok) {
+                console.error('Rejection email failed');
+                push({ message: 'Status updated to Rejected, but email failed.', type: 'error' });
+            } else {
+                push({ message: 'Registration rejected and email sent.', type: 'success' });
+            }
+        }
+
+        setRejectingId(null);
+        setRejectionReason('');
+    } catch (e: any) {
+        console.error('Rejection failed:', e);
+        push({ message: 'Failed to reject registration', type: 'error' });
+    } finally {
+        setIsSendingRejection(false);
     }
   };
 
@@ -1390,7 +1447,7 @@ export const RegistrationManagement: React.FC = () => {
                           <CheckCircle size={16} />
                         </button>
                         <button
-                          onClick={() => handleStatusUpdate(registration.id, 'rejected')}
+                          onClick={() => handleRejectClick(registration.id)}
                           className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
                           title="Reject Registration"
                         >
@@ -1611,6 +1668,43 @@ export const RegistrationManagement: React.FC = () => {
           </div>
         )}
       </div>
+      {/* Rejection Reason Modal */}
+      {rejectingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
+                <h3 className="text-lg font-bold mb-4 text-gray-900">Reject Registration</h3>
+                <p className="text-sm text-gray-600 mb-4">Please provide a reason for this rejection. This will be emailed to the user.</p>
+                <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full border rounded p-2 mb-4 text-gray-900 focus:ring-2 focus:ring-red-500 outline-none"
+                    rows={4}
+                    placeholder="e.g., ID card not clear, Invalid details..."
+                />
+                <div className="flex justify-end gap-2">
+                    <button 
+                        onClick={() => { setRejectingId(null); setRejectionReason(''); }}
+                        className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
+                        disabled={isSendingRejection}
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={confirmRejection}
+                        disabled={isSendingRejection || !rejectionReason.trim()}
+                        className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 flex items-center gap-2"
+                    >
+                        {isSendingRejection ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Sending...
+                            </>
+                        ) : 'Reject & Notify'}
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -176,8 +176,22 @@ export default async (req: Request) => {
                     <div style="margin-top: 0; display: flex; align-items: flex-end; justify-content: space-between;">
                         <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
                         ${stampUrl ? `
-                        <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
-                            <img class="stamp-img" src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
+                        <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
+                            <!-- Background Image Stamp with Overlay to prevent right-click save -->
+                            <div style="
+                                display: inline-block;
+                                width: 250px;
+                                max-width: 45%;
+                                height: 0;
+                                padding-bottom: 28%; /* Aspect ratio approx for standard stamps */
+                                background-image: url('${stampUrl}');
+                                background-size: contain;
+                                background-repeat: no-repeat;
+                                background-position: center;
+                                position: relative;
+                            ">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;" />
+                            </div>
                         </div>` : ''}
                     </div>
                 </div>
@@ -219,8 +233,21 @@ export default async (req: Request) => {
                     <p>Please make a note of these changes.</p>
                     ${coordinatorsHtml}
                     ${stampUrl ? `
-                    <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
-                        <img class="stamp-img" src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
+                    <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
+                        <div style="
+                            display: inline-block;
+                            width: 250px;
+                            max-width: 45%;
+                            height: 0;
+                            padding-bottom: 28%;
+                            background-image: url('${stampUrl}');
+                            background-size: contain;
+                            background-repeat: no-repeat;
+                            background-position: center;
+                            position: relative;
+                        ">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;" />
+                        </div>
                     </div>` : ''}
                     <div style="margin-top: 10px;">
                         <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
