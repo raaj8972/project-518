@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle, X, Send } from 'lucide-react';
+import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle, X, Send, Award, Sparkles } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
@@ -608,6 +608,70 @@ export const RegistrationManagement: React.FC = () => {
         setLogsLoading(false);
     }
   };
+
+  // --- Custom Email State ---
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTemplate, setEmailTemplate] = useState<'winner' | 'selection' | 'custom'>('custom');
+  const [emailCustomSubject, setEmailCustomSubject] = useState('');
+  const [emailCustomBody, setEmailCustomBody] = useState('');
+  const [emailAdditionalData, setEmailAdditionalData] = useState<any>({});
+  const [emailSending, setEmailSending] = useState(false);
+  
+  const handleOpenEmailModal = () => {
+      const selectedCount = selectedIds.size;
+      if (selectedCount === 0) {
+          push({ message: 'Please select at least one participant to email.', type: 'info' });
+          return;
+      }
+      setShowEmailModal(true);
+      // Reset defaults
+      setEmailTemplate('custom');
+      setEmailCustomSubject('');
+      setEmailCustomBody('');
+      setEmailAdditionalData({});
+  };
+
+  const handleSendCustomEmail = async () => {
+      const recipients = filteredRegistrations.filter(r => selectedIds.has(r.id));
+      if (!recipients.length) return;
+      
+      try {
+          setEmailSending(true);
+          let sent = 0;
+          let failed = 0;
+          
+          // Send sequentially to avoid rate limits/timeouts
+          for (const reg of recipients) {
+              const token = (await supabase.auth.getSession()).data.session?.access_token;
+              if (token) {
+                 const res = await fetch('/api/send-custom-email', {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`},
+                      body: JSON.stringify({
+                          registrationId: reg.id,
+                          templateType: emailTemplate,
+                          customSubject: emailTemplate === 'custom' ? emailCustomSubject : undefined,
+                          customMessage: emailCustomBody,
+                          additionalData: emailAdditionalData,
+                          provider: emailProvider
+                      })
+                 });
+                 if (res.ok) sent++;
+                 else failed++;
+              }
+          }
+          
+          push({ message: `Emails sent: ${sent}, Failed: ${failed}`, type: sent > 0 ? 'success' : 'error' });
+          setShowEmailModal(false);
+          setSelectedIds(new Set()); // Deselect after sending
+          
+      } catch (e: any) {
+          console.error(e);
+          push({ message: 'Failed to send batch emails.', type: 'error' });
+      } finally {
+          setEmailSending(false);
+      }
+  };
   
   const handleRejectClick = (id: string) => {
     setRejectingId(id);
@@ -684,6 +748,10 @@ export const RegistrationManagement: React.FC = () => {
   };
 
   const exportOptions = [
+    {
+      label: 'Send Email',
+      action: handleOpenEmailModal
+    },
     {
       label: 'Export All Registrations',
       action: () => exportRegistrationsToExcel(filteredRegistrations, 'all-registrations.xlsx')
@@ -1012,10 +1080,10 @@ export const RegistrationManagement: React.FC = () => {
               <button
                 key={index}
                 onClick={option.action}
-                className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-500 transition-colors flex items-center text-sm"
+                className={`${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'} text-white px-3 py-1.5 rounded-lg transition-colors flex items-center text-sm`}
               >
-                <Download size={14} className="mr-1" />
-                Export All
+                {option.label === 'Send Email' ? <Send size={14} className="mr-1" /> : <Download size={14} className="mr-1" />}
+                {option.label}
               </button>
             ))}
           </div>
@@ -1703,6 +1771,189 @@ export const RegistrationManagement: React.FC = () => {
                     </button>
                 </div>
             </div>
+        </div>
+      )}
+      {/* Custom Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                <Mail size={20} className="text-blue-600" />
+                Send Email to {selectedIds.size} Recipient(s)
+              </h3>
+              <button onClick={() => setShowEmailModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+                
+                {/* Template Type Selector */}
+                <div className="grid grid-cols-3 gap-4">
+                    <button 
+                        onClick={() => setEmailTemplate('winner')}
+                        className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${emailTemplate === 'winner' ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                        <Award size={24} className={emailTemplate === 'winner' ? 'text-yellow-600' : 'text-gray-400'} />
+                        <span className="font-bold text-sm">Winner</span>
+                    </button>
+                    <button 
+                        onClick={() => setEmailTemplate('selection')}
+                        className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${emailTemplate === 'selection' ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                        <CheckCircle size={24} className={emailTemplate === 'selection' ? 'text-teal-600' : 'text-gray-400'} />
+                        <span className="font-bold text-sm">Selection</span>
+                    </button>
+                    <button 
+                        onClick={() => setEmailTemplate('custom')}
+                        className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${emailTemplate === 'custom' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                        <Mail size={24} className={emailTemplate === 'custom' ? 'text-blue-600' : 'text-gray-400'} />
+                        <span className="font-bold text-sm">Custom</span>
+                    </button>
+                </div>
+
+                {/* Dynamic Inputs */}
+                {emailTemplate === 'winner' && (
+                    <div className="space-y-4">
+                        <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-sm text-yellow-900">
+                             <Sparkles size={16} className="inline mr-2" />
+                             Sends a celebratory email with gold/yellow theme.
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Select Position</label>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                {['Winner', '1st Runner Up', '2nd Runner Up'].map(pos => (
+                                    <button
+                                        key={pos}
+                                        onClick={() => setEmailAdditionalData({...emailAdditionalData, position: pos})}
+                                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${emailAdditionalData.position === pos ? 'bg-yellow-100 border-yellow-500 text-yellow-800' : 'bg-white border-gray-300 text-gray-600 hover:border-yellow-400'}`}
+                                    >
+                                        {pos}
+                                    </button>
+                                ))}
+                            </div>
+                            <input 
+                                type="text"
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none text-gray-900"
+                                placeholder="Or type custom position..."
+                                value={emailAdditionalData.position || ''}
+                                onChange={e => setEmailAdditionalData({...emailAdditionalData, position: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Additional Message (Optional)</label>
+                            <textarea 
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-yellow-500 outline-none h-24 text-gray-900"
+                                placeholder="Any specific instructions for the winner..."
+                                value={emailCustomBody}
+                                onChange={e => setEmailCustomBody(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {emailTemplate === 'selection' && (
+                    <div className="space-y-4">
+                         <div className="bg-teal-50 p-4 rounded border border-teal-200 text-sm text-teal-900">
+                             <CheckCircle size={16} className="inline mr-2" />
+                             Sends a professional selection notice (Green/Teal theme).
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Round Cleared</label>
+                            <input 
+                                type="text"
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none text-gray-900"
+                                placeholder="e.g. preliminary round, audition round, first evaluation"
+                                value={emailAdditionalData.roundCleared || 'preliminary round'}
+                                onChange={e => setEmailAdditionalData({...emailAdditionalData, roundCleared: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Selection Stage</label>
+                            <input 
+                                type="text"
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none text-gray-900"
+                                placeholder="e.g. Round 2, Finals, Interview Round"
+                                value={emailAdditionalData.stage || ''}
+                                onChange={e => setEmailAdditionalData({...emailAdditionalData, stage: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium text-gray-700 mb-1">Additional Message (Optional)</label>
+                            <textarea 
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-teal-500 outline-none h-24 text-gray-900"
+                                placeholder="Instructions for the next round..."
+                                value={emailCustomBody}
+                                onChange={e => setEmailCustomBody(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {emailTemplate === 'custom' && (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
+                            <input 
+                                type="text"
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none text-gray-900"
+                                placeholder="e.g. Important Update regarding..."
+                                value={emailCustomSubject}
+                                onChange={e => setEmailCustomSubject(e.target.value)}
+                            />
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Message Body</label>
+                            <textarea 
+                                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none h-32 text-gray-900"
+                                placeholder="Type your full message here..."
+                                value={emailCustomBody}
+                                onChange={e => setEmailCustomBody(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+            
+                {/* Preview Box - Simple text preview of key vars to avoid full HTML complexity in client */}
+                <div className="bg-gray-100 p-4 rounded text-sm text-gray-800 space-y-1">
+                    <p className="font-bold text-gray-900 uppercase mb-2">Summary Preview</p>
+                    <p><strong className="text-gray-900">Recipients:</strong> {selectedIds.size} users</p>
+                    <p><strong className="text-gray-900">Template:</strong> {emailTemplate.toUpperCase()}</p>
+                    <p><strong className="text-gray-900">Subject:</strong> {
+                        emailTemplate === 'winner' ? `🎉 Congratulations! You are a ${emailAdditionalData.position || 'Winner'}...` :
+                        emailTemplate === 'selection' ? `Selection Update: You're selected for ${emailAdditionalData.stage || 'next round'}!` :
+                        emailCustomSubject || '(No subject)'
+                    }</p>
+                </div>
+
+            </div>
+
+            <div className="p-4 border-t bg-gray-50 rounded-b-lg flex justify-end gap-3">
+                <button 
+                    onClick={() => setShowEmailModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={handleSendCustomEmail}
+                    disabled={emailSending}
+                    className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold flex items-center gap-2 disabled:opacity-50"
+                >
+                    {emailSending ? (
+                        <>
+                           <RefreshCw size={18} className="animate-spin" /> Sending...
+                        </>
+                    ) : (
+                        <>
+                           <Send size={18} /> Send Application
+                        </>
+                    )}
+                </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
