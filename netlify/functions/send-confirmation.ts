@@ -49,6 +49,38 @@ export default async (req: Request) => {
 
     const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators, teamMembers } = await req.json();
 
+    // --- Fetch Assets (Watermark/Stamp) ---
+    const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
+    
+    // Helper to find file
+    const findFileUrl = async (prefix: string) => {
+        const file = bucketFiles?.find((f: any) => f.name === `${prefix}.png` || f.name === `${prefix}.svg`);
+        if (file) {
+            const { data } = await supabaseAdmin.storage.from('pdf-watermarks').createSignedUrl(file.name, 315360000);
+            return data?.signedUrl;
+        }
+        return null;
+    };
+
+    const watermarkUrl = (await findFileUrl('watermark')) || 'https://ricorrenza.fun/logo.png';
+    const emailStampUrl = await findFileUrl('email_stamp');
+    const defaultStampUrl = await findFileUrl('stamp');
+    const stampUrl = emailStampUrl || defaultStampUrl;
+
+    const watermarkHtml = watermarkUrl ? `
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
+            <img src="${watermarkUrl}" alt="" style="width: 220%; max-width: none; opacity: 0.19; position: absolute; bottom: 0; left: -60%;" />
+        </div>
+    ` : '';
+
+    // --- Fetch Rules ---
+    const { data: eventData } = await supabaseAdmin
+        .from('events')
+        .select('rules')
+        .eq('title', eventTitle)
+        .single();
+    const rules = eventData?.rules;
+
     let teamHtml = '';
     if (teamMembers && Array.isArray(teamMembers) && teamMembers.length > 0) {
         const membersList = teamMembers.map((m: any) => m.name || m).join(', ');
@@ -75,34 +107,100 @@ export default async (req: Request) => {
             When updated, you will be informed through <strong>Email and WhatsApp</strong>.
          </p>` : '';
 
+    // Rules HTML Generation
+    let rulesHtml = '';
+    if (rules && Array.isArray(rules) && rules.length > 0) {
+        rulesHtml = `
+            <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #c2410c;">Event Rules</h3>
+                <div style="margin-top: 15px; color: #333;">
+                    ${rules.map((r: any) => {
+                        let text = typeof r === 'string' ? r : r.text;
+                        const isNew = typeof r === 'object' && r.highlight; // Just in case, though unlikely for approval
+                        const badge = isNew ? '<span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[IMPORTANT]</span>' : '';
+                        
+                        // Handle Structured Rules (__SR__)
+                        if (text.startsWith('__SR__')) {
+                            try {
+                                const json = JSON.parse(text.substring(6));
+                                if (json.sections) {
+                                    return json.sections.map((sec: any) => `
+                                        <div style="margin-bottom: 15px;">
+                                            ${sec.heading ? `<p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">${badge}${sec.heading}</p>` : ''}
+                                            ${sec.blocks ? sec.blocks.map((b: any) => `
+                                                <div style="margin-bottom: 10px;">
+                                                    ${b.title ? `<p style="font-weight: 500; margin: 0 0 5px 0; font-size: 14px;">${b.title}</p>` : ''}
+                                                    <${b.style === 'number' ? 'ol' : 'ul'} style="margin: 0; padding-left: 20px;">
+                                                        ${b.items.map((item: string) => `<li style="margin-bottom: 3px;">${item}</li>`).join('')}
+                                                    </${b.style === 'number' ? 'ol' : 'ul'} >
+                                                </div>
+                                            `).join('') : ''}
+                                        </div>
+                                    `).join('');
+                                }
+                            } catch (e) { return `<p style="color:red">Error rendering rule</p>`; }
+                        }
+                        return `<li style="margin-bottom: 5px;">${badge}${text}</li>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+
     const emailHtml = `
-      <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-        <h2 style="color: #0d9488;">Registration Approved!</h2>
-        <p>Dear <strong>${fullName}</strong>,</p>
-        <p>We are pleased to inform you that your registration for <strong>${eventTitle}</strong> has been approved.</p>
+      <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
+        <style>
+            :root { color-scheme: light; supported-color-schemes: light; }
+            @media only screen and (max-width: 600px) {
+                .stamp-img { width: 350px !important; max-width: 100% !important; }
+                .stamp-wrapper { margin-top: -175px !important; margin-bottom: 20px !important; }
+            }
+            /* Force Light Mode */
+            .email-container {
+                background-color: #ffffff !important;
+                color: #333333 !important;
+            }
+        </style>
         
-        <div style="margin: 20px 0; padding: 15px; background-color: #f0fdfa; border-radius: 8px; border: 1px solid #ccfbf1;">
-            <p style="margin: 0; font-size: 18px; color: #0f766e;"><strong>Registration ID: ${registrationId}</strong></p>
+        <!-- Watermark -->
+        ${watermarkHtml}
+        
+        <div style="position: relative; z-index: 1;">
+            <h2 style="color: #0d9488;">Registration Approved!</h2>
+            <p>Dear <strong>${fullName}</strong>,</p>
+            <p>We are pleased to inform you that your registration for <strong>${eventTitle}</strong> has been approved.</p>
+            
+            <div style="margin: 20px 0; padding: 15px; background-color: #f0fdfa; border-radius: 8px; border: 1px solid #ccfbf1;">
+                <p style="margin: 0; font-size: 18px; color: #0f766e;"><strong>Registration ID: ${registrationId}</strong></p>
+            </div>
+    
+            ${teamHtml}
+    
+            <div style="margin-bottom: 20px; padding: 10px; border-left: 4px solid #0d9488; background-color: #f9fafb;">
+                <p style="margin: 0 0 10px 0;"><strong>Event Details:</strong></p>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> ${eventDate || 'TBA'}</li>
+                    <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> ${eventTime || 'TBA'}</li>
+                    <li>📍 <strong>Venue:</strong> ${eventVenue || 'TBA'}</li>
+                </ul>
+            </div>
+            
+            ${rulesHtml}
+            ${tbaMessage}
+    
+            <p>Please present this ID at the venue entrance.</p>
+            
+            ${coordinatorsHtml}
+    
+            <div style="margin-top: 30px; display: flex; align-items: flex-end; justify-content: space-between;">
+                <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+                ${stampUrl ? `
+                <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
+                    <img class="stamp-img" src="${stampUrl}" width="250" alt="Stamp" style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
+                </div>` : ''}
+            </div>
         </div>
-
-        ${teamHtml}
-
-        <div style="margin-bottom: 20px; padding: 10px; border-left: 4px solid #0d9488; background-color: #f9fafb;">
-            <p style="margin: 0 0 10px 0;"><strong>Event Details:</strong></p>
-            <ul style="list-style: none; padding: 0; margin: 0;">
-                <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> ${eventDate || 'TBA'}</li>
-                <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> ${eventTime || 'TBA'}</li>
-                <li>📍 <strong>Venue:</strong> ${eventVenue || 'TBA'}</li>
-            </ul>
-        </div>
-        
-        ${tbaMessage}
-
-        <p>Please present this ID at the venue entrance.</p>
-        
-        ${coordinatorsHtml}
-
-        <p style="margin-top: 30px;">Best regards,<br/>The RICO Tech-Team</p>
       </div>
     `;
 

@@ -1,86 +1,82 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Email Preview: Rules Update</title>
+<title>Email Preview: Approval</title>
 </head>
-<body style="background-color: #f3f4f6; padding: 40px; font-family: sans-serif;">
+<body style="background-color: #f3f4f6; padding: 20px; font-family: sans-serif;">
 
     <!-- Email Container -->
-    <div style="background-color: white; font-family: sans-serif; line-height: 1.5; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden;">
+    <div class="email-container" style="max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); position: relative; overflow: hidden; background-color: #ffffff !important; color: #333333 !important; font-family: sans-serif; line-height: 1.5;">
         
-        <!-- Watermark Layer -->
-        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; 
-                    background-image: url('favicon.png'); 
-                    background-repeat: no-repeat; 
-                    background-position: 46% 100%; 
-                    background-size: 219%; 
-                    opacity: 0.19;">
+        <!-- INJECTED CSS FOR MOBILE -->
+        <style>
+            :root { color-scheme: light; supported-color-schemes: light; }
+            @media only screen and (max-width: 600px) {
+                .stamp-img { width: 350px !important; max-width: 100% !important; }
+                .stamp-wrapper { margin-top: -175px !important; margin-bottom: 20px !important; }
+            }
+            /* Force Light Mode */
+            .email-container {
+                background-color: #ffffff !important;
+                color: #333333 !important;
+            }
+        </style>
+
+        <!-- Watermark Layer (IMG Tag Version) -->
+        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
+            <img src="https://isfqhascrdzaoebhuohs.supabase.co/storage/v1/object/sign/pdf-watermarks/watermark.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zNDNmNjVmMC0xZjRkLTRjMTMtOThjNS00NGMwM2FlODNhNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYtd2F0ZXJtYXJrcy93YXRlcm1hcmsucG5nIiwiaWF0IjoxNzY1MTc4NDQwLCJleHAiOjE3NjUyNjQ4NDB9.Orw5UXE26P_jC44_Qtu5U6FqwN1BrThZdlM35oOh1G4" 
+                 alt="" 
+                 style="width: 220%; max-width: none; opacity: 0.19; position: absolute; bottom: 0; left: -60%;" />
         </div>
 
-
         <div style="position: relative; z-index: 1;">
-            <h2 style="color: #ea580c; margin-top: 0;">Event Rules Update</h2>
+            <h2 style="color: #0d9488; margin-top: 0;">Registration Approved!</h2>
             <p>Dear <strong>John Doe</strong>,</p>
-            <p><strong>Registration ID: #RICO-8821</strong></p>
+            <p>We are pleased to inform you that your registration for <strong>Brains And Brawn</strong> has been approved.</p>
             
-            <p>There has been an important update to the <strong>Rules & Regulations</strong> for <strong>Brains And Brawn</strong>.</p>
+            <div style="margin: 20px 0; padding: 15px; background-color: #f0fdfa; border-radius: 8px; border: 1px solid #ccfbf1;">
+                <p style="margin: 0; font-size: 18px; color: #0f766e;"><strong>Registration ID: #RICO-8821</strong></p>
+            </div>
+
+            <div style="margin-bottom: 20px; padding: 10px; border-left: 4px solid #0d9488; background-color: #f9fafb;">
+                <p style="margin: 0 0 10px 0;"><strong>Event Details:</strong></p>
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    <li style="margin-bottom: 5px;">📅 <strong>Date:</strong> 25th Dec 2024</li>
+                    <li style="margin-bottom: 5px;">⏰ <strong>Time:</strong> 10:00 AM</li>
+                    <li>📍 <strong>Venue:</strong> Main Auditorium</li>
+                </ul>
+            </div>
             
+            <!-- RULES SECTION INJECTED -->
             <div style="background: rgba(255, 247, 237, 0.9); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <p style="margin: 0; color: #c2410c;"><strong>Attention Required:</strong></p>
-                <p style="margin-top: 5px;">The rules have been updated. Here are the current rules:</p>
-                
+                <h3 style="margin-top: 0; color: #c2410c;">Event Rules</h3>
                 <div style="margin-top: 15px; color: #333;">
-                    
-                    <!-- Example 1: Existing Simple Rule -->
                     <li style="margin-bottom: 5px;">Entry fees: 30 rupees per person.</li>
-                    <li style="margin-bottom: 5px;">Mixed batch teams are allowed.</li>
-
-                    <!-- Example 2: NEW Structured Rule (The Logic I Implemented) -->
-                    <div style="margin-bottom: 15px; background-color: #fef08a; padding: 5px 10px; border-radius: 4px;">
-                        <p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">
-                            <span style="color: #ca8a04; font-size: 10px; text-transform: uppercase; margin-right: 5px; vertical-align: middle;">[NEW]</span>
-                            Electronics Policy
-                        </p>
-                        <div style="margin-bottom: 10px;">
-                            <ol style="margin: 0; padding-left: 20px;">
-                                <li style="margin-bottom: 3px;">No mobile phones allowed during the rounds.</li>
-                                <li style="margin-bottom: 3px;">Smart watches must be submitted at the desk.</li>
-                            </ol>
-                        </div>
-                    </div>
-
-                    <!-- Example 3: Existing Structured Rule (Not New) -->
-                    <div style="margin-bottom: 15px;">
-                        <p style="font-weight: bold; margin: 10px 0 5px 0; color: #ea580c;">
-                            General Guidelines
-                        </p>
-                        <div style="margin-bottom: 10px;">
-                            <ul style="margin: 0; padding-left: 20px;">
-                                <li style="margin-bottom: 3px;">Decisions of the judges are final.</li>
-                                <li style="margin-bottom: 3px;">Report 15 minutes before your slot.</li>
-                            </ul>
-                        </div>
-                    </div>
-
+                    <li style="margin-bottom: 5px;">No mobile phones allowed during round.</li>
+                    <li style="margin-bottom: 5px;">Teams must report 15 mins early.</li>
                 </div>
-
-                <p style="margin-top: 15px; padding-top: 10px; border-top: 1px dashed #fed7aa; font-weight: 500; color: #c2410c;">Note: Strict action will be taken for policy violations.</p>
             </div>
 
-            <p>Please ensure you and your team (if applicable) are aware of these changes.</p>
+            <p>Please present this ID at the venue entrance.</p>
             
-            <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-                <p style="margin: 0 0 10px 0; color: #666;"><strong>Need Help? Contact Coordinators:</strong></p>
-                <p style="margin: 0; font-size: 14px; color: #444;">Alice (9876543210), Bob (8765432109)</p>
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                <p style="margin: 0; font-weight: bold; color: #555;">Need Help? Contact Coordinators:</p>
+                <p style="margin: 0; font-size: 14px; color: #444;">Alice: 9876543210</p>
             </div>
 
-            <div style="text-align: right; margin: -40px 0 10px 0; opacity: 0.8;">
-                <img src="https://isfqhascrdzaoebhuohs.supabase.co/storage/v1/object/sign/pdf-watermarks/email_stamp.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zNDNmNjVmMC0xZjRkLTRjMTMtOThjNS00NGMwM2FlODNhNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYtd2F0ZXJtYXJrcy9lbWFpbF9zdGFtcC5wbmciLCJpYXQiOjE3NjUxNDA3NzMsImV4cCI6MTc2NTE0NDM3M30.YL4A_HUioIqQnMWLbQdrGoZ0ZYkK7tqiJgiKBpfVAs8" alt="Stamp" style="width: 400px; height: auto; transform: translate(111px, -188px);" />
-            </div>
-
-            <div style="margin-top: 10px;">
+            <div style="margin-top: 30px; display: flex; align-items: flex-end; justify-content: space-between;">
                 <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+                
+                <!-- STAMP -->
+                <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5;">
+                    <img class="stamp-img" 
+                         src="https://isfqhascrdzaoebhuohs.supabase.co/storage/v1/object/sign/pdf-watermarks/email_stamp.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zNDNmNjVmMC0xZjRkLTRjMTMtOThjNS00NGMwM2FlODNhNzEiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwZGYtd2F0ZXJtYXJrcy9lbWFpbF9zdGFtcC5wbmciLCJpYXQiOjE3NjUxNzg0NDAsImV4cCI6MTc2NTI2NDg0MH0.zAea7BKJsF9MJVsjxfuPt6bwlI3pkn-gDgEjpUM_tfg" 
+                         width="250" 
+                         alt="Stamp" 
+                         style="width: 250px; max-width: 45%; height: auto; display: inline-block;" />
+                </div>
             </div>
+
         </div>
     </div>
 

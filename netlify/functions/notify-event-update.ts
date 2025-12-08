@@ -108,11 +108,17 @@ export default async (req: Request) => {
         if (updateType === 'rules') {
             emailSubject = `Important: Rules Update for ${eventTitle}`;
             emailHtmlTemplate = `
-              <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
+              <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
                 <style>
+                    :root { color-scheme: light; supported-color-schemes: light; }
                     @media only screen and (max-width: 600px) {
-                        .stamp-img { width: 180px !important; }
-                        .stamp-wrapper { margin-top: -80px !important; margin-bottom: 10px !important; }
+                        .stamp-img { width: 350px !important; max-width: 100% !important; }
+                        .stamp-wrapper { margin-top: -175px !important; margin-bottom: 20px !important; }
+                    }
+                    /* Force Light Mode */
+                    .email-container {
+                        background-color: #ffffff !important;
+                        color: #333333 !important;
                     }
                 </style>
                 <!-- Watermark Layer (Mimicking PDF opacity: 0.12) -->
@@ -189,11 +195,17 @@ export default async (req: Request) => {
             const { date, time, venue } = newDetails || {};
             emailSubject = `Update: ${eventTitle} Details Changed`;
             emailHtmlTemplate = `
-              <div style="font-family: sans-serif; line-height: 1.5; color: #333; position: relative; overflow: hidden; padding: 20px; background-color: #fff;">
+              <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
                 <style>
+                    :root { color-scheme: light; supported-color-schemes: light; }
                     @media only screen and (max-width: 600px) {
-                        .stamp-img { width: 180px !important; }
-                        .stamp-wrapper { margin-top: -80px !important; margin-bottom: 10px !important; }
+                        .stamp-img { width: 240px !important; max-width: 80% !important; }
+                        .stamp-wrapper { margin-top: -110px !important; margin-bottom: 20px !important; }
+                    }
+                    /* Force Light Mode */
+                    .email-container {
+                        background-color: #ffffff !important;
+                        color: #333333 !important;
                     }
                 </style>
                 <!-- Watermark Layer -->
