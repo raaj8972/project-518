@@ -2101,20 +2101,57 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const channel = supabase
       .channel(channelName)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, (payload: any) => {
-        setRegistrations((cur) => {
-          const row = (payload.new || payload.old) as Registration;
-          if (payload.eventType === 'INSERT') {
-            if (cur.find((r) => r.id === row.id)) return cur; // avoid dup
-            return [row, ...cur];
+        const row = (payload.new || payload.old) as Registration;
+        
+        // Decrypt incoming data if it exists
+        const decryptedRow = payload.new ? {
+          ...payload.new,
+          email: decryptData(payload.new.email),
+          phone: decryptData(payload.new.phone),
+          college: decryptData(payload.new.college),
+          // Ensure team_members is handled safely if needed, though usually it's JSON/array
+        } as Registration : row;
+
+        if (payload.eventType === 'INSERT') {
+          if (decryptedRow.deleted_at) {
+            setDeletedRegistrations((cur) => {
+              if (cur.find(r => r.id === decryptedRow.id)) return cur;
+              return [decryptedRow, ...cur];
+            });
+          } else {
+            setRegistrations((cur) => {
+              if (cur.find((r) => r.id === decryptedRow.id)) return cur; // avoid dup
+              return [decryptedRow, ...cur];
+            });
           }
-          if (payload.eventType === 'UPDATE') {
-            return cur.map((r) => (r.id === row.id ? { ...r, ...row } : r));
+        }
+        else if (payload.eventType === 'UPDATE') {
+          // Handle potential move between active and deleted
+          const isNowDeleted = !!decryptedRow.deleted_at;
+          
+          if (isNowDeleted) {
+            // Remove from active, Add to deleted (if not already there)
+            setRegistrations(cur => cur.filter(r => r.id !== decryptedRow.id));
+            setDeletedRegistrations(cur => {
+              const exists = cur.find(r => r.id === decryptedRow.id);
+              if (exists) return cur.map(r => r.id === decryptedRow.id ? decryptedRow : r);
+              return [decryptedRow, ...cur];
+            });
+          } else {
+            // Remove from deleted, Add/Update in active
+            setDeletedRegistrations(cur => cur.filter(r => r.id !== decryptedRow.id));
+            setRegistrations(cur => {
+              const exists = cur.find(r => r.id === decryptedRow.id);
+              if (exists) return cur.map(r => r.id === decryptedRow.id ? decryptedRow : r);
+              return [decryptedRow, ...cur];
+            });
           }
-          if (payload.eventType === 'DELETE') {
-            return cur.filter((r) => r.id !== row.id);
-          }
-          return cur;
-        });
+        }
+        else if (payload.eventType === 'DELETE') {
+          // Hard delete: remove from both
+          setRegistrations((cur) => cur.filter((r) => r.id !== row.id));
+          setDeletedRegistrations((cur) => cur.filter((r) => r.id !== row.id));
+        }
       })
       .subscribe((status: any) => {
         const s = String(status);

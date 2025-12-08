@@ -51,18 +51,66 @@ export default async (req: Request) => {
     const batch = recipients.slice(0, 100);
     console.log(`Broadcasting schedule to ${batch.length} users via ${provider}`);
 
+    // --- Fetch Stamp ---
+    const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
+    const findFileUrl = async (prefix: string) => {
+        const file = bucketFiles?.find((f: any) => f.name === `${prefix}.png` || f.name === `${prefix}.svg`);
+        if (file) {
+            const { data } = await supabaseAdmin.storage.from('pdf-watermarks').createSignedUrl(file.name, 315360000);
+            return data?.signedUrl;
+        }
+        return null;
+    };
+    const emailStampUrl = await findFileUrl('email_stamp');
+    const defaultStampUrl = await findFileUrl('stamp');
+    const stampUrl = emailStampUrl || defaultStampUrl;
+
     const emailSubject = `📅 RICO Festival Schedule is LIVE!`;
     const emailHtmlRaw = `
-      <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-        <h2 style="color: #0d9488;">The Schedule is Here!</h2>
-        <p>Dear Participant,</p>
-        <p>We are excited to announce that the full schedule for <strong>RICO 2026</strong> has been uploaded/updated.</p>
-        <p>Click the link below to view the timeline of events:</p>
-        <div style="margin: 30px 0; text-align: center;">
-            <a href="https://ricorrenza.fun/schedule" style="background-color: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Schedule</a>
+      <div class="email-container" style="font-family: sans-serif; line-height: 1.5; color: #333333 !important; position: relative; overflow: hidden; padding: 20px; background-color: #ffffff !important;">
+        <style>
+            :root { color-scheme: light; supported-color-schemes: light; }
+            @media only screen and (max-width: 600px) {
+                .stamp-img { width: 350px !important; max-width: 100% !important; }
+                .stamp-wrapper { margin-top: -175px !important; margin-bottom: 20px !important; }
+            }
+            /* Force Light Mode */
+            .email-container {
+                background-color: #ffffff !important;
+                color: #333333 !important;
+            }
+        </style>
+        <div style="position: relative; z-index: 1;">
+            <h2 style="color: #0d9488;">The Schedule is Here!</h2>
+            <p>Dear Participant,</p>
+            <p>We are excited to announce that the full schedule for <strong>RICO 2026</strong> has been uploaded/updated.</p>
+            <p>Click the link below to view the timeline of events:</p>
+            <div style="margin: 30px 0; text-align: center;">
+                <a href="https://ricorrenza.fun/schedule" style="background-color: #0d9488; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">View Schedule</a>
+            </div>
+            <p>Plan your days and get ready for the excitement!</p>
+            
+            <div style="margin-top: 30px; display: flex; align-items: flex-end; justify-content: space-between;">
+                <p style="margin: 0;">Best regards,<br/>The RICO Tech-Team</p>
+                ${stampUrl ? `
+                <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
+                    <div style="
+                        display: inline-block;
+                        width: 380px;
+                        max-width: 80%;
+                        height: 0;
+                        padding-bottom: 28%;
+                        background-image: url('${stampUrl}');
+                        background-size: contain;
+                        background-repeat: no-repeat;
+                        background-position: center;
+                        position: relative;
+                    ">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png" alt="Stamp" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0;" />
+                    </div>
+                </div>` : ''}
+            </div>
         </div>
-        <p>Plan your days and get ready for the excitement!</p>
-        <p>Best regards,<br/>The RICO Tech-Team</p>
       </div>
     `;
 

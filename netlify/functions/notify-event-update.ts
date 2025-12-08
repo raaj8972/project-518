@@ -236,8 +236,8 @@ export default async (req: Request) => {
                     <div class="stamp-wrapper" style="text-align: right; margin-top: -120px; margin-bottom: 20px; opacity: 0.8; position: relative; z-index: 5; user-select: none; pointer-events: none;">
                         <div style="
                             display: inline-block;
-                            width: 250px;
-                            max-width: 45%;
+                            width: 380px;
+                            max-width: 80%;
                             height: 0;
                             padding-bottom: 28%;
                             background-image: url('${stampUrl}');

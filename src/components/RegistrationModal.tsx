@@ -422,12 +422,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const { data: existingRegistrations, error: duplicateCheckError } = await supabase
         .from('registrations')
         .select('id, status, full_name, email, phone')
+        .neq('status', 'rejected') // Explicitly ignore rejected
+        .is('deleted_at', null)  // Ignore deleted
         .eq('event_id', eventId)
-        .or(`email.eq.${formData.email.toLowerCase().trim()},phone.eq.${formData.phone.trim()}`)
-        // We only care if the previous attempt was approved or pending (if rejected, they can try again?)
-        // Usually rejected means rejected, but maybe they want to fix it. 
-        // Let's assume 'rejected' allows re-registration unless we want to strict block.
-        // For now, blocking pending/approved is the standard "duplicate" prevention.
+        .or(`email.eq."${formData.email.toLowerCase().trim()}",phone.eq."${formData.phone.trim()}"`)
         .in('status', ['pending', 'approved']);
       
       if (duplicateCheckError) {
