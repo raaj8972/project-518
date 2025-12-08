@@ -597,8 +597,8 @@ export const Events: React.FC = () => {
              <HeroBackground pageKey="events" />
           </div>
 
-          {/* 3D Rotating Drum Container */}
-          {motionPosterEvents.length > 0 && (
+          {/* 3D Rotating Drum Container - UNMOUNT/HIDE when modal is open to save GPU */ }
+          {motionPosterEvents.length > 0 && !registrationModal.isOpen && (
             <div 
               className="absolute top-1/2 left-1/2 w-[80vw] -ml-[40vw] md:w-[360px] md:-ml-[180px] h-[58vh] -mt-[29vh] ease-in-out" 
               style={{

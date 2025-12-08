@@ -67,7 +67,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [registrationId, setRegistrationId] = useState('');
   const [errors, setErrors] = useState<ErrorsMap>({});
-  const [glitchActive, setGlitchActive] = useState(false);
+  /* glitchActive state removed for performance */
   const [photoUrl, setPhotoUrl] = useState<string>('');
   // Quota UI helpers
   const [quotaFullMap, setQuotaFullMap] = useState<Record<string, boolean>>({});
@@ -240,12 +240,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           });
         }
       } catch {}
-      const glitchTimer = setInterval(() => {
-        setGlitchActive(true);
-        setTimeout(() => setGlitchActive(false), 200);
-      }, 12000);
+      /* Glitch effect removed for performance */
       return () => {
-        clearInterval(glitchTimer);
         // On modal close, allow notifications to appear again
         setSuppressPublicNotifications?.(false);
       };
@@ -632,7 +628,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style={{ touchAction: 'manipulation' }}>
       <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col relative">
         
         {/* Cyber Smoke Effect Layer */}
@@ -658,12 +654,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             will-change: transform, opacity; /* Hardware acceleration hint */
           }
           
-          /* Mobile optimization: Reduce expensive blur radius & animation load */
-          @media (max-width: 640px) {
-            .smoke-blob {
-              filter: blur(25px); /* Cheaper blur for mobile GPU */
-              opacity: 0.5; /* Slightly subtler on small screens */
-            }
+          /* Optimization: Remove expensive smoke effect entirely to prevent hanging on all devices/browsers */
+          .smoke-blob {
+            display: none !important;
           }
 
           /* Accessibility: Respect simplified motion preferences */
@@ -704,7 +697,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         `}</style>
         
         {/* Header */}
-        <div className={`cyberpunk-header p-4 sm:p-6 border-b border-cyan-500/30 flex-shrink-0 ${glitchActive ? 'glitch-active' : ''}`}>
+        <div className={`cyberpunk-header p-4 sm:p-6 border-b border-cyan-500/30 flex-shrink-0`}>
           <div className="flex justify-between items-center">
             <div>
               <div className="flex items-center mb-2">
@@ -716,9 +709,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
             </div>
             <button
               onClick={handleClose}
-              className="cyberpunk-btn cyberpunk-btn-danger p-2 flex-shrink-0"
+              className="cyberpunk-btn cyberpunk-btn-danger p-3 flex-shrink-0"
+              style={{ touchAction: 'manipulation', minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              aria-label="Close Registration Modal"
             >
-              <X size={20} />
+              <X size={24} />
             </button>
           </div>
         </div>
@@ -1093,7 +1088,8 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                       type="button"
                       onClick={addTeamMember}
                       disabled={formData.total_members >= teamLimits.max}
-                      className="cyberpunk-btn cyberpunk-btn-secondary text-xs sm:text-sm"
+                      className="cyberpunk-btn cyberpunk-btn-secondary text-xs sm:text-sm px-4 py-3"
+                      style={{ touchAction: 'manipulation' }}
                     >
                       <span className="relative z-10 flex items-center">
                         <Plus size={16} className="mr-2" />
@@ -1204,7 +1200,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           background: rgba(10, 10, 30, 0.95);
           border: 2px solid rgba(0, 255, 255, 0.3);
           border-radius: 8px;
-          backdrop-filter: blur(15px);
+          border-radius: 8px;
+          /* backdrop-filter: blur(15px); REMOVED for performance (laggy on mobile/chrome) */
+          background: rgba(10, 10, 30, 0.98); /* Slightly more opaque to compensate */
           position: relative;
           overflow: hidden;
           display: flex;
@@ -1320,9 +1318,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
         .cyberpunk-textarea:focus {
           outline: none;
           border-color: rgba(0, 255, 255, 0.8);
-          box-shadow: 
-            0 0 15px rgba(0, 255, 255, 0.3),
-            inset 0 0 15px rgba(0, 255, 255, 0.1);
+          box-shadow: 0 0 0 2px rgba(0, 255, 255, 0.5); /* Simple border glow instead of expensive blurred shadow */
         }
 
         .cyberpunk-input::placeholder,
@@ -1411,6 +1407,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           font-size: 0.7rem;
         }
         
+        .cyberpunk-btn:active {
+          transform: scale(0.96) translateY(2px);
+          filter: brightness(1.1);
+        }
+        
         @media (min-width: 640px) {
           .cyberpunk-btn {
             padding: 12px 24px;
@@ -1438,16 +1439,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           border-color: #00ffff;
           color: #00ffff;
           box-shadow: 
-            0 0 15px rgba(0, 255, 255, 0.2),
-            inset 0 0 15px rgba(0, 255, 255, 0.05);
+            0 0 8px rgba(0, 255, 255, 0.2); /* Reduced spread */
         }
 
         .cyberpunk-btn-primary:hover {
           background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 25px rgba(0, 255, 255, 0.4),
-            inset 0 0 25px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
+          box-shadow: 0 0 12px rgba(0, 255, 255, 0.4); /* Simplified hover glow */
+          transform: translateY(-1px);
         }
 
         /* Animated submitting state for primary button */
@@ -1480,16 +1478,18 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           border-color: #ff00ff;
           color: #ff00ff;
           box-shadow: 
-            0 0 15px rgba(255, 0, 255, 0.2),
-            inset 0 0 15px rgba(255, 0, 255, 0.05);
+            0 0 8px rgba(255, 0, 255, 0.2);
         }
 
         .cyberpunk-btn-secondary:hover {
           background: rgba(255, 0, 255, 0.1);
-          box-shadow: 
-            0 0 25px rgba(255, 0, 255, 0.4),
-            inset 0 0 25px rgba(255, 0, 255, 0.1);
-          transform: translateY(-2px);
+          box-shadow: 0 0 12px rgba(255, 0, 255, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .cyberpunk-btn-secondary:active {
+          box-shadow: 0 0 8px rgba(255, 0, 255, 0.4);
+          transform: scale(0.96) translateY(2px);
         }
 
         .cyberpunk-btn-danger {
