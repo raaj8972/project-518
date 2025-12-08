@@ -2012,23 +2012,19 @@ export const EventsManagement: React.FC = () => {
                   currentImage={eventForm.image}
                   bucket="event-images"
                   folder="events"
-                  className="h-32"
+                  className="mb-4"
                   cropAspect={16/9}
                   maxImageBytes={20 * 1024 * 1024}
                   fileTypeLabel={`PNG or JPG up to 20MB. ${posterGuideline}`}
                 />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Motion Poster (Video)</label>
-                  <ImageUpload
-                    onImageSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
-                    currentImage={eventForm.motion_poster_url || ''}
+                  <VideoUpload
+                    onVideoSelect={(url) => setEventForm(prev => ({ ...prev, motion_poster_url: url }))}
+                    currentVideo={eventForm.motion_poster_url || ''}
                     bucket="event-images"
                     folder="events/motion-posters"
-                    acceptedTypes="video/*"
-                    fileTypeLabel="MP4, MOV, WEBM up to 50MB"
-                    enableCropper={false}
-                    maxImageBytes={50 * 1024 * 1024}
-                    className="mt-1"
+                    maxSizeMB={50}
                   />
                   <div className="mt-2">
                     <label className="flex items-center text-sm text-gray-900">
@@ -2041,7 +2037,7 @@ export const EventsManagement: React.FC = () => {
                       Prefer video over image on the event card
                     </label>
                     <div className="mt-2">
-                      <label className="flex items-center text-sm">
+                      <label className="flex items-center text-sm text-gray-900">
                         <input
                           type="checkbox"
                           checked={(eventForm as any).motion_poster_autoplay || false}

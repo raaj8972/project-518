@@ -173,7 +173,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
               Your browser does not support the video tag.
             </video>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {selectedFile && !uploading && (
               <>
                 <button

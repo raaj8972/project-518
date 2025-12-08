@@ -62,16 +62,9 @@ export default async (req: Request) => {
         return null;
     };
 
-    const watermarkUrl = (await findFileUrl('watermark')) || 'https://ricorrenza.fun/logo.png';
     const emailStampUrl = await findFileUrl('email_stamp');
     const defaultStampUrl = await findFileUrl('stamp');
     const stampUrl = emailStampUrl || defaultStampUrl;
-
-    const watermarkHtml = watermarkUrl ? `
-        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; overflow: hidden; pointer-events: none;">
-            <img src="${watermarkUrl}" alt="" style="width: 220%; max-width: none; opacity: 0.19; position: absolute; bottom: 0; left: -60%;" />
-        </div>
-    ` : '';
 
     // --- Fetch Rules ---
     const { data: eventData } = await supabaseAdmin
@@ -163,8 +156,7 @@ export default async (req: Request) => {
             }
         </style>
         
-        <!-- Watermark -->
-        ${watermarkHtml}
+        <!-- Watermark Removed -->
         
         <div style="position: relative; z-index: 1;">
             <h2 style="color: #0d9488;">Registration Approved!</h2>

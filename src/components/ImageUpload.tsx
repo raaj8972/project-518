@@ -887,7 +887,7 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               >
                 Change
               </button>
-              {hasUnsavedChanges ? (
+              {hasUnsavedChanges && (
                 <>
                   <button
                     type="button"
@@ -906,20 +906,11 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
                     Discard
                   </button>
                 </>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSaveImage}
-                  disabled={uploading}
-                  className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
-                >
-                  Save
-                </button>
               )}
               <button
                 type="button"
                 onClick={handleDeleteClick}
-                className="w-full px-3 py-1 text-red-600 hover:bg-red-50 rounded flex items-center justify-center gap-2"
+                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 Delete
               </button>
