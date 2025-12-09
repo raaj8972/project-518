@@ -1111,9 +1111,19 @@ export const generateRegistrationReceiptPDF = async (
   doc.setFontSize(14);
   doc.setTextColor(40, 40, 40);
   doc.setFont('helvetica', 'bold');
-  doc.text('Registration ID:', margin + 5, yPos + 10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Registration No:', margin + 5, yPos + 10);
   doc.setTextColor(52, 152, 219);
-  doc.text(registration.id, margin + 60, yPos + 10);
+  doc.text(registration.id, margin + 50, yPos + 10);
+
+  // Serial No (extracted numeric part)
+  const serialMatch = registration.id.match(/(\d+)/);
+  const serialNo = serialMatch ? serialMatch[0] : registration.id;
+  
+  doc.setTextColor(40, 40, 40);
+  doc.text('Serial No:', margin + 100, yPos + 10);
+  doc.setTextColor(52, 152, 219);
+  doc.text(serialNo, margin + 130, yPos + 10);
   
   yPos += 25;
 
