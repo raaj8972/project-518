@@ -204,6 +204,16 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       try { row[teamMembersColIndex] = fmtStack(rows[i] as Registration); } catch { /* ignore */ }
     });
   }
+  
+  // Inject S.No and Reg No (Short ID) at the beginning
+  const EXTRA_COLS = 2;
+  printableHeaders.unshift('S.No', 'Reg No');
+  body.forEach((row, i) => {
+    // Reg No (Short)
+    row.unshift(rows[i].id.substring(0, 8).toUpperCase());
+    // S.No
+    row.unshift((i + 1).toString());
+  });
 
   const split = opts.splitThreshold && opts.splitThreshold > 0 ? opts.splitThreshold : null;
   const landscape = opts.landscape !== false; // default landscape
@@ -389,11 +399,15 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       const base: any = { cellWidth: scaled[idx], halign: 'left' };
       if (d.key === 'team_members' || d.key === 'team_phones') base.overflow = 'linebreak';
       if (d.key === 'phone') base.overflow = 'linebreak';
-      columnStyles[idx] = base;
+      columnStyles[idx + EXTRA_COLS] = base;
     });
+    // Add styles for injected columns
+    columnStyles[0] = { cellWidth: 12, halign: 'center' }; // S.No
+    columnStyles[1] = { cellWidth: 22, fontStyle: 'bold' }; // Reg No
+
     // Ensure minimum for photo column tied to thumb size
     if (photoKeyIncluded && photoColIndex >= 0) {
-      columnStyles[photoColIndex] = { cellWidth: Math.max(columnStyles[photoColIndex]?.cellWidth || 0, Math.max(thumbPx * 0.4, 18)) };
+      columnStyles[photoColIndex + EXTRA_COLS] = { cellWidth: Math.max(columnStyles[photoColIndex + EXTRA_COLS]?.cellWidth || 0, Math.max(thumbPx * 0.4, 18)) };
     }
 
     autoTable(doc as any, {
@@ -409,7 +423,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       didDrawCell: (data: any) => {
         if (!photoKeyIncluded || photoColIndex < 0) return;
         if (data.section !== 'body') return;
-        if (data.column.index !== photoColIndex) return;
+        if (data.column.index !== (photoColIndex + EXTRA_COLS)) return;
         const rowIdx = data.row.index;
         const img = preloaded[rowIdx] || null;
         if (!img) return;
