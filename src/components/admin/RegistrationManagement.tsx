@@ -1,5 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, XCircle, Download, Filter, Search, Calendar, Users, Mail, Phone, Building, Eye, Trash2, RefreshCw, FileText, RotateCcw, AlertTriangle, X, Send, Award, Sparkles } from 'lucide-react';
+```typescript
+import { useRef, useState, useMemo, useEffect } from 'react';
+import { 
+  Users, Search, Filter, Download, Trash2, RefreshCw, 
+  CheckCircle, XCircle, ChevronLeft, ChevronRight, 
+  MoreHorizontal, Mail, Eye, Loader2, Sparkles, AlertTriangle,
+  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw
+} from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
@@ -23,7 +29,32 @@ const safeTeamMembers = (r: any): any[] => {
   return [];
 };
 
-export const RegistrationManagement: React.FC = () => {
+// --- Processing Overlay Component ---
+const ProcessingOverlay = ({ title, progress, currentItem }: { title: string, progress: number, currentItem?: string }) => (
+  <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center backdrop-blur-sm">
+    <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full mx-4 border border-gray-100 animate-in fade-in zoom-in duration-200">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <Loader2 className="animate-spin text-blue-600" size={24} />
+          {title}
+        </h3>
+        <span className="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded text-sm">{Math.round(progress)}%</span>
+      </div>
+      
+      {currentItem && <p className="text-gray-600 mb-3 text-sm font-medium truncate">{currentItem}</p>}
+      
+      <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden mb-2 border border-gray-200">
+        <div 
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+          style={{ width: `${Math.max(2, progress)}%` }}
+        />
+      </div>
+      <p className="text-right text-xs text-gray-400 mt-2">Please do not close this window</p>
+    </div>
+  </div>
+);
+
+export default function RegistrationManagement() {
   const { events, registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers, eventCoordinators } = useData();
   const { user } = useAuth();
   
@@ -35,6 +66,11 @@ export const RegistrationManagement: React.FC = () => {
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
+  
+  // Processing State for Progress Bar
+  const [processingState, setProcessingState] = useState<{ active: boolean, title: string, progress: number, item?: string }>({
+    active: false, title: '', progress: 0
+  });
   const [selectedEvent, setSelectedEvent] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -502,8 +538,9 @@ export const RegistrationManagement: React.FC = () => {
   }, [registrations, selectedEvent]);
 
   // Helper to send approval email (extracted for reuse)
-  const sendApprovalEmail = async (reg: any) => { // using any to avoid type gymnastics with the join
+  const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
     try {
+      onProgress?.(5, 'Preparing data...');
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       // Get event details to include in email
       const event = events.find(e => e.id === reg.event_id);
@@ -513,8 +550,12 @@ export const RegistrationManagement: React.FC = () => {
           let pdfBase64: string | null = null;
           try {
             console.log('[sendApprovalEmail] Generating PDF receipt...');
+            onProgress?.(20, 'Generating Receipt PDF...');
+            
             // Force status to 'approved' for the receipt, as this is the approval email
             pdfBase64 = await generateRegistrationReceiptPDF({ ...reg, status: 'approved' }, watermarkDataUrl, stampDataUrl);
+            
+            onProgress?.(50, 'Compressing & Validating...');
             
             // Check size (Base64 length * 0.75 = roughly bytes). Limit to 3MB to stay under Netlify 6MB limit.
             const sizeInBytes = pdfBase64.length * 0.75;
@@ -530,6 +571,8 @@ export const RegistrationManagement: React.FC = () => {
             console.error('[sendApprovalEmail] Failed to generate PDF receipt:', pdfError);
             alert('PDF generation failed, but email will be sent without attachment. Error: ' + (pdfError as Error).message);
           }
+
+          onProgress?.(70, 'Sending Email...');
 
           const res = await fetch('/api/send-confirmation', {
               method: 'POST',
@@ -557,6 +600,8 @@ export const RegistrationManagement: React.FC = () => {
               })
           });
 
+          onProgress?.(95, 'Finalizing...');
+
           if (!res.ok) {
               const err = await res.json();
               console.warn(`Email failed for ${reg.email}:`, err);
@@ -581,7 +626,14 @@ export const RegistrationManagement: React.FC = () => {
       if (newStatus === 'approved') {
         const reg = registrations.find(r => r.id === registrationId);
         if (reg) {
-            const result = await sendApprovalEmail(reg);
+            setProcessingState({ active: true, title: 'Approving Registration', progress: 0, item: `Generating receipt for ${reg.full_name}...` });
+            
+            const result = await sendApprovalEmail(reg, (pct, stage) => {
+              setProcessingState(prev => ({ ...prev, progress: pct, item: stage }));
+            });
+            
+            setProcessingState({ active: false, title: '', progress: 0 });
+
             if (result.success) {
                 push({ message: `Status updated & Email sent to ${reg.full_name}!`, type: 'success' });
             } else {
@@ -822,7 +874,7 @@ export const RegistrationManagement: React.FC = () => {
       case 'rejected':
         return <XCircle size={16} className="text-red-600" />;
       default:
-        return <Calendar size={16} className="text-yellow-600" />;
+        return <AlertTriangle size={16} className="text-yellow-600" />;
     }
   };
 
@@ -851,25 +903,36 @@ export const RegistrationManagement: React.FC = () => {
       setBulkSaving(true);
       const ids = pendingRegs.map(r => r.id);
       
+      setProcessingState({ active: true, title: 'Bulk Approving...', progress: 0 });
+      
       // Update DB status first
       await (bulkApproveRegistrations?.(ids));
-      push({ message: `Approved ${pendingRegs.length} registrations. Sending emails...`, type: 'success' });
+      setProcessingState(prev => ({ ...prev, progress: 10, item: 'Database updated. Sending emails...' }));
       
-      // Send emails sequentially (or parallel with limit) to avoid rate limits
-      // Using sequence to be safe and provide granular feedback if needed, 
-      // but purely sequential might be slow. Let's do small batches or just parallel catch-all.
-      // Netlify functions might time out if we wait for all.
-      // For now, let's just fire them off.
       let sentCount = 0;
-      const CHUNK_SIZE = 5; 
+      const CHUNK_SIZE = 3;  // Reduced chunk size for better visual feedback
       
       for (let i = 0; i < pendingRegs.length; i += CHUNK_SIZE) {
           const chunk = pendingRegs.slice(i, i + CHUNK_SIZE);
+          
           await Promise.all(chunk.map(async (reg) => {
+              setProcessingState(prev => ({ ...prev, item: `Processing ${reg.full_name}...` }));
+              // We don't pass granular callback for bulk to avoid flickering progress bar
               const res = await sendApprovalEmail(reg);
               if (res && res.success) sentCount++;
           }));
+          
+          const processed = Math.min(pendingRegs.length, i + CHUNK_SIZE);
+          const pct = 10 + ((processed / pendingRegs.length) * 90); // Scale from 10% to 100%
+          
+          setProcessingState(prev => ({ 
+            ...prev, 
+            progress: pct, 
+            title: `Approved ${processed}/${pendingRegs.length}` 
+          }));
       }
+      
+      setProcessingState({ active: false, title: '', progress: 0 });
 
       push({ message: `Sent ${sentCount}/${pendingRegs.length} confirmation emails.`, type: 'success' });
 
@@ -954,11 +1017,16 @@ export const RegistrationManagement: React.FC = () => {
   }, [selectedColumns, pdfExcludeIdCollege, registrationInstitutionVisible]);
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="space-y-4">
-        {/* Header and Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div className="p-6 max-w-[1600px] mx-auto space-y-6 animate-in fade-in duration-500">
+      {processingState.active && (
+        <ProcessingOverlay 
+          title={processingState.title} 
+          progress={processingState.progress} 
+          currentItem={processingState.item} 
+        />
+      )}
+      
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Registrations</h2>
           <p className="text-gray-600">Manage participant registrations</p>
