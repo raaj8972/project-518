@@ -513,7 +513,8 @@ export const RegistrationManagement: React.FC = () => {
           let pdfBase64: string | null = null;
           try {
             console.log('[sendApprovalEmail] Generating PDF receipt...');
-            pdfBase64 = await generateRegistrationReceiptPDF(reg, watermarkDataUrl, stampDataUrl);
+            // Force status to 'approved' for the receipt, as this is the approval email
+            pdfBase64 = await generateRegistrationReceiptPDF({ ...reg, status: 'approved' }, watermarkDataUrl, stampDataUrl);
             
             // Check size (Base64 length * 0.75 = roughly bytes). Limit to 3MB to stay under Netlify 6MB limit.
             const sizeInBytes = pdfBase64.length * 0.75;
