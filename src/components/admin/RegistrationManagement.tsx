@@ -30,25 +30,27 @@ const safeTeamMembers = (r: any): any[] => {
 
 // --- Processing Overlay Component ---
 const ProcessingOverlay = ({ title, progress, currentItem }: { title: string, progress: number, currentItem?: string }) => (
-  <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center backdrop-blur-sm">
-    <div className="bg-white p-6 rounded-xl shadow-2xl max-w-md w-full mx-4 border border-gray-100 animate-in fade-in zoom-in duration-200">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <Loader2 className="animate-spin text-blue-600" size={24} />
+  // Changed from fixed inset-0 (modal) to fixed top-right (toast-style)
+  // Removed bg-black/50 overlay to allow interaction with the page behind it
+  <div className="fixed top-20 right-4 z-[100] w-96 max-w-[90vw] animate-in fade-in slide-in-from-right-5 duration-300 pointer-events-auto">
+    <div className="bg-white/95 backdrop-blur-sm p-4 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-blue-100 ring-1 ring-blue-500/10">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+          <Loader2 className="animate-spin text-blue-600" size={18} />
           {title}
         </h3>
-        <span className="text-blue-600 font-bold bg-blue-50 px-2 py-1 rounded text-sm">{Math.round(progress)}%</span>
+        <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded text-xs tabular-nums">{Math.round(progress)}%</span>
       </div>
       
-      {currentItem && <p className="text-gray-600 mb-3 text-sm font-medium truncate">{currentItem}</p>}
+      {currentItem && <p className="text-gray-600 mb-3 text-xs font-medium truncate pl-6.5">{currentItem}</p>}
       
-      <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden mb-2 border border-gray-200">
+      <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
         <div 
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 ease-out"
           style={{ width: `${Math.max(2, progress)}%` }}
         />
       </div>
-      <p className="text-right text-xs text-gray-400 mt-2">Please do not close this window</p>
+      <p className="text-right text-[10px] text-gray-400 mt-1.5">Processing in background...</p>
     </div>
   </div>
 );
