@@ -1159,7 +1159,7 @@ export const generateRegistrationReceiptPDF = async (
 
   details.forEach(item => {
     doc.setFont('helvetica', 'bold');
-    doc.text(\`\${item.label}:\`, margin + 5, yPos);
+    doc.text(`${item.label}:`, margin + 5, yPos);
     doc.setFont('helvetica', 'normal');
     doc.text(item.value, margin + 55, yPos);
     yPos += 7;
@@ -1231,10 +1231,10 @@ export const generateRegistrationReceiptPDF = async (
         }
 
         doc.setFont('helvetica', 'bold');
-        doc.text(\`\${index + 1}. \${member.name || 'N/A'}\`, margin + 10, yPos);
+        doc.text(`${index + 1}. ${member.name || 'N/A'}`, margin + 10, yPos);
         doc.setFont('helvetica', 'normal');
         yPos += 5;
-        doc.text(\`Phone: \${member.phone || 'N/A'}\`, margin + 15, yPos);
+        doc.text(`Phone: ${member.phone || 'N/A'}`, margin + 15, yPos);
         yPos += 7;
       });
     }
@@ -1282,7 +1282,7 @@ export const generateRegistrationReceiptPDF = async (
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      \`Page \${i} of \${totalPages}\`,
+      `Page ${i} of ${totalPages}`,
       pageWidth / 2,
       pageHeight - 10,
       { align: 'center' }
