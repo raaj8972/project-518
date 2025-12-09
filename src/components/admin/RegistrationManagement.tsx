@@ -514,10 +514,19 @@ export const RegistrationManagement: React.FC = () => {
           try {
             console.log('[sendApprovalEmail] Generating PDF receipt...');
             pdfBase64 = await generateRegistrationReceiptPDF(reg, watermarkDataUrl, stampDataUrl);
-            console.log('[sendApprovalEmail] PDF generated, size:', pdfBase64?.length, 'bytes');
+            
+            // Check size (Base64 length * 0.75 = roughly bytes). Limit to 3MB to stay under Netlify 6MB limit.
+            const sizeInBytes = pdfBase64.length * 0.75;
+            const sizeInMB = sizeInBytes / (1024 * 1024);
+            console.log(`[sendApprovalEmail] PDF size: ${sizeInMB.toFixed(2)} MB`);
+
+            if (sizeInMB > 3) {
+              console.warn('[sendApprovalEmail] PDF too large for email attachment');
+              alert(`Warning: The generated PDF receipt is too large (${sizeInMB.toFixed(2)} MB). The email will be sent WITHOUT the attachment to ensure delivery. Please compress your watermark/stamp images.`);
+              pdfBase64 = null;
+            }
           } catch (pdfError) {
             console.error('[sendApprovalEmail] Failed to generate PDF receipt:', pdfError);
-            // Continue sending email even if PDF fails - user will still get approval email
             alert('PDF generation failed, but email will be sent without attachment. Error: ' + (pdfError as Error).message);
           }
 

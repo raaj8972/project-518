@@ -1257,7 +1257,7 @@ export const generateRegistrationReceiptPDF = async (
         doc.saveGraphicsState();
         const gState = new (doc as any).GState({ opacity: 0.12 });
         doc.setGState(gState);
-        doc.addImage(watermarkDataUrl, 'PNG', x, y, wmW, wmH);
+        doc.addImage(watermarkDataUrl, 'PNG', x, y, wmW, wmH, undefined, 'FAST');
         doc.restoreGraphicsState();
       } catch (e) {
         console.error('Watermark failed:', e);
@@ -1272,7 +1272,7 @@ export const generateRegistrationReceiptPDF = async (
         const stampSize = 50;
         const x = pW - stampSize - 15;
         const y = pH - stampSize - 15;
-        doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+        doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize, undefined, 'FAST');
       } catch (e) {
         console.error('Stamp failed:', e);
       }
