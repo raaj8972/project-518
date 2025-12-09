@@ -200,14 +200,20 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       const evMode = ev?.registration_default_mode;
       const siteMode = site.registration_default_mode;
       const mode = evMode || siteMode || 'individual';
-      setFormData(prev => ({
-        ...prev,
-        is_team_registration: mode === 'team',
-        total_members: mode === 'team' ? Math.max(2, prev.total_members) : 1,
-        participant_type: participantTypes && participantTypes.length ? participantTypes[0] : prev.participant_type
-      }));
+      setFormData(prev => {
+        const totalMembers = mode === 'team' ? Math.max(2, prev.total_members) : 1;
+        return {
+          ...prev,
+          is_team_registration: mode === 'team',
+          total_members: totalMembers,
+          // team_members array should have (total_members - 1) items because leader is separate
+          team_members: mode === 'team' ? Array(Math.max(1, totalMembers - 1)).fill(null).map(() => ({ name: '', email: '', phone: '' })) : [{ name: '', email: '', phone: '' }],
+          participant_type: participantTypes && participantTypes.length ? participantTypes[0] : prev.participant_type
+        };
+      });
     } catch {}
   }, [isOpen, events, eventId, siteSettings, participantTypes]);
+
 
   // Glitch effect trigger and derive per-event photo requirement from events data
   // CRITICAL: Reset submission state when modal opens or event changes
@@ -567,12 +573,12 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   };
 
   const addTeamMember = () => {
-    // Check total_members (leader + team array) against limit, not array length
+    // total_members = leader + team_members.length, so check if we can add one more
     if (formData.total_members < teamLimits.max) {
       setFormData(prev => ({
         ...prev,
         team_members: [...prev.team_members, { name: '', email: '', phone: '' }],
-        total_members: prev.total_members + 1
+        total_members: prev.total_members + 1  // Increment total (leader is already counted)
       }));
     }
   };
@@ -860,7 +866,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                           checked={formData.is_team_registration}
                           onChange={() => {
                             handleInputChange('is_team_registration', true);
-                            handleInputChange('total_members', formData.team_members.length);
+                            // total_members = leader + team_members, so minimum is 2 (1 leader + 1 member)
+                            const membersCount = Math.max(1, formData.team_members.length);
+                            handleInputChange('total_members', membersCount + 1);  // +1 for leader
                           }}
                           className="cyberpunk-radio"
                         />
