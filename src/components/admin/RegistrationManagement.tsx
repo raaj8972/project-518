@@ -53,7 +53,7 @@ const ProcessingOverlay = ({ title, progress, currentItem }: { title: string, pr
   </div>
 );
 
-export default function RegistrationManagement() {
+export function RegistrationManagement() {
   const { events, registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers, eventCoordinators } = useData();
   const { user } = useAuth();
   
