@@ -149,10 +149,11 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   // If both Team Members and Team Member Phones are selected, drop the separate phones column
   // because PDF now shows phone below each member name inside Team Members column.
   const pdfColumns: RegistrationColumnKey[] = (() => {
-    if (columns.includes('team_members') && columns.includes('team_phones')) {
-      return columns.filter(c => c !== 'team_phones');
+    const base = columns.filter(c => c !== 'college');
+    if (base.includes('team_members') && base.includes('team_phones')) {
+      return base.filter(c => c !== 'team_phones');
     }
-    return columns.slice();
+    return base;
   })();
 
   const { headers, body } = buildMatrix({ rows, columns: pdfColumns });

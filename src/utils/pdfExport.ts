@@ -599,7 +599,6 @@ export const exportRegistrationsToPDF = (
       teamInfo,
       reg.email,
       reg.phone,
-      reg.college || 'N/A',
       reg.status.charAt(0).toUpperCase() + reg.status.slice(1),
       new Date(reg.registration_date).toLocaleDateString('en-IN', {
         day: '2-digit',
@@ -612,7 +611,7 @@ export const exportRegistrationsToPDF = (
   // Create main table
   autoTable(doc, {
     startY: 35,
-    head: [['S.No', 'Reg No', 'Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
+    head: [['S.No', 'Reg No', 'Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'Status', 'Date']],
     body: tableData,
     theme: 'striped',
     headStyles: {
@@ -638,13 +637,12 @@ export const exportRegistrationsToPDF = (
       5: { cellWidth: 25 }, // Team/Individual
       6: { cellWidth: 40 }, // Email
       7: { cellWidth: 22 }, // Phone
-      8: { cellWidth: 25 }, // College
-      9: { cellWidth: 18, halign: 'center' }, // Status
-      10: { cellWidth: 20, halign: 'center' } // Date
+      8: { cellWidth: 18, halign: 'center' }, // Status
+      9: { cellWidth: 20, halign: 'center' } // Date
     },
     didDrawCell: (data) => {
       // Color code status cells
-      if (data.column.index === 9 && data.section === 'body') {
+      if (data.column.index === 8 && data.section === 'body') {
         const status = data.cell.raw as string;
         let fillColor: [number, number, number] = [255, 255, 255];
         
@@ -1152,7 +1150,6 @@ export const generateRegistrationReceiptPDF = async (
     { label: 'Name', value: registration.full_name },
     { label: 'Email', value: registration.email },
     { label: 'Phone', value: registration.phone },
-    { label: 'College/Institution', value: registration.college || 'N/A' },
     { label: 'Participant Type', value: registration.participant_type },
     { label: 'Registration Date', value: new Date(registration.registration_date).toLocaleString('en-IN', {
       dateStyle: 'long',
