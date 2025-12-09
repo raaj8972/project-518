@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
-import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark } from '../../utils/pdfExport';
+import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF } from '../../utils/pdfExport';
 import ExportPdfButton from '../../components/ExportPdfButton';
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
 
@@ -56,6 +56,62 @@ export const RegistrationManagement: React.FC = () => {
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
   const [logsLoading, setLogsLoading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+
+  // Download handler for participant photos
+  const downloadPhoto = async (photoUrl: string, participantName: string) => {
+    try {
+      // Parse the storage path from the URL
+      const parseStoragePath = (url: string): { bucket: string; name: string } | null => {
+        const m = url.match(/\/storage\/v1\/object\/(?:public|authenticated)\/([^/]+)\/(.+)$/);
+        if (m) return { bucket: decodeURIComponent(m[1]), name: decodeURIComponent(m[2]) };
+        
+        // Fallback: try to extract from known bucket patterns
+        const knownBuckets = ['registration-photos'];
+        for (const b of knownBuckets) {
+          const idx = url.indexOf(`${b}/`);
+          if (idx >= 0) return { bucket: b, name: decodeURIComponent(url.slice(idx + b.length + 1)) };
+        }
+        return null;
+      };
+
+      const parsed = parseStoragePath(photoUrl);
+      let blob: Blob | null = null;
+
+      if (parsed) {
+        // Download from Supabase storage with authentication
+        const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.name);
+        if (error) throw error;
+        blob = data as Blob;
+      } else {
+        // Fallback: try direct fetch for public URLs
+        const response = await fetch(photoUrl);
+        if (!response.ok) throw new Error('Failed to fetch photo');
+        blob = await response.blob();
+      }
+
+      // Create download link
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      
+      // Extract file extension from URL or blob type
+      const extension = blob.type.split('/')[1] || 'jpg';
+      const filename = `${participantName.replace(/[^a-z0-9]/gi, '_')}_photo.${extension}`;
+      link.download = filename;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL after download
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      
+      push({ message: 'Photo downloaded successfully', type: 'success' });
+    } catch (error) {
+      console.error('Error downloading photo:', error);
+      push({ message: 'Failed to download photo', type: 'error' });
+    }
+  };
   const [pdfExporting] = useState(false);
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [selectedColumns, setSelectedColumns] = useState<RegistrationColumnKey[]>(EXPORT_PRESETS.full);
@@ -453,6 +509,15 @@ export const RegistrationManagement: React.FC = () => {
       const event = events.find(e => e.id === reg.event_id);
 
       if (token) {
+          // Generate PDF receipt
+          let pdfBase64: string | null = null;
+          try {
+            pdfBase64 = await generateRegistrationReceiptPDF(reg, watermarkDataUrl, stampDataUrl);
+          } catch (pdfError) {
+            console.error('Failed to generate PDF receipt:', pdfError);
+            // Continue sending email even if PDF fails
+          }
+
           const res = await fetch('/api/send-confirmation', {
               method: 'POST',
               headers: { 
@@ -474,7 +539,8 @@ export const RegistrationManagement: React.FC = () => {
                       // @ts-ignore
                       .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
                       .join(', '),
-                  teamMembers: safeTeamMembers(reg)
+                  teamMembers: safeTeamMembers(reg),
+                  pdfAttachment: pdfBase64 // Add PDF as base64
               })
           });
 
@@ -1630,11 +1696,10 @@ export const RegistrationManagement: React.FC = () => {
                                       rel="noopener noreferrer"
                                       className="text-blue-600 hover:text-blue-800 text-sm"
                                     >Open full</a>
-                                    <a
-                                      href={(registration as any).photo_url as any}
-                                      download
-                                      className="text-gray-700 hover:text-gray-900 text-sm"
-                                    >Download</a>
+                                    <button
+                                      onClick={() => downloadPhoto((registration as any).photo_url as string, registration.full_name)}
+                                      className="text-gray-700 hover:text-gray-900 text-sm cursor-pointer"
+                                    >Download</button>
                                   </div>
                                 </div>
                               </div>

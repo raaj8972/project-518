@@ -16,20 +16,31 @@ type EmailOptions = {
     html: string;
     provider?: 'smtp' | 'resend';
     from?: string; // Optional override
+    attachments?: Array<{
+        filename: string;
+        content: string; // base64 string
+    }>;
 };
 
-export const sendEmail = async ({ to, subject, html, provider = 'smtp', from }: EmailOptions) => {
+export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, attachments }: EmailOptions) => {
   const sender = from || process.env.EMAIL_SENDER || process.env.SMTP_USER || 'no-reply@ricorrenza.fun';
   
   console.log(`Sending email via [${provider.toUpperCase()}] to: ${to}`);
 
   try {
     if (provider === 'smtp') {
+        // Convert base64 attachments to Buffer for nodemailer
+        const nodemailerAttachments = attachments?.map(att => ({
+            filename: att.filename,
+            content: Buffer.from(att.content, 'base64')
+        }));
+
         const info = await transporter.sendMail({
             from: sender,
             to,
             subject,
             html,
+            attachments: nodemailerAttachments
         });
         console.log('SMTP Message sent: %s', info.messageId);
         return { success: true, messageId: info.messageId, provider: 'smtp' };
@@ -38,6 +49,12 @@ export const sendEmail = async ({ to, subject, html, provider = 'smtp', from }: 
         const resendKey = process.env.RESEND_API_KEY;
         if (!resendKey) throw new Error('Missing RESEND_API_KEY');
 
+        // Resend accepts attachments with base64 content
+        const resendAttachments = attachments?.map(att => ({
+            filename: att.filename,
+            content: att.content
+        }));
+
         const res = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
@@ -45,10 +62,11 @@ export const sendEmail = async ({ to, subject, html, provider = 'smtp', from }: 
                 'Authorization': `Bearer ${resendKey}`,
             },
             body: JSON.stringify({
-                from: sender, // Resend requires verified domain
+                from: sender,
                 to: Array.isArray(to) ? to : [to],
                 subject,
                 html,
+                attachments: resendAttachments
             }),
         });
 

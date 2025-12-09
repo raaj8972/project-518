@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Receipt Preview</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #0d9488;
+            text-align: center;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #0d9488;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+        }
+        button:hover {
+            background: #0f766e;
+        }
+        .info {
+            background: #eff6ff;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #bfdbfe;
+            margin: 20px 0;
+        }
+        #preview {
+            margin-top: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 Registration Receipt Preview</h1>
+        
+        <div class="info">
+            <strong>Sample Data:</strong><br>
+            • Registration ID: RICO-2025-001<br>
+            • Participant: John Doe<br>
+            • Event: Battle of Bands<br>
+            • Type: Team Registration (4 members)
+        </div>
+
+        <button onclick="generatePreview()">Generate PDF Preview</button>
+        
+        <div id="preview"></div>
+    </div>
+
+    <script>
+        async function generatePreview() {
+            const { jsPDF } = window.jspdf;
+            
+            // Sample registration data
+            const registration = {
+                id: 'RICO-2025-001',
+                full_name: 'John Doe',
+                email: 'john.doe@example.com',
+                phone: '+91 98765 43210',
+                college: 'IQ City Medical College',
+                participant_type: 'Medical Student',
+                event_title: 'Battle of Bands 2026',
+                registration_date: new Date().toISOString(),
+                status: 'approved',
+                is_team_registration: true,
+                team_name: 'The Midnight Doctors',
+                total_members: 4,
+                team_members: [
+                    { name: 'Alice Smith', phone: '+91 98765 11111' },
+                    { name: 'Bob Johnson', phone: '+91 98765 22222' },
+                    { name: 'Carol White', phone: '+91 98765 33333' }
+                ]
+            };
+
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 20;
+            let yPos = margin;
+
+            // Header with event branding
+            doc.setFillColor(52, 152, 219);
+            doc.rect(0, 0, pageWidth, 40, 'F');
+            
+            doc.setFontSize(24);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.text('REGISTRATION RECEIPT', pageWidth / 2, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text('RICORRENZA 2026', pageWidth / 2, 30, { align: 'center' });
+
+            yPos = 50;
+
+            // Registration ID
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, yPos, pageWidth - margin * 2, 15, 'F');
+            doc.setFontSize(14);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Registration ID:', margin + 5, yPos + 10);
+            doc.setTextColor(52, 152, 219);
+            doc.text(registration.id, margin + 60, yPos + 10);
+            
+            yPos += 25;
+
+            // Status Badge
+            const statusColor = [76, 175, 80]; // Green for approved
+            doc.setFillColor(...statusColor);
+            doc.roundedRect(margin, yPos, 30, 8, 2, 2, 'F');
+            doc.setFontSize(10);
+            doc.setTextColor(255, 255, 255);
+            doc.setFont('helvetica', 'bold');
+            doc.text('APPROVED', margin + 15, yPos + 5.5, { align: 'center' });
+            
+            yPos += 18;
+
+            // Participant Details
+            doc.setFontSize(16);
+            doc.setTextColor(52, 152, 219);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Participant Details', margin, yPos);
+            yPos += 10;
+
+            doc.setFontSize(11);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont('helvetica', 'normal');
+
+            const details = [
+                { label: 'Name', value: registration.full_name },
+                { label: 'Email', value: registration.email },
+                { label: 'Phone', value: registration.phone },
+                { label: 'College/Institution', value: registration.college },
+                { label: 'Participant Type', value: registration.participant_type },
+                { label: 'Registration Date', value: new Date(registration.registration_date).toLocaleString('en-IN') }
+            ];
+
+            details.forEach(item => {
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${item.label}:`, margin + 5, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(item.value, margin + 55, yPos);
+                yPos += 7;
+            });
+
+            yPos += 5;
+
+            // Event Details
+            doc.setFontSize(16);
+            doc.setTextColor(52, 152, 219);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Event Details', margin, yPos);
+            yPos += 10;
+
+            doc.setFontSize(11);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont('helvetica', 'normal');
+            doc.text('Event Name:', margin + 5, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.text(registration.event_title, margin + 55, yPos);
+            yPos += 7;
+
+            doc.setFont('helvetica', 'normal');
+            doc.text('Registration Type:', margin + 5, yPos);
+            doc.text('Team Registration', margin + 55, yPos);
+            yPos += 10;
+
+            // Team Details
+            doc.setFontSize(16);
+            doc.setTextColor(52, 152, 219);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Team Details', margin, yPos);
+            yPos += 10;
+
+            doc.setFontSize(11);
+            doc.setTextColor(40, 40, 40);
+            doc.setFont('helvetica', 'normal');
+
+            doc.text('Team Name:', margin + 5, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.text(registration.team_name, margin + 55, yPos);
+            doc.setFont('helvetica', 'normal');
+            yPos += 7;
+
+            doc.text('Total Members:', margin + 5, yPos);
+            doc.text(String(registration.total_members), margin + 55, yPos);
+            yPos += 10;
+
+            // Team members
+            doc.setFont('helvetica', 'bold');
+            doc.text('Team Members:', margin + 5, yPos);
+            yPos += 7;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+
+            registration.team_members.forEach((member, index) => {
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${index + 1}. ${member.name}`, margin + 10, yPos);
+                doc.setFont('helvetica', 'normal');
+                yPos += 5;
+                doc.text(`Phone: ${member.phone}`, margin + 15, yPos);
+                yPos += 7;
+            });
+
+            // Footer
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.text('Page 1 of 1', pageWidth / 2, pageHeight - 10, { align: 'center' });
+            doc.text('RICORRENZA 2026 - IQ City Medical College', 10, pageHeight - 10);
+
+            // Note about watermark and stamp
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            yPos += 10;
+            doc.text('Note: Actual emails will include watermark and official stamp', margin + 5, yPos, { maxWidth: pageWidth - margin * 2 });
+
+            // Display PDF in iframe
+            const pdfDataUri = doc.output('datauristring');
+            const iframe = document.createElement('iframe');
+            iframe.src = pdfDataUri;
+            iframe.width = '100%';
+            iframe.height = '800px';
+            iframe.style.border = 'none';
+            
+            const preview = document.getElementById('preview');
+            preview.innerHTML = '';
+            preview.appendChild(iframe);
+
+            // Also provide download button
+            const downloadBtn = document.createElement('button');
+            downloadBtn.textContent = '⬇️ Download Sample PDF';
+            downloadBtn.onclick = () => {
+                doc.save('Sample-Registration-Receipt.pdf');
+            };
+            preview.appendChild(downloadBtn);
+        }
+    </script>
+</body>
+</html>

@@ -1069,3 +1069,230 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
 
   doc.save('registrations-by-status.pdf');
 };
+
+/**
+ * Generate a personalized registration receipt PDF for a single participant
+ * Returns PDF as Base64 string for email attachment
+ */
+export const generateRegistrationReceiptPDF = async (
+  registration: Registration,
+  watermarkDataUrl?: string | null,
+  stampDataUrl?: string | null
+): Promise<string> => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+ const margin = 20;
+  let yPos = margin;
+
+  // Header with event branding
+  doc.setFillColor(52, 152, 219); // Blue header
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  doc.setFontSize(24);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REGISTRATION RECEIPT', pageWidth / 2, 20, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text('RICORRENZA 2026', pageWidth / 2, 30, { align: 'center' });
+
+  yPos = 50;
+
+  // Registration ID - Prominent display
+  doc.setFillColor(240, 240, 240);
+  doc.rect(margin, yPos, pageWidth - margin * 2, 15, 'F');
+  doc.setFontSize(14);
+  doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Registration ID:', margin + 5, yPos + 10);
+  doc.setTextColor(52, 152, 219);
+  doc.text(registration.id, margin + 60, yPos + 10);
+  
+  yPos += 25;
+
+  // Status Badge
+  const statusColors: Record<string, [number, number, number]> = {
+    'approved': [76, 175, 80],
+    'pending': [255, 193, 7],
+    'rejected': [244, 67, 54]
+  };
+  const statusColor = statusColors[registration.status] || [100, 100, 100];
+  doc.setFillColor(...statusColor);
+  doc.roundedRect(margin, yPos, 30, 8, 2, 2, 'F');
+  doc.setFontSize(10);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.text(registration.status.toUpperCase(), margin + 15, yPos + 5.5, { align: 'center' });
+  
+  yPos += 18;
+
+  // Participant Details Section
+  doc.setFontSize(16);
+  doc.setTextColor(52, 152, 219);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Participant Details', margin, yPos);
+  yPos += 10;
+
+  doc.setFontSize(11);
+  doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal');
+
+  const details = [
+    { label: 'Name', value: registration.full_name },
+    { label: 'Email', value: registration.email },
+    { label: 'Phone', value: registration.phone },
+    { label: 'College/Institution', value: registration.college || 'N/A' },
+    { label: 'Participant Type', value: registration.participant_type },
+    { label: 'Registration Date', value: new Date(registration.registration_date).toLocaleString('en-IN', {
+      dateStyle: 'long',
+      timeStyle: 'short',
+      timeZone: 'Asia/Kolkata'
+    })}
+  ];
+
+  details.forEach(item => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(\`\${item.label}:\`, margin + 5, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(item.value, margin + 55, yPos);
+    yPos += 7;
+  });
+
+  yPos += 5;
+
+  // Event Details Section
+  doc.setFontSize(16);
+  doc.setTextColor(52, 152, 219);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Event Details', margin, yPos);
+  yPos += 10;
+
+  doc.setFontSize(11);
+  doc.setTextColor(40, 40, 40);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Event Name:', margin + 5, yPos);
+  doc.setFont('helvetica', 'bold');
+  doc.text(registration.event_title, margin + 55, yPos);
+  yPos += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('Registration Type:', margin + 5, yPos);
+  doc.text(registration.is_team_registration ? 'Team Registration' : 'Individual Registration', margin + 55, yPos);
+  yPos += 10;
+
+  // Team Details (if team registration)
+  if (registration.is_team_registration) {
+    doc.setFontSize(16);
+    doc.setTextColor(52, 152, 219);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Team Details', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(11);
+    doc.setTextColor(40, 40, 40);
+    doc.setFont('helvetica', 'normal');
+
+    if (registration.team_name) {
+      doc.text('Team Name:', margin + 5, yPos);
+      doc.setFont('helvetica', 'bold');
+      doc.text(registration.team_name, margin + 55, yPos);
+      doc.setFont('helvetica', 'normal');
+      yPos += 7;
+    }
+
+    doc.text('Total Members:', margin + 5, yPos);
+    doc.text(String(registration.total_members), margin + 55, yPos);
+    yPos += 10;
+
+    // Team members list
+    const teamMembers = Array.isArray(registration.team_members) 
+      ? registration.team_members 
+      : [];
+
+    if (teamMembers.length > 0) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Team Members:', margin + 5, yPos);
+      yPos += 7;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+
+      teamMembers.forEach((member: any, index: number) => {
+        // Check if we need a new page
+        if (yPos > pageHeight - 40) {
+          doc.addPage();
+          yPos = margin;
+        }
+
+        doc.setFont('helvetica', 'bold');
+        doc.text(\`\${index + 1}. \${member.name || 'N/A'}\`, margin + 10, yPos);
+        doc.setFont('helvetica', 'normal');
+        yPos += 5;
+        doc.text(\`Phone: \${member.phone || 'N/A'}\`, margin + 15, yPos);
+        yPos += 7;
+      });
+    }
+  }
+
+  // Add watermark to all pages
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    
+    // Add watermark
+    if (watermarkDataUrl) {
+      try {
+        const pW = doc.internal.pageSize.getWidth();
+        const pH = doc.internal.pageSize.getHeight();
+        const wmW = pW * 0.6;
+        const wmH = pH * 0.6;
+        const x = (pW - wmW) / 2;
+        const y = (pH - wmH) / 2;
+        doc.saveGraphicsState();
+        const gState = new (doc as any).GState({ opacity: 0.12 });
+        doc.setGState(gState);
+        doc.addImage(watermarkDataUrl, 'PNG', x, y, wmW, wmH);
+        doc.restoreGraphicsState();
+      } catch (e) {
+        console.error('Watermark failed:', e);
+      }
+    }
+
+    // Add stamp at bottom right
+    if (stampDataUrl) {
+      try {
+        const pW = doc.internal.pageSize.getWidth();
+        const pH = doc.internal.pageSize.getHeight();
+        const stampSize = 50;
+        const x = pW - stampSize - 15;
+        const y = pH - stampSize - 15;
+        doc.addImage(stampDataUrl, 'PNG', x, y, stampSize, stampSize);
+      } catch (e) {
+        console.error('Stamp failed:', e);
+      }
+    }
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text(
+      \`Page \${i} of \${totalPages}\`,
+      pageWidth / 2,
+      pageHeight - 10,
+      { align: 'center' }
+    );
+    doc.text('RICORRENZA 2026 - IQ City Medical College', 10, pageHeight - 10);
+  }
+
+  // Return PDF as base64 string
+  const pdfOutput = doc.output('datauristring');
+  // Extract base64 part only (remove data:application/pdf;filename=generated.pdf;base64,)
+  const base64 = pdfOutput.split(',')[1];
+  return base64;
+};

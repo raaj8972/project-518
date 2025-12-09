@@ -47,7 +47,7 @@ export default async (req: Request) => {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers });
     }
 
-    const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators, teamMembers } = await req.json();
+    const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators, teamMembers, pdfAttachment } = await req.json();
 
     // --- Fetch Assets (Watermark/Stamp) ---
     const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
@@ -183,6 +183,8 @@ export default async (req: Request) => {
     
             <p>Please present this ID at the venue entrance.</p>
             
+            ${pdfAttachment ? '<p style="margin-top: 20px; padding: 12px; background-color: #eff6ff; border-radius: 4px; border: 1px solid #bfdbfe;"><strong>📎 Registration Receipt:</strong> Your registration receipt is attached to this email as a PDF document.</p>' : ''}
+            
             ${coordinatorsHtml}
     
             <div style="margin-top: 30px; display: flex; align-items: flex-end; justify-content: space-between;">
@@ -209,11 +211,18 @@ export default async (req: Request) => {
       </div>
     `;
 
+    // Prepare attachments
+    const attachments = pdfAttachment ? [{
+        filename: `Registration-Receipt-${registrationId}.pdf`,
+        content: pdfAttachment
+    }] : undefined;
+
     const result = await sendEmail({
         to: email,
         subject: `Registration Approved: ${eventTitle}`,
         html: emailHtml,
-        provider: provider as 'smtp' | 'resend'
+        provider: provider as 'smtp' | 'resend',
+        attachments
     });
 
     // Log to DB (Success or Failure)
