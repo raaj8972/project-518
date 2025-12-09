@@ -1115,7 +1115,7 @@ export const generateRegistrationReceiptPDF = async (
   doc.setFontSize(14);
   doc.setTextColor(40, 40, 40);
   doc.setFont('helvetica', 'bold');
-  doc.text('Registration No:', margin + 5, yPos + 10);
+  doc.text('Registration ID:', margin + 5, yPos + 10);
   doc.setTextColor(52, 152, 219);
   doc.text(registration.id, margin + 60, yPos + 10);
   
