@@ -1,8 +1,8 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
-  CheckCircle, XCircle, ChevronLeft, ChevronRight, 
-  MoreHorizontal, Mail, Eye, Loader2, Sparkles, AlertTriangle,
+  CheckCircle, XCircle, 
+  Mail, Eye, Loader2, Sparkles, AlertTriangle,
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
