@@ -512,10 +512,13 @@ export const RegistrationManagement: React.FC = () => {
           // Generate PDF receipt
           let pdfBase64: string | null = null;
           try {
+            console.log('[sendApprovalEmail] Generating PDF receipt...');
             pdfBase64 = await generateRegistrationReceiptPDF(reg, watermarkDataUrl, stampDataUrl);
+            console.log('[sendApprovalEmail] PDF generated, size:', pdfBase64?.length, 'bytes');
           } catch (pdfError) {
-            console.error('Failed to generate PDF receipt:', pdfError);
-            // Continue sending email even if PDF fails
+            console.error('[sendApprovalEmail] Failed to generate PDF receipt:', pdfError);
+            // Continue sending email even if PDF fails - user will still get approval email
+            alert('PDF generation failed, but email will be sent without attachment. Error: ' + (pdfError as Error).message);
           }
 
           const res = await fetch('/api/send-confirmation', {

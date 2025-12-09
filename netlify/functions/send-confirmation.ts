@@ -49,6 +49,8 @@ export default async (req: Request) => {
 
     const { registrationId, email, fullName, eventTitle, eventDate, eventTime, eventVenue, provider = 'smtp', coordinators, teamMembers, pdfAttachment } = await req.json();
 
+    console.log('[send-confirmation] Processing email for:', { registrationId, email, hasPDF: !!pdfAttachment, pdfSize: pdfAttachment?.length });
+
     // --- Fetch Assets (Watermark/Stamp) ---
     const { data: bucketFiles } = await supabaseAdmin.storage.from('pdf-watermarks').list();
     
@@ -239,11 +241,18 @@ export default async (req: Request) => {
     if (result.success) {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     } else {
-        return new Response(JSON.stringify({ error: 'Failed to send email via SMTP', details: result.error }), { status: 500, headers });
+        console.error('[send-confirmation] Email sending failed:', result.error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to send email', 
+          details: result.error?.toString?.() || String(result.error)
+        }), { status: 500, headers });
     }
 
   } catch (error: any) {
-    console.error('Handler error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
+    console.error('[send-confirmation] Unexpected error:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error',
+      message: error.message || String(error)
+    }), { status: 500, headers });
   }
 };
