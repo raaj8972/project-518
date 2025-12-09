@@ -1,5 +1,4 @@
-```typescript
-import { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, ChevronLeft, ChevronRight, 
@@ -1109,7 +1108,6 @@ export default function RegistrationManagement() {
               Delete Selected
             </button>
           </div>
-        </div>
 
         {/* Export & Tools Row */}
         <div className="bg-gray-50 rounded-lg p-4 space-y-3">
@@ -1119,7 +1117,7 @@ export default function RegistrationManagement() {
             {watermarkUrl ? (
               <>
                 <img 
-                  src={watermarkUrl} 
+                  src={watermarkUrl || undefined} 
                   alt="Watermark preview" 
                   className="h-8 w-auto opacity-50 border border-gray-300 rounded"
                 />
@@ -1152,7 +1150,7 @@ export default function RegistrationManagement() {
             {stampUrl ? (
               <>
                 <img 
-                  src={stampUrl} 
+                  src={stampUrl || undefined} 
                   alt="Stamp preview" 
                   className="h-8 w-auto border border-gray-300 rounded"
                 />
