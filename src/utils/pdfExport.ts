@@ -591,6 +591,8 @@ export const exportRegistrationsToPDF = (
       : 'Individual';
     
     return [
+      (registrations.indexOf(reg) + 1).toString(), // S.No
+      reg.id.substring(0, 8).toUpperCase(), // Registration No (using ID short hash as placeholder if no reg_no)
       reg.full_name,
       reg.participant_type,
       reg.event_title,
@@ -610,7 +612,7 @@ export const exportRegistrationsToPDF = (
   // Create main table
   autoTable(doc, {
     startY: 35,
-    head: [['Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
+    head: [['S.No', 'Reg No', 'Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
     body: tableData,
     theme: 'striped',
     headStyles: {
@@ -628,19 +630,21 @@ export const exportRegistrationsToPDF = (
       fillColor: [245, 245, 245]
     },
     columnStyles: {
-      0: { cellWidth: 30, fontStyle: 'bold' }, // Name
-      1: { cellWidth: 20 }, // Type
-      2: { cellWidth: 35 }, // Event
-      3: { cellWidth: 30 }, // Team/Individual
-      4: { cellWidth: 45 }, // Email
-      5: { cellWidth: 25 }, // Phone
-      6: { cellWidth: 30 }, // College
-      7: { cellWidth: 20, halign: 'center' }, // Status
-      8: { cellWidth: 22, halign: 'center' } // Date
+      0: { cellWidth: 12, halign: 'center' }, // S.No
+      1: { cellWidth: 22, fontStyle: 'bold' }, // Reg No
+      2: { cellWidth: 30, fontStyle: 'bold' }, // Name
+      3: { cellWidth: 18 }, // Type
+      4: { cellWidth: 30 }, // Event
+      5: { cellWidth: 25 }, // Team/Individual
+      6: { cellWidth: 40 }, // Email
+      7: { cellWidth: 22 }, // Phone
+      8: { cellWidth: 25 }, // College
+      9: { cellWidth: 18, halign: 'center' }, // Status
+      10: { cellWidth: 20, halign: 'center' } // Date
     },
     didDrawCell: (data) => {
       // Color code status cells
-      if (data.column.index === 7 && data.section === 'body') {
+      if (data.column.index === 9 && data.section === 'body') {
         const status = data.cell.raw as string;
         let fillColor: [number, number, number] = [255, 255, 255];
         
@@ -1111,19 +1115,9 @@ export const generateRegistrationReceiptPDF = async (
   doc.setFontSize(14);
   doc.setTextColor(40, 40, 40);
   doc.setFont('helvetica', 'bold');
-  doc.setFont('helvetica', 'bold');
   doc.text('Registration No:', margin + 5, yPos + 10);
   doc.setTextColor(52, 152, 219);
-  doc.text(registration.id, margin + 50, yPos + 10);
-
-  // Serial No (extracted numeric part)
-  const serialMatch = registration.id.match(/(\d+)/);
-  const serialNo = serialMatch ? serialMatch[0] : registration.id;
-  
-  doc.setTextColor(40, 40, 40);
-  doc.text('Serial No:', margin + 100, yPos + 10);
-  doc.setTextColor(52, 152, 219);
-  doc.text(serialNo, margin + 130, yPos + 10);
+  doc.text(registration.id, margin + 60, yPos + 10);
   
   yPos += 25;
 
