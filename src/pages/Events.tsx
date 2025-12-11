@@ -382,7 +382,74 @@ export const Events: React.FC = () => {
       // if IntersectionObserver not supported, fall back to making elements visible
       document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
     }
+
   }, [events.length, filteredEvents.length, selectedCategory]);
+
+  // SMART VIDEO AUTOPLAY OBSERVER
+  // Watches .smart-video elements and plays/pauses them based on visibility to save resources
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
+    
+    // throttle play/pause actions to prevent rapid toggling
+    const videoObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target as HTMLVideoElement;
+        // Only autoplay if it has the data-autoplay flag (checked by our renderer)
+        if (entry.isIntersecting) {
+            // Play
+            if (video.paused) {
+                // We use a safe play promise handling
+                const p = video.play();
+                if (p !== undefined) {
+                    p.catch(() => { /* Auto-play was prevented, ignore */ });
+                }
+            }
+        } else {
+            // Pause
+            if (!video.paused) {
+                video.pause();
+            }
+        }
+      });
+    }, { threshold: 0.5 }); // 50% visible to play
+
+    const attachVideos = () => {
+        const vids = document.querySelectorAll('video.smart-video');
+        vids.forEach(v => videoObserver.observe(v));
+    };
+
+    // Attach initially and after potential re-renders (short timeouts)
+    attachVideos();
+    const t = setTimeout(attachVideos, 500);
+    
+    // SECONDARY OBSERVER: SMART PRELOAD BUFFER
+    // Watches just ahead of viewport to preload videos before they are played
+    const preloadObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const v = entry.target as HTMLVideoElement;
+          if (v.preload !== 'auto') {
+            v.preload = 'auto'; // Trigger buffer
+            preloadObserver.unobserve(v); // One-time action
+          }
+        }
+      });
+    }, { rootMargin: '600px 0px 600px 0px' }); // One screen height ahead/behind
+
+    const attachPreload = () => {
+      const vids = document.querySelectorAll('video.smart-video');
+      vids.forEach(v => preloadObserver.observe(v));
+    };
+    attachPreload();
+    const tPre = setTimeout(attachPreload, 500);
+
+    return () => {
+        clearTimeout(t);
+        clearTimeout(tPre);
+        videoObserver.disconnect();
+        preloadObserver.disconnect();
+    };
+  }, [events.length, filteredEvents.length, selectedCategory, flippedCards]); // Re-attach when list changes
 
 
 
@@ -588,6 +655,29 @@ export const Events: React.FC = () => {
       {/* Connection issues are surfaced in Admin only to avoid alarming public users */}
       
 
+      <div ref={(el) => {
+        // Pausal Observer for Hero Animation
+        if (!el || typeof IntersectionObserver === 'undefined') return;
+        const observer = new IntersectionObserver(([entry]) => {
+           // If hero is < 10% visible, we assume user scrolled past it.
+           // Pause the rotation/videos to save massive GPU power.
+           const isVisible = entry.isIntersecting;
+           // We use a CSS class or React state to pause.
+           // React state might trigger re-render of the whole heavy list, so CSS variable or class on container is cheaper.
+           if (isVisible) {
+             el.classList.remove('paused-animations');
+             // Resume videos
+             el.querySelectorAll('video').forEach(v => { try { v.play() } catch {} });
+           } else {
+             el.classList.add('paused-animations');
+             // Pause videos
+             el.querySelectorAll('video').forEach(v => { try { v.pause() } catch {} });
+           }
+        }, { threshold: 0.1 }); // 10% visibility threshold
+        observer.observe(el);
+        // cleanup handled by React ref callback behavior (called with null on unmount) providing a new closure isn't created every render.
+        // For safety, we just attach once.
+      }} className="hero-section-wrapper">
 
       <section className="hero-section relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
           <div className="absolute inset-0 z-0 bg-black">
@@ -598,9 +688,10 @@ export const Events: React.FC = () => {
           </div>
 
           {/* 3D Rotating Drum Container - UNMOUNT/HIDE when modal is open to save GPU */ }
+          {/* Also hidden via CSS when .paused-animations parent class is present to stop layout thrashing if completely removed, but we just pause animations here. */}
           {motionPosterEvents.length > 0 && !registrationModal.isOpen && (
             <div 
-              className="absolute top-1/2 left-1/2 w-[80vw] -ml-[40vw] md:w-[360px] md:-ml-[180px] h-[58vh] -mt-[29vh] ease-in-out" 
+              className="absolute top-1/2 left-1/2 w-[80vw] -ml-[40vw] md:w-[360px] md:-ml-[180px] h-[58vh] -mt-[29vh] ease-in-out hero-3d-drum" 
               style={{
                 transformStyle: 'preserve-3d',
                 transitionProperty: 'transform',
@@ -690,21 +781,6 @@ export const Events: React.FC = () => {
                          <div className="absolute top-full left-0 w-full h-[60%] bg-gradient-to-b from-white/30 to-transparent transform scale-y-[-1] opacity-50 mask-image-gradient" aria-hidden="true" />
                       )}
                     </div>
-                    {/* Inline styles for the shine animation */}
-                    <style>{`
-                      @keyframes shine {
-                        0% { left: -100%; opacity: 0; }
-                        50% { opacity: 0.5; }
-                        100% { left: 200%; opacity: 0; }
-                      }
-                      .animate-shine {
-                        animation: shine 3s infinite linear;
-                      }
-                      .mask-image-gradient {
-                        -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-                        mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-                      }
-                    `}</style>
                   </div>
                 );
               })}
@@ -733,6 +809,26 @@ export const Events: React.FC = () => {
           </div>
         </div>
       </section>
+      <style>{`
+          /* Optimization: When paused via IntersectionObserver, freeze animations to save CPU */
+          .paused-animations * {
+             animation-play-state: paused !important;
+             transition: none !important;
+          }
+          .mask-image-gradient {
+             -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+             mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+          }
+          @keyframes shine {
+            0% { left: -100%; opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { left: 200%; opacity: 0; }
+          }
+          .animate-shine {
+            animation: shine 3s infinite linear;
+          }
+      `}</style>
+      </div>
 
       {/* Winners Section moved below the events grid */}
 
@@ -890,9 +986,10 @@ export const Events: React.FC = () => {
                       {event.motion_poster_url ? (
                         <video
                           id={`event-video-${event.id}`}
-                          className={`absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ ((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
+                          className={`smart-video absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ ((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
                           src={event.motion_poster_url}
-                          {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { autoPlay: true } : {})}
+                          // Remove autoPlay, use data-autoplay for our observer to know intent
+                          {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { 'data-autoplay': 'true' } as any : {})}
                           muted
                           playsInline
                           loop

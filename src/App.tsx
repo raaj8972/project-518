@@ -110,6 +110,12 @@ const GlobalErrorBanner: React.FC = () => {
     };
     const onRej = (e: PromiseRejectionEvent) => {
       const reason = (e.reason && (e.reason.message || String(e.reason))) || 'Unhandled promise rejection';
+      
+      // Ignore benign "The operation was aborted" errors (common from cancelling video.play())
+      if (reason.includes('The operation was aborted') || reason.includes('AbortError')) {
+        return;
+      }
+
       console.error('Unhandled rejection:', e.reason);
       // Surface a clearer message for invalid/expired refresh tokens so admins know to re-login
       const low = String(reason || '').toLowerCase();

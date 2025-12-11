@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, User, Mail, Phone, Building, CheckCircle, Users, Plus, Trash2, Zap, Terminal, Shield, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { X, User, Mail, Phone, Building, CheckCircle, Users, Plus, Zap, Terminal, Shield, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { ImageUpload } from './ImageUpload';
+import { TeamMemberInput, TeamMember } from './TeamMemberInput';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -16,11 +17,7 @@ interface RegistrationModalProps {
   };
 }
 
-interface TeamMember {
-  name: string;
-  email: string;
-  phone: string;
-}
+
 
 interface RegistrationData {
   participant_type: string;
@@ -583,17 +580,19 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     }
   };
 
-  const removeTeamMember = (index: number) => {
-    if (formData.team_members.length > 1) {
-      setFormData(prev => ({
+  /* Optimization: Memoize handlers to prevent re-renders of all inputs during typing */
+  const removeTeamMember = React.useCallback((index: number) => {
+    setFormData(prev => {
+      if (prev.team_members.length <= 1) return prev;
+      return {
         ...prev,
         team_members: prev.team_members.filter((_, i) => i !== index),
         total_members: prev.total_members - 1
-      }));
-    }
-  };
+      };
+    });
+  }, []);
 
-  const updateTeamMember = (index: number, field: keyof TeamMember, value: string) => {
+  const updateTeamMember = React.useCallback((index: number, field: keyof TeamMember, value: string) => {
     setFormData(prev => ({
       ...prev,
       team_members: prev.team_members.map((member, i) => 
@@ -601,11 +600,15 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
       )
     }));
     
-    // Clear related errors
-    if (errors[`team_member_${index}_${field}`]) {
-      setErrors(prev => ({ ...prev, [`team_member_${index}_${field}`]: undefined }));
-    }
-  };
+    // Clear related errors (functional update to avoid dependency on 'errors' state)
+    setErrors(prev => {
+      const key = `team_member_${index}_${field}`;
+      if (prev[key]) {
+        return { ...prev, [key]: undefined };
+      }
+      return prev;
+    });
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -1108,48 +1111,16 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
                   
                   <div className="space-y-3 max-h-96 overflow-y-auto cyberpunk-scrollbar">
                     {formData.team_members.map((member, index) => (
-                      <div key={index} className="cyberpunk-card bg-gray-900/30 p-3">
-                        <div className="flex justify-between items-center mb-3">
-                          <h4 className="font-mono text-cyan-400 text-sm">MEMBER_{index + 1}</h4>
-                          {formData.team_members.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeTeamMember(index)}
-                              className="cyberpunk-btn cyberpunk-btn-danger p-1 text-xs"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
-                        
-                        <div className="grid grid-cols-1 gap-2">
-                          <div>
-                            <input
-                              type="text"
-                              value={member.name}
-                              onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
-                              placeholder="Member name"
-                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_name`] ? 'error' : ''}`}
-                            />
-                            {errors[`team_member_${index}_name`] && (
-                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_name`]}</p>
-                            )}
-                          </div>
-                          
-                          <div>
-                            <input
-                              type="tel"
-                              value={member.phone}
-                              onChange={(e) => updateTeamMember(index, 'phone', e.target.value)}
-                              placeholder="Member phone"
-                              className={`cyberpunk-input text-sm ${errors[`team_member_${index}_phone`] ? 'error' : ''}`}
-                            />
-                            {errors[`team_member_${index}_phone`] && (
-                              <p className="cyberpunk-error text-xs">{errors[`team_member_${index}_phone`]}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                      <TeamMemberInput
+                        key={index}
+                        index={index}
+                        member={member}
+                        errorName={errors[`team_member_${index}_name`]}
+                        errorPhone={errors[`team_member_${index}_phone`]}
+                        canRemove={formData.team_members.length > 1}
+                        onUpdate={updateTeamMember}
+                        onRemove={removeTeamMember}
+                      />
                     ))}
                   </div>
                   
