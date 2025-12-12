@@ -945,7 +945,7 @@ export const Events: React.FC = () => {
                           // play on hover only when prefer_video is enabled and autoplay isn't forced
                           if ((event as any).prefer_video && !(event as any).motion_poster_autoplay) {
                             const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
-                            if (v) import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { try { v.play(); } catch {} });
+                            if (v) import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { const p = v.play(); if (p) p.catch(() => {}); });
                           }
                         } catch (e) {}
                       }}
@@ -969,7 +969,7 @@ export const Events: React.FC = () => {
                           const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
                           const btn = e.currentTarget as HTMLElement;
                           if (v) {
-                            import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { try { v.play(); } catch {} });
+                            import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { const p = v.play(); if (p) p.catch(() => {}); });
                             // Suppress the following click that can fire after a long-press/touch on some devices
                             try { (btn as any).dataset.suppressClick = '1'; } catch {}
                             // clear suppress shortly after to allow normal clicks
