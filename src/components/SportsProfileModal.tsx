@@ -52,7 +52,7 @@ const SportsProfileModal: React.FC<SportsProfileModalProps> = ({ open, onClose, 
         <div className="relative">
           <div className="w-full bg-black/30 flex items-center justify-center">
             {person.image && (
-              <img loading="lazy" decoding="async" src={person.image} alt={person.name} className="max-h-[50vh] w-auto object-contain" loading="lazy" decoding="async" />
+              <img loading="lazy" decoding="async" src={person.image} alt={person.name} className="max-h-[50vh] w-auto object-contain" />
             )}
           </div>
           <button onClick={onClose} className="absolute top-3 right-3 bg-black/60 text-white rounded-full w-9 h-9">✕</button>
