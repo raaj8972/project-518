@@ -684,7 +684,7 @@ export const Events: React.FC = () => {
            if (isVisible) {
              el.classList.remove('paused-animations');
              // Resume videos
-             el.querySelectorAll('video').forEach(v => { try { v.play() } catch {} });
+             el.querySelectorAll('video').forEach(v => { const p = v.play(); if (p) p.catch(() => {}); });
            } else {
              el.classList.add('paused-animations');
              // Pause videos
