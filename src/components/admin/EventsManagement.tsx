@@ -980,13 +980,13 @@ export const EventsManagement: React.FC = () => {
           Registration timer fields are not found in the database yet. Please apply the migration and then Reset API cache in Supabase. Until then, timer settings will be ignored on save.
         </div>
       )}
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* Header - Improved Responsive */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Events Management</h2>
-          <p className="text-gray-600">Manage festival events and registrations</p>
+          <p className="text-sm text-gray-600 mt-1">Manage festival events and registrations</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {canReorder && events.length > 1 && (
             <button
               onClick={() => (reorderMode ? closeReorder() : openReorder())}
@@ -998,7 +998,7 @@ export const EventsManagement: React.FC = () => {
               {reorderMode ? 'Done Reordering' : 'Reorder Events'}
             </button>
           )}
-          <label className="flex items-center text-sm text-gray-700">
+          <label className="flex items-center text-sm text-gray-700 px-2">
             <input type="checkbox" className="mr-2" checked={autoOpenEnabled} onChange={(e)=>persistAutoOpen(e.target.checked)} />
             Auto-open after timer
           </label>
@@ -1007,7 +1007,7 @@ export const EventsManagement: React.FC = () => {
             setIsAddingEvent(true);
             resetEventForm();
           }}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center justify-center font-medium"
         >
           <Plus size={16} className="mr-2" />
           Add Event
@@ -1015,14 +1015,14 @@ export const EventsManagement: React.FC = () => {
         </div>
       </div>
 
-      {/* Email Configuration (Email Stamp) */}
-      <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-indigo-500">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+      {/* Email Configuration (Email Stamp) - Responsive */}
+      <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-indigo-500">
+          <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-3 md:mb-4 flex items-center">
             <Upload className="mr-2 text-indigo-600" size={20} />
             Email Stamp Configuration
           </h3>
-          <div className="flex items-start space-x-4">
-            <div className="flex-shrink-0 w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative">
+          <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="flex-shrink-0 w-20 h-20 md:w-24 md:h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden relative">
               {emailStampUrl ? (
                 <img src={emailStampUrl} alt="Email Stamp" className="w-full h-full object-contain" />
               ) : (
@@ -1038,8 +1038,8 @@ export const EventsManagement: React.FC = () => {
               <p className="text-sm text-gray-600">
                 Upload a specific stamp for email notifications (PNG/SVG). This will override the shared PDF stamp in emails.
               </p>
-              <div className="flex space-x-2">
-                <label className={`flex items-center px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-md cursor-pointer hover:bg-indigo-500 transition-colors ${uploadingEmailStamp ? 'opacity-50 pointer-events-none' : ''}`}>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <label className={`flex items-center justify-center px-3 py-2 bg-indigo-600 text-white text-sm rounded-md cursor-pointer hover:bg-indigo-500 transition-colors ${uploadingEmailStamp ? 'opacity-50 pointer-events-none' : ''}`}>
                   <Upload size={14} className="mr-1.5" />
                   Upload Email Stamp
                   <input 
@@ -1054,7 +1054,7 @@ export const EventsManagement: React.FC = () => {
                   <button 
                     onClick={handleEmailStampDelete}
                     disabled={uploadingEmailStamp}
-                    className="flex items-center px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
+                    className="flex items-center justify-center px-3 py-2 bg-red-100 text-red-600 text-sm rounded-md hover:bg-red-200 transition-colors"
                   >
                     <Trash2 size={14} className="mr-1.5" />
                     Remove
@@ -1065,12 +1065,12 @@ export const EventsManagement: React.FC = () => {
           </div>
       </div>
 
-      {/* Add Event Form */}
+      {/* Add Event Form - Responsive */}
       {isAddingEvent && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-6">Add New Event</h3>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
+        <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-yellow-400">
+          <h3 className="text-lg font-semibold mb-4 md:mb-6">Add New Event</h3>
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+            <div className="space-y-4 md:space-y-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Event Title *</label>
                 <input
@@ -1674,59 +1674,141 @@ export const EventsManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Reorder Mode Panel */}
+      {/* Reorder Mode Panel - Enhanced */}
       {reorderMode && (
-        <div className="bg-white rounded-lg shadow-md border border-purple-200 p-4 mb-6">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow-lg border-2 border-purple-300 p-4 md:p-6 mb-6 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <div>
-              <div className="text-sm font-semibold text-gray-800">Reorder events</div>
-              <div className="text-xs text-gray-600">Drag rows or use arrows. Top = shows first on Events page.</div>
+              <div className="text-base md:text-lg font-bold text-purple-900 flex items-center">
+                <ArrowUp size={18} className="mr-2 text-purple-600" />
+                Reorder Events
+              </div>
+              <div className="text-xs md:text-sm text-purple-700 mt-1">
+                <span className="hidden sm:inline">Drag rows or use arrow buttons. </span>
+                Top position = shows first on Events page
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               {lastEventReorderError && (
-                <span className="text-xs text-red-600" title={`${lastEventReorderError.phase || ''} ${lastEventReorderError.details || ''}`}>Warning: {lastEventReorderError.message}</span>
+                <span className="text-xs text-red-600 mr-2" title={`${lastEventReorderError.phase || ''} ${lastEventReorderError.details || ''}`}>
+                  Warning: {lastEventReorderError.message}
+                </span>
               )}
-              <button onClick={closeReorder} className="px-3 py-1.5 text-sm rounded border border-gray-300">Cancel</button>
-              <button onClick={persistReorder} disabled={savingOrder} className={`px-3 py-1.5 text-sm rounded ${savingOrder ? 'bg-gray-400 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'}`}>{savingOrder ? 'Saving…' : 'Save Order'}</button>
+              <button 
+                onClick={closeReorder} 
+                className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg border-2 border-gray-300 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={persistReorder} 
+                disabled={savingOrder} 
+                className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  savingOrder 
+                    ? 'bg-gray-400 text-white cursor-not-allowed' 
+                    : 'bg-purple-600 text-white hover:bg-purple-700 shadow-md hover:shadow-lg'
+                }`}
+              >
+                {savingOrder ? (
+                  <span className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Saving…
+                  </span>
+                ) : '✓ Save Order'}
+              </button>
             </div>
           </div>
+          
           {!!reorderMessage && (
-            <div className="mb-2 text-xs text-gray-700">{reorderMessage}</div>
+            <div className="mb-3 px-3 py-2 bg-green-100 border border-green-300 text-sm text-green-800 rounded-lg">
+              ✓ {reorderMessage}
+            </div>
           )}
-          <div className="divide-y divide-gray-100 rounded border border-gray-200">
+          
+          <div className="divide-y divide-purple-200 rounded-lg border-2 border-purple-200 bg-white shadow-sm overflow-hidden">
             {orderList.map((id, idx) => {
               const ev = events.find((e: any) => e.id === id);
               if (!ev) return null;
+              const isDragging = dragIndex === idx;
               return (
                 <div
                   key={id}
                   draggable
                   onDragStart={() => onDragStartRow(idx)}
                   onDragOver={(e) => onDragOverRow(e, idx)}
-                  className={`flex items-center gap-3 px-3 py-2 bg-white ${dragIndex===idx ? 'opacity-70 ring-1 ring-purple-300' : ''}`}
+                  className={`flex items-center gap-2 md:gap-3 px-3 md:px-4 py-3 md:py-3 bg-white transition-all cursor-move touch-none select-none ${
+                    isDragging 
+                      ? 'opacity-50 scale-105 bg-purple-100 ring-2 ring-purple-400 shadow-lg z-10' 
+                      : 'hover:bg-purple-50 hover:shadow-md'
+                  }`}
                 >
-                  <div className="w-8 text-xs text-gray-500 select-none">{idx + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">{ev.title}</div>
-                    <div className="text-xs text-gray-500 truncate">{ev.category || '—'}</div>
+                  {/* Drag Handle */}
+                  <div className="text-gray-400 hover:text-purple-600 transition-colors cursor-grab active:cursor-grabbing">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                      <circle cx="5" cy="4" r="1.5"/>
+                      <circle cx="11" cy="4" r="1.5"/>
+                      <circle cx="5" cy="8" r="1.5"/>
+                      <circle cx="11" cy="8" r="1.5"/>
+                      <circle cx="5" cy="12" r="1.5"/>
+                      <circle cx="11" cy="12" r="1.5"/>
+                    </svg>
                   </div>
+
+                  {/* Position Number */}
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-700 text-sm font-bold border border-purple-300">
+                    {idx + 1}
+                  </div>
+
+                  {/* Event Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm md:text-base font-semibold text-gray-900 truncate">{ev.title}</div>
+                    <div className="text-xs md:text-sm text-gray-600 truncate">{ev.category || 'Uncategorized'}</div>
+                  </div>
+
+                  {/* Arrow Buttons */}
                   <div className="flex items-center gap-1">
-                    <button onClick={() => moveRow(idx, -1)} disabled={idx===0} className={`p-1 rounded ${idx===0? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`} title="Move up"><ArrowUp size={14} /></button>
-                    <button onClick={() => moveRow(idx, 1)} disabled={idx===orderList.length-1} className={`p-1 rounded ${idx===orderList.length-1? 'text-gray-300' : 'text-gray-600 hover:bg-gray-100'}`} title="Move down"><ArrowDown size={14} /></button>
+                    <button 
+                      onClick={() => moveRow(idx, -1)} 
+                      disabled={idx === 0} 
+                      className={`p-2 rounded-lg transition-all ${
+                        idx === 0
+                          ? 'text-gray-300 cursor-not-allowed' 
+                          : 'text-purple-600 hover:bg-purple-100 hover:text-purple-800 active:scale-95'
+                      }`} 
+                      title="Move up"
+                    >
+                      <ArrowUp size={18} strokeWidth={2.5} />
+                    </button>
+                    <button 
+                      onClick={() => moveRow(idx, 1)} 
+                      disabled={idx === orderList.length - 1} 
+                      className={`p-2 rounded-lg transition-all ${
+                        idx === orderList.length - 1
+                          ? 'text-gray-300 cursor-not-allowed' 
+                          : 'text-purple-600 hover:bg-purple-100 hover:text-purple-800 active:scale-95'
+                      }`} 
+                      title="Move down"
+                    >
+                      <ArrowDown size={18} strokeWidth={2.5} />
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
+          
+          {/* Helpful Tip */}
+          <div className="mt-3 text-xs text-purple-700 bg-purple-50 border border-purple-200 rounded-lg p-2 md:p-3">
+            <strong>💡 Tip:</strong> On desktop, drag rows to reorder. On mobile, use the arrow buttons for easier control.
+          </div>
         </div>
       )}
-
-      {/* Events List */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Events List - Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
   {events.map((event: any) => (
-          <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
             {editingEvent === event.id ? (
-              <div className="p-4 space-y-4">
+              <div className="p-3 md:p-4 space-y-3 md:space-y-4">
                 <input
                   type="text"
                   value={eventForm.title}

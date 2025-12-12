@@ -1034,7 +1034,7 @@ export const Events: React.FC = () => {
                           playsInline
                           loop
                           poster={event.image}
-                          preload={index < 6 ? "auto" : "metadata"}
+                          preload="auto"
                           {...(index < 6 ? { fetchpriority: "high" } as any : {})}
                         />
                       ) : null}
@@ -1135,18 +1135,18 @@ export const Events: React.FC = () => {
                                 className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
                                 style={{ WebkitOverflowScrolling: 'touch' }}
                               >
-                                <ol className="list-decimal list-inside space-y-2 text-gray-200 text-sm leading-relaxed">
+                                <ul className="list-disc list-outside ml-4 space-y-2.5 text-gray-200 text-[15px] leading-relaxed">
                                   {ruleItems.map((item, i) => {
                                     // Render headings differently
                                     if (item.startsWith('**') && item.endsWith('**')) {
-                                      return <li key={i} className="list-none font-bold text-white mt-4 first:mt-0">{item.slice(2, -2)}</li>;
+                                      return <li key={i} className="list-none -ml-4 font-bold text-white mt-4 first:mt-0 text-base">{item.slice(2, -2)}</li>;
                                     }
                                     if (item.startsWith('*') && item.endsWith('*')) {
-                                      return <li key={i} className="list-none font-medium text-pink-300 mt-2">{item.slice(1, -1)}</li>;
+                                      return <li key={i} className="list-none -ml-4 font-semibold text-pink-300 mt-3 text-[15px]">{item.slice(1, -1)}</li>;
                                     }
-                                    return <li key={i}>{item}</li>;
+                                    return <li key={i} className="text-gray-100">{item}</li>;
                                   })}
-                                </ol>
+                                </ul>
                                 
                                 {/* PDF/Drive Link */}
                                 {rulesUrl && (

@@ -3,7 +3,7 @@ import {
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
-  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw
+  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
@@ -167,6 +167,10 @@ export function RegistrationManagement() {
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  
+  // UI state for collapsible sections
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
   // Compute duplicates map:
   // We flag a registration as duplicate if another active registration exists 
@@ -1075,249 +1079,349 @@ export function RegistrationManagement() {
         </div>
       </div>
           
-          {/* Quick Actions */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleBulkApprove}
-              disabled={bulkSaving}
-              className={`flex items-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors text-sm ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
-              title="Approve all pending registrations"
-              hidden={viewMode === 'trash'}
-            >
-              <CheckCircle size={16} className="mr-2" />
-              Approve All
-            </button>
-            
-            <button
-              onClick={handleBulkReject}
-              disabled={bulkRejecting}
-              className={`flex items-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors text-sm ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
-              title="Reject all pending registrations"
-              hidden={viewMode === 'trash'}
-            >
-              <XCircle size={16} className="mr-2" />
-              Reject All
-            </button>
+          {/* Quick Actions Bar - Organized & Responsive */}
+          <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 md:gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Status Actions (only in active view) */}
+                {viewMode !== 'trash' && (
+                  <>
+                    <button
+                      onClick={handleBulkApprove}
+                      disabled={bulkSaving}
+                      className={`flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
+                      title="Approve all pending registrations in current filter"
+                    >
+                      <CheckCircle size={16} className="mr-2" />
+                      Approve All Pending
+                    </button>
+                    
+                    <button
+                      onClick={handleBulkReject}
+                      disabled={bulkRejecting}
+                      className={`flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
+                      title="Reject all pending registrations in current filter"
+                    >
+                      <XCircle size={16} className="mr-2" />
+                      Reject All Pending
+                    </button>
 
-            {/* Trash View Toggle */}
-            <button
-              onClick={() => setViewMode(prev => prev === 'active' ? 'trash' : 'active')}
-              className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ${
-                viewMode === 'trash'
-                  ? 'bg-gray-800 text-white hover:bg-gray-700'
-                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <Trash2 size={16} className="mr-2" />
-              {viewMode === 'trash' ? 'Back to Active' : `Trash (${deletedRegistrations.length})`}
-            </button>
+                    <div className="h-8 w-px bg-gray-300 mx-1"></div>
+                  </>
+                )}
 
-            {viewMode === 'trash' && (
-              <button
-                onClick={doBulkRestore}
-                disabled={bulkSaving}
-                className="flex items-center bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors text-sm"
-              >
-                <RotateCcw size={16} className="mr-2" />
-                Restore Selected
-              </button>
-            )}
-
-            <button
-              onClick={doBulkDelete}
-              disabled={bulkDeleting || selectedIds.size === 0}
-              className={`flex items-center bg-red-700 text-white px-3 py-2 rounded-lg transition-colors text-sm ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
-              title="Delete selected registrations"
-            >
-              {bulkDeleting ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-              ) : <Trash2 size={16} className="mr-1" />}
-              Delete Selected
-            </button>
-          </div>
-
-        {/* Export & Tools Row */}
-        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-          {/* Watermark Upload Section */}
-          <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-gray-200">
-            <span className="text-sm font-medium text-gray-600">PDF Watermark:</span>
-            {watermarkUrl ? (
-              <>
-                <img 
-                  src={watermarkUrl || undefined} 
-                  alt="Watermark preview" 
-                  className="h-8 w-auto opacity-50 border border-gray-300 rounded"
-                />
-                <span className="text-xs text-green-600 font-medium">Active</span>
+                {/* Selection Actions */}
                 <button
-                  onClick={handleWatermarkDelete}
-                  className="text-xs text-red-600 hover:text-red-700 underline"
+                  onClick={handleOpenEmailModal}
+                  disabled={selectedIds.size === 0}
+                  className={`flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                  title={`Send email to ${selectedIds.size} selected registration(s)`}
                 >
-                  Remove
+                  <Send size={16} className="mr-2" />
+                  Email Selected ({selectedIds.size})
                 </button>
-              </>
-            ) : (
-              <span className="text-xs text-gray-500">No watermark set</span>
-            )}
-            <label className={`flex items-center bg-gray-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-gray-500 transition-colors ${uploadingWatermark ? 'opacity-60 cursor-wait' : ''}`}>
-              {uploadingWatermark ? 'Uploading...' : 'Upload PNG/SVG'}
-              <input
-                type="file"
-                accept="image/png,image/svg+xml"
-                onChange={handleWatermarkUpload}
-                className="hidden"
-                disabled={uploadingWatermark}
-              />
-            </label>
 
-            <span className="text-gray-300 mx-2">|</span>
+                {viewMode === 'trash' ? (
+                  <button
+                    onClick={doBulkRestore}
+                    disabled={bulkSaving || selectedIds.size === 0}
+                    className={`flex items-center bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${bulkSaving || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-700'}`}
+                    title="Restore selected registrations"
+                  >
+                    <RotateCcw size={16} className="mr-2" />
+                    Restore Selected
+                  </button>
+                ) : null}
 
-            {/* Stamp Upload Section */}
-            <span className="text-sm font-medium text-gray-600">Stamp:</span>
-            {stampUrl ? (
-              <>
-                <img 
-                  src={stampUrl || undefined} 
-                  alt="Stamp preview" 
-                  className="h-8 w-auto border border-gray-300 rounded"
-                />
-                <span className="text-xs text-green-600 font-medium">Active</span>
                 <button
-                  onClick={handleStampDelete}
-                  className="text-xs text-red-600 hover:text-red-700 underline"
+                  onClick={doBulkDelete}
+                  disabled={bulkDeleting || selectedIds.size === 0}
+                  className={`flex items-center bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-800'}`}
+                  title={viewMode === 'trash' ? "Permanently delete selected registrations" : "Move selected to trash"}
                 >
-                  Remove
+                  {bulkDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  ) : <Trash2 size={16} className="mr-2" />}
+                  {viewMode === 'trash' ? 'Delete Forever' : 'Delete Selected'}
                 </button>
-              </>
-            ) : (
-              <span className="text-xs text-gray-500">No stamp set</span>
-            )}
-            <label className={`flex items-center bg-amber-600 text-white px-2 py-1 rounded text-xs cursor-pointer hover:bg-amber-500 transition-colors ${uploadingStamp ? 'opacity-60 cursor-wait' : ''}`}>
-              {uploadingStamp ? 'Uploading...' : 'Upload Stamp'}
-              <input
-                type="file"
-                accept="image/png,image/svg+xml"
-                onChange={handleStampUpload}
-                className="hidden"
-                disabled={uploadingStamp}
-              />
-            </label>
-          </div>
-          
-          {/* PDF Exports */}
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-gray-600 mr-2">PDF Export:</span>
-            <ExportPdfButton
-              rows={filteredRegistrations}
-              columns={pdfColumns}
-              filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
-              className={`flex items-center bg-slate-600 text-white px-3 py-1.5 rounded-lg transition-colors text-sm ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-slate-500'}`}
-              watermarkDataUrl={watermarkDataUrl}
-              stampDataUrl={stampDataUrl}
-            />
-            <button
-              onClick={() => exportRegistrationsToPDF(filteredRegistrations, {
-                filename: `registrations-report-${new Date().toISOString().slice(0,10)}.pdf`,
-                title: 'Event Registrations Report',
-                watermarkDataUrl,
-                stampDataUrl
-              })}
-              className="flex items-center bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-500 transition-colors text-sm"
-              title="Export detailed PDF with team information"
-            >
-              <FileText size={14} className="mr-1" />
-              Detailed
-            </button>
-            <button
-              onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
-              className="flex items-center bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-500 transition-colors text-sm"
-              title="Export PDF grouped by event"
-            >
-              <FileText size={14} className="mr-1" />
-              By Event
-            </button>
-            <button
-              onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
-              className="flex items-center bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-500 transition-colors text-sm"
-              title="Export PDF grouped by status"
-            >
-              <FileText size={14} className="mr-1" />
-              By Status
-            </button>
-            
-            <span className="text-gray-300 mx-2">|</span>
-            
-            <span className="text-sm font-medium text-gray-600 mr-2">Excel:</span>
-            {exportOptions.map((option, index) => (
+              </div>
+
+              {/* View Toggle */}
               <button
-                key={index}
-                onClick={option.action}
-                className={`${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-green-600 hover:bg-green-500'} text-white px-3 py-1.5 rounded-lg transition-colors flex items-center text-sm`}
+                onClick={() => setViewMode(prev => prev === 'active' ? 'trash' : 'active')}
+                className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  viewMode === 'trash'
+                    ? 'bg-gray-800 text-white hover:bg-gray-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
               >
-                {option.label === 'Send Email' ? <Send size={14} className="mr-1" /> : <Download size={14} className="mr-1" />}
-                {option.label}
+                <Trash2 size={16} className="mr-2" />
+                {viewMode === 'trash' ? 'Back to Active' : `Trash (${deletedRegistrations.length})`}
               </button>
-            ))}
+            </div>
           </div>
 
-          {/* Settings Row */}
-          <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
-            <button
-              onClick={() => setShowColumnModal(true)}
-              className="flex items-center bg-gray-700 text-white px-3 py-1.5 rounded-lg hover:bg-gray-600 transition-colors text-sm"
-              title="Choose export columns & presets"
-            >
-              <Filter size={14} className="mr-1" /> Columns
-            </button>
-            
-            <label className="flex items-center space-x-1.5 text-sm text-gray-700">
+        {/* Export Section - Organized & Responsive */}
+        <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Download size={20} className="mr-2" />
+              Export ({filteredRegistrations.length} records)
+            </h3>
+            <label className="flex items-center space-x-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                checked={pdfExcludeIdCollege}
-                onChange={(e)=>setPdfExcludeIdCollege(e.target.checked)}
+                checked={allVisibleSelected}
+                onChange={toggleSelectAllVisible}
                 className="rounded"
               />
-              <span>PDF: exclude ID & College</span>
+              <span className="font-medium">Select All Visible</span>
             </label>
-            
-            <label className="flex items-center space-x-1.5 text-sm text-gray-700">
-              <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="rounded" />
-              <span>Select all visible</span>
-            </label>
+          </div>
 
-            <span className="text-gray-300">|</span>
-
-            <div className="flex items-center gap-2">
-              <label className="flex items-center space-x-1.5 text-sm text-gray-700">
-                <input type="checkbox" checked={registrationInstitutionVisible} onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)} className="rounded" />
-                <span>Show Institution</span>
-              </label>
-              <label className="flex items-center space-x-1.5 text-sm text-gray-700">
-                <input type="checkbox" checked={registrationInstitutionOptional} onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)} disabled={!registrationInstitutionVisible} className="rounded" />
-                <span>Optional</span>
-              </label>
-              <button 
-                className={`px-2 py-1 rounded bg-yellow-600 text-white text-xs ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} 
-                disabled={savingRegSettings}
-                onClick={async () => {
-                  try {
-                    setSavingRegSettings(true);
-                    await updateSiteSettings({ registration_institution_visible: registrationInstitutionVisible, registration_institution_optional: registrationInstitutionOptional } as any);
-                  } catch (e) { console.error(e); } finally { setSavingRegSettings(false); }
-                }}
-              >Save</button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* PDF Exports */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">PDF Exports</div>
+              <div className="flex flex-col gap-2">
+                <ExportPdfButton
+                  rows={filteredRegistrations}
+                  columns={pdfColumns}
+                  filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
+                  className={`flex items-center justify-center bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-700'}`}
+                  watermarkDataUrl={watermarkDataUrl}
+                  stampDataUrl={stampDataUrl}
+                />
+                <button
+                  onClick={() => exportRegistrationsToPDF(filteredRegistrations, {
+                    filename: `registrations-detailed-${new Date().toISOString().slice(0,10)}.pdf`,
+                    title: 'Event Registrations Report',
+                    watermarkDataUrl,
+                    stampDataUrl
+                  })}
+                  className="flex items-center justify-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  title="Detailed PDF with team information"
+                >
+                  <FileText size={16} className="mr-2" />
+                  Detailed Report
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+                    className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    title="PDF grouped by event"
+                  >
+                    <FileText size={14} className="mr-1" />
+                    By Event
+                  </button>
+                  <button
+                    onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+                    className="flex items-center justify-center bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                    title="PDF grouped by status"
+                  >
+                    <FileText size={14} className="mr-1" />
+                    By Status
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <span className="text-gray-300">|</span>
-
-            <button
-              onClick={handleResetSequence}
-              className="flex items-center bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-500 transition-colors text-sm"
-              title="Reset Registration ID sequence to 1"
-            >
-              <RefreshCw size={14} className="mr-1" /> Reset IDs
-            </button>
+            {/* Excel Exports */}
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Excel Exports</div>
+              <div className="flex flex-col gap-2">
+                {exportOptions.map((option, index) => (
+                  <button
+                    key={index}
+                    onClick={option.action}
+                    className={`flex items-center justify-center ${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium`}
+                  >
+                    {option.label === 'Send Email' ? <Send size={16} className="mr-2" /> : <Download size={16} className="mr-2" />}
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Advanced Settings - Collapsible & Responsive */}
+        <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
+          <button
+            onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <Settings size={20} className="mr-2" />
+              Advanced Settings
+            </h3>
+            <ChevronDown 
+              size={20} 
+              className={`text-gray-500 transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {showAdvancedSettings && (
+            <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 border-t pt-4">
+              {/* PDF Watermark & Stamp */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Watermark Section */}
+                <div className="border border-gray-200 rounded-lg p-3">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">PDF Watermark</div>
+                  {watermarkUrl ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <img 
+                        src={watermarkUrl || undefined} 
+                        alt="Watermark preview" 
+                        className="h-10 w-auto opacity-50 border border-gray-300 rounded"
+                      />
+                      <span className="text-xs text-green-600 font-medium">Active</span>
+                      <button
+                        onClick={handleWatermarkDelete}
+                        className="ml-auto text-xs text-red-600 hover:text-red-700 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 mb-2">No watermark set</div>
+                  )}
+                  <label className={`flex items-center justify-center bg-gray-600 text-white px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-gray-700 transition-colors ${uploadingWatermark ? 'opacity-60 cursor-wait' : ''}`}>
+                    {uploadingWatermark ? 'Uploading...' : 'Upload PNG/SVG'}
+                    <input
+                      type="file"
+                      accept="image/png,image/svg+xml"
+                      onChange={handleWatermarkUpload}
+                      className="hidden"
+                      disabled={uploadingWatermark}
+                    />
+                  </label>
+                </div>
+
+                {/* Stamp Section */}
+                <div className="border border-gray-200 rounded-lg p-3">
+                  <div className="text-sm font-semibold text-gray-700 mb-2">PDF Stamp</div>
+                  {stampUrl ? (
+                    <div className="flex items-center gap-2 mb-2">
+                      <img 
+                        src={stampUrl || undefined} 
+                        alt="Stamp preview" 
+                        className="h-10 w-auto border border-gray-300 rounded"
+                      />
+                      <span className="text-xs text-green-600 font-medium">Active</span>
+                      <button
+                        onClick={handleStampDelete}
+                        className="ml-auto text-xs text-red-600 hover:text-red-700 underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 mb-2">No stamp set</div>
+                  )}
+                  <label className={`flex items-center justify-center bg-amber-600 text-white px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-amber-700 transition-colors ${uploadingStamp ? 'opacity-60 cursor-wait' : ''}`}>
+                    {uploadingStamp ? 'Uploading...' : 'Upload Stamp'}
+                    <input
+                      type="file"
+                      accept="image/png,image/svg+xml"
+                      onChange={handleStampUpload}
+                      className="hidden"
+                      disabled={uploadingStamp}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Export Options */}
+              <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+                <div className="text-sm font-semibold text-gray-700">Export Options</div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <button
+                    onClick={() => setShowColumnModal(true)}
+                    className="flex items-center bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                    title="Choose export columns & presets"
+                  >
+                    <Filter size={14} className="mr-2" />
+                    Select Columns
+                  </button>
+                  
+                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={pdfExcludeIdCollege}
+                      onChange={(e) => setPdfExcludeIdCollege(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>PDF: Exclude ID & College</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Registration Settings */}
+              <div className="border border-gray-200 rounded-lg p-3 space-y-3">
+                <div className="text-sm font-semibold text-gray-700">Registration Form Settings</div>
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={registrationInstitutionVisible}
+                      onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Show Institution Field</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={registrationInstitutionOptional}
+                      onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)}
+                      disabled={!registrationInstitutionVisible}
+                      className="rounded"
+                    />
+                    <span>Make Optional</span>
+                  </label>
+                  
+                  <button 
+                    className={`px-3 py-1.5 rounded-lg bg-yellow-600 text-white text-sm font-medium ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} 
+                    disabled={savingRegSettings}
+                    onClick={async () => {
+                      try {
+                        setSavingRegSettings(true);
+                        await updateSiteSettings({ registration_institution_visible: registrationInstitutionVisible, registration_institution_optional: registrationInstitutionOptional } as any);
+                        push({ message: 'Settings saved successfully', type: 'success' });
+                      } catch (e) {
+                        console.error(e);
+                        push({ message: 'Failed to save settings', type: 'error' });
+                      } finally {
+                        setSavingRegSettings(false);
+                      }
+                    }}
+                  >
+                    {savingRegSettings ? 'Saving...' : 'Save Settings'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Dangerous Actions */}
+              {isOwner && (
+                <div className="border border-red-200 bg-red-50 rounded-lg p-3">
+                  <div className="text-sm font-semibold text-red-700 mb-2 flex items-center">
+                    <AlertTriangle size={14} className="mr-2" />
+                    Danger Zone
+                  </div>
+                  <button
+                    onClick={handleResetSequence}
+                    className="flex items-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    title="Reset Registration ID sequence to 1 - Only use if all registrations are deleted"
+                  >
+                    <RefreshCw size={14} className="mr-2" />
+                    Reset ID Sequence
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       {showColumnModal && (
@@ -1361,196 +1465,327 @@ export function RegistrationManagement() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        {/* Special Filters Row */}
-        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-100">
-           <label className={`flex items-center space-x-2 text-sm font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer ${showDuplicatesOnly ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-              <div className="relative flex items-center">
-                <input 
-                  type="checkbox" 
-                  checked={showDuplicatesOnly} 
-                  onChange={(e) => setShowDuplicatesOnly(e.target.checked)} 
-                  className="peer appearance-none w-4 h-4 border border-gray-400 rounded checked:bg-amber-600 checked:border-amber-600 focus:ring-amber-500" 
-                />
-                <CheckCircle className="absolute w-3 h-3 text-white hidden peer-checked:block pointer-events-none left-0.5" />
-              </div>
-              <span className="flex items-center">
-                <AlertTriangle size={14} className="mr-1.5" />
-                Show Duplicates Only
+      {/* Active Filters Display */}
+      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedParticipantType !== 'all' || selectedCategory !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-blue-900 flex items-center">
+              <Filter size={16} className="mr-2" />
+              Active Filters:
+            </span>
+            
+            {selectedEvent !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Event:</span> {selectedEvent}
+                <X size={14} onClick={() => setSelectedEvent('all')} className="cursor-pointer hover:text-red-600" />
               </span>
-           </label>
-        </div>
+            )}
+            
+            {selectedStatus !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Status:</span> {selectedStatus}
+                <X size={14} onClick={() => setSelectedStatus('all')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {selectedParticipantType !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Type:</span> {selectedParticipantType}
+                <X size={14} onClick={() => setSelectedParticipantType('all')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {selectedCategory !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Category:</span> {selectedCategory}
+                <X size={14} onClick={() => setSelectedCategory('all')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {dateFrom && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">From:</span> {dateFrom}
+                <X size={14} onClick={() => setDateFrom('')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {dateTo && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">To:</span> {dateTo}
+                <X size={14} onClick={() => setDateTo('')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {searchTerm && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Search:</span> "{searchTerm}"
+                <X size={14} onClick={() => setSearchTerm('')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
+            
+            {showDuplicatesOnly && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <AlertTriangle size={14} className="text-amber-600" />
+                Duplicates Only
+                <X size={14} onClick={() => setShowDuplicatesOnly(false)} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
 
-        <div className="grid md:grid-cols-7 gap-4">
-          {/* Event Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Event</label>
-            <div className="relative">
-              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedEvent}
-                onChange={(e) => setSelectedEvent(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="all">All Events ({registrations.length})</option>
-                {uniqueEvents.map(eventTitle => (
-                  <option key={eventTitle} value={eventTitle}>
-                    {eventTitle} ({eventCounts[eventTitle] || 0})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <button
+              onClick={() => {
+                setSelectedEvent('all');
+                setSelectedStatus('all');
+                setSelectedCategory('all');
+                setSelectedParticipantType('all');
+                setSearchTerm('');
+                setDateFrom('');
+                setDateTo('');
+                setShowDuplicatesOnly(false);
+              }}
+              className="ml-auto inline-flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+            >
+              <X size={14} />
+              Clear All
+            </button>
           </div>
-
-          {/* Category Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
-            <div className="relative">
-              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="all">All Categories</option>
-                {uniqueCategories.map(category => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
-            <div className="relative">
-              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="all">All Statuses</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Participant Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Type</label>
-            <div className="relative">
-              <Users className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <select
-                value={selectedParticipantType}
-                onChange={(e) => setSelectedParticipantType(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              >
-                <option value="all">All Types ({registrations.length})</option>
-                {uniqueParticipantTypes.map(type => (
-                  <option key={type} value={type}>
-                    {type} ({participantTypeCounts[type] || 0})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Date From */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">From date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e)=>setDateFrom(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-          </div>
-
-          {/* Date To */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">To date</label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e)=>setDateTo(e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by name, email, event, or college..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              />
-            </div>
+          
+          <div className="mt-2 text-xs text-gray-600">
+            Showing <span className="font-semibold">{filteredRegistrations.length}</span> of <span className="font-semibold">{registrations.length}</span> registrations
           </div>
         </div>
+      )}
 
-        {/* Filter Summary */}
-        <div className="mt-4 flex items-center justify-between">
+      {/* Filters Section - Reorganized */}
+      <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+            <Filter size={20} className="mr-2" />
+            Filters
+          </h3>
           <div className="text-sm text-gray-600">
-            Showing {filteredRegistrations.length} of {registrations.length} registrations
+            {filteredRegistrations.length} results
           </div>
+        </div>
+
+        {/* Quick Filters */}
+        <div className="space-y-4">
+          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Filters</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {/* Event Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Event</label>
+              <div className="relative">
+                <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={selectedEvent}
+                  onChange={(e) => setSelectedEvent(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all" className="text-gray-900">All Events ({registrations.length})</option>
+                  {uniqueEvents.map(eventTitle => (
+                    <option key={eventTitle} value={eventTitle} className="text-gray-900">
+                      {eventTitle} ({eventCounts[eventTitle] || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+              <div className="relative">
+                <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all" className="text-gray-900">All Statuses</option>
+                  <option value="pending" className="text-gray-900">Pending</option>
+                  <option value="approved" className="text-gray-900">Approved</option>
+                  <option value="rejected" className="text-gray-900">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Participant Type Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
+              <div className="relative">
+                <Users className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                <select
+                  value={selectedParticipantType}
+                  onChange={(e) => setSelectedParticipantType(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all" className="text-gray-900">All Types</option>
+                  {uniqueParticipantTypes.map(type => (
+                    <option key={type} value={type} className="text-gray-900">
+                      {type} ({participantTypeCounts[type] || 0})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Search */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Name, email, college..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Advanced Filters - Collapsible */}
+        <div className="border-t pt-4">
           <button
-            onClick={() => {
-              setSelectedEvent('all');
-              setSelectedStatus('all');
-              setSelectedCategory('all');
-              setSelectedParticipantType('all');
-              setSearchTerm('');
-              setDateFrom('');
-              setDateTo('');
-              setShowDuplicatesOnly(false);
-            }}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center justify-between w-full text-left text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors"
           >
-            Clear all filters
+            <span className="flex items-center">
+              <Settings size={16} className="mr-2" />
+              Advanced Filters
+            </span>
+            <ChevronDown 
+              size={16} 
+              className={`transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
+            />
           </button>
+
+          {showAdvancedFilters && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+              {/* Category Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                <div className="relative">
+                  <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all" className="text-gray-900">All Categories</option>
+                    {uniqueCategories.map(category => (
+                      <option key={category} value={category} className="text-gray-900">
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Date From */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">From Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Date To */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">To Date</label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Duplicates Filter */}
+              <div className="md:col-span-3">
+                <label className={`inline-flex items-center space-x-3 px-4 py-2.5 rounded-lg border-2 transition-all cursor-pointer ${showDuplicatesOnly ? 'bg-amber-50 border-amber-400' : 'bg-gray-50 border-gray-200 hover:border-gray-300'}`}>
+                  <div className="relative flex items-center">
+                    <input 
+                      type="checkbox" 
+                      checked={showDuplicatesOnly} 
+                      onChange={(e) => setShowDuplicatesOnly(e.target.checked)} 
+                      className="peer appearance-none w-5 h-5 border-2 border-gray-400 rounded checked:bg-amber-600 checked:border-amber-600 focus:ring-2 focus:ring-amber-500" 
+                    />
+                    <CheckCircle className="absolute w-4 h-4 text-white hidden peer-checked:block pointer-events-none left-0.5" />
+                  </div>
+                  <span className="flex items-center text-sm font-medium">
+                    <AlertTriangle size={16} className="mr-2 text-amber-600" />
+                    Show Duplicates Only
+                    <span className="ml-2 text-xs text-gray-500">(Same email/phone for event)</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="grid md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <div className="text-3xl font-bold text-blue-600 mb-2">{registrations.length}</div>
-          <div className="text-gray-600">Total Registrations</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <div className="text-3xl font-bold text-yellow-600 mb-2">
-            {registrations.filter(r => r.status === 'pending').length}
+      {/* Statistics Cards - Enhanced & Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        {/* Total Registrations */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
+            <div className="text-3xl md:text-4xl font-bold text-blue-700">{filteredRegistrations.length}</div>
           </div>
-          <div className="text-gray-600">Pending</div>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <div className="text-3xl font-bold text-green-600 mb-2">
-            {registrations.filter(r => r.status === 'approved').length}
+          <div className="text-sm font-semibold text-gray-700">Total Registrations</div>
+          <div className="text-xs text-gray-600 mt-1">
+            {filteredRegistrations.length !== registrations.length && (
+              <span>of {registrations.length} total</span>
+            )}
           </div>
-          <div className="text-gray-600">Approved</div>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <div className="text-3xl font-bold text-red-600 mb-2">
-            {registrations.filter(r => r.status === 'rejected').length}
+
+        {/* Pending */}
+        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-amber-500 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-amber-600" />
+            <div className="text-3xl md:text-4xl font-bold text-amber-700">
+              {filteredRegistrations.filter(r => r.status === 'pending').length}
+            </div>
           </div>
-          <div className="text-gray-600">Rejected</div>
+          <div className="text-sm font-semibold text-gray-700">Pending</div>
+          <div className="text-xs text-gray-600 mt-1">Awaiting approval</div>
+        </div>
+
+        {/* Approved */}
+        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <CheckCircle className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
+            <div className="text-3xl md:text-4xl font-bold text-green-700">
+              {filteredRegistrations.filter(r => r.status === 'approved').length}
+            </div>
+          </div>
+          <div className="text-sm font-semibold text-gray-700">Approved</div>
+          <div className="text-xs text-gray-600 mt-1">Confirmed participants</div>
+        </div>
+
+        {/* Rejected */}
+        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between mb-2">
+            <XCircle className="w-6 h-6 md:w-8 md:h-8 text-red-600" />
+            <div className="text-3xl md:text-4xl font-bold text-red-700">
+              {filteredRegistrations.filter(r => r.status === 'rejected').length}
+            </div>
+          </div>
+          <div className="text-sm font-semibold text-gray-700">Rejected</div>
+          <div className="text-xs text-gray-600 mt-1">Not approved</div>
         </div>
       </div>
 

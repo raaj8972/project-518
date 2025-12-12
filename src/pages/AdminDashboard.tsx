@@ -411,13 +411,13 @@ export const AdminDashboard: React.FC = () => {
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              {/* Mobile menu button */}
+              {/* Mobile menu button - Enhanced */}
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="lg:hidden mr-3 p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                className="lg:hidden mr-3 p-2.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors active:scale-95"
                 aria-label="Toggle menu"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-7 h-7" strokeWidth={2.5} />
               </button>
               <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 mr-2 sm:mr-3" />
               <h1 className="text-base sm:text-xl font-bold text-gray-900 flex items-center gap-1 sm:gap-3">
@@ -521,19 +521,19 @@ export const AdminDashboard: React.FC = () => {
           `}
         >
           <nav className="h-full overflow-y-auto p-4">
-            {/* Mobile close button */}
+            {/* Mobile close button - Enhanced */}
             <div className="lg:hidden flex justify-between items-center mb-4 pb-3 border-b">
               <span className="font-semibold text-gray-900">Menu</span>
               <button
                 onClick={() => setIsSidebarOpen(false)}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:scale-95"
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" strokeWidth={2.5} />
               </button>
             </div>
             
-            <ul className="space-y-1">
+            <ul className="space-y-2">
               {visibleTabs.length === 0 && !isOwner && (
                 <li className="text-sm text-gray-600 p-2 rounded bg-gray-50">
                   No sections assigned yet. Ask the owner to grant you access.
@@ -548,7 +548,7 @@ export const AdminDashboard: React.FC = () => {
                         setActiveTab(tab.id);
                         setIsSidebarOpen(false); // Close sidebar on mobile when tab is selected
                       }}
-                      className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all active:scale-[0.98] ${
                         activeTab === tab.id
                           ? 'bg-yellow-50 text-yellow-700'
                           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'

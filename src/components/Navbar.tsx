@@ -172,8 +172,8 @@ export const Navbar: React.FC = () => {
                 </div>
               )}
 
-              {/* Title */}
-              <span className="text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
+              {/* Title - Responsive */}
+              <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
                 RICORRENZA {homepageSettings?.brand_year ?? 2026}
               </span>
 
@@ -222,22 +222,23 @@ export const Navbar: React.FC = () => {
             })}
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile menu button - Enhanced */}
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="cyberpunk-menu-btn p-2 rounded-lg transition-all duration-200"
+              className="cyberpunk-menu-btn p-2.5 rounded-lg transition-all duration-200 active:scale-95"
+              aria-label="Toggle menu"
             >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
+              {isOpen ? <X size={28} strokeWidth={2.5} /> : <Menu size={28} strokeWidth={2.5} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile Navigation - Enhanced */}
       {isOpen && (
         <div className="md:hidden cyberpunk-mobile-menu">
-          <div className="px-2 pt-2 pb-3 space-y-1 bg-black/95 backdrop-blur-md border-t border-pink-500/30">
+          <div className="px-3 pt-3 pb-4 space-y-2 bg-black/95 backdrop-blur-md border-t border-pink-500/30">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (

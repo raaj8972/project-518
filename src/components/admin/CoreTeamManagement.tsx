@@ -570,17 +570,17 @@ export const CoreTeamManagement: React.FC = () => {
           <p className="text-sm font-medium">You are not logged in. Adding or editing committees and team members may be blocked by security policies. Please log in via the Admin header.</p>
         </div>
       )}
-      {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Core Team Management</h2>
-          <p className="text-gray-600">Manage committees and team members for the Rico Family page</p>
+          <p className="text-sm text-gray-600 mt-1">Manage committees and team members for the Rico Family page</p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="w-full sm:w-auto">
           <div className="bg-white rounded-lg border border-gray-200 p-1">
             <button
               onClick={() => setActiveSection('committees')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none ${
                 activeSection === 'committees'
                   ? 'bg-yellow-400 text-black'
                   : 'text-gray-600 hover:text-gray-900'
@@ -590,7 +590,7 @@ export const CoreTeamManagement: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveSection('members')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none ${
                 activeSection === 'members'
                   ? 'bg-yellow-400 text-black'
                   : 'text-gray-600 hover:text-gray-900'
@@ -620,11 +620,11 @@ export const CoreTeamManagement: React.FC = () => {
             </button>
           </div>
 
-          {/* Add Committee Form */}
+          {/* Add Committee Form - Responsive */}
           {isAddingCommittee && (
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-6">Add New Committee</h4>
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-yellow-400">
+              <h4 className="text-lg font-semibold mb-4 md:mb-6">Add New Committee</h4>
+              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Committee Name *</label>
@@ -744,10 +744,10 @@ export const CoreTeamManagement: React.FC = () => {
             </div>
           )}
 
-          {/* Committees List */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Committees List - Responsive Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {sortedCommittees.map((committee) => (
-              <div key={committee.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div key={committee.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 {editingCommittee === committee.id ? (
                   <div className="p-4 space-y-4">
                     <input
@@ -957,12 +957,12 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
 
 
-          {/* Add Member Form */}
+          {/* Add Member Form - Responsive */}
           {isAddingMember && coreCommittees.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-6">Add New Team Member</h4>
-              <div className="grid lg:grid-cols-2 gap-8">
-                <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-yellow-400">
+              <h4 className="text-lg font-semibold mb-4 md:mb-6">Add New Team Member</h4>
+              <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+                <div className="space-y-4 md:space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Committee (optional)</label>
                     <select
@@ -1207,8 +1207,8 @@ export const CoreTeamManagement: React.FC = () => {
             const committeeMembers = membersByCommittee[committee.id] || [];
 
             return (
-              <div key={committee.id} className="bg-white rounded-lg shadow-md p-6">
-                <div className="flex items-center justify-between mb-4">
+              <div key={committee.id} className="bg-white rounded-lg shadow-md p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
                   <div className="flex items-center space-x-3">
                     <div
                       className="w-4 h-4 rounded-full"
@@ -1224,7 +1224,7 @@ export const CoreTeamManagement: React.FC = () => {
                         setIsAddingMember(true);
                         setMemberForm(prev => ({ ...prev, committee_id: committee.id }));
                       }}
-                      className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-500 flex items-center"
+                      className="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-500 flex items-center transition-colors"
                     >
                       <Plus size={12} className="mr-1" />
                       Add Member
@@ -1233,9 +1233,9 @@ export const CoreTeamManagement: React.FC = () => {
                 </div>
                 
                 {committeeMembers.length > 0 ? (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {committeeMembers.map((member) => (
-                    <div key={member.id} className={`border border-gray-200 rounded-lg p-4 hover:border-yellow-300 transition-colors ${editingMember === member.id ? 'md:col-span-2 lg:col-span-3' : ''}`}>
+                    <div key={member.id} className={`border border-gray-200 rounded-lg p-3 md:p-4 hover:border-yellow-300 hover:shadow-md transition-all ${editingMember === member.id ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
                       {editingMember === member.id ? (
                         <div className="space-y-3">
                           {/* Action Buttons - Top */}
