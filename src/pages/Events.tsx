@@ -1076,7 +1076,12 @@ export const Events: React.FC = () => {
                                   <div className="flex items-center justify-between px-4 py-3">
                                   <div className="text-sm font-semibold text-white truncate">{ev.title} — Event Rules</div>
                                 </div>
-                                <div className="rules-scroll max-h-[60vh] overflow-y-auto p-4 space-y-3">
+                                <div 
+                                  className="rules-scroll max-h-[60vh] overflow-y-auto p-4 space-y-3"
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                  onTouchMove={(e) => e.stopPropagation()}
+                                  onTouchEnd={(e) => e.stopPropagation()}
+                                >
                                   {isStructuredRules(ev.rules) ? (
                                   unpackStructured(ev.rules).slice(0, 10).map((sec, sIdx) => (
                                     <div key={sIdx} className="space-y-2">
