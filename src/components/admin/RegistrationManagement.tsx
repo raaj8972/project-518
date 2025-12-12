@@ -449,8 +449,6 @@ export function RegistrationManagement() {
       registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       registration.college.toLowerCase().includes(searchTerm.toLowerCase());
     
     // Duplicate filter
@@ -509,9 +507,18 @@ export function RegistrationManagement() {
   };
 
   // Get unique event titles, categories, and participant types for filter dropdowns
-  const uniqueEvents = Array.from(new Set(registrations.map(reg => reg.event_title)));
-  const uniqueCategories = Array.from(new Set(registrations.map(reg => (reg as any).event_category).filter(Boolean)));
-  const uniqueParticipantTypes = Array.from(new Set(registrations.map(reg => reg.participant_type).filter(Boolean)));
+  const uniqueEvents = useMemo(() => 
+    Array.from(new Set(registrations.map(reg => reg.event_title))), 
+    [registrations]
+  );
+  const uniqueCategories = useMemo(() => 
+    Array.from(new Set(registrations.map(reg => (reg as any).event_category).filter(Boolean))), 
+    [registrations]
+  );
+  const uniqueParticipantTypes = useMemo(() => 
+    Array.from(new Set(registrations.map(reg => reg.participant_type).filter(Boolean))), 
+    [registrations]
+  );
   
   // Compute counts per event for the dropdown
   const eventCounts = useMemo(() => {
@@ -652,33 +659,51 @@ export function RegistrationManagement() {
 
   const handleDeleteRegistration = async (registrationId: string) => {
     // Prevent multiple delete attempts
-    if (deletingIds.has(registrationId)) return;
+    if (deletingIds.has(registrationId)) {
+      console.log('[Delete] Already deleting registration:', registrationId);
+      return;
+    }
 
     const registration = registrations.concat(deletedRegistrations).find(r => r.id === registrationId);
     if (!registration) {
+      console.error('[Delete] Registration not found:', registrationId);
       push({ message: 'Registration not found.', type: 'error' });
       return;
     }
 
     const isTrash = viewMode === 'trash';
     const confirmMessage = isTrash
-      ? `PERMANENTLY DELETE registration for "${registration.full_name}"?\n\nThis cannot be undone.`
-      : `Move registration for "${registration.full_name}" to Trash?`;
+      ? `PERMANENTLY DELETE registration for \"${registration.full_name}\"?\n\nThis cannot be undone.`
+      : `Move registration for \"${registration.full_name}\" to Trash?`;
     
-    if (confirm(confirmMessage)) {
+    const confirmed = confirm(confirmMessage);
+    console.log('[Delete] User confirmation:', confirmed, 'ViewMode:', viewMode);
+    
+    if (confirmed) {
       setDeletingIds(prev => new Set(prev).add(registrationId));
       try {
+        console.log('[Delete] Starting deletion process for:', registrationId, 'isTrash:', isTrash);
         if (isTrash) {
           await permanentDeleteRegistration(registrationId);
+          console.log('[Delete] Permanent delete successful');
           push({ message: 'Registration permanently deleted.', type: 'success' });
         } else {
+          console.log('[Delete] Calling soft delete function...');
           await deleteRegistration(registrationId);
+          console.log('[Delete] Soft delete successful');
           push({ message: 'Registration moved to Trash.', type: 'success' });
         }
         if (expandedRegistration === registrationId) setExpandedRegistration(null);
-      } catch (error) {
-        console.error('Error deleting registration:', error);
-        push({ message: 'Failed to delete registration.', type: 'error' });
+      } catch (error: any) {
+        console.error('[Delete] Error deleting registration:', error);
+        console.error('[Delete] Error details:', {
+          message: error?.message,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+        });
+        const errorMessage = error?.message || 'Failed to delete registration.';
+        push({ message: `Failed to delete: ${errorMessage}`, type: 'error' });
       } finally {
         setDeletingIds(prev => { const n = new Set(prev); n.delete(registrationId); return n; });
       }

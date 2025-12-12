@@ -1559,7 +1559,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Tier 3: Admin Data (Auth Gated) - Registrations, Auditions, Memberships, AdminUsers
   const fetchAdminData = async () => {
     try {
-      // Parallel fetch for admin tables
+      // Parallel fetch for admin tables - separate active and deleted registrations
       const [registrationsRes, auditionsRes, membershipsRes] = await Promise.all([
         supabase.from('registrations').select('*').order('created_at', { ascending: false }),
         supabase.from('auditions').select('*').order('created_at', { ascending: false }),
@@ -1569,7 +1569,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
       else {
         // Decrypt sensitive data (email, phone, college)
-        const decrypted = (registrationsRes.data || []).map((r: any) => {
+        const allRegistrations = (registrationsRes.data || []).map((r: any) => {
            try {
              return {
                ...r,
@@ -1579,7 +1579,15 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
              };
            } catch { return r; }
         });
-        setRegistrations(decrypted);
+        
+        // Separate active registrations from deleted ones based on deleted_at field
+        const active = allRegistrations.filter((r: any) => !r.deleted_at);
+        const deleted = allRegistrations.filter((r: any) => r.deleted_at);
+        
+        console.log('[DataContext] Fetched registrations - Active:', active.length, 'Deleted:', deleted.length);
+        
+        setRegistrations(active);
+        setDeletedRegistrations(deleted);
       }
 
       if (auditionsRes.error) markErr('Error fetching auditions', auditionsRes.error);
@@ -3443,8 +3451,29 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
 
   const deleteRegistration = async (id: string) => {
     // Soft delete: set deleted_at to NOW()
-    const { error } = await supabase.from('registrations').update({ deleted_at: new Date().toISOString() }).eq('id', id);
-    if (error) throw error;
+    console.log('[DataContext] deleteRegistration called for ID:', id);
+    const timestamp = new Date().toISOString();
+    console.log('[DataContext] Setting deleted_at to:', timestamp);
+    
+    const { data, error } = await supabase
+      .from('registrations')
+      .update({ deleted_at: timestamp })
+      .eq('id', id)
+      .select();
+    
+    console.log('[DataContext] Delete query response:', { data, error });
+    
+    if (error) {
+      console.error('[DataContext] Delete failed with error:', error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      console.warn('[DataContext] Update returned no rows - registration may not exist or RLS policy may be blocking');
+      throw new Error('Registration not found or update blocked');
+    }
+    
+    console.log('[DataContext] Soft delete successful, refreshing data...');
     await fetchData(true);
   };
 
