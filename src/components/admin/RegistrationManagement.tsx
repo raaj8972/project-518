@@ -3,7 +3,7 @@ import {
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
-  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings
+  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
@@ -93,6 +93,9 @@ export function RegistrationManagement() {
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
   const [logsLoading, setLogsLoading] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  
+  // Email status tracking: map registration ID to email sent status
+  const [emailStatusMap, setEmailStatusMap] = useState<Record<string, { sent: boolean; count: number }>>({})
 
   // Download handler for participant photos
   const downloadPhoto = async (photoUrl: string, participantName: string) => {
@@ -548,6 +551,43 @@ export function RegistrationManagement() {
     });
     return counts;
   }, [registrations, selectedEvent]);
+
+  // Fetch email status for all visible registrations
+  useEffect(() => {
+    const fetchEmailStatuses = async () => {
+      try {
+        const regIds = filteredRegistrations.map(r => r.id);
+        if (regIds.length === 0) return;
+        
+        // Fetch confirmation email logs for all visible registrations
+        const { data, error } = await supabase
+          .from('email_logs')
+          .select('registration_id, status, template_type')
+          .in('registration_id', regIds)
+          .eq('template_type', 'confirmation');
+        
+        if (error) throw error;
+        
+        // Build status map
+        const statusMap: Record<string, { sent: boolean; count: number }> = {};
+        data?.forEach(log => {
+          if (!statusMap[log.registration_id]) {
+            statusMap[log.registration_id] = { sent: false, count: 0 };
+          }
+          if (log.status === 'sent') {
+            statusMap[log.registration_id].sent = true;
+          }
+          statusMap[log.registration_id].count++;
+        });
+        
+        setEmailStatusMap(statusMap);
+      } catch (err) {
+        console.error('Error fetching email statuses:', err);
+      }
+    };
+    
+    fetchEmailStatuses();
+  }, [filteredRegistrations]);
 
   // Helper to send approval email (extracted for reuse)
   const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
@@ -1841,15 +1881,42 @@ export function RegistrationManagement() {
                             </div>
                           )}
                         </div>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {registration.full_name}
-                            {duplicateIds.has(registration.id) && (
-                              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded textxs font-medium bg-amber-100 text-amber-800" title="Possible duplicate registration (same email/phone for this event)">
-                                <AlertTriangle size={12} className="mr-1" />
+                          <div className="flex-1">
+                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                              {registration.full_name}
+                              {duplicateIds.has(registration.id) && (
+                              <span
+                                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200"
+                                title="Duplicate registration detected for this event + email/phone"
+                              >
                                 Duplicate
                               </span>
                             )}
+                              {/* Email Status Indicator */}
+                              {registration.status === 'approved' && (() => {
+                                const emailStatus = emailStatusMap[registration.id];
+                                if (emailStatus?.sent) {
+                                  return (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-50 text-green-700 border border-green-200"
+                                      title={`Confirmation email sent (${emailStatus.count} time${emailStatus.count > 1 ? 's' : ''})`}
+                                    >
+                                      <MailCheck size={10} />
+                                      Sent
+                                    </span>
+                                  );
+                                } else {
+                                  return (
+                                    <span
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200"
+                                      title="Confirmation email not sent"
+                                    >
+                                      <MailX size={10} />
+                                      Not Sent
+                                    </span>
+                                  );
+                                }
+                              })()}
                           </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <Mail size={12} className="mr-1" />
@@ -1937,6 +2004,21 @@ export function RegistrationManagement() {
                                     const success = await sendApprovalEmail(registration);
                                     if (success) {
                                         push({ message: `Email sent to ${registration.full_name}`, type: 'success' });
+                                        // Refresh email status
+                                        const { data } = await supabase
+                                          .from('email_logs')
+                                          .select('registration_id, status, template_type')
+                                          .eq('registration_id', registration.id)
+                                          .eq('template_type', 'confirmation');
+                                        if (data && data.length > 0) {
+                                          setEmailStatusMap(prev => ({
+                                            ...prev,
+                                            [registration.id]: { 
+                                              sent: data.some(log => log.status === 'sent'), 
+                                              count: data.length 
+                                            }
+                                          }));
+                                        }
                                     } else {
                                         push({ message: `Failed to send email to ${registration.full_name}`, type: 'error' });
                                     }

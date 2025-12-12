@@ -252,7 +252,15 @@ export default async (req: Request) => {
     if (result.success) {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     } else {
-        return new Response(JSON.stringify({ error: 'Failed to send', details: result.error }), { status: 500, headers });
+        console.error('[send-custom-email] Email sending failed:', result.error);
+        console.error('[send-custom-email] Error details:', result.details);
+        
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'Failed to send custom email',
+          message: result.error || 'Unknown error',
+          details: result.details || {}
+        }), { status: 500, headers });
     }
 
   } catch (error: any) {

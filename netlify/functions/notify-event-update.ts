@@ -295,7 +295,8 @@ export default async (req: Request) => {
                     });
                 }
                 else {
-                    errors.push({ email: reg.email, error: res.error });
+                    console.error('[notify-event-update] Failed to send to:', reg.email, 'Error:', res.error);
+                    errors.push({ email: reg.email, error: res.error, details: res.details });
                     logs.push({
                         recipient_email: reg.email,
                         template_type: 'update',
@@ -303,7 +304,7 @@ export default async (req: Request) => {
                         provider: provider,
                         event_id: eventId,
                         registration_id: reg.id,
-                        details: { eventTitle, newDetails, error: res.error, updateType }
+                        details: { eventTitle, newDetails, error: res.error, errorDetails: res.details, updateType }
                     });
                 }
             } catch (e: any) {

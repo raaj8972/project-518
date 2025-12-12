@@ -242,9 +242,14 @@ export default async (req: Request) => {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers });
     } else {
         console.error('[send-confirmation] Email sending failed:', result.error);
+        console.error('[send-confirmation] Error details:', result.details);
+        
+        // Return detailed error information
         return new Response(JSON.stringify({ 
-          error: 'Failed to send email', 
-          details: result.error?.toString?.() || String(result.error)
+          success: false,
+          error: 'Failed to send confirmation email', 
+          message: result.error || 'Unknown error',
+          details: result.details || {}
         }), { status: 500, headers });
     }
 
