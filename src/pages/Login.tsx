@@ -377,19 +377,30 @@ export const Login: React.FC = () => {
                       type="button"
                       onClick={async () => {
                         setIsLoading(true);
+                        setError('');
                         const res = await loginWithPasskey();
-                        setIsLoading(false);
                         if (res.success) {
+                          // Navigate immediately without reload for faster experience
                           navigate('/admin');
                         } else {
-                          setError(res.error || 'Passkey login failed');
+                          setIsLoading(false);
+                          setError(res.error || 'Biometric login failed');
                         }
                       }}
                       className="cyberpunk-btn cyberpunk-btn-secondary w-full flex items-center justify-center"
                       disabled={isLoading}
                     >
-                      <Fingerprint className="mr-2" size={20} />
-                      <span className="relative z-10">LOGIN WITH BIOMETRIC</span>
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mr-2"></div>
+                          <span className="relative z-10">AUTHENTICATING...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Fingerprint className="mr-2" size={20} />
+                          <span className="relative z-10">LOGIN WITH BIOMETRIC</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 )}

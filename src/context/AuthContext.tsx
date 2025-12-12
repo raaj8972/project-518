@@ -474,25 +474,43 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const loginWithPasskey = async (): Promise<{ success: boolean; error?: string }> => {
     try {
-      // 1. Get challenge
-      const challengeResp = await fetch('/.netlify/functions/passkey-challenge', {
+      // Set timeout for each fetch to prevent hanging
+      const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 10000) => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        
+        try {
+          const response = await fetch(url, { ...options, signal: controller.signal });
+          clearTimeout(timeout);
+          return response;
+        } catch (error: any) {
+          clearTimeout(timeout);
+          if (error.name === 'AbortError') {
+            throw new Error('Request timeout - please try again');
+          }
+          throw error;
+        }
+      };
+
+      // 1. Get challenge (with timeout)
+      const challengeResp = await fetchWithTimeout('/.netlify/functions/passkey-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login' }),
-      });
+      }, 10000); // 10 second timeout
 
       if (!challengeResp.ok) throw new Error('Failed to get login challenge');
       const options = await challengeResp.json();
 
-      // 2. Prompt user for passkey
+      // 2. Prompt user for passkey (this is native and can't timeout)
       const assertion = await startAuthentication(options);
 
-      // 3. Verify with server
-      const verifyResp = await fetch('/.netlify/functions/passkey-login', {
+      // 3. Verify with server (with timeout)
+      const verifyResp = await fetchWithTimeout('/.netlify/functions/passkey-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: assertion }),
-      });
+      }, 10000); // 10 second timeout
 
       if (!verifyResp.ok) {
         const err = await verifyResp.json();
@@ -510,15 +528,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         if (error) throw error;
         
-        // Reload to update the auth state
-        window.location.href = '/admin';
+        // Don't reload, just navigate - faster
         return { success: true };
       }
 
       throw new Error('No session returned');
     } catch (error: any) {
       console.error('Passkey login error:', error);
-      return { success: false, error: error.message || 'Failed to login with passkey' };
+      let errorMessage = error.message || 'Failed to login with passkey';
+      
+      // Provide user-friendly error messages
+      if (errorMessage.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your internet and try again.';
+      } else if (errorMessage.includes('AbortError') || errorMessage.includes('cancelled')) {
+        errorMessage = 'Authentication cancelled';
+      } else if (errorMessage.includes('NotAllowedError')) {
+        errorMessage = 'Biometric authentication was cancelled or not allowed';
+      }
+      
+      return { success: false, error: errorMessage };
     }
   };
 
