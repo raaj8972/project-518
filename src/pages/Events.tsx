@@ -1060,79 +1060,112 @@ export const Events: React.FC = () => {
                         </div>
                       )}
                     </button>
-                      {/* Mobile Rules Modal via Portal */}
+                      {/* Mobile Rules Modal - Bottom Sheet Style (Rewritten for stability) */}
                       {rulesModalFor != null && (() => {
-                        const ev = filteredEvents.find((e:any) => e.id === rulesModalFor);
+                        const ev = filteredEvents.find((e: any) => e.id === rulesModalFor);
                         if (!ev || typeof document === 'undefined') return null;
                         const rulesUrl = (ev as any).rules_link || (ev as any).rules_url || (ev as any).rules_file_url || (ev as any).rules_drive_link || null;
-                        const close = closeRulesModal;
+                        
+                        // Flatten rules for simple rendering
+                        let ruleItems: string[] = [];
+                        try {
+                          if (isStructuredRules(ev.rules)) {
+                            const sections = unpackStructured(ev.rules).slice(0, 10);
+                            sections.forEach((sec) => {
+                              if (String(sec.heading || '').trim()) ruleItems.push(`**${String(sec.heading)}**`);
+                              (sec.blocks || []).slice(0, 10).forEach((b) => {
+                                if (String(b.title || '').trim()) ruleItems.push(`*${String(b.title)}*`);
+                                (b.items || []).slice(0, 30).forEach((item) => {
+                                  ruleItems.push(typeof item === 'object' ? JSON.stringify(item) : String(item));
+                                });
+                              });
+                            });
+                          } else {
+                            ruleItems = (ev.rules || []).slice(0, 50).map((r: any) => 
+                              typeof r === 'object' ? JSON.stringify(r) : String(r)
+                            );
+                          }
+                        } catch { ruleItems = ['Error loading rules']; }
+
                         return createPortal(
-                          <div className="fixed inset-0 z-[3000] md:hidden" onClick={close}>
-                            {/* CRITICAL FIX: Removed backdrop-blur-md to prevent GPU crash on older iOS/Android devices when overlaying 3D elements */}
-                            <div className="absolute inset-0 bg-black/80 animate-[fadeIn_180ms_ease-out]" />
-                            <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
-                              <div className="relative mx-auto w-full max-w-lg pointer-events-auto rules-panel-wrap" onClick={(e)=>e.stopPropagation()}>
-                                <div className="rules-panel rounded-2xl overflow-hidden transform animate-[slideUp_220ms_cubic-bezier(.2,.8,.2,1)]">
-                                  <div className="flex items-center justify-between px-4 py-3">
-                                  <div className="text-sm font-semibold text-white truncate">{ev.title} — Event Rules</div>
-                                </div>
-                                <div 
-                                  className="rules-scroll max-h-[60vh] overflow-y-auto p-4 space-y-3"
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                  onTouchMove={(e) => e.stopPropagation()}
-                                  onTouchEnd={(e) => e.stopPropagation()}
+                          <div 
+                            className="fixed inset-0 z-[9999] md:hidden"
+                            style={{ touchAction: 'none' }}
+                          >
+                            {/* Backdrop - tap to close */}
+                            <div 
+                              className="absolute inset-0 bg-black/85"
+                              onClick={closeRulesModal}
+                              style={{ animation: 'fadeIn 150ms ease-out' }}
+                            />
+                            
+                            {/* Bottom Sheet Container */}
+                            <div 
+                              className="absolute bottom-0 left-0 right-0 bg-[#111] rounded-t-3xl max-h-[80vh] flex flex-col"
+                              style={{ 
+                                animation: 'slideUp 200ms ease-out',
+                                touchAction: 'pan-y'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                              onTouchMove={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => e.stopPropagation()}
+                            >
+                              {/* Drag Handle */}
+                              <div className="flex justify-center py-3">
+                                <div className="w-10 h-1 bg-gray-500 rounded-full" />
+                              </div>
+                              
+                              {/* Header */}
+                              <div className="px-5 pb-3 border-b border-white/10 flex items-center justify-between">
+                                <h3 className="text-white font-semibold text-base truncate pr-4">
+                                  {ev.title} — Rules
+                                </h3>
+                                <button 
+                                  onClick={closeRulesModal}
+                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white text-lg"
+                                  style={{ WebkitTapHighlightColor: 'transparent' }}
                                 >
-                                  {isStructuredRules(ev.rules) ? (
-                                  unpackStructured(ev.rules).slice(0, 10).map((sec, sIdx) => (
-                                    <div key={sIdx} className="space-y-2">
-                                      {String(sec.heading || '').trim() && <div className="rule-heading">{String(sec.heading)}</div>}
-                                        {(sec.blocks || []).slice(0, 10).map((b, bIdx) => (
-                                          <div key={bIdx} className="space-y-1">
-                                            {String(b.title || '').trim() && <div className="rule-subheading">{String(b.title)}</div>}
-                                            {(b.style || 'number') === 'bullet' ? (
-                                              <ul className="list-disc list-inside space-y-1">
-                                                {b.items.filter(p=>p && String(p).trim()).slice(0, 30).map((p, i) => (
-                                                  <li key={i} className="rule-text text-[13px] leading-snug">
-                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
-                                                  </li>
-                                                ))}
-                                              </ul>
-                                            ) : (
-                                              b.items.filter(p=>p && String(p).trim()).slice(0, 30).map((p, i) => (
-                                                <div key={i} className="flex items-start rule-line">
-                                                  <span className="rule-index mr-2 mt-0.5 text-[13px]">{i + 1}.</span>
-                                                  <span className="rule-text text-[13px] leading-snug">
-                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
-                                                  </span>
-                                                </div>
-                                              ))
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ))
-                                  ) : (
-                                    (ev.rules || []).slice(0, 50).map((rule: string, i: number) => (
-                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[14px]">{i + 1}.</span><span className="rule-text text-[15px] leading-snug">{typeof rule === 'object' ? JSON.stringify(rule) : String(rule)}</span></div>
-                                    ))
-                                  )}
-                                  {rulesUrl && (
-                                    <div className="pt-2">
-                                      <a href={rulesUrl} target="_blank" rel="noreferrer" className="inline-flex items-center text-[11px] px-2 py-1 rounded border border-white/10 hover:border-white/30 bg-white/5">
-                                        <ExternalLink className="w-4 h-4 mr-1" />
-                                        Open PDF/Drive
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Close button moved outside panel so it's not clipped by overflow */}
-                                <button onClick={close} aria-label="Close rules" className="rules-close absolute top-3 right-3 z-[9999] p-3 rounded-full bg-[rgba(255,255,255,0.02)] text-white/90 shadow-md touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>✕</button>
-                                </div>
-                                </div>
+                                  ✕
+                                </button>
+                              </div>
+                              
+                              {/* Scrollable Content */}
+                              <div 
+                                className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+                                style={{ WebkitOverflowScrolling: 'touch' }}
+                              >
+                                <ol className="list-decimal list-inside space-y-2 text-gray-200 text-sm leading-relaxed">
+                                  {ruleItems.map((item, i) => {
+                                    // Render headings differently
+                                    if (item.startsWith('**') && item.endsWith('**')) {
+                                      return <li key={i} className="list-none font-bold text-white mt-4 first:mt-0">{item.slice(2, -2)}</li>;
+                                    }
+                                    if (item.startsWith('*') && item.endsWith('*')) {
+                                      return <li key={i} className="list-none font-medium text-pink-300 mt-2">{item.slice(1, -1)}</li>;
+                                    }
+                                    return <li key={i}>{item}</li>;
+                                  })}
+                                </ol>
+                                
+                                {/* PDF/Drive Link */}
+                                {rulesUrl && (
+                                  <a 
+                                    href={rulesUrl} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="mt-4 inline-flex items-center text-sm px-3 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10"
+                                  >
+                                    <ExternalLink className="w-4 h-4 mr-2" />
+                                    View Full Rules PDF
+                                  </a>
+                                )}
+                              </div>
                             </div>
+                            
                             <style>{`
                               @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-                              @keyframes slideUp { from { transform: translateY(8px) scale(.995); opacity: 0.98 } to { transform: translateY(0) scale(1); opacity: 1 } }
+                              @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
                             `}</style>
                           </div>,
                           document.body
