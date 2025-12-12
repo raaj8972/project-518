@@ -76,6 +76,7 @@ export function RegistrationManagement() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
+  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all'); // 'all', 'sent', 'not-sent'
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
     // Allow other admin panels to pre-fill the search via localStorage key
     const [searchTerm, setSearchTerm] = useState(() => {
@@ -461,6 +462,17 @@ export function RegistrationManagement() {
     // Duplicate filter
     const matchesDuplicate = showDuplicatesOnly ? duplicateIds.has(registration.id) : true;
 
+    // Email status filter (only for approved registrations)
+    let matchesEmailStatus = true;
+    if (selectedEmailStatus !== 'all' && registration.status === 'approved') {
+      const emailStatus = emailStatusMap[registration.id];
+      if (selectedEmailStatus === 'sent') {
+        matchesEmailStatus = emailStatus?.sent === true;
+      } else if (selectedEmailStatus === 'not-sent') {
+        matchesEmailStatus = !emailStatus || emailStatus.sent !== true;
+      }
+    }
+
     // Date range filter (inclusive). Uses local timezone for inputs.
     let matchesDate = true;
     try {
@@ -475,7 +487,7 @@ export function RegistrationManagement() {
       }
     } catch {}
     
-    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate;
+    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate && matchesEmailStatus;
   });
 
   // Selection helpers (needs filteredRegistrations)
@@ -1506,7 +1518,7 @@ export function RegistrationManagement() {
       )}
 
       {/* Active Filters Display */}
-      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedParticipantType !== 'all' || selectedCategory !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
+      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedParticipantType !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-blue-900 flex items-center">
@@ -1562,6 +1574,13 @@ export function RegistrationManagement() {
                 <X size={14} onClick={() => setSearchTerm('')} className="cursor-pointer hover:text-red-600" />
               </span>
             )}
+
+            {selectedEmailStatus !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
+                <span className="text-xs text-gray-500">Email:</span> {selectedEmailStatus === 'sent' ? '✓ Sent' : '✗ Not Sent'}
+                <X size={14} onClick={() => setSelectedEmailStatus('all')} className="cursor-pointer hover:text-red-600" />
+              </span>
+            )}
             
             {showDuplicatesOnly && (
               <span className="inline-flex items-center gap-1 bg-white px-3 py-1 rounded-full text-sm font-medium text-gray-700 border border-gray-300 hover:border-blue-400 transition-colors">
@@ -1577,6 +1596,7 @@ export function RegistrationManagement() {
                 setSelectedStatus('all');
                 setSelectedCategory('all');
                 setSelectedParticipantType('all');
+                setSelectedEmailStatus('all');
                 setSearchTerm('');
                 setDateFrom('');
                 setDateTo('');
@@ -1668,6 +1688,25 @@ export function RegistrationManagement() {
                 </select>
               </div>
             </div>
+
+            {/* Email Status Filter - Only show for active view (not trash) */}
+            {viewMode === 'active' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Status</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400 pointer-events-none" />
+                  <select
+                    value={selectedEmailStatus}
+                    onChange={(e) => setSelectedEmailStatus(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all" className="text-gray-900">All Emails</option>
+                    <option value="sent" className="text-gray-900">✓ Email Sent</option>
+                    <option value="not-sent" className="text-gray-900">✗ Email Not Sent</option>
+                  </select>
+                </div>
+              </div>
+            )}
 
             {/* Search */}
             <div>

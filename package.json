@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "dev:netlify": "netlify dev -c \"npm run dev\"",
+    "prebuild": "node scripts/update-sitemap.mjs",
     "build": "vite build",
     "test": "vitest",
     "lint": "eslint .",

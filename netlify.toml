@@ -1,6 +1,11 @@
 [build]
   command = "npm run build"
   publish = "dist"
+
+# Enable Netlify's built-in prerendering for better SEO
+# This crawls your SPA and generates static HTML for all routes
+[[plugins]]
+  package = "@netlify/plugin-sitemap"
   
 [build.environment]
   NODE_VERSION = "20"
