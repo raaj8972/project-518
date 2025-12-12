@@ -2048,6 +2048,39 @@ export const Events: React.FC = () => {
       .front-video::-webkit-media-controls-start-playback-button,
       .front-video::-webkit-media-controls-overlay-play-button,
       .front-video::-webkit-media-controls { display: none !important; -webkit-appearance: none; }
+        /* ========== MOBILE PERFORMANCE OPTIMIZATIONS ========== */
+        /* Disable expensive 3D effects on mobile to prevent crashes */
+        @media (max-width: 767px) {
+          .flip-3d, .tilt-card, .neon-anim-border {
+            transform: none !important;
+            transform-style: flat !important;
+            perspective: none !important;
+          }
+          
+          .flip-3d-inner {
+            transform: none !important;
+          }
+          
+          .neon-anim-border {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            border: 1px solid rgba(236,72,153,0.4) !important;
+            background: linear-gradient(180deg, rgba(20,20,30,0.95), rgba(10,10,20,0.98)) !important;
+          }
+          
+          .neon-anim-border::before,
+          .neon-anim-border::after,
+          .flip-front::after {
+            display: none !important;
+          }
+          
+          /* Disable tilt variables */
+          .tilt-card {
+            --rx: 0deg !important;
+            --ry: 0deg !important;
+            --ty: 0 !important;
+          }
+        }
+
       `}</style>
     </div>
   );
