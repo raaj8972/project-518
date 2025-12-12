@@ -2051,33 +2051,25 @@ export const Events: React.FC = () => {
         /* ========== MOBILE PERFORMANCE OPTIMIZATIONS ========== */
         /* Disable expensive 3D effects on mobile to prevent crashes */
         @media (max-width: 767px) {
-          .flip-3d, .tilt-card, .neon-anim-border {
-            transform: none !important;
-            transform-style: flat !important;
-            perspective: none !important;
+          /* Disable tilt effect on mobile */
+          .tilt-card {
+            --rx: 0deg !important;
+            --ry: 0deg !important;
+            --ty: 0 !important;
           }
           
-          .flip-3d-inner {
-            transform: none !important;
-          }
-          
+          /* Simplify neon borders */
           .neon-anim-border {
             box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
             border: 1px solid rgba(236,72,153,0.4) !important;
             background: linear-gradient(180deg, rgba(20,20,30,0.95), rgba(10,10,20,0.98)) !important;
           }
           
+          /* Remove expensive pseudo-elements */
           .neon-anim-border::before,
           .neon-anim-border::after,
           .flip-front::after {
             display: none !important;
-          }
-          
-          /* Disable tilt variables */
-          .tilt-card {
-            --rx: 0deg !important;
-            --ry: 0deg !important;
-            --ty: 0 !important;
           }
         }
 
