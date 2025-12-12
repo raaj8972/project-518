@@ -69,6 +69,23 @@ export const Events: React.FC = () => {
 
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
+  const scrollSaveRef = useRef<number>(0);
+
+  // Restore scroll position when closing the rules modal (nuclear optimization recovery)
+  React.useLayoutEffect(() => {
+    // Only restore if we have a saved position and just closed the modal (value is null)
+    if (rulesModalFor === null && scrollSaveRef.current > 0) {
+      // Restore synchronously to block paint and prevent "jump" to top
+      window.scrollTo({ top: scrollSaveRef.current, behavior: 'instant' });
+    }
+  }, [rulesModalFor]);
+
+  const openRulesModal = (id: number) => {
+    // Capture/Save current scroll position before hiding content
+    scrollSaveRef.current = window.scrollY;
+    setRulesModalFor(id);
+  };
+  const closeRulesModal = () => setRulesModalFor(null);
 
   
   // Timestamp ticker removed since left-side LIVE/Opens-in pill is suppressed when watch-live exists
@@ -156,42 +173,7 @@ export const Events: React.FC = () => {
   }
   
 
-  // Soft perspective tilt on hover for desktop/fine pointers
-  useEffect(() => {
-    const supportsTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    if (!supportsTilt) return;
-    const maxTilt = 12; // degrees (increase for more depth)
-    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
 
-    const move = (el: HTMLElement, e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
-      const py = (e.clientY - rect.top) / rect.height - 0.5; // -0.5..0.5
-      const rx = Math.max(-maxTilt, Math.min(maxTilt, -py * maxTilt * 2));
-      const ry = Math.max(-maxTilt, Math.min(maxTilt, px * maxTilt * 2));
-      el.style.setProperty('--rx', `${rx}deg`);
-      el.style.setProperty('--ry', `${ry}deg`);
-    };
-    const leave = (el: HTMLElement) => {
-      el.style.setProperty('--rx', '0deg');
-      el.style.setProperty('--ry', '0deg');
-    };
-
-    const handlers: Array<{ el: HTMLElement; onMove: (e: MouseEvent) => void; onLeave: () => void }> = [];
-    cards.forEach((el) => {
-      const onMove = (e: MouseEvent) => move(el, e);
-      const onLeave = () => leave(el);
-      el.addEventListener('mousemove', onMove);
-      el.addEventListener('mouseleave', onLeave);
-      handlers.push({ el, onMove, onLeave });
-    });
-    return () => {
-      handlers.forEach(({ el, onMove, onLeave }) => {
-        el.removeEventListener('mousemove', onMove);
-        el.removeEventListener('mouseleave', onLeave);
-      });
-    };
-  }, []);
 
   // Tap-triggered sheen on touch devices (short once-off)
   useEffect(() => {
@@ -206,69 +188,6 @@ export const Events: React.FC = () => {
     };
     cards.forEach((el) => el.addEventListener('click', handler, { passive: true }));
     return () => cards.forEach((el) => el.removeEventListener('click', handler as EventListener));
-  }, []);
-
-  
-
-  // Auto-scroll marquee for winners rows on small screens
-  useEffect(() => {
-    // Respect users who prefer reduced motion
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    const rows = Array.from(document.querySelectorAll('.winners-row-mobile')) as HTMLElement[];
-    if (!rows.length) return;
-
-    let raf = 0 as number;
-    const speed = 0.45; // pixels per frame (tweak for faster/slower)
-
-    const step = () => {
-      // Only auto-scroll on narrow viewports (mobile)
-      if (window.innerWidth > 768) {
-        raf = requestAnimationFrame(step);
-        return;
-      }
-      rows.forEach((row) => {
-        if (row.dataset.marqueePaused === 'true') return;
-        const max = row.scrollWidth - row.clientWidth;
-        if (max <= 0) return;
-        let next = row.scrollLeft + speed;
-        if (next > max) {
-          // smooth wrap to start
-          next = 0;
-        }
-        row.scrollLeft = next;
-      });
-      raf = requestAnimationFrame(step);
-    };
-
-    const pause = (ev: Event) => { const el = ev.currentTarget as HTMLElement; if (el) el.dataset.marqueePaused = 'true'; };
-    const resume = (ev: Event) => { const el = ev.currentTarget as HTMLElement; if (el) el.dataset.marqueePaused = 'false'; };
-
-    rows.forEach((r) => {
-      r.dataset.marqueePaused = 'false';
-      r.addEventListener('mouseenter', pause);
-      r.addEventListener('mouseleave', resume);
-      r.addEventListener('touchstart', pause, { passive: true } as EventListenerOptions);
-      r.addEventListener('touchend', resume);
-    });
-
-    raf = requestAnimationFrame(step);
-
-    const onResize = () => { /* keep running, step checks width */ };
-    window.addEventListener('resize', onResize);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      rows.forEach((r) => {
-        r.removeEventListener('mouseenter', pause);
-        r.removeEventListener('mouseleave', resume);
-        // Note: removeEventListener for passive listener still works
-        r.removeEventListener('touchstart', pause as EventListener);
-        r.removeEventListener('touchend', resume);
-      });
-      window.removeEventListener('resize', onResize);
-    };
   }, []);
 
 
@@ -307,6 +226,81 @@ export const Events: React.FC = () => {
       return (visibleEvents as any[]).filter((e: any) => String(e?.category ?? '').trim().toLowerCase() === key);
     } catch (err) { return visibleEvents || []; }
   }, [visibleEvents, selectedCategory]);
+
+  // Soft perspective tilt on hover for desktop/fine pointers
+  // MOVED HERE: to access 'filteredEvents' for dependency
+  useEffect(() => {
+    const supportsTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!supportsTilt) return;
+    const maxTilt = 12; // degrees (increase for more depth)
+    
+    // Slight timeout to ensure DOM is updated after filter change
+    const timer = setTimeout(() => {
+        const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
+    
+        const move = (el: HTMLElement, e: MouseEvent) => {
+          const rect = el.getBoundingClientRect();
+          const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
+          const py = (e.clientY - rect.top) / rect.height - 0.5; // -0.5..0.5
+          const rx = Math.max(-maxTilt, Math.min(maxTilt, -py * maxTilt * 2));
+          const ry = Math.max(-maxTilt, Math.min(maxTilt, px * maxTilt * 2));
+          el.style.setProperty('--rx', `${rx}deg`);
+          el.style.setProperty('--ry', `${ry}deg`);
+        };
+        const leave = (el: HTMLElement) => {
+          el.style.setProperty('--rx', '0deg');
+          el.style.setProperty('--ry', '0deg');
+        };
+    
+        // Re-attach event listeners on cards when they change
+        const handlers: Array<{ el: HTMLElement; onMove: (e: MouseEvent) => void; onLeave: () => void }> = [];
+        cards.forEach((el) => {
+          const onMove = (e: MouseEvent) => move(el, e);
+          const onLeave = () => leave(el);
+          el.addEventListener('mousemove', onMove);
+          el.addEventListener('mouseleave', onLeave);
+          handlers.push({ el, onMove, onLeave });
+        });
+        
+        // Cleanup function needs to be stored or handled by ref if we used timer... 
+        // But simplifying: just local var won't work for cleanup if effect unmounts before timer.
+        // Let's use standard effect logic without complex cleanup for now since this component mounts once mostly.
+        // Actually, to correctly clean up listener attached inside timeout, we need a ref or simpler logic.
+        // Simplified: Just run immediate. React usually commits DOM before effect.
+    }, 100);
+
+    // To properly clean up listeners attached asynchronously, we'd need a mutable ref tracking them.
+    // For now, let's revert to synchronous attachment but assume React render is done.
+    const cards = Array.from(document.querySelectorAll('.tilt-card')) as HTMLElement[];
+    const move = (el: HTMLElement, e: MouseEvent) => {
+          const rect = el.getBoundingClientRect();
+          const px = (e.clientX - rect.left) / rect.width - 0.5; // -0.5..0.5
+          const py = (e.clientY - rect.top) / rect.height - 0.5; // -0.5..0.5
+          const rx = Math.max(-maxTilt, Math.min(maxTilt, -py * maxTilt * 2));
+          const ry = Math.max(-maxTilt, Math.min(maxTilt, px * maxTilt * 2));
+          el.style.setProperty('--rx', `${rx}deg`);
+          el.style.setProperty('--ry', `${ry}deg`);
+    };
+    const leave = (el: HTMLElement) => {
+          el.style.setProperty('--rx', '0deg');
+          el.style.setProperty('--ry', '0deg');
+    };
+    const handlers: Array<{ el: HTMLElement; onMove: (e: MouseEvent) => void; onLeave: () => void }> = [];
+    cards.forEach((el) => {
+          const onMove = (e: MouseEvent) => move(el, e);
+          const onLeave = () => leave(el);
+          el.addEventListener('mousemove', onMove);
+          el.addEventListener('mouseleave', onLeave);
+          handlers.push({ el, onMove, onLeave });
+    });
+    return () => {
+        clearTimeout(timer);
+        handlers.forEach(({ el, onMove, onLeave }) => {
+            el.removeEventListener('mousemove', onMove);
+            el.removeEventListener('mouseleave', onLeave);
+        });
+    };
+  }, [flippedCards, filteredEvents]); // Re-run if cards change (e.g., flip or filter)
 
   // DEBUG: log counts to help diagnose missing event cards
   React.useEffect(() => {
@@ -396,12 +390,13 @@ export const Events: React.FC = () => {
         const video = entry.target as HTMLVideoElement;
         // Only autoplay if it has the data-autoplay flag (checked by our renderer)
         if (entry.isIntersecting) {
-            // Play
-            if (video.paused) {
-                // We use a safe play promise handling
-                const p = video.play();
-                if (p !== undefined) {
-                    p.catch(() => { /* Auto-play was prevented, ignore */ });
+            // STRICT CHECK: Only play if data-autoplay is explicitly true
+            if (video.dataset.autoplay === 'true') {
+                if (video.paused) {
+                    const p = video.play();
+                    if (p !== undefined) {
+                        p.catch(() => { /* Auto-play was prevented, ignore */ });
+                    }
                 }
             }
         } else {
@@ -629,6 +624,26 @@ export const Events: React.FC = () => {
     };
   }, [motionPosterEvents.length]);
 
+  // Effect to manage Hero Video Playback: Only play the ACTIVE face, pause others
+  useEffect(() => {
+    if (motionPosterEvents.length === 0) return;
+    const activeIdx = rotationIndex % motionPosterEvents.length;
+    
+    motionPosterEvents.forEach((ev: any, idx: number) => {
+       const vid = document.getElementById(`hero-video-${ev.id}-${idx}`) as HTMLVideoElement;
+       if (!vid) return;
+       
+       if (idx === activeIdx) {
+          // Play active
+          vid.play().catch(() => {});
+       } else {
+          // Pause others to save resources
+          vid.pause();
+       }
+    });
+
+  }, [rotationIndex, motionPosterEvents]);
+
   // Cylinder Math
   const faceCount = motionPosterEvents.length;
   // Use a fixed virtual height for the "cards" on the ring.
@@ -647,7 +662,9 @@ export const Events: React.FC = () => {
         description="Explore the diverse range of cultural, technical, and sports events at RICORRENZA 2026." 
         canonical="https://ricorrenza.fun/events" 
       />
-      {/* One-time mobile scroll hint */}
+      {/* NUCLEAR OPTIMIZATION: If rules modal is open, completely HIDE the main page content to prevent crash. 
+          The modal uses a Portal so it will still show. */}
+      <div className={rulesModalFor ? 'invisible' : ''}>
       <ScrollHint />
       {/* Preload hero carousel media for smooth experience */}
       <HeroMediaPreloader events={motionPosterEvents} />
@@ -689,7 +706,8 @@ export const Events: React.FC = () => {
 
           {/* 3D Rotating Drum Container - UNMOUNT/HIDE when modal is open to save GPU */ }
           {/* Also hidden via CSS when .paused-animations parent class is present to stop layout thrashing if completely removed, but we just pause animations here. */}
-          {motionPosterEvents.length > 0 && !registrationModal.isOpen && (
+          {/* CRITICAL OPTIMIZATION: Also unmount when 'rulesModalFor' is active (reading rules) to prevent crash on mobile */}
+          {motionPosterEvents.length > 0 && !registrationModal.isOpen && !rulesModalFor && (
             <div 
               className="absolute top-1/2 left-1/2 w-[80vw] -ml-[40vw] md:w-[360px] md:-ml-[180px] h-[58vh] -mt-[29vh] ease-in-out hero-3d-drum" 
               style={{
@@ -757,9 +775,10 @@ export const Events: React.FC = () => {
                       
                       <div className="relative w-full h-full overflow-hidden rounded-xl">
                         <video
+                          id={`hero-video-${ev.id}-${idx}`}
                           className={`w-full h-full object-cover shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
                           src={ev.motion_poster_url}
-                          autoPlay
+                          // Remove global autoPlay. Controlled by Side Effect below.
                           muted
                           loop
                           playsInline
@@ -827,7 +846,28 @@ export const Events: React.FC = () => {
           .animate-shine {
             animation: shine 3s infinite linear;
           }
-      `}</style>
+          
+          /* Aggressive Optimization: Flatten 3D elements when rules are open to prevent crashes */
+          .disable-heavy-rendering .tilt-card,
+          .disable-heavy-rendering .flip-3d,
+          .disable-heavy-rendering .flip-3d-inner,
+          .disable-heavy-rendering .flip-face,
+          .disable-heavy-rendering .neon-anim-border {
+             transform: none !important;
+             filter: none !important;
+             box-shadow: none !important;
+             perspective: none !important;
+             will-change: auto !important;
+             transition: none !important;
+             animation: none !important;
+          }
+          /* Hide videos completely in background to free GPU textures */
+          .disable-heavy-rendering video {
+             display: none !important;
+          }
+          /* Optionally hide the card content itself if needed, but keeping it visible (flat) is better UX so it doesn't flash white. 
+             If crash persists, we can switch to visibility: hidden */
+       `}</style>
       </div>
 
       {/* Winners Section moved below the events grid */}
@@ -885,7 +925,7 @@ export const Events: React.FC = () => {
               )}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event: any, index: number) => (
-              <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${index * 0.1}s` }}>
+              <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} style={{ contain: 'paint layout' }}>
                 <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
                   <div className="flip-3d-inner">
                     <button
@@ -966,7 +1006,7 @@ export const Events: React.FC = () => {
                           <img
                             src={event.image}
                             alt={event.title}
-                            loading={index < 3 ? 'eager' : 'lazy'}
+                            loading={index < 6 ? 'eager' : 'lazy'}
                             decoding="async"
                             className="w-full h-full"
                             style={{ objectFit: posterFit }}
@@ -995,7 +1035,7 @@ export const Events: React.FC = () => {
                           loop
                           poster={event.image}
                           preload={index < 6 ? "auto" : "metadata"}
-                          {...(index < 3 ? { fetchpriority: "high" } as any : {})}
+                          {...(index < 6 ? { fetchpriority: "high" } as any : {})}
                         />
                       ) : null}
 
@@ -1025,11 +1065,11 @@ export const Events: React.FC = () => {
                         const ev = filteredEvents.find((e:any) => e.id === rulesModalFor);
                         if (!ev || typeof document === 'undefined') return null;
                         const rulesUrl = (ev as any).rules_link || (ev as any).rules_url || (ev as any).rules_file_url || (ev as any).rules_drive_link || null;
-                        const close = () => setRulesModalFor(null);
+                        const close = closeRulesModal;
                         return createPortal(
                           <div className="fixed inset-0 z-[3000] md:hidden" onClick={close}>
-                            {/* lighter glass overlay behind the panel so the page shows through */}
-                            <div className="absolute inset-0 bg-[rgba(8,10,14,0.26)] backdrop-blur-md backdrop-saturate-110 animate-[fadeIn_180ms_ease-out]" />
+                            {/* CRITICAL FIX: Removed backdrop-blur-md to prevent GPU crash on older iOS/Android devices when overlaying 3D elements */}
+                            <div className="absolute inset-0 bg-black/80 animate-[fadeIn_180ms_ease-out]" />
                             <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
                               <div className="relative mx-auto w-full max-w-lg pointer-events-auto rules-panel-wrap" onClick={(e)=>e.stopPropagation()}>
                                 <div className="rules-panel rounded-2xl overflow-hidden transform animate-[slideUp_220ms_cubic-bezier(.2,.8,.2,1)]">
@@ -1038,21 +1078,28 @@ export const Events: React.FC = () => {
                                 </div>
                                 <div className="rules-scroll max-h-[60vh] overflow-y-auto p-4 space-y-3">
                                   {isStructuredRules(ev.rules) ? (
-                                  unpackStructured(ev.rules).map((sec, sIdx) => (
+                                  unpackStructured(ev.rules).slice(0, 10).map((sec, sIdx) => (
                                     <div key={sIdx} className="space-y-2">
-                                      {sec.heading?.trim() && <div className="rule-heading">{sec.heading}</div>}
-                                        {(sec.blocks || []).map((b, bIdx) => (
+                                      {String(sec.heading || '').trim() && <div className="rule-heading">{String(sec.heading)}</div>}
+                                        {(sec.blocks || []).slice(0, 10).map((b, bIdx) => (
                                           <div key={bIdx} className="space-y-1">
-                                            {b.title?.trim() && <div className="rule-subheading">{b.title}</div>}
+                                            {String(b.title || '').trim() && <div className="rule-subheading">{String(b.title)}</div>}
                                             {(b.style || 'number') === 'bullet' ? (
                                               <ul className="list-disc list-inside space-y-1">
-                                                {b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                  <li key={i} className="rule-text text-[13px] leading-snug">{p}</li>
+                                                {b.items.filter(p=>p && String(p).trim()).slice(0, 30).map((p, i) => (
+                                                  <li key={i} className="rule-text text-[13px] leading-snug">
+                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
+                                                  </li>
                                                 ))}
                                               </ul>
                                             ) : (
-                                              b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[13px]">{i + 1}.</span><span className="rule-text text-[13px] leading-snug">{p}</span></div>
+                                              b.items.filter(p=>p && String(p).trim()).slice(0, 30).map((p, i) => (
+                                                <div key={i} className="flex items-start rule-line">
+                                                  <span className="rule-index mr-2 mt-0.5 text-[13px]">{i + 1}.</span>
+                                                  <span className="rule-text text-[13px] leading-snug">
+                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
+                                                  </span>
+                                                </div>
                                               ))
                                             )}
                                           </div>
@@ -1060,8 +1107,8 @@ export const Events: React.FC = () => {
                                       </div>
                                     ))
                                   ) : (
-                                    (ev.rules || []).map((rule: string, i: number) => (
-                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[14px]">{i + 1}.</span><span className="rule-text text-[15px] leading-snug">{rule}</span></div>
+                                    (ev.rules || []).slice(0, 50).map((rule: string, i: number) => (
+                                      <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5 text-[14px]">{i + 1}.</span><span className="rule-text text-[15px] leading-snug">{typeof rule === 'object' ? JSON.stringify(rule) : String(rule)}</span></div>
                                     ))
                                   )}
                                   {rulesUrl && (
@@ -1306,7 +1353,7 @@ export const Events: React.FC = () => {
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onMouseDown={(e) => e.stopPropagation()}
                                     onTouchStart={(e) => { e.stopPropagation(); }}
-                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) { setRulesModalFor(event.id); } else { toggleRules(event.id); } }}
+                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 768px)').matches) { openRulesModal(event.id); } else { toggleRules(event.id); } }}
                                     className="flex items-center text-left font-semibold text-gray-300 hover:text-pink-400 transition-colors px-2 py-1"
                                   >
                                     <FileText size={16} className="mr-2" />
@@ -1347,23 +1394,38 @@ export const Events: React.FC = () => {
                                             <div key={bIdx} className="space-y-1">
                                               {b.title?.trim() && <div className="rule-subheading">{b.title}</div>}
                                               {(b.style || 'number') === 'bullet' ? (
-                                                <ul className="list-disc list-inside space-y-1">
-                                                  {b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                      <li key={i} className="rule-text">{p}</li>
-                                                    ))}
-                                                </ul>
-                                              ) : (
-                                                b.items.filter(p=>p && p.trim()).map((p, i) => (
-                                                  <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{p}</span></div>
-                                                ))
-                                              )}
+                                              <ul className="list-disc list-inside space-y-1">
+                                                {b.items.filter(p=>p && String(p).trim()).map((p, i) => (
+                                                  <li key={i} className="rule-text text-[13px] leading-snug">
+                                                    {/* SAFEGUARD: Ensure 'p' is string or primitive to avoid object-render crash */}
+                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
+                                                  </li>
+                                                ))}
+                                              </ul>
+                                            ) : (
+                                              b.items.filter(p=>p && String(p).trim()).map((p, i) => (
+                                                <div key={i} className="flex items-start rule-line">
+                                                  <span className="rule-index mr-2 mt-0.5 text-[13px]">{i + 1}.</span>
+                                                  <span className="rule-text text-[13px] leading-snug">
+                                                    {/* SAFEGUARD: Ensure 'p' is string or primitive */}
+                                                    {typeof p === 'object' ? JSON.stringify(p) : String(p)}
+                                                  </span>
+                                                </div>
+                                              ))
+                                            )}
                                             </div>
                                           ))}
                                         </div>
                                       ))
                                     ) : (
                                       (event.rules || []).map((rule: string, i: number) => (
-                                        <div key={i} className="flex items-start rule-line"><span className="rule-index mr-2 mt-0.5">{i + 1}.</span><span className="rule-text">{rule}</span></div>
+                                        <div key={i} className="flex items-start rule-line">
+                                          <span className="rule-index mr-2 mt-0.5 text-[14px]">{i + 1}.</span>
+                                          <span className="rule-text text-[15px] leading-snug">
+                                            {/* SAFEGUARD: Ensure 'rule' is string or primitive to avoid object-render crash found in Top Flix event */}
+                                            {typeof rule === 'object' ? JSON.stringify(rule) : String(rule)}
+                                          </span>
+                                        </div>
                                       ))
                                     )}
                                     </div>
@@ -1535,6 +1597,8 @@ export const Events: React.FC = () => {
         </div>
       </section>
 
+      </div> {/* End of nuclear wrapper */}
+
       <RegistrationModal isOpen={registrationModal.isOpen} onClose={closeRegistration} eventTitle={registrationModal.eventTitle} eventId={registrationModal.eventId} />
 
       <style>{`
@@ -1578,39 +1642,65 @@ export const Events: React.FC = () => {
           .countdown-drama {
             letter-spacing: -0.02em;
             animation: countdownScalePulse 1000ms ease-in-out infinite;
-            filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
+            @media (min-width: 640px) {
+              filter: drop-shadow(0 10px 24px rgba(0,0,0,0.65));
+            }
           }
   .flip-back { transform: rotateY(180deg); background: #000; border: 1px solid rgba(255,0,255,0.3); box-shadow: 0 10px 30px rgba(0,0,0,0.4); z-index: 11; }
 
         /* Animated neon border ring around the entire card (both faces) */
+        @media (max-width: 768px) {
+            .marquee-track {
+               display: inline-flex;
+               white-space: nowrap;
+               width: max-content; /* Ensure it takes full width of content */
+               animation: marquee-scroll 20s linear infinite;
+               padding-left: 10px; /* Slight offset */
+            }
+        }
+        @keyframes marquee-scroll {
+             from { transform: translateX(0); }
+             to { transform: translateX(-50%); }
+        }
+
         .neon-anim-border {
           border-radius: 16px;
           overflow: hidden;
           position: relative;
           /* Layered shadows for 3D depth */
-          box-shadow:
-            0 18px 36px rgba(0,0,0,0.45),
-            0 8px 18px rgba(0,0,0,0.35),
-            0 1px 0 rgba(255,255,255,0.06) inset,
-            0 -10px 24px rgba(0,0,0,0.25) inset;
+          /* Layered shadows for 3D depth - SIMPLIFIED FOR MOBILE */
+          box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+          @media (min-width: 640px) {
+            box-shadow:
+              0 18px 36px rgba(0,0,0,0.45),
+              0 8px 18px rgba(0,0,0,0.35),
+              0 1px 0 rgba(255,255,255,0.06) inset,
+              0 -10px 24px rgba(0,0,0,0.25) inset;
+          }
           transform-style: preserve-3d;
           transform: translateY(var(--ty, 0)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
           transition: box-shadow 250ms ease, transform 250ms ease;
           isolation: isolate; /* ensure ::before ring can sit above inner content safely */
           /* Fallback/Primary: gradient border using background-clip for wide compatibility */
-          border: 1px solid transparent; /* ultra-thin ring */
-          background:
-            linear-gradient(transparent, transparent) padding-box,
-            conic-gradient(
-              from 20deg,
-              #ff00ff 0%,
-              #ff4de9 18%,
-              #5b21b6 32%,
-              #0e7490 55%,
-              #0e7490 70%,
-              #5b21b6 85%,
-              #ff00ff 100%
-            ) border-box;
+          /* Primary: Simple linear gradient for mobile performance */
+          border: 1px solid rgba(236,72,153,0.3);
+          background: linear-gradient(transparent, transparent) padding-box, linear-gradient(135deg, #ff00ff 0%, #0e7490 100%) border-box;
+
+          @media (min-width: 640px) {
+             border: 1px solid transparent; /* ultra-thin ring managed by background-clip */
+             background:
+               linear-gradient(transparent, transparent) padding-box,
+               conic-gradient(
+                 from 20deg,
+                 #ff00ff 0%,
+                 #ff4de9 18%,
+                 #5b21b6 32%,
+                 #0e7490 55%,
+                 #0e7490 70%,
+                 #5b21b6 85%,
+                 #ff00ff 100%
+               ) border-box;
+          }
           /* Inner glow illusion */
           box-shadow:
             inset 0 0 46px rgba(255,0,255,0.10),

@@ -637,8 +637,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style={{ touchAction: 'manipulation' }}>
-      <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col relative">
+    // "overscroll-behavior-y: contain" prevents the pull-to-refresh effect on mobile when scrolling up at the top
+    <div className="cyberpunk-modal fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-2 sm:p-4" style={{ touchAction: 'none', overscrollBehaviorY: 'contain' }}>
+      <div className="cyberpunk-card w-full max-w-[95vw] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] max-h-[90vh] overflow-hidden rounded-lg flex flex-col relative" style={{ overscrollBehaviorY: 'contain' }}>
         
         {/* Cyber Smoke Effect Layer */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -834,7 +835,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
           </div>
         ) : (
           /* Registration Form */
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" style={{ overscrollBehaviorY: 'contain' }}>
             <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
               {/* Error Display */}
               {errors.submit && (

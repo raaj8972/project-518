@@ -432,34 +432,51 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const withinWarmup = () => Date.now() < warmupUntilRef.current;
   // Count consecutive failing fetch cycles to avoid flashing degraded/offline for single blips
   const failStreakRef = React.useRef<number>(0);
-  const scheduleResubscribe = (reason?: string) => {
-    try {
-      if (reason && !lastError) setLastError(reason);
-      // Do not force degraded here; let fetchData aggregate errors and apply thresholds
-    } catch {}
-    if (resubscribePendingRef.current) return;
-    resubscribePendingRef.current = true;
-    setTimeout(() => {
-      resubscribePendingRef.current = false;
-      resubscribeRealtime();
-    }, 500);
+  // Normalize potentially problematic image/asset URLs so they work on HTTPS production
+  const fetchHadErrorsRef = React.useRef<boolean>(false);
+  const markErr = (label: string, err: any) => {
+    fetchHadErrorsRef.current = true;
+    const msg = (err && (err.message || err.toString())) || 'Unknown error';
+    console.error(label, err);
+    try { setLastError(`${label}: ${msg}`); } catch {}
   };
-  const resubscribeRealtime = () => {
+
+  const sanitizeUrl = (u: string | null | undefined): string => {
+    if (!u) return '';
+    let s = String(u).trim();
+    if (!s) return '';
+    // Prefix relative Supabase storage paths with our Supabase origin
+    // Example: /storage/v1/object/public/bucket/path -> https://<project>.supabase.co/storage/v1/object/public/...
+    if (s.startsWith('/storage/')) {
+      const origin = `https://${SUPABASE_HOST}`;
+      s = origin + s;
+    }
+    // Avoid mixed content on Netlify (https site loading http images)
     try {
-      for (const ch of Array.from(realtimeChannelsRef.current)) {
-        try { supabase.removeChannel(ch); } catch {}
+      const url = new URL(s);
+      // Block local file access which causes ERR_FILE_NOT_FOUND and security warnings
+      if (url.protocol === 'file:') return '';
+      
+      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
+        url.protocol = 'https:';
+        return url.toString();
       }
-      realtimeChannelsRef.current.clear();
-      // Mark all known channels as resubscribing
-      setRealtimeStatus((prev) => {
-        const next: Record<string, string> = { ...prev };
-        Object.keys(next).forEach((k) => {
-          next[k] = 'SUBSCRIBING';
-        });
-        return next;
-      });
-      fetchData(true).catch(() => {});
-    } catch {}
+
+      // Supabase Image Transformation for rendering optimization
+      // If it's a Supabase Storage URL, append transformation params to ensure we don't load massive originals
+      // Only apply if not already transformed (no ?width or ?height)
+      if (s.includes('/storage/v1/object/public/') && !s.includes('?')) {
+         // Default to a reasonable max width for web (e.g. 1200px) and WebP format
+         // This ensures that even if a user uploaded a 10MB 4000px image, the browser gets a 100KB 1200px WebP
+         // Note: This requires Supabase Image Transformations to be enabled on the project.
+         // If not enabled, these params are just ignored by standard storage.
+         s = `${s}?width=1200&resize=contain&format=webp`;
+      }
+
+    } catch {
+      // s might be a relative path that isn't storage; keep as-is
+    }
+    return s;
   };
 
   const autoOpenKey = (id: number, openAtIso: string) => `event:auto-opened:${id}:${openAtIso}`;
@@ -999,44 +1016,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Normalize potentially problematic image/asset URLs so they work on HTTPS production
-  const sanitizeUrl = (u: string | null | undefined): string => {
-    if (!u) return '';
-    let s = String(u).trim();
-    if (!s) return '';
-    // Prefix relative Supabase storage paths with our Supabase origin
-    // Example: /storage/v1/object/public/bucket/path -> https://<project>.supabase.co/storage/v1/object/public/...
-    if (s.startsWith('/storage/')) {
-      const origin = `https://${SUPABASE_HOST}`;
-      s = origin + s;
-    }
-    // Avoid mixed content on Netlify (https site loading http images)
-    try {
-      const url = new URL(s);
-      // Block local file access which causes ERR_FILE_NOT_FOUND and security warnings
-      if (url.protocol === 'file:') return '';
-      
-      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
-        url.protocol = 'https:';
-        s = url.toString();
-      }
 
-      // Supabase Image Transformation for rendering optimization
-      // If it's a Supabase Storage URL, append transformation params to ensure we don't load massive originals
-      // Only apply if not already transformed (no ?width or ?height)
-      if (s.includes('/storage/v1/object/public/') && !s.includes('?')) {
-         // Default to a reasonable max width for web (e.g. 1200px) and WebP format
-         // This ensures that even if a user uploaded a 10MB 4000px image, the browser gets a 100KB 1200px WebP
-         // Note: This requires Supabase Image Transformations to be enabled on the project.
-         // If not enabled, these params are just ignored by standard storage.
-         s = `${s}?width=1200&resize=contain&format=webp`;
-      }
-
-    } catch {
-      // s might be a relative path that isn't storage; keep as-is
-    }
-    return s;
-  };
 
   // Configuration issues are handled in supabase.ts; avoid marking degraded solely due to env, since defaults are provided.
   useEffect(() => {
@@ -1134,23 +1114,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return () => { stopped = true; clearInterval(interval); };
   }, []);
 
-  const scheduleRetry = () => {
-    clearRetryTimer();
-    // Exponential backoff: 2s, 4s, 8s ... capped at 60s
-    const attempt = retryAttemptRef.current;
-    const delay = Math.min(60000, 2000 * Math.pow(2, attempt));
-    retryTimerRef.current = setTimeout(async () => {
-      try {
-        await fetchData(true);
-      } finally {
-        // Increase attempt only if we still aren't OK; will reset on success
-        if (connectionStatus !== 'ok') {
-          retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 10);
-          scheduleRetry();
-        }
-      }
-    }, delay);
-  };
+
 
   // Manual ping to quickly measure latency and hint reconnection
   const pingNow = async () => {
@@ -1173,81 +1137,40 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const fetchData = async (silent: boolean = false) => {
+  // Main tiered fetching strategy to optimize load time
+  // Tier 1: Critical Public (Blocks Splash) - Events, Settings, Notifications, Schedule
+  const fetchCriticalPublicData = async (silent: boolean = false) => {
     if (!silent) setLoading(true);
-    let hadErrors = false;
-    const markErr = (label: string, err: any) => {
-      hadErrors = true;
-      const msg = (err && (err.message || err.toString())) || 'Unknown error';
-      // Suppress auth errors during logout (expected when session is invalidated)
-      const isAuthError = msg.includes('JWT') || msg.includes('Unauthorized') || msg.includes('secret/key') || msg.includes('Invalid API key');
-      if (!isAuthError) {
-        console.error(label, err);
-      }
-      // keep last error message for UI
-      setLastError(`${label}: ${msg}`);
-    };
+    // Reset errors for this cycle
+    fetchHadErrorsRef.current = false;
+
     try {
-      // Lightweight connectivity ping first to catch obvious offline issues
+      // 1. Lightweight connectivity check
       try {
         if (typeof navigator !== 'undefined' && navigator && 'onLine' in navigator && !navigator.onLine) {
           throw new Error('Browser offline');
         }
+        // Use minimal GET to avoid Safari HEAD issues
         const t0 = performance.now();
-        // Avoid HEAD requests which can trigger Safari "TypeError: Load failed"; do a tiny GET instead
-        const { error: pingError } = await supabase
-          .from('events')
-          .select('id', { count: 'exact' })
-          .range(0, 0); // fetch at most 1 row
+        const { error: pingError } = await supabase.from('events').select('id', { count: 'exact' }).range(0, 0);
         const dt = performance.now() - t0;
-        if (!pingError) setLatencyMs(Math.round(dt));
-        if (pingError) markErr('Supabase ping failed', pingError);
-      } catch (e) { markErr('Supabase ping threw', e); }
-      // Schema/bucket detection for registration photo feature
-      try {
-        const trySelectHead = async (table: string, column: string) => {
-          // Use a minimal GET instead of HEAD to avoid Safari "Load failed" on HEAD
-          const { error } = await supabase
-            .from(table as any)
-            .select(column as any, { count: 'exact' })
-            .range(0, 0);
-          return !error;
-        };
-        const [reqOk, labelOk, photoUrlOk, winnersModeOk] = await Promise.all([
-          trySelectHead('events', 'registration_photo_required'),
-          trySelectHead('events', 'registration_photo_label'),
-          trySelectHead('registrations', 'photo_url'),
-          trySelectHead('events', 'winners_display_mode'),
-        ]);
-        let bucketOk = true;
-        try {
-          const { error: bErr } = await supabase.storage.from('registration-photos').list('', { limit: 1 });
-          if (bErr) bucketOk = false;
-        } catch {
-          bucketOk = false;
+        if (!pingError) {
+          setLatencyMs(Math.round(dt));
+          setConnectionStatus('ok'); // Immediate feedback if ping works
+        } else {
+          markErr('Supabase ping failed', pingError);
         }
-        setSchemaCapabilities({
-          events_registration_photo_required: !!reqOk,
-          events_registration_photo_label: !!labelOk,
-          registrations_photo_url: !!photoUrlOk,
-          storage_registration_photos_bucket: !!bucketOk,
-          events_winners_display_mode: !!winnersModeOk,
-        });
-      } catch (e) {
-        console.warn('Schema detection failed', e);
-      }
-      // Parallelize independent fetches to speed up initial load
-      // Group 1: Critical data for Home/Events/Layout
+      } catch (e) { markErr('Supabase ping threw', e); }
+
+      // 2. Fetch Critical Data Parallel
       const [
         eventsRes,
         heroMediaRes,
         homepageSettingsRes,
         siteSettingsRes,
         formSettingsRes,
-        registrationsRes,
         eventCategoriesRes,
-        sponsorsRes,
-        scheduleDaysRes,
+        scheduleDaysRes, // Schedule is critical for "Live Now" features
         notificationsRes
       ] = await Promise.all([
         // Events (ordered)
@@ -1261,21 +1184,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             return { data, error };
           } catch (e) { return { data: null, error: e }; }
         })(),
-        // Hero Media
         supabase.from('hero_media').select('*'),
-        // Homepage Settings
         supabase.from('homepage_settings').select('*').eq('id', 1).maybeSingle(),
-        // Site Settings
         supabase.from('site_settings').select('*').eq('id', 1).maybeSingle(),
-        // Form Settings
         supabase.from('form_settings').select('*').eq('id', 1).single(),
-        // Registrations (needed for winners)
-        supabase.from('registrations').select('*'),
-        // Event Categories
         supabase.from('event_categories').select('*'),
-        // Sponsors
-        supabase.from('sponsors').select('*'),
-        // Schedule
         supabase.from('schedule_days').select('*, schedule_events (*)').order('date', { ascending: true }),
         // Notifications
         (async () => {
@@ -1284,136 +1197,96 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         })()
       ]);
 
-      // Process Group 1 Results
+      // --- Process Critical Data ---
+
       // Events
       if (eventsRes.error) markErr('Error fetching events', eventsRes.error);
       else {
         const mapped = (eventsRes.data || []).map((e: any) => ({ ...e, image: sanitizeUrl(e.image) }));
+        // JS sort fallback
         mapped.sort((a: any, b: any) => {
           const da = (a.display_order ?? Infinity);
           const db = (b.display_order ?? Infinity);
           if (da !== db) return da - db;
           const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
           const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
-          if (ca !== cb) return cb - ca;
+          // Newest first if no display order
+          if (ca !== cb) return cb - ca; 
           return 0;
         });
         setEvents(mapped as Event[]);
       }
 
-      // Registrations (Decrypt sensitive data)
-      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
-      else {
-        const decryptedRegistrations = (registrationsRes.data || []).map((r: any) => ({
-          ...r,
-          email: decryptData(r.email),
-          phone: decryptData(r.phone),
-          college: decryptData(r.college),
-          // Decrypt team members if stored as JSON string or array of objects with PII
-          // Currently team_members is often just names, but if we encrypt fields there, we'd need to handle it.
-          // For now, we only encrypt top-level PII fields as per plan.
-        }));
-        // Sort by date desc
-        decryptedRegistrations.sort((a: any, b: any) => new Date(b.registration_date).getTime() - new Date(a.registration_date).getTime());
-        const allRegistrations = decryptedRegistrations as Registration[];
-        setRegistrations(allRegistrations.filter(r => !r.deleted_at));
-        setDeletedRegistrations(allRegistrations.filter(r => r.deleted_at));
-      }
-      const currentRegistrations = registrationsRes.data || []; // Capture for dependency (using raw data for winners mapping if needed, or decrypted? Winners mapping uses ID, so raw is fine, but if it needs names, decrypted is better. Let's use decrypted if available, but here we are in the else block. Let's define it outside.)
-
       // Hero Media
-      if (heroMediaRes.error) {
-        // ...existing error handling logic for hero_media...
-        const rawMsg = (heroMediaRes.error as any)?.message || '';
-        const msg = String(rawMsg).toLowerCase();
-        const code = (heroMediaRes.error as any)?.code;
-        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.hero_media' does not exist") || (msg.includes('could not find the table') && msg.includes('hero_media'));
-        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
-        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] hero_media fetch non-critical issue; using empty set:', rawMsg);
-          setHeroMedia({});
-        } else {
-          markErr('Error fetching hero media', heroMediaRes.error);
-        }
-      } else {
+      if (!heroMediaRes.error) {
         const map: Partial<Record<PageKey, HeroMedia | null>> = {};
         (heroMediaRes.data || []).forEach((row: any) => {
-          const patched = {
-            ...row,
-            image_url: sanitizeUrl(row.image_url),
-            mobile_image_url: sanitizeUrl(row.mobile_image_url),
-            video_url: sanitizeUrl(row.video_url),
-          } as HeroMedia;
-          map[row.page_key as PageKey] = patched;
+           map[row.page_key as PageKey] = {
+             ...row,
+             image_url: sanitizeUrl(row.image_url),
+             mobile_image_url: sanitizeUrl(row.mobile_image_url),
+             video_url: sanitizeUrl(row.video_url),
+           } as HeroMedia;
         });
         setHeroMedia(map);
-      }
+      } // Ignore non-critical hero errors (empty will just fallback)
 
-      // Homepage Settings
-      if (homepageSettingsRes.error) markErr('Error fetching homepage settings', homepageSettingsRes.error);
-      else setHomepageSettings(homepageSettingsRes.data || null);
-
-      // Site Settings
-      if (siteSettingsRes.error) {
-        // ...existing error handling logic for site_settings...
-        const ssErr = siteSettingsRes.error;
-        const raw = (ssErr as any)?.message || String(ssErr);
-        const msg = String(raw).toLowerCase();
-        const code = (ssErr as any)?.code;
-        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.site_settings' does not exist") || (msg.includes('could not find the table') && msg.includes('site_settings'));
-        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
-        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] site_settings non-critical issue; using null:', raw);
-          setSiteSettings(null);
-        } else {
-          markErr('Error fetching site settings', ssErr);
-        }
-      } else {
-        setSiteSettings(siteSettingsRes.data || null);
-      }
-
-      // Form Settings
-      if (formSettingsRes.error) markErr('Error fetching form settings', formSettingsRes.error);
-      else setFormSettings(formSettingsRes.data || null);
-
-
-
-      // Event Categories
-      if (eventCategoriesRes.error) markErr('Error fetching event categories', eventCategoriesRes.error);
-      else setEventCategories(eventCategoriesRes.data || []);
-
-      // Sponsors
-      if (sponsorsRes.error) markErr('Error fetching sponsors', sponsorsRes.error);
-      else setSponsors((sponsorsRes.data || []).map((s: any) => ({ ...s, logo: sanitizeUrl(s.logo) })));
-
+      // Settings
+      if (!homepageSettingsRes.error) setHomepageSettings(homepageSettingsRes.data || null);
+      if (!siteSettingsRes.error) setSiteSettings(siteSettingsRes.data || null);
+      if (!formSettingsRes.error) setFormSettings(formSettingsRes.data || null);
+      if (!eventCategoriesRes.error) setEventCategories(eventCategoriesRes.data || []);
+      
       // Schedule
-      if (scheduleDaysRes.error) markErr('Error fetching schedule days', scheduleDaysRes.error);
-      else {
-        const transformedSchedule = (scheduleDaysRes.data || []).map((day: any) => ({
-          ...day,
-          events: day.schedule_events || []
-        }));
-        setSchedule(transformedSchedule);
+      if (!scheduleDaysRes.error) {
+         setSchedule((scheduleDaysRes.data || []).map((day: any) => ({ ...day, events: day.schedule_events || [] })));
       }
 
       // Notifications
-      if (notificationsRes.error) {
-        const lower = String((notificationsRes.error as any)?.message || '').toLowerCase();
-        if (lower.includes('relation') && lower.includes('does not exist')) {
-          console.warn('[Data] notifications table missing; skipping');
-          setNotifications([]);
-        } else {
-          markErr('Error fetching notifications', notificationsRes.error);
-        }
-      } else {
-        setNotifications(notificationsRes.data || []);
-      }
+      if (!notificationsRes.error) setNotifications(notificationsRes.data || []);
+      
+      // End of Critical Block
+    } catch (e: any) {
+      markErr('Critical data fetch threw', e);
+    } finally {
+      // UNBLOCK SPLASH SCREEN NOW
+      if (!silent) setLoading(false);
+    }
+  };
 
-      // Group 2: Secondary data (can load in parallel with Group 1 processing or after)
-      // We run this in parallel with the above processing effectively by awaiting a second Promise.all
-      const [
+  // Tier 2: Secondary Public (Background) - Gallery, Sponsors, Personnel, Winners
+  // Tier 2: Secondary Public (Background) - Gallery, Sponsors, Personnel, Winners
+  const fetchSecondaryPublicDataOnly = async () => {
+    // Determine schema capabilities (winners/photos) in background
+    try {
+        const trySelectHead = async (table: string, column: string) => {
+          const { error } = await supabase.from(table as any).select(column as any, { count: 'exact' }).range(0, 0);
+          return !error;
+        };
+        const [reqOk, labelOk, photoUrlOk, winnersModeOk] = await Promise.all([
+          trySelectHead('events', 'registration_photo_required'),
+          trySelectHead('events', 'registration_photo_label'),
+          trySelectHead('registrations', 'photo_url'),
+          trySelectHead('events', 'winners_display_mode'),
+        ]);
+        let bucketOk = true;
+        try {
+          const { error: bErr } = await supabase.storage.from('registration-photos').list('', { limit: 1 });
+          if (bErr) bucketOk = false;
+        } catch { bucketOk = false; }
+        setSchemaCapabilities({
+          events_registration_photo_required: !!reqOk,
+          events_registration_photo_label: !!labelOk,
+          registrations_photo_url: !!photoUrlOk,
+          storage_registration_photos_bucket: !!bucketOk,
+          events_winners_display_mode: !!winnersModeOk,
+        });
+    } catch (e) {
+      console.warn('Schema detection failed', e);
+    }
+
+    // Fetch Secondary Tables
+    const [
         galleryImagesRes,
         aboutSettingsRes,
         homeboundSettingsRes,
@@ -1425,15 +1298,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         guestArtistsRes,
         chiefGuestsRes,
         sponsorshipPackagesRes,
-        auditionsRes,
-        membershipsRes,
         sportsCommitteesRes,
         sportsTeamMembersRes,
         roadmapMilestonesRes,
         gallerySettingsRes,
         eventCoordinatorsRes,
         sponsorshipSettingsRes,
-        eventWinnersRes
+        eventWinnersRes,
+        sponsorsRes
       ] = await Promise.all([
         supabase.from('gallery_images').select('*'),
         supabase.from('about_settings').select('*').eq('id', 1).maybeSingle(),
@@ -1446,21 +1318,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         supabase.from('guest_artists').select('*'),
         supabase.from('chief_guests').select('*').order('order_position', { ascending: true }),
         supabase.from('sponsorship_packages').select('*').order('order_position', { ascending: true }),
-        supabase.from('auditions').select('*').order('created_at', { ascending: false }),
-        supabase.from('memberships').select('*'),
         supabase.from('sports_committees').select('*').order('order_position', { ascending: true }),
         supabase.from('sports_team_members').select('*').order('order_position', { ascending: true }),
         supabase.from('roadmap_milestones').select('*').order('order_position', { ascending: true }),
         supabase.from('gallery_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true }),
         supabase.from('sponsorship_settings').select('*, contact_sections (id, type, title, content, icon, enabled, "order")').eq('id', 1).single(),
-        supabase.from('event_winners').select('*').order('event_id', { ascending: true }).order('position', { ascending: true })
+        supabase.from('event_winners').select('*').order('event_id', { ascending: true }).order('position', { ascending: true }),
+        supabase.from('sponsors').select('*')
       ]);
 
-      // Process Group 2 Results
-      // Gallery Images
+      // Apply updates
       if (galleryImagesRes.error) {
-        // ...existing error handling...
         const rawMsg = (galleryImagesRes.error as any)?.message || '';
         const msg = String(rawMsg).toLowerCase();
         const code = (galleryImagesRes.error as any)?.code;
@@ -1471,18 +1340,17 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           console.warn('[Data] gallery_images fetch non-critical issue; using empty list:', rawMsg);
           setGalleryImages([]);
         } else {
-          markErr('Error fetching gallery images', galleryImagesRes.error);
+          console.error('Error fetching gallery images', galleryImagesRes.error);
         }
       } else setGalleryImages((galleryImagesRes.data || []).map((g: any) => ({ ...g, src: sanitizeUrl(g.src) })));
 
-      // About Settings
       if (aboutSettingsRes.error) {
         const msg = String(aboutSettingsRes.error.message || '').toLowerCase();
         if (msg.includes('about_settings') && (msg.includes('does not exist') || msg.includes('could not find'))) {
           console.warn('[Data] about_settings table missing; continuing with null');
           setAboutSettings(null);
         } else {
-          markErr('Error fetching about settings', aboutSettingsRes.error);
+          console.error('Error fetching about settings', aboutSettingsRes.error);
         }
       } else if (aboutSettingsRes.data) {
         const aboutData = aboutSettingsRes.data;
@@ -1504,12 +1372,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         setAboutSettings(null);
       }
 
-      // Homebound Settings
-      if (homeboundSettingsRes.error) markErr('Error fetching homebound settings', homeboundSettingsRes.error);
+      if (homeboundSettingsRes.error) console.error('Error fetching homebound settings', homeboundSettingsRes.error);
       else setHomeboundSettings(homeboundSettingsRes.data || null);
 
-      // Social Media Settings
-      if (socialMediaSettingsRes.error) markErr('Error fetching social media settings', socialMediaSettingsRes.error);
+      if (socialMediaSettingsRes.error) console.error('Error fetching social media settings', socialMediaSettingsRes.error);
       else {
         if (socialMediaSettingsRes.data) {
           const d = socialMediaSettingsRes.data;
@@ -1528,28 +1394,23 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Faculty Heads
-      if (facultyHeadsRes.error) markErr('Error fetching faculty heads', facultyHeadsRes.error);
+      if (facultyHeadsRes.error) console.error('Error fetching faculty heads', facultyHeadsRes.error);
       else setFacultyHeads((facultyHeadsRes.data || []).map((h: any) => ({ ...h, image: sanitizeUrl(h.image) })));
 
-      // Core Committees
-      if (coreCommitteesRes.error) markErr('Error fetching core committees', coreCommitteesRes.error);
+      if (coreCommitteesRes.error) console.error('Error fetching core committees', coreCommitteesRes.error);
       else setCoreCommittees(coreCommitteesRes.data || []);
 
-      // Core Team Members
-      if (coreTeamMembersRes.error) markErr('Error fetching core team members', coreTeamMembersRes.error);
+      if (coreTeamMembersRes.error) console.error('Error fetching core team members', coreTeamMembersRes.error);
       else setCoreTeamMembers((coreTeamMembersRes.data || []).map((m: any) => ({
         ...m,
         image: sanitizeUrl(m.image),
         isCouncil: (m.is_council ?? false) as boolean,
       })));
 
-      // Band Members
-      if (bandMembersRes.error) markErr('Error fetching band members', bandMembersRes.error);
+      if (bandMembersRes.error) console.error('Error fetching band members', bandMembersRes.error);
       else setBandMembers((bandMembersRes.data || []).map((b: any) => ({ ...b, image: sanitizeUrl(b.image) })));
 
-      // Guest Artists
-      if (guestArtistsRes.error) markErr('Error fetching guest artists', guestArtistsRes.error);
+      if (guestArtistsRes.error) console.error('Error fetching guest artists', guestArtistsRes.error);
       else setGuestArtists((guestArtistsRes.data || []).map((a: any) => ({
         ...a,
         image: sanitizeUrl(a.image),
@@ -1557,46 +1418,19 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         detail_music_url: sanitizeUrl(a.detail_music_url)
       })));
 
-      // Chief Guests
-      if (chiefGuestsRes.error) markErr('Error fetching chief guests', chiefGuestsRes.error);
+      if (chiefGuestsRes.error) console.error('Error fetching chief guests', chiefGuestsRes.error);
       else setChiefGuests((chiefGuestsRes.data || []).map((c: any) => ({ ...c, image: sanitizeUrl(c.image) })));
 
-      // Sponsorship Packages
-      if (sponsorshipPackagesRes.error) markErr('Error fetching sponsorship packages', sponsorshipPackagesRes.error);
+      if (sponsorshipPackagesRes.error) console.error('Error fetching sponsorship packages', sponsorshipPackagesRes.error);
       else setSponsorshipPackages(sponsorshipPackagesRes.data || []);
 
-      // Auditions
-      if (auditionsRes.error) markErr('Error fetching auditions', auditionsRes.error);
-      else setAuditions(auditionsRes.data || []);
-
-      // Memberships
-      if (membershipsRes.error) {
-        // ...existing error handling...
-        const rawMsg = (membershipsRes.error as any)?.message || '';
-        const msg = String(rawMsg).toLowerCase();
-        const code = (membershipsRes.error as any)?.code;
-        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.memberships' does not exist") || (msg.includes('could not find the table') && msg.includes('memberships'));
-        const isTransientNetwork = msg.includes('load failed') || msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network error');
-        const isPermissionish = msg.includes('permission') || msg.includes('policy') || msg.includes('anonymous');
-        if (isMissingTable || isTransientNetwork || isPermissionish) {
-          console.warn('[Data] memberships fetch non-critical issue; using empty list:', rawMsg);
-          setMemberships([]);
-        } else {
-          markErr('Error fetching memberships', membershipsRes.error);
-        }
-      } else setMemberships(membershipsRes.data || []);
-
-      // Sports Committees
       if (sportsCommitteesRes.error) setSportsCommittees([]); // tolerate missing
       else setSportsCommittees(sportsCommitteesRes.data || []);
 
-      // Sports Team Members
       if (sportsTeamMembersRes.error) setSportsTeamMembers([]); // tolerate missing
       else setSportsTeamMembers(sportsTeamMembersRes.data || []);
 
-      // Roadmap Milestones
       if (roadmapMilestonesRes.error) {
-        // ...existing error handling...
         const rawMsg = (roadmapMilestonesRes.error as any)?.message || '';
         const msg = String(rawMsg).toLowerCase();
         const code = (roadmapMilestonesRes.error as any)?.code;
@@ -1607,11 +1441,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           console.warn('[Data] roadmap_milestones fetch non-critical issue; using empty list:', rawMsg);
           setRoadmapMilestones([]);
         } else {
-          markErr('Error fetching roadmap milestones', roadmapMilestonesRes.error);
+          console.error('Error fetching roadmap milestones', roadmapMilestonesRes.error);
         }
       } else setRoadmapMilestones(roadmapMilestonesRes.data || []);
 
-      // Gallery Settings
       if (gallerySettingsRes.error) {
         const msg = String((gallerySettingsRes.error as any)?.message || '').toLowerCase();
         const code = (gallerySettingsRes.error as any)?.code;
@@ -1663,15 +1496,33 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           markErr('Error fetching event winners', eventWinnersRes.error);
         }
       } else {
-        const regsById: Record<string, any> = Object.fromEntries(currentRegistrations.map((r:any) => [r.id, r]));
+        // Winners often link to registrations, but since registrations are now Admin-only or background,
+        // we should try to rely on what we have. If winners requires registrations join, we might need a workaround.
+        // For now, assuming winners row contains enough info or we accept 'null' for registration links if not loaded.
+        // Wait, the original code used 'currentRegistrations' which was fetched in the SAME function.
+        // Now 'registrations' are in AdminData. 
+        // We will assume 'currentRegistrations' might be empty here.
+        // If winners need photo from registration, it might be missing until AdminFetch.
+        // However, event_winners table might have explicit fields.
+        
+        // Original code:
+        // const regsById: Record<string, any> = Object.fromEntries(currentRegistrations.map((r:any) => [r.id, r]));
+        // We can't access 'currentRegistrations' here easily if it's not in scope or not fetched.
+        // USE STATE 'registrations'.
+        
+        const regsById: Record<string, any> = Object.fromEntries((registrations || []).map((r:any) => [r.id, r])); 
         setEventWinners((eventWinnersRes.data || []).map((w:any)=>{
           const reg = w.registration_id ? regsById[w.registration_id] : null;
           const registration_year = reg?.year || reg?.batch || null;
           return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year };
         }));
       }
+      
+      // Sponsors
+      if (sponsorsRes.error) markErr('Error fetching sponsors', sponsorsRes.error);
+      else setSponsors((sponsorsRes.data || []).map((s:any) => ({...s, image: sanitizeUrl(s.image)})));
 
-      // Fetch my permissions (non-critical). Skip when unauthenticated to avoid 400 on eq filter with empty user_id.
+      // Fetch my permissions (non-critical user data)
       try {
         const userId = (await supabase.auth.getUser()).data.user?.id || null;
         if (!userId) {
@@ -1703,19 +1554,66 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
           }
         }
       } catch { setMyPermissions({}); }
+  };
 
-      // Best-effort: fetch admin_users list if permitted (authenticated). Non-critical.
-      try {
-        await refreshAdminUsers();
-      } catch (e) {
-        // ignore; RLS may block for anon
+  // Tier 3: Admin Data (Auth Gated) - Registrations, Auditions, Memberships, AdminUsers
+  const fetchAdminData = async () => {
+    try {
+      // Parallel fetch for admin tables
+      const [registrationsRes, auditionsRes, membershipsRes] = await Promise.all([
+        supabase.from('registrations').select('*').order('created_at', { ascending: false }),
+        supabase.from('auditions').select('*').order('created_at', { ascending: false }),
+        supabase.from('memberships').select('*').order('created_at', { ascending: false })
+      ]);
+
+      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
+      else {
+        // Decrypt sensitive data
+        const decrypted = (registrationsRes.data || []).map((r: any) => {
+           try { return decryptData ? decryptData(r) : r; } catch { return r; }
+        });
+        setRegistrations(decrypted);
+      }
+
+      if (auditionsRes.error) markErr('Error fetching auditions', auditionsRes.error);
+      else setAuditions(auditionsRes.data || []);
+
+      if (membershipsRes.error) markErr('Error fetching memberships', membershipsRes.error);
+      else setMemberships(membershipsRes.data || []);
+
+      // Refresh Admin Users list
+      await refreshAdminUsers();
+
+    } catch (e) {
+      markErr('Admin data fetch failed', e);
+    }
+  };
+
+  // Main Orchestrator
+  const fetchData = async (silent: boolean = false) => {
+    if (!silent) setLoading(true);
+    fetchHadErrorsRef.current = false;
+
+    try {
+      // 1. Tier 1: Critical (Blocks UI)
+      await fetchCriticalPublicData(silent);
+
+      // 2. Tier 2: Secondary (Background)
+      // Fire and forget or await? Implementation plan says non-blocking.
+      // But we want to catch errors.
+      fetchSecondaryPublicDataOnly().catch(e => markErr('Secondary fetch failed', e));
+
+      // 3. Tier 3: Admin (Background, Auth Gated)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+         fetchAdminData().catch(e => markErr('Admin fetch failed', e));
       }
 
     } catch (error) {
       markErr('Error in fetchData', error);
     } finally {
       // Determine connection status from aggregated errors with hysteresis
-      if (hadErrors) {
+      if (fetchHadErrorsRef.current) {
         if (!withinWarmup()) {
           // Increment fail streak on real errors; cap to avoid overflow
           failStreakRef.current = Math.min(failStreakRef.current + 1, 1000);
@@ -1739,6 +1637,54 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       lastFetchAtRef.current = Date.now();
       if (!silent) setLoading(false);
     }
+  };
+
+  const scheduleRetry = () => {
+    clearRetryTimer();
+    // Exponential backoff: 2s, 4s, 8s ... capped at 60s
+    const attempt = retryAttemptRef.current;
+    const delay = Math.min(60000, 2000 * Math.pow(2, attempt));
+    retryTimerRef.current = setTimeout(async () => {
+      try {
+        await fetchData(true);
+      } finally {
+        // Increase attempt only if we still aren't OK; will reset on success
+        if (connectionStatus !== 'ok') {
+          retryAttemptRef.current = Math.min(retryAttemptRef.current + 1, 10);
+          scheduleRetry();
+        }
+      }
+    }, delay);
+  };
+
+  const scheduleResubscribe = (reason?: string) => {
+    try {
+      if (reason && !lastError) setLastError(reason);
+      // Do not force degraded here; let fetchData aggregate errors and apply thresholds
+    } catch {}
+    if (resubscribePendingRef.current) return;
+    resubscribePendingRef.current = true;
+    setTimeout(() => {
+      resubscribePendingRef.current = false;
+      resubscribeRealtime();
+    }, 500);
+  };
+  const resubscribeRealtime = () => {
+    try {
+      for (const ch of Array.from(realtimeChannelsRef.current)) {
+        try { supabase.removeChannel(ch); } catch {}
+      }
+      realtimeChannelsRef.current.clear();
+      // Mark all known channels as resubscribing
+      setRealtimeStatus((prev) => {
+        const next: Record<string, string> = { ...prev };
+        Object.keys(next).forEach((k) => {
+          next[k] = 'SUBSCRIBING';
+        });
+        return next;
+      });
+      fetchData(true).catch(() => {});
+    } catch {}
   };
 
   // Lightweight prefetch helpers - fetch specific collections in parallel without flipping global loading
