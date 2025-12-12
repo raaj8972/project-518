@@ -564,14 +564,16 @@ export function RegistrationManagement() {
     return counts;
   }, [registrations, selectedEvent]);
 
-  // Fetch email status for all visible registrations
+  // Fetch email status for all registrations (not just filtered ones to avoid flicker)
   useEffect(() => {
     const fetchEmailStatuses = async () => {
       try {
-        const regIds = filteredRegistrations.map(r => r.id);
+        // Use all registrations from current view mode (active or trash)
+        const sourceRegs = viewMode === 'trash' ? deletedRegistrations : registrations;
+        const regIds = sourceRegs.map(r => r.id);
         if (regIds.length === 0) return;
         
-        // Fetch confirmation email logs for all visible registrations
+        // Fetch confirmation email logs for all registrations in current view
         const { data, error } = await supabase
           .from('email_logs')
           .select('registration_id, status, template_type')
@@ -599,7 +601,7 @@ export function RegistrationManagement() {
     };
     
     fetchEmailStatuses();
-  }, [filteredRegistrations]);
+  }, [registrations, deletedRegistrations, viewMode]); // Depend on source data, not filtered data
 
   // Helper to send approval email (extracted for reuse)
   const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
@@ -1947,7 +1949,7 @@ export function RegistrationManagement() {
                                 } else {
                                   return (
                                     <span
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"
                                       title="Confirmation email not sent"
                                     >
                                       <MailX size={10} />
