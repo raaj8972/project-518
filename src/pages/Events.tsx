@@ -656,7 +656,7 @@ export const Events: React.FC = () => {
   const radius = Math.round(((faceHeight / 2) / Math.tan(Math.PI / faceCount)) * 1.5); 
 
   return (
-    <div className="cyberpunk-theme min-h-screen">
+    <div className="cyberpunk-theme min-h-screen" style={{ overscrollBehaviorY: 'contain' }}>
       <SEO 
         title="Events" 
         description="Explore the diverse range of cultural, technical, and sports events at RICORRENZA 2026." 
