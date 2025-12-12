@@ -1568,9 +1568,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
       if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
       else {
-        // Decrypt sensitive data
+        // Decrypt sensitive data (email, phone, college)
         const decrypted = (registrationsRes.data || []).map((r: any) => {
-           try { return decryptData ? decryptData(r) : r; } catch { return r; }
+           try {
+             return {
+               ...r,
+               email: decryptData(r.email),
+               phone: decryptData(r.phone),
+               college: decryptData(r.college)
+             };
+           } catch { return r; }
         });
         setRegistrations(decrypted);
       }
