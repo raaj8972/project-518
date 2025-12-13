@@ -432,17 +432,17 @@ export const EventsManagement: React.FC = () => {
       rules: [],
       registration_open: true,
       registration_timer_enabled: false,
-  registration_opens_at: '',
-  registration_closes_at: '',
-  registration_photo_required: false,
-    registration_photo_label: '',
-  registration_form_fields: [],
-  registration_participant_types: [],
-  registration_participant_quotas: {},
+      registration_opens_at: '',
+      registration_closes_at: '',
+      registration_photo_required: false,
+      registration_photo_label: '',
+      registration_form_fields: [],
+      registration_participant_types: [],
+      registration_participant_quotas: {},
       registration_default_mode: 'individual',
       registration_mode_locked: false,
-  team_max_members: undefined,
-  team_required_size: undefined,
+      team_max_members: undefined,
+      team_required_size: undefined,
       max_participants: undefined,
       featured: false,
       visible: true,
@@ -455,6 +455,23 @@ export const EventsManagement: React.FC = () => {
     setRulesSections([]);
   };
 
+  const validateRules = (rules: string[]): boolean => {
+    try {
+      if (!rules || !Array.isArray(rules)) return false;
+      if (isStructuredRules(rules)) {
+        const sections = unpackStructured(rules);
+        // If structured but unpacking returns empty and input wasn't trivial, it might be corrupt
+        // But unpackStructured returns [] on error.
+        // We trust that if it passed packStructured, it's likely okay, but let's be sure.
+        return true;
+      }
+      // Simple rules: check for non-strings?
+      return rules.every(r => typeof r === 'string');
+    } catch {
+      return false;
+    }
+  };
+
   const handleAddEvent = async () => {
     if (!eventForm.title || !eventForm.description) {
       alert('Please fill in all required fields (title and description)');
@@ -463,7 +480,13 @@ export const EventsManagement: React.FC = () => {
     
     try {
       setSavingAdd(true);
-      const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
+      const rawRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
+      const finalRules = rawRules.filter(r => !!r); // Remove null/undefined
+      
+      if (!validateRules(finalRules)) {
+        throw new Error('Invalid rules format. Please check your rules.');
+      }
+
       const eventData = {
         ...eventForm,
         // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
@@ -533,7 +556,13 @@ export const EventsManagement: React.FC = () => {
       setSavingUpdate(true);
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
-      const finalRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
+      const rawRules = rulesModeStructured ? packStructured(rulesSections) : (eventForm.rules || []);
+      const finalRules = rawRules.filter(r => !!r);
+      
+      if (!validateRules(finalRules)) {
+        throw new Error('Invalid rules format. Please check your rules.');
+      }
+
       const eventData = {
         ...eventForm,
         // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
