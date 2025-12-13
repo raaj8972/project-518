@@ -800,8 +800,16 @@ export const EventsManagement: React.FC = () => {
       rules: event.rules || [],
       registration_open: event.registration_open,
       registration_timer_enabled: (event as any).registration_timer_enabled ?? false,
-  registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
-  registration_closes_at: (event as any).registration_closes_at ? new Date((event as any).registration_closes_at).toISOString().slice(0,16) : '',
+      registration_opens_at: (event as any).registration_opens_at ? (() => {
+        const d = new Date((event as any).registration_opens_at);
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+      })() : '',
+      registration_closes_at: (event as any).registration_closes_at ? (() => {
+        const d = new Date((event as any).registration_closes_at);
+        const offset = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - offset).toISOString().slice(0, 16);
+      })() : '',
   registration_photo_required: (event as any).registration_photo_required ?? false,
     registration_photo_label: (event as any).registration_photo_label || '',
       registration_form_fields: (event as any).registration_form_fields || [],
