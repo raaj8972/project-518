@@ -249,17 +249,18 @@ export const Events: React.FC = () => {
 
   // Memoized flattened rules to prevent render-loop crashes
   const activeRuleItems = React.useMemo(() => {
-    if (!rulesModalFor) return [];
-    
-    // Use raw events to ensure availability even if filtered out
-    const ev = (events as any[]).find((e: any) => e.id === rulesModalFor);
-    if (!ev || !ev.rules) return [{ content: 'No rules available', level: 'bullet' } as const];
-
-    const items: Array<{ content: string; level: 'h1' | 'h2' | 'numbered' | 'bullet'; index?: number }> = [];
-    const MAX_ITEMS = 100;
-    let count = 0;
-
     try {
+      if (!rulesModalFor) return [];
+      if (!events || !Array.isArray(events)) return [];
+      
+      // Use raw events to ensure availability even if filtered out
+      const ev = (events as any[]).find((e: any) => e.id === rulesModalFor);
+      if (!ev || !ev.rules) return [{ content: 'No rules available', level: 'bullet' } as const];
+
+      const items: Array<{ content: string; level: 'h1' | 'h2' | 'numbered' | 'bullet'; index?: number }> = [];
+      const MAX_ITEMS = 100;
+      let count = 0;
+
       if (isStructuredRules(ev.rules)) {
         const sections = unpackStructured(ev.rules);
         if (Array.isArray(sections)) {
@@ -306,10 +307,13 @@ export const Events: React.FC = () => {
            }
         }
       }
-    } catch (e) { console.error(e); }
-    
-    if (items.length === 0) items.push({ content: 'No rules available', level: 'bullet' });
-    return items;
+      
+      if (items.length === 0) items.push({ content: 'No rules available', level: 'bullet' });
+      return items;
+    } catch (err) {
+      console.error('Rules error', err);
+      return [{ content: 'Error loading rules', level: 'bullet' }];
+    }
   }, [rulesModalFor, events]);
 
   // Soft perspective tilt on hover for desktop/fine pointers
