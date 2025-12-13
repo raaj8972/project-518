@@ -933,6 +933,36 @@ export function RegistrationManagement() {
       setEmailAdditionalData({});
   };
 
+  const handleCopyPhones = async () => {
+    const phones = new Set<string>();
+    filteredRegistrations.forEach(r => {
+      // Basic cleaning: remove non-numeric chars except +
+      if (!r.phone) return;
+      const p = String(r.phone).replace(/[^0-9+]/g, '').trim();
+      if (p.length >= 10) phones.add(p);
+    });
+    
+    if (phones.size === 0) {
+      push({ message: 'No valid phone numbers found in current filter.', type: 'info' });
+      return;
+    }
+    
+    // Format as comma-separated
+    const text = Array.from(phones).join(',');
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        push({ message: `Copied ${phones.size} phone numbers to clipboard!`, type: 'success' });
+      } else {
+         // Fallback?
+         prompt('Copy these numbers:', text);
+      }
+    } catch (e) {
+      console.error(e);
+      prompt('Copy these numbers:', text);
+    }
+  };
+
   const handleSendCustomEmail = async () => {
       const recipients = filteredRegistrations.filter(r => selectedIds.has(r.id));
       if (!recipients.length) return;
@@ -1395,6 +1425,15 @@ export function RegistrationManagement() {
                     {option.label}
                   </button>
                 ))}
+                
+                <button
+                  onClick={handleCopyPhones}
+                  className="flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                  title="Copy valid phone numbers to clipboard"
+                >
+                  <Phone size={16} className="mr-2" />
+                  Copy Phones
+                </button>
               </div>
             </div>
           </div>
