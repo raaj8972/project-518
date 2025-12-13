@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap, Fingerprint } from 'lucide-react';
+import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap, Fingerprint, Users } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -244,15 +244,26 @@ export const Login: React.FC = () => {
 
             {/* Login Form */}
             {!isFormOpen ? (
-              <div className="flex justify-center">
+              <div className="flex flex-col gap-4 items-center px-4 w-full">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(true)}
-                  className="cyberpunk-btn cyberpunk-btn-primary"
+                  className="cyberpunk-btn cyberpunk-btn-primary w-full max-w-[300px]"
                 >
                   <span className="relative z-10 flex items-center justify-center">
                     <Zap className="mr-2" size={20} />
                     OPEN ADMIN PANEL
+                  </span>
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => navigate('/coordinator')}
+                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <Users className="mr-2" size={20} />
+                    EVENT COORDINATOR PANEL
                   </span>
                 </button>
               </div>

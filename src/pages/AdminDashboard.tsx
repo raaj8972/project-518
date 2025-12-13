@@ -19,7 +19,9 @@ import {
   X,
   Fingerprint,
   CheckCircle,
-  Home
+  Home,
+  Link,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
@@ -62,8 +64,9 @@ import { AdminMessageToastContainer } from '../components/admin/AdminMessageToas
 import { useAdminMessages } from '../hooks/useAdminMessages';
 import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
 const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
+const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -148,7 +151,8 @@ export const AdminDashboard: React.FC = () => {
       'site-settings': 'Site Settings',
       'admin-users': 'Admin Users',
       notifications: 'Notifications',
-      'owner-approvals': 'Owner Approvals'
+      'owner-approvals': 'Owner Approvals',
+      'coordinator-passwords': 'Coordinator Passwords'
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
   }, [activeTab, updatePresence]);
@@ -279,6 +283,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
     { id: 'security' as TabType, name: 'Security', icon: Shield },
     { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint },
+    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock }] : []),
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -580,6 +585,20 @@ export const AdminDashboard: React.FC = () => {
                   </li>
                 );
               })}
+              
+              {/* Coordinator Access Link */}
+              <li className="pt-2 mt-2 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    navigate('/coordinator');
+                    setIsSidebarOpen(false);
+                  }}
+                  className="w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all active:scale-[0.98] text-purple-600 hover:bg-purple-50 hover:text-purple-700"
+                >
+                  <Link className="w-5 h-5 mr-3 flex-shrink-0 text-purple-500" />
+                  <span className="flex-1 text-left">Coordinator Access</span>
+                </button>
+              </li>
             </ul>
           </nav>
         </div>
@@ -860,6 +879,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'security' && <SecuritySettings />}
             {activeTab === 'biometric-login' && <BiometricLogin />}
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
+            {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}

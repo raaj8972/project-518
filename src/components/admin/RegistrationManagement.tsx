@@ -1,21 +1,31 @@
-```
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
-  Pencil, Check, MessageCircle
+  Pencil, Check
 } from 'lucide-react';
-import { useData } from '../../context/DataContext';
+import { useData, Registration } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
 import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
+
+const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg 
+    xmlns="http://www.w3.org/2000/svg" 
+    viewBox="0 0 16 16" 
+    fill="currentColor" 
+    className={className}
+  >
+    <path d="M13.601 2.326A7.854 7.854 0 0 0 6.979 0c-4.308 0-7.796 3.486-7.796 7.793 0 1.954.555 3.553 1.548 4.903l-1.649 4.8 4.92-1.286a7.862 7.862 0 0 0 3.799.965h.004c4.316 0 7.805-3.48 7.805-7.797 0-2.127-.836-4.13-2.316-5.597zM2.844 13.568l.492-1.656-.25-.398A6.366 6.366 0 0 1 1.768 7.793c0-3.522 2.87-6.393 6.398-6.393 1.708 0 3.315.666 4.524 1.874a6.37 6.37 0 0 1 1.87 4.529c0 3.526-2.87 6.397-6.398 6.397-1.618 0-3.14-.627-4.314-1.78l-.348-.344-1.656.492zm9.143-3.072c-.225-.113-1.333-.658-1.54-.733-.207-.075-.357-.112-.508.113-.15.225-.585.733-.717.883-.131.15-.262.169-.487.056-.225-.113-.951-.35-1.812-1.118-.673-.6-1.125-1.34-1.257-1.565-.131-.225-.014-.347.098-.459.1-.1.225-.262.338-.393.113-.131.15-.225.225-.375.075-.15.038-.281-.019-.393-.056-.113-.508-1.224-.696-1.673-.183-.44-.37-.38-.508-.38l-.432-.008c-.15 0-.394.056-.6.281-.207.225-.788.769-.788 1.875 0 1.106.806 2.175.919 2.325.113.15 3.169 4.838 7.675 6.788 1.071.464 1.907.557 2.56.486.726-.079 1.333-.543 1.521-1.066.188-.524.188-.973.131-1.067-.056-.094-.207-.169-.431-.281z"/>
+  </svg>
+);
 
 // Inline Editable Row Component for details
 const EditableRow = ({ 
@@ -140,24 +150,32 @@ const ProcessingOverlay = ({ title, progress, currentItem }: { title: string, pr
   </div>
 );
 
-export function RegistrationManagement() {
+interface RegistrationManagementProps {
+  coordinatorMode?: boolean;
+  coordinatorEventId?: number;
+}
+
+export function RegistrationManagement({ coordinatorMode = false, coordinatorEventId }: RegistrationManagementProps) {
   const { events, registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers, eventCoordinators } = useData();
   const { user } = useAuth();
-  
+
   const isOwner = useMemo(() => {
     const admin = adminUsers?.find(u => u.user_id === user?.id);
-    return admin?.role === 'owner' || admin?.is_primary;
-  }, [adminUsers, user]);
+    return admin?.role === 'owner' || user?.user_metadata?.is_super_admin;
+  }, [user, adminUsers]);
 
   const { push } = useToast();
   const [bulkSaving, setBulkSaving] = useState(false);
   const [bulkRejecting, setBulkRejecting] = useState(false);
-  
+
   // Processing State for Progress Bar
   const [processingState, setProcessingState] = useState<{ active: boolean, title: string, progress: number, item?: string }>({
     active: false, title: '', progress: 0
   });
-  const [selectedEvent, setSelectedEvent] = useState<string>('all');
+
+  const [selectedEvent, setSelectedEvent] = useState<string>(
+    coordinatorMode && coordinatorEventId ? String(coordinatorEventId) : 'all'
+  );
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
@@ -533,47 +551,55 @@ export function RegistrationManagement() {
 
   // Filter registrations based on selected filters
   const sourceRegistrations = viewMode === 'trash' ? deletedRegistrations : registrations;
-  const filteredRegistrations = sourceRegistrations.filter(registration => {
-    const matchesEvent = selectedEvent === 'all' || registration.event_title === selectedEvent;
-    const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
-    const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
-    const matchesParticipantType = selectedParticipantType === 'all' || registration.participant_type === selectedParticipantType;
-    const matchesSearch = searchTerm === '' || 
-      registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      registration.college.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Duplicate filter
-    const matchesDuplicate = showDuplicatesOnly ? duplicateIds.has(registration.id) : true;
+  const filteredRegistrations = useMemo(() => {
+    return sourceRegistrations.filter(registration => {
+      // Event filter - for coordinator mode, filter by event_id; otherwise by title
+      const matchesEvent = coordinatorMode && coordinatorEventId 
+        ? registration.event_id === coordinatorEventId
+        : (selectedEvent === 'all' || registration.event_title === selectedEvent);
+      // Category filter
+      const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
+      // Status filter
+      const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
+      // Participant type filter
+      const matchesParticipantType = selectedParticipantType === 'all' || registration.participant_type === selectedParticipantType;
+      const matchesSearch = searchTerm === '' || 
+        registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        registration.college.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Duplicate filter
+      const matchesDuplicate = showDuplicatesOnly ? duplicateIds.has(registration.id) : true;
 
-    // Email status filter (only for approved registrations)
-    let matchesEmailStatus = true;
-    if (selectedEmailStatus !== 'all' && registration.status === 'approved') {
-      const emailStatus = emailStatusMap[registration.id];
-      if (selectedEmailStatus === 'sent') {
-        matchesEmailStatus = emailStatus?.sent === true;
-      } else if (selectedEmailStatus === 'not-sent') {
-        matchesEmailStatus = !emailStatus || emailStatus.sent !== true;
+      // Email status filter (only for approved registrations)
+      let matchesEmailStatus = true;
+      if (selectedEmailStatus !== 'all' && registration.status === 'approved') {
+        const emailStatus = emailStatusMap[registration.id];
+        if (selectedEmailStatus === 'sent') {
+          matchesEmailStatus = emailStatus?.sent === true;
+        } else if (selectedEmailStatus === 'not-sent') {
+          matchesEmailStatus = !emailStatus || emailStatus.sent !== true;
+        }
       }
-    }
 
-    // Date range filter (inclusive). Uses local timezone for inputs.
-    let matchesDate = true;
-    try {
-      const regDate = new Date((registration as any).registration_date);
-      if (dateFrom) {
-        const from = new Date(`${dateFrom}T00:00:00`);
-        if (regDate < from) matchesDate = false;
-      }
-      if (matchesDate && dateTo) {
-        const to = new Date(`${dateTo}T23:59:59.999`);
-        if (regDate > to) matchesDate = false;
-      }
-    } catch {}
-    
-    return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate && matchesEmailStatus;
-  });
+      // Date range filter (inclusive). Uses local timezone for inputs.
+      let matchesDate = true;
+      try {
+        const regDate = new Date((registration as any).registration_date);
+        if (dateFrom) {
+          const from = new Date(`${dateFrom}T00:00:00`);
+          if (regDate < from) matchesDate = false;
+        }
+        if (matchesDate && dateTo) {
+          const to = new Date(`${dateTo}T23:59:59.999`);
+          if (regDate > to) matchesDate = false;
+        }
+      } catch {}
+      
+      return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate && matchesEmailStatus;
+    });
+  }, [sourceRegistrations, coordinatorMode, coordinatorEventId, selectedEvent, selectedStatus, selectedCategory, selectedParticipantType, searchTerm, showDuplicatesOnly, duplicateIds, selectedEmailStatus, emailStatusMap, dateFrom, dateTo]);
 
   // Selection helpers (needs filteredRegistrations)
   const toggleRowSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -1782,7 +1808,8 @@ export function RegistrationManagement() {
                 <select
                   value={selectedEvent}
                   onChange={(e) => setSelectedEvent(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={coordinatorMode}
+                  className={`w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${coordinatorMode ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                 >
                   <option value="all" className="text-gray-900">All Events ({registrations.length})</option>
                   {uniqueEvents.map(eventTitle => (
@@ -2107,6 +2134,37 @@ export function RegistrationManagement() {
                           <div className="text-sm text-gray-500 flex items-center">
                             <Phone size={12} className="mr-1" />
                             {registration.phone}
+                            {registration.phone && (() => {
+                              const event = events.find((e: any) => e.id === registration.event_id);
+                              const groupLink = event?.whatsapp_group_link || '';
+                              const firstName = registration.full_name.split(' ')[0];
+                              const eventTitle = registration.event_title;
+                              
+                              const message = `Hello ${firstName}! 👋\n\nYou have successfully registered for *${eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${groupLink || 'Link will be shared soon'}`;
+                              
+                              const cleanPhone = registration.phone.replace(/[^0-9]/g, '');
+                              const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+                              
+                              console.log('WhatsApp Message Details:', {
+                                eventId: registration.event_id,
+                                hasEvent: !!event,
+                                groupLink,
+                                messageLength: message.length
+                              });
+                              
+                              return (
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-2 inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded px-1 transition-colors"
+                                  title={`Chat on WhatsApp${groupLink ? ' (Link included)' : ' (No link set)'}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <WhatsAppLogo className="w-4 h-4" />
+                                </a>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -2373,15 +2431,6 @@ export function RegistrationManagement() {
                                         className="text-gray-700 hover:text-gray-900 text-sm cursor-pointer"
                                       >Download</button>
                                     </div>
-                                    <a
-                                        href={`https://wa.me/${registration.phone?.replace(/[^0-9]/g, '')}?text=Hi ${registration.full_name.split(' ')[0]}, please join the group: `}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="inline-flex items-center text-green-600 hover:text-green-700 text-sm font-medium"
-                                    >
-                                        <MessageCircle size={14} className="mr-1" />
-                                        WhatsApp
-                                    </a>
                                   </div>
                                 </div>
                               </div>

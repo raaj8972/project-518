@@ -288,6 +288,8 @@ export interface Database {
           visible: boolean
           artist_id: number | null
           watch_live_url: string | null
+          coordinator_password: string | null
+          whatsapp_group_link: string | null
           created_at: string
         }
         Insert: {
@@ -317,6 +319,8 @@ export interface Database {
           visible?: boolean
           artist_id?: number | null
           watch_live_url?: string | null
+          coordinator_password?: string | null
+          whatsapp_group_link?: string | null
           created_at?: string
         }
         Update: {
@@ -346,6 +350,8 @@ export interface Database {
           visible?: boolean
           artist_id?: number | null
           watch_live_url?: string | null
+          coordinator_password?: string | null
+          whatsapp_group_link?: string | null
           created_at?: string
         }
       }
@@ -1191,6 +1197,8 @@ export interface Database {
           video_url?: string | null
           youtube_url?: string | null
           watch_live_url?: string | null
+          coordinator_password?: string | null
+          whatsapp_group_link?: string | null
           detail_music_url?: string | null
           card_media_url?: string | null
           card_media_is_video?: boolean | null
@@ -1217,6 +1225,8 @@ export interface Database {
           video_url?: string | null
           youtube_url?: string | null
           watch_live_url?: string | null
+          coordinator_password?: string | null
+          whatsapp_group_link?: string | null
           detail_music_url?: string | null
           card_media_url?: string | null
           card_media_is_video?: boolean | null

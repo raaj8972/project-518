@@ -22,6 +22,8 @@ const RicoFamily = React.lazy(() => import('./pages/RicoFamily').then(m => ({ de
 const Sponsors = React.lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
+const CoordinatorLogin = React.lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
+const CoordinatorDashboard = React.lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
 
 const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
 const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
@@ -270,7 +272,7 @@ function App() {
               {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
               {!isAdminRoute && <NotificationsPanel />}
               {/* Hide public site chrome on admin pages to avoid overlap */}
-                  {!isAdminRoute && <div className="relative z-50"><Navbar /></div>}
+              {!isAdminRoute && !location.pathname.startsWith('/coordinator/dashboard') && <div className="relative z-50"><Navbar /></div>}
                   <Outlet />
               {!isAdminRoute && <Footer />}
               {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
@@ -349,6 +351,8 @@ function App() {
             { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><RicoFamily /></React.Suspense> },
             { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sponsors /></React.Suspense> },
             { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
+            { path: 'coordinator', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorLogin /></React.Suspense> },
+            { path: 'coordinator/dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorDashboard /></React.Suspense> },
             { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
             { path: 'health', element: <Home /> },
             { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }

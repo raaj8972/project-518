@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import type { EventCoordinator } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import { VideoUpload } from '../VideoUpload';
@@ -52,6 +53,7 @@ const computeRulesCount = (rules: string[] | null | undefined): number => {
 
 export const EventsManagement: React.FC = () => {
   const { push } = useToast();
+  const { user } = useAuth();
   const { 
     events, 
     eventCategories,
@@ -71,7 +73,19 @@ export const EventsManagement: React.FC = () => {
     // Reorder
     reorderEvents,
     lastEventReorderError,
+    adminUsers,
   } = (useData() || {}) as any;
+  
+  // Determine if current user is the OWNER
+  const isOwner = useMemo(() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
+    } catch {
+      return false;
+    }
+  }, [user, adminUsers]);
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [savingAdd, setSavingAdd] = useState(false);
@@ -259,6 +273,8 @@ export const EventsManagement: React.FC = () => {
     motion_poster_url: '' as string | null,
     coordinator_name: '' as string | null,
     coordinator_phone: '' as string | null,
+    coordinator_password: '123@Rajaevent' as string | null,
+    whatsapp_group_link: '' as string | null,
     date: '',
     time: '',
     venue: '',
@@ -424,6 +440,8 @@ export const EventsManagement: React.FC = () => {
       motion_poster_autoplay: false,
       coordinator_name: '',
       coordinator_phone: '',
+      coordinator_password: '123@Rajaevent',
+      whatsapp_group_link: '',
       date: '',
       time: '',
       venue: '',
@@ -864,6 +882,8 @@ export const EventsManagement: React.FC = () => {
   motion_poster_autoplay: (event as any).motion_poster_autoplay ?? false,
       coordinator_name: event.coordinator_name || '',
       coordinator_phone: event.coordinator_phone || '',
+      coordinator_password: (event as any).coordinator_password || '',
+      whatsapp_group_link: (event as any).whatsapp_group_link || '',
       date: event.date,
       time: event.time,
       venue: event.venue,
@@ -1190,6 +1210,59 @@ export const EventsManagement: React.FC = () => {
                     <option key={category.id} value={category.name}>{category.name}</option>
                   ))}
                 </select>
+              </div>
+
+              <div className="border-t border-gray-200 pt-4 mt-2">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Coordinator Access & WhatsApp</h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={eventForm.coordinator_name || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_name: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                      <input
+                        type="text"
+                        value={eventForm.coordinator_phone || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_phone: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-900"
+                        placeholder="+91..."
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Login Password</label>
+                      <input
+                        type="text"
+                        value={eventForm.coordinator_password || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, coordinator_password: e.target.value }))}
+                        disabled={!isOwner}
+                        title={!isOwner ? 'Only the owner can change the coordinator password' : ''}
+                        className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm ${ !isOwner ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300 focus:ring-yellow-500 focus:border-yellow-500' } font-mono text-gray-900`}
+                        placeholder="e.g. event123"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Group Link</label>
+                      <input
+                        type="url"
+                        value={eventForm.whatsapp_group_link || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, whatsapp_group_link: e.target.value }))}
+                        className="w-full p-2 border border-green-300 bg-green-50 rounded-lg text-sm text-gray-900 placeholder-gray-500"
+                        placeholder="https://chat.whatsapp.com/..."
+                        style={{ color: '#111827' }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
