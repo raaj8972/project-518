@@ -69,6 +69,7 @@ export const Events: React.FC = () => {
 
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
+  const [mobileRulesExpanded, setMobileRulesExpanded] = useState(false);
   const scrollSaveRef = useRef<number>(0);
   
   // PAGE LOAD PROTECTION: Prevent modal opening immediately after page load
@@ -101,6 +102,7 @@ export const Events: React.FC = () => {
     }
     // Capture/Save current scroll position before hiding content
     scrollSaveRef.current = window.scrollY;
+    setMobileRulesExpanded(false);
     setRulesModalFor(id);
   };
   const closeRulesModal = () => setRulesModalFor(null);
@@ -244,6 +246,71 @@ export const Events: React.FC = () => {
       return (visibleEvents as any[]).filter((e: any) => String(e?.category ?? '').trim().toLowerCase() === key);
     } catch (err) { return visibleEvents || []; }
   }, [visibleEvents, selectedCategory]);
+
+  // Memoized flattened rules to prevent render-loop crashes
+  const activeRuleItems = React.useMemo(() => {
+    if (!rulesModalFor) return [];
+    
+    // Use raw events to ensure availability even if filtered out
+    const ev = (events as any[]).find((e: any) => e.id === rulesModalFor);
+    if (!ev || !ev.rules) return [{ content: 'No rules available', level: 'bullet' } as const];
+
+    const items: Array<{ content: string; level: 'h1' | 'h2' | 'numbered' | 'bullet'; index?: number }> = [];
+    const MAX_ITEMS = 100;
+    let count = 0;
+
+    try {
+      if (isStructuredRules(ev.rules)) {
+        const sections = unpackStructured(ev.rules);
+        if (Array.isArray(sections)) {
+          for (const sec of sections.slice(0, 5)) { // 5 sections max
+            if (count >= MAX_ITEMS) break;
+            if (sec.heading && String(sec.heading).trim()) {
+              items.push({ content: String(sec.heading), level: 'h1' });
+              count++;
+            }
+            const blocks = Array.isArray(sec.blocks) ? sec.blocks : [];
+            for (const block of blocks.slice(0, 5)) { // 5 blocks max
+              if (count >= MAX_ITEMS) break;
+              if (block.title && String(block.title).trim()) {
+                items.push({ content: String(block.title), level: 'h2' });
+                count++;
+              }
+              const pts = Array.isArray(block.items) ? block.items : [];
+              const isNumbered = (block.style || 'number') !== 'bullet';
+              let iIdx = 1;
+              for (const pt of pts.slice(0, 20)) { // 20 items max per block
+                 if (count >= MAX_ITEMS) break;
+                 const text = String(typeof pt === 'object' ? JSON.stringify(pt) : pt).trim();
+                 if (text) {
+                   items.push({ 
+                     content: text, 
+                     level: isNumbered ? 'numbered' : 'bullet',
+                     index: isNumbered ? iIdx++ : undefined
+                   });
+                   count++;
+                 }
+              }
+            }
+          }
+        }
+      } else {
+        const arr = Array.isArray(ev.rules) ? ev.rules : [];
+        for (let i = 0; i < Math.min(arr.length, 50); i++) {
+           if (count >= MAX_ITEMS) break;
+           const rule = arr[i];
+           const text = String(typeof rule === 'object' ? JSON.stringify(rule) : rule).trim();
+           if (text) {
+             items.push({ content: text, level: 'numbered', index: i + 1 });
+             count++;
+           }
+        }
+      }
+    } catch (e) { console.error(e); }
+    
+    if (items.length === 0) items.push({ content: 'No rules available', level: 'bullet' });
+    return items;
+  }, [rulesModalFor, events]);
 
   // Soft perspective tilt on hover for desktop/fine pointers
   // MOVED HERE: to access 'filteredEvents' for dependency
@@ -1167,122 +1234,29 @@ export const Events: React.FC = () => {
                           
                           const rulesUrl = ev?.rules_link || ev?.rules_url || ev?.rules_file_url || ev?.rules_drive_link || null;
                           
-                          // SIMPLIFIED APPROACH: Flatten everything into a simple array upfront
-                          // Each item: { content: string, level: 'h1'|'h2'|'numbered'|'bullet', index?: number }
-                          const flatItems: Array<{ content: string; level: 'h1' | 'h2' | 'numbered' | 'bullet'; index?: number }> = [];
-                          
-                          try {
-                            // Safety wrapper for all processing
-                            const processRules = () => {
-                              if (!ev?.rules) return;
-                              
-                              // HARD CAP: Stop after 50 total items to prevent Safari crashes
-                              const MAX_TOTAL_ITEMS = 50;
-                              let totalItemsAdded = 0;
-                              
-                              // Check if structured rules
-                              if (isStructuredRules(ev.rules)) {
-                                const sections = unpackStructured(ev.rules);
-                                if (!sections || !Array.isArray(sections)) return;
-                                
-                                // REDUCED LIMITS: 5 sections instead of 10
-                                for (let sIdx = 0; sIdx < Math.min(sections.length, 5) && totalItemsAdded < MAX_TOTAL_ITEMS; sIdx++) {
-                                  try {
-                                    const sec = sections[sIdx];
-                                    if (!sec) continue;
-                                    
-                                    // Add heading if exists
-                                    if (sec.heading && String(sec.heading).trim()) {
-                                      flatItems.push({ content: String(sec.heading), level: 'h1' });
-                                      totalItemsAdded++;
-                                    }
-                                    
-                                    // Process blocks
-                                    const blocks = sec.blocks;
-                                    if (!Array.isArray(blocks)) continue;
-                                    
-                                    // REDUCED LIMITS: 5 blocks instead of 10
-                                    for (let bIdx = 0; bIdx < Math.min(blocks.length, 5) && totalItemsAdded < MAX_TOTAL_ITEMS; bIdx++) {
-                                      try {
-                                        const block = blocks[bIdx];
-                                        if (!block) continue;
-                                        
-                                        // Add subheading if exists
-                                        if (block.title && String(block.title).trim()) {
-                                          flatItems.push({ content: String(block.title), level: 'h2' });
-                                          totalItemsAdded++;
-                                        }
-                                        
-                                        // Add items
-                                        const items = block.items;
-                                        if (!Array.isArray(items)) continue;
-                                        
-                                        const isNumbered = (block.style || 'number') !== 'bullet';
-                                        let itemIndex = 1;
-                                        
-                                        // REDUCED LIMITS: 20 items instead of 30
-                                        for (let iIdx = 0; iIdx < Math.min(items.length, 20) && totalItemsAdded < MAX_TOTAL_ITEMS; iIdx++) {
-                                          try {
-                                            const item = items[iIdx];
-                                            if (!item) continue;
-                                            
-                                            const text = String(typeof item === 'object' ? JSON.stringify(item) : item).trim();
-                                            if (!text) continue;
-                                            
-                                            flatItems.push({
-                                              content: text,
-                                              level: isNumbered ? 'numbered' : 'bullet',
-                                              index: isNumbered ? itemIndex++ : undefined
-                                            });
-                                            totalItemsAdded++;
-                                          } catch (itemErr) {
-                                            console.error('[Rules] Item error:', itemErr);
-                                            continue;
-                                          }
-                                        }
-                                      } catch (blockErr) {
-                                        console.error('[Rules] Block error:', blockErr);
-                                        continue;
-                                      }
-                                    }
-                                  } catch (secErr) {
-                                    console.error('[Rules] Section error:', secErr);
-                                    continue;
-                                  }
-                                }
-                              } else {
-                                // Simple rules array - REDUCED to 30 items
-                                const rulesArray = ev.rules;
-                                if (!Array.isArray(rulesArray)) return;
-                                
-                                for (let i = 0; i < Math.min(rulesArray.length, 30) && totalItemsAdded < MAX_TOTAL_ITEMS; i++) {
-                                  try {
-                                    const rule = rulesArray[i];
-                                    if (!rule) continue;
-                                    
-                                    const text = String(typeof rule === 'object' ? JSON.stringify(rule) : rule).trim();
-                                    if (!text) continue;
-                                    
-                                    flatItems.push({ content: text, level: 'numbered', index: i + 1 });
-                                    totalItemsAdded++;
-                                  } catch (ruleErr) {
-                                    console.error('[Rules] Rule error:', ruleErr);
-                                    continue;
-                                  }
-                                }
-                              }
-                            };
+                          // Use memoized flattened rules to prevent render-loop recalculations
+                          const flatItems = activeRuleItems;
+
+                          const displayedItems = mobileRulesExpanded ? flatItems : flatItems.slice(0, 20);
+                          const remainingCount = flatItems.length - displayedItems.length;
+
+                          // Generate static HTML string for maximum render checking stability
+                          const rulesHtml = displayedItems.map(item => {
+                            const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                            const content = escape(item.content);
                             
-                            processRules();
-                          } catch (err) {
-                            console.error('[Rules Modal] Processing error:', err);
-                            flatItems.push({ content: 'Error loading rules. Please try again.', level: 'bullet' });
-                          }
-                          
-                          // If no items, show message
-                          if (flatItems.length === 0) {
-                            flatItems.push({ content: 'No rules available', level: 'bullet' });
-                          }
+                            if (item.level === 'h1') {
+                              return `<div class="font-bold text-white mt-4 first:mt-0 text-base">${content}</div>`;
+                            }
+                            if (item.level === 'h2') {
+                              return `<div class="font-semibold text-pink-300 mt-3 text-[15px]">${content}</div>`;
+                            }
+                            if (item.level === 'numbered') {
+                              return `<div class="flex items-start text-gray-100 text-[15px] leading-relaxed"><span class="mr-2 text-gray-400 flex-shrink-0">${item.index}.</span><span>${content}</span></div>`;
+                            }
+                            // bullet
+                            return `<div class="flex items-start text-gray-100 text-[15px] leading-relaxed"><span class="mr-2 text-gray-400 flex-shrink-0">•</span><span>${content}</span></div>`;
+                          }).join('');
 
                           return createPortal(
                             <div 
@@ -1327,60 +1301,31 @@ export const Events: React.FC = () => {
                                   className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
                                   style={{ WebkitOverflowScrolling: 'touch' }}
                                 >
-                                  <div className="space-y-2">
-                                    {flatItems.map((item, idx) => {
-                                      try {
-                                        if (item.level === 'h1') {
-                                          return (
-                                            <div key={idx} className="font-bold text-white mt-4 first:mt-0 text-base">
-                                              {item.content}
-                                            </div>
-                                          );
-                                        }
-                                        if (item.level === 'h2') {
-                                          return (
-                                            <div key={idx} className="font-semibold text-pink-300 mt-3 text-[15px]">
-                                              {item.content}
-                                            </div>
-                                          );
-                                        }
-                                        if (item.level === 'numbered') {
-                                          return (
-                                            <div key={idx} className="flex items-start text-gray-100 text-[15px] leading-relaxed">
-                                              <span className="mr-2 text-gray-400 flex-shrink-0">{item.index}.</span>
-                                              <span>{item.content}</span>
-                                            </div>
-                                          );
-                                        }
-                                        if (item.level === 'bullet') {
-                                          return (
-                                            <div key={idx} className="flex items-start text-gray-100 text-[15px] leading-relaxed">
-                                              <span className="mr-2 text-gray-400 flex-shrink-0">•</span>
-                                              <span>{item.content}</span>
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                      } catch (renderErr) {
-                                        console.error('[Rules Modal] Render error:', renderErr);
-                                        return null;
-                                      }
-                                    })}
+                                  {/* Render static HTML for performance */}
+                                  <div className="space-y-2" dangerouslySetInnerHTML={{ __html: rulesHtml }} />
+                                    
+                                    {remainingCount > 0 && (
+                                      <button
+                                        onClick={() => setMobileRulesExpanded(true)}
+                                        className="mt-4 w-full py-3 bg-white/10 text-pink-300 font-semibold rounded-lg hover:bg-white/20 active:bg-white/30 transition-colors text-sm"
+                                      >
+                                        Show {remainingCount} more rules...
+                                      </button>
+                                    )}
+                                    
+                                    {rulesUrl && (
+                                      <a 
+                                        href={String(rulesUrl)} 
+                                        target="_blank" 
+                                        rel="noreferrer" 
+                                        className="mt-4 inline-flex items-center text-sm px-3 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10"
+                                      >
+                                        <ExternalLink className="w-4 h-4 mr-2" />
+                                        View Full Rules PDF
+                                      </a>
+                                    )}
                                   </div>
-                                  
-                                  {rulesUrl && (
-                                    <a 
-                                      href={String(rulesUrl)} 
-                                      target="_blank" 
-                                      rel="noreferrer" 
-                                      className="mt-4 inline-flex items-center text-sm px-3 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10"
-                                    >
-                                      <ExternalLink className="w-4 h-4 mr-2" />
-                                      View Full Rules PDF
-                                    </a>
-                                  )}
                                 </div>
-                              </div>
                               
                               <style>{`
                                 @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }

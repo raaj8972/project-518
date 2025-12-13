@@ -69,14 +69,14 @@ const addWatermarkToPage = (doc: jsPDF, watermarkDataUrl: string | null) => {
  * Add stamp to bottom right corner of a PDF page
  * Stamp is fully opaque and sized appropriately
  */
-const addStampToPage = (doc: jsPDF, stampDataUrl: string | null) => {
+const addStampToPage = (doc: jsPDF, stampDataUrl: string | null, size: number = 70) => {
   if (!stampDataUrl) return;
   
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   
-  // Stamp at bottom right - 70mm x 70mm for excellent visibility
-  const stampSize = 70;
+  // Stamp at bottom right - size configurable (default 70mm)
+  const stampSize = size;
   const margin = 10;
   const x = pageWidth - stampSize - margin;
   const y = pageHeight - stampSize - margin;
@@ -1296,4 +1296,137 @@ export const generateRegistrationReceiptPDF = async (
   // Extract base64 part only (remove data:application/pdf;filename=generated.pdf;base64,)
   const base64 = pdfOutput.split(',')[1];
   return base64;
+};
+
+/**
+ * Export a summary report of event participation
+ * Lists Event Name, Total Count, and Breakdown by Participant Type
+ */
+export const exportEventSummaryPDF = (
+  registrations: Registration[],
+  options: RegistrationPDFOptions = {}
+) => {
+  const {
+    filename = 'events-summary-report.pdf',
+    title = 'Event Participation Summary',
+    watermarkDataUrl = null,
+    stampDataUrl = null
+  } = options;
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+
+  // Title page
+  doc.setFontSize(22);
+  doc.setTextColor(52, 152, 219);
+  doc.text(title, pageWidth / 2, 20, { align: 'center' });
+  
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  const timestamp = new Date().toLocaleString('en-IN', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Asia/Kolkata'
+  });
+  doc.text(`Generated on: ${timestamp}`, pageWidth / 2, 28, { align: 'center' });
+
+  // Group by Event
+  const groups: Record<string, Registration[]> = {};
+  registrations.forEach(r => {
+    const key = r.event_title || 'Unknown Event';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  const eventTitles = Object.keys(groups).sort();
+  
+  // Prepare Table Rows
+  const rows = eventTitles.map((title, index) => {
+    const regs = groups[title];
+    const total = regs.length;
+    
+    // Breakdown by Participant Type
+    const typeCounts: Record<string, number> = {};
+    regs.forEach(r => {
+      const t = r.participant_type || 'Unknown';
+      typeCounts[t] = (typeCounts[t] || 0) + 1;
+    });
+
+    // Format breakdown entries
+    const breakdown = Object.entries(typeCounts)
+      .map(([t, count]) => `${t}: ${count}`)
+      .sort()
+      .join('\n'); 
+
+    return [
+      (index + 1).toString(),
+      title,
+      total.toString(),
+      breakdown
+    ];
+  });
+
+  // Calculate generic summary stats
+  const totalRegistrations = registrations.length;
+  const uniqueEvents = eventTitles.length;
+  
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  doc.text(`Total Events: ${uniqueEvents} | Total Registrations: ${totalRegistrations}`, pageWidth / 2, 35, { align: 'center' });
+
+  // Render Table
+  autoTable(doc, {
+    startY: 45,
+    head: [['S.No', 'Event Name', 'Total', 'Batch Breakdown']],
+    body: rows,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [52, 152, 219],
+      textColor: 255,
+      fontSize: 10,
+      fontStyle: 'bold',
+      halign: 'center',
+      valign: 'middle'
+    },
+    bodyStyles: {
+      fontSize: 10,
+      textColor: 50,
+      valign: 'middle'
+    },
+    alternateRowStyles: {
+      fillColor: [245, 248, 250]
+    },
+    columnStyles: {
+      0: { cellWidth: 15, halign: 'center' },
+      1: { cellWidth: 70, fontStyle: 'bold' },
+      2: { cellWidth: 25, halign: 'center' },
+      3: { cellWidth: 'auto' }
+    },
+    margin: { left: 15, right: 15 },
+    didDrawPage: (data) => {
+        // Add watermark
+        addWatermarkToPage(doc, watermarkDataUrl || null);
+        
+        const pageCount = (doc as any).internal.getNumberOfPages();
+        doc.setFontSize(9);
+        doc.setTextColor(150);
+        doc.text(
+          `Page ${data.pageNumber} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+        
+        // Add stamp at bottom right
+        addStampToPage(doc, stampDataUrl || null, 40);
+      }
+  });
+
+  doc.save(filename);
 };

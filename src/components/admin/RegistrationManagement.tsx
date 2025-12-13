@@ -3,7 +3,8 @@ import {
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
-  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX
+  Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
+  Pencil, Check
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
@@ -11,8 +12,91 @@ import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
-import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF } from '../../utils/pdfExport';
+import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
+import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
+
+// Inline Editable Row Component for details
+const EditableRow = ({ 
+  label, 
+  value, 
+  onSave, 
+  canEdit = false, 
+  multiline = false,
+  className = ''
+}: { 
+  label: string, 
+  value: string | number | null | undefined, 
+  onSave: (val: string) => Promise<boolean>, 
+  canEdit?: boolean,
+  multiline?: boolean,
+  className?: string
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(String(value || ''));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setTempValue(String(value || ''));
+  }, [value]);
+
+  const handleSave = async () => {
+    if (tempValue.trim() === String(value || '').trim()) {
+      setIsEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const success = await onSave(tempValue);
+      if (success) setIsEditing(false);
+    } catch (e) {
+      console.error('Save failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={`flex items-start gap-2 group min-h-[24px] text-sm ${className}`}>
+      <strong className="text-gray-900 w-[140px] flex-shrink-0 pt-0.5">{label}:</strong>
+      {isEditing ? (
+        <div className="flex-1 flex items-start gap-2 max-w-md">
+          {multiline ? (
+             <textarea 
+               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 min-h-[60px] text-gray-900 bg-white" 
+               value={tempValue} 
+               onChange={e => setTempValue(e.target.value)}
+             /> 
+          ) : (
+             <input 
+               type="text" 
+               className="flex-1 border rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 text-gray-900 bg-white" 
+               value={tempValue} 
+               onChange={e => setTempValue(e.target.value)}
+             />
+          )}
+          <div className="flex flex-col gap-1 pt-0.5">
+            <button onClick={handleSave} disabled={saving} className="text-green-600 hover:text-green-800 p-0.5 rounded hover:bg-green-50" title="Save">
+               {saving ? <Loader2 className="animate-spin" size={16}/> : <Check size={16}/>}
+            </button>
+            <button onClick={() => { setIsEditing(false); setTempValue(String(value || '')); }} className="text-red-600 hover:text-red-800 p-0.5 rounded hover:bg-red-50" title="Cancel">
+               <X size={16}/>
+            </button>
+          </div>
+        </div>
+      ) : (
+         <div className="flex-1 flex items-center gap-2 min-h-[24px]">
+            <span className="text-gray-700 break-words">{value || <span className="text-gray-400 italic">None</span>}</span>
+            {canEdit && (
+               <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Edit">
+                  <Pencil size={12} />
+               </button>
+            )}
+         </div>
+      )}
+    </div>
+  );
+};
 // Removed static jsPDF + autotable imports; will lazy load to reduce initial bundle & avoid side-effect race
 
 // Defensive helper: some old rows may store team_members as JSON string or null
@@ -1265,7 +1349,18 @@ export function RegistrationManagement() {
                   <FileText size={16} className="mr-2" />
                   Detailed Report
                 </button>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => exportEventSummaryPDF(filteredRegistrations, {
+                      watermarkDataUrl,
+                      stampDataUrl
+                    })}
+                    className="flex items-center justify-center bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                    title="Summary: Count & Batch breakdown"
+                  >
+                    <FileText size={14} className="mr-1" />
+                    Summary
+                  </button>
                   <button
                     onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
                     className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -2142,11 +2237,77 @@ export function RegistrationManagement() {
                           <div className="grid md:grid-cols-2 gap-4">
                             <div>
                               <h4 className="font-semibold text-gray-900 mb-2">Registration Details</h4>
-                              <div className="space-y-1 text-sm text-gray-900">
-                                <div><strong className="text-gray-900">Registration ID:</strong> {registration.id}</div>
-                                <div><strong className="text-gray-900">Participant Type:</strong> {registration.participant_type}</div>
-                                <div><strong className="text-gray-900">College:</strong> {registration.college}</div>
-                                <div><strong className="text-gray-900">Registration Date:</strong> {new Date(registration.registration_date).toLocaleString()}</div>
+                              <div className="space-y-1 sm:space-y-2">
+                                <EditableRow 
+                                  label="Full Name" 
+                                  value={registration.full_name} 
+                                  onSave={async (val) => {
+                                    const { error } = await supabase.from('registrations').update({ full_name: val }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status); 
+                                    push({ message: 'Name updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
+                                <div className="flex items-start gap-2 min-h-[24px] text-sm">
+                                  <strong className="text-gray-900 w-[140px] flex-shrink-0 pt-0.5">Registration ID:</strong>
+                                  <span className="text-gray-700 font-mono text-xs pt-0.5 select-all">{registration.id}</span>
+                                </div>
+                                <EditableRow 
+                                  label="College" 
+                                  value={registration.college} 
+                                  onSave={async (val) => {
+                                    const { error } = await supabase.from('registrations').update({ college: val }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    push({ message: 'College updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
+                                <EditableRow 
+                                  label="Email" 
+                                  value={registration.email} 
+                                  onSave={async (val) => {
+                                    const enc = encryptData(val);
+                                    const { error } = await supabase.from('registrations').update({ email: enc }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    push({ message: 'Email updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
+                                <EditableRow 
+                                  label="Phone" 
+                                  value={registration.phone} 
+                                  onSave={async (val) => {
+                                    const enc = encryptData(val);
+                                    const { error } = await supabase.from('registrations').update({ phone: enc }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    push({ message: 'Phone updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
+                                <EditableRow 
+                                  label="Part. Type" 
+                                  value={registration.participant_type} 
+                                  onSave={async (val) => {
+                                    const { error } = await supabase.from('registrations').update({ participant_type: val }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    push({ message: 'Participant type updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
+                                <div className="flex items-start gap-2 min-h-[24px] text-sm">
+                                  <strong className="text-gray-900 w-[140px] flex-shrink-0 pt-0.5">Date:</strong>
+                                  <span className="text-gray-700 pt-0.5">{new Date(registration.registration_date).toLocaleString()}</span>
+                                </div>
                               </div>
                             </div>
                             {((registration as any).photo_url) && (
@@ -2181,18 +2342,71 @@ export function RegistrationManagement() {
                           {/* Team Members */}
                           {registration.is_team_registration && (
                             <div>
+                            <div className="space-y-2">
+                                <EditableRow 
+                                  label="Team Name" 
+                                  value={registration.team_name} 
+                                  onSave={async (val) => {
+                                    const { error } = await supabase.from('registrations').update({ team_name: val }).eq('id', registration.id);
+                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    await updateRegistrationStatus(registration.id, registration.status);
+                                    push({ message: 'Team name updated', type: 'success' });
+                                    return true;
+                                  }} 
+                                  canEdit={isOwner} 
+                                />
                               <h4 className="font-semibold text-gray-900 mb-2">
                                 Team Members ({registration.total_members})
                               </h4>
                               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                                 {safeTeamMembers(registration).map((member: any, index: number) => (
-                                  <div key={index} className="bg-white p-3 rounded border">
-                                    <div className="font-medium text-sm text-gray-900">{member.name}</div>
-                                    <div className="text-xs text-gray-600">{member.email}</div>
-                                    <div className="text-xs text-gray-600">{member.phone}</div>
+                                  <div key={index} className="bg-white p-3 rounded border space-y-2">
+                                    <EditableRow 
+                                      label="Name" 
+                                      value={member.name} 
+                                      onSave={async (val) => {
+                                        const members = safeTeamMembers(registration);
+                                        members[index] = { ...members[index], name: val };
+                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
+                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        return true;
+                                      }}
+                                      canEdit={isOwner}
+                                      className="!min-h-[24px]"
+                                    />
+                                    <EditableRow 
+                                      label="Email" 
+                                      value={member.email} 
+                                      onSave={async (val) => {
+                                        const members = safeTeamMembers(registration);
+                                        members[index] = { ...members[index], email: val };
+                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
+                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        return true;
+                                      }}
+                                      canEdit={isOwner}
+                                      className="!min-h-[24px]"
+                                    />
+                                    <EditableRow 
+                                      label="Phone" 
+                                      value={member.phone} 
+                                      onSave={async (val) => {
+                                        const members = safeTeamMembers(registration);
+                                        members[index] = { ...members[index], phone: val };
+                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
+                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        await updateRegistrationStatus(registration.id, registration.status);
+                                        return true;
+                                      }}
+                                      canEdit={isOwner}
+                                      className="!min-h-[24px]"
+                                    />
                                   </div>
                                 ))}
                               </div>
+                            </div>
                             </div>
                           )}
                           {/* Notification History */}
