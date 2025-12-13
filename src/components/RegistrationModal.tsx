@@ -404,6 +404,24 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
     if (isSubmitting) return;
     setIsSubmitting(true);
     
+    // Check if registration period has closed
+    try {
+      const ev = events.find((e: any) => e.id === eventId) as any;
+      if (ev?.registration_timer_enabled && ev?.registration_closes_at) {
+        const closeTime = new Date(ev.registration_closes_at).getTime();
+        if (!isNaN(closeTime) && Date.now() >= closeTime) {
+          setQuotaBlocked({
+            title: 'REGISTRATION CLOSED',
+            message: 'The registration period for this event has ended. Please contact the organizers if you believe this is an error.'
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('[RegistrationModal] Failed to check closing time:', err);
+    }
+    
     if (!validateForm()) {
       setIsSubmitting(false); // Re-enable if validation fails
       return;

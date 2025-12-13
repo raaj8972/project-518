@@ -269,6 +269,7 @@ export const EventsManagement: React.FC = () => {
     registration_open: true,
     registration_timer_enabled: false as boolean,
   registration_opens_at: '' as string | null,
+  registration_closes_at: '' as string | null,
   registration_photo_required: false as boolean,
   registration_photo_label: '' as string | null,
     registration_form_fields: [] as any[],
@@ -432,6 +433,7 @@ export const EventsManagement: React.FC = () => {
       registration_open: true,
       registration_timer_enabled: false,
   registration_opens_at: '',
+  registration_closes_at: '',
   registration_photo_required: false,
     registration_photo_label: '',
   registration_form_fields: [],
@@ -473,6 +475,7 @@ export const EventsManagement: React.FC = () => {
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
+        registration_closes_at: eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
         current_registrations: 0,
@@ -541,6 +544,7 @@ export const EventsManagement: React.FC = () => {
         rules: finalRules,
         registration_timer_enabled: !!eventForm.registration_timer_enabled,
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
+        registration_closes_at: eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
         registration_participant_types: (eventForm as any).registration_participant_types || null,
@@ -797,6 +801,7 @@ export const EventsManagement: React.FC = () => {
       registration_open: event.registration_open,
       registration_timer_enabled: (event as any).registration_timer_enabled ?? false,
   registration_opens_at: (event as any).registration_opens_at ? new Date((event as any).registration_opens_at).toISOString().slice(0,16) : '',
+  registration_closes_at: (event as any).registration_closes_at ? new Date((event as any).registration_closes_at).toISOString().slice(0,16) : '',
   registration_photo_required: (event as any).registration_photo_required ?? false,
     registration_photo_label: (event as any).registration_photo_label || '',
       registration_form_fields: (event as any).registration_form_fields || [],
@@ -1589,16 +1594,28 @@ export const EventsManagement: React.FC = () => {
                 <p className="text-xs text-gray-500 mt-1">Shown to users on the registration form. Leave blank to use default.</p>
               </div>
               {eventForm.registration_timer_enabled && (
-                <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At (optional)</label>
-                  <input
-                    type="datetime-local"
-                    value={eventForm.registration_opens_at || ''}
-                    onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Users will see countdown until this time. After it passes, event can show "Live Now" if registration is open.</p>
-                </div>
+                <>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At (optional)</label>
+                    <input
+                      type="datetime-local"
+                      value={eventForm.registration_opens_at || ''}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Users will see countdown until this time. After it passes, event can show "Live Now" if registration is open.</p>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Registration Closes At (optional)</label>
+                    <input
+                      type="datetime-local"
+                      value={eventForm.registration_closes_at || ''}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, registration_closes_at: e.target.value }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Registration will automatically close at this time. Users attempting to register after this will see "Registration Closed".</p>
+                  </div>
+                </>
               )}
               <div className="mt-3">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Watch Live URL (optional)</label>
@@ -2152,15 +2169,22 @@ export const EventsManagement: React.FC = () => {
                     Require Photo During Registration
                   </label>
                   {eventForm.registration_timer_enabled && (
-                    <div className="w-full">
+                    <>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Registration Opens At</label>
                       <input
                         type="datetime-local"
                         value={eventForm.registration_opens_at || ''}
                         onChange={(e) => setEventForm(prev => ({ ...prev, registration_opens_at: e.target.value }))}
-                        className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 mb-3"
                       />
-                    </div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Registration Closes At</label>
+                      <input
+                        type="datetime-local"
+                        value={eventForm.registration_closes_at || ''}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, registration_closes_at: e.target.value }))}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                      />
+                    </>
                   )}
                 </div>
                 {/* Registration Photo Label (edit) */}

@@ -70,6 +70,14 @@ export const Events: React.FC = () => {
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
   const scrollSaveRef = useRef<number>(0);
+  
+  // PAGE LOAD PROTECTION: Prevent modal opening immediately after page load
+  const [pageJustLoaded, setPageJustLoaded] = useState(true);
+  useEffect(() => {
+    // Allow modals to open after 2 seconds
+    const timer = setTimeout(() => setPageJustLoaded(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Restore scroll position when closing the rules modal (nuclear optimization recovery)
   React.useLayoutEffect(() => {
@@ -81,6 +89,16 @@ export const Events: React.FC = () => {
   }, [rulesModalFor]);
 
   const openRulesModal = (id: number) => {
+    // CRASH FIX: Block opening during initial page load
+    if (pageJustLoaded) {
+      console.warn('[Rules Modal] Blocked - page still loading');
+      return;
+    }
+    // CRASH FIX: Don't open modal if events aren't loaded yet
+    if (!Array.isArray(filteredEvents) || filteredEvents.length === 0) {
+      console.warn('[Rules Modal] Cannot open - events not loaded yet');
+      return;
+    }
     // Capture/Save current scroll position before hiding content
     scrollSaveRef.current = window.scrollY;
     setRulesModalFor(id);
@@ -506,6 +524,46 @@ export const Events: React.FC = () => {
     return `Opens at — IST: ${ist} • Local: ${local} • UTC: ${utc} • Note: countdown uses your device time`;
   };
 
+  // Closing countdown helpers
+  const getClosingCountdown = (e: any): string | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_closes_at) return null;
+    const closeAt = new Date(e.registration_closes_at).getTime();
+    if (Number.isNaN(closeAt)) return null;
+    const now = Date.now();
+    const diff = closeAt - now;
+    if (diff <= 0) return 'closed';
+    const d = Math.floor(diff / (24*60*60*1000));
+    const h = Math.floor((diff % (24*60*60*1000)) / (60*60*1000));
+    const m = Math.floor((diff % (60*60*1000)) / (60*1000));
+    const s = Math.floor((diff % (60*1000)) / 1000);
+    const parts = [] as string[];
+    if (d) parts.push(`${d}d`);
+    if (h || parts.length) parts.push(`${h}h`);
+    if (m || parts.length) parts.push(`${m}m`);
+    parts.push(`${s}s`);
+    return parts.join(' ');
+  };
+
+  const getSecondsToClose = (e: any): number | null => {
+    if (!e?.registration_timer_enabled || !e?.registration_closes_at) return null;
+    const ts = new Date(e.registration_closes_at).getTime();
+    if (Number.isNaN(ts)) return null;
+    const diff = ts - Date.now();
+    if (diff <= 0) return 0;
+    return Math.ceil(diff / 1000);
+  };
+
+  const getClosesAtTooltip = (e: any): string => {
+    const iso = e?.registration_closes_at as string | null | undefined;
+    if (!iso) return 'Closes at —';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return 'Closes at —';
+    const ist = d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    const local = d.toLocaleString();
+    const utc = d.toUTCString();
+    return `Closes at — IST: ${ist} • Local: ${local} • UTC: ${utc} • Note: countdown uses your device time`;
+  };
+
   // Soft palette for last-10s countdown (not too bright), with colored glow
   const COUNTDOWN_PALETTE = ['#a78bfa', '#60a5fa', '#34d399', '#fbbf24', '#f472b6', '#22d3ee', '#f87171', '#93c5fd', '#c084fc', '#38bdf8'];
   const hexToRgba = (hex: string, alpha: number): string => {
@@ -538,9 +596,27 @@ export const Events: React.FC = () => {
     // Allow registration if either:
     // 1) Admin has opened registration (registration_open true) — overrides timer immediately, OR
     // 2) The timer has reached/passed the open time (immediate open at boundary even if flag hasn't toggled yet)
-    if (e?.registration_open) return true;
+    if (e?.registration_open) {
+      // Even if registration_open is true, check if timer has closed it
+      if (e?.registration_timer_enabled && e?.registration_closes_at) {
+        const closeTime = new Date(e.registration_closes_at).getTime();
+        if (!isNaN(closeTime) && Date.now() >= closeTime) {
+          return false; // Closed by timer
+        }
+      }
+      return true;
+    }
     const openAt = getOpenAtMs(e);
     const isTimerOpenWithGrace = openAt != null ? Date.now() + OPEN_GRACE_MS >= openAt : false;
+    
+    // Check if registration period has closed
+    if (e?.registration_timer_enabled && e?.registration_closes_at) {
+      const closeTime = new Date(e.registration_closes_at).getTime();
+      if (!isNaN(closeTime) && Date.now() >= closeTime) {
+        return false; // Closed by timer
+      }
+    }
+    
     return isTimerOpenWithGrace;
   };
 
@@ -1060,116 +1136,263 @@ export const Events: React.FC = () => {
                         </div>
                       )}
                     </button>
-                      {/* Mobile Rules Modal - Bottom Sheet Style (Rewritten for stability) */}
+                      {/* Mobile Rules Modal - SAFARI-SAFE VERSION */}
                       {rulesModalFor != null && (() => {
-                        const ev = filteredEvents.find((e: any) => e.id === rulesModalFor);
-                        if (!ev || typeof document === 'undefined') return null;
-                        const rulesUrl = (ev as any).rules_link || (ev as any).rules_url || (ev as any).rules_file_url || (ev as any).rules_drive_link || null;
+                        // SAFARI FIX: Show loading state instead of crashing
+                        const isDataReady = Array.isArray(filteredEvents) && filteredEvents.length > 0;
                         
-                        // Flatten rules for simple rendering
-                        let ruleItems: string[] = [];
-                        try {
-                          if (isStructuredRules(ev.rules)) {
-                            const sections = unpackStructured(ev.rules).slice(0, 10);
-                            sections.forEach((sec) => {
-                              if (String(sec.heading || '').trim()) ruleItems.push(`**${String(sec.heading)}**`);
-                              (sec.blocks || []).slice(0, 10).forEach((b) => {
-                                if (String(b.title || '').trim()) ruleItems.push(`*${String(b.title)}*`);
-                                (b.items || []).slice(0, 30).forEach((item) => {
-                                  ruleItems.push(typeof item === 'object' ? JSON.stringify(item) : String(item));
-                                });
-                              });
-                            });
-                          } else {
-                            ruleItems = (ev.rules || []).slice(0, 50).map((r: any) => 
-                              typeof r === 'object' ? JSON.stringify(r) : String(r)
-                            );
-                          }
-                        } catch { ruleItems = ['Error loading rules']; }
-
-                        return createPortal(
-                          <div 
-                            className="fixed inset-0 z-[9999] md:hidden"
-                            style={{ touchAction: 'none' }}
-                          >
-                            {/* Backdrop - tap to close */}
-                            <div 
-                              className="absolute inset-0 bg-black/85"
-                              onClick={closeRulesModal}
-                              style={{ animation: 'fadeIn 150ms ease-out' }}
-                            />
-                            
-                            {/* Bottom Sheet Container */}
-                            <div 
-                              className="absolute bottom-0 left-0 right-0 bg-[#111] rounded-t-3xl max-h-[80vh] flex flex-col"
-                              style={{ 
-                                animation: 'slideUp 200ms ease-out',
-                                touchAction: 'pan-y'
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                              onTouchMove={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => e.stopPropagation()}
-                            >
-                              {/* Drag Handle */}
-                              <div className="flex justify-center py-3">
-                                <div className="w-10 h-1 bg-gray-500 rounded-full" />
-                              </div>
-                              
-                              {/* Header */}
-                              <div className="px-5 pb-3 border-b border-white/10 flex items-center justify-between">
-                                <h3 className="text-white font-semibold text-base truncate pr-4">
-                                  {ev.title} — Rules
-                                </h3>
+                        // If data not ready, show loading message (don't crash)
+                        if (!isDataReady) {
+                          return createPortal(
+                            <div className="fixed inset-0 z-[9999] md:hidden">
+                              <div className="absolute inset-0 bg-black/85" onClick={closeRulesModal} />
+                              <div className="absolute bottom-0 left-0 right-0 bg-[#111] rounded-t-3xl p-8 text-center">
+                                <p className="text-white">Loading rules...</p>
                                 <button 
                                   onClick={closeRulesModal}
-                                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white text-lg"
-                                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                                  className="mt-4 px-4 py-2 bg-white/10 text-white rounded"
                                 >
-                                  ✕
+                                  Close
                                 </button>
                               </div>
+                            </div>,
+                            document.body
+                          );
+                        }
+                        
+                        // ULTRA-DEFENSIVE: Early exit if no event found
+                        try {
+                          const ev = filteredEvents.find((e: any) => e?.id === rulesModalFor);
+                          if (!ev || !document?.body) return null;
+                          
+                          const rulesUrl = ev?.rules_link || ev?.rules_url || ev?.rules_file_url || ev?.rules_drive_link || null;
+                          
+                          // SIMPLIFIED APPROACH: Flatten everything into a simple array upfront
+                          // Each item: { content: string, level: 'h1'|'h2'|'numbered'|'bullet', index?: number }
+                          const flatItems: Array<{ content: string; level: 'h1' | 'h2' | 'numbered' | 'bullet'; index?: number }> = [];
+                          
+                          try {
+                            // Safety wrapper for all processing
+                            const processRules = () => {
+                              if (!ev?.rules) return;
                               
-                              {/* Scrollable Content */}
-                              <div 
-                                className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
-                                style={{ WebkitOverflowScrolling: 'touch' }}
-                              >
-                                <ul className="list-disc list-outside ml-4 space-y-2.5 text-gray-200 text-[15px] leading-relaxed">
-                                  {ruleItems.map((item, i) => {
-                                    // Render headings differently
-                                    if (item.startsWith('**') && item.endsWith('**')) {
-                                      return <li key={i} className="list-none -ml-4 font-bold text-white mt-4 first:mt-0 text-base">{item.slice(2, -2)}</li>;
-                                    }
-                                    if (item.startsWith('*') && item.endsWith('*')) {
-                                      return <li key={i} className="list-none -ml-4 font-semibold text-pink-300 mt-3 text-[15px]">{item.slice(1, -1)}</li>;
-                                    }
-                                    return <li key={i} className="text-gray-100">{item}</li>;
-                                  })}
-                                </ul>
+                              // HARD CAP: Stop after 50 total items to prevent Safari crashes
+                              const MAX_TOTAL_ITEMS = 50;
+                              let totalItemsAdded = 0;
+                              
+                              // Check if structured rules
+                              if (isStructuredRules(ev.rules)) {
+                                const sections = unpackStructured(ev.rules);
+                                if (!sections || !Array.isArray(sections)) return;
                                 
-                                {/* PDF/Drive Link */}
-                                {rulesUrl && (
-                                  <a 
-                                    href={rulesUrl} 
-                                    target="_blank" 
-                                    rel="noreferrer" 
-                                    className="mt-4 inline-flex items-center text-sm px-3 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10"
-                                  >
-                                    <ExternalLink className="w-4 h-4 mr-2" />
-                                    View Full Rules PDF
-                                  </a>
-                                )}
-                              </div>
-                            </div>
+                                // REDUCED LIMITS: 5 sections instead of 10
+                                for (let sIdx = 0; sIdx < Math.min(sections.length, 5) && totalItemsAdded < MAX_TOTAL_ITEMS; sIdx++) {
+                                  try {
+                                    const sec = sections[sIdx];
+                                    if (!sec) continue;
+                                    
+                                    // Add heading if exists
+                                    if (sec.heading && String(sec.heading).trim()) {
+                                      flatItems.push({ content: String(sec.heading), level: 'h1' });
+                                      totalItemsAdded++;
+                                    }
+                                    
+                                    // Process blocks
+                                    const blocks = sec.blocks;
+                                    if (!Array.isArray(blocks)) continue;
+                                    
+                                    // REDUCED LIMITS: 5 blocks instead of 10
+                                    for (let bIdx = 0; bIdx < Math.min(blocks.length, 5) && totalItemsAdded < MAX_TOTAL_ITEMS; bIdx++) {
+                                      try {
+                                        const block = blocks[bIdx];
+                                        if (!block) continue;
+                                        
+                                        // Add subheading if exists
+                                        if (block.title && String(block.title).trim()) {
+                                          flatItems.push({ content: String(block.title), level: 'h2' });
+                                          totalItemsAdded++;
+                                        }
+                                        
+                                        // Add items
+                                        const items = block.items;
+                                        if (!Array.isArray(items)) continue;
+                                        
+                                        const isNumbered = (block.style || 'number') !== 'bullet';
+                                        let itemIndex = 1;
+                                        
+                                        // REDUCED LIMITS: 20 items instead of 30
+                                        for (let iIdx = 0; iIdx < Math.min(items.length, 20) && totalItemsAdded < MAX_TOTAL_ITEMS; iIdx++) {
+                                          try {
+                                            const item = items[iIdx];
+                                            if (!item) continue;
+                                            
+                                            const text = String(typeof item === 'object' ? JSON.stringify(item) : item).trim();
+                                            if (!text) continue;
+                                            
+                                            flatItems.push({
+                                              content: text,
+                                              level: isNumbered ? 'numbered' : 'bullet',
+                                              index: isNumbered ? itemIndex++ : undefined
+                                            });
+                                            totalItemsAdded++;
+                                          } catch (itemErr) {
+                                            console.error('[Rules] Item error:', itemErr);
+                                            continue;
+                                          }
+                                        }
+                                      } catch (blockErr) {
+                                        console.error('[Rules] Block error:', blockErr);
+                                        continue;
+                                      }
+                                    }
+                                  } catch (secErr) {
+                                    console.error('[Rules] Section error:', secErr);
+                                    continue;
+                                  }
+                                }
+                              } else {
+                                // Simple rules array - REDUCED to 30 items
+                                const rulesArray = ev.rules;
+                                if (!Array.isArray(rulesArray)) return;
+                                
+                                for (let i = 0; i < Math.min(rulesArray.length, 30) && totalItemsAdded < MAX_TOTAL_ITEMS; i++) {
+                                  try {
+                                    const rule = rulesArray[i];
+                                    if (!rule) continue;
+                                    
+                                    const text = String(typeof rule === 'object' ? JSON.stringify(rule) : rule).trim();
+                                    if (!text) continue;
+                                    
+                                    flatItems.push({ content: text, level: 'numbered', index: i + 1 });
+                                    totalItemsAdded++;
+                                  } catch (ruleErr) {
+                                    console.error('[Rules] Rule error:', ruleErr);
+                                    continue;
+                                  }
+                                }
+                              }
+                            };
                             
-                            <style>{`
-                              @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-                              @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
-                            `}</style>
-                          </div>,
-                          document.body
-                        );
+                            processRules();
+                          } catch (err) {
+                            console.error('[Rules Modal] Processing error:', err);
+                            flatItems.push({ content: 'Error loading rules. Please try again.', level: 'bullet' });
+                          }
+                          
+                          // If no items, show message
+                          if (flatItems.length === 0) {
+                            flatItems.push({ content: 'No rules available', level: 'bullet' });
+                          }
+
+                          return createPortal(
+                            <div 
+                              className="fixed inset-0 z-[9999] md:hidden"
+                              style={{ touchAction: 'none' }}
+                            >
+                              <div 
+                                className="absolute inset-0 bg-black/85"
+                                onClick={closeRulesModal}
+                                style={{ animation: 'fadeIn 150ms ease-out' }}
+                              />
+                              
+                              <div 
+                                className="absolute bottom-0 left-0 right-0 bg-[#111] rounded-t-3xl max-h-[80vh] flex flex-col"
+                                style={{ 
+                                  animation: 'slideUp 200ms ease-out',
+                                  touchAction: 'pan-y'
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                onTouchMove={(e) => e.stopPropagation()}
+                                onTouchEnd={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex justify-center py-3">
+                                  <div className="w-10 h-1 bg-gray-500 rounded-full" />
+                                </div>
+                                
+                                <div className="px-5 pb-3 border-b border-white/10 flex items-center justify-between">
+                                  <h3 className="text-white font-semibold text-base truncate pr-4">
+                                    {String(ev?.title || 'Event')} — Rules
+                                  </h3>
+                                  <button 
+                                    onClick={closeRulesModal}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white text-lg"
+                                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                                
+                                <div 
+                                  className="flex-1 overflow-y-auto overscroll-contain px-5 py-4"
+                                  style={{ WebkitOverflowScrolling: 'touch' }}
+                                >
+                                  <div className="space-y-2">
+                                    {flatItems.map((item, idx) => {
+                                      try {
+                                        if (item.level === 'h1') {
+                                          return (
+                                            <div key={idx} className="font-bold text-white mt-4 first:mt-0 text-base">
+                                              {item.content}
+                                            </div>
+                                          );
+                                        }
+                                        if (item.level === 'h2') {
+                                          return (
+                                            <div key={idx} className="font-semibold text-pink-300 mt-3 text-[15px]">
+                                              {item.content}
+                                            </div>
+                                          );
+                                        }
+                                        if (item.level === 'numbered') {
+                                          return (
+                                            <div key={idx} className="flex items-start text-gray-100 text-[15px] leading-relaxed">
+                                              <span className="mr-2 text-gray-400 flex-shrink-0">{item.index}.</span>
+                                              <span>{item.content}</span>
+                                            </div>
+                                          );
+                                        }
+                                        if (item.level === 'bullet') {
+                                          return (
+                                            <div key={idx} className="flex items-start text-gray-100 text-[15px] leading-relaxed">
+                                              <span className="mr-2 text-gray-400 flex-shrink-0">•</span>
+                                              <span>{item.content}</span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      } catch (renderErr) {
+                                        console.error('[Rules Modal] Render error:', renderErr);
+                                        return null;
+                                      }
+                                    })}
+                                  </div>
+                                  
+                                  {rulesUrl && (
+                                    <a 
+                                      href={String(rulesUrl)} 
+                                      target="_blank" 
+                                      rel="noreferrer" 
+                                      className="mt-4 inline-flex items-center text-sm px-3 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10"
+                                    >
+                                      <ExternalLink className="w-4 h-4 mr-2" />
+                                      View Full Rules PDF
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <style>{`
+                                @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+                                @keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+                              `}</style>
+                            </div>,
+                            document.body
+                          );
+                        } catch (outerErr) {
+                          console.error('[Rules Modal] Fatal error:', outerErr);
+                          return null; // Fail silently rather than crash the app
+                        }
                       })()}
 
                     <div className="flip-face flip-back" onClick={() => toggleFlip(event.id)}>
@@ -1473,21 +1696,42 @@ export const Events: React.FC = () => {
                             );
                           })()}
                         </div>
-                            <div className="p-6 pt-0">
+                        <div className="p-6 pt-0">
                           {canRegisterNow(event) ? (
-                            <button
-                              onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); openRegistration(event.id); }}
-                              disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
-                              className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
-                            >
-                              {event.max_participants && (event.current_registrations || 0) >= event.max_participants ? (
-                                <>
-                                  <AlertCircle size={16} className="mr-2" /> EVENT FULL
-                                </>
-                              ) : (
-                                <span className="glow-text-btn__content"><UserPlus size={16} className="mr-2" /> <span className="glow-text-animated">REGISTER NOW</span></span>
+                            <>
+                              <button
+                                onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); openRegistration(event.id); }}
+                                disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
+                                className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
+                              >
+                                {event.max_participants && (event.current_registrations || 0) >= event.max_participants ? (
+                                  <>
+                                    <AlertCircle size={16} className="mr-2" /> EVENT FULL
+                                  </>
+                                ) : (
+                                  <span className="glow-text-btn__content"><UserPlus size={16} className="mr-2" /> <span className="glow-text-animated">REGISTER NOW</span></span>
+                                )}
+                              </button>
+                              {/* Show closing countdown if timer is enabled and closing time is set */}
+                              {getClosingCountdown(event) && getClosingCountdown(event) !== 'closed' && (
+                                (() => {
+                                  const secsToClose = getSecondsToClose(event);
+                                  const isUrgent = secsToClose !== null && secsToClose <= 86400; // Less than 24 hours
+                                  const countdown = getClosingCountdown(event);
+                                  return (
+                                    <div
+                                      className={`mt-2 w-full py-2 px-3 rounded-lg text-center text-sm font-medium ${
+                                        isUrgent ? 'bg-red-600/20 text-red-300' : 'bg-yellow-600/20 text-yellow-300'
+                                      }`}
+                                      title={getClosesAtTooltip(event)}
+                                    >
+                                      <Clock size={14} className="inline mr-1.5 mb-0.5" />
+                                      Closes in {countdown}
+                                    </div>
+                                  );
+                                })()
                               )}
-                            </button>
+                            </>
                           ) : getCountdown(event) ? (
                             getCountdown(event) === 'now' ? (
                               <div className="w-full py-3 px-4 rounded-lg bg-green-600/20 text-green-300 text-center font-medium" title="Open now">Open now</div>

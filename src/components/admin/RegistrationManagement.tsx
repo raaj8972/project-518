@@ -565,43 +565,44 @@ export function RegistrationManagement() {
   }, [registrations, selectedEvent]);
 
   // Fetch email status for all registrations (not just filtered ones to avoid flicker)
+  // EXTRACTED: Made fetchEmailStatuses a stable function to call after sending emails
+  const fetchEmailStatuses = React.useCallback(async () => {
+    try {
+      // Use all registrations from current view mode (active or trash)
+      const sourceRegs = viewMode === 'trash' ? deletedRegistrations : registrations;
+      const regIds = sourceRegs.map(r => r.id);
+      if (regIds.length === 0) return;
+      
+      // Fetch confirmation email logs for all registrations in current view
+      const { data, error } = await supabase
+        .from('email_logs')
+        .select('registration_id, status, template_type')
+        .in('registration_id', regIds)
+        .eq('template_type', 'confirmation');
+      
+      if (error) throw error;
+      
+      // Build status map
+      const statusMap: Record<string, { sent: boolean; count: number }> = {};
+      data?.forEach(log => {
+        if (!statusMap[log.registration_id]) {
+          statusMap[log.registration_id] = { sent: false, count: 0 };
+        }
+        if (log.status === 'sent') {
+          statusMap[log.registration_id].sent = true;
+        }
+        statusMap[log.registration_id].count++;
+      });
+      
+      setEmailStatusMap(statusMap);
+    } catch (err) {
+      console.error('Error fetching email statuses:', err);
+    }
+  }, [viewMode, deletedRegistrations, registrations]);
+
   useEffect(() => {
-    const fetchEmailStatuses = async () => {
-      try {
-        // Use all registrations from current view mode (active or trash)
-        const sourceRegs = viewMode === 'trash' ? deletedRegistrations : registrations;
-        const regIds = sourceRegs.map(r => r.id);
-        if (regIds.length === 0) return;
-        
-        // Fetch confirmation email logs for all registrations in current view
-        const { data, error } = await supabase
-          .from('email_logs')
-          .select('registration_id, status, template_type')
-          .in('registration_id', regIds)
-          .eq('template_type', 'confirmation');
-        
-        if (error) throw error;
-        
-        // Build status map
-        const statusMap: Record<string, { sent: boolean; count: number }> = {};
-        data?.forEach(log => {
-          if (!statusMap[log.registration_id]) {
-            statusMap[log.registration_id] = { sent: false, count: 0 };
-          }
-          if (log.status === 'sent') {
-            statusMap[log.registration_id].sent = true;
-          }
-          statusMap[log.registration_id].count++;
-        });
-        
-        setEmailStatusMap(statusMap);
-      } catch (err) {
-        console.error('Error fetching email statuses:', err);
-      }
-    };
-    
     fetchEmailStatuses();
-  }, [registrations, deletedRegistrations, viewMode]); // Depend on source data, not filtered data
+  }, [fetchEmailStatuses]);
 
   // Helper to send approval email (extracted for reuse)
   const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
@@ -702,6 +703,8 @@ export function RegistrationManagement() {
 
             if (result.success) {
                 push({ message: `Status updated & Email sent to ${reg.full_name}!`, type: 'success' });
+                // BADGE FIX: Refresh email statuses to update badge immediately
+                await fetchEmailStatuses();
             } else {
                 push({ message: `Status updated, but email failed: ${result.error}`, type: 'error' });
             }
@@ -1019,6 +1022,9 @@ export function RegistrationManagement() {
       setProcessingState({ active: false, title: '', progress: 0 });
 
       push({ message: `Sent ${sentCount}/${pendingRegs.length} confirmation emails.`, type: 'success' });
+      
+      // BADGE FIX: Refresh email statuses to update badges immediately
+      await fetchEmailStatuses();
 
     } catch (e) {
       console.error(e);
