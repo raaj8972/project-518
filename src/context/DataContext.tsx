@@ -2454,6 +2454,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
+        delete safe.registration_closes_at;
         delete safe.registration_timer_enabled;
         delete safe.watch_live_url;
         delete safe.registration_photo_required;

@@ -803,12 +803,14 @@ export const EventsManagement: React.FC = () => {
         }
       } else {
         const event = events.find((e: any) => e.id === id);
-        let newTimer = event?.registration_timer_enabled;
+        // Robustly cast to boolean to avoid sending undefined
+        let newTimer = !!event?.registration_timer_enabled;
         const newOpen = !event?.registration_open;
         
         // Heuristic: If turning OFF manual open, and Timer is currently keeping it open, disable timer too.
         if (!newOpen && newTimer && event?.registration_opens_at) {
           const start = new Date(event.registration_opens_at).getTime();
+          // If timer has started (or passed), and we are manually closing, we must disable timer to force close
           if (!isNaN(start) && Date.now() >= start) {
              newTimer = false;
           }
