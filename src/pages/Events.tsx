@@ -1732,6 +1732,8 @@ export const Events: React.FC = () => {
                                 })()
                               )}
                             </>
+                          ) : (getClosingCountdown(event) === 'closed') ? (
+                            <div className="w-full py-3 px-4 rounded-lg bg-gray-700 text-gray-400 text-center font-medium">REGISTRATION CLOSED</div>
                           ) : getCountdown(event) ? (
                             getCountdown(event) === 'now' ? (
                               <div className="w-full py-3 px-4 rounded-lg bg-green-600/20 text-green-300 text-center font-medium" title="Open now">Open now</div>
