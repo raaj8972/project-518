@@ -1,15 +1,16 @@
+```
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
-  Pencil, Check
+  Pencil, Check, MessageCircle
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { supabase } '../../lib/supabase';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
@@ -2359,17 +2360,28 @@ export function RegistrationManagement() {
                                     className="w-24 h-24 rounded-lg object-cover border border-gray-200"
                                     referrerPolicy="no-referrer"
                                   />
-                                  <div className="flex items-center gap-3">
+                                  <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
+                                      <a
+                                        href={(registration as any).photo_url as any}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 hover:text-blue-800 text-sm"
+                                      >Open full</a>
+                                      <button
+                                        onClick={() => downloadPhoto((registration as any).photo_url as string, registration.full_name)}
+                                        className="text-gray-700 hover:text-gray-900 text-sm cursor-pointer"
+                                      >Download</button>
+                                    </div>
                                     <a
-                                      href={(registration as any).photo_url as any}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-blue-600 hover:text-blue-800 text-sm"
-                                    >Open full</a>
-                                    <button
-                                      onClick={() => downloadPhoto((registration as any).photo_url as string, registration.full_name)}
-                                      className="text-gray-700 hover:text-gray-900 text-sm cursor-pointer"
-                                    >Download</button>
+                                        href={`https://wa.me/${registration.phone?.replace(/[^0-9]/g, '')}?text=Hi ${registration.full_name.split(' ')[0]}, please join the group: `}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center text-green-600 hover:text-green-700 text-sm font-medium"
+                                    >
+                                        <MessageCircle size={14} className="mr-1" />
+                                        WhatsApp
+                                    </a>
                                   </div>
                                 </div>
                               </div>
