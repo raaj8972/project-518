@@ -542,7 +542,25 @@ export const EventsManagement: React.FC = () => {
         venue: eventForm.venue?.trim() || null,
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
-        registration_timer_enabled: !!eventForm.registration_timer_enabled,
+        // Heuristic Logic for "Close Now":
+        // If user is unchecking manual open (registration_open=false), AND timer is enabled, AND timer start time has passed, 
+        // we assume they want to CLOSE the event, so we disable the timer too.
+        registration_timer_enabled: (() => {
+           // If user explicitly unchecked timer in UI, respect that
+           if (!eventForm.registration_timer_enabled) return false;
+           
+           // If user unchecked manual open, check if we need to auto-disable timer to force close
+           if (!eventForm.registration_open && eventForm.registration_opens_at) {
+              const start = new Date(eventForm.registration_opens_at).getTime();
+              // If start time is valid and passed
+              if (!isNaN(start) && Date.now() >= start) {
+                return false; // Disable timer to allow closing
+              }
+           }
+           
+           // Otherwise keep timer as set in UI
+           return !!eventForm.registration_timer_enabled;
+        })(),
         registration_opens_at: eventForm.registration_opens_at ? new Date(eventForm.registration_opens_at).toISOString() : null,
         registration_closes_at: eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
@@ -767,14 +785,37 @@ export const EventsManagement: React.FC = () => {
       if (needsApproval) {
         const event = events.find((e: any) => e.id === id);
         const newValue = !event?.registration_open;
-        const result = await submitForApproval('event', 'update', { registration_open: newValue }, id);
+        
+        let newTimer = event?.registration_timer_enabled;
+        // Heuristic: If turning OFF manual open, and Timer is currently keeping it open, disable timer too.
+        if (!newValue && newTimer && event?.registration_opens_at) {
+          const start = new Date(event.registration_opens_at).getTime();
+          if (!isNaN(start) && Date.now() >= start) {
+            newTimer = false;
+          }
+        }
+        
+        const result = await submitForApproval('event', 'update', { registration_open: newValue, registration_timer_enabled: newTimer }, id);
         if (result.success) {
           alert(`✓ Registration status change submitted for owner approval!`);
         } else {
           throw new Error(result.error || 'Failed to submit for approval');
         }
       } else {
-        await toggleEventRegistration(id);
+        const event = events.find((e: any) => e.id === id);
+        let newTimer = event?.registration_timer_enabled;
+        const newOpen = !event?.registration_open;
+        
+        // Heuristic: If turning OFF manual open, and Timer is currently keeping it open, disable timer too.
+        if (!newOpen && newTimer && event?.registration_opens_at) {
+          const start = new Date(event.registration_opens_at).getTime();
+          if (!isNaN(start) && Date.now() >= start) {
+             newTimer = false;
+          }
+        }
+        
+        // Optimistic update
+        await updateEvent(id, { registration_open: newOpen, registration_timer_enabled: newTimer } as any);
       }
     } catch (error) {
       console.error('Error toggling registration:', error);
