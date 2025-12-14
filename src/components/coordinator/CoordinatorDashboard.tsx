@@ -280,7 +280,7 @@ export const CoordinatorDashboard: React.FC = () => {
                               <span>{reg.phone}</span>
                               {reg.phone && whatsappLink && (
                                 <a
-                                  href={`https://wa.me/${reg.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                  href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded p-1.5 transition-colors"
@@ -316,7 +316,7 @@ export const CoordinatorDashboard: React.FC = () => {
                                 {reg.phone}
                                 {reg.phone && whatsappLink && (
                                   <a
-                                    href={`https://wa.me/${reg.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                    href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded p-1 transition-colors"

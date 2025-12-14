@@ -71,25 +71,27 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
   const [quotaBlocked, setQuotaBlocked] = useState<{ title?: string; message: string } | null>(null);
 
 
-  // Determine per-event team member requirements. Returns { required, max }
+  // Determine per-event team member requirements. Returns { required, min, max }
   // If required is set, teams MUST have exactly that many members
-  // If not required, teams can have 2 to max members
+  // If not required, teams can have min to max members
   const teamLimits = React.useMemo(() => {
     try {
       const ev = events.find((e: any) => e.id === eventId) as any;
       const requiredSize = Number(ev?.team_required_size);
       const maxSize = Number(ev?.team_max_members);
+      const minSize = Number(ev?.team_min_members);
       
-      // If exact size is required, return that as both required and max
+      // If exact size is required, return that as min, max, and required
       if (!Number.isNaN(requiredSize) && requiredSize >= 2) {
-        return { required: requiredSize, max: requiredSize };
+        return { required: requiredSize, min: requiredSize, max: requiredSize };
       }
       
-      // Otherwise, flexible team size with max limit
-      const limit = !Number.isNaN(maxSize) && maxSize > 0 ? maxSize : 50;
-      return { required: null, max: limit };
+      // Otherwise, flexible team size with min/max limits
+      const minLimit = !Number.isNaN(minSize) && minSize >= 2 ? minSize : 2;
+      const maxLimit = !Number.isNaN(maxSize) && maxSize > 0 ? maxSize : 50;
+      return { required: null, min: minLimit, max: maxLimit };
     } catch {}
-    return { required: null, max: 50 }; // default: flexible 2-50
+    return { required: null, min: 2, max: 50 }; // default: flexible 2-50
   }, [events, eventId]);
 
 
@@ -300,8 +302,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({
 
     if (formData.is_team_registration) {
       // Team identifier is optional now; do not require team_name here.
-      if (formData.total_members < 2) {
-        newErrors.total_members = 'Team must have at least 2 members';
+      if (formData.total_members < teamLimits.min) {
+        const msg = teamLimits.required 
+          ? `Teams must have exactly ${teamLimits.required} members for this event`
+          : `Team must have at least ${teamLimits.min} members for this event`;
+        newErrors.total_members = msg;
       }
       if (formData.total_members > teamLimits.max) {
         const msg = teamLimits.required 

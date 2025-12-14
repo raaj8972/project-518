@@ -295,6 +295,7 @@ export const EventsManagement: React.FC = () => {
     registration_default_mode: 'individual' as 'individual' | 'team',
     registration_mode_locked: false as boolean,
   team_max_members: undefined as number | undefined,
+  team_min_members: undefined as number | undefined,
   team_required_size: undefined as number | undefined,
     max_participants: undefined as number | undefined,
     featured: false,
@@ -460,6 +461,7 @@ export const EventsManagement: React.FC = () => {
       registration_default_mode: 'individual',
       registration_mode_locked: false,
       team_max_members: undefined,
+      team_min_members: undefined,
       team_required_size: undefined,
       max_participants: undefined,
       featured: false,
@@ -525,6 +527,7 @@ export const EventsManagement: React.FC = () => {
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
+        team_min_members: (eventForm as any).team_min_members ?? null,
         team_required_size: (eventForm as any).team_required_size ?? null,
         max_participants: (eventForm as any).max_participants ?? null,
         coordinators: draftCoordinators // Include coordinators in the data
@@ -617,6 +620,7 @@ export const EventsManagement: React.FC = () => {
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
         team_max_members: (eventForm as any).team_max_members ?? null,
+        team_min_members: (eventForm as any).team_min_members ?? null,
         team_required_size: (eventForm as any).team_required_size ?? null,
         max_participants: (eventForm as any).max_participants ?? null,
       };
@@ -910,6 +914,7 @@ export const EventsManagement: React.FC = () => {
       registration_default_mode: (event as any).registration_default_mode || 'individual',
       registration_mode_locked: (event as any).registration_mode_locked ?? false,
   team_max_members: (event as any).team_max_members ?? undefined,
+  team_min_members: (event as any).team_min_members ?? undefined,
   team_required_size: (event as any).team_required_size ?? undefined,
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
@@ -1609,22 +1614,41 @@ export const EventsManagement: React.FC = () => {
                       <p className="text-xs text-gray-600 mt-1">Teams must have exactly this many members</p>
                     </div>
                   ) : (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-900 mb-1">Max Team Members (team mode)</label>
-                      <input
-                        type="number"
-                        min={2}
-                        max={50}
-                        value={(eventForm as any).team_max_members ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
-                          setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
-                        }}
-                        placeholder="Default 50"
-                        className="w-32 sm:w-40 px-3 py-2 border rounded text-gray-900"
-                      />
-                      <p className="text-xs text-gray-600 mt-1">Maximum allowed team size (flexible 2-max)</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Min Team Members</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={(eventForm as any).team_max_members || 50}
+                          value={(eventForm as any).team_min_members ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                            setEventForm(prev => ({ ...prev, team_min_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                          }}
+                          placeholder="Default 2"
+                          className="w-full px-3 py-2 border rounded text-gray-900"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">Minimum team size (default: 2)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-900 mb-1">Max Team Members</label>
+                        <input
+                          type="number"
+                          min={(eventForm as any).team_min_members || 2}
+                          max={50}
+                          value={(eventForm as any).team_max_members ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                            setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                          }}
+                          placeholder="Default 50"
+                          className="w-full px-3 py-2 border rounded text-gray-900"
+                        />
+                        <p className="text-xs text-gray-600 mt-1">Maximum team size (default: 50)</p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2403,10 +2427,24 @@ export const EventsManagement: React.FC = () => {
                         />
                       ) : (
                         <>
-                          <label className="text-sm text-gray-700">Max:</label>
+                          <label className="text-sm text-gray-700">Min:</label>
                           <input
                             type="number"
                             min={2}
+                            max={(eventForm as any).team_max_members || 50}
+                            value={(eventForm as any).team_min_members ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const n = v === '' ? undefined : Math.max(2, Math.min(50, Number(v)));
+                              setEventForm(prev => ({ ...prev, team_min_members: Number.isNaN(Number(v)) ? undefined : n } as any));
+                            }}
+                            placeholder="2"
+                            className="w-16 px-2 py-1 border rounded text-gray-900"
+                          />
+                          <label className="text-sm text-gray-700">Max:</label>
+                          <input
+                            type="number"
+                            min={(eventForm as any).team_min_members || 2}
                             max={50}
                             value={(eventForm as any).team_max_members ?? ''}
                             onChange={(e) => {
@@ -2415,7 +2453,7 @@ export const EventsManagement: React.FC = () => {
                               setEventForm(prev => ({ ...prev, team_max_members: Number.isNaN(Number(v)) ? undefined : n } as any));
                             }}
                             placeholder="50"
-                            className="w-20 px-2 py-1 border rounded text-gray-900"
+                            className="w-16 px-2 py-1 border rounded text-gray-900"
                           />
                         </>
                       )}

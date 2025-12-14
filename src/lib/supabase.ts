@@ -282,6 +282,7 @@ export interface Database {
           registration_timer_enabled: boolean
           registration_opens_at: string | null
           team_max_members: number | null
+          team_min_members: number | null
           max_participants: number | null
           current_registrations: number
           featured: boolean
@@ -313,6 +314,7 @@ export interface Database {
           registration_timer_enabled?: boolean
           registration_opens_at?: string | null
           team_max_members?: number | null
+          team_min_members?: number | null
           max_participants?: number | null
           current_registrations?: number
           featured?: boolean
@@ -344,6 +346,7 @@ export interface Database {
           registration_timer_enabled?: boolean
           registration_opens_at?: string | null
           team_max_members?: number | null
+          team_min_members?: number | null
           max_participants?: number | null
           current_registrations?: number
           featured?: boolean
