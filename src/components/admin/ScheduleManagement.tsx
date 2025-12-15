@@ -1,13 +1,61 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
-import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, AlertCircle, Mail } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 export const ScheduleManagement = () => {
   const { schedule, addScheduleDay, deleteScheduleDay, addScheduleEvent, updateScheduleEvent, deleteScheduleEvent, events } = useData();
   
   // Schedule Type State
   const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>('prelims');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [emailStats, setEmailStats] = useState({ sent: 0, pending: 0, total: 0 });
+
+  // Fetch email statistics
+  useEffect(() => {
+    const fetchEmailStats = async () => {
+      try {
+        // Get total approved registrations (unique emails)
+        const { data: registrations } = await supabase
+          .from('registrations')
+          .select('email')
+          .eq('status', 'approved');
+        
+        const uniqueEmails = new Set(registrations?.map((r: any) => r.email.toLowerCase()) || []);
+        const total = uniqueEmails.size;
+        
+        // Get unique emails that received broadcast in last 24 hours
+        const { data: sentEmails } = await supabase
+          .from('email_logs')
+          .select('recipient_email')
+          .eq('email_type', 'schedule_broadcast')
+          .eq('status', 'sent')
+          .gte('sent_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        
+        const sentEmailSet = new Set(sentEmails?.map((e: any) => e.recipient_email.toLowerCase()) || []);
+        
+        // Only count sent emails that match current approved registrations
+        let validSentCount = 0;
+        uniqueEmails.forEach(email => {
+            if (sentEmailSet.has(email)) validSentCount++;
+        });
+        
+        setEmailStats({
+          sent: validSentCount,
+          pending: total - validSentCount,
+          total: total
+        });
+      } catch (error) {
+        console.error('[ScheduleManagement] Failed to fetch email stats:', error);
+      }
+    };
+    
+    fetchEmailStats();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchEmailStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [isAddingDay, setIsAddingDay] = useState(false);
   const [newDay, setNewDay] = useState({ date: '', day: '', title: '' });
@@ -16,9 +64,67 @@ export const ScheduleManagement = () => {
   const [editForm, setEditForm] = useState<any>({});
   
   const [addingEventDayId, setAddingEventDayId] = useState<number | null>(null);
-  const [newEvent, setNewEvent] = useState({ title: '', time: '', venue: '', type: '', event_id: '' });
+  const [newEvent, setNewEvent] = useState({ 
+    title: '', 
+    time: '', 
+    venue: '', 
+    type: '', 
+    duration: '',
+    event_id: '' 
+  });
 
-  // Function to auto-fill details when an event is selected
+  // Helper: Auto-calculate duration from time range (e.g., "9 AM - 1 PM" → "4 hours")
+  const calculateDuration = (timeStr: string): string => {
+    if (!timeStr) return '';
+    
+    // Match patterns like "9 AM - 1 PM" or "9:00 AM - 1:30 PM" or "09:00 - 13:00"
+    const rangeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?\s*[-–—to]+\s*(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?/i);
+    
+    if (!rangeMatch) return ''; // Not a time range
+    
+    try {
+      let startHour = parseInt(rangeMatch[1], 10);
+      const startMin = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : 0;
+      const startPeriod = rangeMatch[3]?.toLowerCase();
+      
+      let endHour = parseInt(rangeMatch[4], 10);
+      const endMin = rangeMatch[5] ? parseInt(rangeMatch[5], 10) : 0;
+      const endPeriod = rangeMatch[6]?.toLowerCase();
+      
+      // Convert to 24-hour format if AM/PM present
+      if (startPeriod) {
+        if (startPeriod === 'pm' && startHour !== 12) startHour += 12;
+        if (startPeriod === 'am' && startHour === 12) startHour = 0;
+      }
+      if (endPeriod) {
+        if (endPeriod === 'pm' && endHour !== 12) endHour += 12;
+        if (endPeriod === 'am' && endHour === 12) endHour = 0;
+      }
+      
+      // Calculate total minutes
+      const startTotalMin = startHour * 60 + startMin;
+      let endTotalMin = endHour * 60 + endMin;
+      
+      // Handle overnight events (end time is next day)
+      if (endTotalMin <= startTotalMin) {
+        endTotalMin += 24 * 60;
+      }
+      
+      const durationMin = endTotalMin - startTotalMin;
+      const hours = Math.floor(durationMin / 60);
+      const mins = durationMin % 60;
+      
+      if (hours === 0 && mins === 0) return '';
+      if (mins === 0) return `${hours} hour${hours !== 1 ? 's' : ''}`;
+      if (hours === 0) return `${mins} min${mins !== 1 ? 's' : ''}`;
+      return `${hours} hour${hours !== 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}`;
+      
+    } catch (e) {
+      return ''; // Failed to parse
+    }
+  };
+
+  // Auto-fill details when an event is selected
   const handleEventSelect = (e: React.ChangeEvent<HTMLSelectElement>, isEdit: boolean) => {
       const selectedEventId = parseInt(e.target.value);
       const selectedEvent = events.find((ev: any) => ev.id === selectedEventId);
@@ -28,7 +134,6 @@ export const ScheduleManagement = () => {
               title: selectedEvent.title,
               venue: selectedEvent.venue || '',
               type: selectedEvent.category || '',
-              // Convert event time to string if needed, or keep blank if null
               time: selectedEvent.time ? String(selectedEvent.time) : '',
               event_id: selectedEventId
           };
@@ -39,7 +144,6 @@ export const ScheduleManagement = () => {
               setNewEvent((prev: any) => ({ ...prev, ...updates }));
           }
       } else {
-          // If cleared
           if (isEdit) {
               setEditForm((prev: any) => ({ ...prev, event_id: '' }));
           } else {
@@ -62,71 +166,119 @@ export const ScheduleManagement = () => {
         setNewDay({ date: '', day: '', title: '' });
         toast.success('Schedule day added');
     } catch (error) {
+        console.error('[ScheduleManagement] Add day failed:', error);
         toast.error('Failed to add day');
     }
   };
+
   const handleAddEvent = async (dayId: number) => {
     if (!newEvent.title || !newEvent.time) {
         toast.error('Title and Time are required');
         return;
     }
     try {
+        // Build payload - time is stored as-is (TEXT column)
         const payload: any = {
-            ...newEvent,
-            schedule_day_id: dayId,
+            title: newEvent.title,
+            time: newEvent.time, // Pass directly - no normalization needed
+            venue: newEvent.venue || null,
+            type: newEvent.type || null,
+            duration: newEvent.duration || null,
             event_id: newEvent.event_id ? parseInt(String(newEvent.event_id)) : null
         };
-        // Remove empty strings
-        if (!payload.venue) delete payload.venue;
-        if (!payload.type) delete payload.type;
 
+        console.log('[ScheduleManagement] Adding event:', payload);
         await addScheduleEvent(dayId, payload);
+        
         setAddingEventDayId(null);
-        setNewEvent({ title: '', time: '', venue: '', type: '', event_id: '' });
+        setNewEvent({ 
+          title: '', 
+          time: '', 
+          venue: '', 
+          type: '', 
+          duration: '',
+          event_id: '' 
+        });
         toast.success('Event added to schedule');
     } catch (error) {
-        toast.error('Failed to add event');
+        console.error('[ScheduleManagement] Add event failed:', error);
+        toast.error(`Failed to add event: ${(error as any)?.message || 'Unknown error'}`);
     }
   };
 
   const handleUpdateEvent = async () => {
-      if (!editForm.title || !editForm.time) return;
+      if (!editForm.title || !editForm.time) {
+         toast.error('Title and Time are required');
+         return;
+      }
       try {
+          // Build payload - time is stored as-is (TEXT column)
           const payload: any = {
-              ...editForm,
+              title: editForm.title,
+              time: editForm.time, // Pass directly - no normalization needed
+              venue: editForm.venue || null,
+              type: editForm.type || null,
+              duration: editForm.duration || null,
               event_id: editForm.event_id ? parseInt(String(editForm.event_id)) : null
           };
+          
+          console.log('[ScheduleManagement] Updating event:', payload);
           await updateScheduleEvent(editingEventId!, payload);
+          
           setEditingEventId(null);
           toast.success('Event updated');
       } catch (error) {
-          toast.error('Failed to update event');
+          console.error('[ScheduleManagement] Update event failed:', error);
+          toast.error(`Failed to update event: ${(error as any)?.message || 'Unknown error'}`);
       }
   };
 
-  const formatDisplayTime = (time: string, _duration?: string) => {
+  const handleBroadcastSchedule = async () => {
+    const confirmed = window.confirm(
+      `Send schedule to all approved registrations?\n\nThis will send an email with the complete schedule to all approved participants.`
+    );
+    
+    if (!confirmed) return;
+
+    setIsBroadcasting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please log in to broadcast schedule');
+        return;
+      }
+
+      const response = await fetch('/.netlify/functions/broadcast-schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ provider: 'smtp' })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to broadcast schedule');
+      }
+
+      toast.success(
+        `Schedule sent successfully!\n${result.sent} emails sent, ${result.failed || 0} failed`,
+        { duration: 5000 }
+      );
+    } catch (error: any) {
+      console.error('[ScheduleManagement] Broadcast failed:', error);
+      toast.error(`Failed to broadcast: ${error.message}`);
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const formatDisplayTime = (time: string) => {
       if (!time) return 'TBA';
-      // Just return raw text for admin view if it looks like a range
-      if (time.includes('-') || time.toLowerCase().includes('tba') || time.toLowerCase().includes('to')) return time;
-      
-      // Attempt to format standard times
-      try {
-           const match = time.match(/(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?/);
-           if (match) {
-             let h = parseInt(match[1], 10);
-             const m = match[2] ? parseInt(match[2], 10) : 0;
-             const ap = match[3]?.toUpperCase();
-             let isPM = false;
-             if (ap) isPM = ap === 'PM';
-             else if (h > 12) { h -= 12; isPM = true; }
-             else if (h === 12) isPM = true;
-             else if (h === 0) { h = 12; isPM = false; }
-             else if (h < 7) isPM = true;
-             
-             return `${h}${m > 0 ? ':'+m.toString().padStart(2,'0') : ''} ${isPM ? 'PM' : 'AM'}`;
-           }
-           return time;
-      } catch { return time; }
+      // Return raw text as-is for display
+      return time;
   };
 
   // Filter days by active tab
@@ -158,12 +310,42 @@ export const ScheduleManagement = () => {
             </button>
         </div>
 
-        <button
-          onClick={() => setIsAddingDay(true)}
-          className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:bg-cyan-400 transition-colors flex items-center gap-2 font-bold"
-        >
-          <Plus size={18} /> Add Day
-        </button>
+        <div className="flex flex-col items-end gap-3">
+          {/* Email Stats Display */}
+          <div className="flex items-center gap-3 text-sm">
+            <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-1.5">
+              <span className="text-green-400 font-bold">✓ {emailStats.sent}</span>
+              <span className="text-gray-400">sent</span>
+            </div>
+            <div className="flex items-center gap-2 bg-orange-500/10 border border-orange-500/30 rounded-lg px-3 py-1.5">
+              <span className="text-orange-400 font-bold">⏳ {emailStats.pending}</span>
+              <span className="text-gray-400">pending</span>
+            </div>
+            <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/30 rounded-lg px-3 py-1.5">
+              <span className="text-blue-400 font-bold">👥 {emailStats.total}</span>
+              <span className="text-gray-400">total</span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+          <button
+            onClick={handleBroadcastSchedule}
+            disabled={isBroadcasting}
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-400 transition-colors flex items-center gap-2 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Mail size={18} />
+            {isBroadcasting ? 'Sending...' : 'Broadcast Schedule'}
+          </button>
+          
+          <button
+            onClick={() => setIsAddingDay(true)}
+            className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:bg-cyan-400 transition-colors flex items-center gap-2 font-bold"
+          >
+            <Plus size={18} /> Add Day
+          </button>
+        </div>
+        </div>
       </div>
 
       {isAddingDay && (
@@ -171,7 +353,7 @@ export const ScheduleManagement = () => {
           <h3 className="text-lg font-bold text-white mb-4">Add Schedule Day ({activeTab.toUpperCase()})</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-1">Date (YYYY-MM-DD)</label>
+              <label className="block text-gray-400 text-sm mb-1">Date</label>
               <input
                 type="date"
                 value={newDay.date}
@@ -239,63 +421,86 @@ export const ScheduleManagement = () => {
               {day.events?.map((event: any) => (
                 <div key={event.id} className="bg-black/30 rounded-lg p-4 border border-white/5 hover:border-white/10 transition-colors">
                   {editingEventId === event.id ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                      <div className="lg:col-span-1">
-                          <label className="block text-xs text-gray-500 mb-1 flex items-center justify-between">
-                             Link Event
-                             <span className="text-[10px] text-cyan-500 cursor-help" title="Select to auto-fill. You can edit the Title afterwards.">?</span>
-                          </label>
-                          <select 
-                            value={editForm.event_id || ''}
-                            onChange={(e) => handleEventSelect(e, true)}
-                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
-                          >
-                             <option value="">-- Manual Entry --</option>
-                             {events.map((e:any) => <option key={e.id} value={e.id}>{e.title}</option>)}
-                          </select>
-                      </div>
-                      <div className="lg:col-span-1">
-                          <label className="block text-xs text-gray-500 mb-1">Title</label>
-                          <input
-                            type="text"
-                            value={editForm.title}
-                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
-                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
-                          />
-                      </div>
-                      <div className="lg:col-span-1">
-                          <label className="block text-xs text-gray-500 mb-1">Time (e.g. 9-11 AM)</label>
-                          <input
-                            type="text"
-                            value={editForm.time}
-                            onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
-                          />
-                      </div>
-                      <div className="lg:col-span-1">
-                           <label className="block text-xs text-gray-500 mb-1">Duration (e.g. 2h)</label>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                           <label className="block text-xs text-gray-500 mb-1">Link Event (Optional)</label>
+                           <select 
+                             value={editForm.event_id || ''}
+                             onChange={(e) => handleEventSelect(e, true)}
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                           >
+                              <option value="">-- Manual Entry --</option>
+                              {events.map((e:any) => <option key={e.id} value={e.id}>{e.title}</option>)}
+                           </select>
+                        </div>
+                        <div>
+                           <label className="block text-xs text-gray-500 mb-1">Title *</label>
                            <input
-                            type="text"
-                            value={editForm.duration || ''}
-                            onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
-                            placeholder="Optional"
-                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                             type="text"
+                             value={editForm.title}
+                             onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
                            />
-                      </div>
-                       <div className="lg:col-span-1">
-                           <label className="block text-xs text-gray-500 mb-1">Venue</label>
+                        </div>
+                        <div>
+                           <label className="block text-xs text-gray-500 mb-1">Time * (e.g. 9 AM - 1 PM)</label>
                            <input
-                            type="text"
-                            value={editForm.venue || ''}
-                            onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                             type="text"
+                             value={editForm.time}
+                             onChange={(e) => {
+                               const newTime = e.target.value;
+                               const autoDuration = calculateDuration(newTime);
+                               setEditForm({ 
+                                 ...editForm, 
+                                 time: newTime,
+                                 duration: autoDuration || editForm.duration
+                               });
+                             }}
+                             placeholder="9 AM - 1 PM"
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Venue</label>
+                            <input
+                             type="text"
+                             value={editForm.venue || ''}
+                             onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+                             placeholder="Main Hall"
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Duration</label>
+                            <input
+                             type="text"
+                             value={editForm.duration || ''}
+                             onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
+                             placeholder="2 hours"
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs text-gray-500 mb-1">Type</label>
+                            <input
+                             type="text"
+                             value={editForm.type || ''}
+                             onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                             placeholder="Cultural"
+                             className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                            />
+                        </div>
                        </div>
                        
-                      <div className="flex gap-2 lg:col-span-5 justify-end mt-2">
-                        <button onClick={() => setEditingEventId(null)} className="p-2 text-gray-400 hover:text-white"><X size={18} /></button>
-                        <button onClick={handleUpdateEvent} className="p-2 text-green-400 hover:text-green-300"><Save size={18} /></button>
-                      </div>
+                       <div className="flex gap-2 justify-end">
+                         <button onClick={() => setEditingEventId(null)} className="px-4 py-2 rounded-lg text-gray-400 hover:bg-white/5 flex items-center gap-2">
+                           <X size={18} /> Cancel
+                         </button>
+                         <button onClick={handleUpdateEvent} className="px-4 py-2 rounded-lg bg-green-500 text-white font-bold hover:bg-green-400 flex items-center gap-2">
+                           <Save size={18} /> Save
+                         </button>
+                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -334,12 +539,10 @@ export const ScheduleManagement = () => {
               {/* Add Event Row */}
               {addingEventDayId === day.id ? (
                   <div className="bg-cyan-500/5 rounded-lg p-4 border border-cyan-500/20 animate-fade-in">
-                      <h4 className="text-sm font-bold text-cyan-400 mb-3 block flex items-center gap-2">
-                        New Event
-                        <span className="text-xs font-normal text-gray-500">(Select to auto-fill or type manually)</span>
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                           <div className="lg:col-span-1">
+                      <h4 className="text-sm font-bold text-cyan-400 mb-3">Add New Event</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                           <div>
+                              <label className="block text-xs text-gray-500 mb-1">Link Event (Optional)</label>
                               <select 
                                 value={newEvent.event_id || ''}
                                 onChange={(e) => handleEventSelect(e, false)}
@@ -349,7 +552,8 @@ export const ScheduleManagement = () => {
                                  {events.map((e:any) => <option key={e.id} value={e.id}>{e.title}</option>)}
                               </select>
                            </div>
-                           <div className="lg:col-span-2">
+                           <div>
+                               <label className="block text-xs text-gray-500 mb-1">Title *</label>
                                <input
                                 type="text"
                                 placeholder="Event Title"
@@ -358,28 +562,58 @@ export const ScheduleManagement = () => {
                                 className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
                                />
                            </div>
-                           <div className="lg:col-span-1">
+                           <div>
+                               <label className="block text-xs text-gray-500 mb-1">Time * (e.g. 9 AM - 1 PM)</label>
                                <input
                                 type="text"
-                                placeholder="Time (9 AM)"
+                                placeholder="9 AM - 1 PM"
                                 value={newEvent.time}
-                                onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                                onChange={(e) => {
+                                  const newTime = e.target.value;
+                                  const autoDuration = calculateDuration(newTime);
+                                  setNewEvent({ 
+                                    ...newEvent, 
+                                    time: newTime,
+                                    duration: autoDuration || newEvent.duration
+                                  });
+                                }}
                                 className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
                                />
                            </div>
-                           <div className="lg:col-span-1">
+                           <div>
+                               <label className="block text-xs text-gray-500 mb-1">Venue</label>
                                <input
                                 type="text"
-                                placeholder="Venue"
+                                placeholder="Main Hall"
                                 value={newEvent.venue}
                                 onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
                                 className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
                                />
                            </div>
+                           <div>
+                               <label className="block text-xs text-gray-500 mb-1">Duration</label>
+                               <input
+                                type="text"
+                                placeholder="2 hours"
+                                value={newEvent.duration}
+                                onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
+                               />
+                           </div>
+                           <div>
+                               <label className="block text-xs text-gray-500 mb-1">Type</label>
+                               <input
+                                type="text"
+                                placeholder="Cultural"
+                                value={newEvent.type}
+                                onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
+                               />
+                           </div>
                        </div>
                        <div className="flex gap-2 justify-end mt-4">
-                           <button onClick={() => setAddingEventDayId(null)} className="px-3 py-1.5 text-sm rounded bg-gray-800 text-gray-300">Cancel</button>
-                           <button onClick={() => handleAddEvent(day.id)} className="px-3 py-1.5 text-sm rounded bg-cyan-500 text-black font-bold">Save Event</button>
+                           <button onClick={() => setAddingEventDayId(null)} className="px-4 py-2 text-sm rounded-lg bg-gray-800 text-gray-300">Cancel</button>
+                           <button onClick={() => handleAddEvent(day.id)} className="px-4 py-2 text-sm rounded-lg bg-cyan-500 text-black font-bold">Save Event</button>
                        </div>
                   </div>
               ) : (

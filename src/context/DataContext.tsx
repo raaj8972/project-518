@@ -1239,7 +1239,73 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       
       // Schedule
       if (!scheduleDaysRes.error) {
-         setSchedule((scheduleDaysRes.data || []).map((day: any) => ({ ...day, events: day.schedule_events || [] })));
+         // Helper to parse time for sorting
+         const parseTimeForSort = (timeStr: string): { startMin: number; endMin: number } => {
+           if (!timeStr) return { startMin: 0, endMin: 0 };
+           
+           // Match time ranges like "1-3 PM", "9 AM - 1 PM", "09:00 - 13:00"
+           const rangeMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?\s*[-–—to]+\s*(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?/i);
+           
+           if (rangeMatch) {
+             let startHour = parseInt(rangeMatch[1], 10);
+             const startMinute = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : 0;
+             const startPeriod = rangeMatch[3]?.toLowerCase();
+             
+             let endHour = parseInt(rangeMatch[4], 10);
+             const endMinute = rangeMatch[5] ? parseInt(rangeMatch[5], 10) : 0;
+             const endPeriod = rangeMatch[6]?.toLowerCase();
+             
+             // Convert to 24-hour format
+             if (startPeriod === 'pm' && startHour !== 12) startHour += 12;
+             if (startPeriod === 'am' && startHour === 12) startHour = 0;
+             if (endPeriod === 'pm' && endHour !== 12) endHour += 12;
+             if (endPeriod === 'am' && endHour === 12) endHour = 0;
+             
+             return {
+               startMin: startHour * 60 + startMinute,
+               endMin: endHour * 60 + endMinute
+             };
+           }
+           
+           // Try to parse single time like "9 AM" or "14:00"
+           const singleMatch = timeStr.match(/(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?/i);
+           if (singleMatch) {
+             let hour = parseInt(singleMatch[1], 10);
+             const minute = singleMatch[2] ? parseInt(singleMatch[2], 10) : 0;
+             const period = singleMatch[3]?.toLowerCase();
+             
+             if (period === 'pm' && hour !== 12) hour += 12;
+             if (period === 'am' && hour === 12) hour = 0;
+             
+             const totalMin = hour * 60 + minute;
+             return { startMin: totalMin, endMin: totalMin };
+           }
+           
+           // Default for unparseable times (TBA, etc.)
+           return { startMin: 9999, endMin: 9999 };
+         };
+         
+         const scheduleWithSortedEvents = (scheduleDaysRes.data || []).map((day: any) => {
+           const events = (day.schedule_events || []).slice();
+           
+           // Sort events by start time, then by end time
+           events.sort((a: any, b: any) => {
+             const aTime = parseTimeForSort(a.time);
+             const bTime = parseTimeForSort(b.time);
+             
+             // First, sort by start time
+             if (aTime.startMin !== bTime.startMin) {
+               return aTime.startMin - bTime.startMin;
+             }
+             
+             // If start times are equal, sort by end time (shorter events first)
+             return aTime.endMin - bTime.endMin;
+           });
+           
+           return { ...day, events };
+         });
+         
+         setSchedule(scheduleWithSortedEvents);
       }
 
       // Notifications
@@ -3229,35 +3295,15 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   const addScheduleEvent = async (dayId: number, event: Partial<ScheduleEvent>) => {
-  // Normalize time to HH:MM for Postgres TIME
-  const normalizeTime = (t: any): string | undefined => {
-    if (!t) return undefined;
-    const s = String(t).trim();
-    // Accept "HH:MM" from input type=time or common variants like "9", "9:30", "9 AM", "9:30 pm"
-    if (s.includes('-') || s.toLowerCase().includes('to') || s.toLowerCase().includes('tba')) return s;
-
-    const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-    if (!m) return s; // Allow free text if regex fails
-    let h = parseInt(m[1], 10);
-    let min = m[2] ? parseInt(m[2], 10) : 0;
-    const ap = m[3]?.toLowerCase();
-    if (ap) {
-      if (ap === 'pm' && h < 12) h += 12;
-      if (ap === 'am' && h === 12) h = 0;
-    }
-    if (isNaN(h) || isNaN(min)) return s;
-    h = Math.max(0, Math.min(23, h));
-    min = Math.max(0, Math.min(59, min));
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(h)}:${pad(min)}`;
-  };
+  // Time column is now TEXT - we can store any string value directly
   // Sanitize payload: convert blank linkage fields to null to satisfy FK constraints
   const payload: any = { ...event, schedule_day_id: dayId };
-  if (payload.time !== undefined) {
-    const nt = normalizeTime(payload.time);
-    if (nt) payload.time = nt as any;
-    else delete payload.time;
-  }
+  // Time column is now TEXT, so pass the value directly without normalization
+  // if (payload.time !== undefined) {
+  //   const nt = normalizeTime(payload.time);
+  //   if (nt) payload.time = nt as any;
+  //   else delete payload.time;
+  // }
   const normalize = (v: any) => (v === '' || v === undefined ? null : v);
   payload.event_id = normalize(payload.event_id);
   payload.guest_artist_id = normalize(payload.guest_artist_id);
@@ -3312,34 +3358,15 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
 };
 
   const updateScheduleEvent = async (id: number, event: Partial<ScheduleEvent>) => {
-    const normalizeTime = (t: any): string | undefined => {
-    if (!t) return undefined;
-    const s = String(t).trim();
-    // Allow free text ranges or labels immediately
-    if (s.includes('-') || s.toLowerCase().includes('to') || s.toLowerCase().includes('tba')) return s;
-
-    const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-    if (!m) return s; // Return raw string if regex doesn't match, allowing custom text
-    let h = parseInt(m[1], 10);
-    let min = m[2] ? parseInt(m[2], 10) : 0;
-    const ap = m[3]?.toLowerCase();
-    if (ap) {
-      if (ap === 'pm' && h < 12) h += 12;
-      if (ap === 'am' && h === 12) h = 0;
-    }
-    if (isNaN(h) || isNaN(min)) return s;
-    h = Math.max(0, Math.min(23, h));
-    min = Math.max(0, Math.min(59, min));
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(h)}:${pad(min)}`;
-  };
+    // Time column is now TEXT - we can store any string value directly
   // Ensure mutual exclusivity: if event_id provided, clear guest_artist_id unless explicitly set; vice versa.
   const payload: any = { ...event };
-  if (payload.time !== undefined) {
-    const nt = normalizeTime(payload.time);
-    if (nt) payload.time = nt as any;
-    else delete payload.time;
-  }
+  // Time column is now TEXT, so pass the value directly without normalization
+  // if (payload.time !== undefined) {
+  //   const nt = normalizeTime(payload.time);
+  //   if (nt) payload.time = nt as any;
+  //   else delete payload.time;
+  // }
   if ('event_id' in payload && payload.event_id) {
     if (!('guest_artist_id' in payload)) payload.guest_artist_id = null;
   } else if ('guest_artist_id' in payload && payload.guest_artist_id) {

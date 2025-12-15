@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
 
 export const Schedule = () => {
-  const { schedule } = useData();
+  const { schedule, events } = useData();
   const [now, setNow] = useState(new Date());
 
   // Update timer every minute
@@ -247,8 +247,23 @@ export const Schedule = () => {
                                 day.events?.map((event: any, evIdx: number) => {
                                     const timerStatus = getTimerStatus(event.parsedDate);
                                     
+                                    // Check if registration is closed for linked events
+                                    const linkedEvent = event.event_id ? events.find((e: any) => e.id === event.event_id) : null;
+                                    const isRegistrationClosed = linkedEvent ? !linkedEvent.registration_open : false;
+                                    
+                                    const handleEventClick = (e: React.MouseEvent) => {
+                                      if (event.event_id && isRegistrationClosed) {
+                                        e.preventDefault();
+                                        alert(`⚠️ Registration Closed\n\nRegistrations for "${event.title}" are currently closed.`);
+                                      }
+                                    };
+                                    
                                     return (
-                                    <div key={event.id || evIdx} className="grid grid-cols-1 md:grid-cols-12 gap-y-4 gap-x-4 p-6 hover:bg-white/5 transition-all duration-300 items-center group relative overflow-hidden">
+                                    <div 
+                                      key={event.id || evIdx} 
+                                      className={`grid grid-cols-1 md:grid-cols-12 gap-y-4 gap-x-4 p-6 hover:bg-white/5 transition-all duration-300 items-center group relative overflow-hidden ${isRegistrationClosed ? 'opacity-75' : ''}`}
+                                      onClick={handleEventClick}
+                                    >
                                         
                                         {/* Hover Glow Effect */}
                                         <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-transparent via-cyan-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -269,16 +284,24 @@ export const Schedule = () => {
 
                                         {/* Event Name */}
                                         <div className="md:col-span-6 pl-2">
-                                            {event.event_id ? (
-                                                <Link 
-                                                    to={`/events?register=${event.event_id}`}
-                                                    className="inline-block font-black text-xl md:text-2xl text-white group-hover:text-cyan-400 transition-colors uppercase font-exo tracking-wide cursor-pointer hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"
-                                                >
-                                                    {event.title}
-                                                </Link>
-                                            ) : (
-                                                <span className="font-black text-xl md:text-2xl text-white uppercase font-exo tracking-wide">{event.title}</span>
-                                            )}
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                {event.event_id ? (
+                                                    <Link 
+                                                        to={`/events?register=${event.event_id}`}
+                                                        className="inline-block font-black text-xl md:text-2xl text-white group-hover:text-cyan-400 transition-colors uppercase font-exo tracking-wide cursor-pointer hover:drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"
+                                                        onClick={(e) => isRegistrationClosed && e.preventDefault()}
+                                                    >
+                                                        {event.title}
+                                                    </Link>
+                                                ) : (
+                                                    <span className="font-black text-xl md:text-2xl text-white uppercase font-exo tracking-wide">{event.title}</span>
+                                                )}
+                                                {isRegistrationClosed && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-black bg-red-500/20 text-red-400 border border-red-500/30 rounded uppercase tracking-wider">
+                                                        🔒 Registration Closed
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-[0.15em] flex items-center gap-2">
                                                 <span className={`inline-block w-2 h-2 rounded-sm ${scheduleType === 'prelims' ? 'bg-cyan-600' : 'bg-purple-600'}`}></span>
                                                 {event.type}
