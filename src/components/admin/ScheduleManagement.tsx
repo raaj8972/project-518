@@ -26,20 +26,27 @@ export const ScheduleManagement = () => {
         const total = uniqueEmails.size;
         
         // Get unique emails that received broadcast in last 24 hours
-        const { data: sentEmails } = await supabase
+        const { data: sentEmails, error: logError } = await supabase
           .from('email_logs')
-          .select('recipient_email')
-          .eq('email_type', 'schedule_broadcast')
-          .eq('status', 'sent')
-          .gte('sent_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+          .select('recipient_email, sent_at')
+          .eq('email_type', 'schedule_broadcast');
         
+        if (logError) {
+          console.error('Error fetching email_logs details:', logError);
+          console.error('Error message:', logError.message);
+          console.error('Error details:', logError.details);
+          console.error('Error hint:', logError.hint);
+        }
+
         const sentEmailSet = new Set(sentEmails?.map((e: any) => e.recipient_email.toLowerCase()) || []);
+        console.log('Unique sent emails:', sentEmailSet.size);
         
         // Only count sent emails that match current approved registrations
         let validSentCount = 0;
         uniqueEmails.forEach(email => {
             if (sentEmailSet.has(email)) validSentCount++;
         });
+        console.log('Valid intersection count:', validSentCount);
         
         setEmailStats({
           sent: validSentCount,
@@ -52,9 +59,26 @@ export const ScheduleManagement = () => {
     };
     
     fetchEmailStats();
-    // Refresh stats every 30 seconds
+    
+    // Refresh stats every 30 seconds as fallback
     const interval = setInterval(fetchEmailStats, 30000);
-    return () => clearInterval(interval);
+
+    // Subscribe to realtime changes
+    const channel = supabase
+      .channel('email_stats_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'email_logs', filter: 'email_type=eq.schedule_broadcast' },
+        () => {
+             fetchEmailStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const [isAddingDay, setIsAddingDay] = useState(false);
@@ -256,6 +280,15 @@ export const ScheduleManagement = () => {
         },
         body: JSON.stringify({ provider: 'smtp' })
       });
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        if (text.trim().startsWith('<')) {
+            throw new Error('Broadcast function not found. Are you running "npm run dev:netlify"? (HTML response received)');
+        }
+        throw new Error(`Invalid server response: ${text.substring(0, 100)}`);
+      }
 
       const result = await response.json();
 
