@@ -9,7 +9,7 @@ export type Event = Database['public']['Tables']['events']['Row'];
 export type EventCoordinator = Database['public']['Tables']['event_coordinators']['Row'];
 export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
-export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[] };
+export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[], schedule_type?: 'prelims' | 'mains' };
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
 export type Registration = Database['public']['Tables']['registrations']['Row'] & { deleted_at?: string | null };
 export type SponsorshipSettings = Database['public']['Tables']['sponsorship_settings']['Row'] & { contactSections: ContactSection[] };
@@ -3229,113 +3229,163 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   const addScheduleEvent = async (dayId: number, event: Partial<ScheduleEvent>) => {
-    // Normalize time to HH:MM for Postgres TIME
-    const normalizeTime = (t: any): string | undefined => {
-      if (!t) return undefined;
-      const s = String(t).trim();
-      // Accept "HH:MM" from input type=time or common variants like "9", "9:30", "9 AM", "9:30 pm"
-      const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-      if (!m) return undefined;
-      let h = parseInt(m[1], 10);
-      let min = m[2] ? parseInt(m[2], 10) : 0;
-      const ap = m[3]?.toLowerCase();
-      if (ap) {
-        if (ap === 'pm' && h < 12) h += 12;
-        if (ap === 'am' && h === 12) h = 0;
-      }
-      if (isNaN(h) || isNaN(min)) return undefined;
-      h = Math.max(0, Math.min(23, h));
-      min = Math.max(0, Math.min(59, min));
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${pad(h)}:${pad(min)}`;
-    };
-    // Sanitize payload: convert blank linkage fields to null to satisfy FK constraints
-    const payload: any = { ...event, schedule_day_id: dayId };
-    if (payload.time !== undefined) {
-      const nt = normalizeTime(payload.time);
-      if (nt) payload.time = nt as any;
-      else delete payload.time;
+  // Normalize time to HH:MM for Postgres TIME
+  const normalizeTime = (t: any): string | undefined => {
+    if (!t) return undefined;
+    const s = String(t).trim();
+    // Accept "HH:MM" from input type=time or common variants like "9", "9:30", "9 AM", "9:30 pm"
+    if (s.includes('-') || s.toLowerCase().includes('to') || s.toLowerCase().includes('tba')) return s;
+
+    const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+    if (!m) return s; // Allow free text if regex fails
+    let h = parseInt(m[1], 10);
+    let min = m[2] ? parseInt(m[2], 10) : 0;
+    const ap = m[3]?.toLowerCase();
+    if (ap) {
+      if (ap === 'pm' && h < 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
     }
-    const normalize = (v: any) => (v === '' || v === undefined ? null : v);
-    payload.event_id = normalize(payload.event_id);
-    payload.guest_artist_id = normalize(payload.guest_artist_id);
-    // Mutual exclusivity safety: if both somehow set (UI bug), prefer event_id and drop guest_artist_id
-    if (payload.event_id && payload.guest_artist_id) {
-      payload.guest_artist_id = null;
-    }
-    // Backward-compat: If columns are not present in DB, omit keys entirely to avoid PostgREST schema errors
-    if (payload.event_id === null) delete payload.event_id;
-    if (payload.guest_artist_id === null) delete payload.guest_artist_id;
-    let { error } = await supabase.from('schedule_events').insert(payload);
-    if (error) {
-      // Graceful fallback: if new columns aren't in schema cache yet, strip offending keys and retry once
-  const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      const safe: any = { ...payload };
-      let shouldRetry = false;
-      if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
-      if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
-      if (shouldRetry) {
-        const retry = await supabase.from('schedule_events').insert(safe);
-        if (retry.error) {
-          console.error('[addScheduleEvent] retry failed', { safe, error: retry.error });
-          throw retry.error;
-        }
-      } else {
-        // eslint-disable-next-line no-console
-        console.error('[addScheduleEvent] insertion failed', { payload, error });
-        throw error;
-      }
-    }
-    await fetchData(true);
+    if (isNaN(h) || isNaN(min)) return s;
+    h = Math.max(0, Math.min(23, h));
+    min = Math.max(0, Math.min(59, min));
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(h)}:${pad(min)}`;
   };
+  // Sanitize payload: convert blank linkage fields to null to satisfy FK constraints
+  const payload: any = { ...event, schedule_day_id: dayId };
+  if (payload.time !== undefined) {
+    const nt = normalizeTime(payload.time);
+    if (nt) payload.time = nt as any;
+    else delete payload.time;
+  }
+  const normalize = (v: any) => (v === '' || v === undefined ? null : v);
+  payload.event_id = normalize(payload.event_id);
+  payload.guest_artist_id = normalize(payload.guest_artist_id);
+  // Mutual exclusivity safety: if both somehow set (UI bug), prefer event_id and drop guest_artist_id
+  if (payload.event_id && payload.guest_artist_id) {
+    payload.guest_artist_id = null;
+  }
+  // Backward-compat: If columns are not present in DB, omit keys entirely to avoid PostgREST schema errors
+  if (payload.event_id === null) delete payload.event_id;
+  if (payload.guest_artist_id === null) delete payload.guest_artist_id;
+  let { error } = await supabase.from('schedule_events').insert(payload);
+  if (error) {
+    // Graceful fallback: if new columns aren't in schema cache yet, strip offending keys and retry once
+    const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+    const safe: any = { ...payload };
+    let shouldRetry = false;
+    if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
+    if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
+    if (shouldRetry) {
+      const retry = await supabase.from('schedule_events').insert(safe);
+      if (retry.error) {
+        console.error('[addScheduleEvent] retry failed', { safe, error: retry.error });
+        throw retry.error;
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.error('[addScheduleEvent] insertion failed', { payload, error });
+      throw error;
+    }
+  }
+
+  // --- AUTO SYNC TO EVENTS TABLE ---
+  try {
+      if (payload.event_id) {
+           const updates: any = {};
+           if (payload.venue) updates.venue = payload.venue;
+           if (payload.time) updates.time = payload.time;
+           
+           // Fetch day date
+           const { data: dayData } = await supabase.from('schedule_days').select('date').eq('id', dayId).single();
+           if (dayData && dayData.date) updates.date = dayData.date;
+
+           if (Object.keys(updates).length > 0) {
+              const { error: syncError } = await supabase.from('events').update(updates).eq('id', payload.event_id);
+              if (syncError) console.warn("Add Sync error:", syncError);
+           }
+      }
+  } catch (err) { console.error("Add Sync failed", err); }
+  // --------------------------------
+
+  await fetchData(true);
+};
 
   const updateScheduleEvent = async (id: number, event: Partial<ScheduleEvent>) => {
     const normalizeTime = (t: any): string | undefined => {
-      if (!t) return undefined;
-      const s = String(t).trim();
-      const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-      if (!m) return undefined;
-      let h = parseInt(m[1], 10);
-      let min = m[2] ? parseInt(m[2], 10) : 0;
-      const ap = m[3]?.toLowerCase();
-      if (ap) {
-        if (ap === 'pm' && h < 12) h += 12;
-        if (ap === 'am' && h === 12) h = 0;
-      }
-      if (isNaN(h) || isNaN(min)) return undefined;
-      h = Math.max(0, Math.min(23, h));
-      min = Math.max(0, Math.min(59, min));
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      return `${pad(h)}:${pad(min)}`;
-    };
-    // Ensure mutual exclusivity: if event_id provided, clear guest_artist_id unless explicitly set; vice versa.
-    const payload: any = { ...event };
-    if (payload.time !== undefined) {
-      const nt = normalizeTime(payload.time);
-      if (nt) payload.time = nt as any;
-      else delete payload.time;
+    if (!t) return undefined;
+    const s = String(t).trim();
+    // Allow free text ranges or labels immediately
+    if (s.includes('-') || s.toLowerCase().includes('to') || s.toLowerCase().includes('tba')) return s;
+
+    const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
+    if (!m) return s; // Return raw string if regex doesn't match, allowing custom text
+    let h = parseInt(m[1], 10);
+    let min = m[2] ? parseInt(m[2], 10) : 0;
+    const ap = m[3]?.toLowerCase();
+    if (ap) {
+      if (ap === 'pm' && h < 12) h += 12;
+      if (ap === 'am' && h === 12) h = 0;
     }
-    if ('event_id' in payload && payload.event_id) {
-      if (!('guest_artist_id' in payload)) payload.guest_artist_id = null;
-    } else if ('guest_artist_id' in payload && payload.guest_artist_id) {
-      if (!('event_id' in payload)) payload.event_id = null;
-    }
-    let { error } = await supabase.from('schedule_events').update(payload).eq('id', id);
-    if (error) {
-  const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
-      const safe: any = { ...payload };
-      let shouldRetry = false;
-      if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
-      if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
-      if (shouldRetry) {
-        const retry = await supabase.from('schedule_events').update(safe).eq('id', id);
-        if (retry.error) throw retry.error;
-      } else {
-        throw error;
-      }
-    }
-    await fetchData(true);
+    if (isNaN(h) || isNaN(min)) return s;
+    h = Math.max(0, Math.min(23, h));
+    min = Math.max(0, Math.min(59, min));
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(h)}:${pad(min)}`;
   };
+  // Ensure mutual exclusivity: if event_id provided, clear guest_artist_id unless explicitly set; vice versa.
+  const payload: any = { ...event };
+  if (payload.time !== undefined) {
+    const nt = normalizeTime(payload.time);
+    if (nt) payload.time = nt as any;
+    else delete payload.time;
+  }
+  if ('event_id' in payload && payload.event_id) {
+    if (!('guest_artist_id' in payload)) payload.guest_artist_id = null;
+  } else if ('guest_artist_id' in payload && payload.guest_artist_id) {
+    if (!('event_id' in payload)) payload.event_id = null;
+  }
+  let { error } = await supabase.from('schedule_events').update(payload).eq('id', id);
+  if (error) {
+    const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
+    const safe: any = { ...payload };
+    let shouldRetry = false;
+    if (msg.includes('guest_artist_id')) { delete safe.guest_artist_id; shouldRetry = true; }
+    if (msg.includes('event_id')) { delete safe.event_id; shouldRetry = true; }
+    if (shouldRetry) {
+      const retry = await supabase.from('schedule_events').update(safe).eq('id', id);
+      if (retry.error) throw retry.error;
+    } else {
+      throw error;
+    }
+  }
+
+  // --- AUTO SYNC TO EVENTS TABLE ---
+  try {
+     const { data: currentEv } = await supabase.from('schedule_events').select('event_id, schedule_day_id').eq('id', id).single();
+     if (currentEv && currentEv.event_id) {
+         const updates: any = {};
+         // Sync Venue if present in payload
+         if (payload.venue !== undefined) updates.venue = payload.venue;
+         // Sync Time if present
+         if (payload.time !== undefined) updates.time = payload.time;
+         
+         // Sync Date if Schedule Day is known
+         if (currentEv.schedule_day_id) {
+             const { data: dayData } = await supabase.from('schedule_days').select('date').eq('id', currentEv.schedule_day_id).single();
+             if (dayData && dayData.date) updates.date = dayData.date;
+         }
+
+         if (Object.keys(updates).length > 0) {
+             const { error: syncError } = await supabase.from('events').update(updates).eq('id', currentEv.event_id);
+             if (syncError) console.warn("Sync error:", syncError);
+         }
+     }
+  } catch (err) { console.error("Auto-sync failed:", err); }
+  // --------------------------------
+
+  await fetchData(true);
+};
 
   const deleteScheduleEvent = async (id: number) => {
     const { error } = await supabase.from('schedule_events').delete().eq('id', id);

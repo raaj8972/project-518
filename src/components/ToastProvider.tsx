@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 
 export interface Toast {
   id: string;
@@ -40,6 +41,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
   return (
     <ToastContext.Provider value={{ push, remove }}>
       {children}
+      <Toaster position="bottom-right" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
       <div className="fixed z-[10000] top-3 right-3 flex flex-col gap-2 max-w-sm w-full">
         {toasts.map(t => (
           <div

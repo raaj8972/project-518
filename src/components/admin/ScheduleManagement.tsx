@@ -1,901 +1,406 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, ChevronDown, ChevronUp, Link as LinkIcon, Unlink, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import type { ScheduleDay, ScheduleEvent } from '../../context/DataContext';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
-import { useSavingProgress } from '../../context/SavingProgressContext';
-import { useApprovals } from '../../hooks/useApprovals';
+import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, AlertCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-export const ScheduleManagement: React.FC = () => {
-  const { 
-    schedule, 
-    eventCategories,
-    events,
-    guestArtists,
-    addScheduleDay, 
-    updateScheduleDay, 
-    deleteScheduleDay,
-    addScheduleEvent, 
-    updateScheduleEvent, 
-    deleteScheduleEvent 
-  } = useData();
-  const savingProgress = useSavingProgress();
-  const { submitForApproval, checkRequiresApproval } = useApprovals();
-  const [requiresApproval, setRequiresApproval] = useState(false);
-
-  useEffect(() => {
-    checkRequiresApproval().then(setRequiresApproval);
-  }, []);
+export const ScheduleManagement = () => {
+  const { schedule, addScheduleDay, deleteScheduleDay, addScheduleEvent, updateScheduleEvent, deleteScheduleEvent, events } = useData();
+  
+  // Schedule Type State
+  const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>('prelims');
 
   const [isAddingDay, setIsAddingDay] = useState(false);
-  const [editingDay, setEditingDay] = useState<number | null>(null);
-  const [isAddingEvent, setIsAddingEvent] = useState<number | null>(null);
-  const [editingEvent, setEditingEvent] = useState<number | null>(null);
-  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set());
+  const [newDay, setNewDay] = useState({ date: '', day: '', title: '' });
+  
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<any>({});
+  
+  const [addingEventDayId, setAddingEventDayId] = useState<number | null>(null);
+  const [newEvent, setNewEvent] = useState({ title: '', time: '', venue: '', type: '', event_id: '' });
 
-  // Inline banner state (replaces alert())
-  const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
+  // Function to auto-fill details when an event is selected
+  const handleEventSelect = (e: React.ChangeEvent<HTMLSelectElement>, isEdit: boolean) => {
+      const selectedEventId = parseInt(e.target.value);
+      const selectedEvent = events.find((ev: any) => ev.id === selectedEventId);
+      
+      if (selectedEvent) {
+          const updates = {
+              title: selectedEvent.title,
+              venue: selectedEvent.venue || '',
+              type: selectedEvent.category || '',
+              // Convert event time to string if needed, or keep blank if null
+              time: selectedEvent.time ? String(selectedEvent.time) : '',
+              event_id: selectedEventId
+          };
 
-  const [banner, setBanner] = useState<null | { type: 'success' | 'error' | 'info'; message: string }>(null);
-
-  // Loading flags for UX feedback and double-submit prevention
-  const [loading, setLoading] = useState<{
-    addDay: boolean;
-    updateDay: boolean;
-    deleteDayId: number | null;
-    addEvent: boolean;
-    updateEvent: boolean;
-    deleteEventId: number | null;
-  }>({ addDay: false, updateDay: false, deleteDayId: null, addEvent: false, updateEvent: false, deleteEventId: null });
-
-  const [dayForm, setDayForm] = useLocalStorage('admin_schedule_day_form_draft', {
-    date: '',
-    day: '',
-    title: ''
-  });
-
-  const [eventForm, setEventForm] = useLocalStorage('admin_schedule_event_form_draft', {
-    time: '',
-    title: '',
-    venue: '',
-    type: '',
-    duration: '',
-    event_id: '' as any,
-    guest_artist_id: '' as any,
-  });
-
-  const resetDayForm = () => {
-    setDayForm({
-      date: '',
-      day: '',
-      title: ''
-    });
-  };
-
-  const resetEventForm = () => {
-    setEventForm({
-      time: '',
-      title: '',
-      venue: '',
-      type: '',
-      duration: '',
-      event_id: '',
-      guest_artist_id: '',
-    });
-  };
-
-  // Normalize various human formats to an <input type="time"> value HH:MM
-  const toTimeInputValue = (raw: string): string => {
-    if (!raw) return '';
-    const s = String(raw).trim();
-    // Matches: H, HH, H:MM, HH:MM, optional AM/PM
-    const m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?$/);
-    if (!m) return '';
-    let h = parseInt(m[1], 10);
-    let min = m[2] ? parseInt(m[2], 10) : 0;
-    const ap = m[3]?.toLowerCase();
-    if (ap) {
-      if (ap === 'pm' && h < 12) h += 12;
-      if (ap === 'am' && h === 12) h = 0;
-    }
-    h = Math.max(0, Math.min(23, h));
-    min = Math.max(0, Math.min(59, min));
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${pad(h)}:${pad(min)}`;
+          if (isEdit) {
+              setEditForm((prev: any) => ({ ...prev, ...updates }));
+          } else {
+              setNewEvent((prev: any) => ({ ...prev, ...updates }));
+          }
+      } else {
+          // If cleared
+          if (isEdit) {
+              setEditForm((prev: any) => ({ ...prev, event_id: '' }));
+          } else {
+              setNewEvent((prev: any) => ({ ...prev, event_id: '' }));
+          }
+      }
   };
 
   const handleAddDay = async () => {
-    if (!dayForm.date || !dayForm.day || !dayForm.title) {
-      setBanner({ type: 'error', message: 'Please fill in all required fields for the day (Date, Day Label, Title).' });
-      return;
+    if (!newDay.date || !newDay.day) {
+        toast.error('Date and Day are required');
+        return;
     }
-    
     try {
-      setLoading(prev => ({ ...prev, addDay: true }));
-      if (requiresApproval) {
-        await submitForApproval(
-          'schedule_day',
-          'create',
-          {
-            date: dayForm.date,
-            day: dayForm.day,
-            title: dayForm.title,
-          }
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
+        await addScheduleDay({
+            ...newDay,
+            schedule_type: activeTab
+        });
         setIsAddingDay(false);
-        resetDayForm();
-        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
-      } else {
-        await addScheduleDay(dayForm);
-        setIsAddingDay(false);
-        resetDayForm();
-        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
-      }
-      setBanner({ type: 'success', message: 'Schedule day added successfully.' });
+        setNewDay({ date: '', day: '', title: '' });
+        toast.success('Schedule day added');
     } catch (error) {
-      console.error('Error adding schedule day:', error);
-      setBanner({ type: 'error', message: 'Failed to add schedule day. Please try again.' });
-    } finally {
-      setLoading(prev => ({ ...prev, addDay: false }));
+        toast.error('Failed to add day');
     }
   };
-
-  const handleUpdateDay = async (id: number) => {
-    if (!dayForm.date || !dayForm.day || !dayForm.title) {
-      setBanner({ type: 'error', message: 'Please fill in all required fields for the day (Date, Day Label, Title).' });
-      return;
-    }
-    
-    try {
-      setLoading(prev => ({ ...prev, updateDay: true }));
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'schedule_day',
-          'update',
-          {
-            date: dayForm.date,
-            day: dayForm.day,
-            title: dayForm.title,
-          },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setEditingDay(null);
-        resetDayForm();
-        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
-      } else {
-        await updateScheduleDay(id, dayForm);
-        setEditingDay(null);
-        resetDayForm();
-        try { localStorage.removeItem('admin_schedule_day_form_draft'); } catch {}
-      }
-      setBanner({ type: 'success', message: 'Schedule day updated.' });
-    } catch (error) {
-      console.error('Error updating schedule day:', error);
-      setBanner({ type: 'error', message: 'Failed to update schedule day. Please try again.' });
-    } finally {
-      setLoading(prev => ({ ...prev, updateDay: false }));
-      savingProgress.done();
-    }
-  };
-
-  const handleDeleteDay = async (id: number) => {
-    if (confirm('Are you sure you want to delete this day and all its events?')) {
-      try {
-        setLoading(prev => ({ ...prev, deleteDayId: id }));
-        if (requiresApproval) {
-          await submitForApproval(
-            'schedule_day',
-            'delete',
-            {},
-            id
-          );
-          alert('Request submitted for approval. An owner will review your changes.');
-        } else {
-          await deleteScheduleDay(id);
-        }
-        setBanner({ type: 'success', message: 'Schedule day deleted.' });
-      } catch (error) {
-        console.error('Error deleting schedule day:', error);
-        setBanner({ type: 'error', message: 'Failed to delete schedule day. Please try again.' });
-      } finally {
-        setLoading(prev => ({ ...prev, deleteDayId: null }));
-      }
-    }
-  };
-
   const handleAddEvent = async (dayId: number) => {
-    if (!eventForm.time || !eventForm.title || !eventForm.venue || !eventForm.type || !eventForm.duration) {
-      setBanner({ type: 'error', message: 'Please fill in all required fields for the event (Time, Title, Venue, Type, Duration).' });
-      return;
+    if (!newEvent.title || !newEvent.time) {
+        toast.error('Title and Time are required');
+        return;
     }
-    // Extra safeguard: ensure not both links are present
-    if (eventForm.event_id && eventForm.guest_artist_id) {
-      setBanner({ type: 'error', message: 'Please link either an Event OR a Guest Artist, not both.' });
-      return;
-    }
-    
     try {
-      setLoading(prev => ({ ...prev, addEvent: true }));
-      if (requiresApproval) {
-        await submitForApproval(
-          'schedule_event',
-          'create',
-          {
+        const payload: any = {
+            ...newEvent,
             schedule_day_id: dayId,
-            time: eventForm.time,
-            title: eventForm.title,
-            venue: eventForm.venue,
-            type: eventForm.type,
-            duration: eventForm.duration,
-            event_id: eventForm.event_id || null,
-            guest_artist_id: eventForm.guest_artist_id || null,
-          }
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setIsAddingEvent(null);
-        resetEventForm();
-        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
-      } else {
-        await addScheduleEvent(dayId, eventForm);
-        setIsAddingEvent(null);
-        resetEventForm();
-        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
-      }
-      setBanner({ type: 'success', message: 'Schedule event added.' });
-    } catch (error: any) {
-      const msg = error?.message || 'Unknown error';
-      console.error('Error adding schedule event:', error);
-      setBanner({ type: 'error', message: `Failed to add schedule event. ${msg}` });
-    } finally {
-      setLoading(prev => ({ ...prev, addEvent: false }));
-    }
-  };
+            event_id: newEvent.event_id ? parseInt(String(newEvent.event_id)) : null
+        };
+        // Remove empty strings
+        if (!payload.venue) delete payload.venue;
+        if (!payload.type) delete payload.type;
 
-  const handleUpdateEvent = async (eventId: number) => {
-    if (!eventForm.time || !eventForm.title || !eventForm.venue || !eventForm.type || !eventForm.duration) {
-      setBanner({ type: 'error', message: 'Please fill in all required fields for the event (Time, Title, Venue, Type, Duration).' });
-      return;
-    }
-    
-    try {
-      setLoading(prev => ({ ...prev, updateEvent: true }));
-      const steps = savingProgress.withSteps(3, 'Preparing…');
-      steps.next('Validating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'schedule_event',
-          'update',
-          {
-            time: eventForm.time,
-            title: eventForm.title,
-            venue: eventForm.venue,
-            type: eventForm.type,
-            duration: eventForm.duration,
-            event_id: eventForm.event_id || null,
-            guest_artist_id: eventForm.guest_artist_id || null,
-          },
-          eventId
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setEditingEvent(null);
-        resetEventForm();
-        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
-      } else {
-        await updateScheduleEvent(eventId, eventForm);
-        setEditingEvent(null);
-        resetEventForm();
-        try { localStorage.removeItem('admin_schedule_event_form_draft'); } catch {}
-      }
-      setBanner({ type: 'success', message: 'Schedule event updated.' });
+        await addScheduleEvent(dayId, payload);
+        setAddingEventDayId(null);
+        setNewEvent({ title: '', time: '', venue: '', type: '', event_id: '' });
+        toast.success('Event added to schedule');
     } catch (error) {
-      console.error('Error updating schedule event:', error);
-      setBanner({ type: 'error', message: 'Failed to update schedule event. Please try again.' });
-    } finally {
-      setLoading(prev => ({ ...prev, updateEvent: false }));
-      savingProgress.done();
+        toast.error('Failed to add event');
     }
   };
 
-  const handleDeleteEvent = async (eventId: number) => {
-    if (confirm('Are you sure you want to delete this event?')) {
+  const handleUpdateEvent = async () => {
+      if (!editForm.title || !editForm.time) return;
       try {
-        setLoading(prev => ({ ...prev, deleteEventId: eventId }));
-        await deleteScheduleEvent(eventId);
-        setBanner({ type: 'success', message: 'Schedule event deleted.' });
+          const payload: any = {
+              ...editForm,
+              event_id: editForm.event_id ? parseInt(String(editForm.event_id)) : null
+          };
+          await updateScheduleEvent(editingEventId!, payload);
+          setEditingEventId(null);
+          toast.success('Event updated');
       } catch (error) {
-        console.error('Error deleting schedule event:', error);
-        setBanner({ type: 'error', message: 'Failed to delete schedule event. Please try again.' });
-      } finally {
-        setLoading(prev => ({ ...prev, deleteEventId: null }));
+          toast.error('Failed to update event');
       }
-    }
   };
 
-  const startEditingDay = (day: ScheduleDay) => {
-    setDayForm({
-      date: day.date,
-      day: day.day,
-      title: day.title
-    });
-    setEditingDay(day.id!);
+  const formatDisplayTime = (time: string, _duration?: string) => {
+      if (!time) return 'TBA';
+      // Just return raw text for admin view if it looks like a range
+      if (time.includes('-') || time.toLowerCase().includes('tba') || time.toLowerCase().includes('to')) return time;
+      
+      // Attempt to format standard times
+      try {
+           const match = time.match(/(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])?/);
+           if (match) {
+             let h = parseInt(match[1], 10);
+             const m = match[2] ? parseInt(match[2], 10) : 0;
+             const ap = match[3]?.toUpperCase();
+             let isPM = false;
+             if (ap) isPM = ap === 'PM';
+             else if (h > 12) { h -= 12; isPM = true; }
+             else if (h === 12) isPM = true;
+             else if (h === 0) { h = 12; isPM = false; }
+             else if (h < 7) isPM = true;
+             
+             return `${h}${m > 0 ? ':'+m.toString().padStart(2,'0') : ''} ${isPM ? 'PM' : 'AM'}`;
+           }
+           return time;
+      } catch { return time; }
   };
 
-  const startEditingEvent = (event: ScheduleEvent) => {
-    setEventForm({
-      time: toTimeInputValue((event as any).time as any),
-      title: event.title,
-      venue: event.venue,
-      type: event.type,
-      duration: event.duration,
-      event_id: (event as any).event_id || '',
-      guest_artist_id: (event as any).guest_artist_id || '',
-    });
-    setEditingEvent(event.id!);
-  };
-
-  const toggleDayExpansion = (dayId: number) => {
-    const newExpanded = new Set(expandedDays);
-    if (newExpanded.has(dayId)) {
-      newExpanded.delete(dayId);
-    } else {
-      newExpanded.add(dayId);
-    }
-    setExpandedDays(newExpanded);
-  };
-
-  const getTypeColor = (type: string) => {
-    const category = eventCategories.find(cat => cat.name === type);
-    return category ? category.color : '#6B7280';
-  };
+  // Filter days by active tab
+  const filteredSchedule = useMemo(() => {
+    return schedule.filter((day: any) => (day.schedule_type || 'prelims') === activeTab);
+  }, [schedule, activeTab]);
 
   return (
-    <div className="space-y-6">
-      {/* Inline Banner */}
-      {banner && (
-        <div
-          className={
-            `rounded-md border p-3 ${
-              banner.type === 'error'
-                ? 'bg-red-50 border-red-300 text-red-800'
-                : banner.type === 'success'
-                ? 'bg-green-50 border-green-300 text-green-800'
-                : 'bg-blue-50 border-blue-300 text-blue-800'
-            }`
-          }
-        >
-          <div className="flex items-start">
-            <div className="flex-1 text-sm">{banner.message}</div>
-            <button
-              className="ml-3 text-xs opacity-70 hover:opacity-100"
-              onClick={() => setBanner(null)}
-              aria-label="Dismiss message"
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-      {/* Header */}
+    <div className="space-y-8 bg-gray-900 p-8 rounded-2xl shadow-2xl border border-gray-800">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Schedule Management</h2>
-          <p className="text-gray-600">Manage festival days and events</p>
-        </div>
-        <div className="flex items-center space-x-3">
-             <select 
-                value={emailProvider}
-                onChange={(e) => setEmailProvider(e.target.value as any)}
-                className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-sm mr-2 text-gray-900"
-                title="Select Email Service"
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+          <Calendar className="text-cyan-400" />
+          Schedule Management
+        </h2>
+        
+        {/* Toggle TABS */}
+        <div className="flex bg-white/5 rounded-lg p-1 border border-white/10">
+            <button 
+                onClick={() => setActiveTab('prelims')}
+                className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'prelims' ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20' : 'text-gray-400 hover:text-white'}`}
             >
-                <option value="smtp">Via Hostinger</option>
-                <option value="resend">Via Resend</option>
-            </select>
-
-            <button
-            onClick={async () => {
-                const confirmed = confirm(
-                    `📢 BROADCAST SCHEDULE?\n\nSending via: ${emailProvider.toUpperCase()}\n\nThis will send an email to ALL distinct approved participants.\n\nAre you sure?`
-                );
-                if (!confirmed) return;
-
-                try {
-                    setBanner({ type: 'info', message: 'Broadcasting emails... please wait.' });
-                    // @ts-ignore
-                    const { supabase } = await import('../../lib/supabase');
-                    const token = (await supabase.auth.getSession()).data.session?.access_token;
-                    
-                    if (!token) throw new Error('Not authenticated');
-                    
-                    const res = await fetch('/api/broadcast-schedule', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}` 
-                        },
-                        body: JSON.stringify({ provider: emailProvider })
-                    });
-                    const result = await res.json();
-                    
-                    if (res.ok) {
-                        setBanner({ type: 'success', message: `Emails Sent! Success: ${result.sent} / ${result.total_unique} (Batch limit 100)` });
-                    } else {
-                        console.error(result);
-                        setBanner({ type: 'error', message: `Broadcast failed: ${result.error || 'Check logs'}` });
-                    }
-                } catch (e: any) {
-                    console.error(e);
-                    setBanner({ type: 'error', message: `Broadcast failed: ${e.message}` });
-                }
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 transition-colors flex items-center"
-            title="Send email to all participants"
-            >
-            <LinkIcon size={16} className="mr-2" />
-            Broadcast Schedule
+                PRELIMS
             </button>
-            <button
-            onClick={() => setIsAddingDay(true)}
-            className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+            <button 
+                onClick={() => setActiveTab('mains')}
+                className={`px-6 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'mains' ? 'bg-purple-500 text-black shadow-lg shadow-purple-500/20' : 'text-gray-400 hover:text-white'}`}
             >
-            <Plus size={16} className="mr-2" />
-            Add Day
+                MAINS
             </button>
         </div>
+
+        <button
+          onClick={() => setIsAddingDay(true)}
+          className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:bg-cyan-400 transition-colors flex items-center gap-2 font-bold"
+        >
+          <Plus size={18} /> Add Day
+        </button>
       </div>
 
-      {/* Add Day Form */}
       {isAddingDay && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-4">Add New Schedule Day</h3>
-          <div className="grid md:grid-cols-3 gap-4 mb-4">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-6 animate-fade-in">
+          <h3 className="text-lg font-bold text-white mb-4">Add Schedule Day ({activeTab.toUpperCase()})</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+              <label className="block text-gray-400 text-sm mb-1">Date (YYYY-MM-DD)</label>
               <input
                 type="date"
-                value={dayForm.date}
-                onChange={(e) => setDayForm(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                value={newDay.date}
+                onChange={(e) => setNewDay({ ...newDay, date: e.target.value })}
+                className="w-full bg-black/50 border border-white/20 rounded-lg p-2 text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Day Label</label>
+              <label className="block text-gray-400 text-sm mb-1">Day Name</label>
               <input
                 type="text"
-                value={dayForm.day}
-                onChange={(e) => setDayForm(prev => ({ ...prev, day: e.target.value }))}
-                placeholder="e.g., Day 1, Friday"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                value={newDay.day}
+                onChange={(e) => setNewDay({ ...newDay, day: e.target.value })}
+                placeholder="e.g. Day 1 / Monday"
+                className="w-full bg-black/50 border border-white/20 rounded-lg p-2 text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+              <label className="block text-gray-400 text-sm mb-1">Title (Optional)</label>
               <input
                 type="text"
-                value={dayForm.title}
-                onChange={(e) => setDayForm(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="e.g., Cultural Day"
-                className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                value={newDay.title}
+                onChange={(e) => setNewDay({ ...newDay, title: e.target.value })}
+                placeholder="e.g. Inauguration"
+                className="w-full bg-black/50 border border-white/20 rounded-lg p-2 text-white"
               />
             </div>
           </div>
-          <div className="flex justify-end space-x-2">
+          <div className="flex justify-end gap-2">
             <button
-              onClick={() => {
-                setIsAddingDay(false);
-                resetDayForm();
-              }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+              onClick={() => setIsAddingDay(false)}
+              className="px-4 py-2 rounded-lg text-gray-400 hover:bg-white/5"
             >
-              <X size={16} className="mr-1" />
               Cancel
             </button>
             <button
               onClick={handleAddDay}
-              disabled={loading.addDay}
-              aria-busy={loading.addDay}
-              className={`px-4 py-2 bg-yellow-400 text-black rounded-lg flex items-center ${loading.addDay ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-300'}`}
+              className="px-4 py-2 rounded-lg bg-cyan-500 text-black font-bold hover:bg-cyan-400"
             >
-              {loading.addDay ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-1" />}
-              {loading.addDay ? 'Adding…' : 'Add Day'}
+              Save Day
             </button>
           </div>
         </div>
       )}
 
-      {/* Schedule Days */}
-      <div className="space-y-4">
-        {schedule.map((day) => (
-          <div key={day.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-            {/* Day Header */}
-            <div className="bg-gradient-to-r from-gray-800 to-gray-900 text-white p-4">
-              {editingDay === day.id ? (
-                <div className="grid md:grid-cols-3 gap-4">
-                  <input
-                    type="date"
-                    value={dayForm.date}
-                    onChange={(e) => setDayForm(prev => ({ ...prev, date: e.target.value }))}
-                    className="p-2 rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                  <input
-                    type="text"
-                    value={dayForm.day}
-                    onChange={(e) => setDayForm(prev => ({ ...prev, day: e.target.value }))}
-                    className="p-2 rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                  <input
-                    type="text"
-                    value={dayForm.title}
-                    onChange={(e) => setDayForm(prev => ({ ...prev, title: e.target.value }))}
-                    className="p-2 rounded bg-gray-700 text-white border border-gray-600"
-                  />
-                  <div className="md:col-span-3 flex justify-end space-x-2 mt-2">
-                    <button
-                      onClick={() => {
-                        setEditingDay(null);
-                        resetDayForm();
-                      }}
-                      className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-500 flex items-center"
-                    >
-                      <X size={14} className="mr-1" />
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleUpdateDay(day.id!)}
-                      disabled={loading.updateDay}
-                      aria-busy={loading.updateDay}
-                      className={`px-3 py-1 bg-yellow-400 text-black rounded flex items-center ${loading.updateDay ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-300'}`}
-                    >
-                      {loading.updateDay ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-1" />}
-                      {loading.updateDay ? 'Saving…' : 'Save'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => toggleDayExpansion(day.id!)}
-                      className="text-yellow-400 hover:text-yellow-300"
-                    >
-                      {expandedDays.has(day.id!) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                    </button>
-                    <div>
-                      <h3 className="text-xl font-bold">{day.title}</h3>
-                      <div className="flex items-center space-x-4 text-sm opacity-90">
-                        <div className="flex items-center">
-                          <Calendar size={14} className="mr-1" />
-                          {day.date}
-                        </div>
-                        <div>{day.day}</div>
-                        <div>{(day.events ?? []).length} Events</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setIsAddingEvent(day.id!)}
-                      className="bg-yellow-400 text-black px-3 py-1 rounded hover:bg-yellow-300 flex items-center"
-                    >
-                      <Plus size={14} className="mr-1" />
-                      Add Event
-                    </button>
-                    <button
-                      onClick={() => startEditingDay(day)}
-                      className="bg-blue-600 text-white p-2 rounded hover:bg-blue-500"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteDay(day.id!)}
-                      disabled={loading.deleteDayId === day.id}
-                      aria-busy={loading.deleteDayId === day.id}
-                      className={`bg-red-600 text-white p-2 rounded ${loading.deleteDayId === day.id ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-500'}`}
-                    >
-                      {loading.deleteDayId === day.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                    </button>
-                  </div>
-                </div>
-              )}
+      <div className="space-y-8">
+        {filteredSchedule.map((day: any) => (
+          <div key={day.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+            <div className="p-4 bg-white/5 border-b border-white/10 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white">{day.date}</h3>
+                <p className="text-cyan-400 font-medium">{day.day} <span className="text-gray-500 text-sm ml-2">{day.title}</span></p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                   onClick={() => deleteScheduleDay(day.id)}
+                   className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                >
+                   <Trash2 size={18} />
+                </button>
+              </div>
             </div>
 
-            {/* Day Content */}
-            {expandedDays.has(day.id!) && (
-              <div className="p-4">
-                {/* Add Event Form */}
-                {isAddingEvent === day.id && (
-                  <div className="bg-yellow-50 rounded-lg p-4 mb-4 border border-yellow-200">
-                    <h4 className="font-semibold mb-3">Add New Event</h4>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-7 gap-3 mb-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Time</label>
-                        <input
-                          type="time"
-                          step={60}
-                          value={eventForm.time}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                          placeholder="09:00"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Title</label>
-                        <input
-                          type="text"
-                          value={eventForm.title}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
-                          placeholder="Event title"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Venue</label>
-                        <input
-                          type="text"
-                          value={eventForm.venue}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
-                          placeholder="Venue name"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div className="col-span-2 lg:col-span-1">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                        <select
-                          value={eventForm.type}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        >
-                          <option value="">Select type</option>
-                          {eventCategories.map(category => (
-                            <option key={category.id} value={category.name}>{category.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Duration</label>
-                        <input
-                          type="text"
-                          value={eventForm.duration}
-                          onChange={(e) => setEventForm(prev => ({ ...prev, duration: e.target.value }))}
-                          placeholder="2 hours"
-                          className="w-full p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Link Event</label>
-                        <select
-                          value={eventForm.event_id || ''}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setEventForm(prev => ({ ...prev, event_id: v ? Number(v) : '', guest_artist_id: '' }));
-                          }}
-                          disabled={!!eventForm.guest_artist_id}
-                          className={`w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 ${eventForm.guest_artist_id ? 'bg-gray-100 border-gray-300 text-gray-500' : 'border-gray-300'}`}
-                        >
-                          <option value="">None</option>
-                          {(events || []).map(ev => (
-                            <option key={ev.id} value={ev.id}>{ev.title}</option>
-                          ))}
-                        </select>
-                        {(events || []).length === 0 && (
-                          <p className="mt-1 text-xs text-gray-500">No events found. Create events in Events Management to link.</p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Link Guest Artist</label>
-                        <select
-                          value={eventForm.guest_artist_id || ''}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setEventForm(prev => ({ ...prev, guest_artist_id: v ? Number(v) : '', event_id: '' }));
-                          }}
-                          disabled={!!eventForm.event_id}
-                          className={`w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 ${eventForm.event_id ? 'bg-gray-100 border-gray-300 text-gray-500' : 'border-gray-300'}`}
-                        >
-                          <option value="">None</option>
-                          {(guestArtists || []).map(ga => (
-                            <option key={ga.id} value={ga.id}>{(ga as any).name || (ga as any).title || `Guest ${ga.id}`}</option>
-                          ))}
-                        </select>
-                        {(guestArtists || []).length === 0 && (
-                          <p className="mt-1 text-xs text-gray-500">No guest artists found. Add them in Guest Artists Management to link.</p>
-                        )}
-                        <p className="mt-1 text-xs text-gray-600">Link either an Event or a Guest Artist. Selecting one disables the other.</p>
-                      </div>
-                      {/* Venue */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Venue *</label>
-                        <input
-                          type="text"
-                          value={eventForm.venue}
-                          onChange={(e) => setEventForm((prev: any) => ({ ...prev, venue: e.target.value }))}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => {
-                          setIsAddingEvent(null);
-                          resetEventForm();
-                        }}
-                        className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
-                      >
-                        <X size={14} className="mr-1" />
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleAddEvent(day.id!)}
-                        disabled={loading.addEvent}
-                        aria-busy={loading.addEvent}
-                        className={`px-3 py-1 bg-yellow-400 text-black rounded flex items-center ${loading.addEvent ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-300'}`}
-                      >
-                        {loading.addEvent ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-1" />}
-                        {loading.addEvent ? 'Adding…' : 'Add Event'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Events List */}
-                <div className="space-y-3">
-                  {(day.events || []).map((event) => (
-                    <div key={event.id} className="border border-gray-200 rounded-lg p-3 hover:border-yellow-300 transition-colors">
-                      {editingEvent === event.id ? (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-3">
-                          <input
-                            type="time"
-                            step={60}
-                            value={eventForm.time}
-                            onChange={(e) => setEventForm(prev => ({ ...prev, time: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            value={eventForm.title}
-                            onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            value={eventForm.venue}
-                            onChange={(e) => setEventForm(prev => ({ ...prev, venue: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <select
-                            value={eventForm.type}
-                            onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+            <div className="p-4 space-y-2">
+              {day.events?.map((event: any) => (
+                <div key={event.id} className="bg-black/30 rounded-lg p-4 border border-white/5 hover:border-white/10 transition-colors">
+                  {editingEventId === event.id ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                      <div className="lg:col-span-1">
+                          <label className="block text-xs text-gray-500 mb-1 flex items-center justify-between">
+                             Link Event
+                             <span className="text-[10px] text-cyan-500 cursor-help" title="Select to auto-fill. You can edit the Title afterwards.">?</span>
+                          </label>
+                          <select 
+                            value={editForm.event_id || ''}
+                            onChange={(e) => handleEventSelect(e, true)}
+                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
                           >
-                            {eventCategories.map(category => (
-                              <option key={category.id} value={category.name}>{category.name}</option>
-                            ))}
+                             <option value="">-- Manual Entry --</option>
+                             {events.map((e:any) => <option key={e.id} value={e.id}>{e.title}</option>)}
                           </select>
+                      </div>
+                      <div className="lg:col-span-1">
+                          <label className="block text-xs text-gray-500 mb-1">Title</label>
                           <input
                             type="text"
-                            value={eventForm.duration}
-                            onChange={(e) => setEventForm(prev => ({ ...prev, duration: e.target.value }))}
-                            className="p-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                            value={editForm.title}
+                            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
                           />
-                          <div className="lg:col-span-5 flex justify-end space-x-2 mt-2">
-                            <button
-                              onClick={() => {
-                                setEditingEvent(null);
-                                resetEventForm();
-                              }}
-                              className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
-                            >
-                              <X size={14} className="mr-1" />
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => handleUpdateEvent(event.id!)}
-                              disabled={loading.updateEvent}
-                              aria-busy={loading.updateEvent}
-                              className={`px-3 py-1 bg-yellow-400 text-black rounded flex items-center ${loading.updateEvent ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-300'}`}
-                            >
-                              {loading.updateEvent ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Save size={14} className="mr-1" />}
-                              {loading.updateEvent ? 'Saving…' : 'Save'}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
-                            <div className="bg-gray-900 text-white px-3 py-2 rounded text-center min-w-[80px]">
-                              <div className="text-sm font-bold">{event.time}</div>
-                              <div className="text-xs opacity-75">{event.duration}</div>
-                            </div>
-                            <div className="flex-grow">
-                              <h4 className="font-semibold text-gray-900">{event.title}</h4>
-                              <div className="flex items-center space-x-4 text-sm text-gray-600 flex-wrap">
-                                <div className="flex items-center">
-                                  <MapPin size={14} className="mr-1" />
-                                  {event.venue}
-                                </div>
-                                <div className="flex items-center">
-                                  <span 
-                                    className="w-3 h-3 rounded-full mr-1"
-                                    style={{ backgroundColor: getTypeColor(event.type) }}
-                                  ></span>
-                                  {event.type}
-                                </div>
-                                {((event as any).event_id || (event as any).guest_artist_id) && (
-                                  <div className="flex items-center text-xs px-2 py-0.5 bg-gray-100 rounded border border-gray-300">
-                                    <LinkIcon size={12} className="mr-1 text-gray-500" />
-                                    {(event as any).event_id ? `Linked Event #${(event as any).event_id}` : `Linked Guest #${(event as any).guest_artist_id}`}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => startEditingEvent(event)}
-                              className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500"
-                            >
-                              <Edit size={14} />
-                            </button>
-                            {(((event as any).event_id) || ((event as any).guest_artist_id)) && (
-                              <button
-                                onClick={() => updateScheduleEvent(event.id!, { event_id: null, guest_artist_id: null } as any)}
-                                className="bg-gray-600 text-white p-1 rounded hover:bg-gray-500"
-                                title="Unlink"
-                              >
-                                <Unlink size={14} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteEvent(event.id!)}
-                              disabled={loading.deleteEventId === event.id}
-                              aria-busy={loading.deleteEventId === event.id}
-                              className={`bg-red-600 text-white p-1 rounded ${loading.deleteEventId === event.id ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-500'}`}
-                            >
-                              {loading.deleteEventId === event.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                            </button>
-                          </div>
-                        </div>
-                      )}
+                      </div>
+                      <div className="lg:col-span-1">
+                          <label className="block text-xs text-gray-500 mb-1">Time (e.g. 9-11 AM)</label>
+                          <input
+                            type="text"
+                            value={editForm.time}
+                            onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                          />
+                      </div>
+                      <div className="lg:col-span-1">
+                           <label className="block text-xs text-gray-500 mb-1">Duration (e.g. 2h)</label>
+                           <input
+                            type="text"
+                            value={editForm.duration || ''}
+                            onChange={(e) => setEditForm({ ...editForm, duration: e.target.value })}
+                            placeholder="Optional"
+                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                           />
+                      </div>
+                       <div className="lg:col-span-1">
+                           <label className="block text-xs text-gray-500 mb-1">Venue</label>
+                           <input
+                            type="text"
+                            value={editForm.venue || ''}
+                            onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+                            className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                           />
+                       </div>
+                       
+                      <div className="flex gap-2 lg:col-span-5 justify-end mt-2">
+                        <button onClick={() => setEditingEventId(null)} className="p-2 text-gray-400 hover:text-white"><X size={18} /></button>
+                        <button onClick={handleUpdateEvent} className="p-2 text-green-400 hover:text-green-300"><Save size={18} /></button>
+                      </div>
                     </div>
-                  ))}
-                  
-                  {(day.events || []).length === 0 && isAddingEvent !== day.id && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Clock size={32} className="mx-auto mb-2 opacity-50" />
-                      <p>No events scheduled for this day</p>
-                      <button
-                        onClick={() => setIsAddingEvent(day.id!)}
-                        className="mt-2 text-yellow-600 hover:text-yellow-700 font-medium"
-                      >
-                        Add the first event
-                      </button>
+                  ) : (
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex-1">
+                         <div className="flex items-center gap-2 mb-1">
+                             <Clock size={14} className="text-cyan-400" />
+                             <span className="font-mono text-cyan-300 font-bold">{formatDisplayTime(event.time)}</span>
+                             {event.duration && <span className="text-gray-500 text-xs">({event.duration})</span>}
+                         </div>
+                         <h4 className="text-lg font-bold text-white">{event.title}</h4>
+                         <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
+                             {event.venue && <span className="flex items-center gap-1"><MapPin size={12} /> {event.venue}</span>}
+                             {event.type && <span className="bg-white/10 px-2 py-0.5 rounded text-xs">{event.type}</span>}
+                             {event.event_id && <span className="text-green-400 flex items-center gap-1 text-xs"><LinkIcon size={10} /> Linked</span>}
+                         </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditingEventId(event.id); setEditForm({ ...event }); }}
+                          className="p-2 text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => deleteScheduleEvent(event.id)}
+                          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+              ))}
+
+              {/* Add Event Row */}
+              {addingEventDayId === day.id ? (
+                  <div className="bg-cyan-500/5 rounded-lg p-4 border border-cyan-500/20 animate-fade-in">
+                      <h4 className="text-sm font-bold text-cyan-400 mb-3 block flex items-center gap-2">
+                        New Event
+                        <span className="text-xs font-normal text-gray-500">(Select to auto-fill or type manually)</span>
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                           <div className="lg:col-span-1">
+                              <select 
+                                value={newEvent.event_id || ''}
+                                onChange={(e) => handleEventSelect(e, false)}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white"
+                              >
+                                 <option value="">-- Manual Entry --</option>
+                                 {events.map((e:any) => <option key={e.id} value={e.id}>{e.title}</option>)}
+                              </select>
+                           </div>
+                           <div className="lg:col-span-2">
+                               <input
+                                type="text"
+                                placeholder="Event Title"
+                                value={newEvent.title}
+                                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
+                               />
+                           </div>
+                           <div className="lg:col-span-1">
+                               <input
+                                type="text"
+                                placeholder="Time (9 AM)"
+                                value={newEvent.time}
+                                onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
+                               />
+                           </div>
+                           <div className="lg:col-span-1">
+                               <input
+                                type="text"
+                                placeholder="Venue"
+                                value={newEvent.venue}
+                                onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
+                                className="w-full bg-black border border-white/20 rounded-lg p-2 text-sm text-white placeholder-gray-600"
+                               />
+                           </div>
+                       </div>
+                       <div className="flex gap-2 justify-end mt-4">
+                           <button onClick={() => setAddingEventDayId(null)} className="px-3 py-1.5 text-sm rounded bg-gray-800 text-gray-300">Cancel</button>
+                           <button onClick={() => handleAddEvent(day.id)} className="px-3 py-1.5 text-sm rounded bg-cyan-500 text-black font-bold">Save Event</button>
+                       </div>
+                  </div>
+              ) : (
+                <button
+                    onClick={() => setAddingEventDayId(day.id)}
+                    className="w-full py-3 border-2 border-dashed border-white/10 rounded-lg text-gray-500 hover:border-cyan-500/50 hover:text-cyan-400 hover:bg-cyan-500/5 transition-all flex justify-center items-center gap-2"
+                >
+                    <Plus size={18} /> Add Event to {day.day}
+                </button>
+              )}
+            </div>
           </div>
         ))}
+        
+        {filteredSchedule.length === 0 && (
+             <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+                 <AlertCircle className="mx-auto text-gray-600 mb-2" />
+                 <p className="text-gray-500">No {activeTab} schedule days found.</p>
+             </div>
+        )}
       </div>
-
-      {/* No Days Message */}
-      {schedule.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <Calendar size={64} className="mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Schedule Days</h3>
-          <p className="text-gray-500 mb-4">Start by adding your first festival day</p>
-          <button
-            onClick={() => setIsAddingDay(true)}
-            className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
-          >
-            Add First Day
-          </button>
-        </div>
-      )}
     </div>
   );
 };
