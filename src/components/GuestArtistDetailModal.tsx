@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import WatchLiveButton from './WatchLiveButton';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import CountdownTimer from './CountdownTimer';
@@ -29,34 +29,14 @@ export type GuestArtistDetail = {
   detail_music_url?: string | null;
 };
 
-// Extract YouTube video id from various URL formats
-const getYouTubeId = (url: string): string | null => {
-  try {
-    const u = new URL(url);
-    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1) || null;
-    if (u.hostname.includes('youtube.com')) {
-      const v = u.searchParams.get('v');
-      if (v) return v;
-      const parts = u.pathname.split('/').filter(Boolean);
-      if (parts[0] === 'embed' && parts[1]) return parts[1];
-      if (parts[0] === 'shorts' && parts[1]) return parts[1];
-    }
-  } catch {}
-  return null;
-};
-
 const GuestArtistDetailModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   artist: GuestArtistDetail | null;
 }> = ({ isOpen, onClose, artist }) => {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  const [videoError, setVideoError] = React.useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setVideoError(false); // Reset error state on open
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -64,205 +44,174 @@ const GuestArtistDetailModal: React.FC<{
     return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (isOpen && videoRef.current && !videoError) {
-      import('../utils/safePlay').then(({ default: safePlay }) => safePlay(videoRef.current)).catch(() => { try { videoRef.current?.play(); } catch {} });
-    }
-  }, [isOpen, videoError]);
-
   if (!isOpen || !artist) return null;
-  const youTubeId = artist.youtube_url ? getYouTubeId(artist.youtube_url) : null;
 
   return (
     <div className="fixed inset-0 z-[1000] overflow-y-auto">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 min-h-full flex items-start justify-center p-4 md:p-8">
         <div className="relative w-full max-w-5xl bg-[#0b0f1a] text-white rounded-xl shadow-2xl border border-white/10">
-          {/* Header with image and small play badge */}
-          <div className="relative w-full h-64 md:h-80 overflow-hidden">
-            {artist.video_url && !videoError ? (
-              <video
-                ref={videoRef}
-                src={artist.video_url}
-                poster={artist.image || undefined}
-                className="w-full h-full object-cover"
-                playsInline
-                autoPlay
-                loop
-                muted
-                controls
-                onError={() => {
-                  console.warn('Video playback failed, falling back to image/YouTube');
-                  setVideoError(true);
-                }}
-              />
-            ) : youTubeId ? (
-              <iframe
-                title={`${artist.name} video`}
-                className="w-full h-full"
-                src={`https://www.youtube.com/embed/${youTubeId}?autoplay=1&rel=0&modestbranding=1`}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-              />
-            ) : artist.image ? (
-              <img loading="lazy" decoding="async" src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gray-800" />
-            )}
-            {(artist.video_url || artist.youtube_url) && (
-              <div className="absolute top-4 left-4">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/30 shadow-lg animate-pulse">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 ml-0.5">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Body */}
-          <div className="p-6 md:p-8">
-          <div className="md:flex md:items-start md:space-x-8">
-            <div className="flex-1">
-              <h3 className="text-2xl md:text-3xl font-extrabold mb-2">{artist.name}</h3>
-              {artist.title && <div className="text-pink-400 font-semibold mb-3">{artist.title}</div>}
-              {artist.specialty && (
-                <div className="mb-4">
-                  <span className="inline-block bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full text-sm border border-purple-500/30">
-                    {artist.specialty}
-                  </span>
-                </div>
-              )}
-              {artist.detail_music_url && (
-                <div className="mb-4">
-                  <span className="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-xs text-purple-100 px-3 py-1 rounded-full">
-                    <Music2 className="w-3.5 h-3.5 text-purple-200" />
-                    Now playing artist music
-                  </span>
-                </div>
-              )}
-              {artist.description && (
-                <PreserveNewlines text={artist.description} className="text-gray-300 leading-relaxed mb-4" />
-              )}
-
-              {artist.countdown_enabled && artist.performance_at && (
-                <div className="relative mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
-                  <div className="absolute -top-2 -right-2 w-12 h-12">
-                    <Sparkle3D intensity={8} />
-                  </div>
-                  <div className="flex flex-col items-start gap-3">
-                    <div className="text-sm text-gray-300">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-pink-300" />
-                        <span>{new Date(artist.performance_at).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' })}</span>
-                      </div>
-                      {artist.venue && (
-                        <div className="flex items-center gap-2 mt-1 text-gray-400">
-                          <MapPin className="w-4 h-4" />
-                          <span>{artist.venue}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 self-start">
-                      <CountdownTimer
-                        className="max-w-full"
-                        target={artist.performance_at}
-                        endedText="LIVE NOW"
-                        showEnded={(artist as any).live_now_enabled !== false}
-                      />
-                    </div>
-                    {/* Unified gated WatchLiveButton replacing legacy anchor (60m lead) */}
-                    {artist.watch_live_url && artist.performance_at && !isNaN(new Date(artist.performance_at).getTime()) && (
-                      <div className="mt-4">
-                        <WatchLiveButton
-                          url={artist.watch_live_url}
-                          startTime={artist.performance_at}
-                          leadMinutes={LIVE_LEAD_MINUTES}
-                          forceLive={(artist as any).live_now_enabled || (artist as any).is_featured}
-                          size="xs"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {artist.achievements && artist.achievements.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-bold text-cyan-300 mb-2">Achievements</h4>
-                  <ul className="list-disc list-inside space-y-1 text-gray-300 text-sm">
-                    {artist.achievements.map((a, i) => (<li key={i}>{a}</li>))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Social media buttons */}
-              {(artist.social_links && (artist.social_links.instagram || artist.social_links.youtube)) || artist.youtube_url ? (
-                <div className="mt-6">
-                  <h4 className="text-sm font-bold text-pink-300 mb-2">Social & Live</h4>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {artist.social_links?.instagram && (
-                      <Instagram3DButtonLink href={artist.social_links!.instagram} iconSize={28} buttonSize={44} ariaLabel={`Instagram of ${artist.name}`} />
-                    )}
-                    {artist.social_links?.facebook && (
-                      <Facebook3DButtonLink href={artist.social_links!.facebook} iconSize={28} buttonSize={44} ariaLabel={`Facebook of ${artist.name}`} />
-                    )}
-                    {(artist.social_links?.youtube || artist.youtube_url) && (
-                      <YouTube3DButtonLink href={(artist.social_links?.youtube || artist.youtube_url)!} iconSize={28} buttonSize={44} ariaLabel={`YouTube of ${artist.name}`} />
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Optional video section */}
-          {/* Featured video moved to the header to autoplay when modal opens */}
-
-          {/* Optional channel + playlist section */}
-          {artist.youtube_url && (
-            <div className="mt-6 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-red-300">YouTube</h4>
-                <a
-                  href={artist.youtube_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-300 hover:text-red-200 text-sm underline"
-                >
-                  Visit channel
-                </a>
-              </div>
-
-              {/* Playlist embed (if URL points to a playlist, try to embed) */}
-              {(() => {
-                try {
-                  const u = new URL(artist.youtube_url!);
-                  const listId = u.searchParams.get('list');
-                  if (listId) {
-                    return (
-                      <div className="relative w-full pt-[56.25%] rounded-lg overflow-hidden border border-white/10">
-                        <iframe
-                          className="absolute inset-0 w-full h-full"
-                          src={`https://www.youtube.com/embed/videoseries?list=${listId}`}
-                          title="YouTube playlist"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          referrerPolicy="strict-origin-when-cross-origin"
-                          allowFullScreen
-                        />
-                      </div>
-                    );
-                  }
-                } catch {}
-                return null;
-              })()}
+          {/* Full-card background image with transparency */}
+          {artist.image && (
+            <div className="absolute inset-0 z-0 select-none pointer-events-none overflow-hidden rounded-xl">
+               <img 
+                 src={artist.image} 
+                 alt="" 
+                 className="w-full h-full object-cover opacity-40 blur-sm scale-105" 
+               />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#0b0f1a] via-[#0b0f1a]/60 to-black/30" />
             </div>
           )}
-          
-          {/* Close */}
-          <button onClick={onClose} className="absolute top-3 right-3 inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white">✕</button>
-        </div>
+
+          {/* Spacer to push content down slightly if header was removed, or just use padding */}
+          {/* Header removed as requested, using just padding in Body */}\n
+
+          {/* Body Content with Glassmorphism Design */}
+          <div className="relative z-10 p-6 md:p-10 flex flex-col h-full bg-gradient-to-b from-transparent via-black/20 to-black/80">
+            
+            {/* Artist Header Section */}
+            <div className="mb-6 md:mb-8 pt-6 md:pt-0">
+              <div className="flex flex-col gap-2 relative">
+                <h3 className="text-3xl sm:text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-400 tracking-tight drop-shadow-sm uppercase font-heading leading-tight">
+                  {artist.name}
+                </h3>
+                {artist.title && (
+                  <div className="text-lg md:text-2xl text-yellow-400/90 font-light tracking-wide font-sans border-l-4 border-yellow-500 pl-3">
+                    {artist.title}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-2 md:gap-3 mt-4">
+                {artist.specialty && (
+                  <span className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white font-medium text-xs md:text-sm shadow-lg">
+                    {artist.specialty}
+                  </span>
+                )}
+                {artist.detail_music_url && (
+                  <span className="px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-purple-500/20 backdrop-blur-md border border-purple-500/30 text-purple-200 font-medium text-xs md:text-sm shadow-lg flex items-center gap-2 animate-pulse-slow">
+                    <Music2 className="w-3.5 h-3.5" />
+                    Now Playing
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 pb-10">
+              {/* Left Column: Description & Achievements */}
+              <div className="lg:col-span-7 space-y-6 md:space-y-8">
+                {artist.description && (
+                  <div className="bg-black/20 backdrop-blur-sm rounded-xl p-5 md:p-6 border border-white/5 shadow-inner">
+                    <PreserveNewlines text={artist.description} className="text-base md:text-lg text-gray-200 leading-relaxed font-light" />
+                  </div>
+                )}
+
+                {artist.achievements && artist.achievements.length > 0 && (
+                  <div>
+                    <h4 className="text-lg font-bold text-cyan-400 mb-3 md:mb-4 flex items-center gap-2">
+                      <span className="w-8 h-1 bg-cyan-500 rounded-full"></span>
+                      Highlights
+                    </h4>
+                    <div className="grid gap-2 md:gap-3">
+                      {artist.achievements.map((a, i) => (
+                        <div key={i} className="flex items-start gap-3 group">
+                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400 group-hover:scale-150 transition-transform shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                          <span className="text-sm md:text-base text-gray-300 group-hover:text-white transition-colors">{a}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Schedule & Socials */}
+              <div className="lg:col-span-5 space-y-6">
+                 {/* Live/Schedule Card */}
+                 {(artist.performance_at || artist.countdown_enabled) && (
+                   <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-white/20 shadow-2xl group hover:border-white/30 transition-colors">
+                     <div className="absolute top-0 right-0 p-4 opacity-50"><Sparkle3D intensity={5} /></div>
+                     <div className="p-5 md:p-6">
+                       <h4 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4 border-b border-white/10 pb-2">Live Performance</h4>
+                       
+                       {artist.performance_at && (
+                         <div className="space-y-4">
+                           <div className="flex items-center gap-4">
+                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-pink-500/20 flex items-center justify-center border border-pink-500/30 shrink-0">
+                               <Calendar className="w-5 h-5 md:w-6 md:h-6 text-pink-400" />
+                             </div>
+                             <div>
+                               <div className="text-white font-bold text-base md:text-lg">
+                                 {new Date(artist.performance_at).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                               </div>
+                               <div className="text-pink-300 font-mono text-sm md:text-base">
+                                 {new Date(artist.performance_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                               </div>
+                             </div>
+                           </div>
+
+                           {artist.venue && (
+                             <div className="flex items-center gap-4">
+                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30 shrink-0">
+                                 <MapPin className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
+                               </div>
+                               <div className="text-gray-200 text-sm md:text-base">{artist.venue}</div>
+                             </div>
+                           )}
+                           
+                           {artist.countdown_enabled && (
+                             <div className="mt-6 pt-4 border-t border-white/10">
+                               <CountdownTimer target={artist.performance_at || ''} className="scale-90 origin-left" />
+                             </div>
+                           )}
+
+                           {artist.watch_live_url && (
+                             <div className="mt-4">
+                              <WatchLiveButton 
+                                url={artist.watch_live_url} 
+                                startTime={artist.performance_at}
+                                size="sm"
+                              />
+                             </div>
+                           )}
+                         </div>
+                       )}
+                     </div>
+                   </div>
+                 )}
+
+                 {/* Social Links Card */}
+                 <div className="rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 p-5 md:p-6 shadow-xl">
+                   <h4 className="text-white/60 text-xs font-bold uppercase tracking-widest mb-4">Connect</h4>
+                   <div className="flex flex-wrap gap-3 md:gap-4">
+                     {artist.social_links?.instagram && (
+                       <Instagram3DButtonLink href={artist.social_links.instagram} iconSize={20} buttonSize={40} />
+                     )}
+                     {artist.social_links?.facebook && (
+                        <Facebook3DButtonLink href={artist.social_links.facebook} iconSize={20} buttonSize={40} />
+                     )}
+                     {(artist.social_links?.youtube || artist.youtube_url) && (
+                       <YouTube3DButtonLink href={(artist.social_links?.youtube || artist.youtube_url)!} iconSize={20} buttonSize={40} />
+                     )}
+                   </div>
+                    
+                   {/* Channel Link fallback if only main URL exists */}
+                   {artist.youtube_url && !artist.social_links?.youtube && (
+                      <a href={artist.youtube_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-xs text-red-300 hover:text-white transition-colors text-right">
+                        Visit YouTube Channel →
+                      </a>
+                   )}
+                 </div>
+              </div>
+            </div>
+            
+            {/* Close Button redesign - repositioned on mobile to not overlap header */}
+            <button 
+              onClick={onClose} 
+              className="absolute top-2 right-2 md:top-6 md:right-6 lg:top-8 lg:right-8 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 text-white transition-all transform hover:rotate-90 shadow-lg z-50"
+            >
+              <span className="text-lg md:text-xl leading-none">&times;</span>
+            </button>
+          </div>
       </div>
     </div>
   </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon, AlertCircle, FileText, Play } from 'lucide-react';
+import { Image as ImageIcon, AlertCircle, FileText, Play, Loader2 } from 'lucide-react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
 import { useSavingProgress } from '../context/SavingProgressContext';
@@ -31,6 +31,7 @@ interface ImageUploadProps {
   optimizeVideoOptions?: VideoOptimizationOptions;
 }
 
+// Main ImageUpload component
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
   onImageSelect, 
   currentImage, 
@@ -48,6 +49,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   optimizeVideoOptions
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState<number>(0);
@@ -147,6 +149,61 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setPreviewMode('full');
     }
   }, [previewCardScaleMode, previewMode]);
+
+
+  // Create a blob from the cropped area via canvas
+  async function getCroppedImgBlob(
+    imageSrc: string,
+    cropPixels: { x: number; y: number; width: number; height: number } | null,
+    outputMime: 'image/png' | 'image/jpeg'
+  ): Promise<Blob> {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = imageSrc;
+    });
+
+    // If no crop area provided yet (user didn’t move handles), default to full image
+    const effective = cropPixels && cropPixels.width && cropPixels.height
+      ? cropPixels
+      : { x: 0, y: 0, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
+
+    // Downscale very large images to keep size reasonable (max dimension ~1600px)
+    const maxDim = 1600;
+    const scale = Math.min(1, Math.min(maxDim / effective.width, maxDim / effective.height));
+    const targetW = Math.max(1, Math.floor(effective.width * scale));
+    const targetH = Math.max(1, Math.floor(effective.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      image,
+      effective.x,
+      effective.y,
+      effective.width,
+      effective.height,
+      0,
+      0,
+      targetW,
+      targetH
+    );
+
+    return await new Promise<Blob>((resolve, reject) => {
+      const quality = outputMime === 'image/jpeg' ? 0.9 : undefined;
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas toBlob failed'));
+      }, outputMime, quality as any);
+    });
+  };
 
   // Debounced live cropped preview when adjusting crop
   useEffect(() => {
@@ -328,58 +385,66 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   };
 
   const handleFileSelect = async (file: File) => {
-    // Skip type validation if acceptedTypes is "*"
-    if (acceptedTypes !== '*') {
-      if (isVideoUpload) {
-        if (!file.type.startsWith('video/')) {
-          setError('Please select a video file (MP4 or MOV)');
-          return;
-        }
-      } else if (isPdfUpload) {
-        if (file.type !== 'application/pdf') {
-          setError('Please select a PDF file');
-          return;
-        }
-      } else if (isAudioUpload) {
-        if (!file.type.startsWith('audio/')) {
-          setError('Please select an audio file (MP3 or OGG)');
-          return;
-        }
-      } else {
-        // Only check for image if NOT a video/pdf/audio upload
-        if (!file.type.startsWith('image/')) {
-          setError('Please select an image file');
-          return;
+    setIsProcessing(true);
+    try {
+      // Skip type validation if acceptedTypes is "*"
+      if (acceptedTypes !== '*') {
+        if (isVideoUpload) {
+          if (!file.type.startsWith('video/')) {
+            setError('Please select a video file (MP4 or MOV)');
+            setIsProcessing(false);
+            return;
+          }
+        } else if (isPdfUpload) {
+          if (file.type !== 'application/pdf') {
+            setError('Please select a PDF file');
+            setIsProcessing(false);
+            return;
+          }
+        } else if (isAudioUpload) {
+          if (!file.type.startsWith('audio/')) {
+            setError('Please select an audio file (MP3 or OGG)');
+            setIsProcessing(false);
+            return;
+          }
+        } else {
+          // Only check for image if NOT a video/pdf/audio upload
+          if (!file.type.startsWith('image/')) {
+            setError('Please select an image file');
+            setIsProcessing(false);
+            return;
+          }
         }
       }
-    }
 
-    // Check file size (max 50MB for videos, 10MB for PDFs, owner 30MB default for images otherwise 5MB unless overridden)
-    const maxSize = isVideoUpload
-      ? 50 * 1024 * 1024
-      : isPdfUpload
-        ? 10 * 1024 * 1024
-        : isAudioUpload
-          ? defaultAudioMaxBytes
-          : effectiveImageMaxBytes;
+      // Check file size (max 50MB for videos by default, unless overridden)
+      const maxSize = isVideoUpload
+        ? (maxImageBytes || 50 * 1024 * 1024)
+        : isPdfUpload
+          ? 10 * 1024 * 1024
+          : isAudioUpload
+            ? defaultAudioMaxBytes
+            : effectiveImageMaxBytes;
 
-    // Auto-optimize images before size check if possible
-    if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
-       try {
-         // Use caller-provided optimization options when supplied, otherwise fall back to sensible defaults
-         const defaultOpts: OptimizationOptions = { maxWidth: 1920, maxHeight: 1920, quality: 0.8, format: 'auto', preserveTransparency: true };
-         const opts = optimizeOptions ? { ...defaultOpts, ...optimizeOptions } : defaultOpts;
-         const optimized = await optimizeImage(file, opts);
-         // Update preview metadata for admin feedback
-         try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type }); } catch {}
-         file = optimized;
-       } catch (e) {
-         console.warn('Auto-optimization failed', e);
-       }
-    }
+      // Auto-optimize images before size check if possible
+      if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+         try {
+           // Use caller-provided optimization options when supplied, otherwise fall back to sensible defaults
+           const defaultOpts: OptimizationOptions = { maxWidth: 1920, maxHeight: 1920, quality: 0.8, format: 'auto', preserveTransparency: true };
+           const opts = optimizeOptions ? { ...defaultOpts, ...optimizeOptions } : defaultOpts;
+           const optimized = await optimizeImage(file, opts);
+           // Update preview metadata for admin feedback
+           try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type }); } catch {}
+           file = optimized;
+         } catch (e) {
+           console.warn('Auto-optimization failed', e);
+         }
+      }
 
     // Auto-optimize videos before upload when possible
-    if (isVideoUpload) {
+    // Only if file is larger than the limit, OR if optimization is explicitly requested via options
+    // This dramatically speeds up uploads for user-provided files that are already compressed enough.
+    if (isVideoUpload && (file.size > maxSize || optimizeVideoOptions?.force)) {
       try {
         const vopts = optimizeVideoOptions || { maxWidth: 1280, maxHeight: 720, bitrate: 800_000, mimeType: 'video/webm;codecs=vp8,opus' };
         const optimized = await optimizeVideo(file, vopts);
@@ -388,6 +453,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         file = optimized;
       } catch (e) {
         console.warn('Video optimization failed', e);
+        setIsProcessing(false); // Force stop processing on error
+        // Optionally return here if critical, but code continues to upload unoptimized
       }
     }
 
@@ -401,17 +468,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         
         if (!compressed || compressed.size > maxImageBytes * 1.1) {
           setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
+          setIsProcessing(false);
           return;
         }
         // Replace the file with compressed version and proceed
         file = compressed as File;
       } else {
         const sizeLabel = isVideoUpload
-          ? '50MB'
+          ? humanSize(maxSize)
           : isPdfUpload
             ? '10MB'
             : humanSize(effectiveImageMaxBytes);
         setError(`File size must be less than ${sizeLabel}`);
+        setIsProcessing(false);
         return;
       }
     }
@@ -432,7 +501,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           try { URL.revokeObjectURL(croppedPreviewUrl); } catch {}
           setCroppedPreviewUrl(null);
         }
+        setIsProcessing(false);
       };
+      reader.onerror = () => setIsProcessing(false);
       reader.readAsDataURL(file);
       setOriginalImageMime(file.type || null);
       // stash the original file object for later in input (not stored; we’ll recreate from canvas)
@@ -449,6 +520,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
 
     // Default path: direct upload (videos/PDFs or cropper disabled)
+    setIsProcessing(false);
     setUploading(true);
   setUploadHint('');
   setUploadPercent(0);
@@ -495,6 +567,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setUploadPercent(0);
       try { savingProgress.done(); } catch {}
     }
+    } catch (e) {
+      console.error('Processing error:', e);
+      setIsProcessing(false);
+    }
   };
 
   const handleSaveImage = async () => {
@@ -523,58 +599,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   }, []);
 
   // Create a blob from the cropped area via canvas
-  const getCroppedImgBlob = async (
-    imageSrc: string,
-    cropPixels: { x: number; y: number; width: number; height: number } | null,
-    outputMime: 'image/png' | 'image/jpeg'
-  ): Promise<Blob> => {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = imageSrc;
-    });
 
-    // If no crop area provided yet (user didn’t move handles), default to full image
-    const effective = cropPixels && cropPixels.width && cropPixels.height
-      ? cropPixels
-      : { x: 0, y: 0, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
-
-    // Downscale very large images to keep size reasonable (max dimension ~1600px)
-    const maxDim = 1600;
-    const scale = Math.min(1, Math.min(maxDim / effective.width, maxDim / effective.height));
-    const targetW = Math.max(1, Math.floor(effective.width * scale));
-    const targetH = Math.max(1, Math.floor(effective.height * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas not supported');
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(
-      image,
-      effective.x,
-      effective.y,
-      effective.width,
-      effective.height,
-      0,
-      0,
-      targetW,
-      targetH
-    );
-
-    return await new Promise<Blob>((resolve, reject) => {
-      const quality = outputMime === 'image/jpeg' ? 0.9 : undefined;
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Canvas toBlob failed'));
-      }, outputMime, quality as any);
-    });
-  };
 
   // Decide export format: strictly preserve PNG/JPG; otherwise choose sensible fallback
   const chooseOutputFormat = () => {
@@ -833,19 +858,13 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
       {displayImage ? (
   <div className={`relative group ${hideControls ? 'cursor-pointer' : ''}`} onClick={hideControls ? handleClick : undefined}>
           {isVideoUpload ? (
-            <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center">
-              <Play className="w-16 h-16 text-blue-500 mb-2" />
-              <span className="text-sm text-gray-600 text-center px-2">
-                {getFileName(displayImage)}
-              </span>
-              <a
-                href={displayImage}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 text-xs mt-1"
-              >
-                View Video
-              </a>
+            <div className="w-full h-48 bg-black border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center overflow-hidden relative">
+              <video 
+                src={displayImage} 
+                controls 
+                className="w-full h-full object-contain" 
+                preload="metadata"
+              />
             </div>
           ) : isPdfUpload ? (
             <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center">
@@ -929,30 +948,40 @@ CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO aut
               : 'border-gray-300 hover:border-gray-400'
           } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
         >
-          {uploading ? (
-            <div className="flex flex-col items-center">
-              {/* Circular progress ring */}
-              <div className="relative mb-2" style={{ width: 72, height: 72 }}>
-                <svg className="transform -rotate-90" width="72" height="72" viewBox="0 0 72 72">
-                  <circle cx="36" cy="36" r="32" stroke="#e5e7eb" strokeWidth="6" fill="none" />
-                  <circle
-                    cx="36"
-                    cy="36"
-                    r="32"
-                    stroke="#f59e0b"
-                    strokeWidth="6"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={2 * Math.PI * 32}
-                    strokeDashoffset={(1 - (uploadPercent || 0) / 100) * (2 * Math.PI * 32)}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-gray-700">{Math.max(0, Math.min(100, Math.round(uploadPercent || 0)))}%</span>
-                </div>
-              </div>
-              <p className="text-gray-600">Uploading to Supabase…</p>
-              {uploadHint && <p className="text-xs text-gray-500 mt-1">{uploadHint}</p>}
+          {uploading || isProcessing ? (
+            <div className="flex flex-col items-center justify-center min-h-[160px]">
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-3" />
+                  <p className="text-gray-600 font-medium">{isVideoUpload ? 'Optimizing video...' : 'Processing file...'}</p>
+                  <p className="text-xs text-gray-500 mt-1">{isVideoUpload ? 'This may take a moment for large files' : 'Optimizing media for web...'}</p>
+                </>
+              ) : (
+                <>
+                  {/* Circular progress ring */}
+                  <div className="relative mb-2" style={{ width: 72, height: 72 }}>
+                    <svg className="transform -rotate-90" width="72" height="72" viewBox="0 0 72 72">
+                      <circle cx="36" cy="36" r="32" stroke="#e5e7eb" strokeWidth="6" fill="none" />
+                      <circle
+                        cx="36"
+                        cy="36"
+                        r="32"
+                        stroke="#f59e0b"
+                        strokeWidth="6"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 32}
+                        strokeDashoffset={(1 - (uploadPercent || 0) / 100) * (2 * Math.PI * 32)}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-sm font-semibold text-gray-700">{Math.max(0, Math.min(100, Math.round(uploadPercent || 0)))}%</span>
+                    </div>
+                  </div>
+                  <p className="text-gray-600">Uploading to Supabase…</p>
+                  {uploadHint && <p className="text-xs text-gray-500 mt-1">{uploadHint}</p>}
+                </>
+              )}
             </div>
           ) : (
             <div className="flex flex-col items-center">

@@ -12,6 +12,7 @@ export interface VideoOptimizationOptions {
   maxHeight?: number; // target height
   bitrate?: number; // target bitrate in bits/sec (approx)
   mimeType?: string; // desired output mimeType, e.g., 'video/webm;codecs=vp8'
+  force?: boolean; // if true, optimize even if input file is small
 }
 
 const DEFAULT_VIDEO_OPTIONS: VideoOptimizationOptions = {

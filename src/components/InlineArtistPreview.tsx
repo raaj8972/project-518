@@ -8,6 +8,7 @@ type Props = {
   className?: string;
   fallbackPoster?: boolean;
   intrinsic?: boolean;
+  priority?: boolean;
 };
 
 const getYouTubeId = (url?: string | null) => {
@@ -33,7 +34,8 @@ const InlineArtistPreview: React.FC<Props> = ({
   youtubeUrl,
   className = '',
   fallbackPoster = true,
-  intrinsic = false
+  intrinsic = false,
+  priority = false
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -86,7 +88,7 @@ const InlineArtistPreview: React.FC<Props> = ({
           muted
           playsInline
           loop
-          preload="metadata"
+          preload={priority ? "auto" : "metadata"}
           className={mediaClass}
         />
       ) : youTubeId ? (

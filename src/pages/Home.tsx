@@ -1,7 +1,7 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Calendar, Users, Star, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
-import WatchLiveButton from '../components/WatchLiveButton';
+import { Calendar, Users, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
+
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
 import HeroBackground from '../components/HeroBackground';
@@ -19,19 +19,11 @@ const Roadmap = React.lazy(() => import('../components/Roadmap'));
 // import CountdownTimer from '../components/CountdownTimer';
 // import Sparkle3D from '../components/Sparkle3D';
 import PreserveNewlines from '../components/PreserveNewlines';
-import InlineArtistPreview from '../components/InlineArtistPreview';
+
+import FeaturedArtistCard from '../components/FeaturedArtistCard';
 import { SEO } from '../components/SEO';
 
-const VIDEO_EXTENSIONS = /\.(mp4|webm|mov|m4v|ogv|ogg|avi)$/i;
-const looksLikeVideoAsset = (url?: string | null) => {
-  if (!url) return false;
-  try {
-    const trimmed = url.split('?')[0].toLowerCase();
-    if (VIDEO_EXTENSIONS.test(trimmed)) return true;
-    if (trimmed.includes('guest-artist-videos')) return true;
-  } catch {}
-  return false;
-};
+
 
 export const Home: React.FC = () => {
   // Error boundary to catch dynamic-import chunk load failures and offer a reload
@@ -525,149 +517,22 @@ export const Home: React.FC = () => {
                 onItemClick={(artist: GuestArtist) => openDetailModal(artist, { userInitiated: true })}
                 className="mt-6 md:mt-8"
                 stageHeight={'var(--featured-stage-height)'}
-                renderItem={(artist: GuestArtist) => {
-                  const rawCardMediaUrl = (artist as any).card_media_url as string | null;
-                  const cardMediaUrl = rawCardMediaUrl && rawCardMediaUrl.trim() ? rawCardMediaUrl : null;
-                  const cardMediaExplicitVideo = !!(cardMediaUrl && (artist as any).card_media_is_video);
-                  const cardMediaLooksVideo = cardMediaUrl ? looksLikeVideoAsset(cardMediaUrl) : false;
-                  const cardMediaMode: 'video' | 'image' | null = cardMediaUrl
-                    ? (cardMediaExplicitVideo || cardMediaLooksVideo ? 'video' : 'image')
-                    : null;
-                  const inlineVideoUrl = cardMediaMode === 'video' ? cardMediaUrl : (artist as any).video_url;
-                  const inlineImageSrc = cardMediaMode === 'image' ? cardMediaUrl : undefined;
-                  const inlineYoutubeUrl = cardMediaMode ? undefined : (artist as any).youtube_url;
-
-                  const hasCardMedia = !!cardMediaMode;
-                  const showBottomMediaStrip = !hasCardMedia;
-
-                  return (
-                <div
-                  id={`artist-${artist.id}`}
-                  className="cyberpunk-card featured-artist-card group w-full mx-auto overflow-hidden mt-16 sm:mt-6"
-                  onMouseEnter={prefetchDetailModal}
-                  onTouchStart={() => { try { prefetchDetailModal(); } catch {} }}
-                >
-                  {/* Top: hero/poster media */}
-                  <div className={`relative overflow-hidden ${hasCardMedia ? '' : 'h-56 md:h-64'}`}>
-                    {hasCardMedia ? (
-                      <InlineArtistPreview
-                        className="block"
-                        videoUrl={cardMediaMode === 'video' ? cardMediaUrl : undefined}
-                        imgSrc={cardMediaMode === 'image' ? cardMediaUrl : undefined}
-                        poster={artist.image}
-                        youtubeUrl={undefined}
-                        fallbackPoster={false}
-                        intrinsic
-                      />
-                    ) : (
-                      <img
-                        src={artist.image}
-                        alt={artist.name}
-                        className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-110"
-                      />
-                    )}
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-
-                    <div className="absolute top-4 right-4">
-                      <Star className="w-6 h-6 text-pink-400 animate-pulse pulse-ring" />
-                    </div>
-
-                    <div className="absolute bottom-4 left-4 right-4">
-                      <div className="bg-gradient-to-r from-pink-400 to-purple-500 text-white px-3 py-1 rounded-full text-xs font-bold inline-block">
-                        FEATURED ARTIST
-                      </div>
-                    </div>
-
-                    {(artist as any).watch_live_url && (artist as any).performance_at && (
-                      <div
-                        className="absolute top-4 left-4 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 pointer-events-none group-hover:pointer-events-auto transition-all duration-300"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <WatchLiveButton
-                          url={(artist as any).watch_live_url}
-                          startTime={(artist as any).performance_at}
-                          leadMinutes={60}
-                          forceLive={(artist as any).live_now_enabled || (artist as any).is_featured}
-                          size="xs"
-                        />
-                      </div>
-                    )}
+                renderItem={(artist: GuestArtist, _: number, isActive: boolean) => (
+                  <div className="w-[340px] sm:w-[400px] md:w-[450px] lg:w-[500px] h-full px-2 py-4 flex items-center justify-center">
+                       <FeaturedArtistCard 
+                         artist={artist}
+                         priority={isActive}
+                         onClick={() => openDetailModal(artist, { userInitiated: true })}
+                         onPlayVideo={(a: GuestArtist) => {
+                           startTransition(() => {
+                             setSelectedArtistForVideo(a);
+                             setVideoModalOpen(true);
+                           });
+                         }}
+                         onMouseEnter={prefetchDetailModal}
+                       />
                   </div>
-
-                  {/* Bottom strip: media preview only when no dedicated card media; always contains CTA */}
-                  <div className="p-0 border-t border-pink-500/20">
-                    <div className={`relative ${showBottomMediaStrip ? 'h-40 md:h-44' : 'py-6'} overflow-hidden bg-black`}>
-                      {showBottomMediaStrip ? (
-                        <InlineArtistPreview
-                          videoUrl={inlineVideoUrl as string | undefined | null}
-                          poster={artist.image}
-                          imgSrc={inlineImageSrc}
-                          youtubeUrl={inlineYoutubeUrl as string | undefined}
-                          fallbackPoster={false}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-black via-slate-950 to-black" />
-                      )}
-
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-
-                      <div className="card-footer absolute bottom-3 left-4 right-4 flex items-center justify-between">
-                        <div className="space-y-0">
-                          <h3 className="text-lg font-bold text-white leading-tight line-clamp-1">{artist.name}</h3>
-                          <p className="text-xs text-pink-300">{artist.title}</p>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          {(artist.video_url || artist.youtube_url) && (
-                            <button
-                              onMouseEnter={prefetchVideoModal}
-                              onTouchStart={() => {
-                                try {
-                                  prefetchVideoModal();
-                                } catch {}
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startTransition(() => {
-                                  setSelectedArtistForVideo(artist);
-                                  setVideoModalOpen(true);
-                                });
-                              }}
-                              className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black/60 text-white border border-white/20 shadow-lg hover:ring-2 hover:ring-pink-400/40 transition"
-                              aria-label={`Play video for ${artist.name}`}
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 24 24"
-                                fill="currentColor"
-                                className="w-4 h-4 ml-0.5"
-                              >
-                                <path d="M8 5v14l11-7z" />
-                              </svg>
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onMouseEnter={prefetchDetailModal}
-                            onTouchStart={() => {
-                              try {
-                                prefetchDetailModal();
-                              } catch {}
-                            }}
-                            onClick={() => openDetailModal(artist as any, { userInitiated: true })}
-                            className="btn-fade-gradient text-black font-semibold text-xs px-3 py-1.5 rounded-full focus:outline-none focus:ring-2 focus:ring-pink-400/60 active:scale-[0.98] transition-transform"
-                            aria-label={`Read more about ${artist.name}`}
-                          >
-                            Details
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                  );
-              }}
+                )}
               />
               </React.Suspense>
             ) : (

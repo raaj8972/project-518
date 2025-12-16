@@ -5,7 +5,7 @@ type Direction = 'next' | 'prev';
 interface CoverflowCarouselProps<T> {
   items: T[];
   // Render an individual item card (should be a fixed-width card)
-  renderItem: (item: T, index: number) => React.ReactNode;
+  renderItem: (item: T, index: number, isActive: boolean) => React.ReactNode;
   // Autoplay interval; set 0 to disable autoplay
   intervalMs?: number;
   // How many siblings to show on each side of the active card
@@ -160,7 +160,7 @@ export default function CoverflowCarousel<T>({
       setActive(a => (a + 1) % count);
     }, autoInterval);
     return () => clearInterval(id);
-  }, [canPlay, intervalMs, hovering, touching, visible, count, pauseOnHover, pauseOnTouch, paused, isTouch, isReducedMotion]);
+  }, [canPlay, intervalMs, hovering, touching, visible, count, pauseOnHover, pauseOnTouch, paused, isTouch, isReducedMotion, active]);
 
   const go = (dir: Direction) => {
     setActive(a => {
@@ -280,7 +280,7 @@ export default function CoverflowCarousel<T>({
                 onClick={() => { setActive(idx); onItemClick?.(item, idx); }}
                 aria-hidden={abs !== 0}
               >
-                {renderItem(item, idx)}
+                {renderItem(item, idx, idx === active)}
               </div>
             );
           })}

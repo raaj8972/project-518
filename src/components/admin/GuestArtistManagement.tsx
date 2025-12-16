@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Star, Eye, EyeOff, Music, Play, Instagram, Youtube, AlignJustify as Spotify, Calendar, MapPin, Timer } from 'lucide-react';
+import { 
+  Plus, 
+  Edit, 
+  Trash2, 
+  Star, 
+  Eye, 
+  EyeOff, 
+  Music, 
+  Play, 
+  Instagram, 
+  Youtube, 
+  AlignJustify as Spotify, 
+  X
+} from 'lucide-react';
 import { useData } from '../../context/DataContext';
-import { ImageUpload } from '../ImageUpload';
-import type { GuestArtist } from '../../context/DataContext';
-import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
-
-type CardMediaMode = 'image' | 'video';
+import { GuestArtistForm } from './GuestArtistForm';
 
 export const GuestArtistManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
@@ -28,239 +37,48 @@ export const GuestArtistManagement: React.FC = () => {
   } = useData();
 
   const [isAdding, setIsAdding] = useState(false);
-  const [editing, setEditing] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [form, setForm, clearForm] = useLocalStorage('admin_guest_artist_form_draft', {
-    name: '',
-    title: '',
-    image: '',
-    video: '',
-    video_url: '',
-    youtube_url: '',
-    watch_live_url: '', // NEW field for external live stream link
-  detail_music_url: '',
-    description: '',
-    specialty: '',
-    achievements: [] as string[],
-    order_position: 1,
-    enabled: true,
-    is_featured: false,
-  card_media_url: '',
-  card_media_mode: 'image' as CardMediaMode,
-    // scheduling
-    performance_date: '', // YYYY-MM-DD
-    performance_time: '', // HH:mm
-    venue: '',
-    countdown_enabled: false,
-    live_now_enabled: true,
-    social_links: {
-      instagram: '',
-      youtube: '',
-      spotify: ''
-    }
-  });
-
-  const resetForm = () => {
-    setForm({
-      name: '',
-      title: '',
-      image: '',
-  video: '',
-  video_url: '',
-  youtube_url: '',
-      watch_live_url: '',
-  detail_music_url: '',
-      description: '',
-      specialty: '',
-      achievements: [],
-      order_position: guestArtists.length + 1,
-      enabled: true,
-      is_featured: false,
-  card_media_url: '',
-  card_media_mode: 'image' as CardMediaMode,
-      performance_date: '',
-      performance_time: '',
-      venue: '',
-      countdown_enabled: false,
-      live_now_enabled: true,
-      social_links: {
-        instagram: '',
-        youtube: '',
-        spotify: ''
-      }
-    });
+  const handleCloseModal = () => {
+    if (isSubmitting) return;
+    setIsAdding(false);
+    setEditingId(null);
   };
 
-  const handleAdd = async () => {
-    if (!form.name || !form.title || !form.image || !form.description || !form.specialty) {
-      alert('Please fill in all required fields (name, title, image, description, and specialty)');
-      return;
-    }
-    
+  const handleSave = async (data: any) => {
     try {
-      const steps = savingProgress.withSteps(4, 'Preparing…');
-      steps.next('Validating');
-      let performance_at: string | null = null;
-      if (form.performance_date && form.performance_time) {
-        const local = new Date(`${form.performance_date}T${form.performance_time}`);
-        performance_at = isNaN(local.getTime()) ? null : local.toISOString();
-      }
+      setIsSubmitting(true);
+      const steps = savingProgress.withSteps(2, 'Preparing…');
       steps.next('Saving to database');
+      
+      const isEdit = editingId !== null;
+      const action = isEdit ? 'update' : 'create';
+      
       if (requiresApproval) {
         await submitForApproval(
           'guest_artist',
-          'create',
-          {
-            name: form.name,
-            title: form.title,
-            image: form.image,
-            video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-            video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-            youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-            watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-            detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-            card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-            card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-            description: form.description,
-            specialty: form.specialty,
-            achievements: form.achievements,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            is_featured: form.is_featured,
-            performance_at,
-            venue: form.venue || null,
-            countdown_enabled: !!form.countdown_enabled,
-            live_now_enabled: form.live_now_enabled !== false,
-            social_links: form.social_links,
-          }
+          action as any,
+          data,
+          isEdit ? editingId : undefined
         );
         alert('Request submitted for approval. An owner will review your changes.');
-        setIsAdding(false);
-        resetForm();
-        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
       } else {
-        await addGuestArtist({
-          name: form.name,
-          title: form.title,
-          image: form.image,
-          video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-          video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-          youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-          watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-          detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-          card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-          card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-          description: form.description,
-          specialty: form.specialty,
-          achievements: form.achievements,
-          order_position: form.order_position,
-          enabled: form.enabled,
-          is_featured: form.is_featured,
-          performance_at,
-          venue: form.venue || null,
-          countdown_enabled: !!form.countdown_enabled,
-          live_now_enabled: form.live_now_enabled !== false,
-          social_links: form.social_links,
-        });
-        setIsAdding(false);
-        resetForm();
-        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
+        if (isEdit && editingId) {
+          await updateGuestArtist(editingId, data);
+        } else {
+          await addGuestArtist(data);
+        }
       }
+      
+      handleCloseModal();
     } catch (error) {
-      console.error('Error adding guest artist:', error);
-      alert('Failed to add guest artist. Please try again.');
-    } finally {
-      savingProgress.done();
-    }
-  };
-
-  const handleUpdate = async (id: number) => {
-    if (!form.name || !form.title || !form.image || !form.description || !form.specialty) {
-      alert('Please fill in all required fields (name, title, image, description, and specialty)');
-      return;
-    }
-    
-    try {
-      const steps = savingProgress.withSteps(4, 'Preparing…');
-      steps.next('Validating');
-      let performance_at: string | null = null;
-      if (form.performance_date && form.performance_time) {
-        const local = new Date(`${form.performance_date}T${form.performance_time}`);
-        performance_at = isNaN(local.getTime()) ? null : local.toISOString();
-      } else {
-        performance_at = null;
-      }
-      steps.next('Saving to database');
-      if (requiresApproval) {
-        await submitForApproval(
-          'guest_artist',
-          'update',
-          {
-            name: form.name,
-            title: form.title,
-            image: form.image,
-            video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-            video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-            youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-            watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-            detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-            card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-            card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-            description: form.description,
-            specialty: form.specialty,
-            achievements: form.achievements,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            is_featured: form.is_featured,
-            performance_at,
-            venue: form.venue || null,
-            countdown_enabled: !!form.countdown_enabled,
-            live_now_enabled: form.live_now_enabled !== false,
-            social_links: form.social_links,
-          },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-        setEditing(null);
-        resetForm();
-        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
-      } else {
-        await updateGuestArtist(id, {
-          name: form.name,
-          title: form.title,
-          image: form.image,
-          video: form.video && String(form.video).trim() ? String(form.video).trim() : null,
-          video_url: form.video_url && String(form.video_url).trim() ? String(form.video_url).trim() : null,
-          youtube_url: form.youtube_url && String(form.youtube_url).trim() ? String(form.youtube_url).trim() : null,
-          watch_live_url: form.watch_live_url && String(form.watch_live_url).trim() ? String(form.watch_live_url).trim() : null,
-          detail_music_url: form.detail_music_url && String(form.detail_music_url).trim() ? String(form.detail_music_url).trim() : null,
-          card_media_url: form.card_media_url && String(form.card_media_url).trim() ? String(form.card_media_url).trim() : null,
-          card_media_is_video: !!(form.card_media_url && form.card_media_mode === 'video'),
-          description: form.description,
-          specialty: form.specialty,
-          achievements: form.achievements,
-          order_position: form.order_position,
-          enabled: form.enabled,
-          is_featured: form.is_featured,
-          performance_at,
-          venue: form.venue || null,
-          countdown_enabled: !!form.countdown_enabled,
-          live_now_enabled: form.live_now_enabled !== false,
-          social_links: form.social_links,
-        });
-        setEditing(null);
-        resetForm();
-        try { localStorage.removeItem('admin_guest_artist_form_draft'); } catch {}
-      }
-    } catch (error) {
-      console.error('Error updating guest artist:', error);
+      console.error('Error saving guest artist:', error);
       const msg = (error as any)?.message || String(error);
-      const hint = /watch_live_url|schema|column/i.test(msg)
-        ? '\nHint: Database migration for watch_live_url may not be applied yet.'
-        : '';
-      alert(`Failed to update guest artist. ${msg}${hint}`);
+      alert(`Failed to save guest artist. ${msg}`);
     } finally {
       savingProgress.done();
+      setIsSubmitting(false);
     }
   };
 
@@ -270,12 +88,7 @@ export const GuestArtistManagement: React.FC = () => {
         const steps = savingProgress.withSteps(2, 'Preparing…');
         steps.next('Deleting');
         if (requiresApproval) {
-          await submitForApproval(
-            'guest_artist',
-            'delete',
-            {},
-            id
-          );
+          await submitForApproval('guest_artist', 'delete', {}, id);
           alert('Request submitted for approval. An owner will review your changes.');
         } else {
           await deleteGuestArtist(id);
@@ -306,8 +119,7 @@ export const GuestArtistManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error toggling guest artist status:', error);
-      const msg = (error as any)?.message || String(error);
-      alert(`Failed to update guest artist status. ${msg}`);
+      alert('Failed to update status.');
     } finally {
       savingProgress.done();
     }
@@ -330,81 +142,18 @@ export const GuestArtistManagement: React.FC = () => {
       }
     } catch (error) {
       console.error('Error toggling featured status:', error);
-      const msg = (error as any)?.message || String(error);
-      alert(`Failed to update featured status. ${msg}`);
+      alert('Failed to update featured status.');
     } finally {
       savingProgress.done();
     }
   };
 
-  const startEditing = (artist: GuestArtist) => {
-    try { clearForm(); } catch {}
-    // derive date/time from ISO if present
-    let performance_date = '';
-    let performance_time = '';
-    if ((artist as any).performance_at) {
-      try {
-        const d = new Date((artist as any).performance_at as any);
-        if (!isNaN(d.getTime())) {
-          const pad = (n: number) => String(n).padStart(2, '0');
-          performance_date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-          performance_time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        }
-      } catch {}
-    }
-    setForm({
-      name: artist.name,
-      title: artist.title,
-      image: artist.image,
-  video: artist.video || '',
-  video_url: (artist as any).video_url || '',
-  youtube_url: (artist as any).youtube_url || '',
-      watch_live_url: (artist as any).watch_live_url || '',
-    detail_music_url: (artist as any).detail_music_url || '',
-      description: artist.description,
-      specialty: artist.specialty,
-      achievements: artist.achievements,
-      order_position: artist.order_position,
-      enabled: artist.enabled,
-      is_featured: artist.is_featured,
-      card_media_url: (artist as any).card_media_url || '',
-  card_media_mode: ((artist as any).card_media_is_video ? 'video' : 'image') as CardMediaMode,
-      performance_date,
-      performance_time,
-      venue: (artist as any).venue || '',
-      countdown_enabled: !!(artist as any).countdown_enabled,
-      live_now_enabled: (artist as any).live_now_enabled ?? true,
-      social_links: artist.social_links || { instagram: '', youtube: '', spotify: '' }
-    });
-    setEditing(artist.id);
-  };
-
-  const addAchievement = () => {
-    setForm(prev => ({
-      ...prev,
-      achievements: [...prev.achievements, '']
-    }));
-  };
-
-  const updateAchievement = (index: number, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.map((a, i) => i === index ? value : a)
-    }));
-  };
-
-  const removeAchievement = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter((_, i) => i !== index)
-    }));
-  };
-
   // Sort guest artists by order position
   const sortedGuestArtists = [...guestArtists].sort((a, b) => a.order_position - b.order_position);
+  const editingArtist = editingId ? guestArtists.find(a => a.id === editingId) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -413,842 +162,189 @@ export const GuestArtistManagement: React.FC = () => {
         </div>
         <button
           type="button"
-          onClick={() => {
-            setIsAdding(true);
-            resetForm();
-          }}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+          onClick={() => setIsAdding(true)}
+          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center shadow-sm"
         >
           <Plus size={16} className="mr-2" />
           Add Guest Artist
         </button>
       </div>
 
-      {/* Add Guest Artist Form */}
-      {isAdding && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-6">Add New Guest Artist</h3>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Artist Name *</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Artist Name"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title/Role *</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Singer, Performer, etc."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Specialty *</label>
-                <input
-                  type="text"
-                  value={form.specialty}
-                  onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
-                  placeholder="e.g., Pop Music, Classical, Electronic"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description about the guest artist..."
-                  rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">YouTube Video URL (Optional)</label>
-                <input
-                  type="url"
-                  value={form.youtube_url}
-                  onChange={(e) => setForm(prev => ({ ...prev, youtube_url: e.target.value }))}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Upload Performance Video (Optional)</label>
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, video_url: url }))}
-                  currentImage={form.video_url}
-                  bucket="guest-artist-videos"
-                  folder="artists"
-                  acceptedTypes="video/*"
-                  fileTypeLabel="MP4/WEBM/MOV up to 80MB"
-                  enableCropper={false}
-                />
-                {form.video_url && (
-                  <p className="text-xs text-gray-500 mt-1 break-all">Uploaded video URL: {form.video_url}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Live Stream URL (Optional)</label>
-                <input
-                  type="url"
-                  value={form.watch_live_url}
-                  onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
-                  placeholder="https://www.youtube.com/live/... or other platform"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Detail Modal Music (Optional, MP3)</label>
-                <div className="space-y-3">
-                  <ImageUpload
-                    onImageSelect={(url) => setForm(prev => ({ ...prev, detail_music_url: url }))}
-                    currentImage={form.detail_music_url}
-                    bucket="guest-artist-audio"
-                    folder="artists"
-                    acceptedTypes="audio/mpeg,audio/mp3,audio/ogg,audio/*"
-                    fileTypeLabel="MP3/OGG up to 25MB"
-                    enableCropper={false}
-                  />
-                  {form.detail_music_url && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-2">Preview current track</p>
-                      <audio controls src={form.detail_music_url} className="w-full" preload="none" />
-                    </div>
-                  )}
-                  <input
-                    type="url"
-                    value={form.detail_music_url}
-                    onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
-                    placeholder="https://cdn.example.com/audio/loop.mp3"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Upload or paste a direct MP3/OGG link. The track will autoplay, loop, and stop when the modal closes.
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={form.order_position}
-                    onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                    min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                </div>
-                <div className="flex items-end space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={form.enabled}
-                      onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Visible</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={form.is_featured}
-                      onChange={(e) => setForm(prev => ({ ...prev, is_featured: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Featured on Homepage</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Performance Schedule */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Performance Schedule (Optional)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <div className="flex items-center text-xs text-gray-500 mb-1"><Calendar size={14} className="mr-1" /> Date</div>
-                    <input
-                      type="date"
-                      value={form.performance_date}
-                      onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center text-xs text-gray-500 mb-1"><Timer size={14} className="mr-1" /> Time</div>
-                    <input
-                      type="time"
-                      value={form.performance_time}
-                      onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center text-xs text-gray-500 mb-1"><MapPin size={14} className="mr-1" /> Venue</div>
-                    <input
-                      type="text"
-                      value={form.venue}
-                      onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
-                      placeholder="Venue"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center mt-3">
-                  <input
-                    type="checkbox"
-                    checked={!!form.countdown_enabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, countdown_enabled: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Show countdown on public site</span>
-                </label>
-                <label className="flex items-center mt-2">
-                  <input
-                    type="checkbox"
-                    checked={form.live_now_enabled !== false}
-                    onChange={(e) => setForm(prev => ({ ...prev, live_now_enabled: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Show LIVE NOW when event starts</span>
-                </label>
-              </div>
-              
-              {/* Social Links */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Social Media Links (Optional)</label>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Instagram className="w-5 h-5 text-pink-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.instagram}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, instagram: e.target.value }
-                      }))}
-                      placeholder="Instagram profile URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Youtube className="w-5 h-5 text-red-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.youtube}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, youtube: e.target.value }
-                      }))}
-                      placeholder="YouTube channel URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Spotify className="w-5 h-5 text-green-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.spotify}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, spotify: e.target.value }
-                      }))}
-                      placeholder="Spotify artist URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
-                <div className="space-y-2">
-                  {form.achievements.map((achievement, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={achievement}
-                        onChange={(e) => updateAchievement(index, e.target.value)}
-                        placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAchievement(index)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addAchievement}
-                    className="text-yellow-600 hover:text-yellow-700 text-sm flex items-center"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Add Achievement
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
-                  currentImage={form.image}
-                  bucket="guest-artist-images"
-                  folder="artists"
-                  cropAspect={4/5}
-                />
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Card Media (Homepage strip)</label>
-                    <p className="text-xs text-gray-500">Show either a short motion poster (video) or a still image on the guest artist card—just like event cards.</p>
-                  </div>
-                  {form.card_media_url && (
-                    <button
-                      type="button"
-                      onClick={() => setForm(prev => ({ ...prev, card_media_url: '' }))}
-                      className="text-xs text-red-500 hover:text-red-600"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="inline-flex items-center text-gray-900">
-                    <input
-                      type="radio"
-                      className="mr-2"
-                      checked={form.card_media_mode === 'image'}
-                      onChange={() => setForm(prev => ({
-                        ...prev,
-                        card_media_mode: 'image' as CardMediaMode,
-                        card_media_url: prev.card_media_mode === 'image' ? prev.card_media_url : ''
-                      }))}
-                    />
-                    Image
-                  </label>
-                  <label className="inline-flex items-center text-gray-900">
-                    <input
-                      type="radio"
-                      className="mr-2"
-                      checked={form.card_media_mode === 'video'}
-                      onChange={() => setForm(prev => ({
-                        ...prev,
-                        card_media_mode: 'video' as CardMediaMode,
-                        card_media_url: prev.card_media_mode === 'video' ? prev.card_media_url : ''
-                      }))}
-                    />
-                    Motion Poster (Video)
-                  </label>
-                </div>
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, card_media_url: url }))}
-                  currentImage={form.card_media_url || ''}
-                  bucket={form.card_media_mode === 'video' ? 'guest-artist-videos' : 'guest-artist-images'}
-                  folder="artists/card-media"
-                  acceptedTypes={form.card_media_mode === 'video' ? 'video/*' : undefined}
-                  enableCropper={form.card_media_mode !== 'video'}
-                  cropAspect={form.card_media_mode !== 'video' ? 16/9 : undefined}
-                  fileTypeLabel={form.card_media_mode === 'video'
-                    ? 'MP4, MOV, WEBM up to 60MB. Aim for 3-10 seconds so it loops smoothly.'
-                    : 'PNG/JPG/WEBP up to 10MB. Use 16:9 (landscape) to fill the strip.'}
-                />
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                resetForm();
-              }}
-              className="w-full sm:w-auto px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
-            >
-              <X size={16} className="mr-1" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleAdd}
-              className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center"
-            >
-              <Save size={16} className="mr-1" />
-              Add Guest Artist
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Guest Artists List */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedGuestArtists.map((artist) => (
-          <div key={artist.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-            {editing === artist.id ? (
-              <div className="p-6 space-y-4">
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Artist name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Title/Role"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="text"
-                  value={form.specialty}
-                  onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
-                  placeholder="Specialty"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="url"
-                  value={form.video}
-                  onChange={(e) => setForm(prev => ({ ...prev, video: e.target.value }))}
-                  placeholder="Video URL"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="url"
-                  value={form.watch_live_url}
-                  onChange={(e) => setForm(prev => ({ ...prev, watch_live_url: e.target.value }))}
-                  placeholder="Live Stream URL"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <div className="space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">Detail Modal Music (Optional, MP3)</label>
-                  <div className="space-y-2">
-                    <ImageUpload
-                      onImageSelect={(url) => setForm(prev => ({ ...prev, detail_music_url: url }))}
-                      currentImage={form.detail_music_url}
-                      bucket="guest-artist-audio"
-                      folder="artists"
-                      acceptedTypes="audio/mpeg,audio/mp3,audio/ogg,audio/*"
-                      fileTypeLabel="MP3/OGG up to 25MB"
-                      enableCropper={false}
-                    />
-                    {form.detail_music_url && (
-                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
-                        <p className="text-[11px] text-gray-500 mb-1">Preview current track</p>
-                        <audio controls src={form.detail_music_url} className="w-full" preload="none" />
-                      </div>
-                    )}
-                    <input
-                      type="url"
-                      value={form.detail_music_url}
-                      onChange={(e) => setForm(prev => ({ ...prev, detail_music_url: e.target.value }))}
-                      placeholder="https://cdn.example.com/audio/loop.mp3"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                    <p className="text-[11px] text-gray-500">
-                      Upload or paste a direct MP3/OGG link. The track will autoplay and loop until the modal closes.
-                    </p>
-                  </div>
+          <div key={artist.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full hover:shadow-lg transition-shadow">
+            <div className="relative h-48 md:h-56 group">
+              <img
+                src={artist.image}
+                alt={artist.name}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute top-0 left-0 w-full h-full bg-black/0 group-hover:bg-black/10 transition-colors" />
+              
+              <div className="absolute top-2 left-2 flex space-x-1">
+                {artist.is_featured && (
+                  <span className="bg-yellow-400 text-black p-1 rounded-full shadow-sm" title="Featured on Homepage">
+                    <Star size={14} fill="black" />
+                  </span>
+                )}
+                {!artist.enabled && (
+                  <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium shadow-sm">
+                    Hidden
+                  </span>
+                )}
+              </div>
+              <div className="absolute top-2 right-2">
+                <span className="bg-black/70 text-white px-2 py-1 rounded text-xs backdrop-blur-sm">
+                  #{artist.order_position}
+                </span>
+              </div>
+              {(artist.video || (artist as any).video_url) && (
+                <div className="absolute bottom-2 right-2">
+                   <div className="bg-black/60 text-white p-1.5 rounded-full backdrop-blur-sm">
+                      <Play size={16} fill="white" />
+                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={form.order_position}
-                    onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                    min="1"
-                    placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={form.enabled}
-                        onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Enabled</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={form.is_featured}
-                        onChange={(e) => setForm(prev => ({ ...prev, is_featured: e.target.checked }))}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Featured</span>
-                    </label>
-                  </div>
+              )}
+            </div>
+            
+            <div className="p-5 flex-1 flex flex-col">
+              <div className="flex justify-between items-start mb-1">
+                 <h3 className="font-bold text-lg text-gray-900 line-clamp-1" title={artist.name}>{artist.name}</h3>
+              </div>
+              <p className="text-purple-600 font-medium text-sm mb-2">{artist.title}</p>
+              
+              <div className="mb-3">
+                <span className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-medium">
+                  {artist.specialty}
+                </span>
+              </div>
+              
+              <p className="text-gray-500 text-sm mb-4 line-clamp-2 flex-1">{artist.description}</p>
+              
+              {/* Social Links Icons */}
+              {(artist.social_links as any) && (
+                <div className="flex space-x-3 mb-4 pt-4 border-t border-gray-100">
+                  {(artist.social_links as any).instagram && (
+                    <a href={(artist.social_links as any).instagram} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-pink-600 transition-colors p-1">
+                      <Instagram size={18} />
+                    </a>
+                  )}
+                  {(artist.social_links as any).youtube && (
+                    <a href={(artist.social_links as any).youtube} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-red-600 transition-colors p-1">
+                      <Youtube size={18} />
+                    </a>
+                  )}
+                  {(artist.social_links as any).spotify && (
+                    <a href={(artist.social_links as any).spotify} target="_blank" rel="noreferrer" className="text-gray-400 hover:text-green-600 transition-colors p-1">
+                      <Spotify size={18} />
+                    </a>
+                  )}
+                  {!Object.values(artist.social_links || {}).some(Boolean) && (
+                     <span className="text-xs text-gray-300 italic">No social links</span>
+                  )}
                 </div>
-
-                {/* Performance Schedule editing */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <input
-                      type="date"
-                      value={form.performance_date}
-                      onChange={(e) => setForm(prev => ({ ...prev, performance_date: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="time"
-                      value={form.performance_time}
-                      onChange={(e) => setForm(prev => ({ ...prev, performance_time: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      value={form.venue}
-                      onChange={(e) => setForm(prev => ({ ...prev, venue: e.target.value }))}
-                      placeholder="Venue"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={!!form.countdown_enabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, countdown_enabled: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  <span className="text-xs text-gray-900">Show countdown on public site</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={form.live_now_enabled !== false}
-                    onChange={(e) => setForm(prev => ({ ...prev, live_now_enabled: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  <span className="text-xs text-gray-900">Show LIVE NOW when event starts</span>
-                </label>
-                
-                {/* Social Links editing */}
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Instagram className="w-4 h-4 text-pink-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.instagram}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, instagram: e.target.value }
-                      }))}
-                      placeholder="Instagram URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Youtube className="w-4 h-4 text-red-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.youtube}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, youtube: e.target.value }
-                      }))}
-                      placeholder="YouTube URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Spotify className="w-4 h-4 text-green-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.spotify}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, spotify: e.target.value }
-                      }))}
-                      placeholder="Spotify URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
-                  currentImage={form.image}
-                  bucket="guest-artist-images"
-                  folder="artists"
-                  className="h-32"
-                  cropAspect={4/5}
-                />
-                <div className="space-y-3 pt-2 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Card Media (Homepage strip)</label>
-                      <p className="text-xs text-gray-500">Upload a landscape image or short video shown on the card.</p>
-                    </div>
-                    {form.card_media_url && (
-                      <button
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, card_media_url: '' }))}
-                        className="text-xs text-red-500 hover:text-red-600"
-                      >
-                        Clear
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <label className="inline-flex items-center text-gray-900">
-                      <input
-                        type="radio"
-                        className="mr-2"
-                        checked={form.card_media_mode === 'image'}
-                        onChange={() => setForm(prev => ({
-                          ...prev,
-                          card_media_mode: 'image' as CardMediaMode,
-                          card_media_url: prev.card_media_mode === 'image' ? prev.card_media_url : ''
-                        }))}
-                      />
-                      Image
-                    </label>
-                    <label className="inline-flex items-center text-gray-900">
-                      <input
-                        type="radio"
-                        className="mr-2"
-                        checked={form.card_media_mode === 'video'}
-                        onChange={() => setForm(prev => ({
-                          ...prev,
-                          card_media_mode: 'video' as CardMediaMode,
-                          card_media_url: prev.card_media_mode === 'video' ? prev.card_media_url : ''
-                        }))}
-                      />
-                      Motion Poster (Video)
-                    </label>
-                  </div>
-                  <ImageUpload
-                    onImageSelect={(url) => setForm(prev => ({ ...prev, card_media_url: url }))}
-                    currentImage={form.card_media_url || ''}
-                    bucket={form.card_media_mode === 'video' ? 'guest-artist-videos' : 'guest-artist-images'}
-                    folder="artists/card-media"
-                    acceptedTypes={form.card_media_mode === 'video' ? 'video/*' : undefined}
-                    enableCropper={form.card_media_mode !== 'video'}
-                    cropAspect={form.card_media_mode !== 'video' ? 16/9 : undefined}
-                    fileTypeLabel={form.card_media_mode === 'video'
-                      ? 'MP4, MOV, WEBM up to 60MB'
-                      : 'PNG/JPG/WEBP up to 10MB (16:9 recommended)'}
-                  />
-                </div>
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
+              )}
+              
+              <div className="flex justify-between items-center gap-2 mt-auto">
+                <div className="flex gap-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      setEditing(null);
-                      resetForm();
-                    }}
-                    className="w-full sm:w-auto px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
+                    onClick={() => handleToggleEnabled(artist.id)}
+                    className={`p-3 rounded-md transition-colors ${
+                      artist.enabled 
+                        ? 'text-green-600 hover:bg-green-50' 
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                    title={artist.enabled ? 'Hide from public' : 'Show to public'}
                   >
-                    <X size={14} className="mr-1" />
-                    Cancel
+                    {artist.enabled ? <Eye size={20} /> : <EyeOff size={20} />}
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleUpdate(artist.id)}
-                    className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
+                    onClick={() => handleToggleFeatured(artist.id)}
+                    className={`p-3 rounded-md transition-colors ${
+                      artist.is_featured 
+                        ? 'text-yellow-500 hover:bg-yellow-50' 
+                        : 'text-gray-400 hover:bg-gray-100'
+                    }`}
+                    title={artist.is_featured ? 'Remove from featured' : 'Mark as featured'}
                   >
-                    <Save size={14} className="mr-1" />
-                    Save
+                    <Star size={20} fill={artist.is_featured ? "currentColor" : "none"} />
+                  </button>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingId(artist.id)}
+                    className="flex items-center px-4 py-2 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors text-sm font-medium"
+                  >
+                    <Edit size={16} className="mr-1.5" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(artist.id)}
+                    className="p-3 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                    title="Delete guest artist"
+                  >
+                    <Trash2 size={20} />
                   </button>
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="relative h-48">
-                  <img
-                    src={artist.image}
-                    alt={artist.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2 left-2 flex space-x-1">
-                    {artist.is_featured && (
-                      <Star className="w-6 h-6 text-pink-400 fill-current" />
-                    )}
-                    {!artist.enabled && (
-                      <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                        Hidden
-                      </span>
-                    )}
-                  </div>
-                  <div className="absolute top-2 right-2">
-                    <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
-                      Order: {artist.order_position}
-                    </span>
-                  </div>
-                  {artist.video && (
-                    <div className="absolute bottom-2 right-2">
-                      <Play className="w-6 h-6 text-white bg-black/50 rounded-full p-1" />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="p-4">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1">{artist.name}</h3>
-                  <p className="text-purple-600 font-semibold text-sm mb-2">{artist.title}</p>
-                  <div className="mb-3">
-                    <span className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
-                      {artist.specialty}
-                    </span>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">{artist.description}</p>
-                  
-                  {/* Social Links Display */}
-                  {artist.social_links && Object.values(artist.social_links).some(link => link) && (
-                    <div className="flex space-x-2 mb-4">
-                      {artist.social_links.instagram && (
-                        <Instagram className="w-4 h-4 text-pink-500" />
-                      )}
-                      {artist.social_links.youtube && (
-                        <Youtube className="w-4 h-4 text-red-500" />
-                      )}
-                      {artist.social_links.spotify && (
-                        <Spotify className="w-4 h-4 text-green-500" />
-                      )}
-                    </div>
-                  )}
-                  
-                  {artist.achievements.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-700 mb-2">
-                        {artist.achievements.length} Achievement{artist.achievements.length !== 1 ? 's' : ''}
-                      </p>
-                      <div className="text-xs text-gray-500">
-                        {artist.achievements.slice(0, 2).map((achievement, index) => (
-                          <div key={index} className="truncate">• {achievement}</div>
-                        ))}
-                        {artist.achievements.length > 2 && (
-                          <div>... and {artist.achievements.length - 2} more</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleEnabled(artist.id)}
-                        className={`p-1 rounded transition-colors ${
-                          artist.enabled 
-                            ? 'bg-green-100 text-green-600' 
-                            : 'bg-red-100 text-red-600'
-                        } hover:bg-green-200`}
-                        title={artist.enabled ? 'Hide from public' : 'Show to public'}
-                      >
-                        {artist.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFeatured(artist.id)}
-                        className={`p-1 rounded transition-colors ${
-                          artist.is_featured 
-                            ? 'bg-pink-100 text-pink-600' 
-                            : 'bg-gray-100 text-gray-600'
-                        } hover:bg-pink-200`}
-                        title={artist.is_featured ? 'Remove from featured' : 'Mark as featured'}
-                      >
-                        <Star size={14} className={artist.is_featured ? 'fill-current' : ''} />
-                      </button>
-                    </div>
-                    <div className="flex space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => startEditing(artist)}
-                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                        title="Edit guest artist"
-                      >
-                        <Edit size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(artist.id)}
-                        className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                        title="Delete guest artist"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+            </div>
           </div>
         ))}
       </div>
 
-      {/* No Guest Artists Message */}
+      {/* Empty State */}
       {guestArtists.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <Music size={64} className="mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Guest Artists Yet</h3>
-          <p className="text-gray-500 mb-4">Start by adding your first guest artist</p>
+        <div className="text-center py-16 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
+          <Music size={48} className="mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-900 mb-1">No Guest Artists Yet</h3>
+          <p className="text-gray-500 mb-6">Start by adding your first guest artist to the lineup.</p>
           <button
             type="button"
-            onClick={() => {
-              setIsAdding(true);
-              resetForm();
-            }}
-            className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
+            onClick={() => setIsAdding(true)}
+            className="bg-yellow-400 text-black px-6 py-2.5 rounded-lg hover:bg-yellow-300 transition-colors font-medium inline-flex items-center"
           >
-            Add First Guest Artist
+            <Plus size={18} className="mr-2" />
+            Add Guest Artist
           </button>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-4 gap-6 text-center">
-          <div>
-            <div className="text-2xl font-bold text-purple-500 mb-1">{guestArtists.length}</div>
-            <div className="text-gray-600 text-sm">Total Artists</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-pink-500 mb-1">
-              {guestArtists.filter(a => a.is_featured).length}
+      {/* Modal Overlay */}
+      {(isAdding || editingId) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-xl font-bold text-gray-800">
+                {isAdding ? 'Add New Guest Artist' : 'Edit Guest Artist'}
+              </h3>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-200"
+              >
+                <X size={24} />
+              </button>
             </div>
-            <div className="text-gray-600 text-sm">Featured on Homepage</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-blue-500 mb-1">
-              {guestArtists.filter(a => a.enabled).length}
+            
+            <div className="flex-1 overflow-auto min-h-0 bg-gray-50/50">
+               <div className="h-full p-4 overflow-hidden flex flex-col">
+                  {/* Reuse the GuestArtistForm inside the modal content area */}
+                  <GuestArtistForm
+                    initialData={editingArtist}
+                    onSubmit={handleSave}
+                    onCancel={handleCloseModal}
+                    isSubmitting={isSubmitting}
+                  />
+               </div>
             </div>
-            <div className="text-gray-600 text-sm">Visible Artists</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-500 mb-1">
-              {guestArtists.filter(a => a.video).length}
-            </div>
-            <div className="text-gray-600 text-sm">With Videos</div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
