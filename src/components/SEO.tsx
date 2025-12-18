@@ -6,6 +6,7 @@ interface SEOProps {
   canonical?: string;
   image?: string;
   type?: string;
+  noindex?: boolean;
 }
 
 export const SEO = ({
@@ -13,7 +14,8 @@ export const SEO = ({
   description = 'Experience the future at RICORRENZA - The official cultural festival of IQ City Medical College, Durgapur. Events, competitions and celebrations.',
   canonical = 'https://ricorrenza.fun/',
   image = 'https://ricorrenza.fun/favicon-96x96.png',
-  type = 'website'
+  type = 'website',
+  noindex = false
 }: SEOProps) => {
   const siteTitle = title === 'RICORRENZA — IQ City Medical College Cultural Festival' 
     ? title 
@@ -25,6 +27,7 @@ export const SEO = ({
       <title>{siteTitle}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={canonical} />
+      <meta name="robots" content={noindex ? "noindex" : "index, follow"} />
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />

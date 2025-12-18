@@ -1,6 +1,7 @@
 import React from 'react';
 import { useData } from '../context/DataContext';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { SEO } from '../components/SEO';
 
 interface ComingSoonProps {
   previewSettings?: {
@@ -29,6 +30,10 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings }) => {
 
   return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden">
+      <SEO 
+        title="Coming Soon" 
+        description={csMessage || "Something big is coming. Stay tuned for updates."}
+      />
       {/* Cyber grid + glow backdrop */}
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(closest-side,rgba(255,255,255,0.08),transparent_60%)]" />
       <div className="absolute -top-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-fuchsia-500/15 blur-3xl" />

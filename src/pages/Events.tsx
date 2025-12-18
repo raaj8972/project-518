@@ -1256,7 +1256,7 @@ export const Events: React.FC = () => {
                               return `<div class="font-semibold text-pink-300 mt-3 text-[15px]">${content}</div>`;
                             }
                             if (item.level === 'numbered') {
-                              return `<div class="flex items-start text-gray-100 text-[15px] leading-relaxed"><span class="mr-2 text-gray-400 flex-shrink-0">${item.index}.</span><span>${content}</span></div>`;
+                              return `<div class="flex items-start text-gray-100 text-[15px] leading-relaxed"><span class="mr-2 text-gray-400 flex-shrink-0">${(item as any).index}.</span><span>${content}</span></div>`;
                             }
                             // bullet
                             return `<div class="flex items-start text-gray-100 text-[15px] leading-relaxed"><span class="mr-2 text-gray-400 flex-shrink-0">•</span><span>${content}</span></div>`;

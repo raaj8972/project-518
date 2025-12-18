@@ -436,9 +436,27 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const fetchHadErrorsRef = React.useRef<boolean>(false);
   const markErr = (label: string, err: any) => {
     fetchHadErrorsRef.current = true;
-    const msg = (err && (err.message || err.toString())) || 'Unknown error';
-    console.error(label, err);
-    try { setLastError(`${label}: ${msg}`); } catch {}
+    let msg = (err && (err.message || err.toString())) || 'Unknown error';
+    
+    // Check for standard HTTP/Supabase status codes
+    const status = err?.status || err?.code;
+    
+    // Normalize 5xx server errors to a friendly message
+    if ((typeof status === 'number' && status >= 500) || (String(status).startsWith('5'))) {
+      console.error(`[Critical] ${label} (5xx):`, err);
+      // Only set a friendly message for the UI, but log the full error
+      if (!lastError || !lastError.includes('maintainance')) {
+        setLastError('System maintenance generally in progress (5xx). Please retry shortly.');
+      }
+    } else {
+      console.error(label, err);
+      try { 
+        // Avoid overwriting a critical 5xx error with a minor one if possible
+        if (!lastError?.includes('(5xx)')) {
+          setLastError(`${label}: ${msg}`);
+        }
+      } catch {}
+    }
   };
 
   const sanitizeUrl = (u: string | null | undefined): string => {

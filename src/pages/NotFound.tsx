@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 
 export const NotFound = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4 text-center">
-      <Helmet>
-        <title>Page Not Found | RICORRENZA 2026</title>
-        <meta name="robots" content="noindex" />
-      </Helmet>
+      <SEO 
+        title="Page Not Found" 
+        noindex={true}
+      />
       
       <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-600 mb-4 font-orbitron">
         404

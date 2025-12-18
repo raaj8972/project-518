@@ -6,7 +6,7 @@ import {
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
   Pencil, Check
 } from 'lucide-react';
-import { useData, Registration } from '../../context/DataContext';
+import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
