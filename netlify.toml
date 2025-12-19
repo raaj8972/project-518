@@ -8,7 +8,7 @@
   package = "@netlify/plugin-sitemap"
   
 [build.environment]
-  NODE_VERSION = "20"
+  NODE_VERSION = "22"
   NPM_FLAGS = "--legacy-peer-deps"
 
 [[edge_functions]]
