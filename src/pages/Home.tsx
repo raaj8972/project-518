@@ -15,6 +15,7 @@ const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtis
 const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
 import type { GuestArtist } from '../context/DataContext';
 const Roadmap = React.lazy(() => import('../components/Roadmap'));
+const WinnersSection = React.lazy(() => import('../components/WinnersSection'));
 // CountdownTimer and Sparkle3D are not used in the featured artist card preview; keep them commented out in case we re-enable later
 // import CountdownTimer from '../components/CountdownTimer';
 // import Sparkle3D from '../components/Sparkle3D';
@@ -485,6 +486,8 @@ export const Home: React.FC = () => {
 
       
 
+
+
       {/* Featured Guest Artists */}
 
       {featuredGuestArtists.length > 0 && (
@@ -541,6 +544,11 @@ export const Home: React.FC = () => {
           </div>
         </section>
       )}
+
+      {/* Winners Section */}
+      <React.Suspense fallback={null}>
+        <WinnersSection />
+      </React.Suspense>
 
       {/* Chief Guest Section (moved below Featured Artists) */}
   {chiefGuests && chiefGuests.filter((c: any)=>c.enabled).length > 0 && (() => {

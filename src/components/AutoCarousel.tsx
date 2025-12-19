@@ -125,6 +125,8 @@ export const AutoCarousel: React.FC<AutoCarouselProps> = ({
         if (e.key === 'ArrowRight') onNext();
         if (e.key === ' ') { e.preventDefault(); setIsManualPaused(p => !p); }
       }}
+      onTouchStart={() => stopOnInteraction && setHasInteracted(true)}
+      onMouseDown={() => stopOnInteraction && setHasInteracted(true)}
     >
       <div
         ref={containerRef}

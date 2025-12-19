@@ -1408,7 +1408,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         supabase.from('gallery_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('event_coordinators').select('*').order('event_id', { ascending: true }).order('order_position', { ascending: true }),
         supabase.from('sponsorship_settings').select('*, contact_sections (id, type, title, content, icon, enabled, "order")').eq('id', 1).single(),
-        supabase.from('event_winners').select('*').order('event_id', { ascending: true }).order('position', { ascending: true }),
+        supabase.rpc('get_public_event_winners').order('event_id', { ascending: true }).order('position', { ascending: true }),
         supabase.from('sponsors').select('*')
       ]);
 
@@ -1572,33 +1572,107 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         const raw = (eventWinnersRes.error as any)?.message || '';
         const msg = String(raw).toLowerCase();
         const code = (eventWinnersRes.error as any)?.code;
-        const isMissingTable = code === 'PGRST205' || msg.includes("relation 'public.event_winners' does not exist") || msg.includes('could not find the table') && msg.includes('event_winners');
-        if (isMissingTable) {
-          console.warn('[Data] event_winners table missing; skipping winners load');
-          setEventWinners([]);
+        
+        // If RPC failed (e.g. function doesn't exist, permission denied, etc.), try standard select
+        // We fallback on ANY error to ensure the section doesn't break.
+        console.warn(`[Data] RPC get_public_event_winners failed (Code: ${code}, Msg: ${msg}). Falling back to standard select.`);
+        
+        const { data: fallbackData, error: fallbackError } = await supabase.from('event_winners').select('*').order('event_id', { ascending: true }).order('position', { ascending: true });
+        
+        if (fallbackError) {
+             // If fallback also fails, then it's a real critical error
+             markErr('Error fetching event winners (RPC & Fallback failed)', fallbackError);
         } else {
-          markErr('Error fetching event winners', eventWinnersRes.error);
+               // Improve robustness: 'registrations' state might be empty here due to race condition.
+               // Explicitly fetch the relevant registrations if possible (works for Admin, fails safely for Guest due to RLS).
+               const regIds = (fallbackData || []).map((w: any) => w.registration_id).filter(Boolean);
+               let fetchedRegs: any[] = [];
+               
+               if (regIds.length > 0) {
+                  // Direct fetch attempt
+                  const { data: directRegs } = await supabase
+                    .from('registrations')
+                    .select('id, team_members, year, team_name, is_team_registration, full_name') 
+                    .in('id', regIds);
+                  
+                  if (directRegs) fetchedRegs = directRegs;
+               }
+               
+               // Combine potentially empty state 'registrations' with our direct fetch
+               // Use a Map to prioritize direct fetch (most fresh)
+               const combinedRegs = new Map();
+               (registrations || []).forEach((r: any) => combinedRegs.set(r.id, r));
+               fetchedRegs.forEach((r: any) => combinedRegs.set(r.id, { ...combinedRegs.get(r.id), ...r }));
+               
+               const regsById: Record<string, any> = Object.fromEntries(combinedRegs); 
+
+               setEventWinners((fallbackData || []).map((w:any)=>{
+                 const reg = w.registration_id ? regsById[w.registration_id] : null;
+                 const registration_year = reg?.year || reg?.batch || null;
+                 const team_name = reg?.team_name || null;
+                 const is_team = reg?.is_team_registration || false;
+                 // Use team name if available and appropriate, otherwise leader name
+                 const resolved_name = (is_team && team_name) ? team_name : (reg?.full_name || reg?.name || null);
+
+                 // Handle potential JSON string format manually if needed, though Supabase client usually parses JSONB
+                 let team_members = reg?.team_members || [];
+                 if (typeof team_members === 'string') {
+                    try { team_members = JSON.parse(team_members); } catch {}
+                 }
+                 
+                 // If it is a team, ensure the leader is included in members if not already
+                 if (is_team && reg?.full_name) {
+                     const leaderName = reg.full_name.trim();
+                     const isLeaderInList = team_members.some((m: any) => {
+                        const mName = (typeof m === 'object' ? m.name : m) || '';
+                        return mName.toLowerCase().trim() === leaderName.toLowerCase();
+                     });
+                     
+                     if (!isLeaderInList) {
+                        // Prepend leader to the list
+                        team_members = [{ name: `${leaderName} (Leader)` }, ...team_members];
+                     }
+                 }
+                 
+                 return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year, team_members, team_name, is_team, resolved_name };
+               }));
         }
       } else {
-        // Winners often link to registrations, but since registrations are now Admin-only or background,
-        // we should try to rely on what we have. If winners requires registrations join, we might need a workaround.
-        // For now, assuming winners row contains enough info or we accept 'null' for registration links if not loaded.
-        // Wait, the original code used 'currentRegistrations' which was fetched in the SAME function.
-        // Now 'registrations' are in AdminData. 
-        // We will assume 'currentRegistrations' might be empty here.
-        // If winners need photo from registration, it might be missing until AdminFetch.
-        // However, event_winners table might have explicit fields.
-        
-        // Original code:
-        // const regsById: Record<string, any> = Object.fromEntries(currentRegistrations.map((r:any) => [r.id, r]));
-        // We can't access 'currentRegistrations' here easily if it's not in scope or not fetched.
-        // USE STATE 'registrations'.
-        
-        const regsById: Record<string, any> = Object.fromEntries((registrations || []).map((r:any) => [r.id, r])); 
-        setEventWinners((eventWinnersRes.data || []).map((w:any)=>{
-          const reg = w.registration_id ? regsById[w.registration_id] : null;
-          const registration_year = reg?.year || reg?.batch || null;
-          return { ...w, photo_url: sanitizeUrl(w.photo_url), registration_year };
+        // RPC Succeeded
+        setEventWinners((eventWinnersRes.data || []).map((w:any)=> {
+          // The RPC returns joined data in 'registration_name', 'team_members', 'team_name', 'is_team_registration'
+          let team_members = w.team_members || [];
+          
+          // Parse if string
+          if (typeof team_members === 'string') {
+            try { team_members = JSON.parse(team_members); } catch {}
+          }
+          
+          // If it's a team, ensure the leader is included in members if not already
+          if (w.is_team_registration && w.registration_name) {
+            const leaderName = w.registration_name.trim();
+            const isLeaderInList = team_members.some((m: any) => {
+              const mName = (typeof m === 'object' ? m.name : m) || '';
+              return mName.toLowerCase().trim() === leaderName.toLowerCase();
+            });
+            
+            if (!isLeaderInList) {
+              // Prepend leader to the list
+              team_members = [{ name: `${leaderName} (Leader)` }, ...team_members];
+            }
+          }
+          
+          // Use team_name if this is a team registration, otherwise use registration_name
+          const resolved_name = (w.is_team_registration && w.team_name) 
+            ? w.team_name 
+            : (w.registration_name || w.name || null);
+          
+          return { 
+            ...w, 
+            photo_url: sanitizeUrl(w.photo_url),
+            team_members,
+            resolved_name
+          };
         }));
       }
       

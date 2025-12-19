@@ -56,24 +56,26 @@
     }
   </script>
     
-    <!-- Resource hints for faster loading -->
-    <link rel="dns-prefetch" href="https://byvhfnkrwpuztxbsvdqd.supabase.co">
-    <link rel="preconnect" href="https://byvhfnkrwpuztxbsvdqd.supabase.co" crossorigin>
+    <!-- Performance: DNS Prefetch & Preconnect for critical domains -->
+    <link rel="dns-prefetch" href="https://isfqhascrdzaoebhuohs.supabase.co">
+    <link rel="preconnect" href="https://isfqhascrdzaoebhuohs.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
     <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-    
-    <!-- Preload critical assets for faster page load -->
-    <link rel="preload" href="/ambulance-animated.svg" as="image" type="image/svg+xml">
-    <link rel="preload" href="/rickshaw.svg" as="image" type="image/svg+xml">
-    <!-- Preload band/title logos - add your uploaded logos here -->
-    <!-- Example: <link rel="preload" href="/band-logo.png" as="image" type="image/png"> -->
-    <!-- Example: <link rel="preload" href="/festival-title.svg" as="image" type="image/svg+xml"> -->
-    
-    <!-- Cyberpunk Fonts with preload for critical font files -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Preload critical assets for instant rendering -->
+    <link rel="preload" href="/ambulance-animated.svg" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="/rickshaw.svg" as="image" type="image/svg+xml" fetchpriority="high">
+    <link rel="preload" href="/noise.png" as="image" type="image/png">
+    
+    <!-- Preload critical fonts for text rendering -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" as="style">
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
+    
+    <!-- Preload main JS module (added by vite in production) -->
+    <!-- modulepreload will be handled by vite build -->
     
     <!-- Global Cyberpunk Styles -->
     <style>
@@ -258,7 +260,8 @@
   <body>
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
   <div id="root" style="position: relative; z-index: 1;"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Main app module loaded with high priority -->
+    <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 
   </body>
 </html>

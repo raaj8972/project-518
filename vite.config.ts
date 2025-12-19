@@ -39,6 +39,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    // Enable minification for smaller bundles
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true,
+      },
+    },
+    // Optimize chunk sizes
+    chunkSizeWarningLimit: 1000,
+    // Enable CSS code splitting
+    cssCodeSplit: true,
+    // Generate source maps for debugging (disable in production for smaller size)
+    sourcemap: false,
     rollupOptions: {
       output: {
         // Use a function so we can place large/rarely-used libraries into
