@@ -16,6 +16,7 @@ const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
 import type { GuestArtist } from '../context/DataContext';
 const Roadmap = React.lazy(() => import('../components/Roadmap'));
 const WinnersSection = React.lazy(() => import('../components/WinnersSection'));
+const InstagramTrailerSection = React.lazy(() => import('../components/InstagramTrailerSection'));
 // CountdownTimer and Sparkle3D are not used in the featured artist card preview; keep them commented out in case we re-enable later
 // import CountdownTimer from '../components/CountdownTimer';
 // import Sparkle3D from '../components/Sparkle3D';
@@ -484,9 +485,27 @@ export const Home: React.FC = () => {
         )}
       </section>
 
-      
+      {/* Instagram Trailer Section */}
+      {homepageSettings?.instagram_trailer_enabled && homepageSettings?.instagram_trailer_url && (
+        <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading trailer...</div>}>
+          <InstagramTrailerSection
+            url={homepageSettings.instagram_trailer_url}
+            title={homepageSettings.instagram_trailer_title || 'OFFICIAL TRAILER'}
+            subtitle={homepageSettings.instagram_trailer_subtitle || 'Watch our official event trailer'}
+          />
+        </React.Suspense>
+      )}
 
-
+      {/* Instagram Aftermovie Section */}
+      {homepageSettings?.instagram_aftermovie_enabled && homepageSettings?.instagram_aftermovie_url && (
+        <React.Suspense fallback={<div className="h-96 flex items-center justify-center text-gray-400">Loading aftermovie...</div>}>
+          <InstagramTrailerSection
+            url={homepageSettings.instagram_aftermovie_url}
+            title={homepageSettings.instagram_aftermovie_title || 'EVENT AFTERMOVIE'}
+            subtitle={homepageSettings.instagram_aftermovie_subtitle || 'Relive the best moments from our event'}
+          />
+        </React.Suspense>
+      )}
 
       {/* Featured Guest Artists */}
 

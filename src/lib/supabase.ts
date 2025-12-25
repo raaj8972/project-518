@@ -1009,6 +1009,15 @@ export interface Database {
           committee_marquee_speed_px_per_sec: number
           sponsors_belt_direction: 'left' | 'right'
           committee_marquee_direction: 'left' | 'right'
+          // Instagram Videos
+          instagram_trailer_url: string | null
+          instagram_trailer_enabled: boolean
+          instagram_trailer_title: string | null
+          instagram_trailer_subtitle: string | null
+          instagram_aftermovie_url: string | null
+          instagram_aftermovie_enabled: boolean
+          instagram_aftermovie_title: string | null
+          instagram_aftermovie_subtitle: string | null
           created_at: string
           updated_at: string
         }
@@ -1045,6 +1054,15 @@ export interface Database {
           committee_marquee_speed_px_per_sec?: number
           sponsors_belt_direction?: 'left' | 'right'
           committee_marquee_direction?: 'left' | 'right'
+          // Instagram Videos
+          instagram_trailer_url?: string | null
+          instagram_trailer_enabled?: boolean
+          instagram_trailer_title?: string | null
+          instagram_trailer_subtitle?: string | null
+          instagram_aftermovie_url?: string | null
+          instagram_aftermovie_enabled?: boolean
+          instagram_aftermovie_title?: string | null
+          instagram_aftermovie_subtitle?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -1081,6 +1099,15 @@ export interface Database {
           committee_marquee_speed_px_per_sec?: number
           sponsors_belt_direction?: 'left' | 'right'
           committee_marquee_direction?: 'left' | 'right'
+          // Instagram Videos
+          instagram_trailer_url?: string | null
+          instagram_trailer_enabled?: boolean
+          instagram_trailer_title?: string | null
+          instagram_trailer_subtitle?: string | null
+          instagram_aftermovie_url?: string | null
+          instagram_aftermovie_enabled?: boolean
+          instagram_aftermovie_title?: string | null
+          instagram_aftermovie_subtitle?: string | null
           created_at?: string
           updated_at?: string
         }

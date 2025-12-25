@@ -65,6 +65,16 @@ export const HomepageManagement: React.FC = () => {
     committee_marquee_speed_px_per_sec: number | '';
     sponsors_belt_direction: 'left' | 'right';
     committee_marquee_direction: 'left' | 'right';
+    // Instagram Trailer
+    instagram_trailer_url?: string;
+    instagram_trailer_enabled?: boolean;
+    instagram_trailer_title?: string;
+    instagram_trailer_subtitle?: string;
+    // Instagram Aftermovie
+    instagram_aftermovie_url?: string;
+    instagram_aftermovie_enabled?: boolean;
+    instagram_aftermovie_title?: string;
+    instagram_aftermovie_subtitle?: string;
   };
   
   const [form, setForm] = useLocalStorage<FormState>('admin_homepage_form_draft', {
@@ -99,7 +109,15 @@ export const HomepageManagement: React.FC = () => {
     sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
     committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
     sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
-    committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
+    committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right',
+    instagram_trailer_url: (homepageSettings as any)?.instagram_trailer_url || '',
+    instagram_trailer_enabled: (homepageSettings as any)?.instagram_trailer_enabled ?? false,
+    instagram_trailer_title: (homepageSettings as any)?.instagram_trailer_title || 'OFFICIAL TRAILER',
+    instagram_trailer_subtitle: (homepageSettings as any)?.instagram_trailer_subtitle || 'Watch our official event trailer',
+    instagram_aftermovie_url: (homepageSettings as any)?.instagram_aftermovie_url || '',
+    instagram_aftermovie_enabled: (homepageSettings as any)?.instagram_aftermovie_enabled ?? false,
+    instagram_aftermovie_title: (homepageSettings as any)?.instagram_aftermovie_title || 'EVENT AFTERMOVIE',
+    instagram_aftermovie_subtitle: (homepageSettings as any)?.instagram_aftermovie_subtitle || 'Relive the best moments from our event'
   });
 
 
@@ -157,7 +175,15 @@ export const HomepageManagement: React.FC = () => {
       sponsors_belt_speed_px_per_sec: (homepageSettings as any)?.sponsors_belt_speed_px_per_sec ?? 140,
       committee_marquee_speed_px_per_sec: (homepageSettings as any)?.committee_marquee_speed_px_per_sec ?? 75,
       sponsors_belt_direction: ((homepageSettings as any)?.sponsors_belt_direction as any) ?? 'left',
-      committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right'
+      committee_marquee_direction: ((homepageSettings as any)?.committee_marquee_direction as any) ?? 'right',
+      instagram_trailer_url: (homepageSettings as any)?.instagram_trailer_url || '',
+      instagram_trailer_enabled: (homepageSettings as any)?.instagram_trailer_enabled ?? false,
+      instagram_trailer_title: (homepageSettings as any)?.instagram_trailer_title || 'OFFICIAL TRAILER',
+      instagram_trailer_subtitle: (homepageSettings as any)?.instagram_trailer_subtitle || 'Watch our official event trailer',
+      instagram_aftermovie_url: (homepageSettings as any)?.instagram_aftermovie_url || '',
+      instagram_aftermovie_enabled: (homepageSettings as any)?.instagram_aftermovie_enabled ?? false,
+      instagram_aftermovie_title: (homepageSettings as any)?.instagram_aftermovie_title || 'EVENT AFTERMOVIE',
+      instagram_aftermovie_subtitle: (homepageSettings as any)?.instagram_aftermovie_subtitle || 'Relive the best moments from our event'
     });
     try { localStorage.removeItem('admin_homepage_form_draft'); } catch {}
     setIsEditing(false);
@@ -229,6 +255,16 @@ export const HomepageManagement: React.FC = () => {
           : 75,
         sponsors_belt_direction: (form.sponsors_belt_direction === 'right' ? 'right' : 'left') as 'left' | 'right',
         committee_marquee_direction: (form.committee_marquee_direction === 'left' ? 'left' : 'right') as 'left' | 'right',
+        // Instagram Trailer
+        instagram_trailer_url: (form.instagram_trailer_url || '').trim() || null,
+        instagram_trailer_enabled: !!form.instagram_trailer_enabled,
+        instagram_trailer_title: (form.instagram_trailer_title || '').trim() || 'OFFICIAL TRAILER',
+        instagram_trailer_subtitle: (form.instagram_trailer_subtitle || '').trim() || 'Watch our official event trailer',
+        // Instagram Aftermovie
+        instagram_aftermovie_url: (form.instagram_aftermovie_url || '').trim() || null,
+        instagram_aftermovie_enabled: !!form.instagram_aftermovie_enabled,
+        instagram_aftermovie_title: (form.instagram_aftermovie_title || '').trim() || 'EVENT AFTERMOVIE',
+        instagram_aftermovie_subtitle: (form.instagram_aftermovie_subtitle || '').trim() || 'Relive the best moments from our event',
       } as const;
       steps.next('Saving to database');
       await updateHomepageSettings(payload as any);
@@ -784,6 +820,130 @@ export const HomepageManagement: React.FC = () => {
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Descriptive text below the subtitle</p>
+              </div>
+
+              {/* Instagram Trailer Section */}
+              <div className="mt-8 p-6 border-2 border-pink-200 rounded-lg bg-pink-50">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  Instagram Trailer
+                </h4>
+                
+                <div className="space-y-4">
+                  {/* Enable Toggle */}
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.instagram_trailer_enabled || false}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_enabled: e.target.checked }))}
+                      className="mr-3 w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Show Instagram Trailer on Home Page</span>
+                  </label>
+
+                  {/* Instagram URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram Reel/Post URL</label>
+                    <input
+                      type="url"
+                      value={form.instagram_trailer_url || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_url: e.target.value }))}
+                      placeholder="https://www.instagram.com/reel/ABC123/"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Paste the full Instagram reel or post URL (e.g., https://www.instagram.com/reel/ABC123/ or https://www.instagram.com/p/ABC123/)
+                    </p>
+                  </div>
+
+                  {/* Custom Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Title (Optional)</label>
+                    <input
+                      type="text"
+                      value={form.instagram_trailer_title || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_title: e.target.value }))}
+                      placeholder="OFFICIAL TRAILER"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                    />
+                  </div>
+
+                  {/* Custom Subtitle */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Subtitle (Optional)</label>
+                    <input
+                      type="text"
+                      value={form.instagram_trailer_subtitle || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_subtitle: e.target.value }))}
+                      placeholder="Watch our official event trailer"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Instagram Aftermovie Section */}
+              <div className="mt-8 p-6 border-2 border-purple-200 rounded-lg bg-purple-50">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                  Instagram Aftermovie
+                </h4>
+                
+                <div className="space-y-4">
+                  {/* Enable Toggle */}
+                  <label className="inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.instagram_aftermovie_enabled || false}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_enabled: e.target.checked }))}
+                      className="mr-3 w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Show Instagram Aftermovie on Home Page</span>
+                  </label>
+
+                  {/* Instagram URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram Reel/Post URL</label>
+                    <input
+                      type="url"
+                      value={form.instagram_aftermovie_url || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_url: e.target.value }))}
+                      placeholder="https://www.instagram.com/reel/XYZ789/"
+                      className="w-full px-4 py-3 border bordergray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                    />
+                    <p className="text-xs text-gray-600 mt-1">
+                      Paste the full Instagram reel or post URL for your aftermovie
+                    </p>
+                  </div>
+
+                  {/* Custom Title */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Title (Optional)</label>
+                    <input
+                      type="text"
+                      value={form.instagram_aftermovie_title || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_title: e.target.value }))}
+                      placeholder="EVENT AFTERMOVIE"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                    />
+                  </div>
+
+                  {/* Custom Subtitle */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Subtitle (Optional)</label>
+                    <input
+                      type="text"
+                      value={form.instagram_aftermovie_subtitle || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_subtitle: e.target.value }))}
+                      placeholder="Relive the best moments from our event"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
