@@ -3,6 +3,7 @@ import './utils/preloadBrand'; // Auto-preload uploaded brand logos
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
+import { registerServiceWorker } from './utils/serviceWorkerRegistration';
 
 const rootEl = document.getElementById('root')!;
 
@@ -21,6 +22,11 @@ function showFatal(message: string) {
         <App />
       </StrictMode>
     );
+    
+    // Register service worker for offline support
+    if (import.meta.env.PROD) {
+      registerServiceWorker();
+    }
   } catch (err: any) {
     console.error('Fatal startup error:', err);
     showFatal(err?.message || 'Unknown startup error. Check console logs.');

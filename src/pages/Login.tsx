@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Mail, User, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint } from 'lucide-react';
+import { Mail, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint, ChevronRight } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
+import { gsap } from 'gsap';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -15,54 +16,83 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   
   const { login, loginWithPasskey } = useAuth();
   const navigate = useNavigate();
   const { homepageSettings } = useData();
-  // Pull host for quick env diagnostics
   const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
   const SHOW_SUPABASE = ((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1');
 
-  // Intersection Observer for scroll animations
+  // GSAP Animations
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animate-in');
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
+    const ctx = gsap.context(() => {
+      // Entrance animation
+      gsap.from(containerRef.current, {
+        opacity: 0,
+        y: 30,
+        duration: 1,
+        ease: 'power3.out'
+      });
 
-    const animatedElements = document.querySelectorAll('.scroll-animate');
-    animatedElements.forEach((el) => observer.observe(el));
+      gsap.from('.stagger-item', {
+        opacity: 0,
+        y: 20,
+        stagger: 0.1,
+        duration: 0.8,
+        ease: 'power2.out',
+        delay: 0.3
+      });
 
-    return () => observer.disconnect();
+      // Floating animation for the card
+      gsap.to(cardRef.current, {
+        y: '+=10',
+        duration: 3,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true
+      });
+    }, containerRef);
+
+    return () => ctx.revert();
   }, []);
 
-  // Video auto-restart optimization (simplified to prevent EMFILE error)
+  // Form toggle animation
+  useEffect(() => {
+    if (isFormOpen) {
+      gsap.to(buttonsRef.current, {
+        opacity: 0,
+        x: -20,
+        duration: 0.4,
+        display: 'none',
+        ease: 'power2.in'
+      });
+      gsap.fromTo(formRef.current, 
+        { opacity: 0, x: 20, display: 'none' },
+        { opacity: 1, x: 0, duration: 0.6, display: 'block', ease: 'power2.out', delay: 0.4 }
+      );
+    }
+  }, [isFormOpen]);
+
+  // Video auto-restart optimization
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Simple play function
     const playVideo = () => {
-      video.play().catch(() => {
-        // Silently ignore autoplay errors
-      });
+      video.play().catch(() => {});
     };
 
-    // Handle visibility change - restart when tab becomes visible
     const handleVisibilityChange = () => {
       if (!document.hidden && video.paused) {
         playVideo();
       }
     };
 
-    // Add event listeners
     video.addEventListener('loadeddata', playVideo);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
@@ -100,674 +130,415 @@ export const Login: React.FC = () => {
     setRequiresTOTP(false);
     setTotpCode('');
     setError('');
+    setIsFormOpen(false);
+    
+    // Animation to go back
+    gsap.to(formRef.current, {
+      opacity: 0,
+      x: 20,
+      duration: 0.4,
+      display: 'none',
+      ease: 'power2.in'
+    });
+    gsap.fromTo(buttonsRef.current, 
+      { opacity: 0, x: -20, display: 'none' },
+      { opacity: 1, x: 0, duration: 0.6, display: 'flex', ease: 'power2.out', delay: 0.4 }
+    );
   };
 
+
   return (
-    <div className="cyberpunk-theme min-h-screen">
+    <div className="cyberpunk-theme min-h-screen bg-black overflow-hidden font-rajdhani">
       <SEO 
         title="Login" 
         description="Admin login for RICORRENZA 2026 management dashboard." 
         canonical="https://ricorrenza.fun/login" 
       />
-      {/* Hero Section */}
-      <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '1000px' }}>
-        {/* Video Background - Fixed to cover entire page */}
-        <div className="fixed inset-0 z-0" style={{ transformStyle: 'preserve-3d', width: '100vw', height: '100vh' }}>
-          {/* Video */}
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted
-            playsInline
-            preload="metadata"
-            className="absolute inset-0 w-full h-full video-3d-effect"
-            style={{ 
-              filter: 'brightness(0.7)',
-              transform: 'translateZ(-50px) scale(1.1)',
-              transformStyle: 'preserve-3d',
-              objectFit: 'cover',
-              objectPosition: 'center'
-            }}
-            onError={(e) => {
-              console.log('Video failed to load, using gradient background');
-              e.currentTarget.style.display = 'none';
-            }}
-          >
-            <source src="/login page video.mp4" type="video/mp4" />
-          </video>
-          
-          {/* Cyberpunk Grid Overlay with 3D effect */}
-          <div className="absolute inset-0 cyberpunk-grid opacity-20" style={{ transform: 'translateZ(20px)', transformStyle: 'preserve-3d' }}></div>
+
+      {/* Video Background */}
+      <div className="fixed inset-0 z-0">
+        <video
+          ref={videoRef}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="metadata"
+          className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 blur-[2px]"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        >
+          <source src="/login page video.mp4" type="video/mp4" />
+        </video>
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_black_100%)]"></div>
+        {/* Scanning Line Effect */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+          <div className="w-full h-[1px] bg-cyan-500/50 animate-scan"></div>
         </div>
+      </div>
 
-        {/* Login Content */}
-        <div className="relative z-10 w-full max-w-md mx-auto px-4">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
-                {requiresTOTP ? (
-                  <div className="relative">
-                    <div className="cyberpunk-icon-container">
-                      <Lock className="h-12 w-12 text-yellow-400" />
-                      <Shield className="h-6 w-6 text-green-400 absolute -top-1 -right-1" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    {(() => {
-                      const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
-                      const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
-                      // helper to convert hex/rgb(a) to rgba with desired alpha
-                      const toRgba = (c?: string, a: number = 1) => {
-                        if (!c) return `rgba(0,255,255,${a})`;
-                        const s = c.trim();
-                        if (s.startsWith('rgba(')) return s.replace(/rgba\(([^)]+)\)/, (_m, inner) => `rgba(${inner.split(',').slice(0,3).join(',')}, ${a})`);
-                        if (s.startsWith('rgb(')) return s.replace(/rgb\(([^)]+)\)/, (_m, inner) => `rgba(${inner}, ${a})`);
-                        if (s.startsWith('#')) {
-                          let r = 0, g = 255, b = 255;
-                          const hex = s.slice(1);
-                          if (hex.length === 3) {
-                            r = parseInt(hex[0] + hex[0], 16);
-                            g = parseInt(hex[1] + hex[1], 16);
-                            b = parseInt(hex[2] + hex[2], 16);
-                          } else if (hex.length >= 6) {
-                            r = parseInt(hex.slice(0,2), 16);
-                            g = parseInt(hex.slice(2,4), 16);
-                            b = parseInt(hex.slice(4,6), 16);
-                          }
-                          return `rgba(${r}, ${g}, ${b}, ${a})`;
-                        }
-                        // default cyan
-                        return `rgba(0,255,255,${a})`;
-                      };
-                      if (!raw) {
-                        return (
-                          <div className="cyberpunk-icon-container">
-                            {/* Fallback small ring if no brand logo configured */}
-                            <div className="h-16 w-16 rounded-full" style={{
-                              borderWidth: 2,
-                              borderColor: toRgba(accent, 0.4),
-                              background: toRgba(accent, 0.10),
-                              boxShadow: `inset 0 0 20px ${toRgba(accent, 0.20)}`
-                            }} />
-                          </div>
-                        );
-                      }
-                      let u = String(raw).trim();
-                      if (u.startsWith('//')) u = 'https:' + u;
-                      if (u.startsWith('http://')) u = 'https://' + u.slice(7);
-                      const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
-                      const sep = u.includes('?') ? '&' : '?';
-                      const src = ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
-                      const size = Math.max(45, Number((homepageSettings as any)?.brand_logo_size_px) || 65);
-                      const glowStrength = Math.max(0.5, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
-                      return (
-                        <div className="relative p-3 rounded-full animate-logo-pulse" style={{
-                          borderWidth: 2,
-                          borderColor: toRgba(accent, 0.30),
-                          background: toRgba(accent, 0.06),
-                          boxShadow: `inset 0 0 20px ${toRgba(accent, 0.15)}`
-                        }}>
-                          <BrandLogo3D
-                            src={src}
-                            size={size}
-                            glowStrength={glowStrength}
-                            glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
-                          />
-                        </div>
-                      );
-                    })()}
-                  </div>
-                )}
+      <div ref={containerRef} className="relative z-10 min-h-screen flex items-center justify-center p-3 sm:p-4">
+        <div ref={cardRef} className="w-full max-w-md mx-auto">
+          {/* Glassmorphic Card */}
+          <div className="glass-card overflow-hidden">
+            {/* Top accent bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500"></div>
+            
+            <div className="p-5 sm:p-6 md:p-8">
+              {/* Header */}
+              <div className="text-center mb-6 stagger-item">
+                <div className="flex justify-center mb-4">
+                   <div className="relative p-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
+                     {(() => {
+                        const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
+                        const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
+                        if (!raw) return <div className="h-14 w-14 flex items-center justify-center text-cyan-400"><Shield className="w-8 h-8" /></div>;
+                        let u = String(raw).trim();
+                        if (u.startsWith('//')) u = 'https:' + u;
+                        const src = u.includes('?') ? `${u}&v=${Date.now()}` : `${u}?v=${Date.now()}`;
+                        return <BrandLogo3D src={src} size={60} glowStrength={1.5} glowColor={accent} />;
+                     })()}
+                   </div>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-white uppercase italic">
+                  {requiresTOTP ? '2FA-Verification' : 'Admin Control'}
+                </h1>
+                <p className="text-cyan-400 font-mono text-[10px] tracking-[0.2em] mt-2 uppercase opacity-80 decoration-cyan-500/30">
+                  {requiresTOTP ? 'Encryption Key Required' : 'Authentication Gateway OS 2.6'}
+                </p>
               </div>
-              <h1 className="text-4xl font-black mb-4 cyberpunk-title">
-                {requiresTOTP ? (
-                  <>
-                    CYBER <span className="neon-green">VERIFY</span>
-                  </>
-                ) : (
-                  'ADMIN'
-                )}
-              </h1>
-              <p className="text-lg text-gray-300">
-                {requiresTOTP 
-                  ? 'Enter the 6-digit code from your authenticator app'
-                  : 'Access the RICORRENZA 2026 dashboard'
-                }
-              </p>
-              {SHOW_SUPABASE && supabaseHost && (
-                <p className="mt-2 text-xs text-gray-400">Supabase: {supabaseHost}</p>
-              )}
-            </div>
 
-            {/* Login Form */}
-            {!isFormOpen ? (
-              <div className="flex flex-col gap-4 items-center px-4 w-full">
-                <button
-                  type="button"
-                  onClick={() => setIsFormOpen(true)}
-                  className="cyberpunk-btn cyberpunk-btn-primary w-full max-w-[300px]"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    <Zap className="mr-2" size={20} />
-                    OPEN ADMIN PANEL
-                  </span>
-                </button>
+              {/* Login Modes Container */}
+              <div className="relative min-h-[300px]">
                 
-                <button
-                  type="button"
-                  onClick={() => navigate('/security-login')}
-                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    <Shield className="mr-2" size={20} />
-                    SECURITY LOGIN
-                  </span>
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => navigate('/coordinator')}
-                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    <Users className="mr-2" size={20} />
-                    EVENT COORDINATOR
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => navigate('/council')}
-                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
-                >
-                  <span className="relative z-10 flex items-center justify-center">
-                    <BarChart3 className="mr-2" size={20} />
-                    COUNCIL DASHBOARD
-                  </span>
-                </button>
-              </div>
-            ) : (
-            <div className="cyberpunk-card animate-card-reveal">
-              <form onSubmit={handleSubmit} className="space-y-6 p-8">
-                {error && (
-                  <div className="cyberpunk-alert">
-                    <AlertCircle className="w-5 h-5 text-red-400 mr-3" />
-                    <span className="text-red-400 text-sm">{error}</span>
-                  </div>
-                )}
-
-                {!requiresTOTP ? (
-                  <>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
-                        Admin Email
-                      </label>
-                      <div className="relative">
-                        <input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="cyberpunk-input pl-4"
-                          placeholder="Enter admin email"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
-                        Admin Password
-                      </label>
-                      <div className="relative">
-                        <input
-                          id="password"
-                          type={showPassword ? 'text' : 'password'}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          className="cyberpunk-input pl-4 pr-12"
-                          placeholder="Enter admin password"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-300"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div>
-                    <label htmlFor="totpCode" className="block text-sm font-medium text-gray-300 mb-3 pl-1">
-                      2FA Authentication Code
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Smartphone className="w-5 h-5 text-gray-400" />
-                      </div>
-                      <input
-                        id="totpCode"
-                        type="text"
-                        value={totpCode}
-                        onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="cyberpunk-input pl-12 text-center text-2xl tracking-widest"
-                        placeholder="000000"
-                        maxLength={6}
-                        required
-                      />
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Open your authenticator app and enter the 6-digit code
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex flex-col space-y-3">
+                {/* Mode Selection Grid */}
+                <div ref={buttonsRef} className="flex flex-col gap-2 sm:gap-2.5 stagger-item">
+                  <p className="text-gray-500 text-[9px] font-bold mb-1.5 ml-1 uppercase tracking-[0.3em]">Access Role</p>
+                  
                   <button
-                    type="submit"
-                    // Allow the emergency bypass code '9693' to submit even though it's not 6 digits
-                    disabled={isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6))}
-                    className={`cyberpunk-btn cyberpunk-btn-primary w-full ${
-                      isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6)) ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
+                    onClick={() => setIsFormOpen(true)}
+                    className="mode-btn group from-cyan-500/20 to-cyan-800/10 hover:border-cyan-400/50"
                   >
-                    <span className="relative z-10 flex items-center justify-center">
-                      {isLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin mr-2"></div>
-                          {requiresTOTP ? 'VERIFYING...' : 'AUTHENTICATING...'}
-                        </>
-                      ) : (
-                        <>
-                          <Zap className="mr-2" size={20} />
-                          {requiresTOTP ? 'VERIFY 2FA CODE' : 'ACCESS DASHBOARD'}
-                        </>
-                      )}
-                    </span>
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-lg bg-cyan-400/10 text-cyan-400 group-hover:scale-110 transition-transform">
+                        <Zap size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-white group-hover:text-cyan-400 transition-colors">Admin Panel</p>
+                        <p className="text-[10px] text-gray-500">High-level orchestration</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
                   </button>
 
-                  {requiresTOTP && (
-                    <button
-                      type="button"
-                      onClick={handleBackToPassword}
-                      className="cyberpunk-btn cyberpunk-btn-secondary w-full"
-                    >
-                      <span className="relative z-10">BACK TO PASSWORD</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => navigate('/security-login')}
+                    className="mode-btn group from-purple-500/20 to-purple-800/10 hover:border-purple-400/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-lg bg-purple-400/10 text-purple-400 group-hover:scale-110 transition-transform">
+                        <Shield size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors">Security Node</p>
+                        <p className="text-[10px] text-gray-500">Scan & Entry verification</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-600 group-hover:text-purple-400 transition-colors" />
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/coordinator')}
+                    className="mode-btn group from-blue-500/20 to-blue-800/10 hover:border-blue-400/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-lg bg-blue-400/10 text-blue-400 group-hover:scale-110 transition-transform">
+                        <Users size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors">Coordinators</p>
+                        <p className="text-[10px] text-gray-500">Event management</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-600 group-hover:text-blue-400 transition-colors" />
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/council')}
+                    className="mode-btn group from-emerald-500/20 to-emerald-800/10 hover:border-emerald-400/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-lg bg-emerald-400/10 text-emerald-400 group-hover:scale-110 transition-transform">
+                        <BarChart3 size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-white group-hover:text-emerald-400 transition-colors">Council</p>
+                        <p className="text-[10px] text-gray-500">Analytics dashboard</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-600 group-hover:text-emerald-400 transition-colors" />
+                  </button>
                 </div>
 
-                {/* Passkey Login */}
-                {!requiresTOTP && (
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setIsLoading(true);
-                        setError('');
-                        const res = await loginWithPasskey();
-                        if (res.success) {
-                          // Navigate immediately without reload for faster experience
-                          navigate('/admin');
-                        } else {
-                          setIsLoading(false);
-                          setError(res.error || 'Biometric login failed');
-                        }
-                      }}
-                      className="cyberpunk-btn cyberpunk-btn-secondary w-full flex items-center justify-center"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin mr-2"></div>
-                          <span className="relative z-10">AUTHENTICATING...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Fingerprint className="mr-2" size={20} />
-                          <span className="relative z-10">LOGIN WITH BIOMETRIC</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </form>
+                {/* Form Content */}
+                <div ref={formRef} className={`${isFormOpen ? 'block' : 'hidden'}`}>
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3 animate-shake">
+                        <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
+                        <span className="text-red-400 text-xs font-medium">{error}</span>
+                      </div>
+                    )}
 
-              <div className="px-8 pb-8">
-                <div className="text-center text-xs text-gray-500">
-                  <a href="#" className="hover:text-gray-400 transition-colors">
-                    Forgot password? Contact system administrator
-                  </a>
+                    {!requiresTOTP ? (
+                      <>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Identity (Email)</label>
+                          <div className="relative group">
+                            <input
+                              type="email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              className="input-cyber"
+                              placeholder="cyber@ricorrenza.fun"
+                              required
+                            />
+                            <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Access Key (Password)</label>
+                          <div className="relative group">
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="input-cyber"
+                              placeholder="••••••••"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-cyan-400"
+                            >
+                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="text-center">
+                          <label className="text-xs uppercase tracking-[0.2em] text-cyan-400 font-bold">Six-Digit TOTP Token</label>
+                          <div className="mt-4 flex justify-center">
+                            <input
+                              type="text"
+                              value={totpCode}
+                              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              className="w-full text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-cyan-500/30 rounded-lg py-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-[inset_0_0_20px_rgba(34,211,238,0.1)]"
+                              placeholder="000000"
+                              maxLength={6}
+                              required
+                            />
+                          </div>
+                          <p className="mt-4 text-xs text-gray-500 flex items-center justify-center gap-2">
+                            <Smartphone size={14} className="text-cyan-400" />
+                            Synchronize via Authenticator App
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="pt-3 sm:pt-4 space-y-3">
+                      <button
+                        type="submit"
+                        disabled={isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6))}
+                        className="btn-primary-cyber w-full group"
+                      >
+                        {isLoading ? (
+                           <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
+                             <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                             Authorizing...
+                           </div>
+                        ) : (
+                          <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
+                            <Key size={18} className="group-hover:rotate-12 transition-transform" />
+                            {requiresTOTP ? 'Verify Pulse' : 'Initiate Session'}
+                          </div>
+                        )}
+                      </button>
+
+                      <div className="flex gap-2">
+                             <button
+                                type="button"
+                                onClick={handleBackToPassword}
+                                className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center"
+                              >
+                                Back
+                              </button>
+                               {!requiresTOTP && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    setIsLoading(true);
+                                    setError('');
+                                    const res = await loginWithPasskey();
+                                    if (res.success) navigate('/admin');
+                                    else { setIsLoading(false); setError(res.error || 'Biometric login failed'); }
+                                  }}
+                                  className="flex-1 px-4 py-2.5 rounded-lg bg-cyan-400/10 border border-cyan-400/30 text-cyan-400 text-xs font-bold uppercase tracking-widest hover:bg-cyan-400/20 transition-all flex items-center justify-center gap-2"
+                                >
+                                  <Fingerprint size={16} />
+                                  Fast Access
+                                </button>
+                              )}
+                      </div>
+                    </div>
+                  </form>
                 </div>
+
               </div>
             </div>
-            )}
 
-            <div className="text-center text-xs text-gray-500 mt-8">
-              <div className="flex items-center justify-center mb-2">
-                <Shield className="w-4 h-4 mr-1" />
-                <span>Secure access for RICORRENZA 2026</span>
+            {/* Bottom Footer Info */}
+            <div className="px-4 sm:px-8 py-3 sm:py-4 border-t border-white/5 bg-black/40 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0 stagger-item">
+              <div className="flex items-center gap-2 text-gray-500 text-[9px] sm:text-[10px] uppercase font-bold tracking-widest">
+                <Shield size={12} className="text-green-500/50" />
+                SSL: Encrypted Tunnel Active
               </div>
-              <p>© 2026 Ricorrenza fest COMMITTEE</p>
+              <div className="text-gray-600 text-[9px] sm:text-[10px] font-mono">
+                {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 15)}...` : 'RICORRENZA OS 2026'}
+              </div>
             </div>
           </div>
+
+          <div className="mt-6 sm:mt-8 text-center stagger-item">
+            <p className="text-gray-500 text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] font-medium opacity-50">
+               © 2026 Ricorrenza Fest Committee
+            </p>
+          </div>
         </div>
-      </section>
+      </div>
 
       <style>{`
-        .cyberpunk-theme {
-          background: #0a0a0a;
-          color: #ffffff;
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-          min-height: 100vh;
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+
+        .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
+
+        .glass-card {
+          background: rgba(15, 15, 20, 0.7);
+          backdrop-filter: blur(25px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 1.25rem;
+          box-shadow: 
+            0 25px 50px -12px rgba(0, 0, 0, 0.5),
+            0 0 40px rgba(34, 211, 238, 0.05),
+            inset 0 0 2px rgba(255, 255, 255, 0.1);
         }
 
-        .hero-section {
-          position: relative;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .cyberpunk-grid {
-          background-image: 
-            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        /* Reduced animations on mobile for performance */
-        @media (max-width: 768px) {
-          .video-3d-effect {
-            animation: none !important;
-          }
-          .cyberpunk-grid {
-            animation: none !important;
-          }
-        }
-
-        /* 3D video floating effect */
-        @keyframes video3DFloat {
-          0%, 100% {
-            transform: translateZ(-50px) scale(1.1) rotateX(0deg);
-          }
-          50% {
-            transform: translateZ(-45px) scale(1.12) rotateX(1deg);
-          }
-        }
-
-        .video-3d-effect {
-          /* Reduced animation for performance */
-          will-change: transform;
-        }
-
-        /* particles CSS removed */
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1);
-            opacity: 0;
-          }
-        }
-
-        .cyberpunk-title {
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .neon-yellow {
-          color: #ffff00;
-          text-shadow: 
-            0 0 2px #ffff00,
-            0 0 4px #ffff00;
-        }
-
-        .neon-green {
-          color: #00ff00;
-          text-shadow: 
-            0 0 2px #00ff00,
-            0 0 4px #00ff00;
-        }
-
-        .cyberpunk-icon-container {
-          position: relative;
-          display: inline-block;
-          padding: 20px;
-          border-radius: 50%;
-        }
-
-        .cyberpunk-card {
-          background: rgba(20, 20, 40, 0.9);
-          border: 1px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
-          backdrop-filter: blur(15px);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .cyberpunk-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
-          animation: borderGlow 3s ease-in-out infinite;
-        }
-
-        @keyframes borderGlow {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-
-        .cyberpunk-input {
+        .input-cyber {
           width: 100%;
-          padding: 12px 16px;
-          background: rgba(0, 0, 0, 0.5);
-          border: 2px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1.5px solid rgba(255, 255, 255, 0.1);
+          border-radius: 0.75rem;
+          padding: 0.75rem 1rem;
           color: white;
-          font-family: 'Orbitron', monospace;
-          transition: all 0.3s ease;
+          font-weight: 500;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .cyberpunk-input:focus {
+        .input-cyber:focus {
           outline: none;
-          border-color: rgba(0, 255, 255, 0.8);
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.3),
-            inset 0 0 10px rgba(0, 255, 255, 0.1);
+          background: rgba(34, 211, 238, 0.03);
+          border-color: rgba(34, 211, 238, 0.5);
+          box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
         }
 
-        .cyberpunk-input::placeholder {
-          color: rgba(255, 255, 255, 0.5);
-        }
-
-        .cyberpunk-btn {
-          position: relative;
-          padding: 12px 32px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border: 2px solid;
-          background: transparent;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
-        }
-
-        .cyberpunk-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .cyberpunk-btn:hover::before {
-          left: 100%;
-        }
-
-        .cyberpunk-btn-primary {
-          border-color: #ffff00;
-          color: #ffff00;
-          box-shadow: 
-            0 0 10px rgba(255, 255, 0, 0.2),
-            inset 0 0 10px rgba(255, 255, 0, 0.05);
-        }
-
-        .cyberpunk-btn-primary:hover {
-          background: rgba(255, 255, 0, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 255, 0, 0.4),
-            inset 0 0 20px rgba(255, 255, 0, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
-        }
-
-        .cyberpunk-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-alert {
-          background: rgba(255, 0, 0, 0.1);
-          border: 1px solid rgba(255, 0, 0, 0.3);
-          border-radius: 8px;
-          padding: 12px;
+        .mode-btn {
           display: flex;
           align-items: center;
+          justify-content: space-between;
+          padding: 0.75rem;
+          border-radius: 0.875rem;
+          border: 1.5px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .scroll-animate {
-          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        .mode-btn:hover {
+          transform: translateX(4px);
+          background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
         }
 
-        .scroll-animate.animate-in {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
+        .mode-btn-compact {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem;
+          border-radius: 0.875rem;
+          border: 1.5px solid rgba(255, 255, 255, 0.1);
+          background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* Card reveal animation */
-        @keyframes cardReveal {
-          0% {
-            opacity: 0;
-            transform: scale(0.9) translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+        .mode-btn-compact:hover {
+           transform: translateY(-4px);
+           background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
         }
 
-        .animate-card-reveal {
-          animation: cardReveal 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-          animation-delay: 0.2s;
-          opacity: 0;
+        .btn-primary-cyber {
+          background: #22d3ee;
+          color: black;
+          padding: 0.75rem;
+          border-radius: 0.75rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 4px 15px rgba(34, 211, 238, 0.3);
         }
 
-        /* Logo pulse animation */
-        @keyframes logoPulse {
-          0%, 100% {
-            transform: scale(1);
-            filter: brightness(1);
-          }
-          50% {
-            transform: scale(1.05);
-            filter: brightness(1.2);
-          }
+        .btn-primary-cyber:hover {
+          background: #ffffff;
+          box-shadow: 0 8px 25px rgba(34, 211, 238, 0.5);
+          transform: translateY(-2px);
         }
 
-        .animate-logo-pulse {
-          animation: logoPulse 3s ease-in-out infinite;
+        .btn-primary-cyber:active { transform: scale(0.98); }
+
+        @keyframes scan {
+          0% { transform: translateY(-100vh); }
+          100% { transform: translateY(100vh); }
         }
+
+        .animate-scan { animation: scan 8s linear infinite; }
+
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
 
         /* Mobile optimizations */
-        @media (max-width: 768px) {
-          .cyberpunk-title {
-            font-size: 1.8rem;
+        @media (max-width: 640px) {
+          .mode-btn, .mode-btn-compact {
+            min-height: 44px; /* iOS touch target minimum */
           }
-          
-          .hero-section h1 {
-            font-size: 2rem !important;
+          .btn-primary-cyber {
+            min-height: 48px;
           }
-          
-          .hero-section p {
-            font-size: 1rem !important;
-          }
-          
-          /* particles CSS removed */
-          
-          .cyberpunk-btn {
-            padding: 10px 24px;
-            font-size: 0.9rem;
-            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 10px 100%);
-          }
-          
-          .cyberpunk-input {
-            padding: 10px 14px;
-            font-size: 0.9rem;
+          .glass-card {
+            border-radius: 1rem;
           }
         }
-        
-        @media (max-width: 480px) {
-          .cyberpunk-title {
-            font-size: 1.5rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 1.8rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 0.9rem !important;
-          }
-          
-          .cyberpunk-btn {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
-          }
-          
-          .cyberpunk-input {
-            padding: 8px 12px;
-            font-size: 0.8rem;
+
+        /* Prevent zoom on input focus (iOS) */
+        @media (max-width: 640px) {
+          input, select, textarea {
+            font-size: 16px !important;
           }
         }
       `}</style>

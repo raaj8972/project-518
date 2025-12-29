@@ -18,7 +18,25 @@ interface ScanRecord {
   pass_type?: string;
 }
 
-
+// Haptic feedback utility
+const triggerHaptic = (type: 'success' | 'error' | 'warning') => {
+  if ('vibrate' in navigator) {
+    switch (type) {
+      case 'success':
+        // Short single vibration for success
+        navigator.vibrate(200);
+        break;
+      case 'error':
+        // Three short bursts for error
+        navigator.vibrate([100, 50, 100, 50, 100]);
+        break;
+      case 'warning':
+        // Two medium bursts for warning (already used)
+        navigator.vibrate([150, 100, 150]);
+        break;
+    }
+  }
+};
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
@@ -85,23 +103,12 @@ export default function SecurityDashboard() {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen to INSERT and DELETE
           schema: 'public',
-          table: 'pass_scans',
-          filter: 'scan_result=eq.valid'
+          table: 'pass_scans'
         },
-        (payload) => {
-          const newScan = payload.new as ScanRecord;
-          // Verify it's for today (IST)
-          const todayIST = new Date(new Date().getTime() + 5.5 * 3600000).toISOString().split('T')[0];
-          const scanDateIST = new Date(new Date(newScan.scanned_at).getTime() + 5.5 * 3600000).toISOString().split('T')[0];
-          
-          if (scanDateIST === todayIST) {
-            setTodayCount(prev => prev + 1);
-            setRecentScans(prev => [newScan, ...prev].slice(0, 10));
-          } else {
-            loadStats();
-          }
+        () => {
+          loadStats();
         }
       )
       .subscribe();
@@ -114,7 +121,7 @@ export default function SecurityDashboard() {
   const loadStats = async () => {
     try {
       // Get today's count (IST)
-      const todayIST = new Date(new Date().getTime() + 5.5 * 3600000).toISOString().split('T')[0];
+      const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); 
       const { data: scans, error } = await supabase
         .from('pass_scans')
         .select('*')
@@ -124,7 +131,7 @@ export default function SecurityDashboard() {
       if (!error && scans) {
         // Filter in JS to ensure IST date correctness across the boundary
         const filtered = scans.filter(s => {
-           const sDateIST = new Date(new Date(s.scanned_at).getTime() + 5.5 * 3600000).toISOString().split('T')[0];
+           const sDateIST = new Date(s.scanned_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
            return sDateIST === todayIST;
         });
         setTodayCount(filtered.length);
@@ -146,15 +153,19 @@ export default function SecurityDashboard() {
       setLastScanResult(data);
       
       if (data.valid) {
+        triggerHaptic('success');
         toast.success(`✓ Valid Entry: ${data.name}`);
         // Reload stats
         loadStats();
       } else {
         if (data.result === 'already_used') {
+          triggerHaptic('warning');
           toast.error(`✗ Already Used: ${data.name}`);
         } else if (data.result === 'inactive') {
+          triggerHaptic('error');
           toast.error('✗ Pass Deactivated');
         } else {
+          triggerHaptic('error');
           toast.error('✗ Invalid Pass');
         }
       }
@@ -163,6 +174,7 @@ export default function SecurityDashboard() {
       setTimeout(() => setLastScanResult(null), 5000);
     } catch (error: any) {
       console.error('Error validating pass:', error);
+      triggerHaptic('error');
       toast.error('Validation failed');
       setLastScanResult({
         valid: false,

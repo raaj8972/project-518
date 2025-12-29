@@ -12,6 +12,8 @@ import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
+import ErrorBoundary from './components/ErrorBoundary';
+import OfflineIndicator from './components/OfflineIndicator';
 
 // Convert heavy/non-critical routes to lazy-loaded to keep the initial bundle small
 const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
@@ -389,17 +391,20 @@ function App() {
   };
 
   return (
-    <AuthProvider>
-      <DataProvider>
-        <ToastProvider>
-          <SavingProgressProvider>
-            <HelmetProvider>
-              <InnerRouter />
-            </HelmetProvider>
-          </SavingProgressProvider>
-        </ToastProvider>
-      </DataProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <DataProvider>
+          <ToastProvider>
+            <SavingProgressProvider>
+              <HelmetProvider>
+                <OfflineIndicator />
+                <InnerRouter />
+              </HelmetProvider>
+            </SavingProgressProvider>
+          </ToastProvider>
+        </DataProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -92,9 +92,11 @@ export const SecurityManagement: React.FC = () => {
     if (data) {
        const usage: Record<string, number[]> = {};
        data.forEach(scan => {
-          const istDate = new Date(new Date(scan.scanned_at).getTime() + 5.5 * 3600000);
-          const date = istDate.toISOString().split('T')[0];
-          const dayIdx = (securitySettings?.event_dates || []).indexOf(date);
+          // Robust IST date extraction
+          const scanDate = new Date(scan.scanned_at);
+          const istDateString = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+          
+          const dayIdx = (securitySettings?.event_dates || []).indexOf(istDateString);
           if (dayIdx !== -1) {
              if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
              if (!usage[scan.pass_id].includes(dayIdx + 1)) {
@@ -134,8 +136,7 @@ export const SecurityManagement: React.FC = () => {
       });
       if (error) throw error;
       toast.success(`Day ${dayNum} entry removed`);
-      fetchPassUsage(); // Reload just usage (checkmark)
-      loadData();       // Reload pass status (VALID/USED badge)
+      await loadData(); // Reload pass status and trigger fetchPassUsage via effect
     } catch (err) {
       console.error(err);
       toast.error('Failed to update scan');
