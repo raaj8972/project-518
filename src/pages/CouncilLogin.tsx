@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, ArrowRight, ShieldCheck } from 'lucide-react';
-import toast from 'react-hot-toast';
 
 export default function CouncilLogin() {
   const [password, setPassword] = useState('');
@@ -11,7 +10,9 @@ export default function CouncilLogin() {
     e.preventDefault();
     if (!password) return;
     sessionStorage.setItem('council_auth', password);
-    navigate('/council-dashboard');
+    React.startTransition(() => {
+      navigate('/council-dashboard');
+    });
   };
 
   return (
@@ -53,7 +54,10 @@ export default function CouncilLogin() {
         </form>
 
          <div className="mt-8 text-center">
-            <button onClick={() => navigate('/')} className="text-gray-500 hover:text-white text-sm transition-colors">
+            <button 
+              onClick={() => React.startTransition(() => navigate('/'))} 
+              className="text-gray-500 hover:text-white text-sm transition-colors"
+            >
               Return to Website
             </button>
          </div>

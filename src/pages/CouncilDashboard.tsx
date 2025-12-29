@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { BarChart3, Users, QrCode, LogOut, Loader2, LayoutDashboard, ChevronRight, ChevronDown, Clock, CheckCircle2 } from 'lucide-react';
@@ -33,7 +33,9 @@ export default function CouncilDashboard() {
   const loadStats = async () => {
     const password = sessionStorage.getItem('council_auth');
     if (!password) {
-      navigate('/council');
+      React.startTransition(() => {
+        navigate('/council');
+      });
       return;
     }
 
@@ -46,7 +48,9 @@ export default function CouncilDashboard() {
       if (err.message?.includes('password') || err.message?.includes('configure') || err.message?.includes('Invalid password')) {
          toast.error(err.message);
          sessionStorage.removeItem('council_auth');
-         navigate('/council');
+         React.startTransition(() => {
+           navigate('/council');
+         });
       } else {
          toast.error('Failed to update stats');
       }
@@ -69,9 +73,11 @@ export default function CouncilDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
+   const handleLogout = () => {
     sessionStorage.removeItem('council_auth');
-    navigate('/council');
+    React.startTransition(() => {
+      navigate('/council');
+    });
   };
 
   if (loading && !stats) {
