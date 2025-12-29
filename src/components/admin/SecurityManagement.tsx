@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Plus, UserPlus, Eye } from 'lucide-react';
+import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 
@@ -26,7 +26,7 @@ interface PassRegistration {
 }
 
 interface VipPass {
-  id: number;
+  id: string;
   pass_id: string;
   participant_name: string | null;
   pass_type: string;
@@ -47,6 +47,7 @@ export const SecurityManagement: React.FC = () => {
   const [showCreateVIP, setShowCreateVIP] = useState(false);
   const [selectedPass, setSelectedPass] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
 
   const [newUser, setNewUser] = useState({
     username: '',
@@ -62,6 +63,65 @@ export const SecurityManagement: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [activeTab]);
+
+  const fetchPassUsage = async () => {
+    if (vipPasses.length === 0) return;
+    const ids = vipPasses.map(p => p.id);
+    const { data } = await supabase.from('pass_scans')
+       .select('pass_id, scanned_at')
+       .in('pass_id', ids)
+       .eq('scan_result', 'valid');
+    
+    if (data) {
+       const usage: Record<string, number[]> = {};
+       data.forEach(scan => {
+          const date = scan.scanned_at.split('T')[0];
+          const dayIdx = (securitySettings?.event_dates || []).indexOf(date);
+          if (dayIdx !== -1) {
+             if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
+             if (!usage[scan.pass_id].includes(dayIdx + 1)) {
+                usage[scan.pass_id].push(dayIdx + 1);
+             }
+          }
+       });
+       setPassUsage(usage);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'vip') {
+      fetchPassUsage();
+    }
+  }, [vipPasses, activeTab, securitySettings]);
+
+  const handleResetPass = async (passId: string) => {
+    if (!window.confirm('Reset this pass? This will clear all entry history and allow it to be used again as new.')) return;
+    try {
+      const { error } = await supabase.rpc('reset_pass_usage', { p_pass_id: passId });
+      if (error) throw error;
+      toast.success('Pass usage reset');
+      loadData(); // Refresh list
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to reset pass');
+    }
+  };
+
+  const handleResetDay = async (passId: string, dateStr: string, dayNum: number) => {
+    if (!window.confirm(`Remove entry record for Day ${dayNum} (${dateStr})?`)) return;
+    try {
+      const { error } = await supabase.rpc('delete_pass_scan_for_date', { 
+        p_pass_id: passId, 
+        p_date: dateStr 
+      });
+      if (error) throw error;
+      toast.success(`Day ${dayNum} entry removed`);
+      fetchPassUsage(); // Reload just usage
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update scan');
+    }
+  };
 
   const updateEntryPassButtonSetting = async (enabled: boolean) => {
     try {
@@ -459,10 +519,10 @@ export const SecurityManagement: React.FC = () => {
               vipPasses.map((pass) => (
                 <div key={pass.id} className="bg-gray-800/30 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="text-white font-semibold">
-                        {pass.participant_name || 'Unnamed VIP'}
-                      </p>
+                      <div>
+                        <p className="text-white font-bold text-lg">
+                          {pass.participant_name || <span className="text-gray-500 italic">Unnamed VIP</span>}
+                        </p>
                       {pass.notes && (
                         <p className="text-gray-400 text-sm">{pass.notes}</p>
                       )}
@@ -472,6 +532,30 @@ export const SecurityManagement: React.FC = () => {
                       <p className="text-xs text-gray-500">
                         Token: {pass.pass_token}
                       </p>
+                      
+                      {/* Day Usage Badges */}
+                      {(securitySettings?.event_dates || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {(securitySettings?.event_dates || []).map((date, idx) => {
+                              const dayNum = idx + 1;
+                              const isUsed = passUsage[pass.id]?.includes(dayNum);
+                              return (
+                                <button key={idx} 
+                                   disabled={!isUsed}
+                                   onClick={() => isUsed && date && handleResetDay(pass.id, date, dayNum)}
+                                   className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-colors ${
+                                    isUsed 
+                                    ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 cursor-pointer' 
+                                    : 'bg-gray-700 text-gray-500 border-gray-600 cursor-default'
+                                }`}
+                                title={isUsed ? "Click to remove this day's entry" : "Not visited"}
+                                >
+                                  Day {dayNum} {isUsed ? '✓' : ''}
+                                </button>
+                              );
+                          })}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span className={`px-3 py-1 rounded-full text-xs ${
@@ -487,10 +571,18 @@ export const SecurityManagement: React.FC = () => {
                   <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => setSelectedPass(pass)}
-                      className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded flex items-center gap-1"
+                      className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-sm"
                     >
-                      <Eye className="w-3 h-3" />
+                      <Eye className="w-4 h-4" />
                       View QR
+                    </button>
+                    <button
+                      onClick={() => handleResetPass(pass.id)}
+                      className="flex items-center gap-1 text-orange-400 hover:text-orange-300 text-sm"
+                      title="Clear scan history"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Reset
                     </button>
                   </div>
                 </div>
@@ -534,6 +626,56 @@ export const SecurityManagement: React.FC = () => {
                 <p className="text-blue-400 text-sm">
                   💡 <strong>Tip:</strong> Disable this toggle when you want to temporarily stop accepting new entry pass registrations, such as when the event is at capacity or registration has closed.
                 </p>
+              </div>
+
+              {/* Event Dates Configuration */}
+              <div className="pt-6 border-t border-gray-700 mt-6">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-purple-500" />
+                  Event Schedule (Multi-day Access)
+                </h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  Define the dates of the event. Passes will be valid for <strong>one entry per day</strong> on each of these dates.
+                </p>
+                <div className="space-y-3">
+                  {(securitySettings?.event_dates || []).map((date, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <span className="text-gray-400 w-16 text-sm font-medium">Day {idx + 1}:</span>
+                      <input
+                        type="date"
+                        value={date}
+                        onChange={(e) => {
+                          const newDates = [...(securitySettings?.event_dates || [])];
+                          newDates[idx] = e.target.value;
+                          updateSecuritySettings({ event_dates: newDates });
+                        }}
+                        className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
+                      />
+                      <button
+                        onClick={() => {
+                          const newDates = (securitySettings?.event_dates || []).filter((_, i) => i !== idx);
+                          updateSecuritySettings({ event_dates: newDates });
+                        }}
+                        className="text-red-400 hover:text-red-300 p-2 hover:bg-gray-700 rounded transition-colors"
+                        title="Remove Day"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      // Default next day to today or last day + 1
+                      const today = new Date().toISOString().split('T')[0];
+                      const newDates = [...(securitySettings?.event_dates || []), today];
+                      updateSecuritySettings({ event_dates: newDates });
+                    }}
+                    className="text-cyan-400 hover:text-cyan-300 text-sm font-medium flex items-center gap-2 mt-2 px-2 py-1 hover:bg-gray-700/50 rounded transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Event Day
+                  </button>
+                </div>
               </div>
             </div>
           </div>

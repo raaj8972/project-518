@@ -2,13 +2,32 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Lock, User } from 'lucide-react';
+import { Shield, Lock, User, ChevronDown } from 'lucide-react';
+
+interface SecurityUserOption {
+  username: string;
+  full_name: string;
+}
 
 export default function SecurityLogin() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<SecurityUserOption[]>([]);
+
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.rpc('get_public_security_users');
+      if (!error && data) {
+        setAvailableUsers(data);
+        if (data.length > 0) {
+          setUsername(data[0].username);
+        }
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,17 +77,38 @@ export default function SecurityLogin() {
             <div>
               <label className="block text-gray-300 mb-2 flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Username
+                {availableUsers.length > 0 ? 'Select Security User' : 'Username'}
               </label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors"
-                placeholder="Enter your username"
-                autoComplete="username"
-              />
+              
+              {availableUsers.length > 0 ? (
+                <div className="relative">
+                  <select
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white appearance-none focus:outline-none focus:border-cyan-500 transition-colors pr-10"
+                  >
+                    {availableUsers.map((u) => (
+                      <option key={u.username} value={u.username} className="bg-gray-800">
+                        {u.full_name} ({u.username})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors"
+                  placeholder="Enter your username"
+                  autoComplete="username"
+                />
+              )}
             </div>
 
             <div>
@@ -97,9 +137,17 @@ export default function SecurityLogin() {
           </form>
 
           <div className="mt-6 pt-6 border-t border-gray-700">
-            <p className="text-gray-400 text-sm text-center">
+            <p className="text-gray-400 text-sm text-center mb-4">
               For security personnel only. If you don't have credentials, contact the admin.
             </p>
+            <div className="flex justify-center">
+              <button
+                onClick={() => navigate('/login')}
+                className="text-cyan-500 hover:text-cyan-400 text-sm font-medium transition-colors"
+              >
+                ← Back to Admin Login
+              </button>
+            </div>
           </div>
         </div>
       </div>

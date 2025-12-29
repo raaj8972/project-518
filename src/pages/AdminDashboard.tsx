@@ -254,39 +254,51 @@ export const AdminDashboard: React.FC = () => {
   }, [autoLogoutEnabled, isAuthenticated, logout, navigate]);
 
   // Tabs and visibility/permissions (computed early so hooks can follow)
+  // Tabs and visibility/permissions (computed early so hooks can follow)
   const tabs = [
-    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3 },
-    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings },
-    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield },
-    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info }] : []),
-    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Owner Approvals', icon: CheckCircle }] : []),
-    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings },
-    { id: 'about' as TabType, name: 'About', icon: Info },
-    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image },
-    { id: 'events' as TabType, name: 'Events', icon: Calendar },
-    { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings },
-    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock },
-    { id: 'gallery' as TabType, name: 'Gallery', icon: Image },
-    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building },
-    { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck },
-    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image },
-    { id: 'categories' as TabType, name: 'Categories', icon: Palette },
-    { id: 'social' as TabType, name: 'Social Media', icon: Share2 },
-    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users },
-    { id: 'core-team' as TabType, name: 'Core Team', icon: Users },
-    { id: 'band' as TabType, name: 'Home Bound Band', icon: Users },
-    { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users },
-    { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star },
-    { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star },
-    { id: 'auditions' as TabType, name: 'Auditions', icon: Users },
-    { id: 'memberships' as TabType, name: 'Memberships', icon: Users },
-    { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings },
-  { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck },
-    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star },
-    { id: 'security' as TabType, name: 'Security', icon: Shield },
-    { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint },
-    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock }] : []),
-    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield }] : []),
+    // Dashboard
+    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'Dashboard' },
+    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'Dashboard' }] : []),
+
+    // Security & System (High priority for admins)
+    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield, group: 'Security & System' },
+    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings, group: 'Security & System' },
+    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Owner Approvals', icon: CheckCircle, group: 'Security & System' }] : []),
+    { id: 'security' as TabType, name: 'Security Settings', icon: Shield, group: 'Security & System' },
+    { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint, group: 'Security & System' },
+    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock, group: 'Security & System' }] : []),
+    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield, group: 'Security & System' }] : []),
+
+    // Content
+    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'Content' },
+    { id: 'about' as TabType, name: 'About', icon: Info, group: 'Content' },
+    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image, group: 'Content' },
+    { id: 'gallery' as TabType, name: 'Gallery', icon: Image, group: 'Content' },
+    { id: 'social' as TabType, name: 'Social Media', icon: Share2, group: 'Content' },
+    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star, group: 'Content' },
+
+    // Events & Schedule
+    { id: 'events' as TabType, name: 'Events', icon: Calendar, group: 'Events & Schedule' },
+    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock, group: 'Events & Schedule' },
+    { id: 'categories' as TabType, name: 'Categories', icon: Palette, group: 'Events & Schedule' },
+    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building, group: 'Events & Schedule' },
+    { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings, group: 'Events & Schedule' },
+
+    // Registrations
+    { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'Registrations' },
+    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image, group: 'Registrations' },
+    { id: 'auditions' as TabType, name: 'Auditions', icon: Users, group: 'Registrations' },
+    { id: 'memberships' as TabType, name: 'Memberships', icon: Users, group: 'Registrations' },
+    { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings, group: 'Registrations' },
+    { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck, group: 'Registrations' },
+
+    // People
+    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users, group: 'People' },
+    { id: 'core-team' as TabType, name: 'Core Team', icon: Users, group: 'People' },
+    { id: 'band' as TabType, name: 'Home Bound Band', icon: Users, group: 'People' },
+    { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users, group: 'People' },
+    { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star, group: 'People' },
+    { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star, group: 'People' },
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -541,68 +553,95 @@ export const AdminDashboard: React.FC = () => {
               </button>
             </div>
             
-            <ul className="space-y-2">
+            <div className="space-y-6 pb-6">
               {visibleTabs.length === 0 && !isOwner && (
-                <li className="text-sm text-gray-600 p-2 rounded bg-gray-50">
+                <div className="text-sm text-gray-600 p-2 rounded bg-gray-50">
                   No sections assigned yet. Ask the owner to grant you access.
-                </li>
+                </div>
               )}
-              {visibleTabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <li key={tab.id}>
-                    <button
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        setIsSidebarOpen(false); // Close sidebar on mobile when tab is selected
-                      }}
-                      className={`w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all active:scale-[0.98] ${
-                        activeTab === tab.id
-                          ? 'bg-yellow-50 text-yellow-700'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
-                      <Icon className={`w-5 h-5 mr-3 flex-shrink-0 ${activeTab === tab.id ? 'text-yellow-500' : 'text-gray-400 group-hover:text-gray-500'}`} />
-                      <span className="flex-1 text-left">{tab.name}</span>
-                      {tab.id === 'registrations' && pendingRegistrations > 0 && (
-                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                          {pendingRegistrations}
-                        </span>
-                      )}
-                      {tab.id === 'auditions' && pendingAuditions > 0 && (
-                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                          {pendingAuditions}
-                        </span>
-                      )}
-                      {tab.id === 'memberships' && pendingMemberships > 0 && (
-                        <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                          {pendingMemberships}
-                        </span>
-                      )}
-                      {tab.id === 'security' && isTOTPEnabled && (
-                        <span className="ml-auto">
-                          <Shield className="w-4 h-4 text-green-600" />
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
               
+              {(() => {
+                const groups: Record<string, typeof visibleTabs> = {};
+                visibleTabs.forEach(tab => {
+                   const g = (tab as any).group || 'Other';
+                   if (!groups[g]) groups[g] = [];
+                   groups[g].push(tab);
+                });
+
+                const groupOrder = ['Dashboard', 'Security & System', 'Content', 'Events & Schedule', 'Registrations', 'People', 'Other'];
+                
+                return groupOrder.map(groupName => {
+                  const tabsInGroup = groups[groupName];
+                  if (!tabsInGroup || tabsInGroup.length === 0) return null;
+
+                  return (
+                    <div key={groupName}>
+                      <h3 className="px-3 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        {groupName}
+                      </h3>
+                      <ul className="space-y-1">
+                        {tabsInGroup.map(tab => {
+                           const Icon = tab.icon;
+                           return (
+                             <li key={tab.id}>
+                               <button
+                                 onClick={() => {
+                                   setActiveTab(tab.id);
+                                   setIsSidebarOpen(false);
+                                 }}
+                                 className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                                   activeTab === tab.id
+                                     ? 'bg-yellow-50 text-yellow-700 shadow-sm'
+                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 indent-0.5'
+                                 }`}
+                               >
+                                 <Icon className={`w-4 h-4 mr-3 flex-shrink-0 ${activeTab === tab.id ? 'text-yellow-600' : 'text-gray-400'}`} />
+                                 <span className="flex-1 text-left truncate">{tab.name}</span>
+                                 
+                                 {tab.id === 'registrations' && pendingRegistrations > 0 && (
+                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    {pendingRegistrations}
+                                  </span>
+                                )}
+                                {tab.id === 'auditions' && pendingAuditions > 0 && (
+                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    {pendingAuditions}
+                                  </span>
+                                )}
+                                {tab.id === 'memberships' && pendingMemberships > 0 && (
+                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
+                                    {pendingMemberships}
+                                  </span>
+                                )}
+                                {tab.id === 'security' && isTOTPEnabled && (
+                                  <span className="ml-auto">
+                                    <Shield className="w-3 h-3 text-green-600" />
+                                  </span>
+                                )}
+                               </button>
+                             </li>
+                           );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                });
+              })()}
+
               {/* Coordinator Access Link */}
-              <li className="pt-2 mt-2 border-t border-gray-200">
+              <div className="pt-4 border-t border-gray-100">
                 <button
                   onClick={() => {
                     navigate('/coordinator');
                     setIsSidebarOpen(false);
                   }}
-                  className="w-full flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-all active:scale-[0.98] text-purple-600 hover:bg-purple-50 hover:text-purple-700"
+                  className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-purple-600 hover:bg-purple-50 transition-colors"
                 >
-                  <Link className="w-5 h-5 mr-3 flex-shrink-0 text-purple-500" />
+                  <Link className="w-4 h-4 mr-3 text-purple-500" />
                   <span className="flex-1 text-left">Coordinator Access</span>
                 </button>
-              </li>
-            </ul>
+              </div>
+            </div>
           </nav>
         </div>
 
