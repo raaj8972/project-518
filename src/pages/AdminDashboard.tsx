@@ -346,6 +346,9 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('homebound');
       allowedIds.add('band');
     }
+    if (myPermissions?.can_security_passes) {
+      allowedIds.add('security-passes');
+    }
     // Only show tabs explicitly allowed (others hidden for non-owners)
     return tabs.filter((t) => allowedIds.has(t.id));
   })();

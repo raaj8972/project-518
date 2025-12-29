@@ -18,6 +18,7 @@ type Flags = Partial<{
   can_guest_artists: boolean;
   can_chief_guests: boolean;
   can_homebound: boolean;
+  can_security_passes: boolean;
 }>;
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
@@ -77,6 +78,7 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
           can_guest_artists: true,
           can_chief_guests: true,
           can_homebound: true,
+          can_security_passes: true,
         }
       : { ...(flags || {}) }
 

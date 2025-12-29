@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Eye, EyeOff, AlertCircle, Shield, Smartphone, Zap, Fingerprint, Users } from 'lucide-react';
+import { Lock, Mail, User, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -274,7 +274,18 @@ export const Login: React.FC = () => {
                 >
                   <span className="relative z-10 flex items-center justify-center">
                     <Users className="mr-2" size={20} />
-                    EVENT COORDINATOR PANEL
+                    EVENT COORDINATOR
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => navigate('/council')}
+                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <BarChart3 className="mr-2" size={20} />
+                    COUNCIL DASHBOARD
                   </span>
                 </button>
               </div>

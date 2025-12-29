@@ -14,7 +14,8 @@ DECLARE
   v_idx INTEGER;
 BEGIN
   v_username := current_user;
-  v_today_str := to_char(CURRENT_DATE, 'YYYY-MM-DD');
+  -- Force IST (Asia/Kolkata) for date comparison
+  v_today_str := to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD');
 
   -- Get Event Dates Config
   SELECT event_dates INTO v_event_dates FROM public.security_settings LIMIT 1;
@@ -37,7 +38,7 @@ BEGIN
        -- Log attempt
        INSERT INTO public.pass_scans (pass_id, scanned_by_username, scan_result, participant_name, pass_type) 
        VALUES (NULL, v_username, v_scan_result, NULL, 'general_entry');
-       RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Entry denied: Not an event day');
+       RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Entry denied: ' || v_today_str || ' is not an event day');
     END IF;
   END IF;
 
@@ -56,12 +57,12 @@ BEGIN
     RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Pass has been deactivated');
   END IF;
 
-  -- Logic: Check if scanned TODAY
+  -- Logic: Check if scanned TODAY (IST)
   SELECT EXISTS (
     SELECT 1 FROM public.pass_scans 
     WHERE pass_id = v_pass.id 
     AND scan_result = 'valid'
-    AND scanned_at::date = CURRENT_DATE
+    AND (scanned_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
   ) INTO v_already_scanned_today;
 
   IF v_already_scanned_today THEN

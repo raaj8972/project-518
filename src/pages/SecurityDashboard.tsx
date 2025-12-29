@@ -92,14 +92,15 @@ export default function SecurityDashboard() {
         },
         (payload) => {
           const newScan = payload.new as ScanRecord;
-          // Verify it's for today (server time vs local time might differ slightly but usually fine)
-          const today = new Date().toISOString().split('T')[0];
-          if (newScan.scanned_at.startsWith(today)) {
+          // Verify it's for today (IST)
+          const todayIST = new Date(new Date().getTime() + 5.5 * 3600000).toISOString().split('T')[0];
+          const scanDateIST = new Date(new Date(newScan.scanned_at).getTime() + 5.5 * 3600000).toISOString().split('T')[0];
+          
+          if (scanDateIST === todayIST) {
             setTodayCount(prev => prev + 1);
             setRecentScans(prev => [newScan, ...prev].slice(0, 10));
           } else {
-             // If timezone edge case, simpler to just reload
-             loadStats();
+            loadStats();
           }
         }
       )
@@ -112,18 +113,22 @@ export default function SecurityDashboard() {
 
   const loadStats = async () => {
     try {
-      // Get today's count
-      const today = new Date().toISOString().split('T')[0];
+      // Get today's count (IST)
+      const todayIST = new Date(new Date().getTime() + 5.5 * 3600000).toISOString().split('T')[0];
       const { data: scans, error } = await supabase
         .from('pass_scans')
         .select('*')
-        .gte('scanned_at', today)
         .eq('scan_result', 'valid')
         .order('scanned_at', { ascending: false });
 
       if (!error && scans) {
-        setTodayCount(scans.length);
-        setRecentScans(scans.slice(0, 10));
+        // Filter in JS to ensure IST date correctness across the boundary
+        const filtered = scans.filter(s => {
+           const sDateIST = new Date(new Date(s.scanned_at).getTime() + 5.5 * 3600000).toISOString().split('T')[0];
+           return sDateIST === todayIST;
+        });
+        setTodayCount(filtered.length);
+        setRecentScans(filtered.slice(0, 10));
       }
     } catch (error) {
       console.error('Error loading stats:', error);

@@ -32,6 +32,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     can_chief_guests?: boolean;
     can_homebound?: boolean;
     can_sports?: boolean;
+    can_security_passes?: boolean;
   }>>({});
   
   // Track approval requirements
@@ -63,6 +64,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
             can_chief_guests: !!r.can_chief_guests,
             can_homebound: !!r.can_homebound,
             can_sports: !!(r as any).can_sports,
+            can_security_passes: !!(r as any).can_security_passes,
           };
         }
         setPerm(map);
@@ -117,6 +119,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
               can_chief_guests: !!row.can_chief_guests,
               can_homebound: !!row.can_homebound,
               can_sports: !!row.can_sports,
+              can_security_passes: !!row.can_security_passes,
             }
           }));
         }
@@ -327,6 +330,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                         ['can_chief_guests', 'Chief Guests'],
                         ['can_homebound', 'Homebound'],
                         ['can_sports', 'Sports Team'],
+                        ['can_security_passes', 'Entry Pass Security'],
                       ] as Array<[keyof typeof perm[string], string]>).map(([key, label]) => (
                         <button
                           key={String(key)}

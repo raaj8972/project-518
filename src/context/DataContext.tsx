@@ -293,6 +293,7 @@ interface DataContextType {
     can_guest_artists?: boolean;
     can_chief_guests?: boolean;
     can_homebound?: boolean;
+    can_security_passes?: boolean;
   } | null;
   // Diagnostics for event reordering failures
   lastEventReorderError?: { phase: string; message?: string; details?: string; hint?: string } | null;
@@ -355,6 +356,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     can_guest_artists?: boolean;
     can_chief_guests?: boolean;
     can_homebound?: boolean;
+    can_security_passes?: boolean;
   } | null>(null);
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1715,6 +1717,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
             can_chief_guests: !!p.can_chief_guests,
             can_homebound: !!p.can_homebound,
             can_sports: !!p.can_sports,
+            can_security_passes: !!p.can_security_passes,
           });
           } else {
             setMyPermissions({});
@@ -2346,6 +2349,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                 can_chief_guests: !!p.can_chief_guests,
                 can_homebound: !!p.can_homebound,
                 can_sports: !!p.can_sports,
+                can_security_passes: !!p.can_security_passes,
               });
             }
           }

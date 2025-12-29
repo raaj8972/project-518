@@ -24,6 +24,9 @@ const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m 
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
 const CoordinatorLogin = React.lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
 const CoordinatorDashboard = React.lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
+const CouncilLogin = React.lazy(() => import('./pages/CouncilLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const CouncilDashboard = React.lazy(() => import('./pages/CouncilDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+
 
 // Security System Pages
 const SecurityLogin = React.lazy(() => import('./pages/SecurityLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
@@ -368,7 +371,10 @@ function App() {
             { path: 'health', element: <Home /> },
             { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
           ]
-        }
+        },
+        // Council Dashboard - Standalone (No AppShell/Navbar)
+        { path: 'council', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilLogin /></React.Suspense> },
+        { path: 'council-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilDashboard /></React.Suspense> }
       ],
       ({
         future: {

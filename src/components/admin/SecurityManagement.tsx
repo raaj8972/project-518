@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw } from 'lucide-react';
+import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw, Lock, CheckCircle2, Clock } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 
@@ -60,6 +60,23 @@ export const SecurityManagement: React.FC = () => {
     notes: '',
   });
 
+  const [councilPassword, setCouncilPassword] = useState('');
+
+  const updateCouncilPassword = async () => {
+    if (!councilPassword.trim()) return toast.error('Enter a password');
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('set_council_password', { p_password: councilPassword });
+      if (error) throw error;
+      toast.success('Council password updated');
+      setCouncilPassword('');
+    } catch (err: any) {
+       toast.error(err.message || 'Failed to update');
+    } finally {
+       setLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
@@ -75,7 +92,8 @@ export const SecurityManagement: React.FC = () => {
     if (data) {
        const usage: Record<string, number[]> = {};
        data.forEach(scan => {
-          const date = scan.scanned_at.split('T')[0];
+          const istDate = new Date(new Date(scan.scanned_at).getTime() + 5.5 * 3600000);
+          const date = istDate.toISOString().split('T')[0];
           const dayIdx = (securitySettings?.event_dates || []).indexOf(date);
           if (dayIdx !== -1) {
              if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
@@ -116,7 +134,8 @@ export const SecurityManagement: React.FC = () => {
       });
       if (error) throw error;
       toast.success(`Day ${dayNum} entry removed`);
-      fetchPassUsage(); // Reload just usage
+      fetchPassUsage(); // Reload just usage (checkmark)
+      loadData();       // Reload pass status (VALID/USED badge)
     } catch (err) {
       console.error(err);
       toast.error('Failed to update scan');
@@ -177,6 +196,19 @@ export const SecurityManagement: React.FC = () => {
     }
   };
 
+  const handleDeleteSecurityUser = async (id: number, username: string) => {
+    if (!window.confirm(`Are you sure you want to delete the security user "@${username}"?`)) return;
+    try {
+      const { error } = await supabase.rpc('delete_security_user', { p_user_id: id });
+      if (error) throw error;
+      toast.success('Security user deleted');
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete user');
+    }
+  };
+
   const handleApprovePass = async (passRegId: string) => {
     setLoading(true);
 
@@ -234,6 +266,33 @@ export const SecurityManagement: React.FC = () => {
       toast.error(error.message || 'Failed to create VIP pass');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePassRegistration = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete the registration for "${name}"? This will also delete any generated pass.`)) return;
+    try {
+      const { error } = await supabase.rpc('delete_pass_registration', { p_reg_id: id });
+      if (error) throw error;
+      toast.success('Registration deleted');
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete registration');
+    }
+  };
+
+  const handleDeleteVIPPass = async (id: string, name: string | null) => {
+    const displayName = name || 'Unnamed VIP';
+    if (!window.confirm(`Are you sure you want to delete the VIP pass for "${displayName}"? All scan records will be lost.`)) return;
+    try {
+      const { error } = await supabase.rpc('delete_entry_pass', { p_pass_id: id });
+      if (error) throw error;
+      toast.success('VIP pass deleted');
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to delete pass');
     }
   };
 
@@ -383,6 +442,13 @@ export const SecurityManagement: React.FC = () => {
                 }`}>
                   {user.is_active ? 'Active' : 'Inactive'}
                 </span>
+                <button
+                  onClick={() => handleDeleteSecurityUser(user.id, user.username)}
+                  className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  title="Delete User"
+                >
+                  <Trash className="w-4 h-4" />
+                </button>
               </div>
               ))}
             </div>
@@ -452,6 +518,14 @@ export const SecurityManagement: React.FC = () => {
                       View QR
                   </button>
                   )}
+                  <button
+                    onClick={() => handleDeletePassRegistration(reg.id, reg.full_name)}
+                    className="px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-sm rounded flex items-center gap-1 transition-colors border border-red-500/20"
+                    title="Permanent Delete"
+                  >
+                    <Trash className="w-3 h-3" />
+                    Delete
+                  </button>
                 </div>
               </div>
               ))}
@@ -550,7 +624,12 @@ export const SecurityManagement: React.FC = () => {
                                 }`}
                                 title={isUsed ? "Click to remove this day's entry" : "Not visited"}
                                 >
-                                  Day {dayNum} {isUsed ? '✓' : ''}
+                                  <span className="opacity-80">Day {dayNum}</span>
+                                  {isUsed ? (
+                                    <CheckCircle2 className="w-2.5 h-2.5" />
+                                  ) : (
+                                    <Clock className="w-2.5 h-2.5 opacity-40" />
+                                  )}
                                 </button>
                               );
                           })}
@@ -583,6 +662,14 @@ export const SecurityManagement: React.FC = () => {
                     >
                       <RefreshCw className="w-4 h-4" />
                       Reset
+                    </button>
+                    <button
+                      onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
+                      className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm ml-auto"
+                      title="Permanent Delete"
+                    >
+                      <Trash className="w-4 h-4" />
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -665,7 +752,6 @@ export const SecurityManagement: React.FC = () => {
                   ))}
                   <button
                     onClick={() => {
-                      // Default next day to today or last day + 1
                       const today = new Date().toISOString().split('T')[0];
                       const newDates = [...(securitySettings?.event_dates || []), today];
                       updateSecuritySettings({ event_dates: newDates });
@@ -677,8 +763,36 @@ export const SecurityManagement: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Council Access */}
+              <div className="pt-6 border-t border-gray-700 mt-6">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-purple-500" />
+                  Council Dashboard Access
+                </h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  Set a secure password for the Council Dashboard. This dashboard allows counting registrations and scans by batch/year.
+                </p>
+                <div className="flex gap-2 max-w-md">
+                  <input 
+                    type="text" 
+                    value={councilPassword}
+                    onChange={e => setCouncilPassword(e.target.value)}
+                    placeholder="Set Council Password"
+                    className="bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded flex-1 focus:outline-none focus:border-purple-500"
+                  />
+                  <button 
+                    onClick={updateCouncilPassword}
+                    disabled={loading}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
         </div>
       )}
       {/* QR Modal */}

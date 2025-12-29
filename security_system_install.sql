@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS public.pass_scans (
   pass_id UUID REFERENCES public.entry_passes(id) ON DELETE CASCADE,
   scanned_by_username TEXT NOT NULL,
   scanned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  scan_result TEXT NOT NULL CHECK (scan_result IN ('valid', 'already_used', 'invalid', 'inactive')),
+  scan_result TEXT NOT NULL CHECK (scan_result IN ('valid', 'already_used', 'invalid', 'inactive', 'invalid_date')),
   participant_name TEXT,
   pass_type public.pass_type
 );
@@ -134,11 +134,14 @@ DECLARE
   v_date_item TEXT;
   v_idx INTEGER;
 BEGIN
-  v_username := current_user;
-  v_today_str := to_char(CURRENT_DATE, 'YYYY-MM-DD');
+  v_username := COALESCE(current_setting('request.jwt.claims', true)::json->>'email', current_user);
+  -- Force IST (Asia/Kolkata) for date comparison
+  v_today_str := to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD');
 
+  -- Get Event Dates Config
   SELECT event_dates INTO v_event_dates FROM public.security_settings LIMIT 1;
   
+  -- Determine "Day X" and Strict Check
   IF v_event_dates IS NOT NULL AND jsonb_array_length(v_event_dates) > 0 THEN
     v_idx := 1;
     FOR v_date_item IN SELECT * FROM jsonb_array_elements_text(v_event_dates)
@@ -149,10 +152,14 @@ BEGIN
       END IF;
       v_idx := v_idx + 1;
     END LOOP;
+
+    -- STRICT CHECK: If dates are configured but today is NOT one of them
     IF v_day_number = 0 THEN
        v_scan_result := 'invalid_date';
-       INSERT INTO public.pass_scans (pass_id, scanned_by_username, scan_result, participant_name, pass_type) VALUES (NULL, v_username, v_scan_result, NULL, 'general_entry');
-       RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Entry denied: Not an event day');
+       -- Log attempt
+       INSERT INTO public.pass_scans (pass_id, scanned_by_username, scan_result, participant_name, pass_type) 
+       VALUES (NULL, v_username, v_scan_result, NULL, 'general_entry');
+       RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Entry denied: ' || v_today_str || ' is not an event day');
     END IF;
   END IF;
 
@@ -171,25 +178,39 @@ BEGIN
     RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Pass has been deactivated');
   END IF;
 
+  -- Logic: Check if scanned TODAY (IST)
   SELECT EXISTS (
     SELECT 1 FROM public.pass_scans 
     WHERE pass_id = v_pass.id 
     AND scan_result = 'valid'
-    AND scanned_at::date = CURRENT_DATE
+    AND (scanned_at AT TIME ZONE 'Asia/Kolkata')::date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
   ) INTO v_already_scanned_today;
 
   IF v_already_scanned_today THEN
     v_scan_result := 'already_used';
     INSERT INTO public.pass_scans (pass_id, scanned_by_username, scan_result, participant_name, pass_type)
     VALUES (v_pass.id, v_username, v_scan_result, v_pass.participant_name, v_pass.pass_type);
-    RETURN json_build_object('valid', false, 'result', v_scan_result, 'message', 'Pass already used for Day ' || v_day_number, 'name', COALESCE(v_pass.participant_name, 'Unknown'));
+    RETURN json_build_object(
+      'valid', false, 
+      'result', v_scan_result, 
+      'message', 'Pass already used for Day ' || v_day_number, 
+      'name', COALESCE(v_pass.participant_name, 'Unknown')
+    );
   END IF;
 
+  -- 5. Success
   v_scan_result := 'valid';
   UPDATE public.entry_passes SET is_used = true WHERE id = v_pass.id; 
   INSERT INTO public.pass_scans (pass_id, scanned_by_username, scan_result, participant_name, pass_type)
   VALUES (v_pass.id, v_username, v_scan_result, v_pass.participant_name, v_pass.pass_type);
-  RETURN json_build_object('valid', true, 'result', v_scan_result, 'message', 'Valid Entry' || v_day_label, 'name', COALESCE(v_pass.participant_name, 'VIP Guest'), 'pass_type', v_pass.pass_type);
+  
+  RETURN json_build_object(
+    'valid', true, 
+    'result', v_scan_result, 
+    'message', 'Valid Entry' || v_day_label, 
+    'name', COALESCE(v_pass.participant_name, 'VIP Guest'), 
+    'pass_type', v_pass.pass_type
+  );
 END; $func$;
 
 CREATE OR REPLACE FUNCTION public.create_vip_pass(p_name TEXT DEFAULT NULL, p_notes TEXT DEFAULT NULL)
@@ -249,6 +270,85 @@ GRANT EXECUTE ON FUNCTION public.create_vip_pass TO authenticated;
 GRANT EXECUTE ON FUNCTION public.approve_pass_registration TO authenticated;
 GRANT EXECUTE ON FUNCTION public.reset_pass_usage TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_pass_scan_for_date TO authenticated;
+
+-- Council Dashboard Support
+ALTER TABLE public.security_settings ADD COLUMN IF NOT EXISTS council_password_hash TEXT;
+
+CREATE OR REPLACE FUNCTION public.set_council_password(p_password TEXT)
+RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $func$
+DECLARE v_is_admin BOOLEAN;
+BEGIN
+  SELECT EXISTS (SELECT 1 FROM public.admin_users WHERE user_id = auth.uid()) INTO v_is_admin;
+  IF NOT v_is_admin THEN RAISE EXCEPTION 'Only admins can set council password'; END IF;
+  UPDATE public.security_settings SET council_password_hash = crypt(p_password, gen_salt('bf')) WHERE id = 1;
+  RETURN json_build_object('success', true);
+END; $func$;
+
+CREATE OR REPLACE FUNCTION public.get_council_dashboard_stats(p_password TEXT)
+RETURNS JSON LANGUAGE plpgsql SECURITY DEFINER AS $func$
+DECLARE 
+  v_settings RECORD;
+  v_total_regs INTEGER;
+  v_scan_stats JSONB;
+  v_batch_stats JSONB;
+  v_event_stats JSONB;
+BEGIN
+  -- 1. Verify Password
+  SELECT * INTO v_settings FROM public.security_settings WHERE id = 1;
+  
+  IF v_settings.council_password_hash IS NULL THEN
+     RAISE EXCEPTION 'Council access not configured';
+  END IF;
+
+  IF v_settings.council_password_hash != crypt(p_password, v_settings.council_password_hash) THEN
+     RAISE EXCEPTION 'Invalid password';
+  END IF;
+
+  -- 2. Get Total Registrations (Pending + Approved)
+  SELECT COUNT(*) INTO v_total_regs 
+  FROM public.registrations 
+  WHERE status IN ('pending', 'approved')
+  AND deleted_at IS NULL;
+
+  -- 3. Get Batch Stats (Group by participant_type)
+  SELECT json_agg(t) INTO v_batch_stats FROM (
+    SELECT COALESCE(participant_type, 'Other') as batch, COUNT(*) as count
+    FROM public.registrations
+    WHERE status IN ('pending', 'approved')
+    AND deleted_at IS NULL
+    GROUP BY COALESCE(participant_type, 'Other')
+    ORDER BY count DESC
+  ) t;
+
+  -- 4. Get Event Stats (Robust Join + Fallbacks)
+  SELECT json_agg(t) INTO v_event_stats FROM (
+    SELECT 
+      COALESCE(e.title, r.event_title, 'General/Other') as event_name, 
+      COUNT(r.id) as count
+    FROM public.registrations r
+    LEFT JOIN public.events e ON r.event_id = e.id
+    WHERE r.status IN ('pending', 'approved')
+    AND r.deleted_at IS NULL
+    GROUP BY COALESCE(e.title, r.event_title, 'General/Other')
+    ORDER BY count DESC
+  ) t;
+
+  -- 5. Get Scan Stats
+  SELECT json_build_object(
+    'total_valid', (SELECT COUNT(*) FROM public.pass_scans WHERE scan_result = 'valid'),
+    'valid_today', (SELECT COUNT(*) FROM public.pass_scans WHERE scan_result = 'valid' AND scanned_at::date = CURRENT_DATE)
+  ) INTO v_scan_stats;
+
+  RETURN json_build_object(
+    'total_registrations', v_total_regs,
+    'batch_stats', COALESCE(v_batch_stats, '[]'::jsonb),
+    'event_stats', COALESCE(v_event_stats, '[]'::jsonb),
+    'scan_stats', v_scan_stats
+  );
+END; $func$;
+
+GRANT EXECUTE ON FUNCTION public.set_council_password(TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_council_dashboard_stats(TEXT) TO anon, authenticated;
 
 -- Function to get public list of security users (for login dropdown)
 CREATE OR REPLACE FUNCTION public.get_public_security_users()
