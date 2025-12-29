@@ -258,6 +258,17 @@ export const Login: React.FC = () => {
                 
                 <button
                   type="button"
+                  onClick={() => navigate('/security-login')}
+                  className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
+                >
+                  <span className="relative z-10 flex items-center justify-center">
+                    <Shield className="mr-2" size={20} />
+                    SECURITY LOGIN
+                  </span>
+                </button>
+                
+                <button
+                  type="button"
                   onClick={() => navigate('/coordinator')}
                   className="cyberpunk-btn cyberpunk-btn-secondary w-full max-w-[300px]"
                 >

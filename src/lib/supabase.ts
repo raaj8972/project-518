@@ -1511,6 +1511,163 @@ export interface Database {
           updated_at?: string
         }
       }
+      security_users: {
+        Row: {
+          id: number
+          username: string
+          password_hash: string
+          full_name: string
+          is_active: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          username: string
+          password_hash: string
+          full_name: string
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          username?: string
+          password_hash?: string
+          full_name?: string
+          is_active?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      pass_registrations: {
+        Row: {
+          id: string
+          full_name: string
+          email: string
+          phone: string
+          status: 'pending' | 'approved' | 'rejected'
+          rejection_reason: string | null
+          created_at: string
+          updated_at: string
+          approved_by: string | null
+          approved_at: string | null
+        }
+        Insert: {
+          id?: string
+          full_name: string
+          email: string
+          phone: string
+          status?: 'pending' | 'approved' | 'rejected'
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+          approved_by?: string | null
+          approved_at?: string | null
+        }
+        Update: {
+          id?: string
+          full_name?: string
+          email?: string
+          phone?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          rejection_reason?: string | null
+          created_at?: string
+          updated_at?: string
+          approved_by?: string | null
+          approved_at?: string | null
+        }
+      }
+      entry_passes: {
+        Row: {
+          id: string
+          pass_token: string
+          pass_type: 'event_registration' | 'general_entry' | 'vip'
+          event_registration_id: string | null
+          pass_registration_id: string | null
+          participant_name: string | null
+          notes: string | null
+          is_used: boolean
+          is_active: boolean
+          created_at: string
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          pass_token: string
+          pass_type: 'event_registration' | 'general_entry' | 'vip'
+          event_registration_id?: string | null
+          pass_registration_id?: string | null
+          participant_name?: string | null
+          notes?: string | null
+          is_used?: boolean
+          is_active?: boolean
+          created_at?: string
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          pass_token?: string
+          pass_type?: 'event_registration' | 'general_entry' | 'vip'
+          event_registration_id?: string | null
+          pass_registration_id?: string | null
+          participant_name?: string | null
+          notes?: string | null
+          is_used?: boolean
+          is_active?: boolean
+          created_at?: string
+          created_by?: string | null
+        }
+      }
+      pass_scans: {
+        Row: {
+          id: number
+          pass_id: string
+          scanned_by_username: string
+          scanned_at: string
+          scan_result: 'valid' | 'already_used' | 'invalid' | 'inactive'
+          participant_name: string | null
+          pass_type: 'event_registration' | 'general_entry' | 'vip' | null
+        }
+        Insert: {
+          id?: number
+          pass_id: string
+          scanned_by_username: string
+          scanned_at?: string
+          scan_result: 'valid' | 'already_used' | 'invalid' | 'inactive'
+          participant_name?: string | null
+          pass_type?: 'event_registration' | 'general_entry' | 'vip' | null
+        }
+        Update: {
+          id?: number
+          pass_id?: string
+          scanned_by_username?: string
+          scanned_at?: string
+          scan_result?: 'valid' | 'already_used' | 'invalid' | 'inactive'
+          participant_name?: string | null
+          pass_type?: 'event_registration' | 'general_entry' | 'vip' | null
+        }
+      }
+      security_settings: {
+        Row: {
+          id: number
+          entry_pass_button_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          entry_pass_button_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          entry_pass_button_enabled?: boolean
+          updated_at?: string
+        }
+      }
+      }
     }
   }
-}

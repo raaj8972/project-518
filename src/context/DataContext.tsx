@@ -59,6 +59,7 @@ export interface GallerySettings {
 export type RoadmapMilestone = Database['public']['Tables']['roadmap_milestones']['Row'];
 export type HeroMedia = Database['public']['Tables']['hero_media']['Row'];
 export type PageKey = HeroMedia['page_key'];
+export type SecuritySettings = Database['public']['Tables']['security_settings']['Row'];
 
 // Safe defaults when gallery_settings table isn't present yet
 const DEFAULT_GALLERY_SETTINGS: GallerySettings = {
@@ -101,6 +102,8 @@ interface DataContextType {
   siteSettings: SiteSettings | null;
   aboutSettings: AboutSettings | null;
   gallerySettings: GallerySettings | null;
+  securitySettings: SecuritySettings | null;
+  updateSecuritySettings: (settings: Partial<SecuritySettings>) => Promise<void>;
   roadmapMilestones: RoadmapMilestone[];
   heroMedia: Partial<Record<PageKey, HeroMedia | null>>;
   loading: boolean;
@@ -338,6 +341,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(null);
+  const [securitySettings, setSecuritySettings] = useState<SecuritySettings | null>(null);
   const [myPermissions, setMyPermissions] = useState<{
     can_events?: boolean;
     can_schedule?: boolean;
@@ -1189,6 +1193,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         formSettingsRes,
         eventCategoriesRes,
         scheduleDaysRes, // Schedule is critical for "Live Now" features
+        securitySettingsRes,
         notificationsRes
       ] = await Promise.all([
         // Events (ordered)
@@ -1208,6 +1213,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         supabase.from('form_settings').select('*').eq('id', 1).single(),
         supabase.from('event_categories').select('*'),
         supabase.from('schedule_days').select('*, schedule_events (*)').order('date', { ascending: true }),
+        supabase.from('security_settings').select('*').eq('id', 1).maybeSingle(),
         // Notifications
         (async () => {
           const nowIso = new Date().toISOString();
@@ -1254,6 +1260,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       if (!siteSettingsRes.error) setSiteSettings(siteSettingsRes.data || null);
       if (!formSettingsRes.error) setFormSettings(formSettingsRes.data || null);
       if (!eventCategoriesRes.error) setEventCategories(eventCategoriesRes.data || []);
+      // Security Settings
+      // @ts-ignore
+      if (!securitySettingsRes.error) setSecuritySettings(securitySettingsRes.data || null);
       
       // Schedule
       if (!scheduleDaysRes.error) {
@@ -4559,6 +4568,30 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   await fetchData(true);
   };
 
+
+  // Security Settings Management
+  const updateSecuritySettings = async (settings: Partial<SecuritySettings>) => {
+    // Upsert singleton row (id=1)
+    const payload: Partial<SecuritySettings> & { id: number } = { id: 1, ...settings } as any;
+    
+    // Optimistic UI Update
+    setSecuritySettings(prev => prev ? { ...prev, ...settings } : { id: 1, entry_pass_button_enabled: true, updated_at: new Date().toISOString(), ...settings } as any);
+
+    let { error } = await supabase
+      .from('security_settings')
+      .upsert(payload as any, { onConflict: 'id' });
+
+    if (error) {
+      // Revert optimistic update
+      console.error('Failed to update security settings:', error);
+      // Fetch fresh to reset
+      const { data } = await supabase.from('security_settings').select('*').eq('id', 1).maybeSingle();
+      // @ts-ignore
+      setSecuritySettings(data);
+      throw error;
+    }
+  };
+
   // Homepage Settings Management
   const updateHomepageSettings = async (settings: Partial<HomepageSettings>) => {
     // Upsert singleton row (id=1) for resilience if it was ever deleted
@@ -4779,6 +4812,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   aboutSettings,
   homeboundSettings,
   gallerySettings,
+  securitySettings,
+  updateSecuritySettings,
   roadmapMilestones,
         heroMedia,
         loading,

@@ -25,6 +25,12 @@ const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m 
 const CoordinatorLogin = React.lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
 const CoordinatorDashboard = React.lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
 
+// Security System Pages
+const SecurityLogin = React.lazy(() => import('./pages/SecurityLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const SecurityDashboard = React.lazy(() => import('./pages/SecurityDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const PassRegistration = React.lazy(() => import('./pages/PassRegistration').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const PassDownload = React.lazy(() => import('./pages/PassDownload').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+
 const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
 const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
 
@@ -190,6 +196,7 @@ function App() {
     const location = useLocation();
     const isAdminRoute = location.pathname.startsWith('/admin');
     const isLoginRoute = location.pathname === '/login';
+    const isSecurityRoute = location.pathname.startsWith('/security-');
     const isHealthRoute = location.pathname === '/health';
     const { user } = useAuth();
     const { siteSettings, loading, adminUsers } = useData();
@@ -270,11 +277,11 @@ function App() {
           ) : (
             <>
               {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
-              {!isAdminRoute && <NotificationsPanel />}
-              {/* Hide public site chrome on admin pages to avoid overlap */}
-              {!isAdminRoute && !location.pathname.startsWith('/coordinator/dashboard') && <div className="relative z-50"><Navbar /></div>}
+              {!isAdminRoute && !isSecurityRoute && <NotificationsPanel />}
+              {/* Hide public site chrome on admin and security pages to avoid overlap */}
+              {!isAdminRoute && !isSecurityRoute && !location.pathname.startsWith('/coordinator/dashboard') && <div className="relative z-50"><Navbar /></div>}
                   <Outlet />
-              {!isAdminRoute && <Footer />}
+              {!isAdminRoute && !isSecurityRoute && <Footer />}
               {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
                   We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
               {splashVisible && (
@@ -354,6 +361,10 @@ function App() {
             { path: 'coordinator', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorLogin /></React.Suspense> },
             { path: 'coordinator/dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorDashboard /></React.Suspense> },
             { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
+            { path: 'security-login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityLogin /></React.Suspense> },
+            { path: 'security-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityDashboard /></React.Suspense> },
+            { path: 'pass-registration', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassRegistration /></React.Suspense> },
+            { path: 'pass-download', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassDownload /></React.Suspense> },
             { path: 'health', element: <Home /> },
             { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
           ]

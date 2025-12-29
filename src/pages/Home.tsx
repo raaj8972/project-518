@@ -1,6 +1,7 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Calendar, Users, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon } from 'lucide-react';
+import { Calendar, Users, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon, Ticket } from 'lucide-react';
+
 
 import { useData } from '../context/DataContext';
 import { MembershipModal } from '../components/MembershipModal';
@@ -66,6 +67,7 @@ export const Home: React.FC = () => {
     homepageSettings,
     formSettings,
     aboutSettings,
+    securitySettings,
     loading
   } = useData();
   
@@ -82,7 +84,8 @@ export const Home: React.FC = () => {
     facultyHeads: facultyHeads?.length || 0,
     socialMediaSettings: !!socialMediaSettings,
     homepageSettings: !!homepageSettings,
-    formSettings: !!formSettings
+    formSettings: !!formSettings,
+    securitySettings: !!securitySettings
   });
   
   
@@ -95,6 +98,7 @@ export const Home: React.FC = () => {
   const [glitchActive] = useState(false);
   // Defer mounting heavy interactive sections until browser is idle to improve initial load
   const [showInteractive, setShowInteractive] = useState(false);
+  
   useEffect(() => {
     let idleId: number | null = null;
     if (typeof (window as any).requestIdleCallback === 'function') {
@@ -417,7 +421,7 @@ export const Home: React.FC = () => {
               {homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity'}
             </p>
             
-            <div className="flex justify-center items-center">
+            <div className="flex flex-wrap justify-center items-center gap-4">
               <a
                 href="/events"
                 className="cyberpunk-btn cyberpunk-btn-primary group hover-float"
@@ -427,6 +431,18 @@ export const Home: React.FC = () => {
                   EXPLORE EVENTS
                 </span>
               </a>
+              
+              {securitySettings?.entry_pass_button_enabled && (
+                <Link
+                  to="/pass-registration"
+                  className="cyberpunk-btn cyberpunk-btn-secondary group hover-float"
+                >
+                  <span className="relative z-10 flex items-center">
+                    <Ticket className="mr-2 group-hover:animate-pulse" size={20} />
+                    REGISTER FOR ENTRY PASS
+                  </span>
+                </Link>
+              )}
             </div>
           </div>
         </div>

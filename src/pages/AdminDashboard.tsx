@@ -65,8 +65,9 @@ import { useAdminMessages } from '../hooks/useAdminMessages';
 import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
 const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
+const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -152,7 +153,8 @@ export const AdminDashboard: React.FC = () => {
       'admin-users': 'Admin Users',
       notifications: 'Notifications',
       'owner-approvals': 'Owner Approvals',
-      'coordinator-passwords': 'Coordinator Passwords'
+      'coordinator-passwords': 'Coordinator Passwords',
+      'security-passes': 'Entry Pass Security'
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
   }, [activeTab, updatePresence]);
@@ -284,6 +286,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'security' as TabType, name: 'Security', icon: Shield },
     { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint },
     ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock }] : []),
+    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield }] : []),
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -880,6 +883,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'biometric-login' && <BiometricLogin />}
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
+            {activeTab === 'security-passes' && <SecurityManagement />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}
