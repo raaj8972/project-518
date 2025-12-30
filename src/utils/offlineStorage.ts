@@ -1,0 +1,350 @@
+/**
+ * Offline Storage Utilities
+ * 
+ * High-level functions for managing offline pass validation
+ */
+
+import { supabase } from '../lib/supabase';
+import { registerBackgroundSync, isBackgroundSyncSupported } from './backgroundSync';
+import { evaluateRules, DEFAULT_RULES } from './validationRules';
+import {
+  storePasses,
+  getPassByToken,
+  markPassAsUsedLocally,
+  queueScan,
+  getPendingScans,
+  isInPendingQueue,
+  markScanAsSynced,
+  incrementSyncAttempts,
+  getSyncMetadata,
+  setLastSyncTime,
+  clearAllPasses,
+  getDBStats,
+  validateCacheIntegrity,
+  type EntryPass
+} from './offlineDB';
+
+/**
+ * Sync passes from Supabase to local IndexedDB
+ */
+export async function syncPassesFromServer(): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    console.log('🔄 Syncing passes from server...');
+    
+    // Fetch ALL passes from Supabase (not just active ones)
+    // This ensures we can validate inactive/used passes offline too
+    const { data: passes, error } = await supabase
+      .from('entry_passes')
+      .select('pass_token, participant_name, pass_type, is_active, is_used, created_at');
+
+    if (error) throw error;
+
+    if (!passes || passes.length === 0) {
+      console.warn('⚠️ No passes found in database');
+      return {
+        success: false,
+        count: 0,
+        error: 'No passes found. Please create passes first from Admin Dashboard.'
+      };
+    }
+
+    // Clear old passes and store new ones
+    await clearAllPasses();
+    await storePasses(passes as EntryPass[]);
+
+    // Update sync metadata
+    await setLastSyncTime(Date.now());
+
+    console.log(`✅ Synced ${passes.length} passes from server (${passes.filter(p => p.is_active).length} active)`);
+    
+    return {
+      success: true,
+      count: passes.length
+    };
+  } catch (error: any) {
+    console.error('❌ Failed to sync passes from server:', error);
+    return {
+      success: false,
+      count: 0,
+      error: error.message || 'Sync failed'
+    };
+  }
+}
+
+/**
+ * Validate pass offline using local cache
+ */
+export async function validatePassOffline(
+  token: string,
+  securityUsername: string
+): Promise<{
+  valid: boolean;
+  result: 'valid' | 'invalid' | 'already_used' | 'inactive' | 'error';
+  message: string;
+  name?: string;
+  pass_type?: string;
+}> {
+  try {
+    // Check cache integrity first
+    const cacheCheck = await validateCacheIntegrity();
+    if (!cacheCheck.valid) {
+      return {
+        valid: false,
+        result: 'error',
+        message: cacheCheck.message
+      };
+    }
+
+    // Check if pass exists in local cache
+    const pass = await getPassByToken(token);
+    
+    if (!pass) {
+      return {
+        valid: false,
+        result: 'invalid',
+        message: 'Invalid pass'
+      };
+    }
+
+    // Check if pass is inactive
+    if (!pass.is_active) {
+      return {
+        valid: false,
+        result: 'inactive',
+        message: 'Pass deactivated',
+        name: pass.participant_name
+      };
+    }
+
+    // Check if already used locally
+    if (pass.is_used) {
+      return {
+        valid: false,
+        result: 'already_used',
+        message: `Already used: ${pass.participant_name}`,
+        name: pass.participant_name
+      };
+    }
+
+    // Check if in pending queue (scanned offline but not synced yet)
+    const pendingScan = await isInPendingQueue(token);
+    if (pendingScan) {
+      const scanTime = new Date(pendingScan.timestamp).toLocaleTimeString();
+      return {
+        valid: false,
+        result: 'already_used',
+        message: `Already scanned at ${scanTime}`,
+        name: pass.participant_name
+      };
+    }
+
+    // ✅ VALID - Queue scan and mark as used locally
+    await queueScan({
+      pass_token: token,
+      participant_name: pass.participant_name,
+      pass_type: pass.pass_type,
+      timestamp: new Date().toISOString(),
+      security_username: securityUsername,
+      validation_method: 'offline',
+      result: 'valid',
+      device_info: navigator.userAgent
+    });
+
+    // Register background sync if supported
+    if (isBackgroundSyncSupported()) {
+      await registerBackgroundSync('sync-scans');
+      console.log('📡 Background sync registered for automatic upload');
+    }
+
+    await markPassAsUsedLocally(token);
+
+    console.log(`✅ Offline validation successful: ${pass.participant_name}`);
+
+    return {
+      valid: true,
+      result: 'valid',
+      message: 'Valid entry',
+      name: pass.participant_name,
+      pass_type: pass.pass_type
+    };
+  } catch (error: any) {
+    console.error('❌ Offline validation error:', error);
+    return {
+      valid: false,
+      result: 'error',
+      message: 'Validation error occurred'
+    };
+  }
+}
+
+/**
+ * Sync pending scans to server
+ */
+export async function syncPendingScansToServer(
+  _securityUsername: string // Reserved for future conflict resolution
+): Promise<{ success: boolean; synced: number; failed: number }> {
+  try {
+    const pending = await getPendingScans();
+    
+    if (pending.length === 0) {
+      console.log('ℹ️ No pending scans to sync');
+      return { success: true, synced: 0, failed: 0 };
+    }
+
+    console.log(`🔄 Syncing ${pending.length} pending scans...`);
+
+    let synced = 0;
+    let failed = 0;
+
+    for (const scan of pending) {
+      try {
+        // Upload scan to pass_scans table
+        const { error } = await supabase
+          .from('pass_scans')
+          .insert({
+            pass_token: scan.pass_token,
+            participant_name: scan.participant_name,
+            scan_result: scan.result,
+            security_username: scan.security_username,
+            pass_type: scan.pass_type,
+            scanned_at: scan.timestamp
+          });
+
+        if (error) {
+          // Check if it's a duplicate (already scanned by another device)
+          if (error.code === '23505' || error.message.includes('duplicate')) {
+            console.log(`ℹ️ Scan already exists on server: ${scan.pass_token}`);
+            await markScanAsSynced(scan.id!);
+            synced++;
+          } else {
+            throw error;
+          }
+        } else {
+          // Success - mark as synced
+          await markScanAsSynced(scan.id!);
+          synced++;
+          console.log(`✅ Synced scan ${scan.id}: ${scan.participant_name}`);
+        }
+      } catch (error: any) {
+        console.error(`❌ Failed to sync scan ${scan.id}:`, error);
+        await incrementSyncAttempts(scan.id!);
+        failed++;
+      }
+    }
+
+    console.log(`✅ Sync complete: ${synced} synced, ${failed} failed`);
+
+    return {
+      success: failed === 0,
+      synced,
+      failed
+    };
+  } catch (error: any) {
+    console.error('❌ Sync pending scans error:', error);
+    return {
+      success: false,
+      synced: 0,
+      failed: 0
+    };
+  }
+}
+
+/**
+ * Get sync statistics for UI display
+ */
+export async function getSyncStats() {
+  const stats = await getDBStats();
+  const metadata = await getSyncMetadata();
+  
+  let cacheAgeText = 'Never synced';
+  if (metadata.lastSync) {
+    const hours = Math.floor((Date.now() - metadata.lastSync) / (60 * 60 * 1000));
+    const minutes = Math.floor((Date.now() - metadata.lastSync) / (60 * 1000)) % 60;
+    
+    if (hours > 0) {
+      cacheAgeText = `${hours}h ${minutes}m ago`;
+    } else if (minutes > 0) {
+      cacheAgeText = `${minutes}m ago`;
+    } else {
+      cacheAgeText = 'Just now';
+    }
+  }
+  
+  return {
+    totalPasses: stats.totalPasses,
+    pendingScans: stats.pendingScans,
+    lastSyncTime: metadata.lastSync,
+    cacheAge: stats.cacheAge,
+    cacheAgeText
+  };
+}
+
+/**
+ * Validate pass with online-first strategy
+ */
+export async function validatePassHybrid(
+  token: string,
+  securityUsername: string,
+  isOnline: boolean
+): Promise<{
+  valid: boolean;
+  result: 'valid' | 'invalid' | 'already_used' | 'inactive' | 'error' | 'rule_violation';
+  message: string;
+  name?: string;
+  pass_type?: string;
+  scanned_by?: string;
+}> {
+  // ONLINE - Try server validation first
+  if (isOnline) {
+    try {
+      const { data, error } = await supabase
+        .rpc('validate_entry_pass', { p_pass_token: token });
+
+      if (error) throw error;
+
+      // ✅ Server validation successful
+      if (data.valid) {
+        // Evaluate validation rules
+        const rulesResult = await evaluateRules(
+          { pass_type: data.pass_type, pass_token: token },
+          DEFAULT_RULES
+        );
+        
+        if (!rulesResult.valid) {
+          return {
+            valid: false,
+            result: 'rule_violation',
+            message: rulesResult.reason || 'Rule validation failed',
+            name: data.name || 'Unknown',
+            pass_type: data.pass_type
+          };
+        }
+        
+        // Update local cache
+        await markPassAsUsedLocally(token);
+      }
+
+      console.log(`✅ Online validation: ${data.result}`);
+      return data;
+    } catch (error: any) {
+      console.warn('⚠️ Online validation failed, falling back to offline:', error.message);
+      // Fall through to offline validation
+    }
+  }
+
+  // Offline validation
+  console.log('📴 Using offline validation...');
+  return await validatePassOffline(token, securityUsername);
+}
+
+export {
+  getPassByToken,
+  markPassAsUsedLocally,
+  queueScan,
+  getPendingScans,
+  getSyncMetadata,
+  setLastSyncTime,
+  clearAllPasses,
+  getDBStats,
+  validateCacheIntegrity
+};

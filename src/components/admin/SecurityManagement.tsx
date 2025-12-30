@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw, Lock, CheckCircle2, Clock } from 'lucide-react';
+import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw, Lock, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
+import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
 
 interface SecurityUser {
   id: number;
@@ -39,7 +40,7 @@ interface VipPass {
 
 export const SecurityManagement: React.FC = () => {
   const { securitySettings, updateSecuritySettings } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules'>('users');
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
@@ -48,6 +49,9 @@ export const SecurityManagement: React.FC = () => {
   const [selectedPass, setSelectedPass] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
+  const [validationRules, setValidationRules] = useState<ValidationRule[]>(DEFAULT_RULES);
+  const [rulesTableReady, setRulesTableReady] = useState(true);
+  const [ruleLoadError, setRuleLoadError] = useState<string | null>(null);
 
   const [newUser, setNewUser] = useState({
     username: '',
@@ -169,8 +173,135 @@ export const SecurityManagement: React.FC = () => {
         .eq('pass_type', 'vip')
         .order('created_at', { ascending: false });
       if (vip) setVipPasses(vip);
-    } 
+    } else if (activeTab === 'rules') {
+      try {
+        const { data, error } = await supabase
+          .from('validation_rules')
+          .select('*')
+          .order('priority', { ascending: false });
+        
+        if (error) {
+          if (error.code === '42P01') { // undefined_table
+            setRulesTableReady(false);
+            setValidationRules(DEFAULT_RULES);
+            setRuleLoadError('Table "validation_rules" not found (42P01)');
+          } else {
+            setRuleLoadError(`${error.message} (Code: ${error.code})`);
+            throw error;
+          }
+        } else if (data && data.length > 0) {
+          setValidationRules(data);
+          setRulesTableReady(true);
+        } else {
+          // Table exists but empty, use defaults (and maybe prompt to init)
+          setValidationRules(DEFAULT_RULES);
+          setRulesTableReady(true);
+        }
+      } catch (err: any) {
+        console.error('Failed to load rules:', err);
+        setRulesTableReady(false);
+        if (!ruleLoadError) setRuleLoadError(err.message || 'Unknown failed to load');
+      }
+    }
     // Settings are loaded by global context
+  };
+
+  const handleToggleRule = async (rule: ValidationRule) => {
+    if (!rulesTableReady) return toast.error('Database table not ready');
+    
+    // Optimistic update
+    const updated = { ...rule, is_active: !rule.is_active };
+    setValidationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
+    
+    try {
+      const { error } = await supabase
+        .from('validation_rules')
+        .upsert(updated)
+        .select();
+        
+      if (error) throw error;
+      toast.success(`Rule ${updated.is_active ? 'enabled' : 'disabled'}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save rule');
+      loadData(); // Revert
+    }
+  };
+
+  const handleRuleConfigUpdate = async (ruleId: string, newConfig: any) => {
+    if (!rulesTableReady) return toast.error('Database table not ready');
+    
+    try {
+      setLoading(true);
+      const rule = validationRules.find(r => r.id === ruleId);
+      if (!rule) return;
+      
+      const updated = { ...rule, config: newConfig };
+      
+      const { error } = await supabase
+        .from('validation_rules')
+        .upsert(updated);
+        
+      if (error) throw error;
+      
+      setValidationRules(prev => prev.map(r => r.id === ruleId ? updated : r));
+      toast.success('Rule configuration updated');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update config');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateRule = async (type: 'date_restriction' | 'time_window' | 'capacity') => {
+    if (!rulesTableReady) return toast.error('Database not ready');
+    
+    try {
+      setLoading(true);
+      const newRule: Partial<ValidationRule> = {
+        rule_name: type === 'date_restriction' ? 'New Date Rule' : type === 'time_window' ? 'New Time Window' : 'New Capacity Limit',
+        rule_type: type,
+        pass_type: undefined, // Apply to all by default
+        config: type === 'date_restriction' ? { allowedDates: [] } : type === 'time_window' ? { startTime: '09:00', endTime: '17:00' } : { maxCapacity: 100 },
+        is_active: false,
+        priority: 10
+      };
+
+      const { data, error } = await supabase
+        .from('validation_rules')
+        .insert(newRule)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setValidationRules(prev => [data as ValidationRule, ...prev]);
+      toast.success('Rule created');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to create rule');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRule = async (id: string) => {
+    if (!rulesTableReady) return toast.error('Database not ready');
+    if (!window.confirm('Are you sure you want to delete this rule?')) return;
+    
+    try {
+      setLoading(true);
+      const { error } = await supabase.from('validation_rules').delete().eq('id', id);
+      if (error) throw error;
+      
+      setValidationRules(prev => prev.filter(r => r.id !== id));
+      toast.success('Rule deleted');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete rule');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCreateSecurityUser = async (e: React.FormEvent) => {
@@ -361,7 +492,17 @@ export const SecurityManagement: React.FC = () => {
           }`}
           >
           Settings
-          </button>
+        </button>
+        <button
+          onClick={() => setActiveTab('rules')}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === 'rules'
+              ? 'text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+          >
+          Rules
+        </button>  
       </div>
 
       {/* Security Users Tab */}
@@ -794,6 +935,171 @@ export const SecurityManagement: React.FC = () => {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Rules Tab */}
+      {activeTab === 'rules' && (
+        <div className="space-y-6">
+          {!rulesTableReady && (
+            <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-lg flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-yellow-200/70 text-sm mt-1">
+                  The 'validation_rules' table issue detected. 
+                  Showing default rules from code. Changes here will not persist.
+                </p>
+                {ruleLoadError && (
+                  <div className="mt-2 bg-black/20 p-2 rounded border border-yellow-500/20">
+                     <p className="font-mono text-xs text-yellow-200">{ruleLoadError}</p>
+                  </div>
+                )}
+                <button 
+                  onClick={() => loadData()}
+                  className="mt-2 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 px-2 py-1 rounded transition-colors"
+                >
+                  Retry Connection
+                </button>
+              </div>
+            </div>
+          )}
+          
+
+          
+          <div className="flex gap-2 pb-2">
+            <button
+              onClick={() => handleCreateRule('date_restriction')}
+              disabled={!rulesTableReady}
+              className="flex items-center gap-2 px-3 py-2 bg-cyan-600/20 text-cyan-400 border border-cyan-600/30 rounded-lg hover:bg-cyan-600/30 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Date Rule</span>
+            </button>
+            <button
+              onClick={() => handleCreateRule('time_window')}
+              disabled={!rulesTableReady}
+              className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 text-purple-400 border border-purple-600/30 rounded-lg hover:bg-purple-600/30 transition-colors"
+            >
+              <Clock className="w-4 h-4" />
+              <span>Add Time Rule</span>
+            </button>
+          </div>
+
+          <div className="grid gap-4">
+            {validationRules.map((rule) => (
+              <div key={rule.id} className={`bg-gray-800/50 rounded-lg border p-4 ${rule.is_active ? 'border-green-500/30' : 'border-gray-700'}`}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${rule.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-400'}`}>
+                      {rule.rule_type === 'date_restriction' ? <Calendar className="w-5 h-5" /> : 
+                       rule.rule_type === 'time_window' ? <Clock className="w-5 h-5" /> :
+                       <Shield className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold">{rule.rule_name}</h3>
+                      <p className="text-sm text-gray-400">
+                        Type: <span className="font-mono text-cyan-400">{rule.rule_type}</span>
+                        {rule.pass_type && <span className="ml-2">• Allows: {rule.pass_type === 'vip' ? 'VIP' : rule.pass_type}</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rule.is_active}
+                      onChange={() => handleToggleRule(rule)}
+                      disabled={!rulesTableReady}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                  </label>
+                  <button onClick={() => handleDeleteRule(rule.id)} className="ml-4 text-gray-500 hover:text-red-400">
+                    <Trash className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Rule Specific Editors */}
+                {rule.rule_type === 'date_restriction' && rule.config.allowedDates && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                    <p className="text-sm text-gray-300 mb-2 font-semibold">Allowed Dates (YYYY-MM-DD):</p>
+                    <div className="space-y-2">
+                       {rule.config.allowedDates?.map((date: string, idx: number) => (
+                         <div key={idx} className="flex items-center gap-2">
+                           <input type="date" value={date} readOnly className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-gray-300 flex-1" />
+                           <button 
+                             onClick={() => {
+                               const newDates = (rule.config.allowedDates || []).filter((_: any, i: number) => i !== idx);
+                               handleRuleConfigUpdate(rule.id, { ...rule.config, allowedDates: newDates });
+                             }}
+                             disabled={!rulesTableReady}
+                             className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded"
+                           >
+                             <Trash className="w-4 h-4" />
+                           </button>
+                         </div>
+                       ))}
+                       <div className="flex gap-2">
+                         <input 
+                           type="date" 
+                           id={`new-date-${rule.id}`}
+                           className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-white text-sm focus:outline-none focus:border-cyan-500"
+                         />
+                         <button
+                           onClick={() => {
+                             const input = document.getElementById(`new-date-${rule.id}`) as HTMLInputElement;
+                             if (input && input.value) {
+                               const newDates = [...(rule.config.allowedDates || []), input.value];
+                               handleRuleConfigUpdate(rule.id, { ...rule.config, allowedDates: newDates });
+                               input.value = '';
+                             }
+                           }}
+                           disabled={!rulesTableReady}
+                           className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded"
+                         >
+                           Add Date
+                         </button>
+                       </div>
+                    </div>
+                  </div>
+                )}
+                
+                {rule.rule_type === 'time_window' && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50 flex gap-4">
+                     <div>
+                       <label className="text-xs text-gray-400 block mb-1">Start Time</label>
+                       <input 
+                         type="time" 
+                         value={rule.config.startTime || ''}
+                         onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, startTime: e.target.value })}
+                         className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm"
+                       />
+                     </div>
+                     <div>
+                       <label className="text-xs text-gray-400 block mb-1">End Time</label>
+                       <input 
+                         type="time" 
+                         value={rule.config.endTime || ''}
+                         onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, endTime: e.target.value })}
+                         className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm"
+                       />
+                     </div>
+                  </div>
+                )}
+                
+                {rule.rule_type === 'capacity' && (
+                  <div className="mt-4 pt-4 border-t border-gray-700/50">
+                     <label className="text-xs text-gray-400 block mb-1">Max Capacity</label>
+                     <input 
+                       type="number" 
+                       value={rule.config.maxCapacity || 0}
+                       onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, maxCapacity: parseInt(e.target.value) })}
+                       className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm w-32"
+                     />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {/* QR Modal */}
