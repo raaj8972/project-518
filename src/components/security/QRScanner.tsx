@@ -94,7 +94,7 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
       if (!ctx) return;
 
       const scan = () => {
-        if (!isActive || !video.readyState === video.HAVE_ENOUGH_DATA) {
+        if (!isActive || video.readyState !== video.HAVE_ENOUGH_DATA) {
           animationRef.current = requestAnimationFrame(scan);
           return;
         }
@@ -126,9 +126,35 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
             setLastScan(code.data);
             onScanSuccess(code.data);
             
-            // Vibrate if available
+            // Enhanced haptic feedback - stronger vibration pattern
             if (navigator.vibrate) {
-              navigator.vibrate(200);
+              // Pattern: vibrate 500ms, pause 200ms, vibrate 500ms
+              navigator.vibrate([500, 200, 500]);
+            }
+            
+            // Play beep sound
+            try {
+              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              // Configure beep sound
+              oscillator.frequency.value = 1200; // High-pitched beep
+              oscillator.type = 'sine';
+              
+              // Volume envelope
+              gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+              gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+              
+              // Play beep
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (err) {
+              console.warn('Audio playback failed:', err);
             }
             
             // Clear after 2 seconds to allow rescanning

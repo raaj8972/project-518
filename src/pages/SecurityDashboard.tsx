@@ -120,22 +120,22 @@ export default function SecurityDashboard() {
 
   const loadStats = async () => {
     try {
-      // Get today's count (IST)
-      const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); 
-      const { data: scans, error } = await supabase
-        .from('pass_scans')
-        .select('*')
-        .eq('scan_result', 'valid')
-        .order('scanned_at', { ascending: false });
-
-      if (!error && scans) {
-        // Filter in JS to ensure IST date correctness across the boundary
-        const filtered = scans.filter(s => {
-           const sDateIST = new Date(s.scanned_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-           return sDateIST === todayIST;
+      if (!securityUser) return;
+      
+      // Call RPC function to get stats (bypasses RLS)
+      const { data, error } = await supabase
+        .rpc('get_security_dashboard_stats', { 
+          p_username: securityUser.username 
         });
-        setTodayCount(filtered.length);
-        setRecentScans(filtered.slice(0, 10));
+
+      if (error) {
+        console.error('Error loading stats:', error);
+        return;
+      }
+
+      if (data) {
+        setTodayCount(data.today_count || 0);
+        setRecentScans(data.recent_scans || []);
       }
     } catch (error) {
       console.error('Error loading stats:', error);
