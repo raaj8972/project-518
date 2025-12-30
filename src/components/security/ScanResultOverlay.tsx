@@ -1,0 +1,230 @@
+import { useEffect, useState } from 'react';
+import { CheckCircle2, XCircle, AlertTriangle, Crown } from 'lucide-react';
+
+interface ScanResult {
+  valid: boolean;
+  result: string;
+  message: string;
+  name?: string;
+  pass_type?: string;
+}
+
+interface ScanResultOverlayProps {
+  result: ScanResult;
+  onDismiss: () => void;
+  autoDismissMs?: number;
+}
+
+export function ScanResultOverlay({ 
+  result, 
+  onDismiss, 
+  autoDismissMs = 3000 
+}: ScanResultOverlayProps) {
+  const [countdown, setCountdown] = useState(Math.ceil(autoDismissMs / 1000));
+  const [isExiting, setIsExiting] = useState(false);
+
+  // Determine result type
+  const isAlreadyUsed = result.result === 'already_used';
+  const isValid = result.valid;
+  
+  // Calculate display properties based on result
+  const getResultStyle = () => {
+    if (isValid) {
+      return {
+        bg: 'bg-green-500/95',
+        border: 'border-green-300',
+        icon: CheckCircle2,
+        iconColor: 'text-green-100',
+        title: 'PASS ✓',
+        titleColor: 'text-green-50',
+        gradient: 'from-green-600 to-green-400'
+      };
+    } else if (isAlreadyUsed) {
+      return {
+        bg: 'bg-orange-500/95',
+        border: 'border-orange-300',
+        icon: AlertTriangle,
+        iconColor: 'text-orange-100',
+        title: 'ALREADY USED ⚠',
+        titleColor: 'text-orange-50',
+        gradient: 'from-orange-600 to-orange-400'
+      };
+    } else {
+      return {
+        bg: 'bg-red-500/95',
+        border: 'border-red-300',
+        icon: XCircle,
+        iconColor: 'text-red-100',
+        title: 'REJECT ✗',
+        titleColor: 'text-red-50',
+        gradient: 'from-red-600 to-red-400'
+      };
+    }
+  };
+
+  const style = getResultStyle();
+  const Icon = style.icon;
+
+  useEffect(() => {
+    // Countdown timer
+    const countdownInterval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval);
+          handleDismiss();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(countdownInterval);
+  }, []);
+
+  const handleDismiss = () => {
+    setIsExiting(true);
+    setTimeout(() => {
+      onDismiss();
+    }, 300); // Match animation duration
+  };
+
+  return (
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-6 transition-all duration-300 ${
+        isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      }`}
+      onClick={handleDismiss}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+
+      {/* Result Card */}
+      <div
+        className={`relative w-full max-w-lg ${style.bg} rounded-3xl border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 ${
+          isExiting ? 'scale-95' : 'scale-100'
+        }`}
+      >
+        {/* Gradient Header */}
+        <div className={`h-3 bg-gradient-to-r ${style.gradient}`} />
+
+        {/* Content */}
+        <div className="p-8 space-y-6">
+          {/* Icon and Status */}
+          <div className="text-center space-y-4">
+            <div className="flex justify-center">
+              <div className={`w-32 h-32 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center animate-scale-in`}>
+                <Icon className={`w-20 h-20 ${style.iconColor} animate-bounce-once`} strokeWidth={3} />
+              </div>
+            </div>
+
+            {/* Status Text */}
+            <h1 className={`text-5xl md:text-6xl font-black ${style.titleColor} tracking-tight drop-shadow-lg animate-fade-in`}>
+              {style.title}
+            </h1>
+          </div>
+
+          {/* Participant Information */}
+          {result.name && (
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border-2 border-white/30 animate-slide-up">
+              <p className="text-white/80 text-sm font-semibold uppercase tracking-widest mb-2">
+                Participant
+              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-white text-3xl md:text-4xl font-black tracking-tight break-words">
+                  {result.name}
+                </p>
+                {result.pass_type === 'vip' && (
+                  <div className="flex-shrink-0 bg-yellow-400/90 text-yellow-900 px-4 py-2 rounded-xl border-2 border-yellow-300 flex items-center gap-2 shadow-lg">
+                    <Crown className="w-5 h-5" />
+                    <span className="font-black text-sm uppercase tracking-wider">VIP</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Message */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+            <p className="text-white text-center font-semibold text-lg">
+              {result.message}
+            </p>
+          </div>
+
+          {/* Countdown */}
+          <div className="flex items-center justify-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40">
+              <span className="text-white text-xl font-bold">{countdown}</span>
+            </div>
+            <p className="text-white/70 text-sm font-medium">
+              Auto-close in {countdown}s • Tap to dismiss
+            </p>
+          </div>
+        </div>
+
+        {/* Gradient Footer */}
+        <div className={`h-3 bg-gradient-to-r ${style.gradient}`} />
+      </div>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes scale-in {
+          0% {
+            transform: scale(0.5);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+
+        @keyframes bounce-once {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+        }
+
+        @keyframes fade-in {
+          0% {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-scale-in {
+          animation: scale-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .animate-bounce-once {
+          animation: bounce-once 0.6s ease-out;
+        }
+
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out 0.2s both;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.5s ease-out 0.3s both;
+        }
+      `}</style>
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { Camera, AlertCircle, CheckCircle, Zap } from 'lucide-react';
+import { Camera, AlertCircle, CheckCircle, Zap, Scan } from 'lucide-react';
 
 interface QRScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -126,37 +126,6 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
             setLastScan(code.data);
             onScanSuccess(code.data);
             
-            // Enhanced haptic feedback - stronger vibration pattern
-            if (navigator.vibrate) {
-              // Pattern: vibrate 500ms, pause 200ms, vibrate 500ms
-              navigator.vibrate([500, 200, 500]);
-            }
-            
-            // Play beep sound
-            try {
-              const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-              const oscillator = audioContext.createOscillator();
-              const gainNode = audioContext.createGain();
-              
-              oscillator.connect(gainNode);
-              gainNode.connect(audioContext.destination);
-              
-              // Configure beep sound
-              oscillator.frequency.value = 1200; // High-pitched beep
-              oscillator.type = 'sine';
-              
-              // Volume envelope
-              gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-              gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.01);
-              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-              
-              // Play beep
-              oscillator.start(audioContext.currentTime);
-              oscillator.stop(audioContext.currentTime + 0.3);
-            } catch (err) {
-              console.warn('Audio playback failed:', err);
-            }
-            
             // Clear after 2 seconds to allow rescanning
             setTimeout(() => setLastScan(''), 2000);
           }
@@ -194,13 +163,13 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
       <canvas ref={canvasRef} className="hidden" />
       
       {/* Video Container */}
-      <div className="relative rounded-xl overflow-hidden shadow-2xl border-4 border-cyan-500/30 bg-black">
+      <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-cyan-400/50 bg-gradient-to-br from-gray-900 to-black">
         <video
           ref={videoRef}
           className="w-full h-auto block"
           style={{ 
-            minHeight: '300px',
-            maxHeight: '500px',
+            minHeight: '400px',
+            maxHeight: '600px',
             objectFit: 'cover'
           }}
           autoPlay
@@ -242,27 +211,36 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
             {/* Full screen scan indicator */}
             <div className="absolute inset-0 pointer-events-none">
               {/* Animated scanning line that moves across entire screen */}
-              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan-line opacity-75"></div>
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-scan-line opacity-90 shadow-lg shadow-cyan-400/50"></div>
               
-              {/* Corner markers - larger area */}
-              <div className="absolute inset-8 border-4 border-cyan-500/30 rounded-2xl">
-                <div className="absolute -top-2 -left-2 w-16 h-16 border-t-4 border-l-4 border-cyan-400 rounded-tl-2xl"></div>
-                <div className="absolute -top-2 -right-2 w-16 h-16 border-t-4 border-r-4 border-cyan-400 rounded-tr-2xl"></div>
-                <div className="absolute -bottom-2 -left-2 w-16 h-16 border-b-4 border-l-4 border-cyan-400 rounded-bl-2xl"></div>
-                <div className="absolute -bottom-2 -right-2 w-16 h-16 border-b-4 border-r-4 border-cyan-400 rounded-br-2xl"></div>
+              {/* Center scanning frame - professional design */}
+              <div className="absolute inset-12 md:inset-16 border-4 border-cyan-400/40 rounded-3xl">
+                {/* Animated corner markers */}
+                <div className="absolute -top-3 -left-3 w-20 h-20 border-t-[6px] border-l-[6px] border-cyan-300 rounded-tl-3xl animate-pulse-slow"></div>
+                <div className="absolute -top-3 -right-3 w-20 h-20 border-t-[6px] border-r-[6px] border-cyan-300 rounded-tr-3xl animate-pulse-slow" style={{animationDelay: '0.2s'}}></div>
+                <div className="absolute -bottom-3 -left-3 w-20 h-20 border-b-[6px] border-l-[6px] border-cyan-300 rounded-bl-3xl animate-pulse-slow" style={{animationDelay: '0.4s'}}></div>
+                <div className="absolute -bottom-3 -right-3 w-20 h-20 border-b-[6px] border-r-[6px] border-cyan-300 rounded-br-3xl animate-pulse-slow" style={{animationDelay: '0.6s'}}></div>
+                
+                {/* Center scan icon */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="w-16 h-16 rounded-full bg-cyan-400/10 backdrop-blur-sm border-2 border-cyan-400/50 flex items-center justify-center animate-ping-slow">
+                    <Scan className="w-8 h-8 text-cyan-300" />
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Camera Active Indicator */}
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-green-500/20 backdrop-blur-sm rounded-full px-3 py-2 border border-green-500/50">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <Camera className="w-4 h-4 text-green-400" />
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-green-500/30 backdrop-blur-md rounded-full px-4 py-2.5 border-2 border-green-400/60 shadow-lg">
+              <div className="w-2.5 h-2.5 bg-green-300 rounded-full animate-pulse"></div>
+              <Camera className="w-5 h-5 text-green-300" />
+              <span className="text-xs text-green-100 font-bold uppercase tracking-wider">Recording</span>
             </div>
 
             {/* Scan speed indicator */}
-            <div className="absolute top-3 right-3 flex items-center gap-2 bg-cyan-500/20 backdrop-blur-sm rounded-full px-3 py-2 border border-cyan-500/50">
-              <Zap className="w-4 h-4 text-cyan-400 animate-pulse" />
-              <span className="text-xs text-cyan-400 font-semibold">LIVE</span>
+            <div className="absolute top-4 right-4 flex items-center gap-2 bg-cyan-500/30 backdrop-blur-md rounded-full px-4 py-2.5 border-2 border-cyan-400/60 shadow-lg">
+              <Zap className="w-5 h-5 text-cyan-300 animate-pulse" />
+              <span className="text-xs text-cyan-100 font-bold uppercase tracking-wider">60 FPS</span>
             </div>
           </>
         )}
@@ -270,21 +248,29 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
 
       {/* Camera Status Badge */}
       {cameraActive && !isLoading && !error && (
-        <div className="flex items-center justify-center gap-2 bg-green-500/10 border border-green-500/30 rounded-lg py-2 px-4 animate-pulse">
-          <CheckCircle className="w-4 h-4 text-green-400" />
-          <span className="text-green-400 text-sm font-semibold">🔍 Scanning Active - Point at QR Code</span>
+        <div className="flex items-center justify-center gap-3 bg-gradient-to-r from-green-500/20 to-cyan-500/20 border-2 border-green-400/40 rounded-xl py-3 px-5 animate-pulse-slow shadow-lg">
+          <CheckCircle className="w-5 h-5 text-green-300" />
+          <span className="text-green-200 text-base font-bold">🔍 Scanner Active</span>
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
         </div>
       )}
 
       {/* Instructions */}
       {cameraActive && !isLoading && !error && (
-        <div className="text-center space-y-1">
-          <p className="text-cyan-400 font-semibold">
-            Hold QR Code in View
+        <div className="text-center space-y-2 bg-gray-800/50 rounded-xl p-4 border border-cyan-500/30">
+          <p className="text-cyan-300 font-bold text-lg">
+            📱 Position QR Code in Frame
           </p>
-          <p className="text-gray-400 text-sm">
-            Scanner works from any distance • Auto-detects instantly
-          </p>
+          <div className="flex items-center justify-center gap-4 text-sm">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+              <span className="text-gray-300">Auto-detect</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span className="text-gray-300">Instant scan</span>
+            </div>
+          </div>
         </div>
       )}
 
@@ -294,8 +280,36 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
           100% { top: 100%; }
         }
         
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+        
+        @keyframes ping-slow {
+          0% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0.4;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+        }
+        
         .animate-scan-line {
-          animation: scan-line 2s linear infinite;
+          animation: scan-line 2.5s linear infinite;
+        }
+        
+        .animate-pulse-slow {
+          animation: pulse-slow 2s ease-in-out infinite;
+        }
+        
+        .animate-ping-slow {
+          animation: ping-slow 2s ease-in-out infinite;
         }
       `}</style>
     </div>

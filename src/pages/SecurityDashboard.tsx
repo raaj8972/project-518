@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, LogOut, CheckCircle2, XCircle, Clock, Scan, Search, User } from 'lucide-react';
+import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User } from 'lucide-react';
 import { QRScanner } from '../components/security/QRScanner';
+import { ScanResultOverlay } from '../components/security/ScanResultOverlay';
+import { playFeedback } from '../utils/scanSounds';
 
 interface SecurityUser {
   username: string;
@@ -18,31 +20,14 @@ interface ScanRecord {
   pass_type?: string;
 }
 
-// Haptic feedback utility
-const triggerHaptic = (type: 'success' | 'error' | 'warning') => {
-  if ('vibrate' in navigator) {
-    switch (type) {
-      case 'success':
-        // Short single vibration for success
-        navigator.vibrate(200);
-        break;
-      case 'error':
-        // Three short bursts for error
-        navigator.vibrate([100, 50, 100, 50, 100]);
-        break;
-      case 'warning':
-        // Two medium bursts for warning (already used)
-        navigator.vibrate([150, 100, 150]);
-        break;
-    }
-  }
-};
+
 
 export default function SecurityDashboard() {
   const navigate = useNavigate();
   const [securityUser, setSecurityUser] = useState<SecurityUser | null>(null);
   const [scanning, setScanning] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<any>(null);
+  const [showResultOverlay, setShowResultOverlay] = useState(false);
   const [todayCount, setTodayCount] = useState(0);
   const [recentScans, setRecentScans] = useState<ScanRecord[]>([]);
   
@@ -151,37 +136,35 @@ export default function SecurityDashboard() {
       if (error) throw error;
 
       setLastScanResult(data);
+      setShowResultOverlay(true);
       
       if (data.valid) {
-        triggerHaptic('success');
+        playFeedback('success');
         toast.success(`✓ Valid Entry: ${data.name}`);
         // Reload stats
         loadStats();
       } else {
         if (data.result === 'already_used') {
-          triggerHaptic('warning');
+          playFeedback('warning');
           toast.error(`✗ Already Used: ${data.name}`);
         } else if (data.result === 'inactive') {
-          triggerHaptic('error');
+          playFeedback('error');
           toast.error('✗ Pass Deactivated');
         } else {
-          triggerHaptic('error');
+          playFeedback('error');
           toast.error('✗ Invalid Pass');
         }
       }
-
-      // Clear result after 5 seconds
-      setTimeout(() => setLastScanResult(null), 5000);
     } catch (error: any) {
       console.error('Error validating pass:', error);
-      triggerHaptic('error');
+      playFeedback('error');
       toast.error('Validation failed');
       setLastScanResult({
         valid: false,
         result: 'error',
         message: 'System error',
       });
-      setTimeout(() => setLastScanResult(null), 5000);
+      setShowResultOverlay(true);
     }
   };
 
@@ -275,43 +258,12 @@ export default function SecurityDashboard() {
                 onScanError={handleScanError}
               />
 
-              {lastScanResult && (
-                <div className={`p-6 rounded-xl border-2 ${
-                  lastScanResult.valid
-                    ? 'bg-green-500/10 border-green-500/50'
-                    : 'bg-red-500/10 border-red-500/50'
-                }`}>
-                  <div className="flex items-center gap-3 mb-2">
-                    {lastScanResult.valid ? (
-                      <CheckCircle2 className="w-8 h-8 text-green-500" />
-                    ) : (
-                      <XCircle className="w-8 h-8 text-red-500" />
-                    )}
-                    <div>
-                      <p className={`font-bold text-lg ${
-                        lastScanResult.valid ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {lastScanResult.message}
-                      </p>
-                      {lastScanResult.name && (
-                        <div className="mt-2 p-2 bg-white/10 rounded-lg">
-                          <p className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Participant</p>
-                          <p className="text-white text-2xl font-bold tracking-wide">
-                            {lastScanResult.name}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <button
                 onClick={() => setScanning(false)}
-                className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                className="w-full px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-semibold"
               >
                 Stop Scanner
-                </button>
+              </button>
             </div>
           )}
         </div>
@@ -426,6 +378,18 @@ export default function SecurityDashboard() {
           )}
         </div>
       </div>
+
+      {/* Scan Result Overlay */}
+      {showResultOverlay && lastScanResult && (
+        <ScanResultOverlay
+          result={lastScanResult}
+          onDismiss={() => {
+            setShowResultOverlay(false);
+            setLastScanResult(null);
+          }}
+          autoDismissMs={3000}
+        />
+      )}
     </div>
   );
 }
