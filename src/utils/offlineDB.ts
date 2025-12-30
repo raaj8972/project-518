@@ -378,8 +378,10 @@ export async function validateCacheIntegrity(): Promise<{ valid: boolean; messag
 
 export async function storeRules(rules: ValidationRule[]): Promise<void> {
   try {
-    await db.rules.clear();
-    await db.rules.bulkPut(rules);
+    await db.transaction('rw', db.rules, async () => {
+      await db.rules.clear();
+      await db.rules.bulkPut(rules);
+    });
     console.log(`✅ Stored ${rules.length} validation rules`);
   } catch (error) {
     console.error('❌ Failed to store rules:', error);

@@ -146,7 +146,8 @@ export async function validatePassOffline(
 
     // Check validation rules (Offline)
     const storedRules = await getStoredRules();
-    const activeRules = storedRules.length > 0 ? storedRules : DEFAULT_RULES;
+    // Use stored rules if available, otherwise assume no restrictions (don't use hardcoded defaults)
+    const activeRules = storedRules;
     
     const ruleResult = await evaluateRules(
       { pass_type: pass.pass_type, pass_token: token },
@@ -330,7 +331,8 @@ export async function validatePassHybrid(
       if (data.valid) {
         // Evaluate validation rules
         const storedRules = await getStoredRules();
-        const activeRules = storedRules.length > 0 ? storedRules : DEFAULT_RULES;
+        // Use stored rules if available, otherwise assume no restrictions
+        const activeRules = storedRules;
 
         const rulesResult = await evaluateRules(
           { pass_type: data.pass_type, pass_token: token },
