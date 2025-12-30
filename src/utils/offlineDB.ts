@@ -373,8 +373,8 @@ export async function validateCacheIntegrity(): Promise<{ valid: boolean; messag
   }
 }
 
-// Initialize DB on import
-initializeDB();
+// Initialize DB on first use (Lazy)
+// initializeDB();
 
 export async function storeRules(rules: ValidationRule[]): Promise<void> {
   try {
