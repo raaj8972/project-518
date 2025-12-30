@@ -23,6 +23,7 @@ import {
   validateCacheIntegrity,
   storeRules,
   getStoredRules,
+  hasBeenScannedToday,
   type EntryPass
 } from './offlineDB';
 
@@ -122,12 +123,14 @@ export async function validatePassOffline(
       };
     }
 
-    // Check if already used locally
-    if (pass.is_used) {
+    // Check if already scanned TODAY (multi-day support)
+    // Instead of blocking any used pass, we only block if it was already scanned today.
+    const alreadyScannedToday = await hasBeenScannedToday(token);
+    if (alreadyScannedToday) {
       return {
         valid: false,
         result: 'already_used',
-        message: `Already used: ${pass.participant_name}`,
+        message: `Already scanned today: ${pass.participant_name}`,
         name: pass.participant_name
       };
     }
@@ -339,17 +342,7 @@ export async function validatePassHybrid(
         };
       }
 
-      // 2. Check Use Status (Pre-Check)
-      if (passData.is_used) {
-        return {
-          valid: false,
-          result: 'already_used',
-          message: 'Pass already used',
-          name: passData.participant_name,
-          pass_type: passData.pass_type
-        };
-      }
-
+      // 2. Check Active Status (is_used check removed to allow multi-day server-side logic)
       if (!passData.is_active) {
          return {
           valid: false,

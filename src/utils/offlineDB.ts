@@ -186,6 +186,24 @@ export async function getPendingScans(): Promise<PendingScan[]> {
 }
 
 /**
+ * Check if a pass token has already been scanned TODAY in the local queue
+ */
+export async function hasBeenScannedToday(token: string): Promise<boolean> {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const scan = await db.pending_scans
+      .where('pass_token')
+      .equals(token)
+      .and(scan => scan.timestamp.startsWith(today) && scan.result === 'valid')
+      .first();
+    return !!scan;
+  } catch (error) {
+    console.error('❌ Failed to check today scans:', error);
+    return false;
+  }
+}
+
+/**
  * Check if a pass token exists in pending queue
  */
 export async function isInPendingQueue(token: string): Promise<PendingScan | undefined> {

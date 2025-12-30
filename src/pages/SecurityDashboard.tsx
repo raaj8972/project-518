@@ -71,7 +71,6 @@ export default function SecurityDashboard() {
         .from('entry_passes')
         .select('*')
         .ilike('participant_name', `%${query}%`)
-        .eq('is_used', false)
         .eq('is_active', true)
         .limit(10);
       
@@ -343,8 +342,7 @@ export default function SecurityDashboard() {
         .from('entry_passes')
         .select('*')
         .ilike('participant_name', `%${manualSearch}%`)
-        .eq('is_active', true)
-        .eq('is_used', false);
+        .eq('is_active', true);
       
       if (error) throw error;
       
