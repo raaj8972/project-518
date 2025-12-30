@@ -8,6 +8,7 @@
  */
 
 import Dexie, { Table } from 'dexie';
+import { ValidationRule } from './validationRules';
 
 // TypeScript interfaces
 export interface EntryPass {
@@ -45,6 +46,7 @@ class SecurityScannerDB extends Dexie {
   passes!: Table<EntryPass, string>;
   pending_scans!: Table<PendingScan, number>;
   sync_metadata!: Table<SyncMetadata, string>;
+  rules!: Table<ValidationRule, string>;
 
   constructor() {
     super('SecurityScanner');
@@ -54,6 +56,11 @@ class SecurityScannerDB extends Dexie {
       passes: 'pass_token, participant_name, is_used, pass_type',
       pending_scans: '++id, pass_token, timestamp, synced',
       sync_metadata: 'key'
+    });
+    
+    // Version 2: Add validation rules
+    this.version(2).stores({
+      rules: 'id, is_active'
     });
   }
 }
@@ -368,3 +375,23 @@ export async function validateCacheIntegrity(): Promise<{ valid: boolean; messag
 
 // Initialize DB on import
 initializeDB();
+
+export async function storeRules(rules: ValidationRule[]): Promise<void> {
+  try {
+    await db.rules.clear();
+    await db.rules.bulkPut(rules);
+    console.log(`✅ Stored ${rules.length} validation rules`);
+  } catch (error) {
+    console.error('❌ Failed to store rules:', error);
+  }
+}
+
+export async function getStoredRules(): Promise<ValidationRule[]> {
+  try {
+    return await db.rules.toArray();
+  } catch (error) {
+    return [];
+  }
+}
+
+

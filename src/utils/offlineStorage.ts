@@ -21,8 +21,11 @@ import {
   clearAllPasses,
   getDBStats,
   validateCacheIntegrity,
+  storeRules,
+  getStoredRules,
   type EntryPass
 } from './offlineDB';
+import { ValidationRule } from './validationRules';
 
 /**
  * Sync passes from Supabase to local IndexedDB
@@ -30,6 +33,9 @@ import {
 export async function syncPassesFromServer(): Promise<{ success: boolean; count: number; error?: string }> {
   try {
     console.log('🔄 Syncing passes from server...');
+    
+    // Sync validation rules first
+    await syncRulesFromServer();
     
     // Fetch ALL passes from Supabase (not just active ones)
     // This ensures we can validate inactive/used passes offline too
@@ -134,6 +140,24 @@ export async function validatePassOffline(
         valid: false,
         result: 'already_used',
         message: `Already scanned at ${scanTime}`,
+        name: pass.participant_name
+      };
+    }
+
+    // Check validation rules (Offline)
+    const storedRules = await getStoredRules();
+    const activeRules = storedRules.length > 0 ? storedRules : DEFAULT_RULES;
+    
+    const ruleResult = await evaluateRules(
+      { pass_type: pass.pass_type, pass_token: token },
+      activeRules
+    );
+
+    if (!ruleResult.valid) {
+      return {
+        valid: false,
+        result: 'invalid', // Generic invalid for rule violation
+        message: ruleResult.reason || 'Rule violation',
         name: pass.participant_name
       };
     }
@@ -346,5 +370,29 @@ export {
   setLastSyncTime,
   clearAllPasses,
   getDBStats,
-  validateCacheIntegrity
+  validateCacheIntegrity,
 };
+
+
+/**
+ * Sync validation rules from server
+ */
+export async function syncRulesFromServer(): Promise<void> {
+  try {
+    const { data, error } = await supabase
+      .from('validation_rules')
+      .select('*')
+      .eq('is_active', true);
+      
+    if (error) {
+      console.warn('⚠️ Failed to fetch rules:', error.message);
+      return;
+    }
+    
+    if (data) {
+      await storeRules(data);
+    }
+  } catch (err) {
+    console.error('Failed to sync rules', err);
+  }
+}

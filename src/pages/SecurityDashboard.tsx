@@ -42,8 +42,8 @@ export default function SecurityDashboard() {
   // Scan UI State
   const [scanning, setScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false); // For success animation
-  const [scanMode, setScanMode] = useState<'normal' | 'continuous'>('normal');
-  const [autoAdvance, setAutoAdvance] = useState(false);
+  const [scanMode, setScanMode] = useState<'normal' | 'continuous'>('continuous');
+  const [autoAdvance, setAutoAdvance] = useState(true);
   const [lastScanResult, setLastScanResult] = useState<any>(null);
   const [showResultOverlay, setShowResultOverlay] = useState(false);
   const [todayCount, setTodayCount] = useState(0);
@@ -327,7 +327,9 @@ export default function SecurityDashboard() {
       });
       setShowResultOverlay(true);
     } finally {
-      setScanning(false);
+      if (scanMode !== 'continuous') {
+        setScanning(false);
+      }
     }
   };
   
@@ -845,7 +847,7 @@ export default function SecurityDashboard() {
               setShowResultOverlay(false);
               setLastScanResult(null);
             }}
-            autoDismissMs={3000}
+            autoDismissMs={autoAdvance ? 2000 : 0}
           />
         )}
         
