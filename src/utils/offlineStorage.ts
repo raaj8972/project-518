@@ -6,7 +6,7 @@
 
 import { supabase } from '../lib/supabase';
 import { registerBackgroundSync, isBackgroundSyncSupported } from './backgroundSync';
-import { evaluateRules, DEFAULT_RULES } from './validationRules';
+import { evaluateRules } from './validationRules';
 import {
   storePasses,
   getPassByToken,
@@ -25,7 +25,7 @@ import {
   getStoredRules,
   type EntryPass
 } from './offlineDB';
-import { ValidationRule } from './validationRules';
+
 
 /**
  * Sync passes from Supabase to local IndexedDB
@@ -322,42 +322,98 @@ export async function validatePassHybrid(
   // ONLINE - Try server validation first
   if (isOnline) {
     try {
+      // 1. Fetch Pass Details (Read Only first)
+      const { data: passData, error: fetchError } = await supabase
+        .from('entry_passes')
+        .select('*')
+        .eq('pass_token', token)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      
+      if (!passData) {
+        return {
+          valid: false,
+          result: 'invalid',
+          message: 'Pass not found'
+        };
+      }
+
+      // 2. Check Use Status (Pre-Check)
+      if (passData.is_used) {
+        return {
+          valid: false,
+          result: 'already_used',
+          message: 'Pass already used',
+          name: passData.participant_name,
+          pass_type: passData.pass_type
+        };
+      }
+
+      if (!passData.is_active) {
+         return {
+          valid: false,
+          result: 'inactive',
+          message: 'Pass is inactive',
+          name: passData.participant_name,
+          pass_type: passData.pass_type
+        };
+      }
+
+      // 3. Evaluate Validation Rules (Before Consumption)
+      const storedRules = await getStoredRules();
+      const activeRules = storedRules; // Default removed
+      
+      const rulesResult = await evaluateRules(
+        { pass_type: passData.pass_type, pass_token: token },
+        activeRules
+      );
+      
+      if (!rulesResult.valid) {
+        return {
+          valid: false,
+          result: 'rule_violation',
+          message: rulesResult.reason || 'Rule validation failed',
+          name: passData.participant_name || 'Unknown',
+          pass_type: passData.pass_type
+        };
+      }
+
+      // 4. Everything Valid -> CONSUME (Call RPC to mark used)
       const { data, error } = await supabase
         .rpc('validate_entry_pass', { p_pass_token: token });
 
       if (error) throw error;
 
-      // ✅ Server validation successful
       if (data.valid) {
-        // Evaluate validation rules
-        const storedRules = await getStoredRules();
-        // Use stored rules if available, otherwise assume no restrictions
-        const activeRules = storedRules;
+        // Double check rules didn't change in split second (unlikely but safe)
+        // ... (Skipping for perf, assumed safe via step 3)
 
-        const rulesResult = await evaluateRules(
-          { pass_type: data.pass_type, pass_token: token },
-          activeRules
-        );
-        
-        if (!rulesResult.valid) {
-          return {
+        // Sync rules from server to keep cache fresh
+        // Don't await to avoid UI delay
+        syncRulesFromServer().catch(console.error);
+
+        return {
+          valid: true,
+          result: 'valid',
+          message: 'Valid entry',
+          name: data.name,
+          pass_type: data.pass_type,
+          scanned_by: securityUsername
+        };
+      } else {
+        // Logic shouldn't reach here if Pre-Check passed, unless race condition or RPC specific logic
+        return {
             valid: false,
-            result: 'rule_violation',
-            message: rulesResult.reason || 'Rule validation failed',
-            name: data.name || 'Unknown',
+            result: data.message === 'Pass already used' ? 'already_used' : 'invalid',
+            message: data.message,
+            name: data.name,
             pass_type: data.pass_type
-          };
-        }
-        
-        // Update local cache
-        await markPassAsUsedLocally(token);
+        };
       }
-
-      console.log(`✅ Online validation: ${data.result}`);
-      return data;
     } catch (error: any) {
-      console.warn('⚠️ Online validation failed, falling back to offline:', error.message);
-      // Fall through to offline validation
+      console.warn('Online validation failed, falling back to offline:', error);
+      // Fallthrough to offline validation below
     }
   }
 
