@@ -54,6 +54,39 @@ class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Check for network/chunk errors
+      const isChunkError = this.state.error?.message?.includes('Failed to fetch dynamically imported module') || 
+                           this.state.error?.message?.includes('Importing a module script failed') ||
+                           this.state.error?.message?.toLowerCase().includes('network');
+      
+      const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+      if (isChunkError || isOffline) {
+        return (
+          <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mb-6 border border-gray-700">
+              <div className="relative">
+                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full"></div>
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-gray-400 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">You're Offline</h1>
+            <p className="text-gray-400 mb-8 max-w-md">
+              We couldn't connect to the server. Please check your internet connection and try again.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-cyan-500/20"
+            >
+              Try Again
+            </button>
+          </div>
+        );
+      }
+
       return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-gray-800/50 backdrop-blur-lg rounded-2xl p-8 border border-red-500/30 shadow-2xl">

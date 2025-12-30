@@ -40,19 +40,47 @@ const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ de
 const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
-class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string }>{
+class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
   constructor(props: React.PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false };
   }
   static getDerivedStateFromError(error: any) {
-    return { hasError: true, message: error?.message || 'Something went wrong.' };
+    const msg = error?.message || 'Something went wrong.';
+    const isChunkError = 
+      msg.includes('Failed to fetch dynamically imported module') || 
+      msg.includes('Importing a module script failed') ||
+      msg.toLowerCase().includes('network');
+    
+    return { hasError: true, message: msg, isChunkError };
   }
   componentDidCatch(error: any, errorInfo: any) {
     console.error('Route error:', error, errorInfo);
   }
   render() {
     if (this.state.hasError) {
+      // If it looks like a network/chunk error, show a friendly Offline UI
+      if (this.state.isChunkError || !navigator.onLine) {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] p-8 text-center">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">You're Offline</h2>
+            <p className="text-gray-600 mb-6 max-w-md">
+              We couldn't load this page because of a network issue. Please check your internet connection.
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        );
+      }
       return <div className="flex items-center justify-center py-24 text-red-600">{this.state.message}</div>;
     }
     return this.props.children as React.ReactElement;
@@ -88,6 +116,10 @@ const GlobalErrorBanner: React.FC = () => {
         await import('./pages/Events');
         // RicoFamily is next
         await import('./pages/RicoFamily');
+        // Other public pages
+        await import('./pages/Schedule');
+        await import('./pages/Gallery');
+        await import('./pages/Sponsors');
       } catch {}
     };
     // Start prefetching public pages immediately (low priority compared to critical render)
@@ -150,10 +182,14 @@ const GlobalErrorBanner: React.FC = () => {
           /assets\/.*\.js/.test(text);
         const already = sessionStorage.getItem('chunk-reload');
         if (isChunkErr && already !== '1') {
-          sessionStorage.setItem('chunk-reload', '1');
-          const url = new URL(window.location.href);
-          url.searchParams.set('v', String(Date.now()));
-          window.location.replace(url.toString());
+          // Only reload if we are ONLINE. If offline, the RouteErrorBoundary will handle it.
+          // Reloading while offline just kills the app.
+          if (navigator.onLine) {
+            sessionStorage.setItem('chunk-reload', '1');
+            const url = new URL(window.location.href);
+            url.searchParams.set('v', String(Date.now()));
+            window.location.replace(url.toString());
+          }
         }
       } catch {}
     };
