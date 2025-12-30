@@ -329,9 +329,12 @@ export async function validatePassHybrid(
       // ✅ Server validation successful
       if (data.valid) {
         // Evaluate validation rules
+        const storedRules = await getStoredRules();
+        const activeRules = storedRules.length > 0 ? storedRules : DEFAULT_RULES;
+
         const rulesResult = await evaluateRules(
           { pass_type: data.pass_type, pass_token: token },
-          DEFAULT_RULES
+          activeRules
         );
         
         if (!rulesResult.valid) {
