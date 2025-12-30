@@ -120,6 +120,12 @@ const GlobalErrorBanner: React.FC = () => {
         await import('./pages/Schedule');
         await import('./pages/Gallery');
         await import('./pages/Sponsors');
+
+        // PREFETCH ALL LOGIN PAGES
+        await import('./pages/Login');
+        await import('./pages/CoordinatorLogin');
+        await import('./pages/CouncilLogin');
+        await import('./pages/SecurityLogin');
       } catch {}
     };
     // Start prefetching public pages immediately (low priority compared to critical render)

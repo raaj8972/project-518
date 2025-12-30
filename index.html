@@ -78,13 +78,22 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
     
-    <!-- Preload main JS module (added by vite in production) -->
-    <!-- modulepreload will be handled by vite build -->
+    <!-- Preload main JS module -->
+    <link rel="modulepreload" href="/src/main.tsx">
+    <link rel="modulepreload" href="/src/pages/Login.tsx">
+    <link rel="modulepreload" href="/src/pages/SecurityLogin.tsx">
     
     <!-- Global Cyberpunk Styles -->
     <style>
       /* Visually-hidden (accessible) helper for SEO-visible H1s */
       .sr-only { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0,0,0,0) !important; white-space: nowrap !important; border: 0 !important; }
+      
+      :root {
+        --accent-pink: #ff00ff;
+        --accent-cyan: #00ffff;
+        --bg-dark: #0a0a0a;
+      }
+
       * {
         margin: 0;
         padding: 0;
@@ -93,14 +102,79 @@
       
       html {
         scroll-behavior: smooth;
+        background: var(--bg-dark);
       }
       
       body {
         font-family: 'Rajdhani', 'Orbitron', sans-serif;
-        background: #0a0a0a;
+        background: var(--bg-dark);
         color: #ffffff;
         overflow-x: hidden;
       }
+
+      /* Skeleton Styles (Instant Paint) */
+      .skeleton-container {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-dark);
+        z-index: 5;
+        overflow: hidden;
+      }
+      
+      .skeleton-title {
+        font-size: 4rem;
+        font-weight: 900;
+        font-family: 'Orbitron', sans-serif;
+        color: transparent;
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.1);
+        margin-bottom: 2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5rem;
+        animation: skeleton-pulse 2s infinite ease-in-out;
+      }
+
+      .skeleton-buttons {
+        display: flex;
+        gap: 1.5rem;
+        opacity: 0.1;
+      }
+
+      .skeleton-btn {
+        width: 180px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .skeleton-btn::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+        transform: translateX(-100%);
+        animation: skeleton-shimmer 2s infinite;
+      }
+
+      @keyframes skeleton-pulse {
+        0%, 100% { opacity: 0.3; transform: scale(0.98); }
+        50% { opacity: 0.5; transform: scale(1); }
+      }
+
+      @keyframes skeleton-shimmer {
+        100% { transform: translateX(100%); }
+      }
+
+      @media (max-width: 768px) {
+        .skeleton-title { font-size: 2.5rem; }
+        .skeleton-buttons { flex-direction: column; }
+      }
+      
       /* Particles cursor global layer */
       .particles-cursor-layer {
         position: fixed;
@@ -136,62 +210,10 @@
         background: linear-gradient(45deg, #00ffff, #ff00ff);
       }
       
-      /* Loading animation */
-      .loading-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 9999;
-        transition: opacity 0.5s ease-out;
-      }
-      
-      .loading-content {
-        text-align: center;
-      }
-      
-      .loading-logo {
-        font-size: 3rem;
-        font-weight: 900;
-        font-family: 'Orbitron', sans-serif;
-        background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-        background-size: 200% 200%;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        animation: gradientShift 2s ease-in-out infinite;
-        margin-bottom: 2rem;
-      }
-      
-      .loading-bar {
-        width: 200px;
-        height: 4px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 2px;
-        overflow: hidden;
-        margin: 0 auto;
-      }
-      
-      .loading-progress {
-        height: 100%;
-        background: linear-gradient(90deg, #ff00ff, #00ffff);
-        border-radius: 2px;
-        animation: loadingProgress 2s ease-in-out;
-      }
-      
+      /* Loading animation (for splash fallback) */
       @keyframes gradientShift {
         0%, 100% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
-      }
-      
-      @keyframes loadingProgress {
-        0% { width: 0%; }
-        100% { width: 100%; }
       }
       
       /* Page transition effects */
@@ -209,47 +231,6 @@
           transform: translateX(0);
         }
       }
-      
-      /* Global cyberpunk utilities */
-      .cyberpunk-glow {
-        box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
-      }
-      
-      .cyberpunk-glow:hover {
-        box-shadow: 0 0 30px rgba(255, 0, 255, 0.6);
-      }
-      
-      .neon-border {
-        border: 1px solid rgba(0, 255, 255, 0.5);
-        box-shadow: 
-          0 0 10px rgba(0, 255, 255, 0.3),
-          inset 0 0 10px rgba(0, 255, 255, 0.1);
-      }
-      
-      /* Responsive design */
-      @media (max-width: 768px) {
-        .loading-logo {
-          font-size: 1.8rem;
-        }
-        
-        .loading-bar {
-          width: 120px;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        .loading-logo {
-          font-size: 1.5rem;
-        }
-        
-        .loading-bar {
-          width: 100px;
-        }
-        
-        .loading-content {
-          padding: 0 1rem;
-        }
-      }
     </style>
     <script type="application/ld+json">
     {
@@ -263,7 +244,16 @@
   </head>
   <body>
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
-  <div id="root" style="position: relative; z-index: 1;"></div>
+  <div id="root" style="position: relative; z-index: 1;">
+    <!-- Instant Paint Skeleton (Removed by React on mount) -->
+    <div class="skeleton-container">
+      <div class="skeleton-title">RICORRENZA</div>
+      <div class="skeleton-buttons">
+        <div class="skeleton-btn"></div>
+        <div class="skeleton-btn"></div>
+      </div>
+    </div>
+  </div>
     <!-- Main app module loaded with high priority -->
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 
