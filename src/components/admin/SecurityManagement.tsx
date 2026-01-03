@@ -42,7 +42,7 @@ interface VipPass {
 
 export const SecurityManagement: React.FC = () => {
   const { securitySettings, updateSecuritySettings } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council'>('users');
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
@@ -624,6 +624,16 @@ export const SecurityManagement: React.FC = () => {
           }`}
           >
           Scan History
+        </button>  
+        <button
+          onClick={() => setActiveTab('council')}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === 'council'
+              ? 'text-purple-400 border-b-2 border-purple-400'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+          >
+          Council Access
         </button>
       </div>
 
@@ -1079,35 +1089,55 @@ export const SecurityManagement: React.FC = () => {
                 </div>
               </div>
 
-              {/* Council Access */}
-              <div className="pt-6 border-t border-gray-700 mt-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-purple-500" />
-                  Council Dashboard Access
-                </h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Set a secure password for the Council Dashboard. This dashboard allows counting registrations and scans by batch/year.
-                </p>
-                <div className="flex gap-2 max-w-md">
-                  <input 
-                    type="text" 
-                    value={councilPassword}
-                    onChange={e => setCouncilPassword(e.target.value)}
-                    placeholder="Set Council Password"
-                    className="bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded flex-1 focus:outline-none focus:border-purple-500"
-                  />
-                  <button 
-                    onClick={updateCouncilPassword}
-                    disabled={loading}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors disabled:opacity-50"
-                  >
-                    {loading ? 'Updating...' : 'Update Password'}
-                  </button>
-                </div>
               </div>
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Council Access Tab */}
+      {activeTab === 'council' && (
+        <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-500/30">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Lock className="w-6 h-6 text-purple-500" />
+            Council Dashboard Access
+          </h3>
+          <p className="text-gray-400 text-sm mb-6 max-w-2xl">
+            Configure access credentials for the Student Council Dashboard. This dashboard is distinct from the security scanner and is used for monitoring attendance statistics and managing VIP passes.
+          </p>
+          
+          <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700/50 max-w-xl">
+             <label className="block text-sm font-medium text-gray-400 mb-2">
+                Council Password
+             </label>
+             <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={councilPassword}
+                onChange={e => setCouncilPassword(e.target.value)}
+                placeholder="Set new password..."
+                className="bg-gray-800 border border-gray-700 text-white px-4 py-3 rounded-lg flex-1 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
+              />
+              <button 
+                onClick={updateCouncilPassword}
+                disabled={loading}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                   <RefreshCw className="w-4 h-4 animate-spin" />
+                   Updating...
+                  </>
+                ) : (
+                  'Update Password'
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Note: This password is required for all Council members to log in.
+            </p>
+          </div>
         </div>
       )}
 
