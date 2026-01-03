@@ -177,16 +177,19 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
 
       const scan = () => {
         if (!isActive || video.readyState !== video.HAVE_ENOUGH_DATA) {
-          animationRef.current = requestAnimationFrame(scan);
           return;
         }
 
-        // Set canvas size to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        // PERFORMANCE: Downscale processing canvas
+        // We don't need 720p to read a QR code. 480px width is enough and 4x faster.
+        const scale = 480 / video.videoWidth;
+        const width = 480;
+        const height = video.videoHeight * scale;
+
+        canvas.width = width;
+        canvas.height = height;
 
         if (canvas.width === 0 || canvas.height === 0) {
-          animationRef.current = requestAnimationFrame(scan);
           return;
         }
 
@@ -231,13 +234,24 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
           }
         }
 
-        // Continue scanning
-        animationRef.current = requestAnimationFrame(scan);
+        // Loop handled by scanLoop now
+      };
+
+      // THROTTLE: Scan loop timestamp
+      let lastScanTime = 0;
+      const SCAN_INTERVAL = 60; // ~15 FPS (Max speed needed for QR)
+
+      const scanLoop = (timestamp: number) => {
+         if (timestamp - lastScanTime >= SCAN_INTERVAL) {
+             scan();
+             lastScanTime = timestamp;
+         }
+         animationRef.current = requestAnimationFrame(scanLoop);
       };
 
       // Start the scan loop
-      scan();
-      console.log('🔍 Scanner active - scanning at 60fps');
+      animationRef.current = requestAnimationFrame(scanLoop);
+      console.log('🔍 Scanner active - Optimized (480px / 15fps)');
     };
 
     startCamera();
