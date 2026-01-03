@@ -61,9 +61,16 @@ export default function SecurityDashboard() {
   const [manualPasses, setManualPasses] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   
-  // Guard Auditing
-  const [guardName, setGuardName] = useState<string>(sessionStorage.getItem('shift_guard_name') || '');
-  const [showShiftSetup, setShowShiftSetup] = useState(!sessionStorage.getItem('shift_guard_name'));
+  // Guard Auditing - Persistent for the day
+  const getStoredGuard = () => {
+    const stored = localStorage.getItem('shift_guard_name');
+    const date = localStorage.getItem('shift_guard_date');
+    const today = new Date().toLocaleDateString();
+    return (stored && date === today) ? stored : '';
+  };
+
+  const [guardName, setGuardName] = useState<string>(getStoredGuard());
+  const [showShiftSetup, setShowShiftSetup] = useState(!getStoredGuard());
 
   const searchManualPasses = async (query: string) => {
     if (!query.trim()) {
@@ -464,7 +471,8 @@ export default function SecurityDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('security_user');
-    sessionStorage.removeItem('shift_guard_name');
+    // Keep guard name for the day so they aren't asked again
+    // sessionStorage.removeItem('shift_guard_name');
     navigate('/security-login');
     toast.success('Logged out successfully');
   };
@@ -475,7 +483,8 @@ export default function SecurityDashboard() {
       toast.error('Please enter your name');
       return;
     }
-    sessionStorage.setItem('shift_guard_name', guardName);
+    localStorage.setItem('shift_guard_name', guardName);
+    localStorage.setItem('shift_guard_date', new Date().toLocaleDateString());
     setShowShiftSetup(false);
     toast.success(`Shift started: ${guardName}`);
   };
