@@ -1,30 +1,34 @@
 // Service Worker Registration Utility
 
-// Global error handler for dynamic import failures
+// Global error handler for dynamic import failures (Chunk Failure Recovery)
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
-    // Detect "Failed to fetch dynamically imported module" errors
-    if (event.message && event.message.includes('Failed to fetch dynamically imported module')) {
-      console.error('[SW Recovery] Dynamic import failed, clearing cache...');
+    const msg = event.message || '';
+    const isChunkError = 
+      msg.includes('Failed to fetch dynamically imported module') || 
+      msg.includes('Importing a module script failed') ||
+      msg.toLowerCase().includes('network');
+
+    if (isChunkError) {
+      console.error('[SW Recovery] Critical asset failure detected, clearing cache...');
       
-      // Clear service worker cache and reload
+      // Attempt cache recovery
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
         
-        // Listen for cache cleared confirmation
-        navigator.serviceWorker.addEventListener('message', (msgEvent) => {
+        // Listen once for confirmation
+        const handleMessage = (msgEvent: MessageEvent) => {
           if (msgEvent.data && msgEvent.data.type === 'CACHE_CLEARED') {
-            console.log('[SW Recovery] Cache cleared, reloading...');
+            console.log('[SW Recovery] Cache cleared, forcing clean reload...');
             window.location.reload();
+            navigator.serviceWorker.removeEventListener('message', handleMessage);
           }
-        });
+        };
+        navigator.serviceWorker.addEventListener('message', handleMessage);
         
-        // Fallback: reload after 1 second if no response
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+        // Fallback reload if SW doesn't respond
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        // No service worker, just reload
         window.location.reload();
       }
       

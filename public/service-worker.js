@@ -107,7 +107,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache with smart strategies
+// Fetch event - serve with smart strategies
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
@@ -118,50 +118,65 @@ self.addEventListener('fetch', (event) => {
   }
 
   const { request } = event;
-  const url = new URL(request.url);
-  
-  // For ALL assets, use cache-first with stale-while-revalidate
-  // This is SAFE because Vite uses hash-based filenames (e.g., main-abc123.js)
-  // When there's a new build, the filename changes, so no risk of stale modules
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      // Always fetch in background to keep cache fresh
-      const fetchPromise = fetch(request)
+  const isNavigation = request.mode === 'navigate';
+  const isHtml = request.headers.get('accept')?.includes('text/html');
+
+  /**
+   * STRATEGY 1: Network-First for HTML & Navigation
+   * Prevents loading a stale index.html that points to old JS chunks.
+   * If offline, falls back to the cached index.html immediately.
+   */
+  if (isNavigation || isHtml) {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
           if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, response.clone());
-            });
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            return response;
+          }
+          return caches.match(request).then(cached => cached || caches.match(OFFLINE_URL));
+        })
+        .catch(() => {
+          return caches.match(request).then(cached => cached || caches.match(OFFLINE_URL));
+        })
+    );
+    return;
+  }
+
+  /**
+   * STRATEGY 2: Cache-First for Hashed Assets (JS, CSS, Images)
+   * This is HIGHLY PERFORMANT. Since Vite uses unique hashes in filenames,
+   * we never risk serving a "wrong" version of a specific chunk.
+   */
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Even with a cache hit, we refresh the cache in the background (stale-while-revalidate)
+        fetch(request).then((response) => {
+          if (response && response.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, response));
+          }
+        }).catch(() => {});
+        return cachedResponse;
+      }
+
+      return fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return response;
         })
         .catch(() => {
-          // Network failed, return cached version if available
-          return cachedResponse;
-        });
-
-      // If we have a cached response, return it immediately
-      // while updating cache in background
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      // No cache, wait for network
-      return fetchPromise
-        .catch(() => {
-          // Network failed and no cache - show offline page for HTML
-          if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
-            return caches.match(OFFLINE_URL);
+          // Fallback for image failures
+          if (request.destination === 'image') {
+            return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#111"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#333" font-family="sans-serif">Offline</text></svg>', {
+              headers: { 'Content-Type': 'image/svg+xml' }
+            });
           }
-          
-          // For other requests, return error
-          return new Response('Network error', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: new Headers({
-              'Content-Type': 'text/plain',
-            }),
-          });
+          return new Response('Offline resource not found', { status: 404 });
         });
     })
   );

@@ -257,5 +257,49 @@
     <!-- Main app module loaded with high priority -->
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 
+    <!-- Emergency Recovery Script (Detects half-load/hangs) -->
+    <script>
+      (function() {
+        const timeout = 8000; // 8 seconds
+        const check = () => {
+          const skeleton = document.querySelector('.skeleton-container');
+          const root = document.getElementById('root');
+          
+          // If skeleton is still visible and root has no children or just the skeleton
+          if (skeleton && (root.children.length === 0 || root.children[0] === skeleton)) {
+            console.warn('[Recovery] App mount hang detected after ' + (timeout/1000) + 's');
+            
+            // Inject emergency recovery button
+            const btn = document.createElement('button');
+            btn.id = 'emergency-recovery-btn';
+            btn.innerHTML = 'RELOAD & FIX SITE';
+            btn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999999;background:#00ffff;color:#000;border:none;padding:12px 24px;border-radius:4px;font-family:Orbitron,sans-serif;font-weight:900;cursor:pointer;box-shadow:0 0 20px #00ffff;letter-spacing:1px;';
+            btn.onclick = () => {
+              btn.innerHTML = 'FIXING...';
+              if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+                setTimeout(() => window.location.reload(true), 1500);
+              } else {
+                window.location.reload(true);
+              }
+            };
+            if (!document.getElementById('emergency-recovery-btn')) {
+              document.body.appendChild(btn);
+            }
+          }
+        };
+        setTimeout(check, timeout);
+
+        // Auto-recovery: If network returns and we are STILL stuck, auto-reload once
+        window.addEventListener('online', () => {
+          const skeleton = document.querySelector('.skeleton-container');
+          const root = document.getElementById('root');
+          if (skeleton && (root.children.length === 0 || root.children[0] === skeleton)) {
+            console.log('[Recovery] Network returned, attempting auto-recovery...');
+            window.location.reload();
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

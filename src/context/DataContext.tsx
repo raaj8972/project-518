@@ -2124,7 +2124,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   // Listen to browser online/offline and visibility changes to opportunistically refetch
   useEffect(() => {
     const onOnline = () => {
-      fetchData(true);
+      // Optimistically move to OK status to give instant feedback
+      setConnectionStatus('ok');
+      setLastError(null);
+      // Trigger a silent background/foreground refresh to sync data
+      // If we are still in start-up loading mode, we allow it to be non-silent to ensure UI finishes mounting
+      fetchData(loading); 
     };
     const onOffline = () => {
       setConnectionStatus('offline');
@@ -3647,11 +3652,10 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     // Soft delete: set deleted_at to NOW()
     const timestamp = new Date().toISOString();
     
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('registrations')
       .update({ deleted_at: timestamp })
-      .eq('id', id)
-      .select();
+      .eq('id', id);
     
     if (error) {
       console.error('[DataContext] Delete failed with error:', error);
