@@ -9,6 +9,8 @@ interface QRScannerProps {
   onClose?: () => void;
 }
 
+const MIN_SCAN_AREA = 0.018; // QR must at least occupy 1.8% of the viewport to trigger
+
 export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -131,14 +133,30 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         });
 
         if (code && code.data) {
-          // Prevent duplicate scans
-          if (code.data !== lastScan) {
-            console.log('✅ QR CODE DETECTED:', code.data);
-            setLastScan(code.data);
-            onScanSuccess(code.data);
-            
-            // Clear after 2 seconds to allow rescanning
-            setTimeout(() => setLastScan(''), 2000);
+          // PROXIMITY DETECTION: Calculate area of the QR code
+          // Area of polygon using surveyor's formula (simplified for quadrilaterals)
+          const loc = code.location;
+          const area = Math.abs(
+            (loc.topLeftCorner.x * loc.topRightCorner.y - loc.topLeftCorner.y * loc.topRightCorner.x) +
+            (loc.topRightCorner.x * loc.bottomRightCorner.y - loc.topRightCorner.y * loc.bottomRightCorner.x) +
+            (loc.bottomRightCorner.x * loc.bottomLeftCorner.y - loc.bottomRightCorner.y * loc.bottomLeftCorner.x) +
+            (loc.bottomLeftCorner.x * loc.topLeftCorner.y - loc.bottomLeftCorner.y * loc.topLeftCorner.x)
+          ) / 2;
+
+          const totalPixels = imageData.width * imageData.height;
+          const relativeArea = area / totalPixels;
+
+          // Only trigger if QR is at least X% of the frame (Proximity Check)
+          // This prevents accidental scans of people further back in line.
+          if (relativeArea > MIN_SCAN_AREA) {
+            // Prevent duplicate scans for a short window
+            if (code.data !== lastScan) {
+              setLastScan(code.data);
+              onScanSuccess(code.data);
+              
+              // Clear after 1 second to allow rapid rescanning of DIFFERENT people
+              setTimeout(() => setLastScan(''), 1000);
+            }
           }
         }
 

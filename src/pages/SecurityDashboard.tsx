@@ -312,7 +312,8 @@ export default function SecurityDashboard() {
   const handleScan = async (passToken: string) => {
     if (!securityUser) return;
     
-    setScanning(true);
+    // In continuous mode, we DON'T stop scanning while processing
+    // This allows the camera to stay active behind the overlay
     
     try {
       // Use hybrid validation (online-first, offline fallback)

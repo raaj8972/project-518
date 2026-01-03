@@ -66,6 +66,10 @@ export function ScanResultOverlay({
   const Icon = style.icon;
 
   useEffect(() => {
+    // RESET state when a new result arrives (background scanning)
+    setIsExiting(false);
+    setCountdown(Math.ceil(autoDismissMs / 1000));
+
     if (autoDismissMs <= 0) return;
 
     // Countdown timer
@@ -81,7 +85,7 @@ export function ScanResultOverlay({
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, [autoDismissMs]);
+  }, [autoDismissMs, result]);
 
   const handleDismiss = () => {
     setIsExiting(true);
