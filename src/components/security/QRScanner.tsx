@@ -132,6 +132,22 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         // Start scanning loop
         startScanning();
 
+        // FORCE FOCUS (Android Fix)
+        // Some devices ignore the initial 'advanced' constraint.
+        // We re-apply it explicitly on the track now that the stream is active.
+        const focusTrack = stream.getVideoTracks()[0];
+        try {
+           const capabilities = focusTrack.getCapabilities() as any;
+           if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+              console.log('🎯 Applying continuous focus (Post-Init)...');
+              await focusTrack.applyConstraints({
+                advanced: [{ focusMode: 'continuous' }]
+              } as any);
+           }
+        } catch (focusErr) {
+           console.warn('Focus enforcement failed', focusErr);
+        }
+
       } catch (err: any) {
         console.error('❌ Camera error:', err);
         setIsLoading(false);
@@ -296,8 +312,34 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
     }
   };
 
+  const handleTapFocus = async () => {
+     if (!streamRef.current) return;
+     const track = streamRef.current.getVideoTracks()[0];
+     try {
+       // Trigger a re-focus by toggling usage or mode if supported
+       // Most Androids will re-focus if you just re-apply the continuous constraint
+       await track.applyConstraints({
+         advanced: [{ focusMode: 'continuous' }]
+       } as any);
+       
+       // Visual feedback
+       const box = document.getElementById('focus-box');
+       if (box) {
+         box.style.opacity = '1';
+         box.style.transform = 'scale(1)';
+         setTimeout(() => {
+            box.style.opacity = '0';
+            box.style.transform = 'scale(1.5)';
+         }, 500);
+       }
+       console.log('🎯 Tap-to-focus triggered');
+     } catch (e) {
+       console.log('Manual focus not supported');
+     }
+  };
+
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full h-full flex flex-col" onClick={handleTapFocus}>
       {/* Hidden canvas for processing */}
       <canvas ref={canvasRef} className="hidden" />
       
@@ -309,6 +351,13 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
           autoPlay
           playsInline
           muted
+          onClick={handleTapFocus}
+        />
+        
+        {/* Tap to Focus Indicator */}
+        <div 
+          id="focus-box"
+          className="absolute top-1/2 left-1/2 w-20 h-20 border-2 border-yellow-400/50 rounded-lg pointer-events-none transition-all duration-500 opacity-0 -translate-x-1/2 -translate-y-1/2 transform scale-150"
         />
         
         {/* Loading Overlay */}
