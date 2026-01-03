@@ -76,9 +76,35 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         const capabilities = track.getCapabilities() as any;
         const settings = track.getSettings() as any;
         
-        // Some Androids hide torch in settings, others in capabilities
+        let torchDetected = false;
+
+        // 1. Standard Capabilities/Settings Check
         if (capabilities.torch || settings.torch || ('fillLightMode' in capabilities)) {
-          console.log('🔦 Torch capability detected');
+          torchDetected = true;
+        }
+
+        // 2. ImageCapture Fallback (Android Chrome specific)
+        // Many Androids hide the flash capability in the ImageCapture API
+        if (!torchDetected && 'ImageCapture' in window) {
+           try {
+             const imageCapture = new (window as any).ImageCapture(track);
+             // Wait for capabilities to be ready
+             const photoCapabilities = await imageCapture.getPhotoCapabilities().catch(() => null);
+             
+             if (photoCapabilities && photoCapabilities.fillLightMode) {
+                // Check if 'torch' or 'flash' is available
+                if (photoCapabilities.fillLightMode.includes('torch') || photoCapabilities.fillLightMode.includes('flash')) {
+                   console.log('🔦 Torch detected via ImageCapture API');
+                   torchDetected = true;
+                }
+             }
+           } catch (e) {
+             console.warn('⚠️ ImageCapture detection failed (ignoring)', e);
+           }
+        }
+
+        if (torchDetected) {
+          console.log('🔦 Torch capability CONFIRMED');
           setHasTorch(true);
         }
 
