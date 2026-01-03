@@ -1,15 +1,11 @@
-import jsPDF from 'jspdf';
-// @ts-ignore
-import QRCode from 'qrcode';
-
-interface PassData {
+export interface PassData {
   id: string; // database id
   token: string; // secure token for QR
   name?: string;
   type: string;
 }
 
-interface TemplateConfig {
+export interface TemplateConfig {
   bgUrl: string;
   qr: {
     x: number; // percentage
@@ -18,7 +14,7 @@ interface TemplateConfig {
   };
 }
 
-interface GenerateOptions {
+export interface GenerateOptions {
   passes: PassData[];
   templateConfigs: Record<string, TemplateConfig>; // { "day_0": config, ... }
   selectedDays: number[]; // indices [0, 1, 2]
@@ -32,6 +28,12 @@ export const generatePassPDF = async ({
   onProgress
 }: GenerateOptions) => {
   if (passes.length === 0) return;
+
+  // Dynamically load heavy libraries only when needed
+  const [{ default: jsPDF }, QRCode] = await Promise.all([
+    import('jspdf'),
+    import('qrcode')
+  ]);
 
   const doc = new jsPDF({
     orientation: 'landscape',

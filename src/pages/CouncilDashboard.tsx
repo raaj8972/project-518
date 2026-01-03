@@ -522,7 +522,7 @@ export default function CouncilDashboard() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <p className="font-bold text-gray-200 truncate">{pass.participant_name || 'Unnamed VIP'}</p>
-                            <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${pass.is_used ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'}`}>
+                            <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${pass.is_used ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
                               {pass.is_used ? 'CHECKED IN' : 'VALID'}
                             </span>
                             {usedDays.length > 0 && (

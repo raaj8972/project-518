@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Users, Ticket, Crown, Settings, Eye, Trash, Plus, Clock, Search, X, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus } from 'lucide-react';
+import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
-import * as XLSX from 'xlsx';
 import { PassTemplateDesigner } from './PassTemplateDesigner';
 import { generatePassPDF } from '../../utils/pdfGenerator';
 
@@ -60,9 +59,28 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [processingBulk, setProcessingBulk] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
   const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
+  const [selectedVipIds, setSelectedVipIds] = useState<Set<string>>(new Set());
   const [validationRules, setValidationRules] = useState<ValidationRule[]>(DEFAULT_RULES);
   const [rulesTableReady, setRulesTableReady] = useState(true);
   const [ruleLoadError, setRuleLoadError] = useState<string | null>(null);
+
+  const toggleSelectAll = () => {
+    if (selectedVipIds.size === vipPasses.length) {
+      setSelectedVipIds(new Set());
+    } else {
+      setSelectedVipIds(new Set(vipPasses.map(p => p.id)));
+    }
+  };
+
+  const toggleSelectVip = (id: string) => {
+    const next = new Set(selectedVipIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedVipIds(next);
+  };
 
   const [newUser, setNewUser] = useState({
     username: '',
@@ -455,10 +473,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
         if (!bstr) return;
+
+        // Dynamically load XLSX library only when needed
+        const XLSX = await import('xlsx');
+        
         const wb = XLSX.read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
@@ -595,11 +617,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
   };
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const template = [
       { name: 'John Doe', notes: 'Sponsor guest' },
       { name: 'Jane Smith', notes: 'Core team member' },
     ];
+    const XLSX = await import('xlsx');
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Template');
@@ -912,59 +935,99 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       )}
 
       {/* VIP Passes Tab */}
-      {activeTab === 'vip' && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowCreateVIP(!showCreateVIP)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Create VIP Pass
-            </button>
-            <button
-              onClick={() => setShowBulkVIP(!showBulkVIP)}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30"
-            >
-              <FileUp className="w-4 h-4" />
-              Bulk Import
-            </button>
-            {(securitySettings?.event_dates || []).length > 1 ? (
-              <div className="flex gap-1">
-                {(securitySettings?.event_dates || []).map((_, idx) => {
-                  const dayNum = idx + 1;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleDownloadPDF(vipPasses, idx)}
-                      disabled={vipPasses.length === 0}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-sm font-bold"
-                    >
-                      <Download className="w-4 h-4" />
-                      Day {dayNum}
-                    </button>
-                  );
-                })}
+        {activeTab === 'vip' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Crown className="w-6 h-6 text-yellow-500" />
+                VIP Access Management
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => handleDownloadPDF(vipPasses)}
-                  disabled={vipPasses.length === 0}
-                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-sm font-bold"
+                  onClick={() => setShowCreateVIP(!showCreateVIP)}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create VIP Pass
+                </button>
+                <button
+                  onClick={() => setShowBulkVIP(!showBulkVIP)}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors border border-gray-600"
+                >
+                  <FileUp className="w-4 h-4" />
+                  Bulk Import
+                </button>
+                {Object.keys(securitySettings?.pass_template_config || {}).length > 0 && (
+                  <button
+                    onClick={toggleSelectAll}
+                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors border ${
+                      selectedVipIds.size === vipPasses.length && vipPasses.length > 0
+                        ? 'bg-purple-600/20 text-purple-400 border-purple-500/30'
+                        : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:text-gray-300'
+                    }`}
+                  >
+                    {selectedVipIds.size === vipPasses.length && vipPasses.length > 0 ? (
+                      <CheckSquare className="w-4 h-4" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                    {selectedVipIds.size === vipPasses.length && vipPasses.length > 0 ? 'Deselect All' : 'Select All'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center justify-end">
+              {(securitySettings?.event_dates || []).length > 1 ? (
+                <div className="flex flex-wrap gap-1 w-full sm:w-auto">
+                  {(securitySettings?.event_dates || []).map((_, idx) => {
+                    const dayNum = idx + 1;
+                    const targetPasses = selectedVipIds.size > 0 
+                      ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                      : vipPasses;
+                    
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleDownloadPDF(targetPasses, idx)}
+                        disabled={vipPasses.length === 0}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                      >
+                        <Download className="w-4 h-4" />
+                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `Day ${dayNum}`}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      const targetPasses = selectedVipIds.size > 0 
+                        ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                        : vipPasses;
+                      handleDownloadPDF(targetPasses);
+                    }}
+                    disabled={vipPasses.length === 0}
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-xs font-bold"
+                  >
+                    <Download className="w-4 h-4" />
+                    {selectedVipIds.size > 0 ? `Download ${selectedVipIds.size}` : 'All Days'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                   onClick={() => {
+                     const targetPasses = selectedVipIds.size > 0 
+                       ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                       : vipPasses;
+                     handleDownloadPDF(targetPasses);
+                   }}
+                   disabled={vipPasses.length === 0}
+                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
                 >
                   <Download className="w-4 h-4" />
-                  All Days
+                  {selectedVipIds.size > 0 ? `Download ${selectedVipIds.size} Selected` : 'Download All PDFs'}
                 </button>
-              </div>
-            ) : (
-              <button
-                 onClick={() => handleDownloadPDF(vipPasses)}
-                 disabled={vipPasses.length === 0}
-                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
-              >
-                <Download className="w-4 h-4" />
-                Download All PDFs
-              </button>
-            )}
-          </div>
+              )}
+            </div>
 
           {showBulkVIP && (
             <div className="bg-indigo-950/20 border border-indigo-500/30 p-6 rounded-lg space-y-4">
@@ -1054,71 +1117,88 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
               <p className="text-gray-400 text-sm">No VIP passes created yet</p>
             ) : (
               vipPasses.map((pass) => (
-                <div key={pass.id} className="bg-gray-800/30 p-4 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
+                <div key={pass.id} className={`bg-gray-800/30 p-4 rounded-lg border transition-all ${
+                  selectedVipIds.has(pass.id) ? 'border-purple-500/50 bg-purple-500/5' : 'border-transparent'
+                }`}>
+                  <div className="flex items-start gap-4 mb-2">
+                    <button 
+                      onClick={() => toggleSelectVip(pass.id)}
+                      className={`mt-1.5 transition-colors p-1 -m-1 ${
+                        selectedVipIds.has(pass.id) ? 'text-purple-400' : 'text-gray-600 hover:text-gray-500'
+                      }`}
+                    >
+                      {selectedVipIds.has(pass.id) ? (
+                        <CheckSquare className="w-6 h-6" />
+                      ) : (
+                        <Square className="w-6 h-6" />
+                      )}
+                    </button>
+                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <p className="text-white font-bold text-lg">
+                        <p className="text-white font-bold text-lg leading-tight">
                           {pass.participant_name || <span className="text-gray-500 italic">Unnamed VIP</span>}
                         </p>
-                      {pass.notes && (
-                        <p className="text-gray-400 text-sm">{pass.notes}</p>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(pass.created_at).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        Token: {pass.pass_token}
-                      </p>
-                      
-                      {/* Day Usage Badges */}
-                      {(securitySettings?.event_dates || []).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {(securitySettings?.event_dates || []).map((date, idx) => {
-                              const dayNum = idx + 1;
-                              const isUsed = passUsage[pass.id]?.includes(dayNum);
-                              return (
-                                <button key={idx} 
-                                   disabled={!isUsed}
-                                   onClick={() => isUsed && date && handleResetDay(pass.id, date, dayNum)}
-                                   className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-colors ${
-                                    isUsed 
-                                    ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 cursor-pointer' 
-                                    : 'bg-gray-700 text-gray-500 border-gray-600 cursor-default'
-                                }`}
-                                title={isUsed ? "Click to remove this day's entry" : "Not visited"}
-                                >
-                                  <span className="opacity-80">Day {dayNum}</span>
-                                  {isUsed ? (
-                                    <CheckCircle2 className="w-2.5 h-2.5" />
-                                  ) : (
-                                    <Clock className="w-2.5 h-2.5 opacity-40" />
-                                  )}
-                                </button>
-                              );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${
-                        pass.is_used
-                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                          : 'bg-green-500/10 text-green-400 border border-green-500/20'
-                      }`}>
-                        {pass.is_used ? 'CHECKED IN' : 'VALID'}
-                      </span>
+                        {pass.notes && (
+                          <p className="text-gray-400 text-sm">{pass.notes}</p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(pass.created_at).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Token: {pass.pass_token}
+                        </p>
+                        
+                        {/* Day Usage Badges */}
+                        {(securitySettings?.event_dates || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {(securitySettings?.event_dates || []).map((date, idx) => {
+                                const dayNum = idx + 1;
+                                const isUsed = passUsage[pass.id]?.includes(dayNum);
+                                return (
+                                  <button key={idx} 
+                                     disabled={!isUsed}
+                                     onClick={() => isUsed && date && handleResetDay(pass.id, date, dayNum)}
+                                     className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-colors ${
+                                      isUsed 
+                                      ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 cursor-pointer' 
+                                      : 'bg-gray-700 text-gray-500 border-gray-600 cursor-default'
+                                  }`}
+                                  title={isUsed ? "Click to remove this day's entry" : "Not visited"}
+                                  >
+                                    <span className="opacity-80">Day {dayNum}</span>
+                                    {isUsed ? (
+                                      <CheckCircle2 className="w-2.5 h-2.5" />
+                                    ) : (
+                                      <Clock className="w-2.5 h-2.5 opacity-40" />
+                                    )}
+                                  </button>
+                                );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap ${
+                          pass.is_used
+                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            : 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        }`}>
+                          {pass.is_used ? 'CHECKED IN' : 'VALID'}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700/30">
                     <button
                       onClick={() => setSelectedPass(pass)}
-                      className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 text-sm"
+                      className="flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 text-sm font-medium"
                     >
                       <Eye className="w-4 h-4" />
                       View QR
                     </button>
-                    <div className="flex items-center gap-1">
+                    
+                    <div className="flex flex-wrap gap-1.5 items-center">
                       {(securitySettings?.event_dates || []).length > 1 ? (
                         <>
                           {(securitySettings?.event_dates || []).map((_, idx) => {
@@ -1127,7 +1207,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                               <button
                                 key={idx}
                                 onClick={() => handleDownloadPDF(pass, idx)}
-                                className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-500/20 transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] sm:text-xs font-bold border border-blue-500/20 transition-colors"
                               >
                                 Day {dayNum}
                               </button>
@@ -1135,37 +1215,40 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                           })}
                           <button
                             onClick={() => handleDownloadPDF(pass)}
-                            className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-bold border border-indigo-500/20 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] sm:text-xs font-bold border border-indigo-500/20 transition-colors"
                           >
-                            All Days
+                            All
                           </button>
                         </>
                       ) : (
                         <button
                           onClick={() => handleDownloadPDF(pass)}
-                          className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
+                          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-medium"
                         >
                           <Download className="w-4 h-4" />
                           PDF
                         </button>
                       )}
                     </div>
-                    <button
-                      onClick={() => handleResetPass(pass.id)}
-                      className="flex items-center gap-1 text-orange-400 hover:text-orange-300 text-sm"
-                      title="Clear scan history"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Reset
-                    </button>
-                    <button
-                      onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
-                      className="flex items-center gap-1 text-red-400 hover:text-red-300 text-sm ml-auto"
-                      title="Permanent Delete"
-                    >
-                      <Trash className="w-4 h-4" />
-                      Delete
-                    </button>
+
+                    <div className="flex gap-3 items-center ml-auto">
+                      <button
+                        onClick={() => handleResetPass(pass.id)}
+                        className="flex items-center gap-1.5 text-orange-400 hover:text-orange-300 text-sm font-medium"
+                        title="Clear scan history"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
+                        className="flex items-center gap-1.5 text-red-500 hover:text-red-400 text-sm font-medium"
+                        title="Permanent Delete"
+                      >
+                        <Trash className="w-4 h-4" />
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
