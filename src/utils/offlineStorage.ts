@@ -83,7 +83,8 @@ export async function syncPassesFromServer(): Promise<{ success: boolean; count:
  */
 export async function validatePassOffline(
   token: string,
-  securityUsername: string
+  securityUsername: string,
+  guardName?: string
 ): Promise<{
   valid: boolean;
   result: 'valid' | 'invalid' | 'already_used' | 'inactive' | 'error';
@@ -175,7 +176,8 @@ export async function validatePassOffline(
       security_username: securityUsername,
       validation_method: 'offline',
       result: 'valid',
-      device_info: navigator.userAgent
+      device_info: navigator.userAgent,
+      guard_name: guardName
     });
 
     // Register background sync if supported
@@ -235,7 +237,8 @@ export async function syncPendingScansToServer(
             scan_result: scan.result,
             security_username: scan.security_username,
             pass_type: scan.pass_type,
-            scanned_at: scan.timestamp
+            scanned_at: scan.timestamp,
+            guard_name: scan.guard_name
           });
 
         if (error) {
@@ -313,7 +316,8 @@ export async function getSyncStats() {
 export async function validatePassHybrid(
   token: string,
   securityUsername: string,
-  isOnline: boolean
+  isOnline: boolean,
+  guardName?: string
 ): Promise<{
   valid: boolean;
   result: 'valid' | 'invalid' | 'already_used' | 'inactive' | 'error' | 'rule_violation';
@@ -374,7 +378,10 @@ export async function validatePassHybrid(
 
       // 4. Everything Valid -> CONSUME (Call RPC to mark used)
       const { data, error } = await supabase
-        .rpc('validate_entry_pass', { p_pass_token: token });
+        .rpc('process_pass_scan_v3', { 
+          p_pass_token: token,
+          p_guard_name: guardName
+        });
 
       if (error) throw error;
 
@@ -412,7 +419,7 @@ export async function validatePassHybrid(
 
   // Offline validation
   console.log('📴 Using offline validation...');
-  return await validatePassOffline(token, securityUsername);
+  return await validatePassOffline(token, securityUsername, guardName);
 }
 
 export {

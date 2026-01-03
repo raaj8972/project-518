@@ -33,6 +33,7 @@ export interface PendingScan {
   synced: boolean;
   sync_attempts: number;
   device_info: string;
+  guard_name?: string;
 }
 
 export interface SyncMetadata {
@@ -309,18 +310,27 @@ export async function clearPendingScans(): Promise<void> {
 
 /**
  * Clear synced scans (cleanup old records)
+ * IMPORTANT: Preserves scans from the current day to ensure re-entry protection
+ * even if the scanner goes offline after a sync.
  */
 export async function clearSyncedScans(): Promise<void> {
   try {
-    const syncedScans = await db.pending_scans
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find synced scans that are NOT from today
+    const oldScans = await db.pending_scans
       .where('synced')
       .equals(1) // 1 = true in IndexedDB
+      .filter(scan => !scan.timestamp.startsWith(today))
       .toArray();
     
-    const ids = syncedScans.map(scan => scan.id!);
-    await db.pending_scans.bulkDelete(ids);
-    
-    console.log(`✅ Cleared ${ids.length} synced scans`);
+    const ids = oldScans.map(scan => scan.id!);
+    if (ids.length > 0) {
+      await db.pending_scans.bulkDelete(ids);
+      console.log(`✅ Cleared ${ids.length} old synced scans`);
+    } else {
+      console.log('ℹ️ No old synced scans to clear');
+    }
   } catch (error) {
     console.error('❌ Failed to clear synced scans:', error);
   }

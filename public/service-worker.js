@@ -7,9 +7,13 @@ const OFFLINE_URL = '/offline.html';
 // CRITICAL pages to preload immediately (don't slow down installation)
 const CRITICAL_CACHE = [
   '/',
+  '/index.html',
   '/offline.html',
+  '/manifest.json',
   '/rickshaw.svg',
-  '/ambulance-animated.svg'
+  '/ambulance-animated.svg',
+  '/web-app-manifest-192x192.png',
+  '/web-app-manifest-512x512.png'
 ];
 
 // Pages to cache progressively (on first visit)

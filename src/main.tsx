@@ -27,6 +27,17 @@ function showFatal(message: string) {
     if (import.meta.env.PROD) {
       registerServiceWorker();
     }
+
+    // Handle PWA installation
+    window.addEventListener('beforeinstallprompt', (e) => {
+      console.log('[PWA] Installation prompt deferred');
+      (window as any).deferredPrompt = e;
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('[PWA] Application installed successfully');
+      (window as any).deferredPrompt = null;
+    });
   } catch (err: any) {
     console.error('Fatal startup error:', err);
     showFatal(err?.message || 'Unknown startup error. Check console logs.');

@@ -59,6 +59,10 @@ export default function SecurityDashboard() {
   const [manualSearch, setManualSearch] = useState('');
   const [manualPasses, setManualPasses] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
+  
+  // Guard Auditing
+  const [guardName, setGuardName] = useState<string>(sessionStorage.getItem('shift_guard_name') || '');
+  const [showShiftSetup, setShowShiftSetup] = useState(!sessionStorage.getItem('shift_guard_name'));
 
   const searchManualPasses = async (query: string) => {
     if (!query.trim()) {
@@ -271,7 +275,8 @@ export default function SecurityDashboard() {
       const result = await validatePassHybrid(
         passToken,
         securityUser.username,
-        isOnline
+        isOnline,
+        guardName
       );
 
       setLastScanResult(result);
@@ -458,8 +463,20 @@ export default function SecurityDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('security_user');
+    sessionStorage.removeItem('shift_guard_name');
     navigate('/security-login');
     toast.success('Logged out successfully');
+  };
+
+  const handleShiftSetup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!guardName.trim()) {
+      toast.error('Please enter your name');
+      return;
+    }
+    sessionStorage.setItem('shift_guard_name', guardName);
+    setShowShiftSetup(false);
+    toast.success(`Shift started: ${guardName}`);
   };
 
   if (!securityUser) {
@@ -487,7 +504,14 @@ export default function SecurityDashboard() {
               <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                 Security Dashboard
               </h1>
-              <p className="text-sm md:text-base text-gray-400">Welcome, {securityUser?.username}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm md:text-base text-gray-400">Welcome, {securityUser?.username}</p>
+                {guardName && (
+                  <span className="text-sm md:text-base text-cyan-400 font-medium">
+                    • Guard: {guardName}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -888,6 +912,46 @@ export default function SecurityDashboard() {
         {/* PWA Install Prompt */}
         <InstallPWA />
       </div>
+      {/* Shift Setup Modal */}
+      {showShiftSetup && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-cyan-500/30 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-[0_0_50px_rgba(6,182,212,0.1)]">
+            <div className="flex flex-col items-center text-center gap-4 mb-6">
+              <div className="w-16 h-16 bg-cyan-500/20 rounded-2xl flex items-center justify-center">
+                <User className="w-8 h-8 text-cyan-500" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-white">Shift Setup</h3>
+                <p className="text-gray-400 mt-1">Please enter your name to begin scanning</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleShiftSetup} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Guard Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={guardName}
+                  onChange={(e) => setGuardName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all font-medium"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-700 hover:from-cyan-500 hover:to-blue-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-cyan-900/20 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Start Scanning
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
