@@ -383,7 +383,7 @@ export const SecurityManagement: React.FC = () => {
     setLoading(true);
 
     try {
-      const { error } = await supabase.rpc('create_vip_pass', {
+      const { error } = await supabase.rpc('create_vip_pass_v3', {
         p_name: newVIP.name || null,
         p_notes: newVIP.notes || null,
       });
@@ -418,7 +418,7 @@ export const SecurityManagement: React.FC = () => {
     const displayName = name || 'Unnamed VIP';
     if (!window.confirm(`Are you sure you want to delete the VIP pass for "${displayName}"? All scan records will be lost.`)) return;
     try {
-      const { error } = await supabase.rpc('delete_entry_pass', { p_pass_id: id });
+      const { error } = await supabase.rpc('delete_entry_pass_v3', { p_pass_id: id });
       if (error) throw error;
       toast.success('VIP pass deleted');
       loadData();

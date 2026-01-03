@@ -25,14 +25,22 @@ BEGIN
   -- Get today's date in IST
   v_today_ist := (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date;
   
-  -- Get today's valid entry count (IST timezone)
+  -- Get today's valid entry count (IST timezone, Filtered by Approval)
   SELECT COUNT(*)
   INTO v_today_count
-  FROM public.pass_scans
-  WHERE scan_result = 'valid'
-  AND (scanned_at AT TIME ZONE 'Asia/Kolkata')::date = v_today_ist;
+  FROM public.pass_scans ps
+  LEFT JOIN public.entry_passes ep ON ps.pass_id = ep.id
+  LEFT JOIN public.registrations r ON ep.event_registration_id = r.id
+  LEFT JOIN public.pass_registrations pr ON ep.pass_registration_id = pr.id
+  WHERE ps.scan_result = 'valid'
+  AND (ps.scanned_at AT TIME ZONE 'Asia/Kolkata')::date = v_today_ist
+  AND (
+    (ep.event_registration_id IS NULL AND ep.pass_registration_id IS NULL) -- VIP/Manual
+    OR (ep.event_registration_id IS NOT NULL AND r.status = 'approved' AND r.deleted_at IS NULL)
+    OR (ep.pass_registration_id IS NOT NULL AND pr.status = 'approved')
+  );
   
-  -- Get recent valid scans (last 10, today only in IST)
+  -- Get recent valid scans (last 10, today only in IST, Filtered by Approval)
   SELECT json_agg(
     json_build_object(
       'id', id,
@@ -45,11 +53,19 @@ BEGIN
   )
   INTO v_recent_scans
   FROM (
-    SELECT id, participant_name, scanned_at, scan_result, pass_type
-    FROM public.pass_scans
-    WHERE scan_result = 'valid'
-    AND (scanned_at AT TIME ZONE 'Asia/Kolkata')::date = v_today_ist
-    ORDER BY scanned_at DESC
+    SELECT ps.id, ps.participant_name, ps.scanned_at, ps.scan_result, ps.pass_type
+    FROM public.pass_scans ps
+    LEFT JOIN public.entry_passes ep ON ps.pass_id = ep.id
+    LEFT JOIN public.registrations r ON ep.event_registration_id = r.id
+    LEFT JOIN public.pass_registrations pr ON ep.pass_registration_id = pr.id
+    WHERE ps.scan_result = 'valid'
+    AND (ps.scanned_at AT TIME ZONE 'Asia/Kolkata')::date = v_today_ist
+    AND (
+      (ep.event_registration_id IS NULL AND ep.pass_registration_id IS NULL)
+      OR (ep.event_registration_id IS NOT NULL AND r.status = 'approved' AND r.deleted_at IS NULL)
+      OR (ep.pass_registration_id IS NOT NULL AND pr.status = 'approved')
+    )
+    ORDER BY ps.scanned_at DESC
     LIMIT 10
   ) recent;
   

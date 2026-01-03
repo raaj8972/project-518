@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User, Wifi, WifiOff, RefreshCw, Database, AlertTriangle } from 'lucide-react';
+import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User, Wifi, WifiOff, RefreshCw, Database, AlertTriangle, XCircle } from 'lucide-react';
 import { QRScanner } from '../components/security/QRScanner';
 import { ScanResultOverlay } from '../components/security/ScanResultOverlay';
 import { InstallPWA } from '../components/InstallPWA';
@@ -152,19 +152,33 @@ export default function SecurityDashboard() {
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*', // Listen for ALL events (handles deletes for resets)
             schema: 'public',
             table: 'pass_scans'
           },
-          (payload) => {
-            console.log('🔔 New scan from device:', payload);
+          (payload: any) => {
+            console.log('🔔 Scan table change:', payload);
             loadStats();
-            // Update local cache if needed
-            if (payload.new?.pass_token) {
+            // Update local cache if a scan was inserted
+            if (payload.eventType === 'INSERT' && payload.new?.pass_token) {
               import('../utils/offlineDB').then(({ markPassAsUsedLocally }) => {
                 markPassAsUsedLocally(payload.new.pass_token);
               });
             }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'entry_passes'
+          },
+          (payload) => {
+            console.log('🔄 Pass updated:', payload);
+            loadStats();
+            // Trigger a re-sync of passes to catch deactivations/resets
+            debouncedLoadSyncStats();
           }
         )
         .subscribe();
@@ -456,6 +470,16 @@ export default function SecurityDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
+        <style>{`
+          @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+          }
+          .animate-pulse-premium {
+            animation: pulse-ring 2s infinite;
+          }
+        `}</style>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Shield className="w-8 h-8 md:w-10 md:h-10 text-cyan-500" />
@@ -474,6 +498,70 @@ export default function SecurityDashboard() {
             <LogOut className="w-4 h-4 md:w-5 md:h-5" />
             <span className="hidden sm:inline">Logout</span>
           </button>
+        </div>
+
+        {/* Scanner Section - Moved to Top */}
+        <div className="bg-gradient-to-br from-gray-900/90 to-black/90 backdrop-blur-xl rounded-2xl p-6 md:p-10 shadow-2xl border border-cyan-500/20 relative overflow-hidden">
+          {/* Decorative background glow */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          {/* Success Animation Overlay */}
+          {scanSuccess && (
+            <div className="absolute inset-0 bg-green-500/20 rounded-2xl animate-pulse pointer-events-none z-10" />
+          )}
+          
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-cyan-500/20 rounded-2xl flex items-center justify-center border border-cyan-500/30">
+                <Scan className="w-8 h-8 md:w-10 md:h-10 text-cyan-500" />
+              </div>
+              <div>
+                <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight">QR Scanner</h2>
+                <p className="text-cyan-400 font-medium text-sm md:text-base">Entry Validation System</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setScanning(!scanning)}
+              className={`w-full md:w-auto px-10 py-5 rounded-2xl font-black text-xl transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-4 shadow-2xl ${
+                scanning
+                  ? 'bg-red-600 hover:bg-red-700 text-white border-b-4 border-red-800'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white border-b-4 border-indigo-900 animate-pulse-premium'
+              }`}
+            >
+              {scanning ? (
+                <>
+                  <XCircle className="w-8 h-8" />
+                  Stop Scanning
+                </>
+              ) : (
+                <>
+                  <Scan className="w-8 h-8" />
+                  Start Scanning
+                </>
+              )}
+            </button>
+          </div>
+
+          {scanning && (
+            <div className="mt-8 rounded-2xl overflow-hidden border-4 border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.2)]">
+              <QRScanner
+                onScanSuccess={handleScan}
+                onScanError={handleScanError}
+              />
+            </div>
+          )}
+          
+          {/* Session Summary mini-stat (added for premium feel) */}
+          {!scanning && sessionScans.length > 0 && (
+            <div className="mt-6 flex items-center gap-3 px-4 py-2 bg-white/5 rounded-xl border border-white/10 w-fit">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <span className="text-gray-300 text-sm font-medium">
+                <span className="text-white font-bold">{sessionScans.length}</span> scans performed this session
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Stats Grid */}
@@ -654,58 +742,6 @@ export default function SecurityDashboard() {
           </div>
         </div>
 
-        {/* Scanner Section */}
-        <div className="bg-gradient-to-br from-gray-900/90 to-black/90 backdrop-blur-xl rounded-2xl p-4 md:p-8 shadow-2xl border border-cyan-500/20 relative">
-          {/* Success Animation Overlay */}
-          {scanSuccess && (
-            <div className="absolute inset-0 bg-green-500/20 rounded-2xl animate-pulse pointer-events-none z-10" />
-          )}
-          
-          <div className="flex items-center gap-2 md:gap-3 mb-4 md:mb-6">
-            <Scan className="w-6 h-6 md:w-8 md:h-8 text-cyan-500" />
-            <h2 className="text-xl md:text-2xl font-bold text-white">QR Scanner</h2>
-            <button
-              onClick={() => setScanning(!scanning)}
-              className={`ml-auto px-6 py-3 rounded-lg font-semibold transition-all ${
-                scanning
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
-                  : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white shadow-lg'
-              }`}
-            >
-              {scanning ? 'Stop Scanning' : 'Start Scanning'}
-            </button>
-          </div>
-
-          {scanning && (
-            <QRScanner
-              onScanSuccess={handleScan}
-              onScanError={handleScanError}
-            />
-          )}
-          
-          {/* Scan History (UX Improvement #2) */}
-          {sessionScans.length > 0 && (
-            <div className="mt-6 bg-white/5 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-gray-400 mb-3">Recent Scans (This Session)</h3>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {sessionScans.slice(0, 5).map((scan) => (
-                  <div key={scan.id} className="flex justify-between items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
-                      <span className="text-white font-medium">{scan.participant_name}</span>
-                      {scan.pass_type === 'vip' && (
-                        <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs font-semibold">VIP</span>
-                      )}
-                    </div>
-                    <span className="text-gray-400 text-xs">
-                      {new Date(scan.scanned_at).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Manual Lookup Section */}
         <div className="bg-gray-800/50 backdrop-blur-lg rounded-2xl p-6 border border-blue-500/30 mb-8">

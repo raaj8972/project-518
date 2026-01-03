@@ -3606,17 +3606,25 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
     const { error } = await supabase.from('registrations').update({ status }).eq('id', id);
     if (error) throw error;
+    
+    // Deactivate pass if rejected/pending, activate if approved
+    await supabase.from('entry_passes')
+      .update({ is_active: status === 'approved' })
+      .eq('event_registration_id', id);
+      
     await fetchData(true);
   };
 
   const bulkApproveRegistrations = async (ids: string[]) => {
     if (!ids.length) return;
-    // Batch in chunks to avoid huge single queries if very large
     const CHUNK = 100;
     for (let i = 0; i < ids.length; i += CHUNK) {
       const slice = ids.slice(i, i + CHUNK);
       const { error } = await supabase.from('registrations').update({ status: 'approved' }).in('id', slice);
       if (error) throw error;
+      
+      // Activate passes
+      await supabase.from('entry_passes').update({ is_active: true }).in('event_registration_id', slice);
     }
     await fetchData(true);
   };
@@ -3628,15 +3636,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       const slice = ids.slice(i, i + CHUNK);
       const { error } = await supabase.from('registrations').update({ status: 'rejected' }).in('id', slice);
       if (error) throw error;
+      
+      // Deactivate passes
+      await supabase.from('entry_passes').update({ is_active: false }).in('event_registration_id', slice);
     }
     await fetchData(true);
   };
 
   const deleteRegistration = async (id: string) => {
     // Soft delete: set deleted_at to NOW()
-    console.log('[DataContext] deleteRegistration called for ID:', id);
     const timestamp = new Date().toISOString();
-    console.log('[DataContext] Setting deleted_at to:', timestamp);
     
     const { data, error } = await supabase
       .from('registrations')
@@ -3644,19 +3653,14 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       .eq('id', id)
       .select();
     
-    console.log('[DataContext] Delete query response:', { data, error });
-    
     if (error) {
       console.error('[DataContext] Delete failed with error:', error);
       throw error;
     }
     
-    if (!data || data.length === 0) {
-      console.warn('[DataContext] Update returned no rows - registration may not exist or RLS policy may be blocking');
-      throw new Error('Registration not found or update blocked');
-    }
+    // Deactivate pass on soft delete
+    await supabase.from('entry_passes').update({ is_active: false }).eq('event_registration_id', id);
     
-    console.log('[DataContext] Soft delete successful, refreshing data...');
     await fetchData(true);
   };
 
@@ -3688,6 +3692,9 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       const slice = ids.slice(i, i + CHUNK);
       const { error } = await supabase.from('registrations').update({ deleted_at: null }).in('id', slice);
       if (error) throw error;
+      
+      // Reactivate passes
+      await supabase.from('entry_passes').update({ is_active: true }).in('event_registration_id', slice);
     }
     await fetchData(true);
   };
@@ -3739,10 +3746,14 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   const bulkDeleteRegistrations = async (ids: string[]) => {
     if (!ids.length) return;
     const CHUNK = 100;
+    const now = new Date().toISOString();
     for (let i = 0; i < ids.length; i += CHUNK) {
       const slice = ids.slice(i, i + CHUNK);
-      const { error } = await supabase.from('registrations').update({ deleted_at: new Date().toISOString() }).in('id', slice);
+      const { error } = await supabase.from('registrations').update({ deleted_at: now }).in('id', slice);
       if (error) throw error;
+      
+      // Deactivate passes
+      await supabase.from('entry_passes').update({ is_active: false }).in('event_registration_id', slice);
     }
     await fetchData(true);
   };
