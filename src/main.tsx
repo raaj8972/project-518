@@ -24,9 +24,7 @@ function showFatal(message: string) {
     );
     
     // Register service worker for offline support
-    if (import.meta.env.PROD) {
-      registerServiceWorker();
-    }
+    registerServiceWorker();
 
     // Handle PWA installation
     window.addEventListener('beforeinstallprompt', (e) => {
