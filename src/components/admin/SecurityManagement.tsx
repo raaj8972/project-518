@@ -540,16 +540,37 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
   const handleDownloadPDF = async (passOrPasses: VipPass | VipPass[], specificDay?: number) => {
     const config = securitySettings?.pass_template_config || {};
-    const configuredDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
+    const eventDates = securitySettings?.event_dates || [];
     
-    if (configuredDays.length === 0) {
+    // Fallback: If no designs exist at all, we can't do anything
+    if (Object.keys(config).length === 0) {
       toast.error('Please configure a pass design in the "Pass Design" tab first.');
       setActiveTab('design');
       return;
     }
 
-    let selectedDays = (specificDay !== undefined) ? [specificDay] : configuredDays;
+    // Determine which days to generate
+    let selectedDays: number[] = [];
+    if (specificDay !== undefined) {
+      selectedDays = [specificDay];
+    } else if (eventDates.length > 0) {
+      selectedDays = eventDates.map((_, i) => i);
+    } else {
+      // Fallback to whatever is configured in design if no event dates
+      selectedDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
+    }
     
+    // Security check: ensure we have a template for each selected day (with fallback)
+    const processedConfig: Record<string, any> = { ...config };
+    const defaultTemplate = config['day_0'] || config[Object.keys(config)[0]];
+
+    selectedDays.forEach(dayIndex => {
+      const key = `day_${dayIndex}`;
+      if (!processedConfig[key]) {
+        processedConfig[key] = defaultTemplate; // Fallback to Day 0 or first available
+      }
+    });
+
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
     const toastId = toast.loading('Generating PDF...');
 
@@ -561,7 +582,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           name: p.participant_name || 'VIP Guest',
           type: 'VIP'
         })),
-        templateConfigs: config,
+        templateConfigs: processedConfig,
         selectedDays,
         onProgress: (pct) => {
           toast.loading(`Generating PDF: ${pct}%`, { id: toastId });
@@ -908,14 +929,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
               <FileUp className="w-4 h-4" />
               Bulk Import
             </button>
-            {Object.keys(securitySettings?.pass_template_config || {}).length > 1 ? (
+            {(securitySettings?.event_dates || []).length > 1 ? (
               <div className="flex gap-1">
-                {Object.keys(securitySettings?.pass_template_config || {}).sort().map((key) => {
-                  const dayNum = parseInt(key.replace('day_', '')) + 1;
+                {(securitySettings?.event_dates || []).map((_, idx) => {
+                  const dayNum = idx + 1;
                   return (
                     <button
-                      key={key}
-                      onClick={() => handleDownloadPDF(vipPasses, parseInt(key.replace('day_', '')))}
+                      key={idx}
+                      onClick={() => handleDownloadPDF(vipPasses, idx)}
                       disabled={vipPasses.length === 0}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-sm font-bold"
                     >
@@ -1098,14 +1119,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                       View QR
                     </button>
                     <div className="flex items-center gap-1">
-                      {Object.keys(securitySettings?.pass_template_config || {}).length > 1 ? (
+                      {(securitySettings?.event_dates || []).length > 1 ? (
                         <>
-                          {Object.keys(securitySettings?.pass_template_config || {}).sort().map((key) => {
-                            const dayNum = parseInt(key.replace('day_', '')) + 1;
+                          {(securitySettings?.event_dates || []).map((_, idx) => {
+                            const dayNum = idx + 1;
                             return (
                               <button
-                                key={key}
-                                onClick={() => handleDownloadPDF(pass, parseInt(key.replace('day_', '')))}
+                                key={idx}
+                                onClick={() => handleDownloadPDF(pass, idx)}
                                 className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-500/20 transition-colors"
                               >
                                 Day {dayNum}
