@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { Camera, AlertCircle, Zap, Scan } from 'lucide-react';
+import { AlertCircle, Zap, Scan, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface QRScannerProps {
   onScanSuccess: (decodedText: string) => void;
   onScanError?: (error: string) => void;
+  onClose?: () => void;
 }
 
-export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
+export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,6 +233,34 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
         {/* Scanning Frame Overlay */}
         {cameraActive && !isLoading && !error && (
           <>
+            {/* Header Floating HUD */}
+            <div className="absolute top-0 inset-x-0 p-6 flex items-start justify-between z-30 bg-gradient-to-b from-black/60 to-transparent pt-safe-top">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-[10px] text-white font-black uppercase tracking-wider">Live System Active</span>
+                </div>
+                {/* Scan speed indicator */}
+                <div className="flex items-center gap-2 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/20 w-max">
+                  <Zap className="w-3 h-3 text-cyan-300 animate-pulse" />
+                  <span className="text-[10px] text-cyan-100 font-bold uppercase tracking-wider">60 FPS</span>
+                </div>
+              </div>
+
+              {onClose && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                  }}
+                  className="p-4 bg-red-600/80 hover:bg-red-600 text-white rounded-2xl transition-all active:scale-95 shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-2"
+                >
+                  <XCircle className="w-6 h-6" />
+                  <span className="font-black uppercase tracking-tighter">Exit</span>
+                </button>
+              )}
+            </div>
+
             {/* Full screen scan indicator */}
             <div className="absolute inset-0 pointer-events-none">
               {/* Animated scanning line that moves across entire screen */}
@@ -254,18 +283,7 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
               </div>
             </div>
 
-            {/* Camera Active Indicator */}
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-green-500/30 backdrop-blur-md rounded-full px-4 py-2.5 border-2 border-green-400/60 shadow-lg">
-              <div className="w-2.5 h-2.5 bg-green-300 rounded-full animate-pulse"></div>
-              <Camera className="w-5 h-5 text-green-300" />
-              <span className="text-xs text-green-100 font-bold uppercase tracking-wider">Recording</span>
-            </div>
-
-            {/* Scan speed indicator */}
-            <div className="absolute top-4 right-4 flex items-center gap-2 bg-cyan-500/30 backdrop-blur-md rounded-full px-4 py-2.5 border-2 border-cyan-400/60 shadow-lg">
-              <Zap className="w-5 h-5 text-cyan-300 animate-pulse" />
-              <span className="text-xs text-cyan-100 font-bold uppercase tracking-wider">60 FPS</span>
-            </div>
+            {/* Camera Active Indicator Removed - replaced by HUD */}
 
             {/* Torch Toggle - Night Vision */}
             {hasTorch && (

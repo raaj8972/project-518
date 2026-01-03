@@ -105,7 +105,7 @@ export function ScanResultOverlay({
 
       {/* Result Card */}
       <div
-        className={`relative w-full h-full md:h-auto md:max-w-xl md:rounded-3xl border-0 md:border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 flex flex-col justify-center ${
+        className={`relative w-full h-full md:h-auto md:max-w-2xl md:min-h-[600px] md:rounded-3xl border-0 md:border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 flex flex-col justify-center ${
           isExiting ? 'scale-110' : 'scale-100'
         }`}
         style={{ backgroundColor: isValid ? '#065f46' : '#991b1b' }} 
@@ -128,8 +128,8 @@ export function ScanResultOverlay({
           {/* Icon and Status */}
           <div className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className={`w-32 h-32 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center animate-scale-in`}>
-                <Icon className={`w-20 h-20 ${style.iconColor} animate-bounce-once`} strokeWidth={3} />
+              <div className={`w-40 h-40 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center animate-scale-in border-4 border-white/30 shadow-2xl`}>
+                <Icon className={`w-28 h-28 ${style.iconColor} animate-bounce-once`} strokeWidth={3} />
               </div>
             </div>
 
@@ -146,7 +146,7 @@ export function ScanResultOverlay({
                 Participant
               </p>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-white text-5xl md:text-7xl font-black tracking-tighter break-words leading-none">
+                <p className="text-white text-6xl md:text-8xl font-black tracking-tighter break-words leading-[0.85] text-center w-full">
                   {result.name}
                 </p>
                 {result.pass_type === 'vip' && (
