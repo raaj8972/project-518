@@ -271,17 +271,6 @@ export default function SecurityDashboard() {
     };
   }, []);
   
-  // Auto-advance in continuous scanning mode
-  useEffect(() => {
-    if (scanMode === 'continuous' && autoAdvance && showResultOverlay) {
-      const timer = setTimeout(() => {
-        setShowResultOverlay(false);
-        setLastScanResult(null);
-      }, 1500); // Auto-dismiss after 1.5 seconds
-      
-      return () => clearTimeout(timer);
-    }
-  }, [showResultOverlay, scanMode, autoAdvance]);
 
   const loadStats = async () => {
     try {
@@ -556,8 +545,10 @@ export default function SecurityDashboard() {
                   </span>
                 )}
                 <div className="flex items-center gap-1.5 ml-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">Worker Active</span>
+                  <div className={`w-1.5 h-1.5 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
+                  <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">
+                    {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}...` : 'Worker Active'}
+                  </span>
                 </div>
               </div>
             </div>
