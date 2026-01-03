@@ -5,6 +5,8 @@ import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw, Lock, CheckCir
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
+import * as XLSX from 'xlsx';
+import { FileUp, Download } from 'lucide-react';
 
 interface SecurityUser {
   id: number;
@@ -46,8 +48,11 @@ export const SecurityManagement: React.FC = () => {
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showCreateVIP, setShowCreateVIP] = useState(false);
+  const [showBulkVIP, setShowBulkVIP] = useState(false);
   const [selectedPass, setSelectedPass] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [processingBulk, setProcessingBulk] = useState(false);
+  const [importData, setImportData] = useState<any[]>([]);
   const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
   const [validationRules, setValidationRules] = useState<ValidationRule[]>(DEFAULT_RULES);
   const [rulesTableReady, setRulesTableReady] = useState(true);
@@ -401,6 +406,105 @@ export const SecurityManagement: React.FC = () => {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        if (!bstr) return;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws);
+        
+        if (data.length === 0) {
+          toast.error('File is empty');
+          return;
+        }
+
+        // Validate structure (expecting 'name' or 'Notes')
+        const firstRow = data[0] as any;
+        const nameKey = Object.keys(firstRow).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'participant_name');
+        
+        if (!nameKey) {
+          toast.error('File must have a "name" column');
+          return;
+        }
+
+        setImportData(data);
+        toast.success(`Loaded ${data.length} records. Click "Process" to create passes.`);
+      } catch (err) {
+        toast.error('Failed to parse file');
+        console.error(err);
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleProcessBulk = async () => {
+    if (importData.length === 0) return;
+    setProcessingBulk(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    const toastId = toast.loading(`Processing ${importData.length} VIP passes...`);
+
+    try {
+      for (const row of importData) {
+        const nameKey = Object.keys(row).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'participant_name');
+        const notesKey = Object.keys(row).find(k => k.toLowerCase() === 'notes' || k.toLowerCase() === 'internal_notes');
+        
+        const name = nameKey ? row[nameKey] : null;
+        const notes = notesKey ? row[notesKey] : null;
+
+        const { error } = await supabase.rpc('create_vip_pass_v3', {
+          p_name: name,
+          p_notes: notes,
+        });
+
+        if (error) {
+          console.error(`Failed to create VIP for ${name}:`, error);
+          failCount++;
+        } else {
+          successCount++;
+        }
+        
+        // Update toast every 10 records or at the end
+        if (successCount % 10 === 0 || successCount === importData.length) {
+          toast.loading(`Processing: ${successCount}/${importData.length} done...`, { id: toastId });
+        }
+      }
+
+      if (failCount > 0) {
+        toast.success(`Batch complete: ${successCount} created, ${failCount} failed`, { id: toastId });
+      } else {
+        toast.success(`Successfully created ${successCount} VIP passes!`, { id: toastId });
+      }
+      
+      setImportData([]);
+      setShowBulkVIP(false);
+      loadData();
+    } catch (err) {
+      toast.error('Bulk processing failed', { id: toastId });
+    } finally {
+      setProcessingBulk(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const template = [
+      { name: 'John Doe', notes: 'Sponsor guest' },
+      { name: 'Jane Smith', notes: 'Core team member' },
+    ];
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    XLSX.writeFile(wb, 'vip_import_template.xlsx');
+  };
+
   const handleDeletePassRegistration = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete the registration for "${name}"? This will also delete any generated pass.`)) return;
     try {
@@ -679,13 +783,64 @@ export const SecurityManagement: React.FC = () => {
       {/* VIP Passes Tab */}
       {activeTab === 'vip' && (
         <div className="space-y-4">
-          <button
-            onClick={() => setShowCreateVIP(!showCreateVIP)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Create VIP Pass
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowCreateVIP(!showCreateVIP)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create VIP Pass
+            </button>
+            <button
+              onClick={() => setShowBulkVIP(!showBulkVIP)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30"
+            >
+              <FileUp className="w-4 h-4" />
+              Bulk Import
+            </button>
+          </div>
+
+          {showBulkVIP && (
+            <div className="bg-indigo-950/20 border border-indigo-500/30 p-6 rounded-lg space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-indigo-400">Bulk VIP Import</h3>
+                  <p className="text-sm text-gray-400">Upload a CSV or Excel file with a "name" column.</p>
+                </div>
+                <button
+                  onClick={downloadTemplate}
+                  className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  Download Template
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                />
+                
+                {importData.length > 0 && (
+                  <button
+                    onClick={handleProcessBulk}
+                    disabled={processingBulk}
+                    className="w-full sm:w-auto px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                  >
+                    {processingBulk ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    {processingBulk ? 'Creating...' : `Process ${importData.length} Records`}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {showCreateVIP && (
             <form onSubmit={handleCreateVIP} className="bg-gray-800/50 p-6 rounded-lg space-y-4">
