@@ -530,7 +530,8 @@ export default function SecurityDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <style>{`
@@ -628,15 +629,6 @@ export default function SecurityDashboard() {
             </button>
           </div>
 
-          {scanning && (
-            <div className="fixed inset-0 z-[60] bg-black">
-              <QRScanner
-                onScanSuccess={handleScan}
-                onScanError={handleScanError}
-                onClose={() => setScanning(false)}
-              />
-            </div>
-          )}
           
           {/* Session Summary mini-stat (added for premium feel) */}
           {!scanning && sessionScans.length > 0 && (
@@ -982,17 +974,6 @@ export default function SecurityDashboard() {
           )}
         </div>
 
-        {/* Scan Result Overlay */}
-        {showResultOverlay && lastScanResult && (
-          <ScanResultOverlay
-            result={lastScanResult}
-            onDismiss={() => {
-              setShowResultOverlay(false);
-              setLastScanResult(null);
-            }}
-            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 15000 : 7000) : 0}
-          />
-        )}
         
         {/* PWA Install Prompt */}
         <InstallPWA />
@@ -1037,6 +1018,42 @@ export default function SecurityDashboard() {
           </div>
         </div>
       )}
+
+      {/* Truly Full-Screen Immersive Scanner */}
+      {scanning && (
+        <div className="fixed inset-0 z-[100] bg-black overflow-hidden">
+          <QRScanner
+            onScanSuccess={handleScan}
+            onScanError={handleScanError}
+            onClose={() => setScanning(false)}
+          />
+        </div>
+      )}
     </div>
+
+    {/* EXTREME FULL-SCREEN OVERLAYS (Outside main container to bypass CSS containment) */}
+    {scanning && (
+      <div className="fixed inset-0 z-[100] bg-black overflow-hidden">
+        <QRScanner
+          onScanSuccess={handleScan}
+          onScanError={handleScanError}
+          onClose={() => setScanning(false)}
+        />
+      </div>
+    )}
+
+    {showResultOverlay && lastScanResult && (
+      <div className="fixed inset-0 z-[110]">
+        <ScanResultOverlay
+          result={lastScanResult}
+          onDismiss={() => {
+            setShowResultOverlay(false);
+            setLastScanResult(null);
+          }}
+          autoDismissMs={autoAdvance ? (lastScanResult.valid ? 15000 : 7000) : 0}
+        />
+      </div>
+    )}
+  </>
   );
 }
