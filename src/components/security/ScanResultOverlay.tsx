@@ -96,10 +96,15 @@ export function ScanResultOverlay({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-0 transition-all duration-300 ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-0 transition-all duration-300 touch-manipulation cursor-pointer active:backdrop-blur-lg ${
         isExiting ? 'opacity-0' : 'opacity-100'
       }`}
       onClick={handleDismiss}
+      onTouchEnd={(e) => {
+        // Instant dismiss on touch end (prevents 300ms delay on some old Androids)
+        e.preventDefault(); 
+        handleDismiss();
+      }}
     >
       {/* Backdrop */}
       <div className={`absolute inset-0 backdrop-blur-md transition-colors duration-500 ${
