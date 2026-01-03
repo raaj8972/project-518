@@ -1470,7 +1470,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-400 font-medium">
-                          {scan.guard_name || <span className="text-gray-600 italic">Not recorded</span>}
+                          {scan.scanned_by_username || scan.guard_name || <span className="text-gray-600 italic">Not recorded</span>}
                         </td>
                       </tr>
                     ))

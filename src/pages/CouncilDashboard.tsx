@@ -156,6 +156,7 @@ export default function CouncilDashboard() {
         table: 'pass_scans' 
       }, () => {
         loadStats();
+        loadVipPasses();
       })
       .on('postgres_changes', { 
         event: '*', 

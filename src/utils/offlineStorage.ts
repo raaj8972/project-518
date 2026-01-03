@@ -384,7 +384,7 @@ export async function validatePassHybrid(
 
       if (error) throw error;
 
-      if (data.valid) {
+      if (data.success) {
         // Double check rules didn't change in split second (unlikely but safe)
         // ... (Skipping for perf, assumed safe via step 3)
 
@@ -396,7 +396,7 @@ export async function validatePassHybrid(
           valid: true,
           result: 'valid',
           message: 'Valid entry',
-          name: data.name,
+          name: data.participant_name,
           pass_type: data.pass_type,
           scanned_by: securityUsername
         };
@@ -406,7 +406,7 @@ export async function validatePassHybrid(
             valid: false,
             result: data.message === 'Pass already used' ? 'already_used' : 'invalid',
             message: data.message,
-            name: data.name,
+            name: data.participant_name,
             pass_type: data.pass_type
         };
       }
