@@ -96,7 +96,10 @@ export function ScanResultOverlay({
       onClick={handleDismiss}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+      <div className={`absolute inset-0 backdrop-blur-md transition-colors duration-500 ${
+        isValid ? 'bg-green-600/40 animate-pulse' : 'bg-red-900/40'
+      }`} />
+      <div className="absolute inset-0 bg-black/60" />
 
       {/* Result Card */}
       <div

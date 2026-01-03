@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User, Wifi, WifiOff, RefreshCw, Database, AlertTriangle, XCircle } from 'lucide-react';
+import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User, RefreshCw, Database, AlertTriangle, XCircle } from 'lucide-react';
 import { QRScanner } from '../components/security/QRScanner';
 import { ScanResultOverlay } from '../components/security/ScanResultOverlay';
 import { InstallPWA } from '../components/InstallPWA';
@@ -581,7 +581,15 @@ export default function SecurityDashboard() {
               </div>
               <div>
                 <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight">QR Scanner</h2>
-                <p className="text-cyan-400 font-medium text-sm md:text-base">Entry Validation System</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-cyan-400 font-medium text-sm md:text-base uppercase tracking-wider">Entry Validation System</p>
+                  <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                    <div className={`w-2 h-2 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
+                    <span className="text-[10px] md:text-xs text-green-400 uppercase font-black tracking-tighter">
+                      System {isOnline ? 'Online' : 'Offline'} • {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}` : 'All Synced'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -674,7 +682,7 @@ export default function SecurityDashboard() {
                     {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : 'Active'}
                   </p>
                   <span className="text-[10px] text-gray-500 font-mono italic">
-                    {syncStats.totalPasses} cached
+                    {syncStats.totalPasses} cached • Updated {syncStats.cacheAgeText}
                   </span>
                 </div>
               </div>
@@ -968,7 +976,7 @@ export default function SecurityDashboard() {
               setShowResultOverlay(false);
               setLastScanResult(null);
             }}
-            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 8000 : 5000) : 0}
+            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 10000 : 6000) : 0}
           />
         )}
         
