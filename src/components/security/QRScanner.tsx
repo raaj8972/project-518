@@ -154,8 +154,8 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
               setLastScan(code.data);
               onScanSuccess(code.data);
               
-              // Clear after 1 second to allow rapid rescanning of DIFFERENT people
-              setTimeout(() => setLastScan(''), 1000);
+              // Clear after 3 seconds to allow rapid rescanning only after phone is moved
+              setTimeout(() => setLastScan(''), 3000);
             }
           }
         }

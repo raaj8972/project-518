@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -57,6 +57,10 @@ export default function SecurityDashboard() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStats, setSyncStats] = useState({ totalPasses: 0, pendingScans: 0, cacheAgeText: 'Never' });
   const [swStatus, setSwStatus] = useState<'Initializing' | 'Active' | 'Offline Ready'>('Initializing');
+  
+  // High-frequency scan protection
+  const processingTokens = useRef<Set<string>>(new Set());
+  const recentSuccessTokens = useRef<Map<string, number>>(new Map());
   
   // Manual Entry State
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -312,6 +316,22 @@ export default function SecurityDashboard() {
   const handleScan = async (passToken: string) => {
     if (!securityUser) return;
     
+    // 1. PREVENTION: If we are already processing this EXACT token, ignore the duplicate signal
+    if (processingTokens.current.has(passToken)) {
+      console.log('⏳ Already processing token, ignoring duplicate...');
+      return;
+    }
+
+    // 2. PREVENTION: If this token was successfully scanned in the last 5 seconds, ignore it
+    // This prevents the "Success -> Rejected (Already Used)" loop
+    const lastSuccessTime = recentSuccessTokens.current.get(passToken);
+    if (lastSuccessTime && Date.now() - lastSuccessTime < 5000) {
+      console.log('🛡️ Token recently successful, ignoring redundant scan...');
+      return;
+    }
+
+    processingTokens.current.add(passToken);
+    
     // In continuous mode, we DON'T stop scanning while processing
     // This allows the camera to stay active behind the overlay
     
@@ -349,6 +369,11 @@ export default function SecurityDashboard() {
           pass_type: result.pass_type
         }, ...prev].slice(0, 10)); // Keep last 10
         
+        // Mark as recently successful to prevent double-scan jitter
+        recentSuccessTokens.current.set(passToken, Date.now());
+        // Periodic cleanup of the success map
+        setTimeout(() => recentSuccessTokens.current.delete(passToken), 6000);
+
         // Reload stats (debounced)
         await loadStats();
         debouncedLoadSyncStats();
@@ -390,6 +415,7 @@ export default function SecurityDashboard() {
       });
       setShowResultOverlay(true);
     } finally {
+      processingTokens.current.delete(passToken);
       if (scanMode !== 'continuous') {
         setScanning(false);
       }
