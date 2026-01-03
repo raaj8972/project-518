@@ -67,7 +67,7 @@ const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerAp
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes';
+type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access';
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -154,7 +154,8 @@ export const AdminDashboard: React.FC = () => {
       notifications: 'Notifications',
       'owner-approvals': 'Owner Approvals',
       'coordinator-passwords': 'Coordinator Passwords',
-      'security-passes': 'Entry Pass Security'
+      'security-passes': 'Entry Pass Security',
+      'council-access': 'Council Access'
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
   }, [activeTab, updatePresence]);
@@ -268,6 +269,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint, group: 'Security & System' },
     ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock, group: 'Security & System' }] : []),
     ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield, group: 'Security & System' }] : []),
+    ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council Access', icon: Lock, group: 'Security & System' }] : []),
 
     // Content
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'Content' },
@@ -348,6 +350,7 @@ export const AdminDashboard: React.FC = () => {
     }
     if (myPermissions?.can_security_passes) {
       allowedIds.add('security-passes');
+      allowedIds.add('council-access');
     }
     // Only show tabs explicitly allowed (others hidden for non-owners)
     return tabs.filter((t) => allowedIds.has(t.id));
@@ -893,6 +896,16 @@ export const AdminDashboard: React.FC = () => {
               <div className="bg-white rounded-lg shadow-md p-6">
                 <SportsTeamManagement />
               </div>
+            )}
+            {activeTab === 'security-passes' && (
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Security Pass Management...</div>}>
+                <SecurityManagement />
+              </React.Suspense>
+            )}
+            {activeTab === 'council-access' && (
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Council Access...</div>}>
+                <SecurityManagement defaultTab="council" />
+              </React.Suspense>
             )}
             {activeTab === 'site-settings' && (
               <SiteSettingsPanel />

@@ -40,9 +40,13 @@ interface VipPass {
   is_active: boolean;
 }
 
-export const SecurityManagement: React.FC = () => {
+interface SecurityManagementProps {
+  defaultTab?: 'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council';
+}
+
+export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultTab = 'users' }) => {
   const { securitySettings, updateSecuritySettings } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council'>(defaultTab);
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
@@ -1089,7 +1093,6 @@ export const SecurityManagement: React.FC = () => {
                 </div>
               </div>
 
-              </div>
             </div>
           </div>
 
