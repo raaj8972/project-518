@@ -66,6 +66,8 @@ export function ScanResultOverlay({
   const Icon = style.icon;
 
   useEffect(() => {
+    if (autoDismissMs <= 0) return;
+
     // Countdown timer
     const countdownInterval = setInterval(() => {
       setCountdown(prev => {
@@ -79,7 +81,7 @@ export function ScanResultOverlay({
     }, 1000);
 
     return () => clearInterval(countdownInterval);
-  }, []);
+  }, [autoDismissMs]);
 
   const handleDismiss = () => {
     setIsExiting(true);

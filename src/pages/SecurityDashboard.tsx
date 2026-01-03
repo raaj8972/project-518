@@ -56,6 +56,7 @@ export default function SecurityDashboard() {
   // Offline/Sync State
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStats, setSyncStats] = useState({ totalPasses: 0, pendingScans: 0, cacheAgeText: 'Never' });
+  const [swStatus, setSwStatus] = useState<'Initializing' | 'Active' | 'Offline Ready'>('Initializing');
   
   // Manual Entry State
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -235,12 +236,24 @@ export default function SecurityDashboard() {
     };
     
     initializeDashboard();
+
+    // Check Service Worker Status for visibility
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(() => setSwStatus('Active'));
+      if (navigator.serviceWorker.controller) {
+        setSwStatus('Offline Ready');
+      }
+    }
   }, [navigate]);
   
   // Auto-sync when connection restored
   useEffect(() => {
     if (wasOffline && isOnline && securityUser) {
       console.log('🔄 Connection restored - auto-syncing...');
+      toast.success('Signal Restored! Syncing data...', {
+        icon: '📡',
+        duration: 4000
+      });
       handleAutoSyncPending();
     }
   }, [isOnline, wasOffline, securityUser]);
@@ -547,7 +560,7 @@ export default function SecurityDashboard() {
                 <div className="flex items-center gap-1.5 ml-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
                   <div className={`w-1.5 h-1.5 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
                   <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">
-                    {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}...` : 'Worker Active'}
+                    Worker: {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}...` : swStatus}
                   </span>
                 </div>
               </div>
@@ -679,7 +692,7 @@ export default function SecurityDashboard() {
                   <p className={`text-lg font-bold ${
                     syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-green-400'
                   }`}>
-                    {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : 'Active'}
+                    {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : swStatus}
                   </p>
                   <span className="text-[10px] text-gray-500 font-mono italic">
                     {syncStats.totalPasses} cached • Updated {syncStats.cacheAgeText}
@@ -976,7 +989,7 @@ export default function SecurityDashboard() {
               setShowResultOverlay(false);
               setLastScanResult(null);
             }}
-            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 10000 : 6000) : 0}
+            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 15000 : 7000) : 0}
           />
         )}
         
