@@ -92,8 +92,8 @@ export function ScanResultOverlay({
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-6 transition-all duration-300 ${
-        isExiting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-0 transition-all duration-300 ${
+        isExiting ? 'opacity-0' : 'opacity-100'
       }`}
       onClick={handleDismiss}
     >
@@ -105,9 +105,10 @@ export function ScanResultOverlay({
 
       {/* Result Card */}
       <div
-        className={`relative w-full max-w-lg ${style.bg} rounded-3xl border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 ${
-          isExiting ? 'scale-95' : 'scale-100'
+        className={`relative w-full h-full md:h-auto md:max-w-xl md:rounded-3xl border-0 md:border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 flex flex-col justify-center ${
+          isExiting ? 'scale-110' : 'scale-100'
         }`}
+        style={{ backgroundColor: isValid ? '#065f46' : '#991b1b' }} 
       >
         {/* Progress Bar (Visual feedback of time remaining) */}
         {autoDismissMs > 0 && (
@@ -145,7 +146,7 @@ export function ScanResultOverlay({
                 Participant
               </p>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-white text-3xl md:text-5xl font-black tracking-tight break-words">
+                <p className="text-white text-5xl md:text-7xl font-black tracking-tighter break-words leading-none">
                   {result.name}
                 </p>
                 {result.pass_type === 'vip' && (
@@ -176,6 +177,12 @@ export function ScanResultOverlay({
               </p>
             </div>
           )}
+          {/* Footer Hint */}
+          <div className="text-center">
+            <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.3em] animate-pulse">
+              Tap anywhere to dismiss
+            </p>
+          </div>
         </div>
 
         {/* Gradient Footer */}

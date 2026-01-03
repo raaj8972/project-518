@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import jsQR from 'jsqr';
-import { Camera, AlertCircle, CheckCircle, Zap, Scan } from 'lucide-react';
+import { Camera, AlertCircle, Zap, Scan } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface QRScannerProps {
   onScanSuccess: (decodedText: string) => void;
@@ -16,6 +17,8 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
   const [lastScan, setLastScan] = useState<string>('');
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -59,6 +62,13 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
 
         await video.play();
         console.log('▶️ Video playing');
+
+        // Check for torch capability
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities() as any;
+        if (capabilities.torch) {
+          setHasTorch(true);
+        }
 
         setCameraActive(true);
         setIsLoading(false);
@@ -157,21 +167,35 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
     };
   }, [onScanSuccess, onScanError, lastScan]);
 
+  const toggleTorch = async () => {
+    try {
+      if (!streamRef.current) return;
+      const track = streamRef.current.getVideoTracks()[0];
+      const newState = !isTorchOn;
+      await track.applyConstraints({
+        advanced: [{ torch: newState }]
+      } as any);
+      setIsTorchOn(newState);
+      toast.success(newState ? 'Flashlight ON' : 'Flashlight OFF', {
+        id: 'torch-status',
+        duration: 2000
+      });
+    } catch (err) {
+      console.error('Failed to toggle torch:', err);
+      toast.error('Torch not supported on this device');
+    }
+  };
+
   return (
-    <div className="w-full max-w-md mx-auto space-y-4">
+    <div className="w-full h-full flex flex-col">
       {/* Hidden canvas for processing */}
       <canvas ref={canvasRef} className="hidden" />
       
       {/* Video Container */}
-      <div className="relative rounded-2xl overflow-hidden shadow-2xl border-4 border-cyan-400/50 bg-gradient-to-br from-gray-900 to-black">
+      <div className="relative flex-1 bg-black overflow-hidden flex items-center justify-center">
         <video
           ref={videoRef}
-          className="w-full h-auto block"
-          style={{ 
-            minHeight: '400px',
-            maxHeight: '600px',
-            objectFit: 'cover'
-          }}
+          className="absolute inset-0 w-full h-full object-cover"
           autoPlay
           playsInline
           muted
@@ -242,37 +266,37 @@ export function QRScanner({ onScanSuccess, onScanError }: QRScannerProps) {
               <Zap className="w-5 h-5 text-cyan-300 animate-pulse" />
               <span className="text-xs text-cyan-100 font-bold uppercase tracking-wider">60 FPS</span>
             </div>
+
+            {/* Torch Toggle - Night Vision */}
+            {hasTorch && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleTorch();
+                }}
+                className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-wider transition-all transform active:scale-95 shadow-2xl z-30 ${
+                  isTorchOn 
+                    ? 'bg-yellow-400 text-black border-b-4 border-yellow-600' 
+                    : 'bg-gray-800/80 text-white border-b-4 border-gray-900 backdrop-blur-md'
+                }`}
+              >
+                <Zap className={`w-6 h-6 ${isTorchOn ? 'fill-current' : 'text-yellow-400'}`} />
+                {isTorchOn ? 'Flashlight ON' : 'Night Vision'}
+              </button>
+            )}
+            {/* Instructions Overlay */}
+            <div className="absolute top-24 left-1/2 -translate-x-1/2 w-full max-w-xs text-center pointer-events-none z-20">
+              <div className="bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-white/10 shadow-2xl">
+                <p className="text-white font-black text-xl tracking-tight">Align QR Code</p>
+                <div className="flex items-center justify-center gap-2 mt-1 opacity-60">
+                  <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                  <p className="text-white text-[10px] uppercase font-bold tracking-widest">Automatic Detection</p>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>
-
-      {/* Camera Status Badge */}
-      {cameraActive && !isLoading && !error && (
-        <div className="flex items-center justify-center gap-3 bg-gradient-to-r from-green-500/20 to-cyan-500/20 border-2 border-green-400/40 rounded-xl py-3 px-5 animate-pulse-slow shadow-lg">
-          <CheckCircle className="w-5 h-5 text-green-300" />
-          <span className="text-green-200 text-base font-bold">🔍 Scanner Active</span>
-          <div className="w-2 h-2 bg-green-400 rounded-full animate-ping"></div>
-        </div>
-      )}
-
-      {/* Instructions */}
-      {cameraActive && !isLoading && !error && (
-        <div className="text-center space-y-2 bg-gray-800/50 rounded-xl p-4 border border-cyan-500/30">
-          <p className="text-cyan-300 font-bold text-lg">
-            📱 Position QR Code in Frame
-          </p>
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-              <span className="text-gray-300">Auto-detect</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-gray-300">Instant scan</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       <style>{`
         @keyframes scan-line {

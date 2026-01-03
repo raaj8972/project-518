@@ -21,8 +21,11 @@ import {
   CheckCircle,
   Home,
   Link,
-  Lock
+  Lock,
+  PartyPopper
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 // Lazy load admin panels to reduce initial bundle size
@@ -199,6 +202,78 @@ export const AdminDashboard: React.FC = () => {
       if (logoutTimer.current) clearTimeout(logoutTimer.current);
     };
   }, [authLoading, isAuthenticated, navigate]);
+
+  // VIP Arrival Real-time Alerts
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const channel = supabase
+      .channel('vip_arrivals')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'pass_scans',
+          filter: 'scan_result=eq.valid'
+        },
+        async (payload) => {
+          try {
+            // Check if it's a VIP
+            const { data: pass } = await supabase
+              .from('entry_passes')
+              .select('participant_name, pass_type')
+              .eq('id', payload.new.pass_id)
+              .single();
+
+            if (pass?.pass_type === 'vip') {
+              toast.custom((t) => (
+                <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-gray-800 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden border-2 border-yellow-500`}>
+                  <div className="flex-1 w-0 p-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0 pt-0.5">
+                        <div className="h-12 w-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                          <PartyPopper className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <div className="ml-3 flex-1">
+                        <p className="text-sm font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">
+                          VIP ARRIVAL
+                        </p>
+                        <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
+                          {pass.participant_name}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                          Just scanned at the gate
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex border-l border-gray-200 dark:border-gray-700">
+                    <button
+                      onClick={() => toast.dismiss(t.id)}
+                      className="w-full border border-transparent rounded-none rounded-r-lg p-4 flex items-center justify-center text-sm font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              ), {
+                duration: 10000,
+                position: 'top-right'
+              });
+            }
+          } catch (err) {
+            console.error('Error fetching VIP info:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     // Clear any pending logout timers to prevent interference
