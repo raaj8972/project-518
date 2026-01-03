@@ -104,6 +104,16 @@ export function ScanResultOverlay({
           isExiting ? 'scale-95' : 'scale-100'
         }`}
       >
+        {/* Progress Bar (Visual feedback of time remaining) */}
+        {autoDismissMs > 0 && (
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-black/10 z-20">
+            <div 
+              className={`h-full bg-white/60 transition-all duration-1000 ease-linear`}
+              style={{ width: `${(countdown / (Math.max(1, autoDismissMs / 1000))) * 100}%` }}
+            />
+          </div>
+        )}
+
         {/* Gradient Header */}
         <div className={`h-3 bg-gradient-to-r ${style.gradient}`} />
 
@@ -118,25 +128,25 @@ export function ScanResultOverlay({
             </div>
 
             {/* Status Text */}
-            <h1 className={`text-5xl md:text-6xl font-black ${style.titleColor} tracking-tight drop-shadow-lg animate-fade-in`}>
+            <h1 className={`text-5xl md:text-6xl font-black ${style.titleColor} tracking-tight drop-shadow-lg animate-fade-in uppercase`}>
               {style.title}
             </h1>
           </div>
 
           {/* Participant Information */}
           {result.name && (
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border-2 border-white/30 animate-slide-up">
+            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-6 border-2 border-white/30 animate-slide-up relative overflow-hidden">
               <p className="text-white/80 text-sm font-semibold uppercase tracking-widest mb-2">
                 Participant
               </p>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-white text-3xl md:text-4xl font-black tracking-tight break-words">
+                <p className="text-white text-3xl md:text-5xl font-black tracking-tight break-words">
                   {result.name}
                 </p>
                 {result.pass_type === 'vip' && (
-                  <div className="flex-shrink-0 bg-yellow-400/90 text-yellow-900 px-4 py-2 rounded-xl border-2 border-yellow-300 flex items-center gap-2 shadow-lg">
-                    <Crown className="w-5 h-5" />
-                    <span className="font-black text-sm uppercase tracking-wider">VIP</span>
+                  <div className="flex-shrink-0 bg-yellow-400 text-yellow-900 px-5 py-3 rounded-2xl border-2 border-yellow-200 flex flex-col items-center gap-1 shadow-2xl animate-pulse">
+                    <Crown className="w-8 h-8" />
+                    <span className="font-black text-xs uppercase tracking-tighter">VIP ELITE</span>
                   </div>
                 )}
               </div>
@@ -145,7 +155,7 @@ export function ScanResultOverlay({
 
           {/* Message */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <p className="text-white text-center font-semibold text-lg">
+            <p className="text-white text-center font-bold text-xl uppercase tracking-wide">
               {result.message}
             </p>
           </div>
@@ -156,8 +166,8 @@ export function ScanResultOverlay({
               <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40">
                 <span className="text-white text-xl font-bold">{countdown}</span>
               </div>
-              <p className="text-white/70 text-sm font-medium">
-                Auto-close in {countdown}s • Tap to dismiss
+              <p className="text-white/70 text-sm font-black uppercase tracking-widest">
+                CLOSING IN {countdown}S
               </p>
             </div>
           )}

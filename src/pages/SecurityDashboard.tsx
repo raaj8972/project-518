@@ -555,6 +555,10 @@ export default function SecurityDashboard() {
                     • Guard: {guardName}
                   </span>
                 )}
+                <div className="flex items-center gap-1.5 ml-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">Worker Active</span>
+                </div>
               </div>
             </div>
           </div>
@@ -972,7 +976,7 @@ export default function SecurityDashboard() {
               setShowResultOverlay(false);
               setLastScanResult(null);
             }}
-            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 5000 : 4000) : 0}
+            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 8000 : 5000) : 0}
           />
         )}
         
