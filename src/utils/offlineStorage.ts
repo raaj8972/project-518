@@ -235,10 +235,9 @@ export async function syncPendingScansToServer(
             pass_token: scan.pass_token,
             participant_name: scan.participant_name,
             scan_result: scan.result,
-            security_username: scan.security_username,
+            scanned_by_username: scan.guard_name || scan.security_username,
             pass_type: scan.pass_type,
-            scanned_at: scan.timestamp,
-            guard_name: scan.guard_name
+            scanned_at: scan.timestamp
           });
 
         if (error) {

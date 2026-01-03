@@ -1656,18 +1656,21 @@ export interface Database {
           id: number
           entry_pass_button_enabled: boolean
           event_dates: string[] | null
+          pass_template_config: any | null // JSONB
           updated_at: string
         }
         Insert: {
           id?: number
           entry_pass_button_enabled?: boolean
           event_dates?: string[] | null
+          pass_template_config?: any | null
           updated_at?: string
         }
         Update: {
           id?: number
           entry_pass_button_enabled?: boolean
           event_dates?: string[] | null
+          pass_template_config?: any | null
           updated_at?: string
         }
       }

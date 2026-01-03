@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Plus, UserPlus, Eye, Calendar, Trash, RefreshCw, Lock, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Shield, Users, Ticket, Crown, Settings, Eye, Trash, Plus, Clock, Search, X, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
 import * as XLSX from 'xlsx';
-import { FileUp, Download } from 'lucide-react';
+import { PassTemplateDesigner } from './PassTemplateDesigner';
+import { generatePassPDF } from '../../utils/pdfGenerator';
 
 interface SecurityUser {
   id: number;
@@ -41,12 +42,12 @@ interface VipPass {
 }
 
 interface SecurityManagementProps {
-  defaultTab?: 'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council';
+  defaultTab?: 'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council' | 'design';
 }
 
 export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultTab = 'users' }) => {
   const { securitySettings, updateSecuritySettings } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council' | 'design'>(defaultTab);
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
@@ -106,17 +107,24 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     if (data) {
        const usage: Record<string, number[]> = {};
        data.forEach(scan => {
-          // Robust IST date extraction
-          const scanDate = new Date(scan.scanned_at);
-          const istDateString = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
-          
-          const dayIdx = (securitySettings?.event_dates || []).indexOf(istDateString);
-          if (dayIdx !== -1) {
-             if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
-             if (!usage[scan.pass_id].includes(dayIdx + 1)) {
-                usage[scan.pass_id].push(dayIdx + 1);
-             }
-          }
+          // Robust Date Matching
+           const scanDate = new Date(scan.scanned_at);
+           
+           // Check both IST and UTC date strings to handle edge cases
+           const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+           const utcDate = scanDate.toISOString().split('T')[0];
+
+           let dayIdx = (securitySettings?.event_dates || []).indexOf(istDate);
+           if (dayIdx === -1) {
+             dayIdx = (securitySettings?.event_dates || []).indexOf(utcDate);
+           }
+
+           if (dayIdx !== -1) {
+              if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
+              if (!usage[scan.pass_id].includes(dayIdx + 1)) {
+                 usage[scan.pass_id].push(dayIdx + 1);
+              }
+           }
        });
        setPassUsage(usage);
     }
@@ -506,6 +514,57 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
   };
 
+  const handleDownloadPDF = async (passOrPasses: VipPass | VipPass[]) => {
+    const config = securitySettings?.pass_template_config || {};
+    const configuredDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
+    
+    if (configuredDays.length === 0) {
+      toast.error('Please configure a pass design in the "Pass Design" tab first.');
+      setActiveTab('design');
+      return;
+    }
+
+    let selectedDays = configuredDays;
+    
+    // If multiple days are configured, ask which one to download
+    // Simple prompt for MVP (could be modal)
+    if (configuredDays.length > 1) {
+      const input = window.prompt(`Enter Day Number to download (Available: ${configuredDays.map(d => d + 1).join(', ')}) or leave empty for all:`);
+      if (input !== null && input.trim() !== '') {
+        const day = parseInt(input) - 1;
+        if (configuredDays.includes(day)) {
+          selectedDays = [day];
+        } else {
+          toast.error('Invalid day selected');
+          return;
+        }
+      }
+    }
+
+    const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
+    const toastId = toast.loading('Generating PDF...');
+
+    try {
+      await generatePassPDF({
+        passes: passes.map(p => ({
+          id: p.id,
+          token: p.pass_token,
+          name: p.participant_name || 'VIP Guest',
+          type: 'VIP'
+        })),
+        templateConfigs: config,
+        selectedDays,
+        onProgress: (pct) => {
+          toast.loading(`Generating PDF: ${pct}%`, { id: toastId });
+        }
+      });
+      toast.success('PDF downloaded!', { id: toastId });
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate PDF', { id: toastId });
+    }
+  };
+
   const downloadTemplate = () => {
     const template = [
       { name: 'John Doe', notes: 'Sponsor guest' },
@@ -638,6 +697,16 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           }`}
           >
           Council Access
+        </button>
+        <button
+          onClick={() => setActiveTab('design')}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === 'design'
+              ? 'text-pink-400 border-b-2 border-pink-400'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+        >
+          Pass Design
         </button>
       </div>
 
@@ -830,6 +899,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
               <FileUp className="w-4 h-4" />
               Bulk Import
             </button>
+            <button
+               onClick={() => handleDownloadPDF(vipPasses)}
+               disabled={vipPasses.length === 0}
+               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              Download All PDFs
+            </button>
           </div>
 
           {showBulkVIP && (
@@ -983,6 +1060,13 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                     >
                       <Eye className="w-4 h-4" />
                       View QR
+                    </button>
+                    <button
+                      onClick={() => handleDownloadPDF(pass)}
+                      className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      PDF
                     </button>
                     <button
                       onClick={() => handleResetPass(pass.id)}
@@ -1396,6 +1480,9 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
             </div>
           </div>
         </div>
+      )}
+      {activeTab === 'design' && (
+        <PassTemplateDesigner />
       )}
     </div>
   );

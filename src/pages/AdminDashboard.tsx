@@ -938,7 +938,6 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'biometric-login' && <BiometricLogin />}
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
-            {activeTab === 'security-passes' && <SecurityManagement />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}

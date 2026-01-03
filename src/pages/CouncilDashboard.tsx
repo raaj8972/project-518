@@ -6,7 +6,7 @@ import { QRCodeGenerator } from '../components/admin/QRCodeGenerator';
 import toast from 'react-hot-toast';
 
 interface VipPass {
-  id: string;
+  pass_id: string;
   participant_name: string | null;
   pass_type: string;
   created_at: string;
@@ -14,6 +14,7 @@ interface VipPass {
   pass_token: string;
   is_used: boolean;
   is_active: boolean;
+  usage_logs: string[]; // Array of scan timestamps
 }
 
 interface DashboardStats {
@@ -34,6 +35,7 @@ interface DashboardStats {
     pass_type: string;
     scanned_at: string;
   }[];
+  event_dates: string[]; // Array of event dates for day-wise tracking
 }
 
 export default function CouncilDashboard() {
@@ -88,8 +90,10 @@ export default function CouncilDashboard() {
       
       if (error) throw error;
       setVipPasses(data || []);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error loading VIP passes:', err);
+      console.error('Error details:', { message: err.message, code: err.code, details: err.details, hint: err.hint });
+      toast.error(err.message || 'Failed to load VIP passes');
     }
   };
 
@@ -490,35 +494,67 @@ export default function CouncilDashboard() {
                     <p className="text-gray-500 italic">No VIP passes generated yet.</p>
                   </div>
                 ) : (
-                  vipPasses.map((pass) => (
-                    <div key={pass.id} className="bg-black/40 border border-gray-800 rounded-2xl p-4 flex items-center justify-between group hover:border-purple-500/30 transition-all">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <p className="font-bold text-gray-200 truncate">{pass.participant_name || 'Unnamed VIP'}</p>
-                          <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${pass.is_used ? 'bg-red-500/10 text-red-500' : 'bg-green-500/10 text-green-500'}`}>
-                            {pass.is_used ? 'USED' : 'VALID'}
-                          </span>
+                  vipPasses.map((pass) => {
+                    // Calculate which days this pass was used
+                    const usedDays: number[] = [];
+                    const eventDates = stats?.event_dates || [];
+                    
+                    if (pass.usage_logs && pass.usage_logs.length > 0 && eventDates.length > 0) {
+                      pass.usage_logs.forEach((scanTimestamp) => {
+                        const scanDate = new Date(scanTimestamp);
+                        const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                        const utcDate = scanDate.toISOString().split('T')[0];
+                        
+                        let dayIdx = eventDates.indexOf(istDate);
+                        if (dayIdx === -1) {
+                          dayIdx = eventDates.indexOf(utcDate);
+                        }
+                        
+                        if (dayIdx !== -1 && !usedDays.includes(dayIdx + 1)) {
+                          usedDays.push(dayIdx + 1);
+                        }
+                      });
+                    }
+
+                    return (
+                      <div key={pass.pass_id} className="bg-black/40 border border-gray-800 rounded-2xl p-4 flex items-center justify-between group hover:border-purple-500/30 transition-all">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <p className="font-bold text-gray-200 truncate">{pass.participant_name || 'Unnamed VIP'}</p>
+                            <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${pass.is_used ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'}`}>
+                              {pass.is_used ? 'CHECKED IN' : 'VALID'}
+                            </span>
+                            {usedDays.length > 0 && (
+                              <div className="flex gap-1">
+                                {usedDays.sort((a, b) => a - b).map((day) => (
+                                  <span key={day} className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-black">
+                                    Day {day}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-[10px] md:text-xs text-gray-500 truncate">Token: <span className="font-mono">{pass.pass_token}</span></p>
                         </div>
-                        <p className="text-[10px] md:text-xs text-gray-500 truncate">Token: <span className="font-mono">{pass.pass_token}</span></p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setSelectedPass(pass)}
+                            className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-all"
+                            title="View & Download QR"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteVIPPass(pass.pass_id, pass.participant_name)}
+                            className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
+                            title="Delete Pass"
+                          >
+                            <Trash className="w-5 h-5" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedPass(pass)}
-                          className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-all"
-                          title="View & Download QR"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
-                          className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
-                          title="Delete Pass"
-                        >
-                          <Trash className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
