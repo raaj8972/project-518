@@ -29,6 +29,7 @@ interface ScanRecord {
   scanned_at: string;
   scan_result: string;
   pass_type?: string;
+  guard_name?: string;
 }
 
 
@@ -888,6 +889,11 @@ export default function SecurityDashboard() {
                       </div>
                       <p className="text-gray-400 text-xs">
                         {new Date(scan.scanned_at).toLocaleTimeString()}
+                        {scan.guard_name && (
+                          <span className="ml-2 text-cyan-500 font-medium">
+                            • {scan.guard_name}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

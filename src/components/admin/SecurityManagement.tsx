@@ -42,10 +42,11 @@ interface VipPass {
 
 export const SecurityManagement: React.FC = () => {
   const { securitySettings, updateSecuritySettings } = useData();
-  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history'>('users');
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
   const [vipPasses, setVipPasses] = useState<VipPass[]>([]);
+  const [scanHistory, setScanHistory] = useState<any[]>([]);
   const [showCreateUser, setShowCreateUser] = useState(false);
   const [showCreateVIP, setShowCreateVIP] = useState(false);
   const [showBulkVIP, setShowBulkVIP] = useState(false);
@@ -207,6 +208,13 @@ export const SecurityManagement: React.FC = () => {
         setRulesTableReady(false);
         if (!ruleLoadError) setRuleLoadError(err.message || 'Unknown failed to load');
       }
+    } else if (activeTab === 'history') {
+      const { data: history } = await supabase
+        .from('pass_scans')
+        .select('*')
+        .order('scanned_at', { ascending: false })
+        .limit(200);
+      if (history) setScanHistory(history);
     }
     // Settings are loaded by global context
   };
@@ -607,6 +615,16 @@ export const SecurityManagement: React.FC = () => {
           >
           Rules
         </button>  
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`px-4 py-2 font-semibold transition-colors ${
+            activeTab === 'history'
+              ? 'text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-gray-400 hover:text-gray-300'
+          }`}
+          >
+          Scan History
+        </button>
       </div>
 
       {/* Security Users Tab */}
@@ -1274,6 +1292,75 @@ export const SecurityManagement: React.FC = () => {
             >
               Close
             </button>
+          </div>
+        </div>
+      )}
+      {/* Scan History Tab */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold text-white">Full Scan History</h3>
+            <button
+              onClick={() => loadData()}
+              className="p-2 text-cyan-400 hover:bg-cyan-400/10 rounded-lg transition-colors"
+              title="Refresh History"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-gray-800/50 border-b border-gray-700">
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Time</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Participant</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Result</th>
+                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Guard</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700/50">
+                  {scanHistory.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500 italic">
+                        No scan history found
+                      </td>
+                    </tr>
+                  ) : (
+                    scanHistory.map((scan) => (
+                      <tr key={scan.id} className="hover:bg-gray-700/20 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                          {new Date(scan.scanned_at).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm font-semibold text-white">{scan.participant_name || 'VIP Guest'}</p>
+                          <p className="text-[10px] font-mono text-gray-500">{scan.pass_token}</p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            scan.pass_type === 'vip' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          }`}>
+                            {scan.pass_type?.toUpperCase() || 'REGULAR'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            scan.scan_result === 'valid' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                          }`}>
+                            {scan.scan_result.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-400 font-medium">
+                          {scan.guard_name || <span className="text-gray-600 italic">Not recorded</span>}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
