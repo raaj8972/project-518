@@ -972,7 +972,7 @@ export default function SecurityDashboard() {
               setShowResultOverlay(false);
               setLastScanResult(null);
             }}
-            autoDismissMs={autoAdvance ? 2000 : 0}
+            autoDismissMs={autoAdvance ? (lastScanResult.valid ? 5000 : 8000) : 0}
           />
         )}
         
