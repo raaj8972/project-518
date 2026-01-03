@@ -151,14 +151,16 @@ export function ScanResultOverlay({
           </div>
 
           {/* Countdown */}
-          <div className="flex items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40">
-              <span className="text-white text-xl font-bold">{countdown}</span>
+          {autoDismissMs > 0 && (
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border-2 border-white/40">
+                <span className="text-white text-xl font-bold">{countdown}</span>
+              </div>
+              <p className="text-white/70 text-sm font-medium">
+                Auto-close in {countdown}s • Tap to dismiss
+              </p>
             </div>
-            <p className="text-white/70 text-sm font-medium">
-              Auto-close in {countdown}s • Tap to dismiss
-            </p>
-          </div>
+          )}
         </div>
 
         {/* Gradient Footer */}
