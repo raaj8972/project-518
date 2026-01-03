@@ -538,7 +538,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
   };
 
-  const handleDownloadPDF = async (passOrPasses: VipPass | VipPass[]) => {
+  const handleDownloadPDF = async (passOrPasses: VipPass | VipPass[], specificDay?: number) => {
     const config = securitySettings?.pass_template_config || {};
     const configuredDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
     
@@ -548,23 +548,8 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       return;
     }
 
-    let selectedDays = configuredDays;
+    let selectedDays = (specificDay !== undefined) ? [specificDay] : configuredDays;
     
-    // If multiple days are configured, ask which one to download
-    // Simple prompt for MVP (could be modal)
-    if (configuredDays.length > 1) {
-      const input = window.prompt(`Enter Day Number to download (Available: ${configuredDays.map(d => d + 1).join(', ')}) or leave empty for all:`);
-      if (input !== null && input.trim() !== '') {
-        const day = parseInt(input) - 1;
-        if (configuredDays.includes(day)) {
-          selectedDays = [day];
-        } else {
-          toast.error('Invalid day selected');
-          return;
-        }
-      }
-    }
-
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
     const toastId = toast.loading('Generating PDF...');
 
@@ -923,14 +908,41 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
               <FileUp className="w-4 h-4" />
               Bulk Import
             </button>
-            <button
-               onClick={() => handleDownloadPDF(vipPasses)}
-               disabled={vipPasses.length === 0}
-               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              Download All PDFs
-            </button>
+            {Object.keys(securitySettings?.pass_template_config || {}).length > 1 ? (
+              <div className="flex gap-1">
+                {Object.keys(securitySettings?.pass_template_config || {}).sort().map((key) => {
+                  const dayNum = parseInt(key.replace('day_', '')) + 1;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => handleDownloadPDF(vipPasses, parseInt(key.replace('day_', '')))}
+                      disabled={vipPasses.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-sm font-bold"
+                    >
+                      <Download className="w-4 h-4" />
+                      Day {dayNum}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => handleDownloadPDF(vipPasses)}
+                  disabled={vipPasses.length === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-sm font-bold"
+                >
+                  <Download className="w-4 h-4" />
+                  All Days
+                </button>
+              </div>
+            ) : (
+              <button
+                 onClick={() => handleDownloadPDF(vipPasses)}
+                 disabled={vipPasses.length === 0}
+                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
+              >
+                <Download className="w-4 h-4" />
+                Download All PDFs
+              </button>
+            )}
           </div>
 
           {showBulkVIP && (
@@ -1085,13 +1097,38 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                       <Eye className="w-4 h-4" />
                       View QR
                     </button>
-                    <button
-                      onClick={() => handleDownloadPDF(pass)}
-                      className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
-                    >
-                      <Download className="w-4 h-4" />
-                      PDF
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {Object.keys(securitySettings?.pass_template_config || {}).length > 1 ? (
+                        <>
+                          {Object.keys(securitySettings?.pass_template_config || {}).sort().map((key) => {
+                            const dayNum = parseInt(key.replace('day_', '')) + 1;
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => handleDownloadPDF(pass, parseInt(key.replace('day_', '')))}
+                                className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-500/20 transition-colors"
+                              >
+                                Day {dayNum}
+                              </button>
+                            );
+                          })}
+                          <button
+                            onClick={() => handleDownloadPDF(pass)}
+                            className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-bold border border-indigo-500/20 transition-colors"
+                          >
+                            All Days
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => handleDownloadPDF(pass)}
+                          className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          PDF
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleResetPass(pass.id)}
                       className="flex items-center gap-1 text-orange-400 hover:text-orange-300 text-sm"
