@@ -116,7 +116,7 @@ export default function PassDownload() {
                 <p className="text-yellow-400 text-sm font-semibold mb-2">Important Instructions:</p>
                 <ul className="text-gray-300 text-sm space-y-1 list-disc list-inside">
                   <li>Present this QR code at the entry gate</li>
-                  <li>This pass is valid for ONE-TIME entry only</li>
+                  <li>{pass.pass_type === 'vip' ? 'This pass is valid for MULTI-DAY entry (once per day)' : 'This pass is valid for ONE-TIME entry only'}</li>
                   <li>Keep this QR code safe and do not share</li>
                   <li>Download or print the QR code for easy access</li>
                 </ul>

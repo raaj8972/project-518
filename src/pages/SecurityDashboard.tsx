@@ -10,6 +10,7 @@ import { playFeedback } from '../utils/scanSounds';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { debounce } from '../utils/debounce';
+import { useData } from '../context/DataContext';
 import { requestNotificationPermission, NotificationPresets, areNotificationsEnabled } from '../utils/notifications';
 import {
   syncPassesFromServer,
@@ -38,6 +39,7 @@ export default function SecurityDashboard() {
   const navigate = useNavigate();
   const { isOnline, wasOffline } = useOnlineStatus();
   const { isActive: wakeLockActive } = useWakeLock(true); // Keep screen active
+  const { securitySettings } = useData();
   
   const [securityUser, setSecurityUser] = useState<SecurityUser | null>(null);
   // Scan UI State
@@ -59,6 +61,7 @@ export default function SecurityDashboard() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualSearch, setManualSearch] = useState('');
   const [manualPasses, setManualPasses] = useState<any[]>([]);
+  const [manualPassUsage, setManualPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
   const [searching, setSearching] = useState(false);
   
   // Guard Auditing - Persistent for the day
@@ -88,6 +91,37 @@ export default function SecurityDashboard() {
       
       if (error) throw error;
       setManualPasses(data || []);
+
+      // Fetch usage logs for these passes to show correct status
+      if (data && data.length > 0) {
+        const ids = data.map(p => p.id);
+        const { data: usageData } = await supabase.from('pass_scans')
+           .select('pass_id, scanned_at')
+           .in('pass_id', ids)
+           .eq('scan_result', 'valid');
+        
+        if (usageData) {
+          const usage: Record<string, number[]> = {};
+          usageData.forEach(scan => {
+            const scanDate = new Date(scan.scanned_at);
+            const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            const utcDate = scanDate.toISOString().split('T')[0];
+
+            let dayIdx = (securitySettings?.event_dates || []).indexOf(istDate);
+            if (dayIdx === -1) {
+              dayIdx = (securitySettings?.event_dates || []).indexOf(utcDate);
+            }
+
+            if (dayIdx !== -1) {
+              if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
+              if (!usage[scan.pass_id].includes(dayIdx + 1)) {
+                 usage[scan.pass_id].push(dayIdx + 1);
+              }
+            }
+          });
+          setManualPassUsage(usage);
+        }
+      }
     } catch (err) {
       console.error('Search error:', err);
       toast.error('Search failed');
@@ -845,17 +879,35 @@ export default function SecurityDashboard() {
                           </div>
                         </div>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`Check in ${pass.participant_name}?`)) {
-                            handleScan(pass.pass_token);
-                            setManualSearch(''); // Clear search after check-in
-                          }
-                        }}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-colors"
-                      >
-                        Check In
-                      </button>
+                      <div className="flex flex-col items-end gap-2">
+                        {(() => {
+                          const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+                          const currentDayIdx = (securitySettings?.event_dates || []).indexOf(todayIST);
+                          const currentDayNum = currentDayIdx !== -1 ? currentDayIdx + 1 : null;
+                          const isUsed = (pass.pass_type === 'vip' ? (currentDayNum && manualPassUsage[pass.id]?.includes(currentDayNum)) : pass.is_used);
+
+                          return (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap border ${
+                              isUsed
+                                ? 'bg-red-500/10 text-red-500 border-red-500/20'
+                                : 'bg-green-500/10 text-green-400 border-green-500/20'
+                            }`}>
+                              {isUsed ? 'CHECKED IN' : 'VALID'}
+                            </span>
+                          );
+                        })()}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Check in ${pass.participant_name}?`)) {
+                              handleScan(pass.pass_token);
+                              setManualSearch(''); // Clear search after check-in
+                            }
+                          }}
+                          className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                        >
+                          Check In
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

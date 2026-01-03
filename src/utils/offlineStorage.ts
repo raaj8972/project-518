@@ -136,6 +136,17 @@ export async function validatePassOffline(
       };
     }
 
+    // Check for previous usage (for standard passes)
+    // VIPs can be used on multiple days, but regular passes are one-time only.
+    if (pass.is_used && pass.pass_type !== 'vip') {
+      return {
+        valid: false,
+        result: 'already_used',
+        message: `Pass already used: ${pass.participant_name}`,
+        name: pass.participant_name
+      };
+    }
+
     // Check if in pending queue (scanned offline but not synced yet)
     const pendingScan = await isInPendingQueue(token);
     if (pendingScan) {

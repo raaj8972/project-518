@@ -64,6 +64,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [rulesTableReady, setRulesTableReady] = useState(true);
   const [ruleLoadError, setRuleLoadError] = useState<string | null>(null);
 
+  // Derive current day number (IST)
+  const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const currentDayIdx = (securitySettings?.event_dates || []).indexOf(todayIST);
+  const currentDayNum = currentDayIdx !== -1 ? currentDayIdx + 1 : null;
+
   const toggleSelectAll = () => {
     if (selectedVipIds.size === vipPasses.length) {
       setSelectedVipIds(new Set());
@@ -1179,11 +1184,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap ${
-                          pass.is_used
+                          (pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used)
                             ? 'bg-red-500/10 text-red-500 border border-red-500/20'
                             : 'bg-green-500/10 text-green-400 border border-green-500/20'
                         }`}>
-                          {pass.is_used ? 'CHECKED IN' : 'VALID'}
+                          {(pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used) ? 'CHECKED IN' : 'VALID'}
                         </span>
                       </div>
                     </div>
