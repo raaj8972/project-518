@@ -104,13 +104,23 @@ export async function validatePassOffline(
     }
 
     // Check if pass exists in local cache
-    const pass = await getPassByToken(token);
+    const pass = await getPassByToken(token.trim()); // TRIM WHITESPACE to fix scanning bugs
     
     if (!pass) {
+      // Check if DB is empty - give better error message
+      const stats = await getDBStats();
+      if (stats.totalPasses === 0) {
+          return {
+            valid: false,
+            result: 'error',
+            message: 'OFFLINE: No Data. Please tap "Sync" button.'
+          };
+      }
+
       return {
         valid: false,
-        result: 'invalid',
-        message: 'Invalid pass'
+        result: 'invalid', // True invalid or not in sync
+        message: 'Invalid Pass (or not synced)'
       };
     }
 
@@ -324,7 +334,7 @@ export async function getSyncStats() {
  * Validate pass with online-first strategy
  */
 export async function validatePassHybrid(
-  token: string,
+  rawToken: string,
   securityUsername: string,
   isOnline: boolean,
   guardName?: string
@@ -336,6 +346,9 @@ export async function validatePassHybrid(
   pass_type?: string;
   scanned_by?: string;
 }> {
+  // TRIM INPUT
+  const token = rawToken.trim();
+
   // ONLINE - Try server validation first
   if (isOnline) {
     try {

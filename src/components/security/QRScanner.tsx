@@ -17,11 +17,20 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
-  const [lastScan, setLastScan] = useState<string>('');
+  const lastScanRef = useRef<string>(''); // Used for logic without re-renders
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
   const [hasTorch, setHasTorch] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
+
+  // Stable refs for callbacks to avoid effect re-runs
+  const onScanSuccessRef = useRef(onScanSuccess);
+  const onScanErrorRef = useRef(onScanError);
+
+  useEffect(() => {
+    onScanSuccessRef.current = onScanSuccess;
+    onScanErrorRef.current = onScanError;
+  }, [onScanSuccess, onScanError]);
 
   useEffect(() => {
     let isActive = true;
@@ -30,8 +39,8 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
       try {
         console.log('🎥 Starting camera...');
         
-        // Wait for DOM
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // DOM is ready in useEffect, no need to wait
+        // await new Promise(resolve => setTimeout(resolve, 100));
         
         if (!videoRef.current || !canvasRef.current) {
           throw new Error('Video/Canvas element not found');
@@ -194,12 +203,14 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
           // This prevents accidental scans of people further back in line.
           if (relativeArea > MIN_SCAN_AREA) {
             // Prevent duplicate scans for a short window
-            if (code.data !== lastScan) {
-              setLastScan(code.data);
-              onScanSuccess(code.data);
+            if (code.data !== lastScanRef.current) {
+              lastScanRef.current = code.data;
+              onScanSuccessRef.current(code.data);
               
               // Clear after 3 seconds to allow rapid rescanning only after phone is moved
-              setTimeout(() => setLastScan(''), 3000);
+              setTimeout(() => {
+                 lastScanRef.current = '';
+              }, 3000);
             }
           }
         }
@@ -228,24 +239,60 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [onScanSuccess, onScanError, lastScan]);
+  }, []); // EMPTY dependency array = Run once on mount, never restart!
 
   const toggleTorch = async () => {
     try {
       if (!streamRef.current) return;
       const track = streamRef.current.getVideoTracks()[0];
       const newState = !isTorchOn;
-      await track.applyConstraints({
-        advanced: [{ torch: newState }]
-      } as any);
-      setIsTorchOn(newState);
-      toast.success(newState ? 'Flashlight ON' : 'Flashlight OFF', {
-        id: 'torch-status',
-        duration: 2000
-      });
+
+      // Method 1: Standard Constraints (Modern Android/iOS)
+      try {
+        await track.applyConstraints({
+          advanced: [{ torch: newState }]
+        } as any);
+        setIsTorchOn(newState);
+        toast.success(newState ? 'Flashlight ON' : 'Flashlight OFF', { id: 'torch-status' });
+        return; // Success!
+      } catch (e) {
+        console.warn('Standard torch toggle failed, trying fallback...', e);
+      }
+
+      // Method 2: ImageCapture API (Older/Stubborn Android Chrome)
+      if ('ImageCapture' in window) {
+         try {
+           const imageCapture = new (window as any).ImageCapture(track);
+           // Try 'torch' mode
+           await imageCapture.setOptions({
+             fillLightMode: newState ? 'torch' : 'off'
+           });
+           setIsTorchOn(newState);
+           toast.success(newState ? 'Flashlight ON (Fallback)' : 'Flashlight OFF', { id: 'torch-status' });
+           return;
+         } catch (e2) {
+            console.warn('ImageCapture torch mode failed, trying flash mode...', e2);
+             // Method 3: 'flash' mode (Some devices call it flash, not torch)
+             try {
+               const imageCapture = new (window as any).ImageCapture(track);
+               await imageCapture.setOptions({
+                 fillLightMode: newState ? 'flash' : 'off'
+               });
+               setIsTorchOn(newState);
+               toast.success(newState ? 'Flashlight ON (Alt)' : 'Flashlight OFF', { id: 'torch-status' });
+               return;
+             } catch (e3) {
+                console.error('All torch methods failed', e3);
+                throw e3;
+             }
+         }
+      }
+
+      throw new Error('Torch not supported');
+
     } catch (err) {
       console.error('Failed to toggle torch:', err);
-      toast.error('Torch not supported on this device');
+      toast.error('Could not activate flashlight on this device');
     }
   };
 
