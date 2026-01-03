@@ -655,27 +655,28 @@ export default function SecurityDashboard() {
             </div>
           </div>
           
-          {/* Connection Status */}
-          <div className={`bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border ${
-            isOnline ? 'border-green-500/30' : 'border-orange-500/30'
-          }`}>
+          {/* System Health / Worker Status */}
+          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-green-500/30">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                isOnline ? 'bg-green-600/20' : 'bg-orange-600/20'
+                syncStats.pendingScans > 0 ? 'bg-orange-600/20' : 'bg-green-600/20'
               }`}>
-                {isOnline ? (
-                  <Wifi className="w-6 h-6 text-green-500" />
-                ) : (
-                  <WifiOff className="w-6 h-6 text-orange-500" />
-                )}
+                <Database className={`w-6 h-6 ${
+                  syncStats.pendingScans > 0 ? 'text-orange-500 animate-bounce' : 'text-green-500 animate-pulse'
+                }`} />
               </div>
-              <div>
-                <p className="text-gray-400 text-sm">Connection</p>
-                <p className={`text-lg font-semibold ${
-                  isOnline ? 'text-green-400' : 'text-orange-400'
-                }`}>
-                  {isOnline ? 'Online' : 'Offline'}
-                </p>
+              <div className="flex-1">
+                <p className="text-gray-400 text-sm">Offline Worker</p>
+                <div className="flex items-center justify-between">
+                  <p className={`text-lg font-bold ${
+                    syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-green-400'
+                  }`}>
+                    {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : 'Active'}
+                  </p>
+                  <span className="text-[10px] text-gray-500 font-mono italic">
+                    {syncStats.totalPasses} cached
+                  </span>
+                </div>
               </div>
             </div>
           </div>
