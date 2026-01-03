@@ -149,14 +149,20 @@ export function ScanResultOverlay({
               <p className="text-white/80 text-sm font-semibold uppercase tracking-widest mb-2">
                 Participant
               </p>
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-white text-6xl md:text-8xl font-black tracking-tighter break-words leading-[0.85] text-center w-full">
+              <div className="flex flex-col items-center gap-4 relative">
+                <p 
+                  className="text-white font-black tracking-tighter break-words leading-[0.9] text-center w-full"
+                  style={{ 
+                    fontSize: 'clamp(3rem, 12vw, 5rem)',
+                    textShadow: '0 4px 12px rgba(0,0,0,0.3)'
+                  }}
+                >
                   {result.name}
                 </p>
                 {result.pass_type === 'vip' && (
-                  <div className="flex-shrink-0 bg-yellow-400 text-yellow-900 px-5 py-3 rounded-2xl border-2 border-yellow-200 flex flex-col items-center gap-1 shadow-2xl animate-pulse">
-                    <Crown className="w-8 h-8" />
-                    <span className="font-black text-xs uppercase tracking-tighter">VIP ELITE</span>
+                  <div className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-xl border-2 border-yellow-200 flex items-center gap-2 shadow-xl animate-pulse transform scale-90 sm:scale-100">
+                    <Crown className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <span className="font-black text-xs sm:text-sm uppercase tracking-tighter">VIP ELITE</span>
                   </div>
                 )}
               </div>
