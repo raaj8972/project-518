@@ -37,14 +37,19 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
           throw new Error('Video/Canvas element not found');
         }
 
-        // Get camera stream with high quality
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // Get camera stream with ANDROID OPTIMIZED constraints
+        // 720p is the sweet spot for Android performance/focus
+        const constraints = {
           video: {
             facingMode: 'environment',
-            width: { ideal: 1920, min: 1280 },
-            height: { ideal: 1080, min: 720 }
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            // Force continuous focus for Android (vital for sharp scans)
+            advanced: [{ focusMode: 'continuous' }] as any
           }
-        });
+        } as MediaStreamConstraints;
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         if (!isActive) {
           stream.getTracks().forEach(track => track.stop());
@@ -66,10 +71,14 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         await video.play();
         console.log('▶️ Video playing');
 
-        // Check for torch capability
+        // Check for torch capability (Robust Method)
         const track = stream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
-        if (capabilities.torch) {
+        const settings = track.getSettings() as any;
+        
+        // Some Androids hide torch in settings, others in capabilities
+        if (capabilities.torch || settings.torch || ('fillLightMode' in capabilities)) {
+          console.log('🔦 Torch capability detected');
           setHasTorch(true);
         }
 
@@ -265,18 +274,22 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
                 </div>
               </div>
 
-              {onClose && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onClose();
-                  }}
-                  className="p-4 bg-red-600/80 hover:bg-red-600 text-white rounded-2xl transition-all active:scale-95 shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-2"
-                >
-                  <XCircle className="w-6 h-6" />
-                  <span className="font-black uppercase tracking-tighter">Exit</span>
-                </button>
-              )}
+              <div className="flex flex-col gap-1 items-end">
+                {onClose && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onClose();
+                    }}
+                    className="p-4 bg-red-600/80 hover:bg-red-600 text-white rounded-2xl transition-all active:scale-90 shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 touch-manipulation"
+                    style={{ minWidth: '44px', minHeight: '44px' }}
+                    aria-label="Exit Scanner"
+                  >
+                    <XCircle className="w-6 h-6" />
+                    <span className="font-black uppercase tracking-tighter hidden sm:inline">Exit</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Full screen scan indicator */}
@@ -310,11 +323,12 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
                   e.stopPropagation();
                   toggleTorch();
                 }}
-                className={`absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-wider transition-all transform active:scale-95 shadow-2xl z-30 ${
-                  isTorchOn 
-                    ? 'bg-yellow-400 text-black border-b-4 border-yellow-600' 
-                    : 'bg-gray-800/80 text-white border-b-4 border-gray-900 backdrop-blur-md'
+                className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-8 py-4 rounded-full transition-all duration-300 shadow-[0_0_30px_rgba(0,0,0,0.5)] border touch-manipulation active:scale-95 ${
+                  isTorchOn
+                    ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_50px_rgba(251,191,36,0.4)]'
+                    : 'bg-black/60 text-white border-white/20 hover:bg-black/80 backdrop-blur-md'
                 }`}
+                style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
               >
                 <Zap className={`w-6 h-6 ${isTorchOn ? 'fill-current' : 'text-yellow-400'}`} />
                 {isTorchOn ? 'Flashlight ON' : 'Night Vision'}
