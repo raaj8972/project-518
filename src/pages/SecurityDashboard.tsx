@@ -59,8 +59,10 @@ export default function SecurityDashboard() {
   const [swStatus, setSwStatus] = useState<'Initializing' | 'Active' | 'Offline Ready'>('Initializing');
   
   // High-frequency scan protection
-  const processingTokens = useRef<Set<string>>(new Set());
+  const processingTokens = useRef<Set<string>>(new Set()); // Prevents "Success -> Rejected" race loops
   const recentSuccessTokens = useRef<Map<string, number>>(new Map());
+  // Prevents "Invalid -> Invalid -> Invalid" spam (Reject Debounce)
+  const recentErrorTokens = useRef<Map<string, number>>(new Map());
   
   // Manual Entry State
   const [showManualEntry, setShowManualEntry] = useState(false);
@@ -321,6 +323,13 @@ export default function SecurityDashboard() {
       console.log('⏳ Already processing token, ignoring duplicate...');
       return;
     }
+    
+    // 2. PREVENTION: Error Debounce - If this token failed validation recently (3s), ignore it
+    const lastErrorTime = recentErrorTokens.current.get(passToken);
+    if (lastErrorTime && Date.now() - lastErrorTime < 3000) {
+      console.log('🔇 Token recently rejected, suppressing spam...');
+      return;
+    }
 
     // 2. PREVENTION: If this token was successfully scanned in the last 5 seconds, ignore it
     // This prevents the "Success -> Rejected (Already Used)" loop
@@ -403,6 +412,10 @@ export default function SecurityDashboard() {
           playFeedback('error');
           toast.error('✗ Invalid Pass');
         }
+        
+        // Add to Recent Error Map to throttle redundant validation
+        recentErrorTokens.current.set(passToken, Date.now());
+        setTimeout(() => recentErrorTokens.current.delete(passToken), 3000);
       }
     } catch (error: any) {
       console.error('Error validating pass:', error);
