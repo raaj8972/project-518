@@ -228,14 +228,14 @@ export async function syncPendingScansToServer(
 
     for (const scan of pending) {
       try {
-        // Upload scan to pass_scans table
         const { error } = await supabase
           .from('pass_scans')
           .insert({
             pass_token: scan.pass_token,
             participant_name: scan.participant_name,
             scan_result: scan.result,
-            scanned_by_username: scan.guard_name || scan.security_username,
+            scanned_by_username: scan.security_username,
+            guard_name: scan.guard_name,
             pass_type: scan.pass_type,
             scanned_at: scan.timestamp
           });

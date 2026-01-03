@@ -228,8 +228,32 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         .limit(200);
       if (history) setScanHistory(history);
     }
-    // Settings are loaded by global context
   };
+
+  useEffect(() => {
+    // Real-time synchronization for changes
+    const channel = supabase
+      .channel('security_management_realtime')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'pass_scans' 
+      }, () => {
+        loadData();
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'entry_passes' 
+      }, () => {
+        loadData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeTab]);
 
   const handleToggleRule = async (rule: ValidationRule) => {
     if (!rulesTableReady) return toast.error('Database table not ready');
@@ -1043,12 +1067,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs ${
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest ${
                         pass.is_used
-                          ? 'bg-red-500/20 text-red-400'
-                          : 'bg-green-500/20 text-green-400'
+                          ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          : 'bg-green-500/10 text-green-400 border border-green-500/20'
                       }`}>
-                        {pass.is_used ? 'USED' : 'VALID'}
+                        {pass.is_used ? 'CHECKED IN' : 'VALID'}
                       </span>
                     </div>
                   </div>
@@ -1464,13 +1488,17 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            scan.scan_result === 'valid' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                            scan.scan_result === 'valid' 
+                              ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                              : scan.scan_result === 'already_used'
+                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
                           }`}>
-                            {scan.scan_result.toUpperCase()}
+                            {scan.scan_result === 'already_used' ? 'ALREADY SCANNED' : scan.scan_result.toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-400 font-medium">
-                          {scan.scanned_by_username || scan.guard_name || <span className="text-gray-600 italic">Not recorded</span>}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-400 font-medium font-mono text-[10px]">
+                          {scan.guard_name || scan.scanned_by_username || <span className="text-gray-600 italic">Not recorded</span>}
                         </td>
                       </tr>
                     ))
