@@ -106,6 +106,15 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         if (torchDetected) {
           console.log('🔦 Torch capability CONFIRMED');
           setHasTorch(true);
+        } else {
+             // FORCE ENABLE TORCH FOR MOBILE/ANDROID (Optimistic UI)
+             // Many devices have a flash but hide it from the browser API.
+             // We show the button anyway and handle failure gracefully.
+             const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+             if (isMobile) {
+                console.log('📱 Mobile device detected - forcing Torch button visible');
+                setHasTorch(true);
+             }
         }
 
         setCameraActive(true);
