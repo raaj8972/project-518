@@ -97,11 +97,16 @@ export async function validatePassOffline(
     let searchToken = token.trim();
     let restrictedDateSuffix: string | null = null;
 
+    console.log('🔍 ValidatePassOffline Input:', token);
+
     if (searchToken.includes('|')) {
        const parts = searchToken.split('|');
        if (parts.length === 2) {
           searchToken = parts[0];
           restrictedDateSuffix = parts[1];
+          console.log('🔹 Split Token:', { token: searchToken, date: restrictedDateSuffix });
+       } else {
+          console.warn('⚠️ Token has | but split failed:', parts);
        }
     }
 
@@ -120,6 +125,8 @@ export async function validatePassOffline(
        const today = new Date();
        const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
        
+       console.log('📅 Date Validation:', { qrDate: restrictedDateSuffix, today: todayStr });
+
        if (restrictedDateSuffix !== todayStr) {
           return {
              valid: false,
@@ -131,6 +138,7 @@ export async function validatePassOffline(
     }
 
     // Check if pass exists in local cache
+    console.log('🔍 DB Lookup for:', searchToken);
     const pass = await getPassByToken(searchToken); // use parsed token
     
     if (!pass) {
@@ -399,8 +407,32 @@ export async function validatePassHybrid(
   pass_type?: string;
   scanned_by?: string;
 }> {
-  // TRIM INPUT
-  const token = rawToken.trim();
+  // Parse Token Logic for Day-Specific QR support (token|YYYY-MM-DD)
+  let token = rawToken.trim();
+  let restrictedDateSuffix: string | null = null;
+  
+  if (token.includes('|')) {
+     const parts = token.split('|');
+     if (parts.length === 2) {
+        token = parts[0];
+        restrictedDateSuffix = parts[1];
+     }
+  }
+
+  // STRICT DATE CHECK (Suffix)
+  if (restrictedDateSuffix) {
+     const today = new Date();
+     const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+     
+     if (restrictedDateSuffix !== todayStr) {
+        return {
+           valid: false,
+           result: 'invalid', // True invalid
+           message: `Valid for ${restrictedDateSuffix} only`,
+           name: 'Wrong Day Pass'
+        };
+     }
+  }
 
   // ONLINE - Try server validation first
   if (isOnline) {
