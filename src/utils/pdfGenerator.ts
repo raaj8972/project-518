@@ -135,8 +135,15 @@ export const generatePassPDF = async ({
       // 2. Generate and Draw QR
       if (config) {
         try {
-          // QR Data
-          const qrDataUrl = await QRCode.toDataURL(pass.token, {
+          // QR Data - Append Date Suffix for Strict Day Validation
+          // Format: token|YYYY-MM-DD
+          let qrToken = pass.token;
+          if (eventDates && eventDates.length > dayIndex) {
+             const targetDate = eventDates[dayIndex];
+             qrToken = `${pass.token}|${targetDate}`;
+          }
+
+          const qrDataUrl = await QRCode.toDataURL(qrToken, {
             errorCorrectionLevel: 'H',
             margin: 0, // No internal margin, we'll draw our own white box
             width: 500,

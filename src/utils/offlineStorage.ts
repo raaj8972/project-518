@@ -93,6 +93,18 @@ export async function validatePassOffline(
   pass_type?: string;
 }> {
   try {
+    // Parse Token Logic for Day-Specific QR support (token|YYYY-MM-DD)
+    let searchToken = token.trim();
+    let restrictedDateSuffix: string | null = null;
+
+    if (searchToken.includes('|')) {
+       const parts = searchToken.split('|');
+       if (parts.length === 2) {
+          searchToken = parts[0];
+          restrictedDateSuffix = parts[1];
+       }
+    }
+
     // Check cache integrity first
     const cacheCheck = await validateCacheIntegrity();
     if (!cacheCheck.valid) {
@@ -103,8 +115,23 @@ export async function validatePassOffline(
       };
     }
 
+    // STRICT DATE CHECK for Multi-Day Pass Split
+    if (restrictedDateSuffix) {
+       const today = new Date();
+       const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+       
+       if (restrictedDateSuffix !== todayStr) {
+          return {
+             valid: false,
+             result: 'invalid',
+             message: `Valid for ${restrictedDateSuffix} only`,
+             name: 'Wrong Day Pass'
+          };
+       }
+    }
+
     // Check if pass exists in local cache
-    const pass = await getPassByToken(token.trim()); // TRIM WHITESPACE to fix scanning bugs
+    const pass = await getPassByToken(searchToken); // use parsed token
     
     if (!pass) {
       // Check if DB is empty - give better error message
@@ -134,7 +161,7 @@ export async function validatePassOffline(
       };
     }
 
-    // Check restricted date
+    // Check restricted date (Database Level Override)
     if (pass.valid_date) {
       const today = new Date();
       // Adjust for Indian Standard Time (since event is in India)
