@@ -46,7 +46,7 @@ const CarouselImagePreloader: React.FC<{ images: string[] }> = React.memo(({ ima
 });
 
 export const RicoFamily: React.FC = () => {
-  const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, formSettings, homepageSettings } = useData();
+  const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
   // Minimal web dev role detection (fallback to config if present)
   const webDevPhraseList = (homepageSettings as any)?.web_dev_role_phrases && Array.isArray((homepageSettings as any).web_dev_role_phrases) && (homepageSettings as any).web_dev_role_phrases.length > 0
     ? (homepageSettings as any).web_dev_role_phrases.map((p: string) => String(p).toLowerCase())
@@ -194,7 +194,7 @@ export const RicoFamily: React.FC = () => {
     animatedElements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [enabledFacultyHeads, enabledCommittees]);
+  }, [enabledFacultyHeads, enabledCommittees, coreTeamMembers, enabledSportsCommittees, sportsTeamMembers, bandMembers]);
 
   // Parallax effect
   // Parallax effect (Optimized with requestAnimationFrame)
@@ -701,8 +701,8 @@ export const RicoFamily: React.FC = () => {
                 return (
                   <div
                     key={committee.id}
-                    className="scroll-animate opacity-0 transform translate-y-20"
-                    style={{ animationDelay: `${committeeIndex * 0.3}s` }}
+                    className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}
+                    style={!isMobile ? { animationDelay: `${committeeIndex * 0.3}s` } : {}}
                   >
                     {/* Committee Header */}
                     <div className="text-center mb-12">
@@ -813,8 +813,8 @@ export const RicoFamily: React.FC = () => {
                             return (
                             <div
                               key={member.id}
-                              className={`scroll-animate opacity-0 transform translate-y-20 team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
-                              style={{ animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` }}
+                              className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
+                              style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` } : {}}
                             >
                               <div className={`neon-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
                                 {/* Member Image (always visible) */}
@@ -1040,7 +1040,7 @@ export const RicoFamily: React.FC = () => {
                       <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                         {regularMembers.map((member, idx) => (
-                          <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${idx * 0.12}s` }}>
+                          <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card hover-float`} style={{ animationDelay: `${idx * 0.12}s` }}>
                             <div className="neon-card h-full overflow-hidden p-2">
                               <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                                 <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
@@ -1145,7 +1145,7 @@ export const RicoFamily: React.FC = () => {
                         <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
                           {regularMembers.map((member, idx) => (
-                            <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20 team-card hover-float" style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
+                            <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card hover-float`} style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
                               <div className="neon-card h-full overflow-hidden p-2">
                                 <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
                                   <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
@@ -1350,7 +1350,7 @@ export const RicoFamily: React.FC = () => {
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-pink-900/20"></div>
         <div className="container mx-auto px-4 relative z-10">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
+          <div className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}>
             <div className="text-center mb-16">
               <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
                 OUR <span className="neon-pink">VALUES</span>
@@ -1377,7 +1377,7 @@ export const RicoFamily: React.FC = () => {
                 desc: 'Maintaining the highest ethical standards in all our endeavors and relationships' 
               }
             ].map((value, index) => (
-              <div key={index} className="scroll-animate opacity-0 transform translate-y-20 hover-float" style={{ animationDelay: `${index * 0.2}s` }}>
+              <div key={index} className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20 hover-float" : "hover-float"} style={{ animationDelay: `${index * 0.2}s` }}>
                 <div className="neon-card group text-center p-8">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 group-hover:scale-110 transition-transform pulse-ring">
                     <value.icon size={32} className="text-white" />
@@ -1395,7 +1395,7 @@ export const RicoFamily: React.FC = () => {
       <section className="py-20 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-pink-900/40 via-purple-900/60 to-blue-900/40"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
+          <div className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}>
             <h2 className="text-5xl md:text-7xl font-black mb-6 neon-title">
               JOIN THE <span className="neon-pink">FAMILY</span>
             </h2>
