@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square } from 'lucide-react';
+import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
@@ -38,6 +38,7 @@ interface VipPass {
   pass_token: string;
   is_used: boolean;
   is_active: boolean;
+  valid_date?: string;
 }
 
 interface SecurityManagementProps {
@@ -59,6 +60,8 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [processingBulk, setProcessingBulk] = useState(false);
   const [importData, setImportData] = useState<any[]>([]);
   const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
+  const [editingPassId, setEditingPassId] = useState<string | null>(null);
+  const [editDateValue, setEditDateValue] = useState('');
   const [selectedVipIds, setSelectedVipIds] = useState<Set<string>>(new Set());
   const [validationRules, setValidationRules] = useState<ValidationRule[]>(DEFAULT_RULES);
   const [rulesTableReady, setRulesTableReady] = useState(true);
@@ -96,6 +99,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [newVIP, setNewVIP] = useState({
     name: '',
     notes: '',
+    validDate: '',
   });
 
   const [councilPassword, setCouncilPassword] = useState('');
@@ -458,12 +462,13 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       const { error } = await supabase.rpc('create_vip_pass_v3', {
         p_name: newVIP.name || null,
         p_notes: newVIP.notes || null,
+        p_valid_date: newVIP.validDate || null,
       });
 
       if (error) throw error;
 
       toast.success('VIP pass created successfully');
-      setNewVIP({ name: '', notes: '' });
+      setNewVIP({ name: '', notes: '', validDate: '' });
       setShowCreateVIP(false);
       loadData(); // Refresh the VIP passes list
     } catch (error: any) {
@@ -658,6 +663,24 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to delete pass');
+    }
+  };
+
+  const handleUpdatePassDate = async (passId: string, newDate: string) => {
+    try {
+      const { error } = await supabase.rpc('update_pass_date', {
+        p_pass_id: passId,
+        p_new_date: newDate || null, // Allow clearing the date
+      });
+
+      if (error) throw error;
+
+      toast.success(newDate ? 'Pass date updated' : 'Pass is now valid for ALL days');
+      setEditingPassId(null);
+      loadData();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to update date');
     }
   };
 
@@ -1098,6 +1121,20 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                   placeholder="Internal notes about this VIP pass"
                 />
               </div>
+              <div>
+                <label className="block text-gray-300 mb-2">Valid Date (Optional)</label>
+                <div className="flex flex-col gap-1">
+                  <input
+                    type="date"
+                    value={newVIP.validDate}
+                    onChange={(e) => setNewVIP({ ...newVIP, validDate: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                  />
+                  <span className="text-xs text-gray-500">
+                    Leave blank for ALL-DAY access. Select a date to restrict pass to that day only.
+                  </span>
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button
                   type="submit"
@@ -1152,6 +1189,63 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         <p className="text-xs text-gray-500">
                           Token: {pass.pass_token}
                         </p>
+                        {/* Date Validity / Editor */}
+                        {editingPassId === pass.id ? (
+                          <div className="mt-2 p-2 bg-gray-900 rounded border border-gray-700 flex items-center gap-2">
+                             <input 
+                               type="date" 
+                               value={editDateValue}
+                               onChange={e => setEditDateValue(e.target.value)}
+                               className="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-600 focus:border-cyan-500 outline-none"
+                             />
+                             <button
+                               onClick={() => handleUpdatePassDate(pass.id, editDateValue)}
+                               className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
+                               title="Save Date"
+                             >
+                               <CheckCircle2 className="w-4 h-4" />
+                             </button>
+                             <button
+                               onClick={() => setEditingPassId(null)}
+                               className="p-1 bg-gray-600 text-white rounded hover:bg-gray-700"
+                               title="Cancel"
+                             >
+                                <XCircle className="w-4 h-4" />
+                             </button>
+                             <button
+                               onClick={() => handleUpdatePassDate(pass.id, '')} // Set to null (All Access)
+                               className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-[10px] font-bold px-2"
+                               title="Make All-Day Access"
+                             >
+                               ALL
+                             </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            {pass.valid_date ? (
+                               <p className="text-xs font-bold text-amber-500 mt-1 flex items-center gap-1">
+                                 <Clock className="w-3 h-3" />
+                                 Valid: {new Date(pass.valid_date).toLocaleDateString()}
+                               </p>
+                            ) : (
+                               <p className="text-xs font-bold text-green-500 mt-1 flex items-center gap-1">
+                                 <Crown className="w-3 h-3" />
+                                 All-Day Access
+                               </p>
+                            )}
+                            
+                            <button
+                              onClick={() => {
+                                setEditingPassId(pass.id);
+                                setEditDateValue(pass.valid_date || '');
+                              }}
+                              className="text-gray-500 hover:text-cyan-400 p-1 opacity-50 hover:opacity-100 transition-all"
+                              title="Edit Valid Date"
+                            >
+                               <FileUp className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                         
                         {/* Day Usage Badges */}
                         {(securitySettings?.event_dates || []).length > 0 && (

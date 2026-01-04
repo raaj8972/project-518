@@ -42,7 +42,7 @@ export async function syncPassesFromServer(): Promise<{ success: boolean; count:
     // This ensures we can validate inactive/used passes offline too
     const { data: passes, error } = await supabase
       .from('entry_passes')
-      .select('pass_token, participant_name, pass_type, is_active, is_used, created_at');
+      .select('pass_token, participant_name, pass_type, is_active, is_used, created_at, valid_date');
 
     if (error) throw error;
 
@@ -132,6 +132,24 @@ export async function validatePassOffline(
         message: 'Pass deactivated',
         name: pass.participant_name
       };
+    }
+
+    // Check restricted date
+    if (pass.valid_date) {
+      const today = new Date();
+      // Adjust for Indian Standard Time (since event is in India)
+      // Or just use local date string if devices are local.
+      // Using 'en-CA' gives YYYY-MM-DD format which matches Supabase DATE type
+      const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      
+      if (pass.valid_date !== todayStr) {
+        return {
+           valid: false,
+           result: 'invalid',
+           message: `Valid for ${pass.valid_date} only`,
+           name: pass.participant_name
+        };
+      }
     }
 
     // Check if already scanned TODAY (multi-day support)

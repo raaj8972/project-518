@@ -18,6 +18,7 @@ export interface EntryPass {
   is_active: boolean;
   is_used: boolean;
   created_at?: string;
+  valid_date?: string; // Format: YYYY-MM-DD
   last_sync_time?: number;
 }
 
