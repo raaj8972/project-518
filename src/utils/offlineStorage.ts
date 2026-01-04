@@ -142,6 +142,12 @@ export async function validatePassOffline(
       // Using 'en-CA' gives YYYY-MM-DD format which matches Supabase DATE type
       const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
       
+      console.log('🔍 Offline Date Check:', {
+          passDate: pass.valid_date,
+          todayDate: todayStr,
+          match: pass.valid_date === todayStr
+      });
+
       if (pass.valid_date !== todayStr) {
         return {
            valid: false,
@@ -150,6 +156,8 @@ export async function validatePassOffline(
            name: pass.participant_name
         };
       }
+    } else {
+       console.log('🔍 Offline Date Check: No valid_date (All Access)');
     }
 
     // Check if already scanned TODAY (multi-day support)
@@ -405,6 +413,12 @@ export async function validatePassHybrid(
         const today = new Date();
         const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         
+        console.log('🔍 Date Validation Debug:', {
+          passDate: passData.valid_date,
+          todayDate: todayStr,
+          match: passData.valid_date === todayStr
+        });
+
         if (passData.valid_date !== todayStr) {
           return {
              valid: false,
@@ -414,6 +428,8 @@ export async function validatePassHybrid(
              pass_type: passData.pass_type
           };
         }
+      } else {
+        console.log('🔍 Date Validation: Pass has NO valid_date (All Access)');
       }
 
       // 3. Evaluate Validation Rules (Before Consumption)

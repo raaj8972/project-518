@@ -612,10 +612,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           id: p.id,
           token: p.pass_token,
           name: p.participant_name || 'VIP Guest',
-          type: 'VIP'
+          type: 'VIP',
+          valid_date: p.valid_date
         })),
         templateConfigs: processedConfig,
         selectedDays,
+        eventDates: eventDates,
         onProgress: (pct) => {
           toast.loading(`Generating PDF: ${pct}%`, { id: toastId });
         }

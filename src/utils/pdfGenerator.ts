@@ -3,6 +3,7 @@ export interface PassData {
   token: string; // secure token for QR
   name?: string;
   type: string;
+  valid_date?: string; // YYYY-MM-DD
 }
 
 export interface TemplateConfig {
@@ -18,6 +19,7 @@ export interface GenerateOptions {
   passes: PassData[];
   templateConfigs: Record<string, TemplateConfig>; // { "day_0": config, ... }
   selectedDays: number[]; // indices [0, 1, 2]
+  eventDates: string[]; // ['2026-01-03', '2026-01-04', ...]
   onProgress?: (progress: number) => void;
 }
 
@@ -25,6 +27,7 @@ export const generatePassPDF = async ({
   passes,
   templateConfigs,
   selectedDays,
+  eventDates,
   onProgress
 }: GenerateOptions) => {
   if (passes.length === 0) return;
@@ -75,6 +78,18 @@ export const generatePassPDF = async ({
     const pass = passes[i];
 
     for (const dayIndex of selectedDays) {
+      // Logic: If pass has specific date, ONLY generate for that day index.
+      // If pass is All Access (no valid_date), generate for ALL selected days.
+      if (pass.valid_date && eventDates && eventDates.length > 0) {
+         // Find database date for this loop's dayIndex
+         const targetDate = eventDates[dayIndex];
+         
+         // If dates don't match, SKIP this template
+         if (pass.valid_date !== targetDate) {
+           continue; 
+         }
+      }
+
       const key = `day_${dayIndex}`;
       const config = templateConfigs[key];
       const bgImage = loadedImages[key];
