@@ -68,6 +68,9 @@ export function registerServiceWorker() {
         })
         .catch((error) => {
           console.error('[SW] Service Worker registration failed:', error);
+          if (error.message && error.message.includes('MIME type')) {
+             console.error('[SW] MIME type mismatch. Ensure server sends application/javascript for /service-worker.js');
+          }
         });
 
       // Handle controller change (new SW activated)
