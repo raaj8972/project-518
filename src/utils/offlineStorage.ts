@@ -387,7 +387,7 @@ export async function validatePassHybrid(
         };
       }
 
-      // 2. Check Active Status (is_used check removed to allow multi-day server-side logic)
+      // 2. Check Active Status
       if (!passData.is_active) {
          return {
           valid: false,
@@ -396,6 +396,24 @@ export async function validatePassHybrid(
           name: passData.participant_name,
           pass_type: passData.pass_type
         };
+      }
+
+      // Check restricted date (Online Path)
+      if (passData.valid_date) {
+        // We can trust the client date for this quick check or parse server date if needed.
+        // For consistency with offline mode, we check against local time (IST typically for physical event)
+        const today = new Date();
+        const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        
+        if (passData.valid_date !== todayStr) {
+          return {
+             valid: false,
+             result: 'invalid',
+             message: `Valid for ${passData.valid_date} only`,
+             name: passData.participant_name,
+             pass_type: passData.pass_type
+          };
+        }
       }
 
       // 3. Evaluate Validation Rules (Before Consumption)
