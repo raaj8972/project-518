@@ -6,7 +6,8 @@ import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
 import { PassTemplateDesigner } from './PassTemplateDesigner';
-import { generatePassPDF } from '../../utils/pdfGenerator';
+import { generatePassPDF, generateA4SheetPDF } from '../../utils/pdfGenerator';
+import { generatePassImages } from '../../utils/passImageGenerator';
 
 interface SecurityUser {
   id: number;
@@ -629,6 +630,113 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
   };
 
+  const handleDownloadA4PDF = async (passOrPasses: VipPass | VipPass[], specificDay?: number) => {
+    const config = securitySettings?.pass_template_config || {};
+    const eventDates = securitySettings?.event_dates || [];
+    
+    if (Object.keys(config).length === 0) {
+      toast.error('Configure pass design first');
+      return;
+    }
+
+    let selectedDays: number[] = [];
+    if (specificDay !== undefined) {
+      selectedDays = [specificDay];
+    } else if (eventDates.length > 0) {
+      selectedDays = eventDates.map((_, i) => i);
+    } else {
+      selectedDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
+    }
+    
+    // Config Fallback
+    const processedConfig: Record<string, any> = { ...config };
+    const defaultTemplate = config['day_0'] || config[Object.keys(config)[0]];
+    selectedDays.forEach(dayIndex => {
+      if (!processedConfig[`day_${dayIndex}`]) processedConfig[`day_${dayIndex}`] = defaultTemplate;
+    });
+
+    const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
+    const toastId = toast.loading('Generating A4 Sheet...');
+
+    try {
+      await generateA4SheetPDF({
+        passes: passes.map(p => ({
+          id: p.id,
+          token: p.pass_token,
+          name: p.participant_name || 'VIP Guest',
+          type: 'VIP',
+          valid_date: p.valid_date
+        })),
+        templateConfigs: processedConfig,
+        selectedDays,
+        eventDates,
+        onProgress: (pct) => {
+          toast.loading(`Generating A4: ${pct}%`, { id: toastId });
+        }
+      });
+      toast.success('A4 Sheet downloaded!', { id: toastId });
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate A4 PDF', { id: toastId });
+    }
+  };
+
+  const handleDownloadImage = async (passOrPasses: VipPass | VipPass[], format: 'png' | 'jpg' = 'png', specificDay?: number) => {
+    const config = securitySettings?.pass_template_config || {};
+    const eventDates = securitySettings?.event_dates || [];
+    
+    if (Object.keys(config).length === 0) {
+      toast.error('Please configure a pass design in the "Pass Design" tab first.');
+      setActiveTab('design');
+      return;
+    }
+
+    let selectedDays: number[] = [];
+    if (specificDay !== undefined) {
+      selectedDays = [specificDay];
+    } else if (eventDates.length > 0) {
+      selectedDays = eventDates.map((_, i) => i);
+    } else {
+      selectedDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
+    }
+    
+    const processedConfig: Record<string, any> = { ...config };
+    const defaultTemplate = config['day_0'] || config[Object.keys(config)[0]];
+
+    selectedDays.forEach(dayIndex => {
+      const key = `day_${dayIndex}`;
+      if (!processedConfig[key]) {
+        processedConfig[key] = defaultTemplate; 
+      }
+    });
+
+    const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
+    const toastId = toast.loading(`Generating ${format.toUpperCase()}...`);
+
+    try {
+      await generatePassImages({
+        passes: passes.map(p => ({
+          id: p.id,
+          token: p.pass_token,
+          name: p.participant_name || 'VIP Guest',
+          type: 'VIP',
+          valid_date: p.valid_date
+        })),
+        templateConfigs: processedConfig,
+        selectedDays,
+        eventDates: eventDates,
+        format,
+        onProgress: (pct) => {
+          toast.loading(`Generating ${format.toUpperCase()}: ${pct}%`, { id: toastId });
+        }
+      });
+      toast.success(`${format.toUpperCase()} downloaded!`, { id: toastId });
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate images', { id: toastId });
+    }
+  };
+
   const downloadTemplate = async () => {
     const template = [
       { name: 'John Doe', notes: 'Sponsor guest' },
@@ -1007,56 +1115,132 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 items-center justify-end">
-              {(securitySettings?.event_dates || []).length > 1 ? (
-                <div className="flex flex-wrap gap-1 w-full sm:w-auto">
-                  {(securitySettings?.event_dates || []).map((_, idx) => {
-                    const dayNum = idx + 1;
-                    const targetPasses = selectedVipIds.size > 0 
-                      ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                      : vipPasses;
-                    
-                    return (
+            <div className="flex flex-col gap-2 items-end">
+              {/* PDF Row */}
+              <div className="flex flex-wrap gap-2 items-center justify-end">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">PDF:</span>
+                  {(securitySettings?.event_dates || []).length > 1 ? (
+                    <div className="flex flex-wrap gap-1 w-full sm:w-auto">
+                      {(securitySettings?.event_dates || []).map((_, idx) => {
+                        const dayNum = idx + 1;
+                        const targetPasses = selectedVipIds.size > 0 
+                          ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                          : vipPasses;
+                        
+                        return (
+                          <button
+                            key={`pdf-${idx}`}
+                            onClick={() => handleDownloadPDF(targetPasses, idx)}
+                            disabled={vipPasses.length === 0}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                          >
+                            <Download className="w-3 h-3" />
+                            {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `D${dayNum}`}
+                          </button>
+                        );
+                      })}
                       <button
-                        key={idx}
-                        onClick={() => handleDownloadPDF(targetPasses, idx)}
+                        onClick={() => {
+                          const targetPasses = selectedVipIds.size > 0 
+                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                            : vipPasses;
+                          handleDownloadPDF(targetPasses);
+                        }}
                         disabled={vipPasses.length === 0}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
                       >
-                        <Download className="w-4 h-4" />
-                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `Day ${dayNum}`}
+                        <Download className="w-3 h-3" />
+                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} All` : 'All'}
                       </button>
-                    );
-                  })}
+                    </div>
+                  ) : (
+                    <button
+                       onClick={() => {
+                         const targetPasses = selectedVipIds.size > 0 
+                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                           : vipPasses;
+                         handleDownloadPDF(targetPasses);
+                       }}
+                       disabled={vipPasses.length === 0}
+                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-xs font-bold"
+                    >
+                      <Download className="w-3 h-3" />
+                      {selectedVipIds.size > 0 ? `Download PDF (${selectedVipIds.size})` : 'Download PDF'}
+                    </button>
+                  )}
+              </div>
+
+              {/* PNG Row */}
+              <div className="flex flex-wrap gap-2 items-center justify-end">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">PNG:</span>
+                  {(securitySettings?.event_dates || []).length > 1 ? (
+                    <div className="flex flex-wrap gap-1 w-full sm:w-auto">
+                      {(securitySettings?.event_dates || []).map((_, idx) => {
+                        const dayNum = idx + 1;
+                        const targetPasses = selectedVipIds.size > 0 
+                          ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                          : vipPasses;
+                        
+                        return (
+                          <button
+                            key={`png-${idx}`}
+                            onClick={() => handleDownloadImage(targetPasses, 'png', idx)}
+                            disabled={vipPasses.length === 0}
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-teal-600/10 hover:bg-teal-600/20 text-teal-400 rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                          >
+                            <Download className="w-3 h-3" />
+                            {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `D${dayNum}`}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => {
+                          const targetPasses = selectedVipIds.size > 0 
+                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                            : vipPasses;
+                          handleDownloadImage(targetPasses, 'png');
+                        }}
+                        disabled={vipPasses.length === 0}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                      >
+                        <Download className="w-3 h-3" />
+                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} All` : 'All'}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                       onClick={() => {
+                         const targetPasses = selectedVipIds.size > 0 
+                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                           : vipPasses;
+                         handleDownloadImage(targetPasses, 'png');
+                       }}
+                       disabled={vipPasses.length === 0}
+                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-xs font-bold"
+                    >
+                      <Download className="w-3 h-3" />
+                      {selectedVipIds.size > 0 ? `Download PNG (${selectedVipIds.size})` : 'Download PNG'}
+                    </button>
+                  )}
+              </div>
+
+              {/* A4 Sheet Row */}
+              <div className="flex flex-wrap gap-2 items-center justify-end">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Sheet:</span>
                   <button
-                    onClick={() => {
-                      const targetPasses = selectedVipIds.size > 0 
-                        ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                        : vipPasses;
-                      handleDownloadPDF(targetPasses);
-                    }}
-                    disabled={vipPasses.length === 0}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-xs font-bold"
+                     onClick={() => {
+                       const targetPasses = selectedVipIds.size > 0 
+                         ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
+                         : vipPasses;
+                       handleDownloadA4PDF(targetPasses);
+                     }}
+                     disabled={vipPasses.length === 0}
+                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors border border-purple-500/30 disabled:opacity-50 text-xs font-bold"
                   >
-                    <Download className="w-4 h-4" />
-                    {selectedVipIds.size > 0 ? `Download ${selectedVipIds.size}` : 'All Days'}
+                    <FileUp className="w-3 h-3" />
+                    {selectedVipIds.size > 0 ? `Download A4 Sheet (${selectedVipIds.size})` : 'Download A4 Sheet'}
                   </button>
-                </div>
-              ) : (
-                <button
-                   onClick={() => {
-                     const targetPasses = selectedVipIds.size > 0 
-                       ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                       : vipPasses;
-                     handleDownloadPDF(targetPasses);
-                   }}
-                   disabled={vipPasses.length === 0}
-                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50"
-                >
-                  <Download className="w-4 h-4" />
-                  {selectedVipIds.size > 0 ? `Download ${selectedVipIds.size} Selected` : 'Download All PDFs'}
-                </button>
-              )}
+              </div>
             </div>
 
           {showBulkVIP && (
@@ -1301,34 +1485,88 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                     
                     <div className="flex flex-wrap gap-1.5 items-center">
                       {(securitySettings?.event_dates || []).length > 1 ? (
-                        <>
-                          {(securitySettings?.event_dates || []).map((_, idx) => {
+                        <div className="flex flex-col gap-1">
+                          {/* PDF Row */}
+                          <div className="flex items-center gap-1">
+                             <span className="text-[9px] text-gray-500 uppercase w-6">PDF</span>
+                             {(securitySettings?.event_dates || []).map((_, idx) => {
                             const dayNum = idx + 1;
                             return (
                               <button
-                                key={idx}
+                                key={`pdf-${idx}`}
                                 onClick={() => handleDownloadPDF(pass, idx)}
-                                className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] sm:text-xs font-bold border border-blue-500/20 transition-colors"
+                                className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-500/20 transition-colors"
                               >
-                                Day {dayNum}
+                                D{dayNum}
                               </button>
                             );
                           })}
                           <button
                             onClick={() => handleDownloadPDF(pass)}
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] sm:text-xs font-bold border border-indigo-500/20 transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-bold border border-indigo-500/20 transition-colors"
                           >
                             All
                           </button>
-                        </>
+                          </div>
+                          
+                          {/* PNG Row */}
+                          <div className="flex items-center gap-1">
+                             <span className="text-[9px] text-gray-500 uppercase w-6">PNG</span>
+                             {(securitySettings?.event_dates || []).map((_, idx) => {
+                            const dayNum = idx + 1;
+                            return (
+                              <button
+                                key={`png-${idx}`}
+                                onClick={() => handleDownloadImage(pass, 'png', idx)}
+                                className="flex items-center gap-1 px-2 py-1 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 rounded text-[10px] font-bold border border-teal-500/20 transition-colors"
+                              >
+                                D{dayNum}
+                              </button>
+                            );
+                          })}
+                          <button
+                            onClick={() => handleDownloadImage(pass, 'png')}
+                            className="flex items-center gap-1 px-2 py-1 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 rounded text-[10px] font-bold border border-teal-500/20 transition-colors"
+                          >
+                            All
+                          </button>
+                          </div>
+                          
+                          {/* A4 Sheet Row */}
+                          <div className="flex items-center gap-1 justify-end mt-1">
+                             <button
+                                onClick={() => handleDownloadA4PDF(pass)}
+                                className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded text-[10px] font-bold border border-purple-500/20 transition-colors"
+                             >
+                               <FileUp className="w-3 h-3" />
+                               Download A4 Sheet
+                             </button>
+                          </div>
+                        </div>
                       ) : (
-                        <button
-                          onClick={() => handleDownloadPDF(pass)}
-                          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-medium"
-                        >
-                          <Download className="w-4 h-4" />
-                          PDF
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleDownloadA4PDF(pass)}
+                            className="flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm font-medium"
+                          >
+                            <FileUp className="w-4 h-4" />
+                            A4
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPDF(pass)}
+                            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-medium"
+                          >
+                            <Download className="w-4 h-4" />
+                            PDF
+                          </button>
+                          <button
+                            onClick={() => handleDownloadImage(pass, 'png')}
+                            className="flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-medium"
+                          >
+                            <Download className="w-4 h-4" />
+                            PNG
+                          </button>
+                        </div>
                       )}
                     </div>
 
