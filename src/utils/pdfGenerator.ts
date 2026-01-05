@@ -4,6 +4,7 @@ export interface PassData {
   name?: string;
   type: string;
   valid_date?: string; // YYYY-MM-DD
+  includeName?: boolean; // Override per pass
 }
 
 export interface TemplateConfig {
@@ -13,6 +14,14 @@ export interface TemplateConfig {
     y: number; // percentage
     size: number; // percentage of width
   };
+  name?: {
+    enabled: boolean;
+    x: number; // percentage
+    y: number; // percentage
+    fontSize: number; // percentage of width
+    color: string; // hex
+    align: 'left' | 'center' | 'right';
+  };
 }
 
 export interface GenerateOptions {
@@ -21,6 +30,7 @@ export interface GenerateOptions {
   selectedDays: number[]; // indices [0, 1, 2]
   eventDates: string[]; // ['2026-01-03', '2026-01-04', ...]
   onProgress?: (progress: number) => void;
+  includeName?: boolean;
 }
 
 // Helper to draw a single pass onto a specific region of the PDF
@@ -35,8 +45,9 @@ const drawPassOnDoc = async (
   y: number,
   width: number,
   height: number,
-  eventDates: string[]
 
+  eventDates: string[],
+  includeName?: boolean // Added override
 ) => {
   // 0. Safety Check for NaN
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
@@ -159,6 +170,57 @@ const drawPassOnDoc = async (
       console.error('QR Generation failed', e);
     }
   }
+
+  // 3. Draw Name (if enabled and configured)
+  // Precedence: Pass-specific override > Global batch override > Template default
+  const shouldDrawName = pass.includeName !== undefined 
+      ? pass.includeName 
+      : (includeName !== undefined ? includeName : (config?.name?.enabled || false));
+
+  if (shouldDrawName && config?.name && pass.name) {
+    try {
+       const nConfig = config.name;
+       const fontSize = (width * (nConfig.fontSize || 3)) / 100;
+       const nX = x + ((width * nConfig.x) / 100);
+       const nY = y + ((height * nConfig.y) / 100);
+       
+       doc.setFontSize(fontSize); // jsPDF uses points, but we might need to convert scale. 
+       // Actually jsPDF setFontSize is in Points. The doc unit is custom (px or mm).
+       // If unit is 'px', fontSize is in px? jsPDF documentation says setFontSize is always points? 
+       // NOTE: in recent jsPDF, setFontSize is in "points" (1/72 inch), but coordinates are in "units".
+       // If unit is 'px', 1 unit = 1 px. 1 pt = 1.33 px.
+       // Let's assume proportional scaling for now or just set font size in units directly if possible.
+       // For safety, let's use the fontSize calculated in units.
+       
+       // Correct approach for jsPDF text size:
+       // The fontSize argument is always generally in points (pt).
+       // We need to convert our 'unit' size to points.
+       // 1 unit (px or mm) -> points.
+       // If unit is px (1/96 inch): 1 px = 0.75 pt.
+       // If unit is mm: 1 mm = 2.835 pt.
+       
+       // However, to keep it simple and consistent with canvas logic, we will iterate until text fits? No, too slow.
+       // Let's approximate: 
+       // In 'px' mode (used by single pass gen): fontSize in points ~= fontSizePx * 0.75
+       // In 'mm' mode (used by A4): fontSize in points ~= fontSizeMm * 2.83
+       
+       let fontSizePt = fontSize; // Default assumption
+       if (doc.internal.scaleFactor) {
+           // scaleFactor is (72 / 96) for px? 
+           // actually scaleFactor converts units to points.
+           fontSizePt = fontSize * doc.internal.scaleFactor;
+       }
+       
+       doc.setFontSize(fontSizePt);
+       doc.setTextColor(nConfig.color || '#ffffff');
+       
+       const align = nConfig.align || 'center';
+       doc.text(pass.name, nX, nY, { align: align, baseline: 'middle' });
+
+    } catch (e) {
+       console.error('Name drawing failed', e);
+    }
+  }
 };
 
 // Original Single-Pass Generator (Dynamic Resolution)
@@ -167,7 +229,8 @@ export const generatePassPDF = async ({
   templateConfigs,
   selectedDays,
   eventDates,
-  onProgress
+  onProgress,
+  includeName
 }: GenerateOptions) => {
   if (passes.length === 0) return;
 
@@ -232,7 +295,7 @@ export const generatePassPDF = async ({
         doc.addPage([pgW, pgH], 'landscape');
       }
 
-      await drawPassOnDoc(doc, QRCode, pass, dayIndex, config, bgImage, 0, 0, pgW, pgH, eventDates);
+      await drawPassOnDoc(doc, QRCode, pass, dayIndex, config, bgImage, 0, 0, pgW, pgH, eventDates, includeName);
 
       processed++;
       if (onProgress) onProgress(Math.round((processed / totalPages) * 100));
@@ -249,7 +312,8 @@ export const generateA4SheetPDF = async ({
     templateConfigs,
     selectedDays,
     eventDates,
-    onProgress
+    onProgress,
+    includeName
   }: GenerateOptions) => {
     if (passes.length === 0) return;
   
@@ -331,7 +395,7 @@ export const generateA4SheetPDF = async ({
         // Draw Item 1 (Top)
         const bg1 = loadedImages[`day_${item1.dayIndex}`];
         const cfg1 = templateConfigs[`day_${item1.dayIndex}`];
-        await drawPassOnDoc(doc, QRCode, item1.pass, item1.dayIndex, cfg1, bg1, MARGIN_X, TOP_Y, PASS_W, PASS_H, eventDates);
+        await drawPassOnDoc(doc, QRCode, item1.pass, item1.dayIndex, cfg1, bg1, MARGIN_X, TOP_Y, PASS_W, PASS_H, eventDates, includeName);
         processed++;
         if (onProgress) onProgress(Math.round((processed / total) * 100));
 
@@ -339,7 +403,7 @@ export const generateA4SheetPDF = async ({
         if (item2) {
             const bg2 = loadedImages[`day_${item2.dayIndex}`];
             const cfg2 = templateConfigs[`day_${item2.dayIndex}`];
-            await drawPassOnDoc(doc, QRCode, item2.pass, item2.dayIndex, cfg2, bg2, MARGIN_X, BOTTOM_Y, PASS_W, PASS_H, eventDates);
+            await drawPassOnDoc(doc, QRCode, item2.pass, item2.dayIndex, cfg2, bg2, MARGIN_X, BOTTOM_Y, PASS_W, PASS_H, eventDates, includeName);
             processed++;
             if (onProgress) onProgress(Math.round((processed / total) * 100));
         }

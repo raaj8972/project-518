@@ -10,6 +10,7 @@ export interface PassData {
   name?: string;
   type: string;
   valid_date?: string;
+  includeName?: boolean;
 }
 
 export interface TemplateConfig {
@@ -18,6 +19,14 @@ export interface TemplateConfig {
     x: number;
     y: number;
     size: number;
+  };
+  name?: {
+    enabled: boolean;
+    x: number; // percentage
+    y: number; // percentage
+    fontSize: number; // percentage of width
+    color: string; // hex
+    align: 'left' | 'center' | 'right';
   };
 }
 
@@ -28,6 +37,7 @@ export interface GenerateImageOptions {
   eventDates: string[];
   format?: 'png' | 'jpg';
   onProgress?: (progress: number) => void;
+  includeName?: boolean;
 }
 
 const downloadBlob = (blob: Blob, filename: string) => {
@@ -47,7 +57,8 @@ export const generatePassImages = async ({
   selectedDays,
   eventDates,
   format = 'png',
-  onProgress
+  onProgress,
+  includeName
 }: GenerateImageOptions) => {
   if (passes.length === 0) return;
 
@@ -177,6 +188,27 @@ export const generatePassImages = async ({
         const padding = boxSize * 0.15;
         const qrSize = boxSize - (padding * 2);
         ctx.drawImage(qrImg, drawX + padding, drawY + padding, qrSize, qrSize);
+     }
+
+     // Draw Name (if enabled and configured)
+     const shouldDrawName = pass.includeName !== undefined 
+         ? pass.includeName 
+         : (includeName !== undefined ? includeName : (config?.name?.enabled || false));
+
+     if (shouldDrawName && config?.name && pass.name) {
+        const nConfig = config.name;
+        // Font size is % of width
+        const fontSize = (width * (nConfig.fontSize || 3)) / 100;
+        const nX = (width * nConfig.x) / 100;
+        const nY = (height * nConfig.y) / 100;
+        
+        ctx.fillStyle = nConfig.color || '#ffffff';
+        // Use a nice bold font
+        ctx.font = `bold ${fontSize}px sans-serif`; 
+        ctx.textAlign = nConfig.align || 'center';
+        ctx.textBaseline = 'middle';
+        
+        ctx.fillText(pass.name, nX, nY);
      }
 
      return new Promise((resolve) => {

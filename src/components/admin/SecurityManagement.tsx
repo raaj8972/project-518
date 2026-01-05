@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle } from 'lucide-react';
+import { Shield, Crown, Eye, EyeOff, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
@@ -40,6 +40,7 @@ interface VipPass {
   is_used: boolean;
   is_active: boolean;
   valid_date?: string;
+  is_hidden_from_council?: boolean;
 }
 
 interface SecurityManagementProps {
@@ -59,6 +60,8 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [selectedPass, setSelectedPass] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [processingBulk, setProcessingBulk] = useState(false);
+  const [includeName, setIncludeName] = useState(true); // Global toggle
+  const [perPassNameVisibility, setPerPassNameVisibility] = useState<Record<string, boolean>>({}); // Overrides: ID -> boolean
   const [importData, setImportData] = useState<any[]>([]);
   const [passUsage, setPassUsage] = useState<Record<string, number[]>>({}); // PassID -> [Day1, Day2]
   const [editingPassId, setEditingPassId] = useState<string | null>(null);
@@ -163,6 +166,32 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       fetchPassUsage();
     }
   }, [vipPasses, activeTab, securitySettings]);
+
+  const handleToggleCouncilVisibility = async (passId: string, currentHidden: boolean) => {
+    try {
+       // Optimistic update
+       setVipPasses(prev => prev.map(p => 
+          p.id === passId ? { ...p, is_hidden_from_council: !currentHidden } : p
+       ));
+
+       const { error } = await supabase.rpc('toggle_pass_council_visibility', {
+          p_pass_id: passId,
+          p_hidden: !currentHidden
+       });
+
+       if (error) {
+          // Revert on error
+          setVipPasses(prev => prev.map(p => 
+             p.id === passId ? { ...p, is_hidden_from_council: currentHidden } : p
+          ));
+          throw error;
+       }
+       toast.success(!currentHidden ? 'Pass hidden from Council' : 'Pass visible to Council');
+    } catch (err: any) {
+       console.error(err);
+       toast.error('Failed to update visibility');
+    }
+  };
 
   const handleResetPass = async (passId: string) => {
     if (!window.confirm('Reset this pass? This will clear all entry history and allow it to be used again as new.')) return;
@@ -612,16 +641,18 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         passes: passes.map(p => ({
           id: p.id,
           token: p.pass_token,
-          name: p.participant_name || 'VIP Guest',
-          type: 'VIP',
-          valid_date: p.valid_date
+          type: p.pass_type,
+          name: p.participant_name || undefined,
+          valid_date: p.valid_date,
+          includeName: perPassNameVisibility[p.id] // Pass specific override
         })),
-        templateConfigs: processedConfig,
-        selectedDays,
+        templateConfigs: securitySettings?.pass_template_config || {},
+        selectedDays: specificDay !== undefined ? [specificDay] : (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates: eventDates,
         onProgress: (pct) => {
           toast.loading(`Generating PDF: ${pct}%`, { id: toastId });
-        }
+        },
+        includeName // Global default if pass specific is undefined
       });
       toast.success('PDF downloaded!', { id: toastId });
     } catch (e) {
@@ -630,7 +661,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
   };
 
-  const handleDownloadA4PDF = async (passOrPasses: VipPass | VipPass[], specificDay?: number) => {
+  const handleDownloadA4PDF = async (passOrPasses: VipPass | VipPass[], _specificDay?: number) => {
     const config = securitySettings?.pass_template_config || {};
     const eventDates = securitySettings?.event_dates || [];
     
@@ -638,22 +669,6 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       toast.error('Configure pass design first');
       return;
     }
-
-    let selectedDays: number[] = [];
-    if (specificDay !== undefined) {
-      selectedDays = [specificDay];
-    } else if (eventDates.length > 0) {
-      selectedDays = eventDates.map((_, i) => i);
-    } else {
-      selectedDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
-    }
-    
-    // Config Fallback
-    const processedConfig: Record<string, any> = { ...config };
-    const defaultTemplate = config['day_0'] || config[Object.keys(config)[0]];
-    selectedDays.forEach(dayIndex => {
-      if (!processedConfig[`day_${dayIndex}`]) processedConfig[`day_${dayIndex}`] = defaultTemplate;
-    });
 
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
     const toastId = toast.loading('Generating A4 Sheet...');
@@ -663,16 +678,18 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         passes: passes.map(p => ({
           id: p.id,
           token: p.pass_token,
-          name: p.participant_name || 'VIP Guest',
-          type: 'VIP',
-          valid_date: p.valid_date
+          type: p.pass_type,
+          name: p.participant_name || undefined,
+          valid_date: p.valid_date,
+          includeName: perPassNameVisibility[p.id]
         })),
-        templateConfigs: processedConfig,
-        selectedDays,
+        templateConfigs: securitySettings?.pass_template_config || {},
+        selectedDays: (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates,
         onProgress: (pct) => {
           toast.loading(`Generating A4: ${pct}%`, { id: toastId });
-        }
+        },
+        includeName
       });
       toast.success('A4 Sheet downloaded!', { id: toastId });
     } catch (e) {
@@ -691,25 +708,6 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       return;
     }
 
-    let selectedDays: number[] = [];
-    if (specificDay !== undefined) {
-      selectedDays = [specificDay];
-    } else if (eventDates.length > 0) {
-      selectedDays = eventDates.map((_, i) => i);
-    } else {
-      selectedDays = Object.keys(config).map(k => parseInt(k.replace('day_', '')));
-    }
-    
-    const processedConfig: Record<string, any> = { ...config };
-    const defaultTemplate = config['day_0'] || config[Object.keys(config)[0]];
-
-    selectedDays.forEach(dayIndex => {
-      const key = `day_${dayIndex}`;
-      if (!processedConfig[key]) {
-        processedConfig[key] = defaultTemplate; 
-      }
-    });
-
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
     const toastId = toast.loading(`Generating ${format.toUpperCase()}...`);
 
@@ -718,17 +716,19 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         passes: passes.map(p => ({
           id: p.id,
           token: p.pass_token,
-          name: p.participant_name || 'VIP Guest',
-          type: 'VIP',
-          valid_date: p.valid_date
+          type: p.pass_type,
+          name: p.participant_name || undefined,
+          valid_date: p.valid_date,
+          includeName: perPassNameVisibility[p.id]
         })),
-        templateConfigs: processedConfig,
-        selectedDays,
+        templateConfigs: securitySettings?.pass_template_config || {},
+        selectedDays: specificDay !== undefined ? [specificDay] : (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates: eventDates,
         format,
         onProgress: (pct) => {
           toast.loading(`Generating ${format.toUpperCase()}: ${pct}%`, { id: toastId });
-        }
+        },
+        includeName,
       });
       toast.success(`${format.toUpperCase()} downloaded!`, { id: toastId });
     } catch (e) {
@@ -1116,6 +1116,17 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
             </div>
 
             <div className="flex flex-col gap-2 items-end">
+               {/* Name Toggle */}
+               <label className="flex items-center gap-2 cursor-pointer bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={includeName} 
+                    onChange={(e) => setIncludeName(e.target.checked)} 
+                    className="rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-900" 
+                  />
+                  <span className="text-sm font-medium text-gray-300 select-none">Include Name on Pass</span>
+               </label>
+
               {/* PDF Row */}
               <div className="flex flex-wrap gap-2 items-center justify-end">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">PDF:</span>
@@ -1430,6 +1441,22 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                             >
                                <FileUp className="w-3 h-3" />
                             </button>
+
+                            {/* Name Visibility Toggle */}
+                            <button
+                               onClick={() => {
+                                  const current = perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName;
+                                  setPerPassNameVisibility(prev => ({ ...prev, [pass.id]: !current }));
+                               }}
+                               className={`p-1 rounded transition-all text-[10px] font-bold border ${
+                                  (perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName)
+                                    ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                                    : 'bg-gray-700 text-gray-500 border-gray-600'
+                               }`}
+                               title="Toggle Name on Pass"
+                            >
+                               Aa
+                            </button>
                           </div>
                         )}
                         
@@ -1571,6 +1598,19 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                     </div>
 
                     <div className="flex gap-3 items-center ml-auto">
+                      {/* Council Visibility Toggle */}
+                      <button
+                        onClick={() => handleToggleCouncilVisibility(pass.id, pass.is_hidden_from_council || false)}
+                        className={`p-2 rounded-lg transition-colors border ${
+                           pass.is_hidden_from_council 
+                           ? 'bg-gray-700/50 text-gray-400 border-gray-600 hover:bg-gray-700 hover:text-gray-300' 
+                           : 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600/30 hover:text-indigo-300'
+                        }`}
+                        title={pass.is_hidden_from_council ? "Hidden from Council (Click to Show)" : "Visible to Council (Click to Hide)"}
+                      >
+                        {pass.is_hidden_from_council ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+
                       <button
                         onClick={() => handleResetPass(pass.id)}
                         className="flex items-center gap-1.5 text-orange-400 hover:text-orange-300 text-sm font-medium"

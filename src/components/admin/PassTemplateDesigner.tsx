@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useGesture } from '@use-gesture/react';
-import { Upload, Save, X, Move, Plus } from 'lucide-react';
+import { Upload, Save, Move, Plus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -11,6 +11,14 @@ interface TemplateConfig {
     x: number; // percentage
     y: number; // percentage
     size: number; // percentage of width
+  };
+  name?: {
+    enabled: boolean;
+    x: number; // percentage
+    y: number; // percentage
+    fontSize: number; // percentage of width
+    color: string; // hex
+    align: 'left' | 'center' | 'right';
   };
 }
 
@@ -89,7 +97,7 @@ export const PassTemplateDesigner: React.FC = () => {
   };
 
   // Drag logic for QR
-  const bind = useGesture({
+  useGesture({
     onDrag: ({ offset: [x, y], memo = {} }) => {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
@@ -101,6 +109,9 @@ export const PassTemplateDesigner: React.FC = () => {
       updateConfig({ qr: { ...currentConfig.qr, x: xPct, y: yPct } });
       return memo;
     }
+  }, {
+    target: containerRef,
+    eventOptions: { passive: false }
   });
 
   const eventDates = securitySettings?.event_dates || ['Day 1'];
@@ -183,6 +194,31 @@ export const PassTemplateDesigner: React.FC = () => {
                     Drag to Position
                  </div>
               </div>
+
+              {/* Name Placeholder */}
+              {currentConfig.name?.enabled && (
+                <div 
+                  className="absolute border-2 border-dashed border-purple-500/50 flex items-center justify-center whitespace-nowrap"
+                  style={{
+                    left: `${currentConfig.name.x}%`,
+                    top: `${currentConfig.name.y}%`,
+                    transform: `translate(${currentConfig.name.align === 'left' ? '0' : currentConfig.name.align === 'right' ? '-100%' : '-50%'}, -50%)`,
+                    fontSize: `${currentConfig.name.fontSize || 3}cqw`, // Container query width would be ideal, but % is of container width
+                    color: currentConfig.name.color || '#ffffff',
+                    // Approximating visual size for preview
+                  }}
+                >
+                   <span 
+                     style={{ 
+                        fontSize: `max(12px, ${((containerRef.current?.getBoundingClientRect().width || 1000) * (currentConfig.name.fontSize || 3)) / 100}px)`,
+                        fontWeight: 'bold',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                     }}
+                   >
+                     {currentConfig.name.align === 'left' ? 'John Doe Name' : currentConfig.name.align === 'right' ? 'John Doe Name' : 'John Doe Name'}
+                   </span>
+                </div>
+              )}
 
             </div>
           ) : (
@@ -297,6 +333,132 @@ export const PassTemplateDesigner: React.FC = () => {
                 <p className="text-sm text-gray-500 italic text-center py-4">
                   Upload an image to unlock controls
                 </p>
+              )}
+           </div>
+
+           <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 text-white mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold flex items-center gap-2">
+                   <span className="text-xl">Aa</span>
+                   Name Positioning
+                </h4>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">Enable</span>
+                  <button 
+                    onClick={() => updateConfig({ 
+                      name: { 
+                        ...(currentConfig.name || { x: 50, y: 50, fontSize: 3, color: '#ffffff', align: 'center' }), 
+                        enabled: !currentConfig.name?.enabled 
+                      } 
+                    })}
+                    className={`w-10 h-5 rounded-full relative transition-colors ${currentConfig.name?.enabled ? 'bg-purple-500' : 'bg-gray-700'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${currentConfig.name?.enabled ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+              </div>
+              
+              {currentConfig.name?.enabled ? (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Horizontal Position (X%)</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="range" 
+                        min="0" max="100" 
+                        step="0.1"
+                        value={currentConfig.name.x || 50} 
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, x: Number(e.target.value) } })}
+                        className="w-full accent-purple-500"
+                      />
+                      <input 
+                        type="number"
+                        min="0" max="100"
+                        value={currentConfig.name.x || 50}
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, x: Number(e.target.value) } })}
+                        className="w-16 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white text-right"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Vertical Position (Y%)</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="range" 
+                        min="0" max="100" 
+                        step="0.1"
+                        value={currentConfig.name.y || 50} 
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, y: Number(e.target.value) } })}
+                        className="w-full accent-purple-500"
+                      />
+                      <input 
+                        type="number"
+                        min="0" max="100"
+                        value={currentConfig.name.y || 50}
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, y: Number(e.target.value) } })}
+                        className="w-16 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white text-right"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-gray-400 mb-1 block">Font Size (% of width)</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="range" 
+                        min="1" max="10" 
+                        step="0.1"
+                        value={currentConfig.name.fontSize || 3} 
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, fontSize: Number(e.target.value) } })}
+                        className="w-full accent-cyan-500"
+                      />
+                      <input 
+                        type="number"
+                        min="1" max="10"
+                        value={currentConfig.name.fontSize || 3}
+                        onChange={(e) => updateConfig({ name: { ...currentConfig.name!, fontSize: Number(e.target.value) } })}
+                        className="w-16 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white text-right"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Color</label>
+                        <div className="flex items-center gap-2">
+                           <input 
+                             type="color" 
+                             value={currentConfig.name.color || '#ffffff'}
+                             onChange={(e) => updateConfig({ name: { ...currentConfig.name!, color: e.target.value } })}
+                             className="h-8 w-8 rounded cursor-pointer border-none p-0"
+                           />
+                           <input 
+                             type="text" 
+                             value={currentConfig.name.color || '#ffffff'}
+                             onChange={(e) => updateConfig({ name: { ...currentConfig.name!, color: e.target.value } })}
+                             className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-xs text-white font-mono"
+                           />
+                        </div>
+                     </div>
+                     <div>
+                        <label className="text-xs text-gray-400 mb-1 block">Alignment</label>
+                        <select
+                          value={currentConfig.name.align || 'center'}
+                          onChange={(e) => updateConfig({ name: { ...currentConfig.name!, align: e.target.value as any } })}
+                          className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-xs text-white"
+                        >
+                          <option value="left">Left</option>
+                          <option value="center">Center</option>
+                          <option value="right">Right</option>
+                        </select>
+                     </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-xs text-gray-500 italic">
+                  Name display is disabled for this template.
+                </div>
               )}
            </div>
         </div>
