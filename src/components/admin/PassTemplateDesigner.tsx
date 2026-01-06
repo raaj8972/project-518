@@ -213,7 +213,8 @@ export const PassTemplateDesigner: React.FC = () => {
                    <span 
                      style={{ 
                         fontSize: `max(12px, ${((containerRef.current?.getBoundingClientRect().width || 1000) * (currentConfig.name.fontSize || 3)) / 100}px)`,
-                        fontWeight: 'bold',
+                        fontWeight: currentConfig.name.bold ? 'bold' : 'normal',
+                        fontFamily: currentConfig.name.fontFamily ? `"${currentConfig.name.fontFamily}", sans-serif` : '"Inter", sans-serif',
                         textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                      }}
                    >
