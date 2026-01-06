@@ -682,6 +682,31 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       return;
     }
 
+    // Auto-Sync Styles: Ensure all days use the same font/styling as the first day (source of truth)
+    // This solves the issue where users customize Day 1 but forget Day 2/3.
+    const syncedConfig = { ...config };
+    const days = Object.keys(config).filter(k => k.startsWith('day_')).sort();
+    if (days.length > 0) {
+       const source = config[days[0]]?.name;
+       if (source) {
+          days.forEach(d => {
+             if (syncedConfig[d] && syncedConfig[d].name) {
+                syncedConfig[d] = {
+                   ...syncedConfig[d],
+                   name: {
+                      ...syncedConfig[d].name!,
+                      fontFamily: source.fontFamily,
+                      bold: source.bold,
+                      fontSize: source.fontSize,
+                      color: source.color,
+                      align: source.align
+                   }
+                };
+             }
+          });
+       }
+    }
+
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
     const toastId = toast.loading('Generating A4 Sheet...');
 
@@ -695,7 +720,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           valid_date: p.valid_date,
           includeName: perPassNameVisibility[p.id]
         })),
-        templateConfigs: securitySettings?.pass_template_config || {},
+        templateConfigs: syncedConfig,
         selectedDays: (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates,
         onProgress: (pct) => {
