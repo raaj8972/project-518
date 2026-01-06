@@ -98,6 +98,17 @@ export const PassTemplateDesigner: React.FC = () => {
     }
   };
 
+  // Force load fonts
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
+
   // Drag logic for QR
   useGesture({
     onDrag: ({ offset: [x, y], memo = {} }) => {
