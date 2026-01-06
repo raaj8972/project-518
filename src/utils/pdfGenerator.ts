@@ -49,7 +49,8 @@ const drawPassOnDoc = async (
   height: number,
 
   eventDates: string[],
-  includeName?: boolean // Added override
+  includeName?: boolean,
+  loadedFonts?: Record<string, string> // New argument
 ) => {
   // 0. Safety Check for NaN
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(width) || !Number.isFinite(height)) {
@@ -217,14 +218,27 @@ const drawPassOnDoc = async (
        doc.setFontSize(fontSizePt);
        doc.setTextColor(nConfig.color || '#ffffff');
        
-       // Font Selection (Standard PDF Fonts Fallback)
-       let pdfFont = 'helvetica';
-       const weight = nConfig.bold ? 'bold' : 'normal';
+       // Font Selection with Embed Support
+       let fontName = 'helvetica';
+       let fontStyle = nConfig.bold ? 'bold' : 'normal';
        
-       if (nConfig.fontFamily === 'Orbitron') pdfFont = 'courier'; // Techy fallback
-       if (nConfig.fontFamily === 'Anton' || nConfig.fontFamily === 'Impact') pdfFont = 'helvetica'; 
+       if (nConfig.fontFamily && loadedFonts && loadedFonts[nConfig.fontFamily]) {
+          // Add font if not exists (jsPDF might need re-adding or global add)
+          // We can add it once per doc usually.
+          const family = nConfig.fontFamily;
+          const fileName = `${family}-Regular.ttf`; // we loaded regular/bold specific URLs but let's simplify
+          
+          if (!doc.existsFileInVFS(fileName)) {
+             doc.addFileToVFS(fileName, loadedFonts[family]);
+             doc.addFont(fileName, family, 'normal');
+             doc.addFont(fileName, family, 'bold'); // Reuse same file for "bold" if we only fetched one weight (Anton is only one weight)
+          }
+          fontName = family;
+          // Anton is black/bold by default, so style 'normal' is fine, or 'bold' aliases to it
+          fontStyle = 'normal'; 
+       }
        
-       doc.setFont(pdfFont, weight);
+       doc.setFont(fontName, fontStyle);
        
        const align = nConfig.align || 'center';
        doc.text(pass.name, nX, nY, { align: align, baseline: 'middle' });
@@ -251,23 +265,72 @@ export const generatePassPDF = async ({
     import('qrcode')
   ]);
 
-  const loadedImages: Record<string, HTMLImageElement> = {};
-  for (const dayIndex of selectedDays) {
-    const key = `day_${dayIndex}`;
-    const config = templateConfigs[key];
-    if (config?.bgUrl && !loadedImages[key]) {
-      try {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        await new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = reject;
-          img.src = config.bgUrl;
-        });
-        loadedImages[key] = img;
-      } catch (e) { console.error(e); }
+  // Hardcoded Font URLs (CORS-enabled from Google Fonts)
+  const FONTS = {
+    Anton: 'https://fonts.gstatic.com/s/anton/v27/1Ptgg87LROyAm0K0.ttf',
+    Orbitron: 'https://fonts.gstatic.com/s/orbitron/v35/yMJMMIlzdpvBhQQL_SC3X9yhF25-T1ny_Cmxpg.ttf', // Bold 700
+    Rajdhani: 'https://fonts.gstatic.com/s/rajdhani/v15/L1VqHMjA3rYF2P4xXj4.ttf' // Bold 700 guess (we will use default fallback if fails)
+  };
+
+  const loadFontBase64 = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+             const base64 = reader.result as string;
+             // Remove data:application/octet-stream;base64, prefix
+             resolve(base64.split(',')[1]); 
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      console.error('Failed to load font:', url, e);
+      return null;
     }
-  }
+  };
+
+  const loadedImages: Record<string, HTMLImageElement> = {};
+  
+  // Preload Fonts map
+  const loadedFonts: Record<string, string> = {}; // Name -> Base64
+  
+  // Load Images and Fonts in parallel
+  await Promise.all([
+    // Images
+    ...selectedDays.map(async (dayIndex) => {
+        const key = `day_${dayIndex}`;
+        const config = templateConfigs[key];
+        if (config?.bgUrl && !loadedImages[key]) {
+            try {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = config.bgUrl; });
+                loadedImages[key] = img;
+            } catch (e) { console.error(e); }
+        }
+    }),
+    // Fonts (Only load if referenced)
+    (async () => {
+       // Check which fonts are needed
+       const neededFonts = new Set<string>();
+       Object.values(templateConfigs).forEach(c => {
+         if (c.name?.fontFamily && FONTS[c.name.fontFamily as keyof typeof FONTS]) {
+           neededFonts.add(c.name.fontFamily);
+         }
+       });
+       
+       await Promise.all(Array.from(neededFonts).map(async (fontName) => {
+          const url = FONTS[fontName as keyof typeof FONTS];
+          if (url) {
+             const b64 = await loadFontBase64(url);
+             if (b64) loadedFonts[fontName] = b64;
+          }
+       }));
+    })()
+  ]);
 
   const getDimensions = (img?: HTMLImageElement): [number, number] => {
      let w = 3000;
@@ -307,7 +370,7 @@ export const generatePassPDF = async ({
         doc.addPage([pgW, pgH], 'landscape');
       }
 
-      await drawPassOnDoc(doc, QRCode, pass, dayIndex, config, bgImage, 0, 0, pgW, pgH, eventDates, includeName);
+      await drawPassOnDoc(doc, QRCode, pass, dayIndex, config, bgImage, 0, 0, pgW, pgH, eventDates, includeName, loadedFonts);
 
       processed++;
       if (onProgress) onProgress(Math.round((processed / totalPages) * 100));
@@ -334,24 +397,67 @@ export const generateA4SheetPDF = async ({
       import('qrcode')
     ]);
   
-    // Preload Images
-    const loadedImages: Record<string, HTMLImageElement> = {};
-    for (const dayIndex of selectedDays) {
-      const key = `day_${dayIndex}`;
-      const config = templateConfigs[key];
-      if (config?.bgUrl && !loadedImages[key]) {
-        try {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = config.bgUrl;
-          });
-          loadedImages[key] = img;
-        } catch (e) { console.error(e); }
+    // Hardcoded Font URLs (CORS-enabled from Google Fonts)
+    const FONTS = {
+      Anton: 'https://fonts.gstatic.com/s/anton/v27/1Ptgg87LROyAm0K0.ttf',
+      Orbitron: 'https://fonts.gstatic.com/s/orbitron/v35/yMJMMIlzdpvBhQQL_SC3X9yhF25-T1ny_Cmxpg.ttf', // Bold
+      Rajdhani: 'https://fonts.gstatic.com/s/rajdhani/v15/L1VqHMjA3rYF2P4xXj4.ttf' 
+    };
+  
+    const loadFontBase64 = async (url: string): Promise<string | null> => {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+               const base64 = reader.result as string;
+               resolve(base64.split(',')[1]); 
+          };
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.error('Failed to load font:', url, e);
+        return null;
       }
-    }
+    };
+
+    // Preload Images and Fonts
+    const loadedImages: Record<string, HTMLImageElement> = {};
+    const loadedFonts: Record<string, string> = {};
+
+    await Promise.all([
+      // Images
+      ...selectedDays.map(async (dayIndex) => {
+          const key = `day_${dayIndex}`;
+          const config = templateConfigs[key];
+          if (config?.bgUrl && !loadedImages[key]) {
+              try {
+                  const img = new Image();
+                  img.crossOrigin = 'Anonymous';
+                  await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = config.bgUrl; });
+                  loadedImages[key] = img;
+              } catch (e) { console.error(e); }
+          }
+      }),
+      // Fonts
+      (async () => {
+         const neededFonts = new Set<string>();
+         Object.values(templateConfigs).forEach(c => {
+           if (c.name?.fontFamily && FONTS[c.name.fontFamily as keyof typeof FONTS]) {
+             neededFonts.add(c.name.fontFamily);
+           }
+         });
+         await Promise.all(Array.from(neededFonts).map(async (fontName) => {
+            const url = FONTS[fontName as keyof typeof FONTS];
+            if (url) {
+               const b64 = await loadFontBase64(url);
+               if (b64) loadedFonts[fontName] = b64;
+            }
+         }));
+      })()
+    ]);
   
     // Initialize A4 Landscape Doc
     // A4 (Landscape) is approx 297mm x 210mm
@@ -407,7 +513,7 @@ export const generateA4SheetPDF = async ({
         // Draw Item 1 (Top)
         const bg1 = loadedImages[`day_${item1.dayIndex}`];
         const cfg1 = templateConfigs[`day_${item1.dayIndex}`];
-        await drawPassOnDoc(doc, QRCode, item1.pass, item1.dayIndex, cfg1, bg1, MARGIN_X, TOP_Y, PASS_W, PASS_H, eventDates, includeName);
+        await drawPassOnDoc(doc, QRCode, item1.pass, item1.dayIndex, cfg1, bg1, MARGIN_X, TOP_Y, PASS_W, PASS_H, eventDates, includeName, loadedFonts);
         processed++;
         if (onProgress) onProgress(Math.round((processed / total) * 100));
 
@@ -415,7 +521,7 @@ export const generateA4SheetPDF = async ({
         if (item2) {
             const bg2 = loadedImages[`day_${item2.dayIndex}`];
             const cfg2 = templateConfigs[`day_${item2.dayIndex}`];
-            await drawPassOnDoc(doc, QRCode, item2.pass, item2.dayIndex, cfg2, bg2, MARGIN_X, BOTTOM_Y, PASS_W, PASS_H, eventDates, includeName);
+            await drawPassOnDoc(doc, QRCode, item2.pass, item2.dayIndex, cfg2, bg2, MARGIN_X, BOTTOM_Y, PASS_W, PASS_H, eventDates, includeName, loadedFonts);
             processed++;
             if (onProgress) onProgress(Math.round((processed / total) * 100));
         }
