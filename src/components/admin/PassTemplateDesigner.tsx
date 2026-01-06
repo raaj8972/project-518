@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useGesture } from '@use-gesture/react';
-import { Upload, Save, Move, Plus } from 'lucide-react';
+import { Upload, Save, Move, Plus, Type, Bold } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -19,6 +19,8 @@ interface TemplateConfig {
     fontSize: number; // percentage of width
     color: string; // hex
     align: 'left' | 'center' | 'right';
+    fontFamily?: string;
+    bold?: boolean;
   };
 }
 
@@ -452,6 +454,39 @@ export const PassTemplateDesigner: React.FC = () => {
                           <option value="center">Center</option>
                           <option value="right">Right</option>
                         </select>
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-700/50">
+                     <div>
+                        <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
+                           <Type className="w-3 h-3" /> Font Family
+                        </label>
+                        <select
+                          value={currentConfig.name.fontFamily || 'Inter'}
+                          onChange={(e) => updateConfig({ name: { ...currentConfig.name!, fontFamily: e.target.value } })}
+                          className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1.5 text-xs text-white"
+                        >
+                          <option value="Inter">Standard (Inter)</option>
+                          <option value="Anton">Anton (Heavy)</option>
+                          <option value="Orbitron">Orbitron</option>
+                          <option value="Rajdhani">Rajdhani</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label className="text-xs text-gray-400 mb-1 block flex items-center gap-1">
+                           <Bold className="w-3 h-3" /> Formatting
+                        </label>
+                        <button
+                          onClick={() => updateConfig({ name: { ...currentConfig.name!, bold: !currentConfig.name?.bold } })}
+                           className={`w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                             currentConfig.name?.bold 
+                             ? 'bg-white text-black border-white' 
+                             : 'bg-transparent text-gray-400 border-gray-600 hover:border-gray-400'
+                           }`}
+                        >
+                          {currentConfig.name?.bold ? 'Bold Active' : 'Normal'}
+                        </button>
                      </div>
                   </div>
                 </div>

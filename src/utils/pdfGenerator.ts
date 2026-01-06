@@ -21,6 +21,8 @@ export interface TemplateConfig {
     fontSize: number; // percentage of width
     color: string; // hex
     align: 'left' | 'center' | 'right';
+    fontFamily?: string;
+    bold?: boolean;
   };
 }
 
@@ -212,7 +214,17 @@ const drawPassOnDoc = async (
        }
        
        doc.setFontSize(fontSizePt);
+       doc.setFontSize(fontSizePt);
        doc.setTextColor(nConfig.color || '#ffffff');
+       
+       // Font Selection (Standard PDF Fonts Fallback)
+       let pdfFont = 'helvetica';
+       const weight = nConfig.bold ? 'bold' : 'normal';
+       
+       if (nConfig.fontFamily === 'Orbitron') pdfFont = 'courier'; // Techy fallback
+       if (nConfig.fontFamily === 'Anton' || nConfig.fontFamily === 'Impact') pdfFont = 'helvetica'; 
+       
+       doc.setFont(pdfFont, weight);
        
        const align = nConfig.align || 'center';
        doc.text(pass.name, nX, nY, { align: align, baseline: 'middle' });

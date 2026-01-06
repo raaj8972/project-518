@@ -27,6 +27,8 @@ export interface TemplateConfig {
     fontSize: number; // percentage of width
     color: string; // hex
     align: 'left' | 'center' | 'right';
+    fontFamily?: string;
+    bold?: boolean;
   };
 }
 
@@ -203,8 +205,10 @@ export const generatePassImages = async ({
         const nY = (height * nConfig.y) / 100;
         
         ctx.fillStyle = nConfig.color || '#ffffff';
-        // Use a nice bold font
-        ctx.font = `bold ${fontSize}px sans-serif`; 
+        // Use configured font or fallback
+        const weight = nConfig.bold ? 'bold' : 'normal';
+        const family = nConfig.fontFamily ? `"${nConfig.fontFamily}", sans-serif` : 'sans-serif';
+        ctx.font = `${weight} ${fontSize}px ${family}`; 
         ctx.textAlign = nConfig.align || 'center';
         ctx.textBaseline = 'middle';
         
