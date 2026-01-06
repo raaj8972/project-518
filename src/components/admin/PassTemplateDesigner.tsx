@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useGesture } from '@use-gesture/react';
-import { Upload, Save, Move, Plus, Type, Bold } from 'lucide-react';
+import { Upload, Save, Move, Plus, Type, Bold, Copy } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 
@@ -498,6 +498,41 @@ export const PassTemplateDesigner: React.FC = () => {
                            }`}
                         >
                           {currentConfig.name?.bold ? 'Bold Active' : 'Normal'}
+                        </button>
+                     </div>
+                     <div className="col-span-2 mt-2 pt-2 border-t border-gray-700/50 flex justify-end">
+                        <button
+                           onClick={() => {
+                              if (!window.confirm('Apply this font and style to ALL days?')) return;
+                              setConfigs(prev => {
+                                 const next = { ...prev };
+                                 const nameConfig = currentConfig.name;
+                                 if (!nameConfig) return prev;
+                                 
+                                 Object.keys(prev).forEach(key => {
+                                    if (key.startsWith('day_')) {
+                                       next[key] = {
+                                          ...next[key],
+                                          name: {
+                                             ...(next[key].name || nameConfig),
+                                             fontFamily: nameConfig.fontFamily,
+                                             bold: nameConfig.bold,
+                                             fontSize: nameConfig.fontSize,
+                                             color: nameConfig.color,
+                                             align: nameConfig.align,
+                                             y: nameConfig.y // Also sync Y position as usually consistent
+                                             // We keep x separate as layouts might differ? No, let's sync all styling.
+                                          }
+                                       };
+                                    }
+                                 });
+                                 return next;
+                              });
+                              alert('Style applied to all days!');
+                           }}
+                           className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                        >
+                           <Copy className="w-3 h-3" /> Apply Style to All Days
                         </button>
                      </div>
                   </div>
