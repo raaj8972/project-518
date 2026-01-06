@@ -127,6 +127,18 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     loadData();
   }, [activeTab]);
 
+  // Ensure fonts are loaded for Canvas generation (PNG)
+  useEffect(() => {
+    const id = 'google-fonts-anton';
+    if (!document.getElementById(id)) {
+      const link = document.createElement('link');
+      link.id = id;
+      link.href = 'https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+  }, []);
+
   const fetchPassUsage = async () => {
     if (vipPasses.length === 0) return;
     const ids = vipPasses.map(p => p.id);
