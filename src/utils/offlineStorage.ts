@@ -24,6 +24,7 @@ import {
   storeRules,
   getStoredRules,
   hasBeenScannedToday,
+  searchPassesLocally,
   type EntryPass
 } from './offlineDB';
 
@@ -566,6 +567,7 @@ export {
   clearAllPasses,
   getDBStats,
   validateCacheIntegrity,
+  searchPassesLocally,
 };
 
 

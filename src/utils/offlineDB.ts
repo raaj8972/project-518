@@ -116,6 +116,22 @@ export async function getPassByToken(token: string): Promise<EntryPass | undefin
 }
 
 /**
+ * Search passes locally by name (case-insensitive)
+ */
+export async function searchPassesLocally(query: string, limit: number = 10): Promise<EntryPass[]> {
+  try {
+    const lowercaseQuery = query.toLowerCase();
+    return await db.passes
+      .filter(pass => pass.participant_name.toLowerCase().includes(lowercaseQuery) && pass.is_active)
+      .limit(limit)
+      .toArray();
+  } catch (error) {
+    console.error('❌ Failed to search passes locally:', error);
+    return [];
+  }
+}
+
+/**
  * Mark pass as used locally
  */
 export async function markPassAsUsedLocally(token: string): Promise<void> {

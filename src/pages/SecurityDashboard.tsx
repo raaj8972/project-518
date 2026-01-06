@@ -16,7 +16,8 @@ import {
   syncPassesFromServer,
   validatePassHybrid,
   syncPendingScansToServer,
-  getSyncStats
+  getSyncStats,
+  searchPassesLocally
 } from '../utils/offlineStorage';
 
 interface SecurityUser {
@@ -82,56 +83,81 @@ export default function SecurityDashboard() {
   const [guardName, setGuardName] = useState<string>(getStoredGuard());
   const [showShiftSetup, setShowShiftSetup] = useState(!getStoredGuard());
 
+  // Helper to validate full name (at least two words)
+  const isValidFullName = (name: string) => {
+    const parts = name.trim().split(/\s+/);
+    return parts.length >= 2 && parts[0].length > 0 && parts[1].length > 0;
+  };
+
   const searchManualPasses = async (query: string) => {
-    if (!query.trim()) {
+    if (!query.trim() || !isValidFullName(query)) {
       setManualPasses([]);
       return;
     }
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('entry_passes')
-        .select('*')
-        .ilike('participant_name', `%${query}%`)
-        .eq('is_active', true)
-        .limit(10);
-      
-      if (error) throw error;
-      setManualPasses(data || []);
-
-      // Fetch usage logs for these passes to show correct status
-      if (data && data.length > 0) {
-        const ids = data.map(p => p.id);
-        const { data: usageData } = await supabase.from('pass_scans')
-           .select('pass_id, scanned_at')
-           .in('pass_id', ids)
-           .eq('scan_result', 'valid');
+      let results: any[] = [];
+      if (isOnline) {
+        const { data, error } = await supabase
+          .from('entry_passes')
+          .select('*')
+          .ilike('participant_name', `%${query}%`)
+          .eq('is_active', true)
+          .limit(10);
         
-        if (usageData) {
-          const usage: Record<string, number[]> = {};
-          usageData.forEach(scan => {
-            const scanDate = new Date(scan.scanned_at);
-            const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-            const utcDate = scanDate.toISOString().split('T')[0];
+        if (error) throw error;
+        results = data || [];
+        
+        // Fetch usage logs for these passes to show correct status (Multi-day support)
+        if (results.length > 0) {
+          const ids = results.map(p => p.id);
+          const { data: usageData } = await supabase.from('pass_scans')
+             .select('pass_id, scanned_at')
+             .in('pass_id', ids)
+             .eq('scan_result', 'valid');
+          
+          if (usageData) {
+            const usage: Record<string, number[]> = {};
+            usageData.forEach(scan => {
+              const scanDate = new Date(scan.scanned_at);
+              const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+              const utcDate = scanDate.toISOString().split('T')[0];
 
-            let dayIdx = (securitySettings?.event_dates || []).indexOf(istDate);
-            if (dayIdx === -1) {
-              dayIdx = (securitySettings?.event_dates || []).indexOf(utcDate);
-            }
-
-            if (dayIdx !== -1) {
-              if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
-              if (!usage[scan.pass_id].includes(dayIdx + 1)) {
-                 usage[scan.pass_id].push(dayIdx + 1);
+              let dayIdx = (securitySettings?.event_dates || []).indexOf(istDate);
+              if (dayIdx === -1) {
+                dayIdx = (securitySettings?.event_dates || []).indexOf(utcDate);
               }
-            }
-          });
-          setManualPassUsage(usage);
+
+              if (dayIdx !== -1) {
+                if (!usage[scan.pass_id]) usage[scan.pass_id] = [];
+                if (!usage[scan.pass_id].includes(dayIdx + 1)) {
+                   usage[scan.pass_id].push(dayIdx + 1);
+                }
+              }
+            });
+            setManualPassUsage(usage);
+          }
         }
+      } else {
+        // Offline Fallback - Search local IndexedDB
+        console.log('📴 Searching locally...');
+        results = await searchPassesLocally(query);
       }
+      setManualPasses(results);
     } catch (err) {
       console.error('Search error:', err);
-      toast.error('Search failed');
+      // Try local search as double fallback if online request failed
+      if (isOnline) {
+         try {
+           const localResults = await searchPassesLocally(query);
+           setManualPasses(localResults);
+         } catch (fallbackErr) {
+           console.error('Fallback search failed:', fallbackErr);
+           toast.error('Search failed');
+         }
+      } else {
+         toast.error('Search failed');
+      }
     } finally {
       setSearching(false);
     }
@@ -437,23 +463,33 @@ export default function SecurityDashboard() {
   
   // Manual lookup handler
   const handleManualLookup = async () => {
-    if (!manualSearch.trim()) return;
+    if (!manualSearch.trim() || !isValidFullName(manualSearch)) return;
     
     setSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('entry_passes')
-        .select('*')
-        .ilike('participant_name', `%${manualSearch}%`)
-        .eq('is_active', true);
-      
-      if (error) throw error;
-      
-      setManualPasses(data || []);
+      if (isOnline) {
+        const { data, error } = await supabase
+          .from('entry_passes')
+          .select('*')
+          .ilike('participant_name', `%${manualSearch}%`)
+          .eq('is_active', true);
+        
+        if (error) throw error;
+        setManualPasses(data || []);
+      } else {
+        const localResults = await searchPassesLocally(manualSearch);
+        setManualPasses(localResults);
+      }
     } catch (error) {
       console.error('Manual lookup error:', error);
-      toast.error('Search failed');
-      setManualPasses([]);
+      // Fallback to local
+      try {
+        const localResults = await searchPassesLocally(manualSearch);
+        setManualPasses(localResults);
+      } catch (e) {
+        toast.error('Search failed');
+        setManualPasses([]);
+      }
     } finally {
       setSearching(false);
     }
@@ -598,12 +634,14 @@ export default function SecurityDashboard() {
                     • Guard: {guardName}
                   </span>
                 )}
-                <div className="flex items-center gap-1.5 ml-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
-                  <div className={`w-1.5 h-1.5 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
-                  <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">
-                    Worker: {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}...` : swStatus}
-                  </span>
-                </div>
+                {manualSearch.trim().toUpperCase() === 'RAAJ' && (
+                  <div className="flex items-center gap-1.5 ml-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                    <div className={`w-1.5 h-1.5 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
+                    <span className="text-[10px] text-green-400 uppercase font-black tracking-tighter">
+                      Worker: {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}...` : swStatus}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -637,12 +675,14 @@ export default function SecurityDashboard() {
                 <h2 className="text-2xl md:text-4xl font-black text-white tracking-tight">QR Scanner</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-cyan-400 font-medium text-sm md:text-base uppercase tracking-wider">Entry Validation System</p>
-                  <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
-                    <div className={`w-2 h-2 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
-                    <span className="text-[10px] md:text-xs text-green-400 uppercase font-black tracking-tighter">
-                      System {isOnline ? 'Online' : 'Offline'} • {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}` : 'All Synced'}
-                    </span>
-                  </div>
+                  {manualSearch.trim().toUpperCase() === 'RAAJ' && (
+                    <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20">
+                      <div className={`w-2 h-2 rounded-full bg-green-500 ${syncStats.pendingScans > 0 ? 'animate-bounce' : 'animate-pulse'}`} />
+                      <span className="text-[10px] md:text-xs text-green-400 uppercase font-black tracking-tighter">
+                        System {isOnline ? 'Online' : 'Offline'} • {syncStats.pendingScans > 0 ? `Syncing ${syncStats.pendingScans}` : 'All Synced'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -709,93 +749,97 @@ export default function SecurityDashboard() {
             </div>
           </div>
           
-          {/* System Health / Worker Status */}
-          <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-green-500/30">
-            <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                syncStats.pendingScans > 0 ? 'bg-orange-600/20' : 'bg-green-600/20'
-              }`}>
-                <Database className={`w-6 h-6 ${
-                  syncStats.pendingScans > 0 ? 'text-orange-500 animate-bounce' : 'text-green-500 animate-pulse'
-                }`} />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-400 text-sm">Offline Worker</p>
-                <div className="flex items-center justify-between">
-                  <p className={`text-lg font-bold ${
-                    syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-green-400'
-                  }`}>
-                    {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : swStatus}
-                  </p>
-                  <span className="text-[10px] text-gray-500 font-mono italic">
-                    {syncStats.totalPasses} cached • Updated {syncStats.cacheAgeText}
-                  </span>
+          {/* System Health / Worker Status - SECRET TRIGGER */}
+          {manualSearch.trim().toUpperCase() === 'RAAJ' && (
+            <div className="bg-gray-800/50 backdrop-blur-lg rounded-xl p-6 border border-green-500/30">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                  syncStats.pendingScans > 0 ? 'bg-orange-600/20' : 'bg-green-600/20'
+                }`}>
+                  <Database className={`w-6 h-6 ${
+                    syncStats.pendingScans > 0 ? 'text-orange-500 animate-bounce' : 'text-green-500 animate-pulse'
+                  }`} />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-400 text-sm">Offline Worker</p>
+                  <div className="flex items-center justify-between">
+                    <p className={`text-lg font-bold ${
+                      syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-green-400'
+                    }`}>
+                      {syncStats.pendingScans > 0 ? `Syncing (${syncStats.pendingScans})` : swStatus}
+                    </p>
+                    <span className="text-[10px] text-gray-500 font-mono italic">
+                      {syncStats.totalPasses} cached • Updated {syncStats.cacheAgeText}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         
-        {/* Sync Stats Card */}
-        <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 backdrop-blur-lg rounded-xl p-6 border border-blue-500/30 mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Database className="w-6 h-6 text-blue-400" />
-              <h3 className="text-lg font-bold text-white">Offline Cache</h3>
-            </div>
-            <button
-              onClick={handleSyncPasses}
-              disabled={isSyncing || !isOnline}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold text-sm"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing...' : 'Refresh Passes'}
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-white/5 rounded-lg p-4">
-              <p className="text-gray-400 text-sm mb-1">Cached Passes</p>
-              <p className="text-2xl font-bold text-white">{syncStats.totalPasses}</p>
-            </div>
-            <div className="bg-white/5 rounded-lg p-4">
-              <p className="text-gray-400 text-sm mb-1">Pending Sync</p>
-              <p className={`text-2xl font-bold ${
-                syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-white'
-              }`}>{syncStats.pendingScans}</p>
-            </div>
-            <div className="bg-white/5 rounded-lg p-4">
-              <p className="text-gray-400 text-sm mb-1">Last Synced</p>
-              <p className="text-lg font-semibold text-white">{syncStats.cacheAgeText}</p>
-            </div>
-          </div>
-          
-          {syncStats.pendingScans > 0 && isOnline && (
-            <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-orange-400 text-sm font-semibold">
-                  {syncStats.pendingScans} scans pending upload
-                </p>
+        {/* Sync Stats Card - SECRET TRIGGER */}
+        {manualSearch.trim().toUpperCase() === 'RAAJ' && (
+          <div className="bg-gradient-to-br from-blue-900/20 to-purple-900/20 backdrop-blur-lg rounded-xl p-6 border border-blue-500/30 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Database className="w-6 h-6 text-blue-400" />
+                <h3 className="text-lg font-bold text-white">Offline Cache</h3>
               </div>
               <button
-                onClick={handleAutoSyncPending}
-                className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-semibold"
+                onClick={handleSyncPasses}
+                disabled={isSyncing || !isOnline}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-semibold text-sm"
               >
-                Sync Now
+                <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                {isSyncing ? 'Syncing...' : 'Refresh Passes'}
               </button>
             </div>
-          )}
-          
-          {!isOnline && syncStats.totalPasses === 0 && (
-            <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              <p className="text-red-400 text-sm font-semibold">
-                No cached data. Connect to internet to sync passes.
-              </p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-white/5 rounded-lg p-4">
+                <p className="text-gray-400 text-sm mb-1">Cached Passes</p>
+                <p className="text-2xl font-bold text-white">{syncStats.totalPasses}</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <p className="text-gray-400 text-sm mb-1">Pending Sync</p>
+                <p className={`text-2xl font-bold ${
+                  syncStats.pendingScans > 0 ? 'text-orange-400' : 'text-white'
+                }`}>{syncStats.pendingScans}</p>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <p className="text-gray-400 text-sm mb-1">Last Synced</p>
+                <p className="text-lg font-semibold text-white">{syncStats.cacheAgeText}</p>
+              </div>
             </div>
-          )}
-        </div>
+            
+            {syncStats.pendingScans > 0 && isOnline && (
+              <div className="mt-4 bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-orange-400 text-sm font-semibold">
+                    {syncStats.pendingScans} scans pending upload
+                  </p>
+                </div>
+                <button
+                  onClick={handleAutoSyncPending}
+                  className="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm font-semibold"
+                >
+                  Sync Now
+                </button>
+              </div>
+            )}
+            
+            {!isOnline && syncStats.totalPasses === 0 && (
+              <div className="mt-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+                <p className="text-red-400 text-sm font-semibold">
+                  No cached data. Connect to internet to sync passes.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Smart Scanning Mode Controls */}
         <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 md:p-6 border border-purple-500/30 mb-6 md:mb-8">
@@ -893,7 +937,7 @@ export default function SecurityDashboard() {
                 />
                 <button
                   onClick={handleManualLookup}
-                  disabled={searching || !manualSearch.trim()}
+                  disabled={searching || !isValidFullName(manualSearch)}
                   className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
                 >
                   {searching ? (
@@ -909,6 +953,13 @@ export default function SecurityDashboard() {
                   )}
                 </button>
               </div>
+
+              {manualSearch.trim() && !isValidFullName(manualSearch) && (
+                <p className="text-xs text-yellow-500/80 mb-4 flex items-center gap-1.5 bg-yellow-500/5 p-2 rounded border border-yellow-500/10">
+                  <span className="w-1 h-1 rounded-full bg-yellow-500 animate-pulse" />
+                  Enter full name (First Last) to search for VIP passes
+                </p>
+              )}
               {manualPasses.length > 0 && (
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {manualPasses.map((pass) => (
@@ -963,7 +1014,11 @@ export default function SecurityDashboard() {
                 </div>
               )}
               {manualSearch && !searching && manualPasses.length === 0 && (
-                <p className="text-gray-400 text-center py-4">No valid unused passes found for "{manualSearch}"</p>
+                <p className="text-gray-400 text-center py-4">
+                  {isValidFullName(manualSearch) 
+                    ? `No valid unused passes found for "${manualSearch}"`
+                    : "Full name required for manual lookup"}
+                </p>
               )}
             </div>
           )}
