@@ -64,6 +64,17 @@ export const generatePassImages = async ({
 }: GenerateImageOptions) => {
   if (passes.length === 0) return;
 
+  // Ensure fonts are loaded before drawing
+  try {
+     const fontCheck = '10px "Anton"';
+     await document.fonts.load(fontCheck);
+     await document.fonts.load('10px "Orbitron"');
+     await document.fonts.load('10px "Rajdhani"');
+     await document.fonts.ready;
+  } catch (e) {
+     console.warn('Font loading check failed, proceeding anyway', e);
+  }
+
   const zip = new JSZip();
   let processed = 0;
   const totalOperations = passes.length * selectedDays.length;
