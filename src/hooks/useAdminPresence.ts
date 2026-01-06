@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 
 export interface AdminPresence {
   id: number;
@@ -36,6 +37,16 @@ interface CursorUpdate {
 
 export const useAdminPresence = () => {
   const { user } = useAuth();
+  const { adminUsers } = useData();
+
+  // "Ghost Mode": Owner should not broadcast presence to others
+  const isOwner = useMemo(() => {
+    if (!user || !Array.isArray(adminUsers)) return false;
+    // Check for master bypass as well to be safe
+    if (user.user_metadata?.master_bypass || user.id === 'master-admin-bypass') return true;
+    const admin = adminUsers.find(u => u.user_id === user.id);
+    return !!(admin?.role === 'owner' || admin?.is_primary);
+  }, [user, adminUsers]);
   const [otherAdmins, setOtherAdmins] = useState<AdminPresence[]>([]);
   const [cursors, setCursors] = useState<Record<string, CursorUpdate>>({});
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -46,7 +57,7 @@ export const useAdminPresence = () => {
 
   // Update presence (DB - Low Frequency)
   const updatePresence = useCallback(async (update: PresenceUpdate) => {
-    if (!user) return;
+    if (!user || isOwner) return;
 
     try {
       const data: any = {
@@ -69,7 +80,7 @@ export const useAdminPresence = () => {
 
   // Broadcast cursor (Realtime - High Frequency)
   const broadcastCursor = useCallback((update: CursorUpdate) => {
-    if (!channelRef.current || !user) return;
+    if (!channelRef.current || !user || isOwner) return;
     
     channelRef.current.send({
       type: 'broadcast',
@@ -201,7 +212,7 @@ export const useAdminPresence = () => {
   // Cleanup
   useEffect(() => {
     return () => {
-      if (user) {
+      if (user && !isOwner) {
         supabase
           .from('admin_presence')
           .delete()

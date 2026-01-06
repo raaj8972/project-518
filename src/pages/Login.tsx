@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 import { Mail, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint, ChevronRight } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
@@ -102,6 +103,33 @@ export const Login: React.FC = () => {
     };
   }, []);
 
+  // Fast-Track Auto-Login for Owners
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isMasterMode = searchParams.get('mode') === 'master';
+    const gatePass = sessionStorage.getItem('rico_master_gate_access');
+    const fastTrackCreds = sessionStorage.getItem('rico_fast_track_creds');
+
+    if (isMasterMode && gatePass?.startsWith('vault_v2_') && fastTrackCreds) {
+      try {
+        const { e, p } = JSON.parse(fastTrackCreds);
+        setEmail(e);
+        setPassword(p);
+        sessionStorage.removeItem('rico_fast_track_creds');
+        
+        // Short delay to ensure UI is ready before auto-submitting
+        const timer = setTimeout(() => {
+          const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
+          handleSubmit(fakeEvent);
+        }, 500);
+        return () => clearTimeout(timer);
+      } catch (err) {
+        console.error('Fast-track failed:', err);
+        sessionStorage.removeItem('rico_fast_track_creds');
+      }
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -111,8 +139,65 @@ export const Login: React.FC = () => {
       const result = await login(email, password, totpCode || undefined);
       
       if (result.success) {
+        // Post-login security check for Owner accounts
+        const { data: userRoleData } = await (supabase as any)
+          .from('admin_users')
+          .select('role')
+          .eq('user_id', (await (supabase as any).auth.getUser()).data.user?.id)
+          .maybeSingle();
+
+        const isOwner = userRoleData?.role === 'owner';
+        const searchParams = new URLSearchParams(window.location.search);
+        const gatePass = sessionStorage.getItem('rico_master_gate_access');
+        const isMasterMode = searchParams.get('mode') === 'master';
+        const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
+
+        if (isOwner && (!isMasterMode || !isGatePassValid)) {
+           // Securely cache credentials for the automated return trip
+           sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
+
+           // Log the security violation before signing out
+           await (supabase as any).from('audit_logs').insert({
+             user_id: (await (supabase as any).auth.getUser()).data.user?.id,
+             action: 'UNAUTHORIZED_OWNER_ACCESS_REDIRECTED',
+             table_name: 'admin_users',
+             new_data: { 
+               reason: 'Attempted owner login without passing through Master Gateway. Fast-track initiated.',
+               mode: searchParams.get('mode'),
+               has_session_pass: !!gatePass
+             }
+           });
+
+           // Sign out and redirect
+           await (supabase as any).auth.signOut();
+           setError('Security Handshake Required. Initiating Fast-Track...');
+           setIsLoading(true);
+           
+           setTimeout(() => {
+             navigate('/master-node-access');
+           }, 800);
+           return;
+        }
+
         navigate('/admin');
       } else if (result.requiresTOTP) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const isMasterMode = searchParams.get('mode') === 'master';
+        const gatePass = sessionStorage.getItem('rico_master_gate_access');
+        const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
+
+        if (result.role === 'owner' && (!isMasterMode || !isGatePassValid)) {
+           // Securely cache credentials for the automated return trip
+           sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
+           
+           setError('Security Handshake Required. Initiating Fast-Track...');
+           setIsLoading(true);
+           setTimeout(() => {
+             navigate('/master-node-access');
+           }, 800);
+           return;
+        }
+
         setRequiresTOTP(true);
         setError('');
       } else {
@@ -208,6 +293,23 @@ export const Login: React.FC = () => {
                 <p className="text-cyan-400 font-mono text-[10px] tracking-[0.2em] mt-2 uppercase opacity-80 decoration-cyan-500/30">
                   {requiresTOTP ? 'Encryption Key Required' : 'Authentication Gateway OS 2.6'}
                 </p>
+                
+                {/* Secure Gateway Indicator */}
+                {(() => {
+                  const searchParams = new URLSearchParams(window.location.search);
+                  const isMaster = searchParams.get('mode') === 'master';
+                  const hasPass = sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
+                  
+                  if (isMaster && hasPass) {
+                    return (
+                      <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 animate-pulse">
+                        <Shield className="w-3 h-3 text-cyan-400" />
+                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Secure Master Node Active</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Login Modes Container */}

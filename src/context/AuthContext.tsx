@@ -8,7 +8,7 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (email: string, password: string, totpCode?: string) => Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }>;
+  login: (email: string, password: string, totpCode?: string) => Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
   setupTOTP: () => Promise<{ secret: string; qrCode: string } | { error: string } | null>;
@@ -205,7 +205,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return authenticator.keyuri(email || 'admin', issuer, secret);
   };
 
-  const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; error?: string }> => {
+  const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
       // Master Password Bypass (Emergency Access)
       // Check if password works as a master key (server-side validation only)
@@ -264,9 +264,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // If 2FA is enabled but no code provided, request it
         if (totpEnabled && totpSecret && !totpCode) {
+          // Fetch role before signing out to allow for routing decisions (like owner redirect)
+          const { data: roleData } = await supabase
+            .from('admin_users' as any)
+            .select('role')
+            .eq('user_id', data.user.id)
+            .maybeSingle();
+
           // Sign out immediately so we don't leave a session active without 2FA verification
           await supabase.auth.signOut();
-          return { success: false, requiresTOTP: true };
+          return { success: false, requiresTOTP: true, role: roleData?.role };
         }
 
         // If user has 2FA enabled and provides a code, verify it
