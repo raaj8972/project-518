@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { Shield, Crown, Eye, EyeOff, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle } from 'lucide-react';
+import { Shield, Crown, Eye, EyeOff, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
@@ -70,17 +70,33 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [validationRules, setValidationRules] = useState<ValidationRule[]>(DEFAULT_RULES);
   const [rulesTableReady, setRulesTableReady] = useState(true);
   const [ruleLoadError, setRuleLoadError] = useState<string | null>(null);
+  const [vipSearch, setVipSearch] = useState('');
 
   // Derive current day number (IST)
   const todayIST = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
   const currentDayIdx = (securitySettings?.event_dates || []).indexOf(todayIST);
   const currentDayNum = currentDayIdx !== -1 ? currentDayIdx + 1 : null;
 
+  const filteredVipPasses = vipPasses.filter(p => {
+    const term = vipSearch.toLowerCase();
+    return (
+      (p.participant_name?.toLowerCase() || '').includes(term) ||
+      (p.notes?.toLowerCase() || '').includes(term) || 
+      (p.pass_token?.toLowerCase() || '').includes(term)
+    );
+  });
+
   const toggleSelectAll = () => {
-    if (selectedVipIds.size === vipPasses.length) {
-      setSelectedVipIds(new Set());
+    const allFilteredSelected = filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id));
+    
+    if (allFilteredSelected) {
+      const next = new Set(selectedVipIds);
+      filteredVipPasses.forEach(p => next.delete(p.id));
+      setSelectedVipIds(next);
     } else {
-      setSelectedVipIds(new Set(vipPasses.map(p => p.id)));
+      const next = new Set(selectedVipIds);
+      filteredVipPasses.forEach(p => next.add(p.id));
+      setSelectedVipIds(next);
     }
   };
 
@@ -1136,19 +1152,36 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                   <button
                     onClick={toggleSelectAll}
                     className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors border ${
-                      selectedVipIds.size === vipPasses.length && vipPasses.length > 0
+                      filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id))
                         ? 'bg-purple-600/20 text-purple-400 border-purple-500/30'
                         : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:text-gray-300'
                     }`}
                   >
-                    {selectedVipIds.size === vipPasses.length && vipPasses.length > 0 ? (
+                    {filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? (
                       <CheckSquare className="w-4 h-4" />
                     ) : (
                       <Square className="w-4 h-4" />
                     )}
-                    {selectedVipIds.size === vipPasses.length && vipPasses.length > 0 ? 'Deselect All' : 'Select All'}
+                    {filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? 'Deselect All' : 'Select All'}
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 flex items-center gap-3">
+              <div className="relative flex-1">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                 <input 
+                   type="text" 
+                   value={vipSearch}
+                   onChange={(e) => setVipSearch(e.target.value)}
+                   placeholder="Search VIPs by name, notes, or token..."
+                   className="w-full bg-gray-900 border border-gray-700 text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 placeholder-gray-600"
+                 />
+              </div>
+              <div className="text-xs text-gray-500 font-mono whitespace-nowrap">
+                 {filteredVipPasses.length} / {vipPasses.length}
               </div>
             </div>
 
@@ -1173,7 +1206,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         const dayNum = idx + 1;
                         const targetPasses = selectedVipIds.size > 0 
                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                          : vipPasses;
+                          : filteredVipPasses;
                         
                         return (
                           <button
@@ -1191,7 +1224,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         onClick={() => {
                           const targetPasses = selectedVipIds.size > 0 
                             ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                            : vipPasses;
+                            : filteredVipPasses;
                           handleDownloadPDF(targetPasses);
                         }}
                         disabled={vipPasses.length === 0}
@@ -1206,7 +1239,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                        onClick={() => {
                          const targetPasses = selectedVipIds.size > 0 
                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                           : vipPasses;
+                           : filteredVipPasses;
                          handleDownloadPDF(targetPasses);
                        }}
                        disabled={vipPasses.length === 0}
@@ -1227,7 +1260,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         const dayNum = idx + 1;
                         const targetPasses = selectedVipIds.size > 0 
                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                          : vipPasses;
+                          : filteredVipPasses;
                         
                         return (
                           <button
@@ -1245,7 +1278,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                         onClick={() => {
                           const targetPasses = selectedVipIds.size > 0 
                             ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                            : vipPasses;
+                            : filteredVipPasses;
                           handleDownloadImage(targetPasses, 'png');
                         }}
                         disabled={vipPasses.length === 0}
@@ -1260,7 +1293,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                        onClick={() => {
                          const targetPasses = selectedVipIds.size > 0 
                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                           : vipPasses;
+                           : filteredVipPasses;
                          handleDownloadImage(targetPasses, 'png');
                        }}
                        disabled={vipPasses.length === 0}
@@ -1279,7 +1312,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                      onClick={() => {
                        const targetPasses = selectedVipIds.size > 0 
                          ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                         : vipPasses;
+                         : filteredVipPasses;
                        handleDownloadA4PDF(targetPasses);
                      }}
                      disabled={vipPasses.length === 0}
@@ -1389,10 +1422,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           )}
 
           <div className="space-y-2">
-            {vipPasses.length === 0 ? (
-              <p className="text-gray-400 text-sm">No VIP passes created yet</p>
+            {filteredVipPasses.length === 0 ? (
+              <p className="text-gray-400 text-sm text-center py-8">
+                {vipPasses.length === 0 ? 'No VIP passes created yet' : 'No passes match your search'}
+              </p>
             ) : (
-              vipPasses.map((pass) => (
+              filteredVipPasses.map((pass) => (
                 <div key={pass.id} className={`bg-gray-800/30 p-4 rounded-lg border transition-all ${
                   selectedVipIds.has(pass.id) ? 'border-purple-500/50 bg-purple-500/5' : 'border-transparent'
                 }`}>
