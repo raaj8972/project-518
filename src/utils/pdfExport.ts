@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import type { Audition } from '../context/DataContext';
@@ -799,7 +800,7 @@ export const exportRegistrationsToPDF = (
 
     doc.setFontSize(8);
     doc.text(
-      'Ricorrenza 2026',
+      `${BRAND_NAME} ${BRAND_YEAR}`,
       10,
       pageHeight - 10
     );
@@ -1103,7 +1104,7 @@ export const generateRegistrationReceiptPDF = async (
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'normal');
-  doc.text('RICORRENZA 2026', pageWidth / 2, 30, { align: 'center' });
+  doc.text(`${BRAND_NAME.toUpperCase()} ${BRAND_YEAR}`, pageWidth / 2, 30, { align: 'center' });
 
   yPos = 50;
 
@@ -1288,7 +1289,7 @@ export const generateRegistrationReceiptPDF = async (
       pageHeight - 10,
       { align: 'center' }
     );
-    doc.text('RICORRENZA 2026 - IQ City Medical College', 10, pageHeight - 10);
+    doc.text(`${BRAND_NAME.toUpperCase()} ${BRAND_YEAR} - IQ City Medical College`, 10, pageHeight - 10);
   }
 
   // Return PDF as base64 string

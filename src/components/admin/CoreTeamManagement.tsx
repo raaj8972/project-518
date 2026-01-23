@@ -114,6 +114,7 @@ export const CoreTeamManagement: React.FC = () => {
     });
   };
 
+
   // Committee Management
   const handleAddCommittee = async () => {
     // Inline validation handles UI feedback; function guard keeps safety.
@@ -287,6 +288,8 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateMember = async (id: number) => {
+    const member = coreTeamMembers.find(m => m.id === id);
+    if (!member) return;
     if (!memberForm.name || !memberForm.name.trim() || !memberForm.image) return;
     const payload = {
       ...memberForm,
@@ -337,6 +340,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleDeleteMember = async (id: number) => {
+    const member = coreTeamMembers.find(m => m.id === id);
     if (confirm('Are you sure you want to delete this team member? This action cannot be undone.')) {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
@@ -408,6 +412,8 @@ export const CoreTeamManagement: React.FC = () => {
 
   // Sort committees and members
   const sortedCommittees = [...coreCommittees].sort((a, b) => a.order_position - b.order_position);
+  
+  // Members are sorted: Fixed Web Devs first, then by order_position
   const sortedMembers = [...coreTeamMembers].sort((a, b) => a.order_position - b.order_position);
 
   // Group members by committee
@@ -1235,7 +1241,7 @@ export const CoreTeamManagement: React.FC = () => {
                 {committeeMembers.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {committeeMembers.map((member) => (
-                    <div key={member.id} className={`border border-gray-200 rounded-lg p-3 md:p-4 hover:border-yellow-300 hover:shadow-md transition-all ${editingMember === member.id ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
+                    <div key={member.id} className={`border border-gray-200 rounded-lg p-3 md:p-4 transition-all hover:border-yellow-300 hover:shadow-md ${editingMember === member.id ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
                       {editingMember === member.id ? (
                         <div className="space-y-3">
                           {/* Action Buttons - Top */}
@@ -1430,59 +1436,59 @@ export const CoreTeamManagement: React.FC = () => {
                           )}
                           
                           <div className="flex justify-between items-center">
-                            <button
-                              type="button"
-                              onClick={() => toggleCoreTeamMemberEnabled(member.id)}
-                              className={`p-1 rounded transition-colors ${
-                                member.enabled 
-                                  ? 'bg-green-100 text-green-600' 
-                                  : 'bg-red-100 text-red-600'
-                              } hover:bg-green-200`}
-                              title={member.enabled ? 'Hide from public' : 'Show to public'}
-                            >
-                              {member.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
-                            </button>
+                             <button
+                               type="button"
+                               onClick={() => toggleCoreTeamMemberEnabled(member.id)}
+                               className={`p-1 rounded transition-colors ${
+                                 member.enabled 
+                                   ? 'bg-green-100 text-green-600' 
+                                   : 'bg-red-100 text-red-600'
+                               } hover:bg-green-200`}
+                               title={member.enabled ? 'Hide from public' : 'Show to public'}
+                             >
+                               {member.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
+                             </button>
                             <div className="flex space-x-1">
-                              <button
-                                type="button"
-                                onClick={() => toggleCoreTeamMemberIsHead(member.id)}
-                                className={`p-1 rounded transition-colors ${
-                                  member.is_head 
-                                    ? 'bg-yellow-100 text-yellow-600' 
-                                    : 'bg-gray-100 text-gray-600'
-                                } hover:bg-yellow-200`}
-                                title={member.is_head ? 'Remove as head' : 'Make committee head'}
-                              >
-                                <Crown size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => toggleMemberCouncil(member.id)}
-                                className={`p-1 rounded transition-colors ${
-                                  (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
-                                } hover:bg-red-200 ml-1`}
-                                title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
-                              >
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                  <circle cx="12" cy="12" r="10" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => startEditingMember(member)}
-                                className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                                title="Edit member"
-                              >
-                                <Edit size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteMember(member.id)}
-                                className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                                title="Delete member"
-                              >
-                                <Trash2 size={12} />
-                              </button>
+                               <button
+                                 type="button"
+                                 onClick={() => toggleCoreTeamMemberIsHead(member.id)}
+                                 className={`p-1 rounded transition-colors ${
+                                   member.is_head 
+                                     ? 'bg-yellow-100 text-yellow-600' 
+                                     : 'bg-gray-100 text-gray-600'
+                                 } hover:bg-yellow-200`}
+                                 title={member.is_head ? 'Remove as head' : 'Make committee head'}
+                               >
+                                 <Crown size={12} />
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => toggleMemberCouncil(member.id)}
+                                 className={`p-1 rounded transition-colors ${
+                                   (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
+                                 } hover:bg-red-200 ml-1`}
+                                 title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
+                               >
+                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                   <circle cx="12" cy="12" r="10" />
+                                 </svg>
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => startEditingMember(member)}
+                                 className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
+                                 title="Edit member"
+                               >
+                                 <Edit size={12} />
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => handleDeleteMember(member.id)}
+                                 className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
+                                 title="Delete member"
+                               >
+                                 <Trash2 size={12} />
+                               </button>
                             </div>
                           </div>
                         </div>

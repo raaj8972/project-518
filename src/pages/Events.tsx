@@ -12,6 +12,7 @@ import { HeroBackground } from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 // Preload Component for Hero Carousel Media (Performance Optimization)
 const HeroMediaPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) => {
@@ -805,8 +806,8 @@ export const Events: React.FC = () => {
   return (
     <div className="cyberpunk-theme min-h-screen" style={{ overscrollBehaviorY: 'contain' }}>
       <SEO 
-        title="Events" 
-        description="Explore the diverse range of cultural, technical, and sports events at RICORRENZA 2026." 
+        title={`Events — ${BRAND_NAME} ${BRAND_YEAR}`} 
+        description={`Explore the diverse range of cultural, technical, and sports events at ${BRAND_NAME} ${BRAND_YEAR}.`} 
         canonical="https://ricorrenza.fun/events" 
       />
       {/* NUCLEAR OPTIMIZATION: If rules modal is open, completely HIDE the main page content to prevent crash. 
@@ -960,7 +961,7 @@ export const Events: React.FC = () => {
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
             <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-blue-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
-              <Zap className="w-4 h-4 mr-2 animate-pulse" /> EVENTS 2026
+              <Zap className="w-4 h-4 mr-2 animate-pulse" /> EVENTS {BRAND_YEAR}
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
               <span className="neon-pink">EVENTS</span>

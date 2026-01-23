@@ -1,8 +1,9 @@
+import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Clock } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Clock, Sunrise, Sun, Sunset, Moon, Shield } from 'lucide-react';
 
 // WhatsApp Logo SVG Component
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -25,6 +26,8 @@ export const CoordinatorDashboard: React.FC = () => {
   const [rpcRegistrations, setRpcRegistrations] = useState<any[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Load session and fetch data
   useEffect(() => {
@@ -99,6 +102,77 @@ export const CoordinatorDashboard: React.FC = () => {
     return () => { mounted = false; };
   }, [navigate, events]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoadingData && session) {
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoadingData, session]);
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const WelcomeSplash = () => {
+    const greeting = getGreeting();
+    const hour = currentTime.getHours();
+    
+    const GreetingIcon = (() => {
+      if (hour >= 5 && hour < 10) return Sunrise;
+      if (hour >= 10 && hour < 16) return Sun;
+      if (hour >= 16 && hour < 19) return Sunset;
+      return Moon;
+    })();
+
+    const themeColor = (() => {
+      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500';
+      return 'from-indigo-600 via-purple-700 to-slate-900';
+    })();
+
+    return (
+      <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br ${themeColor} transition-all duration-1000 ${!showSplash ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
+        <div className="relative text-center px-4">
+          <div className="mb-8 inline-block animate-bounce duration-[2000ms]">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30">
+               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-white drop-shadow-md" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
+              {greeting}, <span className="text-white/80">Coordinator</span>
+            </h2>
+            <p className="text-xl sm:text-2xl font-bold text-white/60 tracking-tight">
+              Initializing {session?.eventTitle} Portal
+            </p>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center gap-6">
+            <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
+              <Shield className="w-4 h-4 text-green-400" />
+              Coordinator Gateway Active
+            </div>
+            
+            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-white animate-progress-indefinite rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem('coordinator_session');
     navigate('/coordinator');
@@ -143,6 +217,7 @@ export const CoordinatorDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      <WelcomeSplash />
       {/* Header */}
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -280,7 +355,7 @@ export const CoordinatorDashboard: React.FC = () => {
                               <span>{reg.phone}</span>
                               {reg.phone && whatsappLink && (
                                 <a
-                                  href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                  href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded p-1.5 transition-colors"
@@ -316,7 +391,7 @@ export const CoordinatorDashboard: React.FC = () => {
                                 {reg.phone}
                                 {reg.phone && whatsappLink && (
                                   <a
-                                    href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                    href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="inline-flex items-center text-green-600 hover:text-green-700 hover:bg-green-50 rounded p-1 transition-colors"

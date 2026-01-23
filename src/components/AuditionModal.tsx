@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, Mail, Phone, Music, CheckCircle, Link, Zap, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { BRAND_NAME_WITH_YEAR } from '../constants/brand';
 
 interface AuditionModalProps {
   isOpen: boolean;
@@ -221,7 +222,7 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
                 <Music className="w-4 h-4 text-cyan-400 mr-3" />
                 <h2 className="text-base sm:text-lg md:text-xl font-bold font-mono leading-tight">BAND AUDITION</h2>
               </div>
-              <p className="text-cyan-300 font-mono text-xs sm:text-sm">JOIN HOME BOUND - RICORRENZA 2026</p>
+              <p className="text-cyan-300 font-mono text-xs sm:text-sm">JOIN HOME BOUND - {BRAND_NAME_WITH_YEAR}</p>
               <p className="text-gray-400 text-xs mt-1">Initialize audition protocol. All fields marked with * are required.</p>
             </div>
             <button

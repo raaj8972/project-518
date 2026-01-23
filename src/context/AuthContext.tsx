@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
@@ -41,7 +42,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       try {
         // Pre-emptively check for corrupted tokens in localStorage and clear them
         try {
-          const storageKey = 'ricorrenza_2025_auth';
+          const storageKey = `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_auth`;
           const storedAuth = localStorage.getItem(`sb-${storageKey.split('_')[0]}-auth-token`) || 
                             localStorage.getItem('sb-isfqhascrdzaoebhuohs-auth-token');
           
@@ -201,7 +202,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const generateTOTPSecret = (): string => authenticator.generateSecret();
 
   const buildOtpAuthUri = (secret: string, email: string): string => {
-    const issuer = 'RICORRENZA 2026';
+    const issuer = `${BRAND_NAME.toUpperCase()} ${BRAND_YEAR}`;
     return authenticator.keyuri(email || 'admin', issuer, secret);
   };
 

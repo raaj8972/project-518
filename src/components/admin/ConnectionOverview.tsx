@@ -256,10 +256,10 @@ ON CONFLICT (id) DO UPDATE SET last_run = EXCLUDED.last_run, updated_by = EXCLUD
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Connection Overview</h3>
-        <div className="flex items-center gap-2">
+    <div className="bg-white rounded-lg shadow-md p-6 text-gray-900">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h3 className="text-lg font-bold text-gray-900 border-l-4 border-yellow-400 pl-3">Connection Overview</h3>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => pingNow && pingNow()}
             className="rounded bg-gray-900 text-white px-2 py-1 text-xs hover:bg-black active:scale-[0.99]"
@@ -278,7 +278,7 @@ ON CONFLICT (id) DO UPDATE SET last_run = EXCLUDED.last_run, updated_by = EXCLUD
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {/* Supabase API */}
         <div className="border rounded-md p-4">
           <div className="flex items-center justify-between">

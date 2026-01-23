@@ -276,9 +276,12 @@ export const StorageOverview: React.FC = () => {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><HardDrive className="w-5 h-5 text-gray-700"/> Storage Overview</h3>
-        <button onClick={refresh} className={`inline-flex items-center px-3 py-1 text-sm rounded-md border border-gray-300 hover:bg-gray-50 ${refreshing ? 'opacity-60 pointer-events-none' : ''}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+          <HardDrive className="w-6 h-6 text-indigo-600"/> 
+          Storage Overview
+        </h3>
+        <button onClick={refresh} className={`inline-flex items-center justify-center px-4 py-2 text-sm font-bold text-gray-900 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 hover:shadow-sm transition-all ${refreshing ? 'opacity-60 pointer-events-none' : ''}`}>
           <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
         </button>
       </div>
@@ -312,7 +315,7 @@ export const StorageOverview: React.FC = () => {
                   // Recompute immediately on scope change when open
                   setTimeout(() => loadTop(), 0);
                 }}
-                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white text-gray-900"
                 title="Scope"
               >
                 <option value="bucket">Selected bucket</option>
@@ -381,7 +384,7 @@ export const StorageOverview: React.FC = () => {
         )}
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
           <div className="text-xs text-gray-500 mb-1">Bucket Usage ({bucket})</div>
           <div className="text-xl font-semibold text-gray-900">{loadingUsage ? '—' : formatBytes(usage.totalBytes)}</div>
@@ -418,7 +421,7 @@ export const StorageOverview: React.FC = () => {
           <select
             value={bucket}
             onChange={(e) => setBucket(e.target.value)}
-            className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+            className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-900"
           >
             {(buckets.length ? buckets : DEFAULT_BUCKETS).map((b) => {
               const info = breakdown.find(x => x.id === b);
@@ -437,7 +440,7 @@ export const StorageOverview: React.FC = () => {
           <select
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
-            className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white"
+            className="mt-1 w-full text-sm border border-gray-300 rounded-md px-2 py-1 bg-white text-gray-900"
           >
             <option value={20}>20</option>
             <option value={50}>50</option>

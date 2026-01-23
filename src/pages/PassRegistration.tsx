@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { Ticket, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { BRAND_YEAR } from '../constants/brand';
 
 export default function PassRegistration() {
   const navigate = useNavigate();
@@ -84,7 +85,7 @@ export default function PassRegistration() {
             <Ticket className="w-8 h-8 text-cyan-500" />
             <div>
               <h1 className="text-3xl font-bold text-white">Entry Pass Registration</h1>
-              <p className="text-gray-400 text-sm">Get your RICORRENZA 2025 entry pass</p>
+              <p className="text-gray-400 text-sm">Get your RICORRENZA {BRAND_YEAR} entry pass</p>
             </div>
           </div>
 

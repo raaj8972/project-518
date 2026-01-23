@@ -5,10 +5,10 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 
 export const ScheduleManagement = () => {
-  const { schedule, addScheduleDay, deleteScheduleDay, addScheduleEvent, updateScheduleEvent, deleteScheduleEvent, events } = useData();
+  const { schedule, addScheduleDay, deleteScheduleDay, addScheduleEvent, updateScheduleEvent, deleteScheduleEvent, events, siteSettings, updateSiteSettings } = useData();
   
   // Schedule Type State
-  const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>('prelims');
+  const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>(siteSettings?.default_schedule_type || 'prelims');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [emailStats, setEmailStats] = useState({ sent: 0, pending: 0, total: 0 });
 
@@ -342,6 +342,39 @@ export const ScheduleManagement = () => {
                 MAINS
             </button>
         </div>
+
+        {/* Set Default Button */}
+        <button
+            onClick={async () => {
+                try {
+                    await updateSiteSettings({ default_schedule_type: activeTab });
+                    toast.success(`${activeTab.toUpperCase()} is now the default view`, {
+                        icon: '📌',
+                        style: { background: '#111', color: '#fff', border: '1px solid #333' }
+                    });
+                } catch (error) {
+                    toast.error('Failed to update default view');
+                }
+            }}
+            disabled={siteSettings?.default_schedule_type === activeTab}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black tracking-widest uppercase transition-all ${
+                siteSettings?.default_schedule_type === activeTab 
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30 cursor-default' 
+                : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20'
+            }`}
+        >
+            {siteSettings?.default_schedule_type === activeTab ? (
+                <>
+                    <Save size={14} className="text-green-400" />
+                    Currently Default
+                </>
+            ) : (
+                <>
+                    <LinkIcon size={14} />
+                    Set as Default
+                </>
+            )}
+        </button>
 
         <div className="flex flex-col items-end gap-3">
           {/* Email Stats Display */}

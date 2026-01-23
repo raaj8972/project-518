@@ -6,6 +6,7 @@ import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { gsap } from 'gsap';
 
 export const Login: React.FC = () => {
@@ -236,7 +237,7 @@ export const Login: React.FC = () => {
     <div className="cyberpunk-theme min-h-screen bg-black overflow-hidden font-rajdhani">
       <SEO 
         title="Login" 
-        description="Admin login for RICORRENZA 2026 management dashboard." 
+        description={`Admin login for ${BRAND_NAME} ${BRAND_YEAR} management dashboard.`} 
         canonical="https://ricorrenza.fun/login" 
       />
 
@@ -513,14 +514,14 @@ export const Login: React.FC = () => {
                 SSL: Encrypted Tunnel Active
               </div>
               <div className="text-gray-600 text-[9px] sm:text-[10px] font-mono">
-                {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 15)}...` : 'RICORRENZA OS 2026'}
+                {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 15)}...` : `${BRAND_NAME} OS ${BRAND_YEAR}`}
               </div>
             </div>
           </div>
 
           <div className="mt-6 sm:mt-8 text-center stagger-item">
             <p className="text-gray-500 text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] font-medium opacity-50">
-               © 2026 Ricorrenza Fest Committee
+               © {BRAND_YEAR} {BRAND_NAME} Fest Committee
             </p>
           </div>
         </div>

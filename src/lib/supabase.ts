@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { createClient } from '@supabase/supabase-js'
 
 // Supabase Cloud configuration
@@ -86,7 +87,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, ({
     autoRefreshToken: true,
     detectSessionInUrl: true,
     // Use a stable, app-specific storage key to avoid collisions between previews/prod
-    storageKey: 'ricorrenza_2025_auth',
+    storageKey: `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_auth`,
   },
   realtime: {
     enabled: realtimeEnabled,
@@ -1121,6 +1122,7 @@ export interface Database {
           coming_soon_title: string | null
           coming_soon_message: string | null
           coming_soon_ended_text: string | null
+          default_schedule_type: 'prelims' | 'mains'
           created_at: string
           updated_at: string
         }

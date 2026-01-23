@@ -1,4 +1,5 @@
 import { Helmet } from 'react-helmet-async';
+import { BRAND_NAME, DEFAULT_SEO_TITLE, DEFAULT_SEO_DESCRIPTION } from '../constants/brand';
 
 interface SEOProps {
   title?: string;
@@ -10,16 +11,16 @@ interface SEOProps {
 }
 
 export const SEO = ({
-  title = 'RICORRENZA — IQ City Medical College Cultural Festival',
-  description = 'Experience the future at RICORRENZA - The official cultural festival of IQ City Medical College, Durgapur. Events, competitions and celebrations.',
+  title = DEFAULT_SEO_TITLE,
+  description = DEFAULT_SEO_DESCRIPTION,
   canonical = 'https://ricorrenza.fun/',
   image = 'https://ricorrenza.fun/favicon-96x96.png',
   type = 'website',
   noindex = false
 }: SEOProps) => {
-  const siteTitle = title === 'RICORRENZA — IQ City Medical College Cultural Festival' 
+  const siteTitle = title === DEFAULT_SEO_TITLE 
     ? title 
-    : `${title} | RICORRENZA`;
+    : `${title} | ${BRAND_NAME}`;
 
   return (
     <Helmet>

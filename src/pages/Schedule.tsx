@@ -4,7 +4,7 @@ import { useData } from '../context/DataContext';
 import { Link } from 'react-router-dom';
 
 export const Schedule = () => {
-  const { schedule, events } = useData();
+  const { schedule, events, siteSettings } = useData();
   const [now, setNow] = useState(new Date());
 
   // Update timer every minute
@@ -151,6 +151,13 @@ export const Schedule = () => {
   };
 
   const [scheduleType, setScheduleType] = useState<'prelims' | 'mains'>('prelims');
+
+  // Set default type from site settings once loaded
+  useEffect(() => {
+    if (siteSettings?.default_schedule_type) {
+      setScheduleType(siteSettings.default_schedule_type);
+    }
+  }, [siteSettings]);
 
   const groupedByDate = useMemo(() => {
     // Filter by type

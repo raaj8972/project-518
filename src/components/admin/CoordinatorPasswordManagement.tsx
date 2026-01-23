@@ -129,7 +129,7 @@ export const CoordinatorPasswordManagement: React.FC = () => {
                           type={showPasswords[event.id] ? 'text' : 'password'}
                           value={getCurrentPassword(event)}
                           onChange={(e) => handlePasswordChange(event.id, e.target.value)}
-                          className="w-full px-3 py-2 pr-10 border border-purple-300 bg-purple-50 rounded-lg text-sm font-mono focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full px-3 py-2 pr-10 border border-purple-300 bg-purple-50 rounded-lg text-sm font-mono text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                           placeholder="123@Rajaevent"
                         />
                         <button

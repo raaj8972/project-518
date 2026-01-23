@@ -13,6 +13,7 @@ import HeroBackground from '../components/HeroBackground';
 import { MembershipModal } from '../components/MembershipModal';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee')) as unknown as React.ComponentType<any>;
 const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal')) as unknown as React.ComponentType<any>;
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
@@ -177,6 +178,34 @@ export const RicoFamily: React.FC = () => {
     .filter(m => m.enabled && (m as any).isCouncil && !m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
+  // Founders extraction (Hardcoded + Dynamic)
+  const HARDCODED_FOUNDERS = [
+    {
+      id: 'founder-raaj-legacy',
+      name: 'RAAJ',
+      role: 'Founder of Website',
+      // Using the provided photo
+      // Using the high-quality portrait provided by the founder
+      image: '/storage/uploads/raaj_founder.png', 
+      description: '',
+      specialty: 'Platform Architect',
+      social_links: {
+        instagram: 'https://www.instagram.com/i_amraaj__?igsh=a2ZxaTBubnpmYmhu&utm_source=qr'
+      }
+    }
+  ];
+
+  const founders = [
+    ...HARDCODED_FOUNDERS,
+    ...(coreTeamMembers || [])
+      .filter(m => 
+        m.enabled && 
+        isLeadWebDevRole(m.role, coreCommittees.find(c => c.id === m.committee_id)?.name) &&
+        !m.name.toLowerCase().includes('raaj') // Avoid duplication if re-added
+      )
+      .sort((a, b) => a.order_position - b.order_position)
+  ];
+
   // Intersection Observer for scroll animations
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -310,8 +339,8 @@ export const RicoFamily: React.FC = () => {
   return (
   <div className="neon-theme min-h-screen">
     <SEO 
-      title="Rico Family" 
-      description="Meet the team behind RICORRENZA 2026 - Faculty, Council, and Committee members." 
+      title={`Rico Family — ${BRAND_NAME} ${BRAND_YEAR}`} 
+      description={`Meet the team behind ${BRAND_NAME} ${BRAND_YEAR} - Faculty, Council, and Committee members.`} 
       canonical="https://ricorrenza.fun/rico-family" 
     />
     <ScrollHint />
@@ -409,10 +438,10 @@ export const RicoFamily: React.FC = () => {
                       />
                       
                       {/* Text Overlay (Visible always to identify person) */}
-                      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-center transition-opacity duration-500 ${isItemZoomed ? 'opacity-0' : 'opacity-100'}`}>
-                         <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-1 drop-shadow-lg">{member.name}</h3>
-                         <p className={`text-sm font-bold uppercase tracking-widest ${isCouncil ? 'text-red-400' : 'text-cyan-400'}`}>{member.role}</p>
-                      </div>
+                       <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-center transition-opacity duration-500 ${isItemZoomed ? 'opacity-0' : 'opacity-100'}`}>
+                          <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-1 drop-shadow-lg">{member.name}</h3>
+                          <p className={`text-sm font-bold uppercase tracking-widest ${isCouncil ? 'text-red-400' : 'text-cyan-400'}`}>{isLead ? 'Founder of Website' : member.role}</p>
+                       </div>
 
                       {/* Shine Effect - Disabled on mobile */}
                       {isActive && !isItemZoomed && !isMobile && (
@@ -448,6 +477,71 @@ export const RicoFamily: React.FC = () => {
           </div>
         )}
       </section>
+
+      {/* Founder Section — Dedicated spotlight ABOVE Faculty */}
+      {founders.length > 0 && (
+        <section className="py-20 relative overflow-hidden bg-black/40">
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 via-sky-900/40 to-blue-900/30"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="scroll-animate opacity-0 transform translate-y-20">
+              <div className="text-center mb-16">
+                <div className="inline-flex items-center bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 px-6 py-3 rounded-full text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md">
+                   <Crown className="w-4 h-4 mr-2 text-cyan-300 animate-pulse" /> Platform Architects
+                </div>
+                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
+                  FOUNDER OF <span className="neon-blue">WEBSITE</span>
+                </h2>
+                <div className="w-32 h-1.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 mx-auto mb-8 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.5)]"></div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-12 max-w-7xl mx-auto">
+              {founders.map((founder, idx) => (
+                <div key={founder.id} className="scroll-animate opacity-0 transform translate-y-20 w-full md:w-[450px]" style={{ animationDelay: `${idx * 0.2}s` }}>
+                  <div className="neon-card group overflow-hidden border-cyan-500/30 bg-black/60 backdrop-blur-xl shadow-2xl relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                    <div className="grid md:grid-cols-2 gap-0 h-full">
+                      {/* Founder Photo */}
+                      <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:h-full overflow-hidden">
+                        <img loading="lazy" src={founder.image} alt={founder.name} className="w-full h-full object-cover object-top transition-transform duration-1000 group-hover:scale-110" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
+                        <div className="absolute top-4 left-4">
+                           <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center backdrop-blur-md">
+                              <Crown className="w-6 h-6 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                           </div>
+                        </div>
+                      </div>
+                      {/* Founder Info */}
+                      <div className="p-8 flex flex-col justify-center relative">
+                        <div className="mb-4">
+                           <h3 className="text-3xl font-black text-white mb-1 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{founder.name.toLowerCase().includes('raaj') ? 'RAAJ' : founder.name}</h3>
+                           <p className="text-cyan-400 font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                             Founder of Website
+                           </p>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-4 mt-auto">
+                          {founder.social_links?.instagram && (
+                             <Instagram3DButtonLink href={founder.social_links.instagram} iconSize={24} buttonSize={44} />
+                          )}
+                          {founder.social_links?.youtube && (
+                             <YouTube3DButtonLink href={founder.social_links.youtube} iconSize={20} buttonSize={40} />
+                          )}
+                          {founder.social_links?.spotify && (
+                             <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-green-400 hover:bg-green-500 hover:text-white transition-all">
+                               <Spotify size={20} />
+                             </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Faculty Head Section — 3D coverflow autoplay */}
       {enabledFacultyHeads.length > 0 && (
@@ -534,7 +628,7 @@ export const RicoFamily: React.FC = () => {
                     {/* Content */}
                     <div className="p-6 flex flex-col justify-center">
                       <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${lead ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
-                      <p className={`text-lg font-semibold mb-4 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>{member.role || 'Member'}</p>
+                      <p className={`text-lg font-semibold mb-4 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>{lead ? 'Founder of Website' : (member.role || 'Member')}</p>
                               {member.description && (
                                 (() => {
                                   // Make the header glow green for Treasurer role (only in the Council section)
@@ -551,12 +645,12 @@ export const RicoFamily: React.FC = () => {
                                       headerHighlightRules={[
                                         // General Secretary header line highlight (red glow) — match full phrase
                                         {
-                                          pattern: /^\s*as\s+the\s+(?:(?:g(?:\.\s*)?s(?:\.|\b))(?:\s*\/\s*gen(?:e)?ral\s+secretary)?|gen(?:e)?ral\s+secretary)\s+of\s+ricorrenza\s*2026/i,
+                                          pattern: new RegExp(`^\\s*as\\s+the\\s+(?:(?:g(?:\\.\\s*)?s(?:\\.|\\b))(?:\\s*\\/\\s*gen(?:e)?ral\\s+secretary)?|gen(?:e)?ral\\s+secretary)\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
                                           className: 'text-red-400 font-semibold drop-shadow-[0_0_12px_rgba(248,113,113,1)] drop-shadow-[0_0_28px_rgba(248,113,113,0.55)]'
                                         },
                                         // President header line highlight (blue glow) — match full phrase
                                         {
-                                          pattern: /^\s*as\s+the\s+president\s+of\s+ricorrenza\s*2026/i,
+                                          pattern: new RegExp(`^\\s*as\\s+the\\s+president\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
                                           className: 'text-blue-400 font-semibold drop-shadow-[0_0_12px_rgba(96,165,250,1)] drop-shadow-[0_0_28px_rgba(96,165,250,0.55)]'
                                         }
                                       ]}
@@ -727,7 +821,7 @@ export const RicoFamily: React.FC = () => {
                           {allCommitteeMembers.filter(m => m.is_head).map(head => {
                             const lead = isLeadWebDevRole(head.role, committee.name);
                             const anyDev = !lead && isAnyWebDevRole(head.role);
-                            // Special check for Raaj in Tech Team (non-web) to show green
+                            // Special check for RAAJ in Tech Team (non-web) to show green
                             const isTechLeadRaaj = head.name.toLowerCase().includes('raaj') && !lead;
 
                             return (
@@ -752,8 +846,8 @@ export const RicoFamily: React.FC = () => {
                                   </div>
                                   {/* Content Section */}
                                   <div className="p-6 flex flex-col justify-center">
-                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : isTechLeadRaaj ? 'text-green-400 tech-lead-raaj-name' : 'text-white'}`}>{head.name}</h5>
-                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{head.role}</p>
+                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : isTechLeadRaaj ? 'text-green-400 tech-lead-raaj-name' : 'text-white'}`}>{isTechLeadRaaj ? 'RAAJ' : head.name}</h5>
+                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{lead ? 'Founder of Website' : head.role}</p>
                                     <PreserveNewlines text={head.description} className="text-gray-300 mb-4 leading-relaxed text-sm" />
                                     {head.specialty && (
                                       <div className="mb-4">

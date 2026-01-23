@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { BRAND_YEAR } from '../constants/brand';
 
 /*
   New Roadmap (Diagonal Zig‑Zag + Moving Rickshaw) 
@@ -33,7 +34,7 @@ const FALLBACK_MILESTONES: Milestone[] = [
   { year: '2019', lines: ['Bollywood Artist Mohammad Irfan', 'Bengals Favourite Anupam Roy', 'Waves in Town Band', '10000+ Footfall'] },
   { year: '2022', lines: ['Develop branding & marketing campaigns', '1000+ Footfall', 'DJ Night', 'Guest Artists'] },
   { year: '2023', lines: ['Bollywood Artist Amit Mishra', 'Ehsaas India Band', 'DJ Nights', 'College Band Homeground'] },
-  { year: '2026', lines: ['Commencement of Ricorrenza'] }
+  { year: BRAND_YEAR, lines: ['Commencement of Ricorrenza'] }
 ];
 
 interface RoadmapProps {

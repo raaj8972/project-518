@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
@@ -2140,7 +2141,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                               const firstName = registration.full_name.split(' ')[0];
                               const eventTitle = registration.event_title;
                               
-                              const message = `Hello ${firstName}! 👋\n\nYou have successfully registered for *${eventTitle}* at Ricorrenza 2026! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${groupLink || 'Link will be shared soon'}`;
+                              const message = `Hello ${firstName}! 👋\n\nYou have successfully registered for *${eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${groupLink || 'Link will be shared soon'}`;
                               
                               const cleanPhone = registration.phone.replace(/[^0-9]/g, '');
                               const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;

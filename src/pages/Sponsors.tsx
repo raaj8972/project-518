@@ -6,6 +6,7 @@ import HeroBackground from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 export const Sponsors: React.FC = () => {
   const { sponsors, sponsorshipSettings, sponsorshipPackages, eventCategories } = useData();
@@ -197,7 +198,7 @@ export const Sponsors: React.FC = () => {
     <div className="cyberpunk-theme min-h-screen">
       <SEO 
         title="Sponsors" 
-        description="Our valued partners and sponsors for RICORRENZA 2026." 
+        description={`Our valued partners and sponsors for ${BRAND_NAME} ${BRAND_YEAR}.`} 
         canonical="https://ricorrenza.fun/sponsors" 
       />
       {/* One-time mobile scroll hint */}
@@ -224,7 +225,7 @@ export const Sponsors: React.FC = () => {
               )}
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              {sponsorshipSettings?.intro_text || 'RICORRENZA 2026 is powered by our incredible partners who believe in the future of innovation and technology.'}
+              {sponsorshipSettings?.intro_text || `${BRAND_NAME} ${BRAND_YEAR} is powered by our incredible partners who believe in the future of innovation and technology.`}
             </p>
           </div>
         </div>
@@ -623,7 +624,7 @@ export const Sponsors: React.FC = () => {
                         <Mail className="w-8 h-8 mx-auto text-pink-400 pulse-ring" />
                       </div>
                       <div className="font-semibold mb-2 text-white">Email</div>
-                      <div className="text-sm text-gray-300">ricorrenza2026@college.edu</div>
+                      <div className="text-sm text-gray-300">{BRAND_NAME.toLowerCase()}{BRAND_YEAR}@college.edu</div>
                     </div>
                     <div className="scroll-animate opacity-0 transform translate-y-20 hover-float" style={{ animationDelay: '0.1s' }}>
                       <div className="mb-4">

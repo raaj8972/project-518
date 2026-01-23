@@ -1,6 +1,7 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { Calendar, Users, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon, Ticket } from 'lucide-react';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 
 import { useData } from '../context/DataContext';
@@ -409,7 +410,7 @@ export const Home: React.FC = () => {
           <div className="scroll-animate animate-in">
             <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
               <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
-              FESTIVAL 2026
+              FESTIVAL {BRAND_YEAR}
             </div>
             <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
               {homepageSettings?.hero_title || 'RICORRENZA'}
@@ -536,7 +537,7 @@ export const Home: React.FC = () => {
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-6 md:mb-8 expand-width"></div>
                 <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-                  Meet the incredible artists who will light up RICORRENZA 2026
+                  Meet the incredible artists who will light up {BRAND_NAME} {BRAND_YEAR}
                 </p>
               </div>
             </div>
@@ -600,7 +601,7 @@ export const Home: React.FC = () => {
                   </h2>
                   <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-6 expand-width" />
                   <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
-                    {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for RICORRENZA 2026
+                    {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for {BRAND_NAME} {BRAND_YEAR}
                   </p>
                 </div>
               </div>
@@ -763,7 +764,7 @@ export const Home: React.FC = () => {
                 </h2>
                 <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 mx-auto mb-8 expand-width"></div>
                 <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-                  Don't miss these highlighted experiences at RICORRENZA 2026
+                  Don't miss these highlighted experiences at {BRAND_NAME} {BRAND_YEAR}
                 </p>
                 {hasManyEvents && (
                   <div className="mt-6">
@@ -1155,7 +1156,7 @@ export const Home: React.FC = () => {
                           // Only treat explicit lead/principal roles as lead web devs AND if they are in a web-related committee
                           const isLeadWebDev = ['lead developer','lead web developer','principal developer','principal engineer'].some(p => roleLower.includes(p)) && committeeNameLower.includes('web');
                           
-                          // Special check for Raaj in Tech Team (non-web) to show green
+                          // Special check for RAAJ in Tech Team (non-web) to show green
                           const isTechLeadRaaj = m.name.toLowerCase().includes('raaj') && !isLeadWebDev;
 
                           return (
@@ -1182,7 +1183,7 @@ export const Home: React.FC = () => {
                                   {isCouncil ? (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-600/90 text-white shadow shadow-red-500/40 ring-1 ring-red-400/70 backdrop-blur-sm leadership-badge">COUNCIL</span>
                                   ) : isLeadWebDev ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow shadow-cyan-400/40 ring-1 ring-cyan-300/70 backdrop-blur-sm leadership-badge">WEB DEVELOPER</span>
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow shadow-cyan-400/40 ring-1 ring-cyan-300/70 backdrop-blur-sm leadership-badge">FOUNDER OF WEBSITE</span>
                                   ) : isTechLeadRaaj ? (
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow shadow-green-400/40 ring-1 ring-green-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
                                   ) : (
@@ -1194,7 +1195,7 @@ export const Home: React.FC = () => {
                                 {isCouncil ? (
                                   <Crown className="w-5 h-5 mr-1 text-red-500 drop-shadow-[0_0_6px_rgba(255,0,0,0.7)] council-crown" />
                                 ) : isLeadWebDev ? (
-                                  <span className="webdev-crown-wrapper mr-1" title='Lead Web Developer'>
+                                  <span className="webdev-crown-wrapper mr-1" title='Founder of Website'>
                                     <Crown className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(56,189,248,0.9)] webdev-crown" />
                                   </span>
                                 ) : isTechLeadRaaj ? (
@@ -1202,9 +1203,9 @@ export const Home: React.FC = () => {
                                 ) : (
                                   <Crown className="w-4 h-4 mr-1 text-yellow-400 head-crown" />
                                 )}
-                                {m.name}
+                                {isTechLeadRaaj ? 'RAAJ' : m.name}
                               </div>
-                              <div className={`text-xs sm:text-sm md:text-base ${isCouncil ? 'text-red-300' : (isLeadWebDev ? 'text-cyan-300' : (isTechLeadRaaj ? 'text-green-300' : 'text-gray-300'))}`}>{m.role}</div>
+                              <div className={`text-xs sm:text-sm md:text-base ${isCouncil ? 'text-red-300' : (isLeadWebDev ? 'text-cyan-300' : (isTechLeadRaaj ? 'text-green-300' : 'text-gray-300'))}`}>{isLeadWebDev ? 'Founder of Website' : m.role}</div>
                               {/* Pass the dynamic glow color to InfiniteMarquee via a custom prop */}
                               <style>{`.im-glow-${m.id} { --im-glow-color: ${glowColor}; }`}</style>
                             </div>
@@ -1271,7 +1272,7 @@ export const Home: React.FC = () => {
                     {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
                       ? aboutSettings.hero_paragraphs
                       : [
-                        "RICORRENZA 2026 is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
+                        "{BRAND_NAME} {BRAND_YEAR} is not just a festival—it's a revolution that merges the boundaries between healthcare innovation, cutting-edge technology, and creative expression.",
                         'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
                         'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
                       ]).map((para, i) => {
@@ -1334,7 +1335,7 @@ export const Home: React.FC = () => {
                     {/* Animated Stats */}
                     <div className="grid grid-cols-2 gap-6 mb-8">
                       {(aboutSettings?.stats?.length ? aboutSettings.stats : [
-                        { value: '2026', label: 'FESTIVAL YEAR' },
+                        { value: BRAND_YEAR, label: 'FESTIVAL YEAR' },
                         { value: '3+', label: 'DAYS OF EVENTS' },
                         { value: '1000+', label: 'PARTICIPANTS' },
                         { value: '∞', label: 'POSSIBILITIES' }

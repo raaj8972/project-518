@@ -7,6 +7,7 @@ import { AuditionModal } from '../components/AuditionModal';
 import FlipCard, { FlipCardHandle } from '../components/FlipCard';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings } = useData();
@@ -137,7 +138,7 @@ export const HomeBound: React.FC = () => {
     <div className="cyberpunk-theme min-h-screen">
       <SEO 
         title="Home Bound" 
-        description="The official band of RICORRENZA 2026." 
+        description={`The official band of ${BRAND_NAME} ${BRAND_YEAR}.`} 
         canonical="https://ricorrenza.fun/home-bound" 
       />
       {/* One-time mobile scroll hint */}
@@ -162,7 +163,7 @@ export const HomeBound: React.FC = () => {
               HOME <span className="neon-purple">BOUND</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
-              The <span className="neon-pink">official band</span> of RICORRENZA 2026, bringing 
+              The <span className="neon-pink">official band</span> of {BRAND_NAME} {BRAND_YEAR}, bringing 
               <span className="neon-blue">  beats</span> and 
               <span className="neon-purple">  melodies</span> to life
             </p>
@@ -438,7 +439,7 @@ export const HomeBound: React.FC = () => {
               JOIN THE <span className="neon-pink">BAND</span>
             </h2>
             <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Become part of Home Bound and help create the soundtrack for RICORRENZA 2026
+              Become part of Home Bound and help create the soundtrack for {BRAND_NAME} {BRAND_YEAR}
             </p>
             
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">

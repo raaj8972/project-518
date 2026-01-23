@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useData, RoadmapMilestone } from '../../context/DataContext';
 import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown, Power } from 'lucide-react';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { BRAND_YEAR } from '../../constants/brand';
 
 // Clean rebuilt component – light theme
 // Features: CRUD, enable toggle, duplicate year validation, drag & drop reorder + up/down buttons,
@@ -15,7 +16,7 @@ const DEFAULT_FALLBACK: { year: number; title: string | null; points: string[]; 
   { year: 2019, title: null, points: ['Bollywood Artist Mohammad Irfan','Bengals Favourite Anupam Roy','Waves in Town Band','10000+ Footfall'], side: 'auto' },
   { year: 2022, title: null, points: ['Develop branding & marketing campaigns','1000+ Footfall','DJ Night','Guest Artists'], side: 'auto' },
   { year: 2023, title: null, points: ['Bollywood Artist Amit Mishra','Ehsaas India Band','DJ Nights','College Band Homeground'], side: 'right' },
-  { year: 2026, title: null, points: ['Commencement of Ricorrenza'], side: 'left' }
+  { year: Number(BRAND_YEAR), title: null, points: ['Commencement of Ricorrenza'], side: 'left' }
 ];
 
 export const RoadmapMilestonesAdmin: React.FC = () => {

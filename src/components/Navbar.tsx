@@ -4,6 +4,7 @@ import { Menu, X, Calendar, Image, Clock, Users, LogIn } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo3D from './BrandLogo3D';
+import { BRAND_YEAR } from '../constants/brand';
 
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -174,7 +175,7 @@ export const Navbar: React.FC = () => {
 
               {/* Title - Responsive */}
               <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
-                RICORRENZA {homepageSettings?.brand_year ?? 2026}
+                RICORRENZA {homepageSettings?.brand_year ?? BRAND_YEAR}
               </span>
 
               {/* Right side logo */}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { BarChart3, Users, QrCode, LogOut, Loader2, LayoutDashboard, ChevronRight, ChevronDown, Clock, CheckCircle2, Plus, Trash, Eye, X, ShieldAlert } from 'lucide-react';
+import { BarChart3, Users, QrCode, LogOut, Loader2, LayoutDashboard, ChevronRight, ChevronDown, Clock, CheckCircle2, Plus, Trash, Eye, X, ShieldAlert, Sunrise, Sun, Sunset, Moon, Shield } from 'lucide-react';
 import { QRCodeGenerator } from '../components/admin/QRCodeGenerator';
 import toast from 'react-hot-toast';
 
@@ -49,6 +49,8 @@ export default function CouncilDashboard() {
   const [newVip, setNewVip] = useState({ name: '', notes: '', validDate: '' });
   const [selectedPass, setSelectedPass] = useState<VipPass | null>(null);
   const [vipLoading, setVipLoading] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const navigate = useNavigate();
 
   const loadStats = async () => {
@@ -200,6 +202,77 @@ export default function CouncilDashboard() {
     });
   };
 
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!loading && stats) {
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, stats]);
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const WelcomeSplash = () => {
+    const greeting = getGreeting();
+    const hour = currentTime.getHours();
+    
+    const GreetingIcon = (() => {
+      if (hour >= 5 && hour < 10) return Sunrise;
+      if (hour >= 10 && hour < 16) return Sun;
+      if (hour >= 16 && hour < 19) return Sunset;
+      return Moon;
+    })();
+
+    const themeColor = (() => {
+      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500';
+      return 'from-indigo-600 via-purple-700 to-slate-900';
+    })();
+
+    return (
+      <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br ${themeColor} transition-all duration-1000 ${!showSplash ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
+        <div className="relative text-center px-4">
+          <div className="mb-8 inline-block animate-bounce duration-[2000ms]">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30">
+               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-white drop-shadow-md" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
+              {greeting}, <span className="text-white/80">Council Member</span>
+            </h2>
+            <p className="text-xl sm:text-2xl font-bold text-white/60 tracking-tight">
+              Initializing Analytics Gateway
+            </p>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center gap-6">
+            <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
+              <Shield className="w-4 h-4 text-purple-400" />
+              Council Access Secured
+            </div>
+            
+            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-white animate-progress-indefinite rounded-full"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading && !stats) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -213,6 +286,7 @@ export default function CouncilDashboard() {
 
   return (
     <div className="min-h-screen bg-black text-white p-4 md:p-8 font-sans selection:bg-purple-500/30">
+      <WelcomeSplash />
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex-1">

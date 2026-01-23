@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, ArrowLeft, BarChart3 } from 'lucide-react';
@@ -130,14 +131,14 @@ export default function CouncilLogin() {
                 Council Portal
               </div>
               <div className="text-gray-600 text-[9px] sm:text-[10px] font-mono">
-                RICORRENZA 2026
+                {BRAND_NAME} {BRAND_YEAR}
               </div>
             </div>
           </div>
 
           <div className="mt-6 sm:mt-8 text-center stagger-item">
             <p className="text-gray-500 text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] font-medium opacity-50">
-              © 2026 Ricorrenza Fest Committee
+              © {BRAND_YEAR} {BRAND_NAME} Fest Committee
             </p>
           </div>
         </div>

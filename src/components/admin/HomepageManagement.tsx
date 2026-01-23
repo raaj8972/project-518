@@ -969,7 +969,7 @@ export const HomepageManagement: React.FC = () => {
                     type="text"
                     value={form.sponsor_section_title || ''}
                     onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_title: e.target.value }))}
-                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg text-gray-900"
                   />
                 </div>
                 <div className="mt-3">
@@ -978,7 +978,7 @@ export const HomepageManagement: React.FC = () => {
                     type="text"
                     value={form.sponsor_section_subtitle || ''}
                     onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_subtitle: e.target.value }))}
-                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg"
+                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg text-gray-900"
                   />
                 </div>
               </div>
@@ -1002,7 +1002,7 @@ export const HomepageManagement: React.FC = () => {
                       return { ...prev, leadership_carousel_speed_ms: n };
                     });
                   }}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                 />
                 <div className="mt-4 grid md:grid-cols-2 gap-4">
                   <div>
@@ -1032,7 +1032,7 @@ export const HomepageManagement: React.FC = () => {
                     <select
                       value={form.sponsors_belt_direction}
                       onChange={(e) => setForm(prev => ({ ...prev, sponsors_belt_direction: (e.target.value as 'left' | 'right') }))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                     >
                       <option value="left">Left</option>
                       <option value="right">Right</option>
@@ -1065,7 +1065,7 @@ export const HomepageManagement: React.FC = () => {
                     <select
                       value={form.committee_marquee_direction}
                       onChange={(e) => setForm(prev => ({ ...prev, committee_marquee_direction: (e.target.value as 'left' | 'right') }))}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                     >
                       <option value="left">Left</option>
                       <option value="right">Right</option>
@@ -1231,7 +1231,7 @@ export const HomepageManagement: React.FC = () => {
                       value={form.sponsor_section_text}
                       onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_text: e.target.value }))}
                       placeholder="Powered by"
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
@@ -1288,7 +1288,7 @@ export const HomepageManagement: React.FC = () => {
                                 value={logo.name}
                                 onChange={(e) => updateSponsorLogo(logo.id, { name: e.target.value })}
                                 placeholder="Sponsor name"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                               />
                             </div>
                             <div>
@@ -1298,7 +1298,7 @@ export const HomepageManagement: React.FC = () => {
                                 value={logo.website || ''}
                                 onChange={(e) => updateSponsorLogo(logo.id, { website: e.target.value })}
                                 placeholder="https://sponsor-website.com"
-                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
                               />
                             </div>
                             <div className="flex items-center">

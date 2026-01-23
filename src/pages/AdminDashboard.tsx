@@ -23,7 +23,15 @@ import {
   UserCheck,
   PartyPopper,
   Home,
-  Link
+  Link,
+  Activity,
+  ArrowRight,
+  AlertTriangle,
+  Bell,
+  Sun,
+  Moon,
+  Sunrise,
+  Sunset
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -71,6 +79,7 @@ const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerAp
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
+import { BRAND_NAME_WITH_YEAR } from '../constants/brand';
 
 type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
 
@@ -105,6 +114,30 @@ export const AdminDashboard: React.FC = () => {
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPresencePanelOpen, setIsPresencePanelOpen] = useLocalStorage<boolean>('admin_presence_panel_open', false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Handle splash screen timeout
+  useEffect(() => {
+    if (!authLoading && (isAuthenticated || authGrace)) {
+      const timer = setTimeout(() => {
+        setShowSplash(false);
+      }, 2500); // Show splash for 2.5 seconds for premium feel
+      return () => clearTimeout(timer);
+    }
+  }, [authLoading, isAuthenticated, authGrace]);
+
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
 
   // Admin presence tracking
   const { otherAdmins, updatePresence } = useAdminPresence();
@@ -443,28 +476,72 @@ export const AdminDashboard: React.FC = () => {
     if (!ids.has(activeTab)) {
       setActiveTab(visibleTabs[0]?.id || 'overview');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myPermissions, isOwner]);
+  }, [myPermissions, isOwner, visibleTabs, activeTab, setActiveTab]);
 
-  // Show loading state while authentication is initializing to avoid flicker/redirects
-  if (authLoading) {
+  const WelcomeSplash = () => {
+    const greeting = getGreeting();
+    const subTitle = isOwner ? 'Principal Organizer' : 'Raja Events Team';
+    const hour = currentTime.getHours();
+    
+    // Choose icon based on time
+    const GreetingIcon = (() => {
+      if (hour >= 5 && hour < 10) return Sunrise;
+      if (hour >= 10 && hour < 16) return Sun;
+      if (hour >= 16 && hour < 19) return Sunset;
+      return Moon;
+    })();
+
+    const themeColor = (() => {
+      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500'; // Day/Sunset
+      return 'from-indigo-600 via-purple-700 to-slate-900'; // Night
+    })();
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading admin dashboard...</p>
+      <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br ${themeColor} transition-all duration-1000 ${!showSplash ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
+        <div className="relative text-center px-4">
+          <div className="mb-8 inline-block animate-bounce duration-[2000ms]">
+            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30">
+               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-white drop-shadow-md" />
+            </div>
+          </div>
+          
+          <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300 fill-mode-both">
+            <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
+              {greeting}, <span className="text-white/80">{user?.email?.split('@')[0] || 'Admin'}</span>
+            </h2>
+            <p className="text-xl sm:text-2xl font-bold text-white/60 tracking-tight">
+              Initializing {BRAND_NAME_WITH_YEAR} OS
+            </p>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-1000 delay-700 fill-mode-both">
+            <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
+              <Shield className="w-4 h-4 text-green-400" />
+              Secure Gateway Active
+            </div>
+            
+            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-white animate-progress-indefinite rounded-full"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
+  };
+
+  // Show Loading or Splash
+  if (authLoading || (showSplash && (isAuthenticated || authGrace))) {
+    return <WelcomeSplash />;
   }
 
-  // If user is not authenticated yet and grace is not active, show a tiny loader instead of a blank screen
+  // If user is not authenticated yet and grace is not active
   if (!isAuthenticated && !authGrace) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-gray-600 text-sm">Checking authentication…</p>
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="text-center animate-in fade-in duration-1000">
+          <div className="w-20 h-20 border-t-4 border-r-4 border-yellow-400 rounded-full animate-spin mx-auto mb-8 shadow-lg shadow-yellow-400/20"></div>
+          <p className="text-white/60 font-black tracking-widest uppercase text-xs">Authenticating Access...</p>
         </div>
       </div>
     );
@@ -500,7 +577,6 @@ export const AdminDashboard: React.FC = () => {
 
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
-  const rejectedRegistrations = registrations.filter(r => r.status === 'rejected').length;
   const pendingAuditions = auditions.filter(a => a.status === 'pending').length;
   const pendingMemberships = memberships.filter(m => m.status === 'pending').length;
 
@@ -754,20 +830,111 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
             {isOwner && activeTab === 'overview' && (
-              <div className="space-y-8">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                {/* Modern Welcome Header */}
+                <div className="bg-gradient-to-br from-gray-900 to-indigo-950 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-yellow-400/20 transition-all duration-1000"></div>
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                      <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 tracking-tight">
+                        {getGreeting()}, <span className="text-yellow-400">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
+                      </h2>
+                      <p className="text-indigo-200 text-lg font-medium flex items-center gap-2">
+                        <Clock className="w-5 h-5" />
+                        {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 border border-white/10 flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${connectionStatus === 'ok' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
+                        <span className="text-white text-sm font-semibold uppercase tracking-wider">System Live</span>
+                      </div>
+                      {isTOTPEnabled && (
+                        <div className="bg-green-500/20 backdrop-blur-md rounded-2xl px-4 py-2 border border-green-500/20 flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-green-400" />
+                          <span className="text-green-400 text-sm font-semibold uppercase tracking-wider">2FA Secure</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Priority Actions Hub - Mobile Friendly */}
+                {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8 overflow-hidden relative">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full translate-x-1/2 -translate-y-1/2"></div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2 relative z-10">
+                        <Bell className="w-6 h-6 text-red-500" />
+                        Attention Required
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
+                        {pendingRegistrations > 0 && (
+                          <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('registrations')}>
+                            <div className="flex items-center justify-between mb-2">
+                              <UserCheck className="w-8 h-8 text-amber-600" />
+                              <span className="bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingRegistrations}</span>
+                            </div>
+                            <div className="font-bold text-gray-900">New Registrations</div>
+                            <div className="text-xs text-amber-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
+                          </div>
+                        )}
+                        {pendingAuditions > 0 && (
+                          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('auditions')}>
+                            <div className="flex items-center justify-between mb-2">
+                              <Users className="w-8 h-8 text-blue-600" />
+                              <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingAuditions}</span>
+                            </div>
+                            <div className="font-bold text-gray-900">Audition Forms</div>
+                            <div className="text-xs text-blue-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
+                          </div>
+                        )}
+                        {pendingMemberships > 0 && (
+                          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('memberships')}>
+                            <div className="flex items-center justify-between mb-2">
+                              <Star className="w-8 h-8 text-purple-600" />
+                              <span className="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingMemberships}</span>
+                            </div>
+                            <div className="font-bold text-gray-900">Membership Requests</div>
+                            <div className="text-xs text-purple-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 flex flex-col justify-center text-center group">
+                      <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-500">
+                        <CheckCircle className="w-10 h-10 text-green-600" />
+                      </div>
+                      <h4 className="text-xl font-bold text-gray-900 mb-2">Registration Goal</h4>
+                      <p className="text-gray-600 text-sm mb-6">You've reached {Math.round((approvedRegistrations / Math.max(1, registrations.length)) * 100)}% of processed applications.</p>
+                      <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
+                        <div 
+                          className="bg-green-500 h-full transition-all duration-1000 ease-out" 
+                          style={{ width: `${(approvedRegistrations / Math.max(1, registrations.length)) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Enhanced Stats Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {stats.map((stat) => {
                     const Icon = stat.icon;
                     return (
-                      <div key={stat.name} className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
-                        <div className="flex items-center">
-                          <div className={`${stat.color} p-3 rounded-lg bg-opacity-10`}>
-                            <Icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
+                      <div 
+                        key={stat.name} 
+                        className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border border-gray-100 group relative overflow-hidden"
+                      >
+                        <div className={`absolute top-0 left-0 w-2 h-full ${stat.color}`}></div>
+                        <div className="flex flex-col h-full">
+                          <div className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 w-fit mb-6 group-hover:scale-110 transition-transform duration-300 shadow-sm shadow-black/5`}>
+                            <Icon className={`w-8 h-8 ${stat.color.replace('bg-', 'text-')}`} />
                           </div>
-                          <div className="ml-4">
-                            <p className="text-sm font-medium text-gray-500">{stat.name}</p>
-                            <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                          <div>
+                            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">{stat.name}</p>
+                            <p className="text-4xl font-black text-gray-900 tracking-tight">{stat.value}</p>
                           </div>
                         </div>
                       </div>
@@ -775,197 +942,174 @@ export const AdminDashboard: React.FC = () => {
                   })}
                 </div>
 
-                {/* Connection Overview */}
-                <ConnectionOverview />
+                {/* Main Dashboard Hub */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Recent Activity */}
+                  <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                          <Activity className="w-6 h-6 text-indigo-600" />
+                          Recent Registrations
+                        </h3>
+                        <button
+                          onClick={() => setActiveTab('registrations')}
+                          className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-xl text-sm font-bold transition-all flex items-center gap-1 group"
+                        >
+                          View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                      
+                      {registrations.length > 0 ? (
+                        <div className="space-y-4">
+                          {registrations.slice(0, 5).map((registration) => (
+                            <div key={registration.id} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-md rounded-2xl border border-transparent hover:border-gray-100 transition-all group">
+                              <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-bold text-indigo-600 text-lg border border-gray-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                                  {registration.full_name.charAt(0)}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-gray-900">{registration.full_name}</div>
+                                  <div className="text-xs text-gray-500 font-medium">{registration.email}</div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                  registration.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                  registration.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {registration.status}
+                                </span>
+                                <div className="text-[10px] text-gray-400 font-bold mt-1 uppercase">
+                                  {new Date(registration.registration_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <div className="bg-gray-100 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
+                            <Users className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <p className="text-gray-500 font-medium">No recent activity detected.</p>
+                        </div>
+                      )}
+                    </div>
 
-                {/* Storage Overview */}
-                <StorageOverview />
+                    {/* Team Pulse & Applications */}
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 group">
+                        <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                          <Users className="w-6 h-6 text-blue-500" />
+                          Team Overview
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-4 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
+                            <div className="text-2xl font-black text-blue-600">{coreTeamMembers?.length || 0}</div>
+                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Core Team</div>
+                          </div>
+                          <div className="p-4 bg-purple-50 rounded-2xl group-hover:bg-purple-100 transition-colors">
+                            <div className="text-2xl font-black text-purple-600">{coreCommittees?.length || 0}</div>
+                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Committees</div>
+                          </div>
+                          <div className="p-4 bg-amber-50 rounded-2xl group-hover:bg-amber-100 transition-colors">
+                            <div className="text-2xl font-black text-amber-600">{bandMembers?.length || 0}</div>
+                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Band</div>
+                          </div>
+                          <div className="p-4 bg-pink-50 rounded-2xl group-hover:bg-pink-100 transition-colors">
+                            <div className="text-2xl font-black text-pink-600">{guestArtists?.length || 0}</div>
+                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Guests</div>
+                          </div>
+                        </div>
+                      </div>
 
-                {/* Security Status */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Security Status</h3>
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <Shield className="w-6 h-6 text-blue-600 mr-3" />
-                      <div>
-                        <div className="font-medium text-gray-900">Two-Factor Authentication</div>
-                        <div className="text-sm text-gray-600">
-                          {isTOTPEnabled 
-                            ? 'Your account is secured with 2FA'
-                            : 'Enhance your security by enabling 2FA'
-                          }
+                      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                        <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                          <Star className="w-6 h-6 text-yellow-500" />
+                          Applications
+                        </h3>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <div>
+                              <div className="font-bold text-gray-900">{auditions?.length || 0}</div>
+                              <div className="text-xs text-gray-500 font-bold uppercase">Band Auditions</div>
+                            </div>
+                            {pendingAuditions > 0 && (
+                              <div className="bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">{pendingAuditions} Pending</div>
+                            )}
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <div>
+                              <div className="font-bold text-gray-900">{memberships?.length || 0}</div>
+                              <div className="text-xs text-gray-500 font-bold uppercase">Memberships</div>
+                            </div>
+                            {pendingMemberships > 0 && (
+                              <div className="bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">{pendingMemberships} Pending</div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        isTOTPEnabled 
-                          ? 'bg-green-100 text-green-800 border border-green-200' 
-                          : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                      }`}>
-                        {isTOTPEnabled ? 'Enabled' : 'Disabled'}
-                      </span>
-                      <button
-                        onClick={() => setActiveTab('security')}
-                        className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-                      >
-                        {isTOTPEnabled ? 'Manage' : 'Enable'}
-                      </button>
+                  </div>
+
+                  {/* Sidebar Components Dashboard */}
+                  <div className="lg:col-span-1 space-y-8">
+                    {/* Quick Launchpad */}
+                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+                      <h4 className="text-lg font-bold text-gray-900 mb-6">Quick Navigator</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        {[
+                          { id: 'events', label: 'Events', icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-100' },
+                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-purple-600', bg: 'bg-purple-100' },
+                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-amber-600', bg: 'bg-amber-100' },
+                          { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => setActiveTab(item.id as TabType)}
+                            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-2xl hover:scale-105 transition-all duration-300 group shadow-sm border border-transparent hover:border-gray-200"
+                          >
+                            <item.icon className={`w-8 h-8 ${item.color} mb-3 group-hover:rotate-12 transition-transform`} />
+                            <span className="text-sm font-bold text-gray-800 tracking-tight">{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Security Card */}
+                    {!isTOTPEnabled && (
+                      <div className="bg-gradient-to-r from-red-500 to-pink-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group">
+                        <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+                        <h4 className="text-xl font-black mb-2 flex items-center gap-2">
+                            <AlertTriangle className="w-6 h-6" />
+                            Security Warning
+                        </h4>
+                        <p className="text-white/90 text-sm mb-6 leading-relaxed">Your account access is currently unprotected. Enable Two-Factor Authentication now to secure Raja events data.</p>
+                        <button 
+                          onClick={() => setActiveTab('security')}
+                          className="w-full bg-white text-red-600 font-black py-4 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2 group/btn shadow-lg"
+                        >
+                          Enable 2FA <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Registration Status Overview */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Registration Status</h3>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-600">{pendingRegistrations}</div>
-                      <div className="text-sm text-yellow-700">Pending Review</div>
-                    </div>
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{approvedRegistrations}</div>
-                      <div className="text-sm text-green-700">Approved</div>
-                    </div>
-                    <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">{rejectedRegistrations}</div>
-                      <div className="text-sm text-red-700">Rejected</div>
-                    </div>
+                {/* Bottom Full-Width System Section */}
+                <div className="space-y-8 pt-8 border-t border-gray-200">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Activity className="w-6 h-6 text-indigo-600" />
+                    <h3 className="text-xl font-bold text-gray-900">System & Health Pulse</h3>
                   </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <button
-                      onClick={() => setActiveTab('events')}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
-                    >
-                      <Calendar className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                      <div className="text-sm font-medium">Manage Events</div>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('registrations')}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
-                    >
-                      <UserCheck className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <div className="text-sm font-medium">Review Registrations</div>
-                      {pendingRegistrations > 0 && (
-                        <div className="text-xs text-red-600 mt-1">{pendingRegistrations} pending</div>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('gallery')}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
-                    >
-                      <Image className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                      <div className="text-sm font-medium">Update Gallery</div>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('security')}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-yellow-300 hover:shadow-md transition-all"
-                    >
-                      <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                      <div className="text-sm font-medium">Security Settings</div>
-                      {!isTOTPEnabled && (
-                        <div className="text-xs text-yellow-600 mt-1">Enable 2FA</div>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Recent Registrations */}
-                {registrations.length > 0 && (
-                  <div className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">Recent Registrations</h3>
-                      <button
-                        onClick={() => setActiveTab('registrations')}
-                        className="text-yellow-600 hover:text-yellow-700 text-sm font-medium"
-                      >
-                        View All
-                      </button>
+                  <div className="grid grid-cols-1 gap-8">
+                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                      <ConnectionOverview />
                     </div>
-                    <div className="space-y-3">
-                      {registrations.slice(0, 5).map((registration) => (
-                        <div key={registration.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                          <div>
-                            <div className="font-medium text-gray-900">{registration.full_name}</div>
-                            <div className="text-sm text-gray-600 flex items-center gap-2">
-                              {registration.email}
-                              <span
-                                className={
-                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ' +
-                                  (isOwner
-                                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200')
-                                }
-                                title={isOwner ? 'You are the Owner' : 'You are an Admin'}
-                              >
-                                {isOwner ? 'Owner' : 'Admin'}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              registration.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                              registration.status === 'approved' ? 'bg-green-100 text-green-800' :
-                              registration.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {registration.status}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {new Date(registration.registration_date).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Core Team Stats */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Overview</h3>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{coreTeamMembers?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Core Team Members</div>
-                    </div>
-                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                      <div className="text-2xl font-bold text-yellow-500 mb-1">{coreCommittees?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Total Committees</div>
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-500 mb-1">{bandMembers?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Band Members</div>
-                    </div>
-                    <div className="text-center p-4 bg-pink-50 rounded-lg">
-                      <div className="text-2xl font-bold text-pink-500 mb-1">{guestArtists?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Guest Artists</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Applications Overview */}
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Applications Overview</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-blue-50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{auditions?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Band Auditions</div>
-                      {pendingAuditions > 0 && (
-                        <div className="text-xs text-red-600 mt-1">{pendingAuditions} pending</div>
-                      )}
-                    </div>
-                    <div className="text-center p-4 bg-purple-50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">{memberships?.length || 0}</div>
-                      <div className="text-gray-700 text-sm">Membership Applications</div>
-                      {pendingMemberships > 0 && (
-                        <div className="text-xs text-red-600 mt-1">{pendingMemberships} pending</div>
-                      )}
+                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                      <StorageOverview />
                     </div>
                   </div>
                 </div>
