@@ -11,9 +11,6 @@
   NODE_VERSION = "22"
   NPM_FLAGS = "--legacy-peer-deps"
 
-[[edge_functions]]
-  function = "force-logout"
-  path = "/api/force-logout"
 
 
 
