@@ -294,9 +294,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           // Verify TOTP code
           // Master Bypass: Attempt to verify TOTP code via master-login check if it's not a standard numeric code
           let ok = false;
-          if (totpCode === '9693') {
-            ok = true;
-          } else if (totpCode.length > 6) {
+          // Standard TOTP is 6 digits. If it is NOT 6 digits, we check against server bypass credentials (PIN or Master Password)
+          if (totpCode.length !== 6) {
             // Verify via master-login function to keep secret server-side
             try {
               const verifyRes = await fetch('/.netlify/functions/master-login', {
