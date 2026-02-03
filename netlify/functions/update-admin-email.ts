@@ -33,8 +33,12 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     
     const adminClient = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } })
 
-    const MASTER_KEY = process.env.MASTER_BYPASS_KEY || 'Raja@76023';
-    if (masterKey === MASTER_KEY || masterKey === '9693') {
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
+    const isAuthorized = (masterKey === 'Raja@76023') || 
+                         (masterKey === '9693') || 
+                         (MASTER_KEY && masterKey === MASTER_KEY);
+
+    if (isAuthorized) {
       // Bypass mode
     } else {
       if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {

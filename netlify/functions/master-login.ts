@@ -11,10 +11,14 @@ export const handler: Handler = async (event) => {
 
     if (!email) return { statusCode: 400, body: 'Email required' }
 
-    // 1. Security Check: Use environment variable, with a secure default requested by user.
-    const MASTER_KEY = process.env.MASTER_BYPASS_KEY || 'Raja@76023';
+    // 1. Security Check: Use environment variable, with explicit fallbacks requested by user.
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
     
-    if (password !== MASTER_KEY) {
+    const isAuthorized = (password === 'Raja@76023') || 
+                         (password === '9693') || 
+                         (MASTER_KEY && password === MASTER_KEY);
+
+    if (!isAuthorized) {
       console.warn(`[SECURITY] Unauthorized master bypass attempt for email: ${email}`);
       return { statusCode: 401, body: 'Invalid credentials' };
     }
