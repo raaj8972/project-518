@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical, UserPlus } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
@@ -10,11 +10,8 @@ import { useApprovals } from '../../hooks/useApprovals';
 import PreserveNewlines from '../PreserveNewlines';
 
 // Spotify icon component since it's not in lucide-react
-const Spotify = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.42 1.56-.299.421-1.02.599-1.559.3z"/>
-  </svg>
-);
+// Spotify icon component removed
+
 
 export const CoreTeamManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -52,6 +49,23 @@ export const CoreTeamManagement: React.FC = () => {
   const [dragOverCommittee, setDragOverCommittee] = useState<number | null>(null);
   const [dragOverMember, setDragOverMember] = useState<number | null>(null);
 
+  const toggleCoreCommitteeIsCore = async (id: number, currentVal: boolean) => {
+    try {
+      await updateCoreCommittee?.(id, { is_core: !currentVal });
+    } catch(e) { console.error(e); }
+  };
+
+
+  // Refs for scrolling
+  const memberFormRef = useRef<HTMLDivElement>(null);
+
+  // Scroll helpers
+  const scrollToMemberForm = () => {
+    setTimeout(() => {
+      memberFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   const [committeeForm, setCommitteeForm] = useLocalStorage('admin_core_committee_form_draft', {
     name: '',
     description: '',
@@ -76,8 +90,10 @@ export const CoreTeamManagement: React.FC = () => {
     phone: '',
     social_links: {
       instagram: '',
+      linkedin: '',
+      twitter: '',
       youtube: '',
-      spotify: ''
+      facebook: ''
     }
   });
 
@@ -108,8 +124,10 @@ export const CoreTeamManagement: React.FC = () => {
       phone: '',
       social_links: {
         instagram: '',
+        linkedin: '',
+        twitter: '',
         youtube: '',
-        spotify: ''
+        facebook: ''
       }
     });
   };
@@ -226,7 +244,7 @@ export const CoreTeamManagement: React.FC = () => {
   const startEditingCommittee = (committee: CoreCommittee) => {
     setCommitteeForm({
       name: committee.name,
-      description: committee.description,
+      description: committee.description || '',
       color: committee.color,
       is_core: committee.is_core,
       order_position: committee.order_position,
@@ -340,7 +358,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleDeleteMember = async (id: number) => {
-    const member = coreTeamMembers.find(m => m.id === id);
+
     if (confirm('Are you sure you want to delete this team member? This action cannot be undone.')) {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
@@ -366,22 +384,30 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const startEditingMember = (member: CoreTeamMember) => {
+    setEditingMember(member.id);
     setMemberForm({
-      committee_id: member.committee_id,
       name: member.name,
       role: member.role,
       image: member.image,
-      description: member.description,
-      specialty: member.specialty,
-      achievements: member.achievements,
+      committee_id: member.committee_id,
+      description: member.description || '',
       order_position: member.order_position,
-      enabled: member.enabled,
-  is_head: member.is_head,
-  isCouncil: ((member as any).isCouncil ?? false) || false,
+      is_head: member.is_head,
+      enabled: member.enabled || true, // Default to true if undefined
+      specialty: member.specialty || '', // Add specialty
+      social_links: {
+        instagram: (member.social_links as any)?.instagram || '',
+        linkedin: (member.social_links as any)?.linkedin || '',
+        twitter: (member.social_links as any)?.twitter || '',
+        youtube: (member.social_links as any)?.youtube || '',
+        facebook: (member.social_links as any)?.facebook || '', 
+      },
+      achievements: member.achievements || [], // Add achievements
+      isCouncil: ((member as any).isCouncil ?? false) || false,
       phone: (member as any).phone || '',
-      social_links: member.social_links || { instagram: '', youtube: '', spotify: '' }
     });
-    setEditingMember(member.id);
+    // Scroll to form
+    scrollToMemberForm();
   };
 
   const addAchievement = () => {
@@ -425,23 +451,7 @@ export const CoreTeamManagement: React.FC = () => {
     return acc;
   }, {} as Record<number, CoreTeamMember[]>);
 
-  const toggleMemberCouncil = async (id: number) => {
-    try {
-      const member = coreTeamMembers.find(m => m.id === id);
-      const current = (member as any)?.isCouncil ?? false;
-      if (typeof updateCoreTeamMember === 'function') {
-        const payload: any = { is_council: !current };
-        if (!current) {
-          // turning council on -> ensure member is not a committee head
-          payload.is_head = false;
-        }
-        await updateCoreTeamMember(id, payload as any);
-      }
-    } catch (e) {
-      console.error('Failed to toggle council flag', e);
-      alert('Failed to toggle council flag. Please try again.');
-    }
-  };
+
 
   // Committee drag handlers
   const handleCommitteeDragStart = (e: React.DragEvent, id: number) => {
@@ -759,173 +769,227 @@ export const CoreTeamManagement: React.FC = () => {
           )}
 
           {/* Committees List - Responsive Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedCommittees.map((committee) => (
-              <div key={committee.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={committee.id} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden group hover:shadow-2xl hover:shadow-black/50 transition-all duration-300 hover:-translate-y-1">
+                {/* Decorative Top Border */}
+                <div className="h-1.5 w-full opacity-75" style={{ backgroundColor: committee.color }} />
+                
                 {editingCommittee === committee.id ? (
-                  <div className="p-4 space-y-4">
-                    <input
-                      type="text"
-                      value={committeeForm.name}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Committee name"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                    <textarea
-                      value={committeeForm.description}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      placeholder="Description"
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="color"
-                        value={committeeForm.color}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
-                        className="w-full h-10 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <input
-                        type="number"
-                        value={committeeForm.order_position}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        min="1"
-                        max="10"
-                        placeholder="Order"
-                        className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  <div className="p-6 space-y-4 bg-white/[0.02]">
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Name</label>
+                       <input
+                        type="text"
+                        value={committeeForm.name}
+                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Committee name"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
                       />
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center">
+                    
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Description</label>
+                       <textarea
+                        value={committeeForm.description}
+                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
+                        rows={3}
+                        placeholder="Description"
+                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Color</label>
+                         <div className="relative">
+                            <input
+                              type="color"
+                              value={committeeForm.color}
+                              onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
+                              className="w-full h-9 border border-white/10 rounded-lg cursor-pointer bg-black/20"
+                            />
+                         </div>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Order</label>
+                         <input
+                          type="number"
+                          value={committeeForm.order_position}
+                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                          min="1"
+                          max="10"
+                          placeholder="Order"
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-6 pt-2">
+                      <label className="flex items-center group cursor-pointer">
                         <input
                           type="checkbox"
                           checked={committeeForm.is_core}
                           onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
-                          className="mr-2"
+                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
                         />
-                        <span className="text-sm">Core Committee</span>
+                         <div className="flex items-center gap-1.5 ml-2">
+                           <Crown size={12} className={committeeForm.is_core ? "text-amber-500" : "text-gray-600"} />
+                           <span className={`text-xs font-medium group-hover:text-white transition-colors ${committeeForm.is_core ? "text-amber-400" : "text-gray-400"}`}>Core Committee</span>
+                         </div>
                       </label>
-                      <label className="flex items-center">
+                      <label className="flex items-center group cursor-pointer">
                         <input
                           type="checkbox"
                           checked={committeeForm.enabled}
                           onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                          className="mr-2"
+                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-emerald-500 focus:ring-emerald-500/50 cursor-pointer"
                         />
-                        <span className="text-sm">Enabled</span>
+                        <span className={`text-xs font-medium ml-2 group-hover:text-white transition-colors ${committeeForm.enabled ? "text-emerald-400" : "text-gray-400"}`}>Public Visible</span>
                       </label>
                     </div>
-                    <div className="flex justify-end space-x-2 pt-4 border-t border-gray-200">
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
                       <button
                         type="button"
                         onClick={() => {
                           setEditingCommittee(null);
                           resetCommitteeForm();
                         }}
-                        className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
+                        className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
                       >
-                        <X size={14} className="mr-1" />
                         Cancel
                       </button>
                       <button
                         type="button"
                         onClick={() => handleUpdateCommittee(committee.id)}
                         disabled={!committeeForm.name.trim()}
-                        className={`px-3 py-1 rounded flex items-center transition-colors ${
+                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                           committeeForm.name.trim()
-                            ? 'bg-yellow-400 text-black hover:bg-yellow-300'
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
+                            : 'bg-white/5 text-gray-500 cursor-not-allowed'
                         }`}
                       >
-                        <Save size={14} className="mr-1" />
-                        Save
+                        <Save size={12} />
+                        Save Changes
                       </button>
                     </div>
                     {!committeeForm.name.trim() && (
-                      <p className="mt-1 text-xs text-red-600">Committee name is required.</p>
+                      <p className="mt-2 text-sm text-red-400">Committee name is required.</p>
                     )}
                   </div>
                 ) : (
-                  <>
-                    <div 
-                      className="h-3"
-                      style={{ backgroundColor: committee.color }}
-                    />
-                    <div 
-                      className={`p-4 cursor-move transition-all ${
-                        draggedCommittee === committee.id ? 'opacity-50 scale-95' : ''
-                      } ${
-                        dragOverCommittee === committee.id ? 'ring-2 ring-yellow-400 ring-offset-2' : ''
-                      }`}
-                      draggable={editingCommittee !== committee.id}
-                      onDragStart={(e) => handleCommitteeDragStart(e, committee.id)}
-                      onDragOver={(e) => handleCommitteeDragOver(e, committee.id)}
-                      onDragLeave={handleCommitteeDragLeave}
-                      onDrop={(e) => handleCommitteeDrop(e, committee.id)}
-                      onDragEnd={handleCommitteeDragEnd}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center space-x-2">
-                          <GripVertical className="w-4 h-4 text-gray-400" />
-                          <h4 className="font-bold text-lg text-gray-900">{committee.name}</h4>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {committee.is_core && (
-                            <Crown className="w-4 h-4 text-yellow-500" />
-                          )}
-                          {!committee.enabled && (
-                            <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                              Hidden
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-3">{committee.description}</p>
-                      
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="text-xs text-gray-500">
-                          Order: {committee.order_position} | Members: {membersByCommittee[committee.id]?.length || 0}
-                        </div>
-                        <div
-                          className="w-4 h-4 rounded-full"
-                          style={{ backgroundColor: committee.color }}
-                        />
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleCoreCommitteeEnabled(committee.id)}
-                          className={`p-1 rounded transition-colors ${
-                            committee.enabled 
-                              ? 'bg-green-100 text-green-600' 
-                              : 'bg-red-100 text-red-600'
-                          } hover:bg-green-200`}
-                          title={committee.enabled ? 'Hide from public' : 'Show to public'}
+                  <div 
+                    className={`p-6 cursor-move relative transition-colors bg-gradient-to-br from-transparent to-white/[0.02] ${
+                      draggedCommittee === committee.id ? 'opacity-50' : ''
+                    } ${
+                      dragOverCommittee === committee.id ? 'ring-2 ring-amber-500/30 bg-amber-500/5' : ''
+                    }`}
+                    draggable={editingCommittee !== committee.id}
+                    onDragStart={(e) => handleCommitteeDragStart(e, committee.id)}
+                    onDragOver={(e) => handleCommitteeDragOver(e, committee.id)}
+                    onDragLeave={handleCommitteeDragLeave}
+                    onDrop={(e) => handleCommitteeDrop(e, committee.id)}
+                    onDragEnd={handleCommitteeDragEnd}
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold bg-white/5 text-white/80"
+                          style={{ borderLeft: `2px solid ${committee.color}` }}
                         >
-                          {committee.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
-                        </button>
-                        <div className="flex space-x-1">
-                          <button
-                            type="button"
-                            onClick={() => startEditingCommittee(committee)}
-                            className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                            title="Edit committee"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCommittee(committee.id)}
-                            className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                            title="Delete committee"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <GripVertical size={14} className="text-gray-600 group-hover:text-white/50 transition-colors" />
                         </div>
+                        <div>
+                           <h4 className="font-bold text-lg text-white leading-tight">{committee.name}</h4>
+                           <span className="text-[10px] text-gray-500 font-mono">ID: {committee.id}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {committee.is_core && (
+                          <div className="w-6 h-6 rounded-full bg-amber-500/10 flex items-center justify-center border border-amber-500/20" title="Core Committee">
+                            <Crown size={12} className="text-amber-500" />
+                          </div>
+                        )}
+                        {!committee.enabled && (
+                          <div className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 flex items-center">
+                            Hidden
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </>
+
+                    <p className="text-gray-400 text-sm mb-6 line-clamp-2 min-h-[40px]">
+                      {committee.description || <span className="text-gray-600 italic">No description provided</span>}
+                    </p>
+                    
+                    {/* Meta & Stats */}
+                    <div className="flex items-center justify-between mb-6 p-3 rounded-xl bg-black/20 border border-white/5">
+                      <div className="text-center">
+                         <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-0.5">Order</div>
+                         <div className="text-white font-mono">{committee.order_position}</div>
+                      </div>
+                      <div className="w-px h-6 bg-white/10" />
+                      <div className="text-center">
+                         <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-0.5">Members</div>
+                         <div className="text-emerald-400 font-bold">{membersByCommittee[committee.id]?.length || 0}</div>
+                      </div>
+                      <div className="w-px h-6 bg-white/10" />
+                      <div className="text-center">
+                          <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-0.5">Status</div>
+                          <div className={`w-2 h-2 rounded-full mx-auto ${committee.enabled ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-red-500'}`} />
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex justify-between items-center opacity-80 group-hover:opacity-100 transition-opacity pt-2 border-t border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => toggleCoreCommitteeEnabled(committee.id)}
+                        className={`p-2 rounded-lg transition-all ${
+                          committee.enabled 
+                            ? 'text-emerald-500 hover:bg-emerald-500/10' 
+                            : 'text-gray-500 hover:bg-gray-700'
+                        }`}
+                        title={committee.enabled ? 'Hide Committee' : 'Show Committee'}
+                      >
+                        {committee.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </button>
+
+                      <div className="flex gap-2">
+                         <button
+                           type="button"
+                           onClick={() => toggleCoreCommitteeIsCore(committee.id, committee.is_core)}
+                           className={`p-2 rounded-lg transition-all ${
+                             committee.is_core
+                               ? 'text-amber-400 bg-amber-500/10' 
+                               : 'text-gray-500 hover:bg-amber-500/10 hover:text-amber-400'
+                           }`}
+                           title="Toggle Core Status"
+                         >
+                           <Crown size={16} />
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => startEditingCommittee(committee)}
+                           className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 hover:text-blue-300 transition-all"
+                           title="Edit Committee"
+                         >
+                           <Edit size={16} />
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => handleDeleteCommittee(committee.id)}
+                           className="p-2 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                           title="Delete Committee"
+                         >
+                           <Trash2 size={16} />
+                         </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             ))}
@@ -971,248 +1035,265 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
 
 
-          {/* Add Member Form - Responsive */}
-          {isAddingMember && coreCommittees.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-4 md:mb-6">Add New Team Member</h4>
-              <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-                <div className="space-y-4 md:space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee (optional)</label>
-                    <select
-                      value={memberForm.committee_id}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    >
-                      <option value={0}>Unassigned</option>
-                      {sortedCommittees.map(committee => (
-                        <option key={committee.id} value={committee.id}>
-                          {committee.name} {committee.is_core ? '(Core)' : ''}
-                        </option>
-                      ))}
-                    </select>
+          {/* Add/Edit Member Form - Modern Redesign */}
+          {(isAddingMember || editingMember !== null) && coreCommittees.length > 0 && (
+            <div ref={memberFormRef} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8 border-l-4 border-l-amber-500 shadow-2xl animate-in fade-in zoom-in duration-300 my-6 relative overflow-hidden">
+              
+              {/* Background gradient for depth */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+              
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/5 relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-lg shadow-amber-500/5">
+                    {editingMember ? <Edit className="w-6 h-6 text-amber-500" /> : <UserPlus className="w-6 h-6 text-amber-500" />}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                  <div>
+                    <h4 className="text-xl font-bold text-white tracking-tight">
+                      {editingMember ? 'Edit Team Member' : 'New Team Member'}
+                    </h4>
+                    <p className="text-sm text-gray-400 mt-0.5">
+                      {editingMember ? 'Update member details and permissions' : 'Add a core member to the leadership team'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setIsAddingMember(false); setEditingMember(null); resetMemberForm(); }}
+                  className="p-2 hover:bg-white/5 rounded-full transition-colors text-gray-500 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+                {/* Left Column: Media & Identity */}
+                <div className="lg:col-span-4 space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Profile Photo</label>
+                    <div className="bg-black/20 rounded-2xl p-2 border border-white/5">
+                      <ImageUpload
+                        onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
+                        currentImage={memberForm.image}
+                        bucket="team-images"
+                        folder="core-team"
+                        cropAspect={1}
+                        className="rounded-xl overflow-hidden aspect-square"
+                      />
+                    </div>
+                    {!memberForm.image && (
+                      <p className="text-xs text-red-400 flex items-center gap-1.5 pl-1">
+                        <span className="w-1 h-1 rounded-full bg-red-400" /> Photo is required
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Committee Assignment</label>
+                    <div className="relative group">
+                       <select
+                        value={memberForm.committee_id}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
+                        className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500/50 appearance-none transition-all cursor-pointer font-medium"
+                      >
+                        <option value={0} className="text-gray-500">Unassigned</option>
+                        {sortedCommittees.map(committee => (
+                          <option key={committee.id} value={committee.id}>
+                            {committee.name} {committee.is_core ? '(Core)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                        <GripVertical size={16} className="rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-[#0f0f13] rounded-xl p-4 border border-white/5 space-y-1">
+                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Visibility & Status</h5>
+                    
+                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                      <span className="text-sm font-medium text-gray-300 group-hover:text-white">Active on Website</span>
+                      <div className={`w-10 h-5 rounded-full relative transition-colors ${memberForm.enabled ? 'bg-green-500' : 'bg-gray-700'}`}>
+                        <input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="sr-only" />
+                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${memberForm.enabled ? 'left-6' : 'left-1'}`} />
+                      </div>
+                    </label>
+
+                    <div className="h-px bg-white/5 my-1" />
+
+                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-2">
+                         <Crown size={14} className={memberForm.is_head ? "text-amber-500" : "text-gray-600"} />
+                         <span className={`text-sm font-medium group-hover:text-white ${memberForm.is_head ? "text-amber-400" : "text-gray-300"}`}>Committee Head</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={memberForm.is_head} 
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked, ...(e.target.checked ? { isCouncil: false } : {}) }))}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/40 text-amber-500 focus:ring-amber-500/50 transition-all cursor-pointer" 
+                      />
+                    </label>
+
+                    <div className="h-px bg-white/5 my-1" />
+
+                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-red-500/5 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-2">
+                         <div className={`w-3.5 h-3.5 rounded-full border-2 ${memberForm.isCouncil ? "border-red-500" : "border-gray-600"}`} />
+                         <span className={`text-sm font-medium group-hover:text-red-300 ${memberForm.isCouncil ? "text-red-400" : "text-gray-300"}`}>Council Member</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        checked={memberForm.isCouncil} 
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, isCouncil: e.target.checked, ...(e.target.checked ? { is_head: false } : {}) }))}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/40 text-red-500 focus:ring-red-500/50 transition-all cursor-pointer" 
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Right Column: Member Details */}
+                <div className="lg:col-span-8 flex flex-col gap-6">
+                  
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Full Name *</label>
                       <input
                         type="text"
                         value={memberForm.name}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="John Smith"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        placeholder="e.g. Rahul Kapoor"
+                        className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Role/Position (optional)</label>
-                      <input
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Role / Title</label>
+                       <input
                         type="text"
                         value={memberForm.role}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                        placeholder="Team Lead"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        placeholder="e.g. Lead Coordinator"
+                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
                       />
                     </div>
                   </div>
-                  <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone (optional)</label>
-                    <input
-                      type="tel"
-                      value={memberForm.phone}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+91 98765 43210 (optional)"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
+
+                  <div className="grid md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone Number (Hidden)</label>
+                       <input
+                        type="tel"
+                        value={memberForm.phone}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+91..."
+                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                      />
+                    </div>
+                     <div className="space-y-2">
+                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Specialty Tag</label>
+                       <input
+                        type="text"
+                        value={memberForm.specialty}
+                        onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
+                        placeholder="e.g. Developer"
+                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Specialty (optional)</label>
-                    <input
-                      type="text"
-                      value={memberForm.specialty}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                      placeholder="e.g., Full-Stack Development"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Bio / Description</label>
                     <textarea
                       value={memberForm.description}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Brief description of the team member's role and contributions"
-                      rows={4}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      placeholder="Share a brief description of their role and contributions..."
+                      rows={3}
+                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
-                      <input
-                        type="number"
-                        value={memberForm.order_position}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        min="1"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={memberForm.enabled}
-                          onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                          className="mr-2"
-                        />
-                        <span className="text-sm font-medium text-gray-700">Visible on website</span>
-                      </label>
-                    </div>
+
+                  <div className="space-y-3 pt-2">
+                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                       Social Profiles <span className="text-[10px] font-normal opacity-50 lowercase">(optional)</span>
+                     </label>
+                     <div className="grid md:grid-cols-2 gap-4">
+                        <div className="relative group">
+                          <Instagram className="absolute left-3 top-3.5 text-pink-500 transition-transform group-focus-within:scale-110" size={16} />
+                           <input
+                            type="url"
+                            value={memberForm.social_links.instagram}
+                            onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))}
+                            placeholder="Instagram URL"
+                             className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all"
+                          />
+                        </div>
+                        <div className="relative group">
+                          <Youtube className="absolute left-3 top-3.5 text-red-500 transition-transform group-focus-within:scale-110" size={16} />
+                           <input
+                            type="url"
+                            value={memberForm.social_links.youtube}
+                            onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))}
+                            placeholder="YouTube URL"
+                             className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                          />
+                        </div>
+
+                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={memberForm.is_head}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked, ...(e.target.checked ? { isCouncil: false } : {}) }))}
-                        className="mr-2"
-                      />
-                      <span className="text-sm font-medium text-gray-700">Committee Head</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={memberForm.isCouncil}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, isCouncil: e.target.checked, ...(e.target.checked ? { is_head: false } : {}) }))}
-                        className="mr-2"
-                      />
-                      <span className="text-sm font-medium text-red-600">Council (shows red)</span>
-                    </label>
-                  </div>
-                  
-                  {/* Social Links */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Social Media Links (Optional)</label>
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Instagram className="w-5 h-5 text-pink-500" />
-                        <input
-                          type="url"
-                          value={memberForm.social_links.instagram}
-                          onChange={(e) => setMemberForm(prev => ({ 
-                            ...prev, 
-                            social_links: { ...prev.social_links, instagram: e.target.value }
-                          }))}
-                          placeholder="Instagram profile URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Youtube className="w-5 h-5 text-red-500" />
-                        <input
-                          type="url"
-                          value={memberForm.social_links.youtube}
-                          onChange={(e) => setMemberForm(prev => ({ 
-                            ...prev, 
-                            social_links: { ...prev.social_links, youtube: e.target.value }
-                          }))}
-                          placeholder="YouTube channel URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Spotify className="w-5 h-5 text-green-500" />
-                        <input
-                          type="url"
-                          value={memberForm.social_links.spotify}
-                          onChange={(e) => setMemberForm(prev => ({ 
-                            ...prev, 
-                            social_links: { ...prev.social_links, spotify: e.target.value }
-                          }))}
-                          placeholder="Spotify artist URL"
-                          className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
+
+                  {/* Achievements */}
+                  <div className="space-y-3 pt-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Key Achievements</label>
                     <div className="space-y-2">
-                      {memberForm.achievements.map((achievement, index) => (
-                        <div key={index} className="flex items-center space-x-2">
+                       {memberForm.achievements.map((achievement, index) => (
+                        <div key={index} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50 flex-shrink-0" />
                           <input
                             type="text"
                             value={achievement}
                             onChange={(e) => updateAchievement(index, e.target.value)}
-                            placeholder="Achievement or accomplishment"
-                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                            placeholder="e.g. Best Organizer 2025"
+                             className="flex-1 bg-transparent border-b border-white/10 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-all"
                           />
-                          <button
-                            type="button"
-                            onClick={() => removeAchievement(index)}
-                            className="text-red-600 hover:text-red-800 p-1"
-                          >
-                            <X size={16} />
-                          </button>
+                           <button onClick={() => removeAchievement(index)} className="p-1.5 hover:bg-white/10 rounded-full text-red-400/70 hover:text-red-400 transition-colors">
+                            <X size={14} />
+                           </button>
                         </div>
                       ))}
                       <button
                         type="button"
                         onClick={addAchievement}
-                        className="text-yellow-600 hover:text-yellow-700 text-sm flex items-center"
+                        className="mt-2 text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/10 transition-all"
                       >
-                        <Plus size={16} className="mr-1" />
-                        Add Achievement
+                        <Plus size={12} /> Add Achievement
                       </button>
                     </div>
                   </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo *</label>
-                    <ImageUpload
-                      onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
-                      currentImage={memberForm.image}
-                      bucket="team-images"
-                      folder="core-team"
-                      cropAspect={1}
-                    />
-                    {!memberForm.image && (
-                      <p className="mt-1 text-xs text-red-600">Profile photo is required.</p>
-                    )}
-                  </div>
+
                 </div>
               </div>
-              <div className="flex justify-end space-x-2 mt-6">
+
+              {/* Action Footer */}
+              <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-white/5 relative z-10">
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsAddingMember(false);
-                    resetMemberForm();
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+                  onClick={() => { setIsAddingMember(false); setEditingMember(null); resetMemberForm(); }}
+                  className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
                 >
-                  <X size={16} className="mr-1" />
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={handleAddMember}
+                  onClick={editingMember ? () => handleUpdateMember(editingMember) : handleAddMember}
                   disabled={!memberForm.name.trim() || !memberForm.image}
-                  className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+                  className={`px-8 py-2.5 rounded-xl text-sm font-bold shadow-xl transition-all flex items-center gap-2 transform active:scale-95 ${
                     memberForm.name.trim() && memberForm.image
-                      ? 'bg-yellow-400 text-black hover:bg-yellow-300'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:shadow-amber-500/25 hover:from-amber-400 hover:to-orange-500'
+                      : 'bg-white/5 text-gray-500 cursor-not-allowed border border-white/5'
                   }`}
                 >
-                  <Save size={16} className="mr-1" />
-                  Add Member
+                  <Save size={16} />
+                  {editingMember ? 'Update Member' : 'Save Member'}
                 </button>
               </div>
-              {(!memberForm.name.trim() || !memberForm.image) && (
-                <p className="mt-2 text-sm text-red-600 flex flex-col space-y-1">
-                  {!memberForm.name.trim() && <span>Member full name is required.</span>}
-                  {!memberForm.image && <span>Profile photo is required.</span>}
-                </p>
-              )}
             </div>
           )}
 
@@ -1221,302 +1302,182 @@ export const CoreTeamManagement: React.FC = () => {
             const committeeMembers = membersByCommittee[committee.id] || [];
 
             return (
-              <div key={committee.id} className="bg-white rounded-lg shadow-md p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-                  <div className="flex items-center space-x-3">
+              <div key={committee.id} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl shadow-xl p-6 sm:p-8 relative overflow-hidden group">
+                {/* Subtle highlight effect */}
+                <div 
+                  className="absolute top-0 left-0 w-1.5 h-full opacity-50 group-hover:opacity-100 transition-opacity"
+                  style={{ backgroundColor: committee.color }}
+                />
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 relative z-10">
+                  <div className="flex items-center space-x-4">
                     <div
-                      className="w-4 h-4 rounded-full"
-                      style={{ backgroundColor: committee.color }}
-                    />
-                    <h4 className="text-lg font-semibold text-gray-900">{committee.name}</h4>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-gray-500">{committeeMembers.length} members</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddingMember(true);
-                        setMemberForm(prev => ({ ...prev, committee_id: committee.id }));
-                      }}
-                      className="bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-500 flex items-center transition-colors"
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-110 duration-300"
+                      style={{ backgroundColor: `${committee.color}20`, border: `1px solid ${committee.color}40` }}
                     >
-                      <Plus size={12} className="mr-1" />
-                      Add Member
-                    </button>
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: committee.color }} />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-white tracking-tight">{committee.name}</h4>
+                      <p className="text-xs text-gray-400 mt-0.5 font-medium uppercase tracking-wider">{committeeMembers.length} active members</p>
+                    </div>
                   </div>
+                  
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingMember(true);
+                      setMemberForm(prev => ({ ...prev, committee_id: committee.id }));
+                    }}
+                    className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-500/40 rounded-xl text-xs font-bold uppercase tracking-wide transition-all duration-300"
+                  >
+                    <div className="p-1 rounded-full bg-emerald-500/20 group-hover:bg-emerald-500/30">
+                      <Plus size={12} />
+                    </div>
+                    <span>Add Member</span>
+                  </button>
                 </div>
                 
                 {committeeMembers.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 relative z-10">
                   {committeeMembers.map((member) => (
-                    <div key={member.id} className={`border border-gray-200 rounded-lg p-3 md:p-4 transition-all hover:border-yellow-300 hover:shadow-md ${editingMember === member.id ? 'sm:col-span-2 lg:col-span-3' : ''}`}>
-                      {editingMember === member.id ? (
-                        <div className="space-y-3">
-                          {/* Action Buttons - Top */}
-                          <div className="w-full flex justify-between items-center pb-3 border-b border-gray-200">
-                            <div className="flex space-x-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingMember(null);
-                                  resetMemberForm();
-                                }}
-                                className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
-                              >
-                                <X size={12} className="mr-1" />
-                                Cancel
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateMember(member.id)}
-                                disabled={!memberForm.name.trim() || !memberForm.image}
-                                className={`px-3 py-1 rounded flex items-center transition-colors ${
-                                  memberForm.name.trim() && memberForm.image
-                                    ? 'bg-yellow-400 text-black hover:bg-yellow-300'
-                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                <Save size={12} className="mr-1" />
-                                Save
-                              </button>
-                            </div>
-                            <div className="flex-1 text-right">
-                              {(!memberForm.name.trim() || !memberForm.image) && (
-                                <p className="text-xs text-red-600 flex flex-col items-end space-y-0.5">
-                                  {!memberForm.name.trim() && <span>Name required</span>}
-                                  {!memberForm.image && <span>Photo required</span>}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <select
-                            value={memberForm.committee_id}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          >
-                            {sortedCommittees.map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            value={memberForm.name}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            value={memberForm.role}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="tel"
-                            value={memberForm.phone}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                            placeholder="Phone (optional)"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="text"
-                            value={memberForm.specialty}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <textarea
-                            value={memberForm.description}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
-                            rows={2}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          
-                          {/* Social Links editing */}
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <Instagram className="w-4 h-4 text-pink-500" />
-                              <input
-                                type="url"
-                                value={memberForm.social_links.instagram}
-                                onChange={(e) => setMemberForm(prev => ({ 
-                                  ...prev, 
-                                  social_links: { ...prev.social_links, instagram: e.target.value }
-                                }))}
-                                placeholder="Instagram URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                              />
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Youtube className="w-4 h-4 text-red-500" />
-                              <input
-                                type="url"
-                                value={memberForm.social_links.youtube}
-                                onChange={(e) => setMemberForm(prev => ({ 
-                                  ...prev, 
-                                  social_links: { ...prev.social_links, youtube: e.target.value }
-                                }))}
-                                placeholder="YouTube URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                              />
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Spotify className="w-4 h-4 text-green-500" />
-                              <input
-                                type="url"
-                                value={memberForm.social_links.spotify}
-                                onChange={(e) => setMemberForm(prev => ({ 
-                                  ...prev, 
-                                  social_links: { ...prev.social_links, spotify: e.target.value }
-                                }))}
-                                placeholder="Spotify URL"
-                                className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                              />
-                            </div>
-                          </div>
-
-                          <ImageUpload
-                            onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
-                            currentImage={memberForm.image}
-                            bucket="team-images"
-                            folder="core-team"
-                            className="h-24"
-                            cropAspect={1}
-                          />
-                        </div>
-                      ) : (
+                    <div key={member.id} className={`bg-black/20 backdrop-blur-sm border border-white/5 rounded-2xl p-5 transition-all duration-300 group/card hover:bg-white/[0.02] hover:border-white/10 ${editingMember === member.id ? 'ring-2 ring-amber-500/50 ring-offset-2 ring-offset-[#181824]' : dragOverMember === member.id ? 'border-amber-500 scale-[1.02] shadow-2xl shadow-amber-500/10' : 'hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50'}`}>
                         <div 
-                          className={`cursor-move transition-all ${
+                          className={`cursor-move relative flex flex-col h-full ${
                             draggedMember === member.id ? 'opacity-50 scale-95' : ''
-                          } ${
-                            dragOverMember === member.id ? 'ring-2 ring-yellow-400 ring-offset-2 rounded-lg' : ''
                           }`}
-                          draggable={editingMember !== member.id}
+                          draggable
                           onDragStart={(e) => handleMemberDragStart(e, member.id)}
                           onDragOver={(e) => handleMemberDragOver(e, member.id)}
                           onDragLeave={handleMemberDragLeave}
                           onDrop={(e) => handleMemberDrop(e, member.id)}
                           onDragEnd={handleMemberDragEnd}
                         >
-                          <div className="flex items-center mb-3">
-                            <GripVertical className="w-4 h-4 text-gray-400 mr-2 flex-shrink-0" />
-                            <img
-                              src={member.image}
-                              alt={member.name}
-                              className="w-12 h-12 object-cover rounded mr-3"
-                            />
-                            <div className="flex-grow">
-                              <h5 className="font-semibold text-sm text-gray-900">{member.name}</h5>
-                              <p className={(member as any).isCouncil ? "text-xs text-red-600" : "text-xs text-yellow-600"}>{member.role}</p>
-                              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                                {member.specialty}
-                              </span>
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <img
+                                  src={member.image}
+                                  alt={member.name}
+                                  className="w-14 h-14 object-cover rounded-xl shadow-lg ring-1 ring-white/10"
+                                />
+                                {(member as any).isCouncil && (
+                                  <div className="absolute -top-1.5 -right-1.5 bg-[#0f0f13] rounded-full p-0.5">
+                                    <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-[#0f0f13]" title="Council Member" />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <h5 className="font-bold text-base text-white leading-tight mb-1">{member.name}</h5>
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 text-gray-400 border border-white/5">
+                                  {member.role || 'Member'}
+                                </span>
+                              </div>
                             </div>
-                            {!member.enabled && (
-                              <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs">
-                                Hidden
-                              </span>
+                            <GripVertical className="w-4 h-4 text-gray-600 opacity-0 group-hover/card:opacity-100 transition-opacity cursor-grab hover:text-gray-400" />
+                          </div>
+
+                          <div className="mb-4 flex-grow">
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {member.specialty && (
+                                <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-1 rounded-lg border border-amber-500/20 font-medium truncate max-w-full">
+                                  {member.specialty}
+                                </span>
+                              )}
+                              {!member.enabled && (
+                                <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20 font-medium flex items-center gap-1">
+                                  <EyeOff size={10} /> Hidden
+                                </span>
+                              )}
+                            </div>
+                            
+                            {member.description && (
+                              <div className="relative">
+                                <PreserveNewlines text={member.description} className="text-gray-400 text-xs leading-relaxed line-clamp-3" />
+                              </div>
                             )}
                           </div>
-                          {member.description && (
-                            <PreserveNewlines text={member.description} className="text-gray-600 text-xs mb-3" />
-                          )}
                           
-                          {/* Social Links Display */}
-                          {member.social_links && Object.values(member.social_links).some(link => link) && (
-                            <div className="flex space-x-2 mb-3">
-                              {member.social_links.instagram && (
-                                <Instagram className="w-4 h-4 text-pink-500" />
-                              )}
-                              {member.social_links.youtube && (
-                                <Youtube className="w-4 h-4 text-red-500" />
-                              )}
-                              {member.social_links.spotify && (
-                                <Spotify className="w-4 h-4 text-green-500" />
-                              )}
-                            </div>
-                          )}
-                          
-                          {member.achievements.length > 0 && (
-                            <div className="mb-3">
-                              <p className="text-xs font-medium text-gray-700 mb-1">
-                                {member.achievements.length} Achievement{member.achievements.length !== 1 ? 's' : ''}
-                              </p>
-                            </div>
-                          )}
-                          
-                          <div className="flex justify-between items-center">
-                             <button
-                               type="button"
-                               onClick={() => toggleCoreTeamMemberEnabled(member.id)}
-                               className={`p-1 rounded transition-colors ${
-                                 member.enabled 
-                                   ? 'bg-green-100 text-green-600' 
-                                   : 'bg-red-100 text-red-600'
-                               } hover:bg-green-200`}
-                               title={member.enabled ? 'Hide from public' : 'Show to public'}
-                             >
-                               {member.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
-                             </button>
-                            <div className="flex space-x-1">
+                          {/* Footer Actions */}
+                          <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between gap-2">
+                             
+                             {/* Socials */}
+                             <div className="flex items-center gap-2">
+                                {member.social_links?.instagram && (
+                                  <a href={member.social_links.instagram} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-pink-500 transition-colors">
+                                    <Instagram size={14} />
+                                  </a>
+                                )}
+                                {member.social_links?.youtube && (
+                                  <a href={member.social_links.youtube} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-red-500 transition-colors">
+                                    <Youtube size={14} />
+                                  </a>
+                                )}
+                             </div>
+
+                             {/* Edit Actions */}
+                             <div className="flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                               <button
+                                 type="button"
+                                 onClick={() => toggleCoreTeamMemberEnabled(member.id)}
+                                 className={`p-1.5 rounded-lg transition-all ${
+                                   member.enabled 
+                                     ? 'text-gray-500 hover:bg-emerald-500/10 hover:text-emerald-400' 
+                                     : 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+                                 }`}
+                                 title={member.enabled ? 'Hide from public' : 'Show to public'}
+                               >
+                                 {member.enabled ? <Eye size={12} /> : <EyeOff size={12} />}
+                               </button>
                                <button
                                  type="button"
                                  onClick={() => toggleCoreTeamMemberIsHead(member.id)}
-                                 className={`p-1 rounded transition-colors ${
+                                 className={`p-1.5 rounded-lg transition-all ${
                                    member.is_head 
-                                     ? 'bg-yellow-100 text-yellow-600' 
-                                     : 'bg-gray-100 text-gray-600'
-                                 } hover:bg-yellow-200`}
+                                     ? 'text-amber-400 bg-amber-500/10 hover:bg-amber-500/20' 
+                                     : 'text-gray-500 hover:bg-amber-500/10 hover:text-amber-400'
+                                 }`}
                                  title={member.is_head ? 'Remove as head' : 'Make committee head'}
                                >
                                  <Crown size={12} />
                                </button>
                                <button
                                  type="button"
-                                 onClick={() => toggleMemberCouncil(member.id)}
-                                 className={`p-1 rounded transition-colors ${
-                                   (member as any).isCouncil ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'
-                                 } hover:bg-red-200 ml-1`}
-                                 title={(member as any).isCouncil ? 'Remove council flag' : 'Mark as council'}
-                               >
-                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                                   <circle cx="12" cy="12" r="10" />
-                                 </svg>
-                               </button>
-                               <button
-                                 type="button"
                                  onClick={() => startEditingMember(member)}
-                                 className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                                 title="Edit member"
+                                 className="p-1.5 rounded-lg text-gray-500 hover:bg-blue-500/10 hover:text-blue-400 transition-all"
+                                 title="Edit Member"
                                >
                                  <Edit size={12} />
                                </button>
                                <button
                                  type="button"
                                  onClick={() => handleDeleteMember(member.id)}
-                                 className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                                 title="Delete member"
+                                 className="p-1.5 rounded-lg text-gray-500 hover:bg-red-500/10 hover:text-red-400 transition-all"
+                                 title="Delete Member"
                                >
                                  <Trash2 size={12} />
                                </button>
-                            </div>
+                             </div>
                           </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 bg-gray-50 rounded-lg">
-                    <Users size={32} className="mx-auto mb-2 text-gray-400" />
-                    <p className="text-gray-600 text-sm mb-3">No team members in {committee.name} yet</p>
+                  <div className="text-center py-12 bg-black/20 rounded-2xl border border-white/5 border-dashed">
+                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4 animate-in fade-in zoom-in duration-500">
+                      <Users size={24} className="text-gray-500" />
+                    </div>
+                    <p className="text-gray-400 text-sm mb-4 font-medium">No team members in {committee.name} yet</p>
                     <button
                       type="button"
                       onClick={() => {
                         setIsAddingMember(true);
                         setMemberForm(prev => ({ ...prev, committee_id: committee.id }));
                       }}
-                      className="bg-yellow-400 text-black px-4 py-2 rounded text-sm hover:bg-yellow-300 flex items-center mx-auto"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold uppercase tracking-wide transition-all border border-white/5 hover:border-white/10"
                     >
-                      <Plus size={14} className="mr-1" />
+                      <Plus size={12} />
                       Add First Member
                     </button>
                   </div>
@@ -1527,17 +1488,19 @@ export const CoreTeamManagement: React.FC = () => {
 
           {/* No Members Message */}
           {coreTeamMembers.length === 0 && coreCommittees.length > 0 && (
-            <div className="text-center py-12 bg-white rounded-lg shadow-md">
-              <Users size={64} className="mx-auto mb-4 text-gray-400" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No Team Members Yet</h3>
-              <p className="text-gray-500 mb-4">Start by adding your first team member</p>
+            <div className="text-center py-24 bg-[#181824]/40 backdrop-blur-md rounded-2xl border border-white/5 border-dashed">
+              <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-6">
+                <Users size={32} className="text-gray-500" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">No Team Members Yet</h3>
+              <p className="text-gray-400 mb-8 max-w-sm mx-auto">Start building your core team by adding members to your committees.</p>
               <button
                 type="button"
                 onClick={() => {
                   setIsAddingMember(true);
                   resetMemberForm();
                 }}
-                className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
+                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:shadow-orange-500/20 hover:scale-105 transition-all"
               >
                 Add First Member
               </button>
@@ -1547,27 +1510,27 @@ export const CoreTeamManagement: React.FC = () => {
       )}
 
       {/* Stats */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-4 gap-6 text-center">
-          <div>
-            <div className="text-2xl font-bold text-yellow-500 mb-1">{coreCommittees.length}</div>
-            <div className="text-gray-600 text-sm">Total Committees</div>
+      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center divide-x divide-white/5">
+          <div className="p-2">
+            <div className="text-3xl font-black text-amber-500 mb-1">{coreCommittees.length}</div>
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Committees</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-blue-500 mb-1">
+          <div className="p-2">
+            <div className="text-3xl font-black text-blue-500 mb-1">
               {coreCommittees.filter(c => c.is_core).length}
             </div>
-            <div className="text-gray-600 text-sm">Core Committees</div>
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Core Committees</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-green-500 mb-1">{coreTeamMembers.length}</div>
-            <div className="text-gray-600 text-sm">Team Members</div>
+          <div className="p-2">
+            <div className="text-3xl font-black text-emerald-500 mb-1">{coreTeamMembers.length}</div>
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Team Members</div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-purple-500 mb-1">
+          <div className="p-2">
+            <div className="text-3xl font-black text-purple-500 mb-1">
               {coreTeamMembers.filter(m => m.enabled).length}
             </div>
-            <div className="text-gray-600 text-sm">Visible Members</div>
+            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Visible Members</div>
           </div>
         </div>
       </div>

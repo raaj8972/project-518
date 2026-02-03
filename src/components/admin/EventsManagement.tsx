@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -2378,8 +2379,8 @@ export const EventsManagement: React.FC = () => {
       `}</style>
 
       {/* Edit Event Modal (Global) */}
-      {editingEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xl transition-all duration-300">
+      {editingEvent && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-xl transition-all duration-300">
           <div className="bg-[#0f0f1a] w-full max-w-7xl h-[100dvh] sm:h-[90vh] sm:rounded-3xl shadow-2xl border border-white/10 flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             
             {/* Left Panel: Media Preview (Desktop) */}
@@ -2824,10 +2825,10 @@ export const EventsManagement: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
       {/* Manual Notification Modal */}
-      {manualNotifyEvent && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
+      {manualNotifyEvent && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-[#0f0f1a] w-full max-w-lg rounded-[2.5rem] border border-white/10 shadow-2xl shadow-purple-900/20 overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-4 duration-500">
             <div className="p-8 border-b border-white/5 bg-white/5 backdrop-blur-md flex justify-between items-center">
               <div>
@@ -2938,7 +2939,7 @@ export const EventsManagement: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
     </div>
   );

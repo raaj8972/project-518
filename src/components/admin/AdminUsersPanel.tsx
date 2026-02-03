@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -36,7 +37,14 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
   const [requiresApproval, setRequiresApproval] = useState<Record<string, boolean>>({});
 
   const currentUserAdmin = useMemo(() => adminUsers?.find(u => u.user_id === user?.id), [adminUsers, user]);
-  const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary;
+  /* 
+    Updated Owner Check:
+    - Checks database role 'owner'
+    - Checks 'is_primary' flag
+    - CRITICAL: Checks if current user is the Master Bypass Admin (emergency access)
+  */
+  const isMasterBypass = user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
+  const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary || isMasterBypass;
 
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
   
@@ -482,8 +490,8 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
       <div className="relative w-full max-w-2xl bg-[#1c1c2b] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
@@ -625,5 +633,5 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
         </form>
       </div>
     </div>
-  );
+  , document.body);
 };

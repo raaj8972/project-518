@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { Shield, Crown, Eye, EyeOff, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search } from 'lucide-react';
@@ -2009,8 +2010,8 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         </div>
       )}
       {/* QR Modal */}
-      {selectedPass && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {selectedPass && createPortal(
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full">
             <h3 className="text-xl font-bold text-white mb-4">Entry Pass QR Code</h3>
             <QRCodeGenerator
@@ -2027,7 +2028,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
             </button>
           </div>
         </div>
-      )}
+      , document.body)}
       {/* Scan History Tab */}
       {activeTab === 'history' && (
         <div className="space-y-4">

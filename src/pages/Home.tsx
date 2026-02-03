@@ -449,53 +449,46 @@ export const Home: React.FC = () => {
         </div>
 
         {/* Sponsor Logos Section */}
-        {homepageSettings?.sponsor_section_enabled && homepageSettings?.sponsor_logos && homepageSettings.sponsor_logos.length > 0 && (
+        {homepageSettings?.sponsor_section_enabled && sponsors && sponsors.filter(s => s.logo && s.logo.trim() !== '').length > 0 && (
           <div className="absolute bottom-8 left-0 right-0 z-10">
             <div className="text-center">
               <p className="text-gray-100 text-lg sm:text-xl md:text-2xl font-semibold mb-4 font-mono text-glow-strong text-glow-pulse">
-                {homepageSettings.sponsor_section_text}
+                {homepageSettings.sponsor_section_text || 'OUR PARTNERS'}
               </p>
-              <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 px-2 sm:px-4">
-                {homepageSettings.sponsor_logos
-                  .filter((logo: any) => logo.enabled && logo.logo_url && (logo.show_on_homepage ?? true))
-                  .sort((a: any, b: any) => a.order - b.order)
-                  .map((logo: any) => {
-                    const key = logo.updated_at || logo.updatedAt || homepageSettings?.updated_at || '';
-                    const src = (() => {
-                      if (!logo.logo_url) return '';
-                      const sep = logo.logo_url.includes('?') ? '&' : '?';
-                      return key ? `${logo.logo_url}${sep}v=${encodeURIComponent(key)}` : logo.logo_url;
-                    })();
-                    return (
-                    <div key={`${logo.id}-${logo.logo_url}`} className="logo-no-bg">
-                      {logo.website ? (
-                        <a
-                          href={logo.website}
-                          target="_blank"
+              
+              <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 md:gap-8 lg:gap-10 px-2 sm:px-4 animate-in fade-in zoom-in duration-700">
+                {sponsors
+                  .filter(s => s.logo && s.logo.trim() !== '' && s.category === 'Title Sponsor')
+                  .map((sponsor) => (
+                    <div key={sponsor.id} className="relative group p-2">
+                      {/* Glow effect behind the logo */}
+                      <div className="absolute -inset-4 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                      
+                      {sponsor.website ? (
+                        <a 
+                          href={sponsor.website} 
+                          target="_blank" 
                           rel="noopener noreferrer"
-                          className="block home-sponsor-glow"
+                          className="relative block transform transition-transform duration-300 group-hover:scale-105"
+                          title={sponsor.name}
                         >
-                          <img
-                            src={src}
-                            alt={logo.name}
-                            className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
-                            loading="lazy"
-                            decoding="async"
+                          <img 
+                            src={sponsor.logo} 
+                            alt={sponsor.name} 
+                            className="h-16 sm:h-20 md:h-24 lg:h-32 w-auto object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] transition-all duration-300"
                           />
                         </a>
                       ) : (
-                        <div className="home-sponsor-glow">
-                          <img
-                            src={src}
-                            alt={logo.name}
-                            className="h-16 sm:h-16 md:h-20 lg:h-24 object-contain"
-                            loading="lazy"
-                            decoding="async"
+                        <div className="relative transform transition-transform duration-300 group-hover:scale-105" title={sponsor.name}>
+                          <img 
+                            src={sponsor.logo} 
+                            alt={sponsor.name} 
+                            className="h-16 sm:h-20 md:h-24 lg:h-32 w-auto object-contain filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] hover:drop-shadow-[0_0_15px_rgba(255,255,255,0.6)] transition-all duration-300"
                           />
                         </div>
                       )}
                     </div>
-                  );})}
+                  ))}
               </div>
             </div>
           </div>

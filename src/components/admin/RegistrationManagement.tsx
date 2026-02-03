@@ -1,5 +1,6 @@
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, Search, Filter, Download, Trash2, RefreshCw, 
   CheckCircle, XCircle, 
@@ -2597,8 +2598,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         )}
       </div>
       {/* Rejection Reason Modal */}
-      {rejectingId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      {rejectingId && createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
             <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
                 <h3 className="text-lg font-bold mb-4 text-gray-900">Reject Registration</h3>
                 <p className="text-sm text-gray-600 mb-4">Please provide a reason for this rejection. This will be emailed to the user.</p>
@@ -2632,10 +2633,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </div>
             </div>
         </div>
-      )}
-      {/* Custom Email Modal */}
-      {showEmailModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      , document.body)}
+      {showEmailModal && createPortal(
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4 overflow-y-auto">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
               <h3 className="font-bold text-gray-800 flex items-center gap-2">
@@ -2804,18 +2804,18 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 >
                     {emailSending ? (
                         <>
-                           <RefreshCw size={18} className="animate-spin" /> Sending...
+                            <RefreshCw size={18} className="animate-spin" /> Sending...
                         </>
                     ) : (
                         <>
-                           <Send size={18} /> Send Application
+                            <Send size={18} /> Send Application
                         </>
                     )}
                 </button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 };

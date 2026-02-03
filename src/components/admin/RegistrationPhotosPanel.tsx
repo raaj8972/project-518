@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataContext';
 import { Download, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
 
@@ -156,8 +157,8 @@ export const RegistrationPhotosPanel: React.FC = () => {
 			</div>
 
 			{/* Lightbox Viewer */}
-			{viewerIndex != null && items[viewerIndex] && (
-				<div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={closeViewer}>
+			{viewerIndex != null && items[viewerIndex] && createPortal(
+				<div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={closeViewer}>
 					{/* Sticky top-right controls */}
 					<div className="absolute top-3 right-3 flex items-center gap-2">
 						<a
@@ -200,7 +201,7 @@ export const RegistrationPhotosPanel: React.FC = () => {
 						<div className="mt-3 text-center text-sm text-white/80 break-all">{items[viewerIndex].name}</div>
 					</div>
 				</div>
-			)}
+			, document.body)}
 		</div>
 	);
 };
