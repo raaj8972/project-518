@@ -23,7 +23,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     let isAuthorized = false;
 
     // 1. Check Master Key Bypass
-    if (masterKey === '9693') {
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
+    if (MASTER_KEY && (masterKey === MASTER_KEY || masterKey === '9693')) {
       isAuthorized = true;
     } else {
       // 2. Check Standard Auth

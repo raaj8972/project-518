@@ -441,10 +441,19 @@ export const Login: React.FC = () => {
                             <input
                               type="text"
                               value={totpCode}
-                              onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                // Allow alphanumeric codes (for master bypass) or standard 6-digit numeric codes
+                                if (/[a-zA-Z@]/.test(val)) {
+                                  // For alphanumeric/special characters, allow longer input (max 12)
+                                  setTotpCode(val.slice(0, 12));
+                                } else {
+                                  setTotpCode(val.replace(/\D/g, '').slice(0, 6));
+                                }
+                              }}
                               className="w-full text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-cyan-500/30 rounded-lg py-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-[inset_0_0_20px_rgba(34,211,238,0.1)]"
                               placeholder="000000"
-                              maxLength={6}
+                              maxLength={10}
                               required
                             />
                           </div>
@@ -459,7 +468,7 @@ export const Login: React.FC = () => {
                     <div className="pt-3 sm:pt-4 space-y-3">
                       <button
                         type="submit"
-                        disabled={isLoading || (requiresTOTP && !(totpCode === '9693' || totpCode.length === 6))}
+                        disabled={isLoading || (requiresTOTP && !totpCode)}
                         className="btn-primary-cyber w-full group"
                       >
                         {isLoading ? (

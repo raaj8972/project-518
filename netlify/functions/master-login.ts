@@ -2,78 +2,74 @@ import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDAxNDEsImV4cCI6MjA3MzA3NjE0MX0.0akCpqYDlGgEenU4fPzDQorsvygcviBpfk4iluSm9Vs';
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   
   try {
-    const { password } = JSON.parse(event.body || '{}')
+    const { email, password } = JSON.parse(event.body || '{}')
 
-    const MASTER_KEY = process.env.MASTER_BYPASS_KEY || '9693'; // Fallback for dev, but env var preferred
-    if (password !== MASTER_KEY) {
-      return { statusCode: 401, body: 'Invalid master key' }
+    if (!email) return { statusCode: 400, body: 'Email required' }
+
+    // 1. Security Check: Use environment variable for master key ONLY.
+    // No hardcoded fallbacks in production for maximum security.
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
+    
+    if (!MASTER_KEY) {
+      console.error('[SECURITY] MASTER_BYPASS_KEY is not set in environment variables.');
+      return { statusCode: 500, body: 'Server configuration error' };
     }
+
+    if (password !== MASTER_KEY) {
+      console.warn(`[SECURITY] Unauthorized master bypass attempt for email: ${email}`);
+      return { statusCode: 401, body: 'Invalid credentials' };
+    }
+
+    console.log(`[SECURITY] Master bypass initiated for email: ${email}`);
 
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || DEFAULT_SUPABASE_URL
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-    const ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY
 
     if (!SERVICE_ROLE) return { statusCode: 500, body: 'Server config missing (SERVICE_ROLE)' }
 
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE)
-    const email = 'master@ricorrenza.com'
-    const dbPassword = 'Master_Password_9693_Secure!' 
 
-    // 1. Check if user exists
-    const { data: users, error: listErr } = await supabaseAdmin.auth.admin.listUsers()
-    if (listErr) throw listErr
-    
-    let user = users.users.find(u => u.email === email)
+    // 1. Verify user exists and is an admin or owner in the registry
+    const { data: adminUser, error: dbErr } = await supabaseAdmin
+      .from('admin_users')
+      .select('role')
+      .eq('email', email)
+      .maybeSingle();
 
-    if (!user) {
-      // Create user
-      const { data: newUser, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password: dbPassword,
-        email_confirm: true,
-        user_metadata: { is_super_admin: true }
-      })
-      if (createErr) throw createErr
-      user = newUser.user
-    } else {
-      // Ensure password is correct and metadata is set
-      const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
-          password: dbPassword,
-          user_metadata: { ...user.user_metadata, is_super_admin: true }
-      })
-      if (updateErr) throw updateErr
+    if (dbErr || !adminUser) {
+      return { statusCode: 403, body: 'Identity verification failed: Account not found in admin registry' }
     }
 
-    if (!user) throw new Error('User creation failed')
+    // Only owners and admins can use the master bypass
+    if (!['owner', 'admin'].includes(adminUser.role)) {
+       return { statusCode: 403, body: 'Identity verification failed: Insufficient privileges' }
+    }
 
-    // 2. Ensure admin_users role is owner
-    const { error: upsertErr } = await supabaseAdmin.from('admin_users').upsert({
-      user_id: user.id,
+    // 2. Generate a magic link token for the user
+    // This allows the frontend to establish a session without knowing the actual password
+    const { data, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
       email: email,
-      role: 'owner',
-      is_primary: true
-    }, { onConflict: 'user_id' })
-
-    if (upsertErr) throw upsertErr
-
-    // 3. Sign in to get session using public client
-    const supabasePublic = createClient(SUPABASE_URL, ANON_KEY)
-    const { data: sessionData, error: loginErr } = await supabasePublic.auth.signInWithPassword({
-      email,
-      password: dbPassword
     })
 
-    if (loginErr) throw loginErr
+    if (linkErr) {
+      console.error('Magic link generation failed:', linkErr);
+      throw linkErr;
+    }
 
+    // Return the hashed token which can be used by the frontend verifyOtp method
     return {
       statusCode: 200,
-      body: JSON.stringify(sessionData)
+      body: JSON.stringify({ 
+        success: true,
+        token_hash: data.properties.hashed_token,
+        type: 'magiclink'
+      })
     }
   } catch (err: any) {
     console.error('Master login error:', err)
