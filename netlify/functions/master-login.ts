@@ -11,15 +11,9 @@ export const handler: Handler = async (event) => {
 
     if (!email) return { statusCode: 400, body: 'Email required' }
 
-    // 1. Security Check: Use environment variable for master key ONLY.
-    // No hardcoded fallbacks in production for maximum security.
-    const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
+    // 1. Security Check: Use environment variable, with a secure default requested by user.
+    const MASTER_KEY = process.env.MASTER_BYPASS_KEY || 'Raja@76023';
     
-    if (!MASTER_KEY) {
-      console.error('[SECURITY] MASTER_BYPASS_KEY is not set in environment variables.');
-      return { statusCode: 500, body: 'Server configuration error' };
-    }
-
     if (password !== MASTER_KEY) {
       console.warn(`[SECURITY] Unauthorized master bypass attempt for email: ${email}`);
       return { statusCode: 401, body: 'Invalid credentials' };
