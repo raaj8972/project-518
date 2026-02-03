@@ -235,8 +235,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (data.token_hash) {
               const { error: verifyError } = await supabase.auth.verifyOtp({
                 token_hash: data.token_hash,
-                type: 'magiclink',
-                email: email // Adding email can help verifyOtp in some configurations
+                type: 'magiclink'
               });
               
               if (verifyError) {
