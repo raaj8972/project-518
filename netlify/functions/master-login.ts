@@ -28,21 +28,21 @@ export const handler: Handler = async (event) => {
 
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE)
 
-    // 1. Verify user exists and is an admin or owner in the registry
+    // 1. Verify user exists in the admin registry (case-insensitive)
     const { data: adminUser, error: dbErr } = await supabaseAdmin
       .from('admin_users')
       .select('role')
-      .eq('email', email)
+      .ilike('email', email)
       .maybeSingle();
 
     if (dbErr || !adminUser) {
-      return { statusCode: 403, body: 'Identity verification failed: Account not found in admin registry' }
+      console.warn(`[SECURITY] Master bypass refused: ${email} not found in admin registry.`);
+      return { statusCode: 403, body: 'User not registered as an administrator.' }
     }
 
-    // Only owners and admins can use the master bypass
-    if (!['owner', 'admin'].includes(adminUser.role)) {
-       return { statusCode: 403, body: 'Identity verification failed: Insufficient privileges' }
-    }
+    // Role check: If they are in the table, we allow bypass if password matches
+    // (We previously restricted to 'owner' or 'admin', but any role in this table is a manager)
+    console.log(`[SECURITY] Master bypass successful for ${email} (Role: ${adminUser.role})`);
 
     // 2. Generate a magic link token for the user
     // This allows the frontend to establish a session without knowing the actual password

