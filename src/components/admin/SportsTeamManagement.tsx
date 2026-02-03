@@ -244,23 +244,30 @@ export const SportsTeamManagement: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sports Team Management</h2>
-          <p className="text-gray-600">Manage sports committees and team members for the Rico Family page</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-yellow-400 to-amber-600 rounded-full" />
+            Sports Team Management
+          </h2>
+          <p className="text-gray-400 mt-1">Manage sports committees and team members for the Rico Family page</p>
         </div>
         <div className="flex items-center space-x-2">
-          <div className="bg-white rounded-lg border border-gray-200 p-1">
+          <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 p-1 rounded-xl shadow-lg">
             <button
               onClick={() => setActiveSection('committees')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'committees' ? 'bg-yellow-400 text-black' : 'text-gray-600 hover:text-gray-900'
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeSection === 'committees' 
+                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-lg shadow-yellow-500/20' 
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               Committees
             </button>
             <button
               onClick={() => setActiveSection('members')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                activeSection === 'members' ? 'bg-yellow-400 text-black' : 'text-gray-600 hover:text-gray-900'
+              className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+                activeSection === 'members' 
+                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-lg shadow-yellow-500/20' 
+                  : 'text-gray-400 hover:text-white'
               }`}
             >
               Team Members
@@ -270,43 +277,57 @@ export const SportsTeamManagement: React.FC = () => {
       </div>
 
       {/* Sports Heads Marquee settings (shared with Committee Heads marquee) */}
-      <div className="p-4 border rounded-lg bg-gray-50">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-gray-900">Sports Heads Marquee</h3>
-          {marqueeMsg && <span className="text-sm text-gray-600">{marqueeMsg}</span>}
-        </div>
-        <p className="text-xs text-gray-500 mb-3">Controls the scrolling of Sports Committee Heads. Shared with the Committee Heads marquee across the site.</p>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Speed (px/sec)</label>
-            <input
-              type="number"
-              min={1}
-              max={800}
-              step={1}
-              value={marqueeSpeed === '' ? '' : marqueeSpeed}
-              onChange={(e) => setMarqueeSpeed(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
-              onBlur={() => setMarqueeSpeed((prev) => (typeof prev === 'number' && !isNaN(prev) ? Math.min(800, Math.max(1, prev)) : 140))}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
-            />
+      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-white uppercase tracking-wider">Sports Heads Marquee</h3>
+            {marqueeMsg && (
+              <span className="text-xs px-2 py-0.5 bg-green-500/20 text-emerald-400 border border-green-500/20 rounded-full animate-pulse font-bold">
+                {marqueeMsg}
+              </span>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Direction</label>
+        </div>
+        
+        <p className="text-sm text-gray-400 mb-6">Controls the scrolling speed and direction of the Sports Committee Heads marquee across the site.</p>
+        
+        <div className="grid sm:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Speed (px/sec)</label>
+            <div className="relative">
+              <input
+                type="number"
+                min={1}
+                max={800}
+                step={1}
+                value={marqueeSpeed === '' ? '' : marqueeSpeed}
+                onChange={(e) => setMarqueeSpeed(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                onBlur={() => setMarqueeSpeed((prev) => (typeof prev === 'number' && !isNaN(prev) ? Math.min(800, Math.max(1, prev)) : 140))}
+                className="w-full pl-4 pr-12 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white font-mono text-lg"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-xs">PX/S</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Direction</label>
             <select
               value={marqueeDirection}
               onChange={(e) => setMarqueeDirection(e.target.value as 'left' | 'right')}
-              className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+              className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white appearance-none"
             >
-              <option value="left">Left</option>
-              <option value="right">Right</option>
+              <option value="left" className="bg-[#181824]">Scroll Left</option>
+              <option value="right" className="bg-[#181824]">Scroll Right</option>
             </select>
           </div>
         </div>
-        <div className="mt-3">
+        
+        <div className="mt-8">
           <button
             type="button"
             onClick={saveMarqueeSettings}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500"
+            className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-500 hover:to-indigo-500 transition-all shadow-lg shadow-blue-500/25 font-bold hover:-translate-y-0.5"
           >
             Save Marquee Settings
           </button>
@@ -317,79 +338,103 @@ export const SportsTeamManagement: React.FC = () => {
       {activeSection === 'committees' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Committees ({sportsCommittees.length})</h3>
+            <h3 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <Plus size={18} className="text-yellow-500" />
+              Committees ({sportsCommittees.length})
+            </h3>
             <button
               type="button"
               onClick={() => { setIsAddingCommittee(true); resetCommitteeForm(); }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              className="bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-5 py-2.5 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
             >
-              <Plus size={16} className="mr-2" /> Add Committee
+              <Plus size={18} className="mr-2" /> Add Committee
             </button>
           </div>
 
           {/* Add Committee Form */}
           {isAddingCommittee && (
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-6">Add New Sports Committee</h4>
+            <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 border-l-4 border-l-yellow-500 animate-in slide-in-from-left-2 duration-300">
+              <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                Add New Sports Committee
+              </h4>
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee Name *</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Committee Name *</label>
                     <input
                       type="text"
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="e.g., Football, Cricket, Badminton"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-600"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Description (optional)</label>
                     <textarea
                       value={committeeForm.description}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description of this sport/committee"
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-600"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Display Order</label>
                       <input
                         type="number"
                         value={committeeForm.order_position}
                         onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min={1}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white font-mono"
                       />
                     </div>
-                    <div className="flex items-end">
-                      <label className="flex items-center">
+                    <div className="flex items-end pb-3">
+                      <label className="flex items-center group cursor-pointer">
                         <input
                           type="checkbox"
                           checked={committeeForm.enabled}
                           onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                          className="mr-2"
+                          className="w-5 h-5 rounded border-white/10 bg-black/20 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 transition-colors"
                         />
-                        <span className="text-sm font-medium text-gray-700">Enabled</span>
+                        <span className="ml-3 text-sm font-bold text-gray-400 group-hover:text-white transition-colors uppercase tracking-wider">Enabled</span>
                       </label>
                     </div>
                   </div>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                    <input
-                      type="color"
-                      value={committeeForm.color}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-20 h-10 p-1 border border-gray-300 rounded-lg"
-                    />
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Brand Color</label>
+                    <div className="flex items-center gap-4 bg-black/20 p-4 rounded-xl border border-white/10">
+                      <input
+                        type="color"
+                        value={committeeForm.color}
+                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
+                        className="w-12 h-12 bg-transparent border-none rounded-lg cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <div className="text-sm font-mono text-white mb-1 uppercase tracking-wider">{committeeForm.color}</div>
+                        <div className="h-1.5 w-full rounded-full bg-white/5 overflow-hidden">
+                          <div className="h-full transition-all duration-300" style={{ backgroundColor: committeeForm.color, width: '100%' }} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleAddCommittee} className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors">Save</button>
-                    <button onClick={() => { setIsAddingCommittee(false); }} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                  <div className="flex gap-3 pt-4">
+                    <button 
+                      onClick={handleAddCommittee} 
+                      className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-6 py-3 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all font-bold shadow-lg shadow-yellow-500/20"
+                    >
+                      Save Committee
+                    </button>
+                    <button 
+                      onClick={() => { setIsAddingCommittee(false); }} 
+                      className="px-6 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all font-bold border border-white/5"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               </div>
@@ -399,52 +444,101 @@ export const SportsTeamManagement: React.FC = () => {
           {/* Existing Committees */}
           <div className="grid md:grid-cols-2 gap-4">
             {sortedCommittees.map((c) => (
-              <div key={c.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+              <div key={c.id} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all group relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 -mr-8 -mt-8 pointer-events-none transition-opacity group-hover:opacity-20" style={{ backgroundColor: c.color }} />
+                
                 {editingCommittee === c.id ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 bg-black/40 p-4 rounded-xl border border-white/5 animate-in fade-in duration-300">
                     <input
                       type="text"
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-2 border rounded"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-yellow-500 text-white font-bold"
                     />
                     <textarea
                       value={committeeForm.description}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full p-2 border rounded"
+                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-yellow-500 text-white text-sm"
                       rows={2}
                     />
-                    <div className="flex items-center gap-3">
-                      <label className="text-sm">Order</label>
-                      <input
-                        type="number"
-                        value={committeeForm.order_position}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        className="w-20 p-2 border rounded"
-                      />
-                      <input type="color" value={committeeForm.color} onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))} />
-                      <label className="flex items-center ml-auto">
-                        <input type="checkbox" checked={committeeForm.enabled} onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))} className="mr-2" /> Enabled
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Order</span>
+                        <input
+                          type="number"
+                          value={committeeForm.order_position}
+                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                          className="w-16 px-2 py-1 bg-black/40 border border-white/10 rounded-md focus:outline-none focus:ring-1 focus:ring-yellow-500 text-white text-sm text-center"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Color</span>
+                        <input 
+                          type="color" 
+                          value={committeeForm.color} 
+                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))} 
+                          className="w-8 h-8 bg-transparent border-none cursor-pointer"
+                        />
+                      </div>
+                      <label className="flex items-center ml-auto group cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={committeeForm.enabled} 
+                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))} 
+                          className="w-4 h-4 rounded border-white/10 bg-black/20 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 transition-colors"
+                        /> 
+                        <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-white transition-colors">Enabled</span>
                       </label>
                     </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleUpdateCommittee(c.id)} className="bg-yellow-400 text-black px-3 py-1 rounded">Save</button>
-                      <button onClick={() => setEditingCommittee(null)} className="bg-gray-200 text-gray-800 px-3 py-1 rounded">Cancel</button>
+                    <div className="flex gap-2 pt-2 border-t border-white/5">
+                      <button onClick={() => handleUpdateCommittee(c.id)} className="flex-1 bg-yellow-500 text-black px-3 py-2 rounded-lg hover:bg-yellow-400 transition-all font-bold text-sm shadow-lg shadow-yellow-500/10">Update</button>
+                      <button onClick={() => setEditingCommittee(null)} className="px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 transition-all font-bold text-sm border border-white/5">Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-start">
                     <div className="flex-1">
-                      <div className="font-semibold text-gray-900">{c.name}</div>
-                      <div className="text-sm text-gray-600">{c.description}</div>
-                      <div className="text-xs text-gray-500 mt-1">Order: {c.order_position}</div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: c.color }} />
+                        <div className="font-bold text-white text-lg group-hover:text-yellow-400 transition-colors">{c.name}</div>
+                        {!c.enabled && (
+                          <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/20 rounded-full font-bold uppercase tracking-widest">Disabled</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-400 line-clamp-2 leading-relaxed mb-3 pr-4">{c.description || 'No description provided.'}</div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-2 py-1 rounded-md border border-white/5">
+                          <Plus size={10} className="text-yellow-500" />
+                          Order: {c.order_position}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-2 py-1 rounded-md border border-white/5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
+                          {c.color}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startEditingCommittee(c)} className="p-2 rounded hover:bg-gray-100" title="Edit"><Edit size={16} /></button>
-                      <button onClick={() => toggleSportsCommitteeEnabled(c.id)} className="p-2 rounded hover:bg-gray-100" title={c.enabled ? 'Disable' : 'Enable'}>
+                    <div className="flex flex-col items-center gap-1 bg-black/20 p-1.5 rounded-xl border border-white/5 opacity-40 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => startEditingCommittee(c)} 
+                        className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all" 
+                        title="Edit"
+                      >
+                        <Edit size={16} />
+                      </button>
+                      <button 
+                        onClick={() => toggleSportsCommitteeEnabled(c.id)} 
+                        className={`p-2 transition-all rounded-lg ${c.enabled ? 'text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10' : 'text-gray-500 hover:text-white hover:bg-white/5'}`} 
+                        title={c.enabled ? 'Disable' : 'Enable'}
+                      >
                         {c.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
                       </button>
-                      <button onClick={() => handleDeleteCommittee(c.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title="Delete"><Trash2 size={16} /></button>
+                      <button 
+                        onClick={() => handleDeleteCommittee(c.id)} 
+                        className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" 
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -458,133 +552,163 @@ export const SportsTeamManagement: React.FC = () => {
       {activeSection === 'members' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Team Members ({sportsTeamMembers.length})</h3>
+            <h3 className="text-lg font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <Users size={18} className="text-yellow-500" />
+              Team Members ({sportsTeamMembers.length})
+            </h3>
             <button
               type="button"
               onClick={() => { setIsAddingMember(true); resetMemberForm(); }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              className="bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-5 py-2.5 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
             >
-              <Plus size={16} className="mr-2" /> Add Member
+              <Plus size={18} className="mr-2" /> Add Member
             </button>
           </div>
 
           {/* Add Member Form */}
           {isAddingMember && (
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-6">Add Sports Team Member</h4>
-              <div className="grid md:grid-cols-2 gap-6">
+            <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 border-l-4 border-l-yellow-500 animate-in slide-in-from-left-2 duration-300">
+              <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                Add Sports Team Member
+              </h4>
+              <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Full Name *</label>
                     <input
                       type="text"
                       value={memberForm.name}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
+                      placeholder="e.g., John Doe"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Role / Designation</label>
                     <input
                       type="text"
                       value={memberForm.role}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
+                      placeholder="e.g., Captain, Vice-Captain"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Description</label>
                     <textarea
                       value={memberForm.description}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
+                      placeholder="Brief bio or stats..."
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Specialty</label>
                       <input
                         type="text"
                         value={memberForm.specialty}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
+                        placeholder="e.g., Bowler"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Order</label>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
                       <input
                         type="number"
                         value={memberForm.order_position}
                         onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white font-mono"
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center">
-                      <input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="mr-2" /> Enabled
+                  <div className="flex items-center gap-6 pt-2">
+                    <label className="flex items-center group cursor-pointer">
+                      <input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="w-5 h-5 rounded border-white/10 bg-black/20 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 transition-colors" /> 
+                      <span className="ml-3 text-xs font-bold text-gray-400 group-hover:text-white uppercase tracking-widest transition-colors">Enabled</span>
                     </label>
-                    <label className="flex items-center">
-                      <input type="checkbox" checked={memberForm.is_head} onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked }))} className="mr-2" /> Committee Head
+                    <label className="flex items-center group cursor-pointer">
+                      <input type="checkbox" checked={memberForm.is_head} onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked }))} className="w-5 h-5 rounded border-white/10 bg-black/20 text-yellow-500 focus:ring-yellow-500 focus:ring-offset-0 transition-colors" /> 
+                      <span className="ml-3 text-xs font-bold text-gray-400 group-hover:text-white uppercase tracking-widest transition-colors">Committee Head</span>
                     </label>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Committee</label>
                     <select
                       value={memberForm.committee_id}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white appearance-none"
                     >
-                      <option value={0}>Unassigned</option>
+                      <option value={0} className="bg-[#181824]">Unassigned / Free Agent</option>
                       {sortedCommittees.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
+                        <option key={c.id} value={c.id} className="bg-[#181824]">{c.name}</option>
                       ))}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Photo *</label>
-                    <ImageUpload
-                      onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
-                      currentImage={memberForm.image}
-                      bucket="sports-images"
-                      folder="sports-team"
-                    />
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Member Photo *</label>
+                    <div className="bg-black/20 p-4 rounded-2xl border border-white/10">
+                      <ImageUpload
+                        onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
+                        currentImage={memberForm.image}
+                        bucket="sports-images"
+                        folder="sports-team"
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">WhatsApp / Phone</label>
                     <input
                       type="tel"
                       value={memberForm.phone}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white font-mono"
+                      placeholder="+91 00000 00000"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Social Links</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="url" placeholder="Instagram" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-2 border rounded" />
-                      <input type="url" placeholder="YouTube" value={memberForm.social_links.youtube} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))} className="p-2 border rounded" />
-                      <input type="url" placeholder="Spotify" value={memberForm.social_links.spotify} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))} className="p-2 border rounded" />
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Social Links</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      <input type="url" placeholder="Instagram" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-pink-500 text-white text-xs" title="Instagram" />
+                      <input type="url" placeholder="YouTube" value={memberForm.social_links.youtube} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-white text-xs" title="YouTube" />
+                      <input type="url" placeholder="Spotify" value={memberForm.social_links.spotify} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-500 text-white text-xs" title="Spotify" />
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
-                    <div className="space-y-2">
+                  <div className="space-y-3">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Achievements List</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                       {memberForm.achievements.map((a, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input value={a} onChange={(e) => updateAchievement(i, e.target.value)} className="flex-1 p-2 border rounded" />
-                          <button type="button" onClick={() => removeAchievement(i)} className="text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={16} /></button>
+                        <div key={i} className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-200">
+                          <input 
+                            value={a} 
+                            onChange={(e) => updateAchievement(i, e.target.value)} 
+                            className="flex-1 p-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" 
+                            placeholder={`Achievement ${i+1}`}
+                          />
+                          <button type="button" onClick={() => removeAchievement(i)} className="text-red-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-all"><Trash2 size={16} /></button>
                         </div>
                       ))}
-                      <button type="button" onClick={addAchievement} className="text-sm text-blue-600 hover:underline">+ Add achievement</button>
                     </div>
+                    <button type="button" onClick={addAchievement} className="text-xs font-bold text-yellow-500 hover:text-yellow-400 flex items-center gap-1.5 transition-colors uppercase tracking-widest">+ New Achievement</button>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={handleAddMember} className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors">Save</button>
-                    <button onClick={() => { setIsAddingMember(false); }} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">Cancel</button>
+                  <div className="flex gap-3 pt-6 border-t border-white/5">
+                    <button 
+                      onClick={handleAddMember} 
+                      className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-500 text-black px-6 py-3 rounded-xl hover:from-yellow-400 hover:to-amber-400 transition-all font-bold shadow-lg shadow-yellow-500/20"
+                    >
+                      Save Member
+                    </button>
+                    <button 
+                      onClick={() => { setIsAddingMember(false); }} 
+                      className="px-6 py-3 bg-white/5 text-white rounded-xl hover:bg-white/10 transition-all font-bold border border-white/5"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               </div>
@@ -592,73 +716,81 @@ export const SportsTeamManagement: React.FC = () => {
           )}
 
           {/* Members List */}
-          <div className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
             {sortedMembers.map((m) => (
-              <div key={m.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+              <div key={m.id} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all group relative overflow-hidden">
                 {editingMember === m.id ? (
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-2 gap-6 bg-black/40 p-4 rounded-xl border border-white/5 animate-in fade-in duration-300">
                     <div className="space-y-3">
-                      <input type="text" value={memberForm.name} onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))} className="w-full p-2 border rounded" />
-                      <input type="text" value={memberForm.role} onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))} className="w-full p-2 border rounded" />
-                      <textarea value={memberForm.description} onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))} className="w-full p-2 border rounded" rows={2} />
+                      <input type="text" value={memberForm.name} onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-bold focus:ring-1 focus:ring-yellow-500 focus:outline-none" placeholder="Name" />
+                      <input type="text" value={memberForm.role} onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" placeholder="Role" />
+                      <textarea value={memberForm.description} onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" rows={2} placeholder="Bio" />
                       <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="Specialty" value={memberForm.specialty} onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))} className="p-2 border rounded" />
-                        <input type="number" placeholder="Order" value={memberForm.order_position} onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))} className="p-2 border rounded" />
+                        <input type="text" placeholder="Specialty" value={memberForm.specialty} onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs focus:ring-1 focus:ring-yellow-500 focus:outline-none" />
+                        <input type="number" placeholder="Order" value={memberForm.order_position} onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs font-mono focus:ring-1 focus:ring-yellow-500 focus:outline-none" />
                       </div>
-                      <div className="flex items-center gap-3">
-                        <label className="flex items-center"><input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="mr-2" /> Enabled</label>
-                        <label className="flex items-center"><input type="checkbox" checked={memberForm.is_head} onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked }))} className="mr-2" /> Head</label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center group cursor-pointer"><input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="w-4 h-4 rounded border-white/10 bg-black/20 text-yellow-500" /> <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-white transition-colors">Enabled</span></label>
+                        <label className="flex items-center group cursor-pointer"><input type="checkbox" checked={memberForm.is_head} onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked }))} className="w-4 h-4 rounded border-white/10 bg-black/20 text-yellow-500" /> <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-white transition-colors">Head</span></label>
                       </div>
-                      <select value={memberForm.committee_id} onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))} className="w-full p-2 border rounded">
-                        <option value={0}>Unassigned</option>
-                        {sortedCommittees.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
+                      <select value={memberForm.committee_id} onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs appearance-none">
+                        <option value={0} className="bg-[#181824]">Unassigned</option>
+                        {sortedCommittees.map(c => (<option key={c.id} value={c.id} className="bg-[#181824]">{c.name}</option>))}
                       </select>
                     </div>
                     <div className="space-y-3">
                       <ImageUpload onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))} currentImage={memberForm.image} bucket="sports-images" folder="sports-team" />
-                      <input type="tel" placeholder="Phone" value={memberForm.phone} onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full p-2 border rounded" />
-                      <div className="grid grid-cols-3 gap-2">
-                        <input type="url" placeholder="Instagram" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-2 border rounded" />
-                        <input type="url" placeholder="YouTube" value={memberForm.social_links.youtube} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))} className="p-2 border rounded" />
-                        <input type="url" placeholder="Spotify" value={memberForm.social_links.spotify} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))} className="p-2 border rounded" />
+                      <input type="tel" placeholder="Phone" value={memberForm.phone} onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs font-mono" />
+                      <div className="grid grid-cols-3 gap-1">
+                        <input type="url" placeholder="Insta" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-1.5 bg-black/40 border border-white/10 rounded text-[10px] text-white" />
+                        <input type="url" placeholder="YT" value={memberForm.social_links.youtube} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))} className="p-1.5 bg-black/40 border border-white/10 rounded text-[10px] text-white" />
+                        <input type="url" placeholder="Spot" value={memberForm.social_links.spotify} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))} className="p-1.5 bg-black/40 border border-white/10 rounded text-[10px] text-white" />
                       </div>
-                      <div>
-                        <div className="text-sm font-medium mb-1">Achievements</div>
-                        <div className="space-y-2">
-                          {memberForm.achievements.map((a, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <input value={a} onChange={(e) => updateAchievement(i, e.target.value)} className="flex-1 p-2 border rounded" />
-                              <button type="button" onClick={() => removeAchievement(i)} className="text-red-600 hover:bg-red-50 p-2 rounded"><Trash2 size={16} /></button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={addAchievement} className="text-sm text-blue-600 hover:underline">+ Add achievement</button>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleUpdateMember(m.id)} className="bg-yellow-400 text-black px-3 py-1 rounded">Save</button>
-                        <button onClick={() => setEditingMember(null)} className="bg-gray-200 text-gray-800 px-3 py-1 rounded">Cancel</button>
+                      <div className="flex gap-2 pt-4 border-t border-white/5">
+                        <button onClick={() => handleUpdateMember(m.id)} className="flex-1 bg-yellow-500 text-black px-3 py-2 rounded-lg hover:bg-yellow-400 transition-all font-bold text-sm shadow-lg shadow-yellow-500/10">Save</button>
+                        <button onClick={() => setEditingMember(null)} className="px-4 py-2 bg-white/5 text-white rounded-lg hover:bg-white/10 transition-all font-bold text-sm border border-white/5">Cancel</button>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3">
-                    <img src={m.image} alt={m.name} className="w-16 h-16 rounded object-cover" />
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900 flex items-center gap-2">
-                        {m.is_head && <Crown size={16} className="text-yellow-500" />} {m.name}
-                      </div>
-                      <div className="text-sm text-gray-600">{m.role}</div>
-                      <div className="text-xs text-gray-500">{sortedCommittees.find(c => c.id === m.committee_id)?.name || 'Unassigned'}</div>
+                  <div className="flex items-start gap-4">
+                    <div className="relative group/photo">
+                      <img src={m.image} alt={m.name} className="w-20 h-20 rounded-xl object-cover border border-white/10 group-hover/photo:border-yellow-500/50 transition-all" />
+                      {m.is_head && (
+                        <div className="absolute -top-2 -right-2 bg-gradient-to-br from-yellow-400 to-amber-600 p-1 rounded-lg shadow-lg">
+                          <Crown size={12} className="text-black" />
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startEditingMember(m)} className="p-2 rounded hover:bg-gray-100" title="Edit"><Edit size={16} /></button>
-                      <button onClick={() => toggleSportsTeamMemberEnabled(m.id)} className="p-2 rounded hover:bg-gray-100" title={m.enabled ? 'Disable' : 'Enable'}>
-                        {m.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
-                      </button>
-                      <button onClick={() => toggleSportsTeamMemberIsHead(m.id)} className="p-2 rounded hover:bg-gray-100" title={m.is_head ? 'Unset Head' : 'Set as Head'}>
-                        <Crown size={16} className={m.is_head ? 'text-yellow-500' : 'text-gray-400'} />
-                      </button>
-                      <button onClick={() => handleDeleteMember(m.id)} className="p-2 rounded hover:bg-red-50 text-red-600" title="Delete"><Trash2 size={16} /></button>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="font-bold text-white text-lg group-hover:text-yellow-400 transition-colors tracking-tight">
+                          {m.name}
+                        </div>
+                        {!m.enabled && (
+                          <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/20 rounded-full font-bold uppercase tracking-widest">Off</span>
+                        )}
+                      </div>
+                      <div className="text-sm font-medium text-yellow-500/80 mb-1">{m.role}</div>
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-2 py-1 rounded-md border border-white/5 inline-flex mb-3">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: sortedCommittees.find(c => c.id === m.committee_id)?.color || '#444' }} />
+                        {sortedCommittees.find(c => c.id === m.committee_id)?.name || 'Unassigned'}
+                      </div>
+                      
+                      {m.achievements?.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {m.achievements.slice(0, 2).map((a, i) => (
+                            <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded-md border border-white/5 truncate max-w-[100px]">{a}</span>
+                          ))}
+                          {m.achievements.length > 2 && <span className="text-[9px] text-gray-600">+{m.achievements.length - 2}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center gap-1 bg-black/20 p-1.5 rounded-xl border border-white/5 opacity-40 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => startEditingMember(m)} className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all" title="Edit"><Edit size={16} /></button>
+                      <button onClick={() => toggleSportsTeamMemberEnabled(m.id)} className={`p-2 rounded-lg transition-all ${m.enabled ? 'text-emerald-400 hover:text-white hover:bg-emerald-500/10' : 'text-gray-500 hover:text-white'}`} title={m.enabled ? 'Disable' : 'Enable'}>{m.enabled ? <Eye size={16} /> : <EyeOff size={16} />}</button>
+                      <button onClick={() => toggleSportsTeamMemberIsHead(m.id)} className={`p-2 rounded-lg transition-all ${m.is_head ? 'text-yellow-500 hover:text-white hover:bg-yellow-500/10' : 'text-gray-500 hover:text-white'}`} title={m.is_head ? 'Unset Head' : 'Set as Head'}><Crown size={16} /></button>
+                      <button onClick={() => handleDeleteMember(m.id)} className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all" title="Delete"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 )}
@@ -669,9 +801,25 @@ export const SportsTeamManagement: React.FC = () => {
       )}
 
       {/* Snapshot */}
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <div className="font-semibold text-gray-900 mb-2 flex items-center"><Users className="w-4 h-4 mr-2" /> Summary</div>
-        <div className="text-sm text-gray-600">{sportsCommittees.length} committees • {sportsTeamMembers.length} members</div>
+      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 flex items-center justify-between group">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center border border-yellow-500/20 group-hover:scale-110 transition-transform">
+            <Users className="w-6 h-6 text-yellow-500" />
+          </div>
+          <div>
+            <div className="font-bold text-white uppercase tracking-widest text-xs mb-1">Database Summary</div>
+            <div className="text-sm text-gray-400">
+              <span className="text-white font-bold">{sportsCommittees.length}</span> sports committees and <span className="text-white font-bold">{sportsTeamMembers.length}</span> active team members
+            </div>
+          </div>
+        </div>
+        <div className="text-right hidden sm:block">
+           <div className="text-[10px] font-bold text-gray-600 uppercase tracking-tighter">System Status</div>
+           <div className="text-emerald-500 text-xs font-bold flex items-center gap-1.5 justify-end mt-1">
+             <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+             Live & Operational
+           </div>
+        </div>
       </div>
     </div>
   );

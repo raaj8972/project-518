@@ -320,48 +320,66 @@ export const HeroMediaManagement: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Hero Media</h2>
-          <p className="text-gray-600">Control hero background image/video for each page</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-yellow-400 to-amber-600 rounded-full" />
+            Hero Media
+          </h2>
+          <p className="text-gray-400 mt-1">Control hero background image/video for each page</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8">
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Page</label>
-            <select
-              value={selectedPage}
-              onChange={(e) => setSelectedPage(e.target.value as PageKey)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-            >
-              {Object.entries(PAGE_LABELS).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Target Page</label>
+            <div className="relative">
+              <select
+                value={selectedPage}
+                onChange={(e) => setSelectedPage(e.target.value as PageKey)}
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition-all font-medium"
+              >
+                {Object.entries(PAGE_LABELS).map(([key, label]) => (
+                  <option key={key} value={key} className="bg-gray-900 text-white">{label}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Background Type</label>
-            <select
-              value={form.background_type}
-              onChange={(e) => setForm((p) => ({ ...p, background_type: e.target.value as any }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-            >
-              <option value="image">Image</option>
-              <option value="video">Video</option>
-              <option value="auto">Auto</option>
-            </select>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Background Type</label>
+            <div className="relative">
+              <select
+                value={form.background_type}
+                onChange={(e) => setForm((p) => ({ ...p, background_type: e.target.value as any }))}
+                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white appearance-none focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 transition-all font-medium"
+              >
+                <option value="image" className="bg-gray-900 text-white">Image</option>
+                <option value="video" className="bg-gray-900 text-white">Video</option>
+                <option value="auto" className="bg-gray-900 text-white">Auto</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center">
-            <input
-              id="enabled"
-              type="checkbox"
-              checked={form.enabled}
-              onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
-              className="mr-2"
-            />
-            <label htmlFor="enabled" className="text-sm font-medium text-gray-700">Enabled</label>
+          <div className="flex items-center pt-6">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.enabled ? 'bg-emerald-500' : 'bg-white/10'}`}>
+                <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+              </div>
+              <input
+                id="enabled"
+                type="checkbox"
+                checked={form.enabled}
+                onChange={(e) => setForm((p) => ({ ...p, enabled: e.target.checked }))}
+                className="hidden"
+              />
+              <span className="text-sm font-bold text-gray-400 group-hover:text-white transition-colors uppercase tracking-wide">Hero Enabled</span>
+            </label>
           </div>
         </div>
 
@@ -525,41 +543,41 @@ export const HeroMediaManagement: React.FC = () => {
               </div>
             )}
 
-            <div className="border-t pt-4 space-y-4">
+            <div className="border-t border-white/5 pt-6 space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">Desktop Framing <span className="ml-1 text-[10px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">(Saved Per Page)</span>
+                <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 uppercase tracking-wide">Desktop Framing <span className="ml-2 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-md tracking-normal normal-case">Saved Per Page</span>
                   {form.background_type !== 'image' && form.video_url && (
                     (()=>{ const meta = classifyAR(desktopVideoAR,'desktop'); return (
-                      <span title={meta.ok ? 'Desktop video aspect is on target (16:9)' : 'Desktop video aspect differs from 16:9'} className={`text-[10px] px-1 py-0.5 rounded border ${meta.ok ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-amber-600 border-amber-500 text-white'}`}>{meta.label}</span>
+                      <span title={meta.ok ? 'Desktop video aspect is on target (16:9)' : 'Desktop video aspect differs from 16:9'} className={`text-[10px] px-1.5 py-0.5 rounded-md border ${meta.ok ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'}`}>{meta.label}</span>
                     ); })()
                   )}
                 </h3>
                 <div className="flex gap-2">
-                  <button type="button" onClick={resetDesktopFraming} className="text-[10px] px-2 py-0.5 rounded border border-gray-300 hover:border-gray-500">Reset</button>
-                  <button type="button" onClick={copyDesktopFramingToAll} className="text-[10px] px-2 py-0.5 rounded border border-yellow-400 bg-yellow-100 hover:bg-yellow-200">Copy → All</button>
+                  <button type="button" onClick={resetDesktopFraming} className="text-[10px] px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-gray-400 transition-colors">Reset</button>
+                  <button type="button" onClick={copyDesktopFramingToAll} className="text-[10px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 transition-colors">Copy → All</button>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs items-start">
-                <label className="flex flex-col gap-1">Zoom
-                  <input type="range" min={0.25} max={3} step={0.01} value={form.desktop_zoom} onChange={(e) => setForm(p => ({ ...p, desktop_zoom: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{form.desktop_zoom.toFixed(2)}x</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Zoom
+                  <input type="range" min={0.25} max={3} step={0.01} value={form.desktop_zoom} onChange={(e) => setForm(p => ({ ...p, desktop_zoom: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{form.desktop_zoom.toFixed(2)}x</span>
                 </label>
-                <label className="flex flex-col gap-1">Offset X
-                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.desktop_offset_x} onChange={(e) => setForm(p => ({ ...p, desktop_offset_x: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{(form.desktop_offset_x*100).toFixed(0)}%</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Offset X
+                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.desktop_offset_x} onChange={(e) => setForm(p => ({ ...p, desktop_offset_x: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{(form.desktop_offset_x*100).toFixed(0)}%</span>
                 </label>
-                <label className="flex flex-col gap-1">Offset Y
-                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.desktop_offset_y} onChange={(e) => setForm(p => ({ ...p, desktop_offset_y: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{(form.desktop_offset_y*100).toFixed(0)}%</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Offset Y
+                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.desktop_offset_y} onChange={(e) => setForm(p => ({ ...p, desktop_offset_y: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{(form.desktop_offset_y*100).toFixed(0)}%</span>
                 </label>
                 <div className="hidden md:block col-span-1 md:col-span-3">
-                  <div className="mt-1 flex gap-4">
-                    <div className="relative w-40 h-24 bg-black rounded overflow-hidden border border-gray-300 group" title={`Desktop transform: translate(${(form.desktop_offset_x*100).toFixed(2)}%, ${(form.desktop_offset_y*100).toFixed(2)}%) scale(${form.desktop_zoom.toFixed(3)})`}>
+                  <div className="mt-2 flex gap-4">
+                    <div className="relative w-40 h-24 bg-black/60 rounded-lg overflow-hidden border border-white/10 group shadow-lg" title={`Desktop transform: translate(${(form.desktop_offset_x*100).toFixed(2)}%, ${(form.desktop_offset_y*100).toFixed(2)}%) scale(${form.desktop_zoom.toFixed(3)})`}>
                       <div className="absolute inset-0 flex items-center justify-center select-none">
                         <div className="w-full h-full" style={{ transform: `translate(${form.desktop_offset_x*100}%, ${form.desktop_offset_y*100}%) scale(${form.desktop_zoom})`, transformOrigin: 'center center' }}>
                           {form.background_type !== 'image' && form.video_url ? (
                             <>
-                              {!miniDesktopLoaded && (form.poster_url ? <img src={form.poster_url} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-600/40 to-gray-800/40" />)}
+                              {!miniDesktopLoaded && (form.poster_url ? <img src={form.poster_url} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />)}
                               <video
                                 src={form.video_url}
                                 muted
@@ -574,9 +592,9 @@ export const HeroMediaManagement: React.FC = () => {
                           ) : form.image_url ? (
                             <img src={form.image_url} className="w-full h-full object-cover" onLoad={(e)=>{ const i=e.currentTarget; if(i.naturalWidth&&i.naturalHeight){ setMiniDesktopAspect(ratioLabel(i.naturalWidth / i.naturalHeight)); } }} />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-gray-600/40 to-gray-800/40" />
+                            <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />
                           )}
-                          {showGrid && <div className="absolute inset-0 pointer-events-none" style={{backgroundImage:'linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px)',backgroundSize:'20% 20%',mixBlendMode:'overlay'}} />}
+                          {showGrid && <div className="absolute inset-0 pointer-events-none" style={{backgroundImage:'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',backgroundSize:'20% 20%',mixBlendMode:'overlay'}} />}
                         </div>
                       </div>
                       <div className="absolute top-0 left-0 text-[9px] bg-black/60 px-1 py-0.5 text-white rounded-br">{miniDesktopAspect || '—'}</div>
@@ -588,40 +606,40 @@ export const HeroMediaManagement: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between mt-2">
-                <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">Mobile Framing <span className="ml-1 text-[10px] font-normal text-blue-600 bg-blue-50 border border-blue-200 px-1 py-0.5 rounded">(Saved Per Page)</span>
+              <div className="flex items-center justify-between mt-6">
+                <h3 className="text-sm font-bold text-gray-300 flex items-center gap-2 uppercase tracking-wide">Mobile Framing <span className="ml-2 text-[10px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 rounded-md tracking-normal normal-case">Saved Per Page</span>
                   {form.background_type !== 'image' && (form.mobile_video_url || form.video_url) && (
                     (()=>{ const meta = classifyAR(mobileVideoAR,'mobile'); return (
-                      <span title={meta.ok ? 'Mobile video aspect is on target (9:16)' : 'Mobile video aspect differs from 9:16 – re-export recommended'} className={`text-[10px] px-1 py-0.5 rounded border ${meta.ok ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-amber-600 border-amber-500 text-white'}`}>{meta.label}</span>
+                      <span title={meta.ok ? 'Mobile video aspect is on target (9:16)' : 'Mobile video aspect differs from 9:16 – re-export recommended'} className={`text-[10px] px-1.5 py-0.5 rounded-md border ${meta.ok ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/20 border-amber-500/30 text-amber-400'}`}>{meta.label}</span>
                     ); })()
                   )}
                 </h3>
                 <div className="flex gap-2">
-                  <button type="button" onClick={resetMobileFraming} className="text-[10px] px-2 py-0.5 rounded border border-gray-300 hover:border-gray-500">Reset</button>
-                  <button type="button" onClick={copyMobileFramingToAll} className="text-[10px] px-2 py-0.5 rounded border border-yellow-400 bg-yellow-100 hover:bg-yellow-200">Copy → All</button>
+                  <button type="button" onClick={resetMobileFraming} className="text-[10px] px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-gray-400 transition-colors">Reset</button>
+                  <button type="button" onClick={copyMobileFramingToAll} className="text-[10px] px-2 py-1 rounded border border-yellow-500/30 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 transition-colors">Copy → All</button>
                 </div>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs items-start">
-                <label className="flex flex-col gap-1">Zoom
-                  <input type="range" min={0.25} max={3} step={0.01} value={form.mobile_zoom} onChange={(e) => setForm(p => ({ ...p, mobile_zoom: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{form.mobile_zoom.toFixed(2)}x</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Zoom
+                  <input type="range" min={0.25} max={3} step={0.01} value={form.mobile_zoom} onChange={(e) => setForm(p => ({ ...p, mobile_zoom: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{form.mobile_zoom.toFixed(2)}x</span>
                 </label>
-                <label className="flex flex-col gap-1">Offset X
-                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.mobile_offset_x} onChange={(e) => setForm(p => ({ ...p, mobile_offset_x: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{(form.mobile_offset_x*100).toFixed(0)}%</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Offset X
+                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.mobile_offset_x} onChange={(e) => setForm(p => ({ ...p, mobile_offset_x: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{(form.mobile_offset_x*100).toFixed(0)}%</span>
                 </label>
-                <label className="flex flex-col gap-1">Offset Y
-                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.mobile_offset_y} onChange={(e) => setForm(p => ({ ...p, mobile_offset_y: parseFloat(e.target.value) }))} />
-                  <span className="text-gray-500">{(form.mobile_offset_y*100).toFixed(0)}%</span>
+                <label className="flex flex-col gap-1.5 font-bold text-gray-500">Offset Y
+                  <input type="range" min={-0.5} max={0.5} step={0.01} value={form.mobile_offset_y} onChange={(e) => setForm(p => ({ ...p, mobile_offset_y: parseFloat(e.target.value) }))} className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"/>
+                  <span className="text-gray-400 font-mono text-[10px]">{(form.mobile_offset_y*100).toFixed(0)}%</span>
                 </label>
                 <div className="hidden md:block col-span-1 md:col-span-3">
-                  <div className="mt-1 flex gap-4">
-                    <div className="relative w-24 h-40 bg-black rounded overflow-hidden border border-gray-300 group" title={`Mobile transform: translate(${(form.mobile_offset_x*100).toFixed(2)}%, ${(form.mobile_offset_y*100).toFixed(2)}%) scale(${form.mobile_zoom.toFixed(3)})`}>
+                  <div className="mt-2 flex gap-4">
+                    <div className="relative w-24 h-40 bg-black/60 rounded-lg overflow-hidden border border-white/10 group shadow-lg" title={`Mobile transform: translate(${(form.mobile_offset_x*100).toFixed(2)}%, ${(form.mobile_offset_y*100).toFixed(2)}%) scale(${form.mobile_zoom.toFixed(3)})`}>
                       <div className="absolute inset-0 flex items-center justify-center select-none">
                         <div className="w-full h-full" style={{ transform: `translate(${form.mobile_offset_x*100}%, ${form.mobile_offset_y*100}%) scale(${form.mobile_zoom})`, transformOrigin: 'center center' }}>
                           {form.background_type !== 'image' && (form.mobile_video_url || form.video_url) ? (
                             <>
-                              {!miniMobileLoaded && ((form.mobile_poster_url || form.poster_url) ? <img src={form.mobile_poster_url || form.poster_url!} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-600/40 to-gray-800/40" />)}
+                              {!miniMobileLoaded && ((form.mobile_poster_url || form.poster_url) ? <img src={form.mobile_poster_url || form.poster_url!} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />)}
                               <video
                                 src={form.mobile_video_url || form.video_url}
                                 muted
@@ -636,9 +654,9 @@ export const HeroMediaManagement: React.FC = () => {
                           ) : form.image_url ? (
                             <img src={form.mobile_image_url || form.image_url} className="w-full h-full object-cover" onLoad={(e)=>{ const i=e.currentTarget; if(i.naturalWidth&&i.naturalHeight){ setMiniMobileAspect(ratioLabel(i.naturalWidth / i.naturalHeight)); } }} />
                           ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-gray-600/40 to-gray-800/40" />
+                            <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />
                           )}
-                          {showGrid && <div className="absolute inset-0 pointer-events-none" style={{backgroundImage:'linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px)',backgroundSize:'20% 20%',mixBlendMode:'overlay'}} />}
+                          {showGrid && <div className="absolute inset-0 pointer-events-none" style={{backgroundImage:'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',backgroundSize:'20% 20%',mixBlendMode:'overlay'}} />}
                         </div>
                       </div>
                       <div className="absolute top-0 left-0 text-[9px] bg-black/60 px-1 py-0.5 text-white rounded-br">{miniMobileAspect || '—'}</div>
@@ -658,16 +676,26 @@ export const HeroMediaManagement: React.FC = () => {
           <div className="space-y-6">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Overlay Color</label>
-                <input
-                  type="color"
-                  value={form.overlay_color}
-                  onChange={(e) => setForm((p) => ({ ...p, overlay_color: e.target.value }))}
-                  className="w-full h-10 p-1 border border-gray-300 rounded"
-                />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Overlay Color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.overlay_color}
+                    onChange={(e) => setForm((p) => ({ ...p, overlay_color: e.target.value }))}
+                    className="w-10 h-10 p-0 border-0 rounded-lg overflow-hidden cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={form.overlay_color}
+                      onChange={(e) => setForm((p) => ({ ...p, overlay_color: e.target.value }))}
+                      className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-white text-xs uppercase font-mono"
+                    />
+                  </div>
+                </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Overlay Opacity ({form.overlay_opacity.toFixed(2)})</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Overlay Opacity ({form.overlay_opacity.toFixed(2)})</label>
                 <input
                   type="range"
                   min={0}
@@ -675,12 +703,12 @@ export const HeroMediaManagement: React.FC = () => {
                   step={0.01}
                   value={form.overlay_opacity}
                   onChange={(e) => setForm((p) => ({ ...p, overlay_opacity: parseFloat(e.target.value) }))}
-                  className="w-full"
+                  className="w-full accent-blue-500 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer"
                 />
               </div>
             </div>
 
-            <div className="bg-gray-900 rounded-lg border border-gray-800">
+            <div className="bg-[#0b0f1a] rounded-xl border border-white/10 shadow-2xl overflow-hidden">
               <div className="flex flex-wrap items-center gap-2 px-3 py-2 text-[11px] text-gray-300 border-b border-gray-800">
                 <span className="uppercase tracking-wide text-xs text-gray-400">Preview</span>
                 {form.background_type !== 'image' && (form.mobile_video_url || form.mobile_poster_url) && (
@@ -883,12 +911,12 @@ export const HeroMediaManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-8 pt-6 border-t border-white/5">
           <div className="text-xs">
             {unsaved ? (
-              <span className="inline-flex items-center gap-1 text-amber-600 font-medium"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Unsaved framing changes</span>
+              <span className="inline-flex items-center gap-2 text-amber-400 font-bold tracking-wide uppercase"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.6)]" /> Unsaved framing changes</span>
             ) : (
-              <span className="text-gray-400">No unsaved framing changes</span>
+              <span className="text-gray-500 font-medium tracking-wide">No unsaved framing changes</span>
             )}
           </div>
           <div className="flex flex-wrap gap-3">
@@ -896,7 +924,7 @@ export const HeroMediaManagement: React.FC = () => {
               <button
                 type="button"
                 onClick={applyMobileToAllPages}
-                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm"
+                className="px-4 py-2 bg-white/5 border border-white/10 text-gray-300 hover:text-white rounded-xl hover:bg-white/10 text-xs font-bold uppercase tracking-wider transition-all"
               >
                 Apply Mobile Portrait to All Pages
               </button>
@@ -904,62 +932,70 @@ export const HeroMediaManagement: React.FC = () => {
             <button
               type="button"
               onClick={() => fetchHeroMedia(selectedPage)}
-              className="px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+              className="px-6 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all flex items-center gap-2 font-bold text-sm"
             >
-              <X size={16} className="mr-2" />
+              <X size={16} />
               Reload
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={disabledSave}
-              className="px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center disabled:opacity-50"
+              className={`
+                px-8 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center gap-2
+                ${disabledSave 
+                  ? 'bg-gray-800 text-gray-600 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-black shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-0.5'
+                }
+              `}
             >
-              <Save size={16} className="mr-2" />
-              Save
+              <Save size={18} />
+              Save Changes
             </button>
           </div>
         </div>
           {/* Debug panel for diagnosing framing persistence */}
-          <div className="mt-6 p-4 border rounded-lg bg-gray-50 text-[11px] text-gray-700 space-y-2">
-            <div className="font-semibold text-gray-800">Framing Debug (not public)</div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              <div>
-                <div className="text-[10px] uppercase text-gray-500">Form Mobile</div>
-                <div>zoom {form.mobile_zoom.toFixed(2)}</div>
-                <div>X {(form.mobile_offset_x*100).toFixed(1)}%</div>
-                <div>Y {(form.mobile_offset_y*100).toFixed(1)}%</div>
+          <div className="mt-8 p-6 rounded-xl border border-white/5 bg-black/40 backdrop-blur-sm space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+              Framing Debug (Internal)
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[10px] font-mono">
+              <div className="space-y-1">
+                <div className="text-gray-500 font-bold mb-1">FORM MOBILE</div>
+                <div className="text-gray-400">zoom: <span className="text-white">{form.mobile_zoom.toFixed(2)}</span></div>
+                <div className="text-gray-400">X: <span className="text-white">{(form.mobile_offset_x*100).toFixed(1)}%</span></div>
+                <div className="text-gray-400">Y: <span className="text-white">{(form.mobile_offset_y*100).toFixed(1)}%</span></div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase text-gray-500">Stored Mobile</div>
-                <div>zoom {((current as any)?.mobile_zoom ?? 1).toFixed(2)}</div>
-                <div>X {(((current as any)?.mobile_offset_x ?? 0)*100).toFixed(1)}%</div>
-                <div>Y {(((current as any)?.mobile_offset_y ?? 0)*100).toFixed(1)}%</div>
+              <div className="space-y-1">
+                <div className="text-gray-500 font-bold mb-1">STORED MOBILE</div>
+                <div className="text-gray-400">zoom: <span className="text-white">{((current as any)?.mobile_zoom ?? 1).toFixed(2)}</span></div>
+                <div className="text-gray-400">X: <span className="text-white">{(((current as any)?.mobile_offset_x ?? 0)*100).toFixed(1)}%</span></div>
+                <div className="text-gray-400">Y: <span className="text-white">{(((current as any)?.mobile_offset_y ?? 0)*100).toFixed(1)}%</span></div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase text-gray-500">Form Desktop</div>
-                <div>zoom {form.desktop_zoom.toFixed(2)}</div>
-                <div>X {(form.desktop_offset_x*100).toFixed(1)}%</div>
-                <div>Y {(form.desktop_offset_y*100).toFixed(1)}%</div>
+              <div className="space-y-1">
+                <div className="text-gray-500 font-bold mb-1">FORM DESKTOP</div>
+                <div className="text-gray-400">zoom: <span className="text-white">{form.desktop_zoom.toFixed(2)}</span></div>
+                <div className="text-gray-400">X: <span className="text-white">{(form.desktop_offset_x*100).toFixed(1)}%</span></div>
+                <div className="text-gray-400">Y: <span className="text-white">{(form.desktop_offset_y*100).toFixed(1)}%</span></div>
               </div>
-              <div>
-                <div className="text-[10px] uppercase text-gray-500">Stored Desktop</div>
-                <div>zoom {((current as any)?.desktop_zoom ?? 1).toFixed(2)}</div>
-                <div>X {(((current as any)?.desktop_offset_x ?? 0)*100).toFixed(1)}%</div>
-                <div>Y {(((current as any)?.desktop_offset_y ?? 0)*100).toFixed(1)}%</div>
+              <div className="space-y-1">
+                <div className="text-gray-500 font-bold mb-1">STORED DESKTOP</div>
+                <div className="text-gray-400">zoom: <span className="text-white">{((current as any)?.desktop_zoom ?? 1).toFixed(2)}</span></div>
+                <div className="text-gray-400">X: <span className="text-white">{(((current as any)?.desktop_offset_x ?? 0)*100).toFixed(1)}%</span></div>
+                <div className="text-gray-400">Y: <span className="text-white">{(((current as any)?.desktop_offset_y ?? 0)*100).toFixed(1)}%</span></div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <button type="button" onClick={()=>fetchHeroMedia(selectedPage)} className="px-3 py-1 rounded bg-white border text-gray-700 hover:bg-gray-100">Force Refetch</button>
+            <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+              <button type="button" onClick={()=>fetchHeroMedia(selectedPage)} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-gray-400 hover:text-white hover:bg-white/10 transition-colors">Force Refetch</button>
               <button type="button" onClick={()=>{
                 console.log('[Debug] current heroMedia row', current);
                 alert('Row logged to console');
-              }} className="px-3 py-1 rounded bg-white border text-gray-700 hover:bg-gray-100">Log Row</button>
+              }} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-gray-400 hover:text-white hover:bg-white/10 transition-colors">Log Row</button>
               <button type="button" onClick={()=>{
                 setForm(p=>({...p, mobile_zoom:1, mobile_offset_x:0, mobile_offset_y:0}));
-              }} className="px-3 py-1 rounded bg-white border text-gray-700 hover:bg-gray-100">Reset Mobile (Form Only)</button>
+              }} className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[10px] text-gray-400 hover:text-white hover:bg-white/10 transition-colors">Reset Mobile (Form Only)</button>
             </div>
-            <p className="text-[10px] text-gray-500 leading-snug">If Stored values never change after Save, confirm DB migration for columns: mobile_zoom, mobile_offset_x, mobile_offset_y ran in production and RLS policies permit updating them.</p>
           </div>
       </div>
     </div>

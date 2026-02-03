@@ -280,8 +280,11 @@ export const FacultyHeadsManagement: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Faculty Heads Management</h2>
-          <p className="text-gray-600">Manage faculty leadership profiles and information</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-amber-400 to-yellow-600 rounded-full" />
+            Faculty Heads Management
+          </h2>
+          <p className="text-gray-400 mt-1">Manage faculty leadership profiles and information</p>
         </div>
         <button
           type="button"
@@ -289,7 +292,7 @@ export const FacultyHeadsManagement: React.FC = () => {
             setIsAdding(true);
             resetForm();
           }}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+          className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-5 py-2.5 rounded-xl hover:from-amber-400 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
         >
           <Plus size={16} className="mr-2" />
           Add Faculty Head
@@ -298,128 +301,128 @@ export const FacultyHeadsManagement: React.FC = () => {
 
       {/* Add Faculty Head Form */}
       {isAdding && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-6">Add New Faculty Head</h3>
+        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 border-l-4 border-l-amber-500">
+          <h3 className="text-lg font-bold text-white mb-6">Add New Faculty Head</h3>
           <div className="grid lg:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Full Name *</label>
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Dr. John Smith"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title/Position</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Title/Position</label>
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Festival Director & Department Head"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Brief description about the faculty head..."
                   rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email (optional)</label>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Email (optional)</label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="name@example.com (optional)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    placeholder="name@example.com"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone (optional)</label>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Phone (optional)</label>
                   <input
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="+91 98765 43210 (optional)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    placeholder="+91 98765 43210"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                   />
                 </div>
               </div>
               {/* Social Links */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Social Links (optional)</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Social Links (optional)</label>
                 <div className="grid grid-cols-3 gap-4">
                   <input
                     type="url"
                     value={form.instagram}
                     onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
-                    placeholder="Instagram URL (e.g., https://instagram.com/yourhandle)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                    placeholder="Instagram URL"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-white placeholder-gray-500"
                   />
                   <input
                     type="url"
                     value={form.youtube}
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
-                    placeholder="YouTube URL (e.g., https://youtube.com/@yourchannel)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 text-gray-900"
+                    placeholder="YouTube URL"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-500"
                   />
                   <input
                     type="url"
                     value={(form as any).facebook}
                     onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
-                    placeholder="Facebook URL (e.g., https://facebook.com/yourpage)"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+                    placeholder="Facebook URL"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-500"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
                   <input
                     type="number"
                     value={form.order_position}
                     onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                     min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
                   />
                 </div>
                 <div className="flex items-end">
-                  <label className="flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={form.enabled}
                       onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                      className="mr-2"
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
                     />
-                    <span className="text-sm font-medium text-gray-700">Visible on website</span>
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
                   </label>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Achievements</label>
                 <div className="space-y-2">
                   {form.achievements.map((achievement, index) => (
-                    <div key={index} className="flex items-center space-x-2">
+                    <div key={index} className="flex items-center gap-2">
                       <input
                         type="text"
                         value={achievement}
                         onChange={(e) => updateAchievement(index, e.target.value)}
                         placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="flex-1 p-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
                       />
                       <button
                         type="button"
                         onClick={() => removeAchievement(index)}
-                        className="text-red-600 hover:text-red-800 p-1"
+                        className="text-red-400 hover:text-red-300 p-1"
                       >
                         <X size={16} />
                       </button>
@@ -428,7 +431,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   <button
                     type="button"
                     onClick={addAchievement}
-                    className="text-yellow-600 hover:text-yellow-700 text-sm flex items-center"
+                    className="text-amber-400 hover:text-amber-300 text-sm flex items-center font-medium"
                   >
                     <Plus size={16} className="mr-1" />
                     Add Achievement
@@ -438,7 +441,7 @@ export const FacultyHeadsManagement: React.FC = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Profile Photo</label>
                 <ImageUpload
                   onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
                   currentImage={form.image}
@@ -449,24 +452,24 @@ export const FacultyHeadsManagement: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-white/5">
             <button
               type="button"
               onClick={() => {
                 setIsAdding(false);
                 resetForm();
               }}
-              className="w-full sm:w-auto px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-2 text-gray-400 hover:text-white flex items-center justify-center gap-2 font-medium"
             >
-              <X size={16} className="mr-1" />
+              <X size={16} />
               Cancel
             </button>
             <button
               type="button"
               onClick={handleAdd}
-              className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center"
+              className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-amber-500 to-yellow-500 text-black rounded-xl hover:from-amber-400 hover:to-yellow-400 flex items-center justify-center gap-2 shadow-lg shadow-yellow-500/20 font-bold hover:-translate-y-0.5 transition-all"
             >
-              <Save size={16} className="mr-1" />
+              <Save size={16} />
               Add Faculty Head
             </button>
           </div>
@@ -474,63 +477,63 @@ export const FacultyHeadsManagement: React.FC = () => {
       )}
 
       {/* Faculty Heads List */}
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedFacultyHeads.map((facultyHead) => (
-          <div key={facultyHead.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div key={facultyHead.id} className="group relative bg-[#181824]/40 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all duration-300 hover:-translate-y-1 shadow-xl">
             {editing === facultyHead.id ? (
-              <div className="p-6 space-y-4">
+              <div className="p-6 space-y-4 bg-black/40">
                 <input
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Full name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
                 />
                 <input
                   type="text"
                   value={form.title}
                   onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="Title/Position"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
                 />
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Email (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    placeholder="Email"
+                    className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
                   />
                   <input
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Phone (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                    placeholder="Phone"
+                    className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
                   />
                 </div>
                 {/* Social links for edit */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   <input
                     type="url"
                     value={form.instagram}
                     onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
-                    placeholder="Instagram URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                    placeholder="Insta"
+                    className="w-full p-2 bg-black/40 border border-white/10 rounded-lg text-white text-[10px]"
                   />
                   <input
                     type="url"
                     value={form.youtube}
                     onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
-                    placeholder="YouTube URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-red-400 text-gray-900"
+                    placeholder="YT"
+                    className="w-full p-2 bg-black/40 border border-white/10 rounded-lg text-white text-[10px]"
                   />
                   <input
                     type="url"
                     value={(form as any).facebook}
                     onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
-                    placeholder="Facebook URL (optional)"
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+                    placeholder="FB"
+                    className="w-full p-2 bg-black/40 border border-white/10 rounded-lg text-white text-[10px]"
                   />
                 </div>
                 <textarea
@@ -538,166 +541,146 @@ export const FacultyHeadsManagement: React.FC = () => {
                   onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  className="w-full p-2.5 bg-black/40 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500 text-sm"
                 />
                 <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={form.order_position}
-                    onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                    min="1"
-                    placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                  <label className="flex items-center">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Order</span>
                     <input
-                      type="checkbox"
-                      checked={form.enabled}
-                      onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                      className="mr-2"
+                      type="number"
+                      value={form.order_position}
+                      onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                      min="1"
+                      className="w-full p-2 bg-black/40 border border-white/10 rounded-lg text-white font-mono"
                     />
-                    <span className="text-sm">Enabled</span>
-                  </label>
-                </div>
-                
-                {/* Achievements editing */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {form.achievements.map((achievement, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={achievement}
-                          onChange={(e) => updateAchievement(index, e.target.value)}
-                          placeholder="Achievement"
-                          className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeAchievement(index)}
-                          className="text-red-600 hover:text-red-800 p-1"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addAchievement}
-                      className="text-yellow-600 hover:text-yellow-700 text-xs flex items-center"
-                    >
-                      <Plus size={12} className="mr-1" />
-                      Add Achievement
-                    </button>
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={form.enabled}
+                        onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
+                        className="w-4 h-4 rounded border-white/10 bg-black/20 text-amber-500 focus:ring-amber-500/50"
+                      />
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest group-hover:text-white transition-colors">Enabled</span>
+                    </label>
                   </div>
                 </div>
-
+                
                 <ImageUpload
                   onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
                   currentImage={form.image}
                   bucket="faculty-images"
                   folder="faculty"
-                  className="h-32"
+                  className="h-32 rounded-xl"
                   cropAspect={1}
                 />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
+                <div className="flex flex-row gap-2 pt-4 border-t border-white/5">
                   <button
                     type="button"
                     onClick={() => {
                       setEditing(null);
                       resetForm();
                     }}
-                    className="w-full sm:w-auto px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
+                    className="flex-1 px-4 py-2 bg-white/5 text-gray-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-widest transition-all"
                   >
-                    <X size={14} className="mr-1" />
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => handleUpdate(facultyHead.id)}
-                    className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
+                    className="flex-1 px-4 py-2 bg-amber-500 text-black rounded-lg hover:bg-amber-400 font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-amber-500/10"
                   >
-                    <Save size={14} className="mr-1" />
                     Save
                   </button>
                 </div>
               </div>
             ) : (
               <>
-                <div className="relative h-48">
+                <div className="relative h-64 overflow-hidden group-hover:scale-105 transition-transform duration-700">
                   <img
                     src={facultyHead.image}
                     alt={facultyHead.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-500"
                   />
-                  <div className="absolute top-2 left-2 flex space-x-1">
-                    <Crown className="w-6 h-6 text-yellow-400" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f] via-transparent to-transparent opacity-60" />
+                  
+                  <div className="absolute top-4 left-4 flex gap-2">
+                    <div className="p-1.5 bg-black/40 backdrop-blur-md border border-white/10 rounded-lg shadow-xl">
+                      <Crown className="w-4 h-4 text-amber-400" />
+                    </div>
                     {!facultyHead.enabled && (
-                      <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-red-500/80 backdrop-blur-md text-white px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border border-red-500/20">
                         Hidden
                       </span>
                     )}
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
-                      Order: {facultyHead.order_position}
+                  <div className="absolute top-4 right-4">
+                    <span className="bg-amber-500/90 backdrop-blur-md text-black px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                      Rank #{facultyHead.order_position}
                     </span>
                   </div>
                 </div>
                 
-                <div className="p-4">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1">{facultyHead.name}</h3>
-                  <p className="text-yellow-600 font-semibold text-sm mb-3">{facultyHead.title}</p>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">{facultyHead.description}</p>
+                <div className="p-6 relative">
+                  <div className="mb-4">
+                    <h3 className="font-black text-xl text-white group-hover:text-amber-400 transition-colors tracking-tight leading-tight mb-1">{facultyHead.name}</h3>
+                    <div className="text-amber-500/80 font-bold text-[10px] uppercase tracking-[0.2em]">{facultyHead.title}</div>
+                  </div>
+                  
+                  <p className="text-gray-400 text-sm mb-6 line-clamp-2 leading-relaxed h-10 italic">"{facultyHead.description}"</p>
                   
                   {facultyHead.achievements.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-700 mb-2">
-                        {facultyHead.achievements.length} Achievement{facultyHead.achievements.length !== 1 ? 's' : ''}
-                      </p>
-                      <div className="text-xs text-gray-500">
+                    <div className="mb-6 space-y-2">
+                      <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
+                        <div className="w-4 h-[1px] bg-gray-600" /> Key Achievements
+                      </div>
+                      <div className="flex flex-wrap gap-2">
                         {facultyHead.achievements.slice(0, 2).map((achievement, index) => (
-                          <div key={index} className="truncate">• {achievement}</div>
+                          <div key={index} className="px-3 py-1 bg-white/5 border border-white/5 rounded-full text-[10px] text-gray-400 font-medium truncate max-w-[140px]">
+                            {achievement}
+                          </div>
                         ))}
                         {facultyHead.achievements.length > 2 && (
-                          <div>... and {facultyHead.achievements.length - 2} more</div>
+                          <div className="px-3 py-1 bg-white/5 text-gray-500 rounded-full text-[10px] font-bold">
+                            +{facultyHead.achievements.length - 2} more
+                          </div>
                         )}
                       </div>
                     </div>
                   )}
                   
-                  <div className="flex justify-between items-center">
-                    <div className="flex space-x-1">
+                  <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => handleToggleEnabled(facultyHead.id)}
-                        className={`p-1 rounded transition-colors ${
+                        className={`p-2 rounded-xl transition-all border ${
                           facultyHead.enabled 
-                            ? 'bg-green-100 text-green-600' 
-                            : 'bg-red-100 text-red-600'
-                        } hover:bg-green-200`}
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' 
+                            : 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
+                        }`}
                         title={facultyHead.enabled ? 'Hide from public' : 'Show to public'}
                       >
-                        {facultyHead.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+                        {facultyHead.enabled ? <Eye size={16} /> : <EyeOff size={16} />}
                       </button>
                     </div>
-                    <div className="flex space-x-1">
+                    <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => startEditing(facultyHead)}
-                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
+                        className="p-2 bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:border-white/20 rounded-xl transition-all"
                         title="Edit faculty head"
                       >
-                        <Edit size={14} />
+                        <Edit size={16} />
                       </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(facultyHead.id)}
-                        className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
+                        className="p-2 bg-white/5 border border-white/5 text-gray-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20 rounded-xl transition-all"
                         title="Delete faculty head"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   </div>

@@ -1,14 +1,12 @@
 import React, { useEffect, useRef, useState, startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
 import { 
   BarChart3, 
   Calendar, 
   Settings, 
   Users, 
   Image, 
-  LogOut, 
-  Menu, 
-  X, 
   Clock, 
   Lock, 
   Shield, 
@@ -22,16 +20,12 @@ import {
   Building,
   UserCheck,
   PartyPopper,
-  Home,
-  Link,
+
   Activity,
   ArrowRight,
   AlertTriangle,
   Bell,
-  Sun,
-  Moon,
-  Sunrise,
-  Sunset
+
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -64,7 +58,8 @@ const HeroMediaManagement = React.lazy(() => import('../components/admin/HeroMed
 const AboutSettings = React.lazy(() => import('../components/admin/AboutSettings').then(m => ({ default: m.AboutSettings })));
 const NotificationsManagement = React.lazy(() => import('../components/admin/NotificationsManagement').then(m => ({ default: m.NotificationsManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
-import { HealthBadge } from '../components/admin/HealthBadge';
+import { StatsOverview } from '../components/admin/dashboard/StatsOverview';
+import { WelcomeSplash } from '../components/admin/dashboard/WelcomeSplash';
 const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
 const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
@@ -79,9 +74,8 @@ const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerAp
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
-import { BRAND_NAME_WITH_YEAR } from '../constants/brand';
 
-type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'sponsors' | 'registrations' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports-team' | 'band' | 'guest-artists' | 'chief-guests' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
+
 
 export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
@@ -96,16 +90,9 @@ export const AdminDashboard: React.FC = () => {
     guestArtists,
     auditions,
     memberships,
-    schemaCapabilities: _schemaCapabilities,
-    // Diagnostics
-    connectionStatus,
-    lastError,
-    latencyMs,
-    supabaseHost,
-    resubscribeRealtime,
-    pingNow,
-    // Permissions
+
     myPermissions,
+    connectionStatus,
     adminUsers,
   } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
@@ -478,61 +465,11 @@ export const AdminDashboard: React.FC = () => {
     }
   }, [myPermissions, isOwner, visibleTabs, activeTab, setActiveTab]);
 
-  const WelcomeSplash = () => {
-    const greeting = getGreeting();
-    const subTitle = isOwner ? 'Principal Organizer' : 'Raja Events Team';
-    const hour = currentTime.getHours();
-    
-    // Choose icon based on time
-    const GreetingIcon = (() => {
-      if (hour >= 5 && hour < 10) return Sunrise;
-      if (hour >= 10 && hour < 16) return Sun;
-      if (hour >= 16 && hour < 19) return Sunset;
-      return Moon;
-    })();
 
-    const themeColor = (() => {
-      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500'; // Day/Sunset
-      return 'from-indigo-600 via-purple-700 to-slate-900'; // Night
-    })();
-
-    return (
-      <div className={`fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br ${themeColor} transition-all duration-1000 ${!showSplash ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'}`}>
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-sm"></div>
-        <div className="relative text-center px-4">
-          <div className="mb-8 inline-block animate-bounce duration-[2000ms]">
-            <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30">
-               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-white drop-shadow-md" />
-            </div>
-          </div>
-          
-          <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-300 fill-mode-both">
-            <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
-              {greeting}, <span className="text-white/80">{user?.email?.split('@')[0] || 'Admin'}</span>
-            </h2>
-            <p className="text-xl sm:text-2xl font-bold text-white/60 tracking-tight">
-              Initializing {BRAND_NAME_WITH_YEAR} OS
-            </p>
-          </div>
-
-          <div className="mt-12 flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-1000 delay-700 fill-mode-both">
-            <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
-              <Shield className="w-4 h-4 text-green-400" />
-              Secure Gateway Active
-            </div>
-            
-            <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full bg-white animate-progress-indefinite rounded-full"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   // Show Loading or Splash
   if (authLoading || (showSplash && (isAuthenticated || authGrace))) {
-    return <WelcomeSplash />;
+    return <WelcomeSplash user={user} onComplete={() => setShowSplash(false)} />;
   }
 
   // If user is not authenticated yet and grace is not active
@@ -548,32 +485,7 @@ export const AdminDashboard: React.FC = () => {
   }
 
 
-  const stats = [
-    {
-      name: 'Total Events',
-      value: events.length,
-      icon: Calendar,
-      color: 'bg-blue-500',
-    },
-    {
-      name: 'Total Registrations',
-      value: registrations.length,
-      icon: UserCheck,
-      color: 'bg-green-500',
-    },
-    {
-      name: 'Gallery Images',
-      value: galleryImages.length,
-      icon: Image,
-      color: 'bg-purple-500',
-    },
-    {
-      name: 'Sponsors',
-      value: sponsors.length,
-      icon: Building,
-      color: 'bg-yellow-500',
-    },
-  ];
+
 
   const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
   const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
@@ -582,243 +494,35 @@ export const AdminDashboard: React.FC = () => {
 
   // loading already handled above
 
+  // Badge counts
+  const badges = {
+    registrations: pendingRegistrations,
+    auditions: pendingAuditions,
+    memberships: pendingMemberships
+  };
+
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <AdminLayout
+      user={user}
+      isOwner={isOwner}
+      isAdmin={isAdmin}
+      activeTab={activeTab}
+      setActiveTab={setActiveTab}
+      visibleTabs={visibleTabs}
+      isSidebarOpen={isSidebarOpen}
+      setIsSidebarOpen={setIsSidebarOpen}
+      onLogout={handleLogout}
+      onNavigateHome={() => startTransition(() => navigate('/'))}
+      badges={badges}
+      autoLogoutEnabled={autoLogoutEnabled}
+      setAutoLogoutEnabled={setAutoLogoutEnabled}
+      isTOTPEnabled={isTOTPEnabled}
+    >
       {/* Real-time Cursors Overlay - Only visible to Owner */}
       {isOwner && <AdminCursorsOverlay admins={otherAdmins} hiddenCursors={hiddenCursors} />}
 
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-50 w-full">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              {/* Mobile menu button - Enhanced */}
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="lg:hidden mr-3 p-2.5 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors active:scale-95"
-                aria-label="Toggle menu"
-              >
-                <Menu className="w-7 h-7" strokeWidth={2.5} />
-              </button>
-              <Settings className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 mr-2 sm:mr-3" />
-              <h1 className="text-base sm:text-xl font-bold text-gray-900 flex items-center gap-1 sm:gap-3">
-                <span className="hidden sm:inline">Admin Dashboard</span>
-                <span className="sm:hidden">Admin</span>
-                <span className="hidden sm:inline"><HealthBadge /></span>
-                <span
-                  className={
-                    'ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ' +
-                    (isOwner
-                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200')
-                  }
-                  title={isOwner ? 'You are the Owner' : 'You are an Admin'}
-                >
-                  {isOwner ? 'Owner' : 'Admin'}
-                </span>
-              </h1>
-              {isTOTPEnabled && (
-                <div className="ml-2 sm:ml-4 hidden sm:flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                  <Shield size={12} className="mr-1" />
-                  2FA Enabled
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <label className="hidden md:flex items-center gap-2 text-xs text-gray-600 select-none">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300"
-                  checked={autoLogoutEnabled}
-                  onChange={(e) => setAutoLogoutEnabled(e.target.checked)}
-                />
-                Auto-logout on inactivity
-              </label>
-              <button
-                onClick={() => {
-                  startTransition(() => {
-                    navigate('/');
-                  });
-                }}
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors mr-2 sm:mr-4 border-r border-gray-300 pr-2 sm:pr-4"
-                title="Go to Website Home"
-              >
-                <Home className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
-                <span className="hidden sm:inline">Back to Site</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <LogOut className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Diagnostics badge - hidden to avoid exposing backend details */}
-      {false && isOwner && (
-      <div className="sticky top-0 z-[1001] w-full">
-        <div className="px-4 sm:px-6 lg:px-8 pt-2">
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white/80 backdrop-blur px-3 py-2 text-xs text-gray-700 shadow-sm">
-            {/* Hide Supabase host unless explicitly enabled via env for debugging */}
-            {((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1') && (
-              <>
-                <span className="font-medium">Supabase:</span>
-                <span className="truncate">{supabaseHost || 'unknown-host'}</span>
-              </>
-            )}
-            <span className="ml-2">•</span>
-            <span>Status: <span className={connectionStatus === 'ok' ? 'text-green-600' : connectionStatus === 'offline' ? 'text-rose-600' : 'text-amber-600'}>{connectionStatus}</span></span>
-            <span className="ml-2">•</span>
-            <span>Ping: {typeof latencyMs === 'number' ? `${latencyMs} ms` : '—'}</span>
-            {lastError && (
-              <span className="ml-2 truncate max-w-[40ch] text-rose-700" title={lastError ?? undefined}>Err: {lastError}</span>
-            )}
-            <button
-              onClick={() => resubscribeRealtime()}
-              className="ml-auto rounded bg-gray-900 text-white px-2 py-1 hover:bg-black active:scale-[0.99]"
-              title="Force resubscribe to realtime channels"
-            >Resubscribe</button>
-            <button
-              onClick={() => pingNow && pingNow()}
-              className="rounded bg-gray-700 text-white px-2 py-1 hover:bg-gray-800 active:scale-[0.99]"
-              title="Measure latency and nudge reconnection"
-            >Ping now</button>
-          </div>
-        </div>
-      </div>
-      )}
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={`
-            fixed lg:static inset-y-0 left-0 z-40 lg:z-0
-            w-64 flex-shrink-0 bg-white border-r border-gray-200
-            transform transition-transform duration-300 ease-in-out
-            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-          `}
-        >
-          <nav className="h-full overflow-y-auto p-4">
-            {/* Mobile close button - Enhanced */}
-            <div className="lg:hidden flex justify-between items-center mb-4 pb-3 border-b">
-              <span className="font-semibold text-gray-900">Menu</span>
-              <button
-                onClick={() => setIsSidebarOpen(false)}
-                className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:scale-95"
-                aria-label="Close menu"
-              >
-                <X className="w-6 h-6" strokeWidth={2.5} />
-              </button>
-            </div>
-            
-            <div className="space-y-6 pb-6">
-              {visibleTabs.length === 0 && !isOwner && (
-                <div className="text-sm text-gray-600 p-2 rounded bg-gray-50">
-                  No sections assigned yet. Ask the owner to grant you access.
-                </div>
-              )}
-              
-              {(() => {
-                const groups: Record<string, typeof visibleTabs> = {};
-                visibleTabs.forEach(tab => {
-                   const g = (tab as any).group || 'Other';
-                   if (!groups[g]) groups[g] = [];
-                   groups[g].push(tab);
-                });
-
-                const groupOrder = ['Dashboard', 'Security & System', 'Content', 'Events & Schedule', 'Registrations', 'People', 'Other'];
-                
-                return groupOrder.map(groupName => {
-                  const tabsInGroup = groups[groupName];
-                  if (!tabsInGroup || tabsInGroup.length === 0) return null;
-
-                  return (
-                    <div key={groupName}>
-                      <h3 className="px-3 mb-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                        {groupName}
-                      </h3>
-                      <ul className="space-y-1">
-                        {tabsInGroup.map(tab => {
-                           const Icon = tab.icon;
-                           return (
-                             <li key={tab.id}>
-                               <button
-                                 onClick={() => {
-                                   setActiveTab(tab.id);
-                                   setIsSidebarOpen(false);
-                                 }}
-                                 className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                                   activeTab === tab.id
-                                     ? 'bg-yellow-50 text-yellow-700 shadow-sm'
-                                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 indent-0.5'
-                                 }`}
-                               >
-                                 <Icon className={`w-4 h-4 mr-3 flex-shrink-0 ${activeTab === tab.id ? 'text-yellow-600' : 'text-gray-400'}`} />
-                                 <span className="flex-1 text-left truncate">{tab.name}</span>
-                                 
-                                 {tab.id === 'registrations' && pendingRegistrations > 0 && (
-                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                    {pendingRegistrations}
-                                  </span>
-                                )}
-                                {tab.id === 'auditions' && pendingAuditions > 0 && (
-                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                    {pendingAuditions}
-                                  </span>
-                                )}
-                                {tab.id === 'memberships' && pendingMemberships > 0 && (
-                                  <span className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded-full">
-                                    {pendingMemberships}
-                                  </span>
-                                )}
-                                {tab.id === 'security' && isTOTPEnabled && (
-                                  <span className="ml-auto">
-                                    <Shield className="w-3 h-3 text-green-600" />
-                                  </span>
-                                )}
-                               </button>
-                             </li>
-                           );
-                        })}
-                      </ul>
-                    </div>
-                  );
-                });
-              })()}
-
-              {/* Coordinator Access Link */}
-              <div className="pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => {
-                    navigate('/coordinator');
-                    setIsSidebarOpen(false);
-                  }}
-                  className="w-full flex items-center px-3 py-2 text-sm font-medium rounded-md text-purple-600 hover:bg-purple-50 transition-colors"
-                >
-                  <Link className="w-4 h-4 mr-3 text-purple-500" />
-                  <span className="flex-1 text-left">Coordinator Access</span>
-                </button>
-              </div>
-            </div>
-          </nav>
-        </div>
-
-        {/* Mobile backdrop */}
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-gray-600 bg-opacity-75 z-30 lg:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4 sm:p-8">
-        <div className="mx-auto max-w-7xl">
-          <React.Suspense fallback={
-            <div className="flex flex-col items-center justify-center p-12 text-gray-500">
+      <React.Suspense fallback={
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
                <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-4"></div>
                <p>Loading panel...</p>
             </div>
@@ -918,29 +622,13 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Enhanced Stats Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {stats.map((stat) => {
-                    const Icon = stat.icon;
-                    return (
-                      <div 
-                        key={stat.name} 
-                        className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 p-8 border border-gray-100 group relative overflow-hidden"
-                      >
-                        <div className={`absolute top-0 left-0 w-2 h-full ${stat.color}`}></div>
-                        <div className="flex flex-col h-full">
-                          <div className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 w-fit mb-6 group-hover:scale-110 transition-transform duration-300 shadow-sm shadow-black/5`}>
-                            <Icon className={`w-8 h-8 ${stat.color.replace('bg-', 'text-')}`} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-1">{stat.name}</p>
-                            <p className="text-4xl font-black text-gray-900 tracking-tight">{stat.value}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {/* Stats Overview */}
+                <StatsOverview stats={{
+                  eventsCount: events.length,
+                  registrationsCount: registrations.length,
+                  galleryCount: galleryImages.length,
+                  sponsorsCount: sponsors.length
+                }} />
 
                 {/* Main Dashboard Hub */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1166,9 +854,6 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}
             </React.Suspense>
-          </div>
-        </div>
-      </div>
       
       {/* Admin Presence Panel */}
       {isOwner && (
@@ -1196,6 +881,6 @@ export const AdminDashboard: React.FC = () => {
           return admin?.email || null;
         }}
       />
-    </div>
+    </AdminLayout>
   );
 };

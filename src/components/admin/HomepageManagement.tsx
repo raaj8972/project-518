@@ -463,8 +463,11 @@ export const HomepageManagement: React.FC = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Homepage Management</h2>
-          <p className="text-gray-600">Customize the hero section background and content</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-blue-400 to-indigo-600 rounded-full" />
+            Homepage Design
+          </h2>
+          <p className="text-gray-400 mt-1">Control the hero visual, branding, and dynamic sections.</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Connection/Auth status chips */}
@@ -484,17 +487,23 @@ export const HomepageManagement: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsEditing(!isEditing)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-500 flex items-center transition-colors"
+            className={`
+              px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center gap-2
+              ${isEditing 
+                ? 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20' 
+                : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20 hover:shadow-indigo-600/30'
+              }
+            `}
           >
             {isEditing ? (
               <>
-                <X size={16} className="mr-2" />
-                Cancel
+                <X size={16} />
+                Exit Editor
               </>
             ) : (
               <>
-                <Save size={16} className="mr-2" />
-                Edit Homepage
+                <Save size={16} />
+                Open Editor
               </>
             )}
           </button>
@@ -519,49 +528,48 @@ export const HomepageManagement: React.FC = () => {
         </div>
       )}
 
-      {/* Current Settings Display: compact read-only summary when NOT editing */}
       {!isEditing && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Homepage Settings</h3>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
-            <div className="p-3 bg-gray-50 rounded-lg border">
-              <span className="text-gray-900 font-semibold">{homepageSettings?.hero_title || form.hero_title || 'RICORRENZA'}</span>
-            </div>
+        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-white/5 mb-2">
+            <Type className="w-8 h-8 text-indigo-400" />
           </div>
-          <p className="text-xs text-gray-500 mt-4">Click <strong>Edit Homepage</strong> to modify the hero title, background and other settings.</p>
+          <h3 className="text-xl font-bold text-white">Editor Mode Inactive</h3>
+          <p className="text-gray-400 max-w-md">
+            The homepage is currently displaying: <strong className="text-white">"{homepageSettings?.hero_title || form.hero_title || 'RICORRENZA'}"</strong>.
+            <br/>Click "Open Editor" to modify content.
+          </p>
         </div>
       )}
 
-      {/* Full editor — visible only while editing */}
       {isEditing && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Current Homepage Settings</h3>
+        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8">
+          <h3 className="text-xl font-bold text-white mb-8 border-b border-white/5 pb-4">
+            Editor Workspace
+          </h3>
           
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Hero Content */}
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title</label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Title</label>
+                <div className="relative group">
+                  <Type className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type="text"
                     value={form.hero_title}
                     onChange={(e) => setForm(prev => ({ ...prev, hero_title: e.target.value }))}
                     placeholder="RICORRENZA"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+                    className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-bold tracking-wide"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Main hero title shown prominently on the homepage</p>
               </div>
               
               {/* Branding */}
-              <div className="space-y-6 mt-8">
-                <h4 className="text-lg font-semibold text-gray-900">Branding</h4>
+              <div className="space-y-6 mt-8 pt-8 border-t border-white/5">
+                <h4 className="text-lg font-bold text-white">Event Branding</h4>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand Year</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Brand Year</label>
                     <input
                       type="number"
                       min={2000}
@@ -571,13 +579,13 @@ export const HomepageManagement: React.FC = () => {
                         const val = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                         setForm(prev=>({ ...prev, brand_year: val }));
                       }}
-                      className="w-full border rounded px-3 py-2 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                       placeholder={`${new Date().getFullYear()}`}
                     />
                     <p className="text-xs text-gray-500 mt-1">Draft only. Click “Save Branding” to apply.</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Brand Logo (PNG preferred)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Brand Logo (PNG)</label>
                     <ImageUpload
                       onImageSelect={(url) => {
                         setForm(prev => ({ ...prev, brand_logo_url: url }));
@@ -611,7 +619,7 @@ export const HomepageManagement: React.FC = () => {
                 {/* Size and Glow Controls */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo Size (px)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Logo Size (px)</label>
                     <input
                       type="range"
                       min={16}
@@ -622,15 +630,15 @@ export const HomepageManagement: React.FC = () => {
                         const raw = parseInt(e.target.value, 10);
                         setForm(prev=>({ ...prev, brand_logo_size_px: raw }));
                       }}
-                      className="w-full"
+                      className="w-full accent-indigo-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
                     />
-                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-                      <span>Controls the logo height in the navbar. Draft until saved.</span>
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 mt-1 font-mono">
+                      <span>Height</span>
                       <span>{(form.brand_logo_size_px as any) ?? 36}px</span>
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Glow Strength</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Glow Strength</label>
                     <input
                       type="range"
                       min={0}
@@ -641,44 +649,46 @@ export const HomepageManagement: React.FC = () => {
                         const raw = parseFloat(e.target.value);
                         setForm(prev=>({ ...prev, brand_logo_glow_strength: raw }));
                       }}
-                      className="w-full"
+                      className="w-full accent-indigo-500 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer"
                     />
-                    <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
-                      <span>0 = no glow, 1 = default, 2 = strong.</span>
+                    <div className="flex items-center justify-between text-[10px] text-gray-500 mt-1 font-mono">
+                      <span>Intensity</span>
                       <span>{(form.brand_logo_glow_strength as any) ?? 1}</span>
                     </div>
                   </div>
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Glow Color</label>
-                    <input
-                      type="color"
-                      value={(form.brand_logo_glow_color as any) || '#ff00ff'}
-                      onChange={(e)=>{
-                        const val = e.target.value;
-                        setForm(prev=>({ ...prev, brand_logo_glow_color: val }));
-                      }}
-                      className="w-16 h-10 p-0 border rounded"
-                      title="Pick the glow color"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Leave as default for theme pink/cyan blend. Draft until saved.</p>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Glow Color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={(form.brand_logo_glow_color as any) || '#ff00ff'}
+                        onChange={(e)=>{
+                          const val = e.target.value;
+                          setForm(prev=>({ ...prev, brand_logo_glow_color: val }));
+                        }}
+                        className="w-12 h-12 p-0 border-0 rounded-lg overflow-hidden cursor-pointer"
+                        title="Pick the glow color"
+                      />
+                      <span className="text-xs text-gray-500 max-w-[150px]">Default blends nicely with dark theme.</span>
+                    </div>
                   </div>
                 </div>
                 {/* Position Controls (base) */}
                 <div className="grid md:grid-cols-3 gap-6 mt-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Logo Side</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Logo Side</label>
                     <select
                       value={(form.brand_logo_side as any) || 'left'}
                       onChange={(e)=>{
                         const val = (e.target.value === 'right' ? 'right' : 'left') as 'left'|'right';
                         setForm(prev=>({ ...prev, brand_logo_side: val }));
                       }}
-                      className="w-full border rounded px-3 py-2 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 appearance-none"
                     >
-                      <option value="left">Left of text</option>
-                      <option value="right">Right of text</option>
+                      <option value="left" className="bg-gray-900 text-white">Left of text</option>
+                      <option value="right" className="bg-gray-900 text-white">Right of text</option>
                     </select>
                   </div>
                   <div>
@@ -784,163 +794,165 @@ export const HomepageManagement: React.FC = () => {
                       type="button"
                       onClick={resetBrandingDraft}
                       disabled={savingBranding || savingPage}
-                      className={`px-4 py-2 border rounded ${savingBranding || savingPage ? 'text-gray-400 bg-gray-50 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                      className={`px-4 py-2 border border-white/10 rounded-lg text-sm font-medium ${savingBranding || savingPage ? 'text-gray-500 cursor-not-allowed' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}
                     >
-                      Discard Changes
+                      Discard
                     </button>
                   </div>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Subtitle</label>
-                <div className="relative">
-                  <Type className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Subtitle</label>
+                <div className="relative group">
+                  <Type className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type="text"
                     value={form.hero_subtitle}
                     onChange={(e) => setForm(prev => ({ ...prev, hero_subtitle: e.target.value }))}
                     placeholder="Experience the Future"
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+                    className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Subtitle text below the main title</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Description</label>
-                <div className="relative">
-                  <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Hero Description</label>
+                <div className="relative group">
+                  <FileText className="absolute left-4 top-3.5 w-5 h-5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                   <textarea
                     value={form.hero_description}
                     onChange={(e) => setForm(prev => ({ ...prev, hero_description: e.target.value }))}
                     placeholder="Experience the future of Healthcare, Technology, and Creativity"
                     rows={4}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
+                    className="w-full bg-black/20 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Descriptive text below the subtitle</p>
               </div>
 
               {/* Instagram Trailer Section */}
-              <div className="mt-8 p-6 border-2 border-pink-200 rounded-lg bg-pink-50">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-pink-600" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
+              <div className="mt-8 p-6 rounded-xl border border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/10 transition-colors">
+                <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-pink-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
+                       <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </div>
                   Instagram Trailer
                 </h4>
                 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {/* Enable Toggle */}
-                  <label className="inline-flex items-center cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.instagram_trailer_enabled ? 'bg-pink-500' : 'bg-white/10'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.instagram_trailer_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
                     <input
                       type="checkbox"
                       checked={form.instagram_trailer_enabled || false}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_enabled: e.target.checked }))}
-                      className="mr-3 w-4 h-4"
+                      className="hidden"
                     />
-                    <span className="text-sm font-medium text-gray-700">Show Instagram Trailer on Home Page</span>
+                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm font-medium">Show Instagram Trailer</span>
                   </label>
 
                   {/* Instagram URL */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram Reel/Post URL</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Instagram Reel/Post URL</label>
                     <input
                       type="url"
                       value={form.instagram_trailer_url || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_url: e.target.value }))}
                       placeholder="https://www.instagram.com/reel/ABC123/"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/50 transition-all font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-600 mt-1">
-                      Paste the full Instagram reel or post URL (e.g., https://www.instagram.com/reel/ABC123/ or https://www.instagram.com/p/ABC123/)
-                    </p>
                   </div>
 
                   {/* Custom Title */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Title (Optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Section Title (Optional)</label>
                     <input
                       type="text"
                       value={form.instagram_trailer_title || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_title: e.target.value }))}
                       placeholder="OFFICIAL TRAILER"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/50 transition-all"
                     />
                   </div>
 
                   {/* Custom Subtitle */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Subtitle (Optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Section Subtitle (Optional)</label>
                     <input
                       type="text"
                       value={form.instagram_trailer_subtitle || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_subtitle: e.target.value }))}
                       placeholder="Watch our official event trailer"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 focus:ring-1 focus:ring-pink-500/50 transition-all"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Instagram Aftermovie Section */}
-              <div className="mt-8 p-6 border-2 border-purple-200 rounded-lg bg-purple-50">
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                  </svg>
+              <div className="mt-8 p-6 rounded-xl border border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 transition-colors">
+                <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/20 rounded-lg">
+                    <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </div>
                   Instagram Aftermovie
                 </h4>
                 
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {/* Enable Toggle */}
-                  <label className="inline-flex items-center cursor-pointer">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.instagram_aftermovie_enabled ? 'bg-purple-500' : 'bg-white/10'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.instagram_aftermovie_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
                     <input
                       type="checkbox"
                       checked={form.instagram_aftermovie_enabled || false}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_enabled: e.target.checked }))}
-                      className="mr-3 w-4 h-4"
+                      className="hidden"
                     />
-                    <span className="text-sm font-medium text-gray-700">Show Instagram Aftermovie on Home Page</span>
+                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm font-medium">Show Instagram Aftermovie</span>
                   </label>
 
                   {/* Instagram URL */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Instagram Reel/Post URL</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Instagram Reel/Post URL</label>
                     <input
                       type="url"
                       value={form.instagram_aftermovie_url || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_url: e.target.value }))}
                       placeholder="https://www.instagram.com/reel/XYZ789/"
-                      className="w-full px-4 py-3 border bordergray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all font-mono text-sm"
                     />
-                    <p className="text-xs text-gray-600 mt-1">
-                      Paste the full Instagram reel or post URL for your aftermovie
-                    </p>
                   </div>
 
                   {/* Custom Title */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Title (Optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Section Title (Optional)</label>
                     <input
                       type="text"
                       value={form.instagram_aftermovie_title || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_title: e.target.value }))}
                       placeholder="EVENT AFTERMOVIE"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
                     />
                   </div>
 
                   {/* Custom Subtitle */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Section Subtitle (Optional)</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Section Subtitle (Optional)</label>
                     <input
                       type="text"
                       value={form.instagram_aftermovie_subtitle || ''}
                       onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_subtitle: e.target.value }))}
                       placeholder="Relive the best moments from our event"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 text-gray-900"
+                      className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
                     />
                   </div>
                 </div>
@@ -950,35 +962,40 @@ export const HomepageManagement: React.FC = () => {
 
           {/* Carousel & Sections Settings */}
           <div className="space-y-6 lg:col-span-2">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Homepage Sections & Animation</h4>
+            <h4 className="text-lg font-bold text-white mb-4">Homepage Sections & Animation</h4>
             <div className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-3 p-4 border rounded-lg bg-gray-50">
-                <label className="block text-sm font-medium text-gray-700 mt-3">Show Partners Belt</label>
-                <label className="inline-flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={form.featured_partners_enabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, featured_partners_enabled: e.target.checked }))}
-                    className="mr-2"
-                  />
-                  <span className="text-sm text-gray-700">Enable “Our Partners” section</span>
-                </label>
-                <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700">Partners Section Title</label>
+              <div className="space-y-6 p-6 rounded-2xl border border-white/5 bg-black/20">
+                <div>
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.featured_partners_enabled ? 'bg-indigo-500' : 'bg-white/10'}`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.featured_partners_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={form.featured_partners_enabled}
+                      onChange={(e) => setForm(prev => ({ ...prev, featured_partners_enabled: e.target.checked }))}
+                      className="hidden"
+                    />
+                    <span className="text-gray-300 group-hover:text-white transition-colors text-sm font-medium">Enable “Our Partners” section</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Partners Section Title</label>
                   <input
                     type="text"
                     value={form.sponsor_section_title || ''}
                     onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_title: e.target.value }))}
-                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg text-gray-900"
+                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all font-bold"
                   />
                 </div>
-                <div className="mt-3">
-                  <label className="block text-sm font-medium text-gray-700">Partners Section Subtitle</label>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Partners Section Subtitle</label>
                   <input
                     type="text"
                     value={form.sponsor_section_subtitle || ''}
                     onChange={(e) => setForm(prev => ({ ...prev, sponsor_section_subtitle: e.target.value }))}
-                    className="mt-1 w-full p-2 border border-gray-300 rounded-lg text-gray-900"
+                    className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all"
                   />
                 </div>
               </div>
@@ -1392,25 +1409,39 @@ export const HomepageManagement: React.FC = () => {
 
           {/* Save/Cancel Buttons */}
           <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={savingPage}
-              className={`px-6 py-2 flex items-center ${savingPage ? 'text-gray-400 cursor-not-allowed' : 'text-gray-600 hover:text-gray-800'}`}
-            >
-              <X size={16} className="mr-2" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={savingPage || savingBranding}
-              className={`px-6 py-2 rounded-lg text-white flex items-center transition-colors ${savingPage || savingBranding ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-500'}`}
-            >
-              <Save size={16} className="mr-2" />
-              {savingPage ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={savingPage}
+                className={`px-6 py-3 rounded-xl font-bold transition-all ${savingPage ? 'text-gray-500 cursor-not-allowed' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={savingPage}
+                className={`
+                  px-8 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2
+                  ${savingPage 
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-indigo-600/20 hover:shadow-indigo-600/40 hover:-translate-y-0.5'
+                  }
+                `}
+              >
+                {savingPage ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving Changes...
+                  </>
+                ) : (
+                  <>
+                    <Save size={18} />
+                    Save Homepage
+                  </>
+                )}
+              </button>
+            </div>
         </div>
       )}
 

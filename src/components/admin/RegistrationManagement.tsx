@@ -1260,29 +1260,35 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Registrations</h2>
-          <p className="text-gray-600">Manage participant registrations</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-purple-400 to-indigo-600 rounded-full" />
+            Registrations
+          </h2>
+          <p className="text-gray-400 mt-1">Manage participant registrations</p>
         </div>
         
         <div className="flex items-center gap-3">
-             <div className="flex items-center bg-gray-100 rounded-lg px-2 border border-gray-200">
-                <span className="text-xs text-gray-500 mr-2 font-medium">Email Via:</span>
-                <select 
-                    value={emailProvider}
-                    onChange={(e) => setEmailProvider(e.target.value as any)}
-                    className="bg-transparent border-none py-2 text-sm focus:ring-0 cursor-pointer text-gray-900"
-                >
-                    <option value="smtp">Hostinger (SMTP)</option>
-                    <option value="resend">Resend API</option>
-                </select>
+             <div className="flex items-center bg-black/20 backdrop-blur-sm rounded-xl px-3 py-1 border border-white/10">
+                <span className="text-xs text-gray-500 mr-2 font-bold uppercase tracking-wide">Email Via:</span>
+                <div className="relative">
+                  <select 
+                      value={emailProvider}
+                      onChange={(e) => setEmailProvider(e.target.value as any)}
+                      className="bg-transparent border-none py-2 pr-6 text-sm focus:ring-0 cursor-pointer text-white appearance-none font-medium"
+                  >
+                      <option value="smtp" className="bg-gray-900">Hostinger (SMTP)</option>
+                      <option value="resend" className="bg-gray-900">Resend API</option>
+                  </select>
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                </div>
              </div>
-             
-             {/* Stats Cards (existing or other buttons) */}
         </div>
       </div>
           
-          {/* Quick Actions Bar - Organized & Responsive */}
-          <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
+          {/* Quick Actions Bar */}
+          <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4">
             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 md:gap-4">
               <div className="flex flex-wrap items-center gap-2">
                 {/* Status Actions (only in active view) */}
@@ -1291,7 +1297,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     <button
                       onClick={handleBulkApprove}
                       disabled={bulkSaving}
-                      className={`flex items-center bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
+                      className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
                       title="Approve all pending registrations in current filter"
                     >
                       <CheckCircle size={16} className="mr-2" />
@@ -1301,14 +1307,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     <button
                       onClick={handleBulkReject}
                       disabled={bulkRejecting}
-                      className={`flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
+                      className={`flex items-center bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
                       title="Reject all pending registrations in current filter"
                     >
                       <XCircle size={16} className="mr-2" />
                       Reject All Pending
                     </button>
 
-                    <div className="h-8 w-px bg-gray-300 mx-1"></div>
+                    <div className="h-8 w-px bg-white/10 mx-1"></div>
                   </>
                 )}
 
@@ -1316,7 +1322,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 <button
                   onClick={handleOpenEmailModal}
                   disabled={selectedIds.size === 0}
-                  className={`flex items-center bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                  className={`flex items-center bg-blue-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-600/20 text-sm font-bold ${selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-500'}`}
                   title={`Send email to ${selectedIds.size} selected registration(s)`}
                 >
                   <Send size={16} className="mr-2" />
@@ -1327,7 +1333,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <button
                     onClick={doBulkRestore}
                     disabled={bulkSaving || selectedIds.size === 0}
-                    className={`flex items-center bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${bulkSaving || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-700'}`}
+                    className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${bulkSaving || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-500'}`}
                     title="Restore selected registrations"
                   >
                     <RotateCcw size={16} className="mr-2" />
@@ -1338,7 +1344,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 <button
                   onClick={doBulkDelete}
                   disabled={bulkDeleting || selectedIds.size === 0}
-                  className={`flex items-center bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-800'}`}
+                  className={`flex items-center bg-red-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-700/20 text-sm font-bold ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
                   title={viewMode === 'trash' ? "Permanently delete selected registrations" : "Move selected to trash"}
                 >
                   {bulkDeleting ? (
@@ -1351,10 +1357,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               {/* View Toggle */}
               <button
                 onClick={() => setViewMode(prev => prev === 'active' ? 'trash' : 'active')}
-                className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                className={`flex items-center px-4 py-2.5 rounded-xl transition-all text-sm font-bold shadow-lg ${
                   viewMode === 'trash'
-                    ? 'bg-gray-800 text-white hover:bg-gray-700'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-gray-700 text-white hover:bg-gray-600 shadow-gray-700/20'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/15 shadow-white/5'
                 }`}
               >
                 <Trash2 size={16} className="mr-2" />
@@ -1363,34 +1369,36 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             </div>
           </div>
 
-        {/* Export Section - Organized & Responsive */}
-        <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Download size={20} className="mr-2" />
+        {/* Export Section */}
+        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Download size={20} className="text-purple-400" />
+              </div>
               Export ({filteredRegistrations.length} records)
             </h3>
-            <label className="flex items-center space-x-2 text-sm text-gray-700">
+            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={allVisibleSelected}
                 onChange={toggleSelectAllVisible}
-                className="rounded"
+                className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
               />
-              <span className="font-medium">Select All Visible</span>
+              <span className="font-bold group-hover:text-white transition-colors">Select All Visible</span>
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* PDF Exports */}
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">PDF Exports</div>
+            <div className="space-y-3">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">PDF Exports</div>
               <div className="flex flex-col gap-2">
                 <ExportPdfButton
                   rows={filteredRegistrations}
                   columns={pdfColumns}
                   filename={`registrations-${new Date().toISOString().slice(0,10)}.pdf`}
-                  className={`flex items-center justify-center bg-red-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-700'}`}
+                  className={`flex items-center justify-center bg-red-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${pdfExporting ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-500 hover:-translate-y-0.5'}`}
                   watermarkDataUrl={watermarkDataUrl}
                   stampDataUrl={stampDataUrl}
                 />
@@ -1401,7 +1409,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     watermarkDataUrl,
                     stampDataUrl
                   })}
-                  className="flex items-center justify-center bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  className="flex items-center justify-center bg-purple-600 text-white px-4 py-2.5 rounded-xl hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/20 text-sm font-bold hover:-translate-y-0.5"
                   title="Detailed PDF with team information"
                 >
                   <FileText size={16} className="mr-2" />
@@ -1413,7 +1421,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       watermarkDataUrl,
                       stampDataUrl
                     })}
-                    className="flex items-center justify-center bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 transition-colors text-sm"
+                    className="flex items-center justify-center bg-teal-600 text-white px-3 py-2 rounded-xl hover:bg-teal-500 transition-all shadow-lg shadow-teal-600/20 text-sm font-bold"
                     title="Summary: Count & Batch breakdown"
                   >
                     <FileText size={14} className="mr-1" />
@@ -1421,7 +1429,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   </button>
                   <button
                     onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
-                    className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 text-sm font-bold"
                     title="PDF grouped by event"
                   >
                     <FileText size={14} className="mr-1" />
@@ -1429,7 +1437,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   </button>
                   <button
                     onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
-                    className="flex items-center justify-center bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                    className="flex items-center justify-center bg-indigo-600 text-white px-3 py-2 rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 text-sm font-bold"
                     title="PDF grouped by status"
                   >
                     <FileText size={14} className="mr-1" />
@@ -1440,14 +1448,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
             </div>
 
             {/* Excel Exports */}
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Excel Exports</div>
+            <div className="space-y-3">
+              <div className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Excel Exports</div>
               <div className="flex flex-col gap-2">
                 {exportOptions.map((option, index) => (
                   <button
                     key={index}
                     onClick={option.action}
-                    className={`flex items-center justify-center ${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium`}
+                    className={`flex items-center justify-center ${option.label === 'Send Email' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'} text-white px-4 py-2.5 rounded-xl transition-all shadow-lg text-sm font-bold hover:-translate-y-0.5`}
                   >
                     {option.label === 'Send Email' ? <Send size={16} className="mr-2" /> : <Download size={16} className="mr-2" />}
                     {option.label}
@@ -1456,7 +1464,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 
                 <button
                   onClick={handleCopyPhones}
-                  className="flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                  className="flex items-center justify-center bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-cyan-600/20 text-sm font-bold hover:-translate-y-0.5"
                   title="Copy valid phone numbers to clipboard"
                 >
                   <Phone size={16} className="mr-2" />
@@ -1467,48 +1475,50 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           </div>
         </div>
 
-        {/* Advanced Settings - Collapsible & Responsive */}
-        <div className="bg-white rounded-lg shadow-md p-3 md:p-4">
+        {/* Advanced Settings */}
+        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6">
           <button
             onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
-            className="flex items-center justify-between w-full text-left"
+            className="flex items-center justify-between w-full text-left group"
           >
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Settings size={20} className="mr-2" />
+            <h3 className="text-lg font-bold text-white flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
+                  <Settings size={20} className="text-purple-400" />
+              </div>
               Advanced Settings
             </h3>
             <ChevronDown 
               size={20} 
-              className={`text-gray-500 transition-transform ${showAdvancedSettings ? 'rotate-180' : ''}`}
+              className={`text-gray-500 transition-transform group-hover:text-gray-400 ${showAdvancedSettings ? 'rotate-180' : ''}`}
             />
           </button>
 
           {showAdvancedSettings && (
-            <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200 border-t pt-4">
+            <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2 duration-200 border-t border-white/5 pt-6">
               {/* PDF Watermark & Stamp */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Watermark Section */}
-                <div className="border border-gray-200 rounded-lg p-3">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">PDF Watermark</div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-4">
+                  <div className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wide">PDF Watermark</div>
                   {watermarkUrl ? (
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <img 
                         src={watermarkUrl || undefined} 
                         alt="Watermark preview" 
-                        className="h-10 w-auto opacity-50 border border-gray-300 rounded"
+                        className="h-10 w-auto opacity-50 border border-white/20 rounded"
                       />
-                      <span className="text-xs text-green-600 font-medium">Active</span>
+                      <span className="text-xs text-emerald-400 font-bold">✓ Active</span>
                       <button
                         onClick={handleWatermarkDelete}
-                        className="ml-auto text-xs text-red-600 hover:text-red-700 underline"
+                        className="ml-auto text-xs text-red-400 hover:text-red-300 underline font-bold"
                       >
                         Remove
                       </button>
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-500 mb-2">No watermark set</div>
+                    <div className="text-xs text-gray-500 mb-3">No watermark set</div>
                   )}
-                  <label className={`flex items-center justify-center bg-gray-600 text-white px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-gray-700 transition-colors ${uploadingWatermark ? 'opacity-60 cursor-wait' : ''}`}>
+                  <label className={`flex items-center justify-center bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-gray-500 hover:to-gray-600 transition-all font-bold shadow-lg ${uploadingWatermark ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
                     {uploadingWatermark ? 'Uploading...' : 'Upload PNG/SVG'}
                     <input
                       type="file"
@@ -1521,27 +1531,27 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </div>
 
                 {/* Stamp Section */}
-                <div className="border border-gray-200 rounded-lg p-3">
-                  <div className="text-sm font-semibold text-gray-700 mb-2">PDF Stamp</div>
+                <div className="bg-black/20 border border-white/10 rounded-xl p-4">
+                  <div className="text-sm font-bold text-gray-300 mb-3 uppercase tracking-wide">PDF Stamp</div>
                   {stampUrl ? (
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <img 
                         src={stampUrl || undefined} 
                         alt="Stamp preview" 
-                        className="h-10 w-auto border border-gray-300 rounded"
+                        className="h-10 w-auto border border-white/20 rounded"
                       />
-                      <span className="text-xs text-green-600 font-medium">Active</span>
+                      <span className="text-xs text-emerald-400 font-bold">✓ Active</span>
                       <button
                         onClick={handleStampDelete}
-                        className="ml-auto text-xs text-red-600 hover:text-red-700 underline"
+                        className="ml-auto text-xs text-red-400 hover:text-red-300 underline font-bold"
                       >
                         Remove
                       </button>
                     </div>
                   ) : (
-                    <div className="text-xs text-gray-500 mb-2">No stamp set</div>
+                    <div className="text-xs text-gray-500 mb-3">No stamp set</div>
                   )}
-                  <label className={`flex items-center justify-center bg-amber-600 text-white px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-amber-700 transition-colors ${uploadingStamp ? 'opacity-60 cursor-wait' : ''}`}>
+                  <label className={`flex items-center justify-center bg-gradient-to-r from-amber-600 to-orange-600 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-amber-500 hover:to-orange-500 transition-all font-bold shadow-lg ${uploadingStamp ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
                     {uploadingStamp ? 'Uploading...' : 'Upload Stamp'}
                     <input
                       type="file"
@@ -1555,57 +1565,57 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               </div>
 
               {/* Export Options */}
-              <div className="border border-gray-200 rounded-lg p-3 space-y-3">
-                <div className="text-sm font-semibold text-gray-700">Export Options</div>
+              <div className="bg-black/20 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="text-sm font-bold text-gray-300 uppercase tracking-wide">Export Options</div>
                 <div className="flex flex-wrap items-center gap-4">
                   <button
                     onClick={() => setShowColumnModal(true)}
-                    className="flex items-center bg-gray-700 text-white px-3 py-2 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                    className="flex items-center bg-gray-700 text-white px-4 py-2.5 rounded-xl hover:bg-gray-600 transition-all shadow-lg text-sm font-bold"
                     title="Choose export columns & presets"
                   >
                     <Filter size={14} className="mr-2" />
                     Select Columns
                   </button>
                   
-                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={pdfExcludeIdCollege}
                       onChange={(e) => setPdfExcludeIdCollege(e.target.checked)}
-                      className="rounded"
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
                     />
-                    <span>PDF: Exclude ID & College</span>
+                    <span className="font-medium group-hover:text-white transition-colors">PDF: Exclude ID & College</span>
                   </label>
                 </div>
               </div>
 
               {/* Registration Settings */}
-              <div className="border border-gray-200 rounded-lg p-3 space-y-3">
-                <div className="text-sm font-semibold text-gray-700">Registration Form Settings</div>
+              <div className="bg-black/20 border border-white/10 rounded-xl p-4 space-y-3">
+                <div className="text-sm font-bold text-gray-300 uppercase tracking-wide">Registration Form Settings</div>
                 <div className="flex flex-wrap items-center gap-4">
-                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={registrationInstitutionVisible}
                       onChange={(e) => setRegistrationInstitutionVisible(e.target.checked)}
-                      className="rounded"
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
                     />
-                    <span>Show Institution Field</span>
+                    <span className="font-medium group-hover:text-white transition-colors">Show Institution Field</span>
                   </label>
                   
-                  <label className="flex items-center space-x-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer group">
                     <input
                       type="checkbox"
                       checked={registrationInstitutionOptional}
                       onChange={(e) => setRegistrationInstitutionOptional(e.target.checked)}
                       disabled={!registrationInstitutionVisible}
-                      className="rounded"
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50 disabled:opacity-40"
                     />
-                    <span>Make Optional</span>
+                    <span className="font-medium group-hover:text-white transition-colors">Make Optional</span>
                   </label>
                   
                   <button 
-                    className={`px-3 py-1.5 rounded-lg bg-yellow-600 text-white text-sm font-medium ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:bg-yellow-700'}`} 
+                    className={`px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white text-sm font-bold shadow-lg ${savingRegSettings ? 'opacity-60 cursor-not-allowed' : 'hover:from-amber-500 hover:to-orange-500 hover:-translate-y-0.5 transition-all'}`} 
                     disabled={savingRegSettings}
                     onClick={async () => {
                       try {
@@ -1627,14 +1637,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
               {/* Dangerous Actions */}
               {isOwner && (
-                <div className="border border-red-200 bg-red-50 rounded-lg p-3">
-                  <div className="text-sm font-semibold text-red-700 mb-2 flex items-center">
-                    <AlertTriangle size={14} className="mr-2" />
+                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+                  <div className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2">
+                    <AlertTriangle size={14} />
                     Danger Zone
                   </div>
                   <button
                     onClick={handleResetSequence}
-                    className="flex items-center bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    className="flex items-center bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 text-sm font-bold"
                     title="Reset Registration ID sequence to 1 - Only use if all registrations are deleted"
                   >
                     <RefreshCw size={14} className="mr-2" />

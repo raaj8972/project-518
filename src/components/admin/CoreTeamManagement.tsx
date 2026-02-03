@@ -576,30 +576,33 @@ export const CoreTeamManagement: React.FC = () => {
           <p className="text-sm font-medium">You are not logged in. Adding or editing committees and team members may be blocked by security policies. Please log in via the Admin header.</p>
         </div>
       )}
-      {/* Header - Responsive */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Core Team Management</h2>
-          <p className="text-sm text-gray-600 mt-1">Manage committees and team members for the Rico Family page</p>
+          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+            <div className="w-1.5 h-8 bg-gradient-to-b from-purple-400 to-indigo-600 rounded-full" />
+            Core Team Management
+          </h2>
+          <p className="text-sm text-gray-400 mt-1">Manage committees and team members for the Rico Family page</p>
         </div>
         <div className="w-full sm:w-auto">
-          <div className="bg-white rounded-lg border border-gray-200 p-1">
+          <div className="bg-black/20 backdrop-blur-sm rounded-xl border border-white/10 p-1.5 flex gap-1.5">
             <button
               onClick={() => setActiveSection('committees')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg ${
                 activeSection === 'committees'
-                  ? 'bg-yellow-400 text-black'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-yellow-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               Committees
             </button>
             <button
               onClick={() => setActiveSection('members')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex-1 sm:flex-none ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg ${
                 activeSection === 'members'
-                  ? 'bg-yellow-400 text-black'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-yellow-500/30'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
               }`}
             >
               Team Members
@@ -612,88 +615,93 @@ export const CoreTeamManagement: React.FC = () => {
       {activeSection === 'committees' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Committees ({coreCommittees.length}/10)</h3>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Users size={20} className="text-purple-400" />
+              Committees ({coreCommittees.length}/10)
+            </h3>
             <button
               type="button"
               onClick={() => {
                 setIsAddingCommittee(true);
                 resetCommitteeForm();
               }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-5 py-2.5 rounded-xl hover:from-amber-400 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
             >
               <Plus size={16} className="mr-2" />
               Add Committee
             </button>
           </div>
 
-          {/* Add Committee Form - Responsive */}
+          {/* Add Committee Form */}
           {isAddingCommittee && (
-            <div className="bg-white rounded-lg shadow-md p-4 md:p-6 border-l-4 border-yellow-400">
-              <h4 className="text-lg font-semibold mb-4 md:mb-6">Add New Committee</h4>
-              <div className="grid md:grid-cols-2 gap-4 md:gap-6">
+            <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 border-l-4 border-l-amber-500">
+              <h4 className="text-lg font-bold text-white mb-6">Add New Committee</h4>
+              <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Committee Name *</label>
+                    <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Name *</label>
                     <input
                       type="text"
                       value={committeeForm.name}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="e.g., Technical Team"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+                    <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
                     <textarea
                       value={committeeForm.description}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
                       placeholder="Brief description of the committee's responsibilities"
                       rows={3}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                      className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
+                      <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
                       <input
                         type="number"
                         value={committeeForm.order_position}
                         onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
                         min="1"
                         max="10"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                        className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
                       />
                     </div>
                     <div className="flex items-end">
-                      <label className="flex items-center">
+                      <label className="flex items-center gap-2 cursor-pointer group">
                         <input
                           type="checkbox"
                           checked={committeeForm.is_core}
                           onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
-                          className="mr-2"
+                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
                         />
-                        <span className="text-sm font-medium text-gray-700">Core Committee</span>
+                        <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Core Committee</span>
                       </label>
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={committeeForm.enabled}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Visible on website</span>
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={committeeForm.enabled}
+                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
+                      />
+                      <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
+                    </label>
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Committee Color</label>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Color</label>
                   <div className="space-y-3">
                     <input
                       type="color"
                       value={committeeForm.color}
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-full h-12 border border-gray-300 rounded-lg cursor-pointer"
+                      className="w-full h-12 border border-white/20 rounded-xl cursor-pointer bg-black/20"
                     />
                     <div className="grid grid-cols-5 gap-2">
                       {predefinedColors.map((color) => (
@@ -702,50 +710,50 @@ export const CoreTeamManagement: React.FC = () => {
                           type="button"
                           onClick={() => setCommitteeForm(prev => ({ ...prev, color }))}
                           className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                            committeeForm.color === color ? 'border-gray-900 scale-110' : 'border-gray-300 hover:scale-105'
+                            committeeForm.color === color ? 'border-white scale-110 shadow-lg' : 'border-white/20 hover:scale-105'
                           }`}
                           style={{ backgroundColor: color }}
                         />
                       ))}
                     </div>
-                    <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
                       <div
-                        className="w-6 h-6 rounded-full"
+                        className="w-6 h-6 rounded-full shadow-lg"
                         style={{ backgroundColor: committeeForm.color }}
                       />
-                      <span className="text-sm text-gray-700">Preview: {committeeForm.name || 'Committee Name'}</span>
+                      <span className="text-sm text-gray-300 font-medium">Preview: {committeeForm.name || 'Committee Name'}</span>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end space-x-2 mt-6">
+              <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => {
                     setIsAddingCommittee(false);
                     resetCommitteeForm();
                   }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+                  className="px-4 py-2 text-gray-400 hover:text-white flex items-center gap-2 font-medium"
                 >
-                  <X size={16} className="mr-1" />
+                  <X size={16} />
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={handleAddCommittee}
                   disabled={!committeeForm.name.trim()}
-                  className={`px-4 py-2 rounded-lg flex items-center transition-colors ${
+                  className={`px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-lg font-bold ${
                     committeeForm.name.trim()
-                      ? 'bg-yellow-400 text-black hover:bg-yellow-300'
-                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:from-amber-400 hover:to-yellow-400 shadow-yellow-500/20 hover:-translate-y-0.5'
+                      : 'bg-gray-700 text-gray-500 cursor-not-allowed'
                   }`}
                 >
-                  <Save size={16} className="mr-1" />
+                  <Save size={16} />
                   Add Committee
                 </button>
               </div>
               {!committeeForm.name.trim() && (
-                <p className="mt-2 text-sm text-red-600">Committee name is required.</p>
+                <p className="mt-2 text-sm text-red-400">Committee name is required.</p>
               )}
             </div>
           )}

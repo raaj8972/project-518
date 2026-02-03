@@ -89,90 +89,125 @@ export const SiteSettingsPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Site Settings</h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <label className="flex items-center gap-3">
-              <input type="checkbox" className="rounded" checked={local.site_closed} onChange={(e) => setLocal((s) => ({ ...s, site_closed: e.target.checked }))} />
-              <span className="text-gray-800">Close entire site (hard maintenance)</span>
-            </label>
-            <label className="flex items-center gap-3">
-              <input type="checkbox" className="rounded" checked={local.coming_soon_enabled} onChange={(e) => setLocal((s) => ({ ...s, coming_soon_enabled: e.target.checked }))} />
-              <span className="text-gray-800">Enable Coming Soon (show until configured time)</span>
-            </label>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Coming Soon until</label>
-              <div className="relative">
-                <input
-                  type="datetime-local"
-                  value={local.coming_soon_until}
-                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_until: e.target.value }))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Leave blank to show until you disable it manually</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input
-                value={local.coming_soon_title}
-                onChange={(e) => setLocal((s) => ({ ...s, coming_soon_title: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                placeholder="Coming Soon"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Homepage Hero Title</label>
-              <input
-                value={local.homepage_hero_title}
-                onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                placeholder="RICORRENZA"
-              />
-              <p className="text-xs text-gray-500 mt-1">Quick shortcut to edit the homepage hero title (also available in Homepage management).</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-              <textarea
-                value={local.coming_soon_message}
-                onChange={(e) => setLocal((s) => ({ ...s, coming_soon_message: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 min-h-[96px] text-gray-900"
-                placeholder="We are preparing something amazing. Please check back soon."
-              />
-            </div>
-            {/* Institution visibility controls moved to Registration admin panel */}
+      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8">
+        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+           <div className="w-1 h-6 bg-yellow-500 rounded-full" />
+           Site Settings
+        </h2>
+        
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            
+            {/* Toggles Group */}
+            <div className="space-y-3 bg-black/20 p-4 rounded-xl border border-white/5">
+              <label className="flex items-center gap-4 cursor-pointer group">
+                <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.site_closed ? 'bg-red-500' : 'bg-gray-700'}`}>
+                   <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.site_closed ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <input type="checkbox" className="hidden" checked={local.site_closed} onChange={(e) => setLocal((s) => ({ ...s, site_closed: e.target.checked }))} />
+                <span className="text-gray-300 group-hover:text-white transition-colors">Close entire site (hard maintenance)</span>
+              </label>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ended Text (after timer)</label>
-              <input
-                value={local.coming_soon_ended_text}
-                onChange={(e) => setLocal((s) => ({ ...s, coming_soon_ended_text: e.target.value }))}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                placeholder={"We'll be back soon"}
-              />
-              <p className="text-xs text-gray-500 mt-1">Shown once the countdown ends while the site is still closed.</p>
+              <label className="flex items-center gap-4 cursor-pointer group">
+                <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.coming_soon_enabled ? 'bg-yellow-500' : 'bg-gray-700'}`}>
+                   <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.coming_soon_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <input type="checkbox" className="hidden" checked={local.coming_soon_enabled} onChange={(e) => setLocal((s) => ({ ...s, coming_soon_enabled: e.target.checked }))} />
+                <span className="text-gray-300 group-hover:text-white transition-colors">Enable Coming Soon Mode</span>
+              </label>
             </div>
+
+            <div className="space-y-5">
+               <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Coming Soon Valid Until</label>
+                <div className="relative group">
+                  <input
+                    type="datetime-local"
+                    value={local.coming_soon_until}
+                    onChange={(e) => setLocal((s) => ({ ...s, coming_soon_until: e.target.value }))}
+                    className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all"
+                  />
+                  <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 group-focus-within:text-yellow-500 transition-colors" />
+                </div>
+                <p className="text-[10px] text-gray-500 mt-1.5 ml-1">Leave blank for indefinite maintenance mode</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Page Title</label>
+                <input
+                  value={local.coming_soon_title}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_title: e.target.value }))}
+                  className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
+                  placeholder="Coming Soon"
+                />
+              </div>
+
+              <div>
+                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Homepage Hero Title</label>
+                <input
+                  value={local.homepage_hero_title}
+                  onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value }))}
+                  className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
+                  placeholder="RICORRENZA"
+                />
+                <p className="text-[10px] text-gray-500 mt-1.5 ml-1">The big text on the main landing page.</p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Message Body</label>
+                <textarea
+                  value={local.coming_soon_message}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_message: e.target.value }))}
+                  className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 min-h-[96px] text-white transition-all placeholder-gray-600"
+                  placeholder="We are preparing something amazing..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Post-Timer Text</label>
+                <input
+                  value={local.coming_soon_ended_text}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_ended_text: e.target.value }))}
+                  className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
+                  placeholder="We'll be back soon"
+                />
+              </div>
+            </div>
+
             <button
               onClick={onSave}
-              className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-white ${saving ? 'bg-gray-500' : 'bg-yellow-600 hover:bg-yellow-700'} disabled:opacity-70`}
+              className={`
+                w-full inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-sm font-bold shadow-lg transition-all
+                ${saving 
+                  ? 'bg-gray-800 text-gray-400 cursor-not-allowed' 
+                  : 'bg-yellow-500 text-black hover:bg-yellow-400 hover:shadow-yellow-500/20 active:scale-[0.98]'
+                }
+              `}
               disabled={saving}
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? 'Saving changes...' : 'Save Settings'}
             </button>
+            
             {savedAt && (
-              <div className="text-xs text-green-700">Saved {new Date(savedAt).toLocaleTimeString()}</div>
+              <div className="text-center text-xs font-bold text-green-400 animate-pulse">
+                Settings saved successfully at {new Date(savedAt).toLocaleTimeString()}
+              </div>
             )}
           </div>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-4 py-2 bg-gray-50 border-b text-sm text-gray-700">Public Preview</div>
-            <div className="aspect-video bg-black relative">
-              <div className="absolute inset-0 transform scale-[0.4] origin-top-left w-[250%] h-[250%]">
-                <ComingSoon previewSettings={local} />
-              </div>
-            </div>
+          
+          <div className="space-y-4">
+             <div className="text-xs font-bold text-gray-500 uppercase tracking-widest">Live Preview</div>
+             <div className="border border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/50">
+               <div className="aspect-[9/16] sm:aspect-video bg-black relative">
+                 <div className="absolute inset-0 transform scale-[0.4] origin-top-left w-[250%] h-[250%] pointer-events-none select-none">
+                   <ComingSoon previewSettings={local} />
+                 </div>
+               </div>
+             </div>
+             <p className="text-xs text-gray-500 text-center">
+               This is an approximation of what users will see.
+             </p>
           </div>
         </div>
       </div>

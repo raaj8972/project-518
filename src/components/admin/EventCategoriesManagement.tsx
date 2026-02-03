@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Palette, AlertCircle } from 'lucide-react';
-import { useSavingProgress } from '../../context/SavingProgressContext';
+import { Plus, Edit, Trash2, Save, X, Palette, AlertCircle, GripVertical, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import type { EventCategory } from '../../context/DataContext';
@@ -10,13 +9,13 @@ export const EventCategoriesManagement: React.FC = () => {
     eventCategories, 
     addEventCategory, 
     updateEventCategory, 
-    deleteEventCategory 
-    , reorderEventCategories
+    deleteEventCategory,
+    reorderEventCategories
   } = useData();
 
-  const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [requiresApproval, setRequiresApproval] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     checkRequiresApproval().then(setRequiresApproval);
@@ -28,115 +27,88 @@ export const EventCategoriesManagement: React.FC = () => {
 
   const [categoryForm, setCategoryForm] = useState({
     name: '',
-    color: '#6B7280',
+    color: '#6366f1',
     description: ''
   });
 
   const resetForm = () => {
     setCategoryForm({
       name: '',
-      color: '#6B7280',
+      color: '#6366f1',
       description: ''
     });
     setError('');
   };
 
   const handleAddCategory = async () => {
-    // Basic validation + trimming
     const name = (categoryForm.name || '').trim();
     const description = (categoryForm.description || '').trim();
-    const color = (categoryForm.color || '').trim() || '#6B7280';
+    const color = (categoryForm.color || '').trim() || '#6366f1';
+    
     if (!name || !description) {
       setError('Name and description are required');
       return;
     }
     
+    setBusy(true);
     try {
       if (requiresApproval) {
-        await submitForApproval(
-          'event_category',
-          'create',
-          {
-            name: name,
-            description: description,
-            color: color
-          }
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
+        await submitForApproval('event_category', 'create', { name, description, color });
+        alert('Request submitted for approval.');
       } else {
         await addEventCategory({ name, description, color });
       }
       setIsAdding(false);
       resetForm();
     } catch (error: any) {
-      // Log full structure for diagnostics and show meaningful message
-      console.error('Error adding category:', error?.message || error, error);
-      const msg =
-        (typeof error?.message === 'string' && error.message) ||
-        (typeof error?.toString === 'function' && error.toString()) ||
-        'Failed to add category. Please try again.';
-      setError(msg);
+      setError(error?.message || 'Failed to add category');
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleUpdateCategory = async (id: number) => {
     const name = (categoryForm.name || '').trim();
     const description = (categoryForm.description || '').trim();
-    const color = (categoryForm.color || '').trim() || '#6B7280';
+    const color = (categoryForm.color || '').trim() || '#6366f1';
+    
     if (!name || !description) {
       setError('Name and description are required');
       return;
     }
     
+    setBusy(true);
     try {
       if (requiresApproval) {
-        await submitForApproval(
-          'event_category',
-          'update',
-          {
-            name: name,
-            description: description,
-            color: color
-          },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
+        await submitForApproval('event_category', 'update', { name, description, color }, id);
+        alert('Request submitted for approval.');
       } else {
         await updateEventCategory(id, { name, description, color });
       }
       setEditingCategory(null);
       resetForm();
     } catch (error: any) {
-      console.error('Error updating category:', error?.message || error, error);
-      const msg =
-        (typeof error?.message === 'string' && error.message) ||
-        (typeof error?.toString === 'function' && error.toString()) ||
-        'Failed to update category. Please try again.';
-      setError(msg);
+      setError(error?.message || 'Failed to update category');
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleDeleteCategory = async (id: number) => {
-    if (confirm('Are you sure you want to delete this category? This action cannot be undone and may affect existing events.')) {
-      try {
-        if (requiresApproval) {
-          await submitForApproval(
-            'event_category',
-            'delete',
-            {},
-            id
-          );
-          alert('Request submitted for approval. An owner will review your changes.');
-        } else {
-          await deleteEventCategory(id);
-        }
-      } catch (error: any) {
-        console.error('Error deleting category:', error?.message || error, error);
-        setError(
-          (typeof error?.message === 'string' && error.message) ||
-          'Failed to delete category. Please try again.'
-        );
+    if (!confirm('Are you sure? This may affect existing events.')) return;
+    
+    setBusy(true);
+    try {
+      if (requiresApproval) {
+        await submitForApproval('event_category', 'delete', {}, id);
+        alert('Request submitted for approval.');
+      } else {
+        await deleteEventCategory(id);
       }
+    } catch (error: any) {
+      setError(error?.message || 'Failed to delete category');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -151,11 +123,10 @@ export const EventCategoriesManagement: React.FC = () => {
   };
 
   const predefinedColors = [
-    '#6B7280', '#EF4444', '#F97316', '#EAB308', '#22C55E', 
-    '#06B6D4', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B'
+    '#6366f1', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', 
+    '#8b5cf6', '#ec4899', '#f43f5e', '#06b6d4', '#14b8a6'
   ];
 
-  // Reorder UI state
   const [reorderMode, setReorderMode] = useState(false);
   const [orderList, setOrderList] = useState<number[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -173,31 +144,18 @@ export const EventCategoriesManagement: React.FC = () => {
 
   const persistReorder = async () => {
     if (!reorderEventCategories) return;
+    setBusy(true);
     try {
       if (requiresApproval) {
-        // For reordering, we might need a special action or just update each item
-        // But reordering usually involves multiple updates. 
-        // For simplicity, let's assume we can't easily approve bulk reorders yet, 
-        // or we just warn the user. 
-        // Or better, we submit a special 'reorder' action if backend supports it, 
-        // or just loop and submit updates (might be spammy).
-        // Let's alert for now or try to submit one by one.
-        alert('Reordering requires approval. This feature is not fully supported in approval mode yet.');
-        // Alternatively, we could just allow it if it's not critical, or implement a bulk update.
-        // Let's try to submit updates for each changed item.
-        /*
-        for (const cat of reorderedCategories) {
-           await submitForApproval('event_category', 'update', { order_position: cat.order_position }, cat.id);
-        }
-        */
+        alert('Bulk reordering requires owner access.');
       } else {
         await reorderEventCategories(orderList);
         setReorderMode(false);
-        setOrderList([]);
       }
     } catch (error) {
-      console.error('Error reordering categories:', error);
-      setError('Failed to persist category order. Please try again.');
+      setError('Failed to save order');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -208,61 +166,45 @@ export const EventCategoriesManagement: React.FC = () => {
     setOrderList(copy);
   };
 
-  const onDragStartRow = (e: React.DragEvent, index: number) => {
-    setDragIndex(index);
-    try { e.dataTransfer.setData('text/plain', String(index)); } catch {}
-  };
-
-  const onDragOverRow = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    if (dragIndex === null || dragIndex === index) return;
-    moveRow(dragIndex, index);
-    setDragIndex(index);
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Event Categories</h2>
-          <p className="text-gray-600">Manage event categories and their visual styling</p>
+          <div className="flex items-center gap-2 mb-1">
+            <Palette className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-2xl font-black text-white tracking-tight uppercase">Event Categories</h2>
+          </div>
+          <p className="text-gray-400 text-sm">Manage categories and their visual appearance</p>
         </div>
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           {!reorderMode ? (
             <>
               <button
-                type="button"
                 onClick={startReorder}
-                className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center"
+                className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2.5 rounded-xl border border-white/10 transition-all text-sm font-bold uppercase tracking-widest active:scale-95"
               >
-                Reorder
+                <GripVertical size={16} /> Reorder
               </button>
               <button
-                type="button"
-                onClick={() => {
-                  setIsAdding(true);
-                  resetForm();
-                }}
-                className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+                onClick={() => { setIsAdding(true); resetForm(); }}
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 transition-all text-sm font-bold uppercase tracking-widest active:scale-95"
               >
-                <Plus size={16} className="mr-2" />
-                Add Category
+                <Plus size={18} /> Add Category
               </button>
             </>
           ) : (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <button
-                type="button"
                 onClick={persistReorder}
-                className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-500 transition-colors"
+                disabled={busy}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest shadow-lg shadow-emerald-600/20 active:scale-95"
               >
                 Save Order
               </button>
               <button
-                type="button"
                 onClick={cancelReorder}
-                className="bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 transition-colors"
+                className="bg-white/5 hover:bg-white/10 text-gray-400 px-4 py-2 rounded-xl transition-all text-xs font-bold uppercase tracking-widest border border-white/10 active:scale-95"
               >
                 Cancel
               </button>
@@ -273,271 +215,209 @@ export const EventCategoriesManagement: React.FC = () => {
 
       {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center">
-          <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-          <span className="text-red-700">{error}</span>
-          <button
-            type="button"
-            onClick={() => setError('')}
-            className="ml-auto text-red-500 hover:text-red-700"
-          >
-            <X size={16} />
+        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-center justify-between animate-in zoom-in duration-300">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="text-red-200 text-sm font-medium">{error}</span>
+          </div>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300 p-1">
+            <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Add Category Form */}
-      {isAdding && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-4">Add New Category</h3>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category Name *</label>
+      {/* Add/Edit Form */}
+      {(isAdding || editingCategory !== null) && (
+        <div className="bg-[#1c1c2b]/80 backdrop-blur-xl border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl animate-in fade-in zoom-in duration-500 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-indigo-500/20 transition-colors" />
+          
+          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            {isAdding ? <Plus className="text-indigo-400" /> : <Edit className="text-indigo-400" />}
+            {isAdding ? 'Create New Category' : 'Edit Category'}
+          </h3>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Category Name</label>
                 <input
                   type="text"
                   value={categoryForm.name}
                   onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Cultural, Technical, Sports"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  placeholder="e.g., Cultural, Technical"
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm font-medium"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Description</label>
                 <textarea
                   value={categoryForm.description}
                   onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description of this category"
-                  rows={3}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
+                  placeholder="Describe the category..."
+                  rows={4}
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm font-medium resize-none"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category Color</label>
-              <div className="space-y-3">
-                <input
-                  type="color"
-                  value={categoryForm.color}
-                  onChange={(e) => setCategoryForm(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-full h-12 border border-gray-300 rounded-lg cursor-pointer"
-                />
-                <div className="grid grid-cols-5 gap-2">
-                  {predefinedColors.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setCategoryForm(prev => ({ ...prev, color }))}
-                      className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                        categoryForm.color === color ? 'border-gray-900 scale-110' : 'border-gray-300 hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: color }}
+
+            <div className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Identity Color</label>
+                <div className="flex flex-col gap-4 p-5 bg-black/40 border border-white/5 rounded-2xl">
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="color"
+                      value={categoryForm.color}
+                      onChange={(e) => setCategoryForm(prev => ({ ...prev, color: e.target.value }))}
+                      className="w-14 h-14 bg-transparent border-none cursor-pointer rounded-xl overflow-hidden shadow-inner"
                     />
-                  ))}
+                    <div className="flex flex-col">
+                      <span className="text-xs font-mono text-gray-500 uppercase">{categoryForm.color}</span>
+                      <span className="text-[9px] text-gray-600 font-bold uppercase tracking-wider">HEX Code</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-5 gap-2">
+                    {predefinedColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setCategoryForm(prev => ({ ...prev, color }))}
+                        className={`w-full aspect-square rounded-lg border-2 transition-all transform hover:scale-110 active:scale-90 ${
+                          categoryForm.color === color ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-80'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                  <div
-                    className="w-6 h-6 rounded-full"
-                    style={{ backgroundColor: categoryForm.color }}
-                  />
-                  <span className="text-sm text-gray-700">Preview: {categoryForm.name || 'Category Name'}</span>
+              </div>
+
+              <div className="p-4 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl shadow-lg flex items-center justify-center" style={{ backgroundColor: categoryForm.color }}>
+                  <Check className="text-white" size={20} strokeWidth={3} />
+                </div>
+                <div>
+                  <div className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">Preview</div>
+                  <div className="text-sm font-bold text-white truncate max-w-[150px]">{categoryForm.name || 'Category'}</div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="flex justify-end space-x-2 mt-6">
+
+          <div className="flex justify-end items-center gap-4 mt-8 pt-6 border-t border-white/5">
             <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                resetForm();
-              }}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center"
+              onClick={() => { setIsAdding(false); setEditingCategory(null); resetForm(); }}
+              className="px-6 py-3 text-gray-400 hover:text-white transition-colors text-xs font-bold uppercase tracking-[0.15em] flex items-center gap-2"
             >
-              <X size={16} className="mr-1" />
-              Cancel
+              <X size={16} /> Cancel
             </button>
             <button
-              type="button"
-              onClick={handleAddCategory}
-              className="px-4 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center"
+              onClick={() => editingCategory !== null ? handleUpdateCategory(editingCategory) : handleAddCategory()}
+              disabled={busy}
+              className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl shadow-xl shadow-indigo-600/20 transition-all text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
-              <Save size={16} className="mr-1" />
-              Add Category
+              <Save size={16} /> {editingCategory !== null ? 'Save Changes' : 'Create Category'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Categories List */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {(reorderMode ? orderList.map(id => eventCategories.find(c => c.id === id)!).filter(Boolean) as any[] : eventCategories).map((category) => (
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {(reorderMode ? orderList.map(id => eventCategories.find(c => c.id === id)!).filter(Boolean) as any[] : eventCategories).map((category, idx) => (
           <div
             key={category.id}
-            className={`bg-white rounded-lg shadow-md overflow-hidden ${reorderMode ? 'ring-2 ring-dashed ring-yellow-300 cursor-grab' : 'hover:shadow-lg'} transition-shadow`}
+            className={`group bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden transition-all duration-300 ${
+              reorderMode 
+                ? 'ring-2 ring-indigo-500/30 cursor-grab active:cursor-grabbing hover:border-indigo-500/50' 
+                : 'hover:border-white/20 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1'
+            }`}
             draggable={reorderMode}
-            onDragStart={(e) => reorderMode ? onDragStartRow(e, (orderList.findIndex(i => i === category.id))) : undefined}
-            onDragOver={(e) => reorderMode ? onDragOverRow(e, (orderList.findIndex(i => i === category.id))) : undefined}
+            onDragStart={(e) => {
+              setDragIndex(idx);
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (dragIndex === null || dragIndex === idx) return;
+              moveRow(dragIndex, idx);
+              setDragIndex(idx);
+            }}
+            onDragEnd={() => setDragIndex(null)}
           >
-            {editingCategory === category.id ? (
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category Name</label>
-                    <input
-                      type="text"
-                      value={categoryForm.name}
-                      onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                    <textarea
-                      value={categoryForm.description}
-                      onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={2}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="color"
-                        value={categoryForm.color}
-                        onChange={(e) => setCategoryForm(prev => ({ ...prev, color: e.target.value }))}
-                        className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
-                      />
-                      <div className="grid grid-cols-5 gap-1 flex-1">
-                        {predefinedColors.slice(0, 5).map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => setCategoryForm(prev => ({ ...prev, color }))}
-                            className={`w-6 h-6 rounded border transition-all ${
-                              categoryForm.color === color ? 'border-gray-900 scale-110' : 'border-gray-300 hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end space-x-2 mt-4">
+            <div className="h-2 w-full" style={{ backgroundColor: category.color }} />
+            
+            <div className="p-6 relative">
+              {/* Actions Overlay */}
+              {!reorderMode && (
+                <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
                   <button
-                    type="button"
-                    onClick={() => {
-                      setEditingCategory(null);
-                      resetForm();
-                    }}
-                    className="px-3 py-1 text-gray-600 hover:text-gray-800 flex items-center"
+                    onClick={() => startEditingCategory(category)}
+                    className="p-2.5 bg-white/5 hover:bg-blue-500/20 text-gray-400 hover:text-blue-400 rounded-xl border border-white/5 transition-all active:scale-95"
+                    title="Edit"
                   >
-                    <X size={14} className="mr-1" />
-                    Cancel
+                    <Edit size={16} />
                   </button>
                   <button
-                    type="button"
-                    onClick={() => handleUpdateCategory(category.id)}
-                    className="px-3 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center"
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="p-2.5 bg-white/5 hover:bg-red-500/20 text-gray-400 hover:text-red-400 rounded-xl border border-white/5 transition-all active:scale-95"
+                    title="Delete"
                   >
-                    <Save size={14} className="mr-1" />
-                    Save
+                    <Trash2 size={16} />
                   </button>
                 </div>
+              )}
+
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.5)]" style={{ backgroundColor: category.color }} />
+                  <h3 className="text-lg font-bold text-white tracking-tight leading-tight">{category.name}</h3>
+                </div>
+                <p className="text-gray-400 text-sm line-clamp-2 leading-relaxed h-10">{category.description}</p>
               </div>
-            ) : (
-              <>
-                <div 
-                  className="h-3"
-                  style={{ backgroundColor: category.color }}
-                />
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900">{category.name}</h3>
-                    <div className="flex items-center space-x-2">
-                      <div
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-4">{category.description}</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">
-                      Color: {category.color}
-                    </span>
-                    <div className="flex items-center space-x-2">
-                      {reorderMode ? (
-                        <div className="flex items-center space-x-1">
-                          <button
-                            type="button"
-                            aria-label={`Move ${category.name} up`}
-                            onClick={() => {
-                              const idx = orderList.findIndex(i => i === category.id);
-                              if (idx > 0) moveRow(idx, idx - 1);
-                            }}
-                            className="bg-gray-100 text-gray-700 p-2 rounded hover:bg-gray-200"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={`Move ${category.name} down`}
-                            onClick={() => {
-                              const idx = orderList.findIndex(i => i === category.id);
-                              if (idx >= 0 && idx < orderList.length - 1) moveRow(idx, idx + 1);
-                            }}
-                            className="bg-gray-100 text-gray-700 p-2 rounded hover:bg-gray-200"
-                          >
-                            ▼
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEditingCategory(category)}
-                            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-500 transition-colors"
-                            title="Edit category"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteCategory(category.id)}
-                            className="bg-red-600 text-white p-2 rounded hover:bg-red-500 transition-colors"
-                            title="Delete category"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Hex Identity</span>
+                  <span className="text-xs font-mono text-gray-400 uppercase">{category.color}</span>
                 </div>
-              </>
-            )}
+                
+                {reorderMode && (
+                  <div className="flex items-center gap-1.5 p-1 bg-black/20 rounded-xl border border-white/5">
+                    <button
+                      onClick={() => moveRow(idx, Math.max(0, idx - 1))}
+                      className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-indigo-400 transition-all"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <div className="w-px h-3 bg-white/10" />
+                    <button
+                      onClick={() => moveRow(idx, Math.min(orderList.length - 1, idx + 1))}
+                      className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-indigo-400 transition-all"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* No Categories Message */}
+      {/* Empty State */}
       {eventCategories.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <Palette size={64} className="mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Categories Yet</h3>
-          <p className="text-gray-500 mb-4">Start by adding your first event category</p>
+        <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-[#181824]/40 backdrop-blur-md border border-white/5 rounded-[3rem] border-dashed">
+          <div className="w-20 h-20 bg-indigo-500/10 rounded-[2rem] flex items-center justify-center mb-6 border border-indigo-500/20">
+            <Palette className="w-10 h-10 text-indigo-400" />
+          </div>
+          <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tighter">No Categories Found</h3>
+          <p className="text-gray-400 max-w-xs mb-8 text-sm">Create categories to organize your events with unique visual identities.</p>
           <button
-            type="button"
-            onClick={() => {
-              setIsAdding(true);
-              resetForm();
-            }}
-            className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
+            onClick={() => { setIsAdding(true); resetForm(); }}
+            className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl shadow-xl shadow-indigo-600/20 transition-all font-bold uppercase tracking-widest text-xs active:scale-95"
           >
-            Add First Category
+            Create Your First Category
           </button>
         </div>
       )}

@@ -1,12 +1,23 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Image as ImageIcon, AlertCircle, FileText, Play, Loader2 } from 'lucide-react';
-import { supabase, SUPABASE_HOST } from '../lib/supabase';
+import React, { useEffect, useRef, useState } from 'react';
+import { 
+  AlertCircle, 
+  FileText, 
+  Play, 
+  Trash2, 
+  UploadCloud, 
+  X, 
+  Check, 
+  ZoomIn, 
+  Crop as CropIcon,
+  RotateCcw
+} from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
-import { useSavingProgress } from '../context/SavingProgressContext';
 import { useData } from '../context/DataContext';
 import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
 import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
-import { ensureValidSession } from '../lib/authFetch';
+import { useMediaUpload } from '../hooks/useMediaUpload';
+import { humanSize, getFileName } from '../utils/uploadUtils';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -16,22 +27,15 @@ interface ImageUploadProps {
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
-  // optional crop settings
-  enableCropper?: boolean; // default true for images
-  cropAspect?: number; // e.g., 1 for square avatar, 4/3, 16/9, etc.
-  // if true, immediately calls onImageSelect after a successful upload (skip extra Save click)
+  enableCropper?: boolean;
+  cropAspect?: number;
   autoSave?: boolean;
-  // hide all action controls (Change/Save/Delete) and just display the image; intended for registration flow
   hideControls?: boolean;
-  // optional override for image size limit (bytes). If not provided, defaults to 5MB for images
   maxImageBytes?: number;
-  // Optional image optimization overrides for this upload (width/quality/format)
   optimizeOptions?: OptimizationOptions;
-  // Optional video optimization options for video uploads
   optimizeVideoOptions?: VideoOptimizationOptions;
 }
 
-// Main ImageUpload component
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
   onImageSelect, 
   currentImage, 
@@ -39,7 +43,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   bucket,
   folder = '',
   acceptedTypes = 'image/*',
-  fileTypeLabel = 'PNG, JPG, GIF up to 5MB',
+  fileTypeLabel,
   enableCropper = true,
   cropAspect,
   autoSave = false,
@@ -49,32 +53,48 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   optimizeVideoOptions
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadPercent, setUploadPercent] = useState<number>(0);
-  const [error, setError] = useState<string>('');
-  const [pendingImage, setPendingImage] = useState<string>('');
-  // Local, immediate preview (data URL) so users can see the selected image even if bucket is private
+  
+  // Local preview state
   const [localPreview, setLocalPreview] = useState<string>('');
   const [optimizedPreviewMeta, setOptimizedPreviewMeta] = useState<{ size: number; type: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [missingBucket, setMissingBucket] = useState<string>(''); 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteCountdown, setDeleteCountdown] = useState(2);
-  const [uploadHint, setUploadHint] = useState<string>('');
+  
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [originalImageMime, setOriginalImageMime] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
-  const savingProgress = useSavingProgress();
-  // Site setting: poster fit for accurate preview (Events card)
-  const { siteSettings, adminUsers } = (useData?.() || {}) as any;
-  const posterFit: 'contain' | 'cover' = ((siteSettings as any)?.events_poster_fit === 'cover' ? 'cover' : 'contain');
-  // Owner detection to allow larger image uploads (up to 30MB)
+  
+  // Responsive / Layout state
+  const { adminUsers } = (useData?.() || {}) as any;
   const [isOwner, setIsOwner] = useState<boolean>(false);
+  const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
+
+  // Hook integration
+  const {
+    isProcessing,
+    setIsProcessing,
+    uploading,
+    uploadPercent,
+    error,
+    setError,
+    pendingImage,
+    uploadHint,
+    missingBucket,
+    handleUploadProcess,
+    deleteFromStorageByPublicUrl,
+    resetUploadState
+  } = useMediaUpload({
+    bucket,
+    folder,
+    onImageSelect,
+    maxImageBytes
+  });
+
+  // Check owner status
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -93,1046 +113,436 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     })();
     return () => { cancelled = true; };
   }, [adminUsers]);
-  // Preview state for crop modal
-  const [previewMode, setPreviewMode] = useState<'full' | 'crop'>('full');
-  const [croppedPreviewUrl, setCroppedPreviewUrl] = useState<string | null>(null);
-  // Allow overriding preview fit mode to compare contain vs cover
-  const [previewFitMode, setPreviewFitMode] = useState<'site' | 'contain' | 'cover'>('site');
-  const effectivePosterFit: 'contain' | 'cover' = previewFitMode === 'site' ? posterFit : previewFitMode;
-  // Local aspect ratio toggle
-  const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
-  // Match Events card fixed heights by breakpoint: 440 (base), 500 (>=480px), 620 (>=768px)
-  const computeCardHeight = () => {
-    if (typeof window === 'undefined') return 500;
-    if (window.matchMedia('(min-width: 768px)').matches) return 620;
-    if (window.matchMedia('(min-width: 480px)').matches) return 500;
-    return 440;
-  };
-  const [previewCardHeight, setPreviewCardHeight] = useState<number>(computeCardHeight());
-  const computeIsMd = () => (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches);
-  const [previewIsMd, setPreviewIsMd] = useState<boolean>(computeIsMd());
-  useEffect(() => {
-    const onResize = () => {
-      setPreviewCardHeight(computeCardHeight());
-      setPreviewIsMd(computeIsMd());
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-  const FRONT_MEDIA_TOP = 0; // front face now has no reserved top; media fills entire area
-  // Cropper area height (taller on larger screens)
-  const cropperHeight = Math.max(440, Math.min(560, previewCardHeight));
-  const previewCardTaller = previewCardHeight > cropperHeight;
-  // Scale-to-fit option for preview card
-  const [previewCardScaleMode, setPreviewCardScaleMode] = useState<'actual' | 'fit'>('actual');
-  const previewViewportRef = useRef<HTMLDivElement>(null);
-  const [fitScale, setFitScale] = useState<number>(1);
-  useEffect(() => {
-    if (previewCardScaleMode !== 'fit') { setFitScale(1); return; }
-    const measure = () => {
-      const el = previewViewportRef.current;
-      if (!el) return;
-      // Use clientHeight of viewport area; leave a tiny margin for borders/padding
-      const avail = Math.max(1, el.clientHeight - 8);
-      const s = Math.min(1, avail / Math.max(1, previewCardHeight));
-      setFitScale(s);
-    };
-    measure();
-    const t = setTimeout(measure, 0);
-    window.addEventListener('resize', measure);
-    return () => { window.removeEventListener('resize', measure); clearTimeout(t); };
-  }, [previewCardScaleMode, previewCardHeight, cropperHeight, previewIsMd]);
 
-  // When fitting the whole card to the viewport, always use Full Photo preview to avoid confusion
-  useEffect(() => {
-    if (previewCardScaleMode === 'fit' && previewMode !== 'full') {
-      setPreviewMode('full');
-    }
-  }, [previewCardScaleMode, previewMode]);
-
-
-  // Create a blob from the cropped area via canvas
-  async function getCroppedImgBlob(
-    imageSrc: string,
-    cropPixels: { x: number; y: number; width: number; height: number } | null,
-    outputMime: 'image/png' | 'image/jpeg'
-  ): Promise<Blob> {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = imageSrc;
-    });
-
-    // If no crop area provided yet (user didn’t move handles), default to full image
-    const effective = cropPixels && cropPixels.width && cropPixels.height
-      ? cropPixels
-      : { x: 0, y: 0, width: image.naturalWidth || image.width, height: image.naturalHeight || image.height };
-
-    // Downscale very large images to keep size reasonable (max dimension ~1600px)
-    const maxDim = 1600;
-    const scale = Math.min(1, Math.min(maxDim / effective.width, maxDim / effective.height));
-    const targetW = Math.max(1, Math.floor(effective.width * scale));
-    const targetH = Math.max(1, Math.floor(effective.height * scale));
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas not supported');
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(
-      image,
-      effective.x,
-      effective.y,
-      effective.width,
-      effective.height,
-      0,
-      0,
-      targetW,
-      targetH
-    );
-
-    return await new Promise<Blob>((resolve, reject) => {
-      const quality = outputMime === 'image/jpeg' ? 0.9 : undefined;
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('Canvas toBlob failed'));
-      }, outputMime, quality as any);
-    });
-  };
-
-  // Debounced live cropped preview when adjusting crop
-  useEffect(() => {
-    if (!cropSrc || !croppedAreaPixels || previewMode !== 'crop') return;
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      try {
-        const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels, 'image/jpeg');
-        if (cancelled) return;
-        const url = URL.createObjectURL(blob);
-        if (croppedPreviewUrl) { try { URL.revokeObjectURL(croppedPreviewUrl); } catch {} }
-        setCroppedPreviewUrl(url);
-      } catch {}
-    }, 150);
-    return () => { cancelled = true; clearTimeout(t); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cropSrc, croppedAreaPixels, previewMode]);
-
+  // Derived types
   const acceptedTypesLower = acceptedTypes.toLowerCase();
   const isPdfUpload = acceptedTypesLower.includes('pdf');
   const isVideoUpload = acceptedTypesLower.includes('video');
   const isAudioUpload = acceptedTypesLower.includes('audio');
-  // Effective max image size (bytes): Owner gets 30MB default, others 5MB, unless an explicit override is provided
+  
   const defaultImageMaxBytes = isOwner ? 30 * 1024 * 1024 : 5 * 1024 * 1024;
   const defaultAudioMaxBytes = 25 * 1024 * 1024;
   const effectiveImageMaxBytes = (typeof maxImageBytes === 'number' && maxImageBytes > 0) ? maxImageBytes : defaultImageMaxBytes;
-  const humanSize = (bytes: number) => bytes >= 1024 * 1024
-    ? `${Math.round(bytes / (1024 * 1024))}MB`
-    : `${Math.ceil(bytes / 1024)}KB`;
-  const effectiveFileTypeLabel = isVideoUpload
+  
+  const effectiveFileTypeLabel = fileTypeLabel || (isVideoUpload
     ? 'MP4, MOV up to 50MB'
-    : (isAudioUpload
-      ? `MP3/OGG up to ${humanSize(defaultAudioMaxBytes)}`
-      : (isPdfUpload ? 'PDF up to 10MB' : `PNG, JPG, GIF up to ${humanSize(effectiveImageMaxBytes)}`));
-  const displayFileTypeLabel = (fileTypeLabel && fileTypeLabel !== 'PNG, JPG, GIF up to 5MB')
-    ? fileTypeLabel
-    : effectiveFileTypeLabel;
+    : isAudioUpload
+      ? 'MP3, OGG'
+      : isPdfUpload 
+        ? 'PDF up to 10MB' 
+        : `PNG, JPG, WEBP up to ${humanSize(effectiveImageMaxBytes)}`);
 
-  // Extract storage object path from a public URL for a given bucket
-  const extractObjectPathFromPublicUrl = (urlStr: string, bucketId: string): string => {
-    try {
-      const url = new URL(urlStr);
-      const publicPrefix = `/storage/v1/object/public/${bucketId}/`;
-      if (url.pathname.includes(publicPrefix)) {
-        return url.pathname.substring(url.pathname.indexOf(publicPrefix) + publicPrefix.length);
-      }
-      const parts = url.pathname.split('/');
-      const idx = parts.findIndex((p) => p === bucketId);
-      return idx >= 0 ? parts.slice(idx + 1).join('/') : '';
-    } catch {
-      return '';
-    }
-  };
-
-  // Best-effort deletion of a storage object by its public URL
-  const deleteFromStorageByPublicUrl = async (urlStr: string) => {
-    if (!urlStr || !urlStr.includes(bucket)) return;
-    const objectPath = extractObjectPathFromPublicUrl(urlStr, bucket);
-    if (!objectPath) return;
-    try {
-      await supabase.storage.from(bucket).remove([objectPath]);
-    } catch (e) {
-      console.warn('Unable to delete storage object', objectPath, e);
-    }
-  };
-
-  // Utility: race a promise against a timeout
-  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label = 'operation'): Promise<T> => {
-    let timer: any;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    });
-    try {
-      const result = await Promise.race([promise, timeout]);
-      return result as T;
-    } finally {
-      clearTimeout(timer);
-    }
-  };
-
-  const uploadToSupabase = async (file: File, onProgress?: (p: number) => void): Promise<string> => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-  // Dynamic timeout based on file type: videos can be large, images smaller
-  const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : isAudioUpload ? 180_000 : 120_000;
-    // Try XHR path to surface real upload progress.
-    const tryXHR = async () => {
-      // Ensure we have a valid session (will throw 'no-session' if invalid/expired)
-      const access = await ensureValidSession();
-      const base = `https://${SUPABASE_HOST}`;
-      const endpoint = `${base}/storage/v1/object/${bucket}/${encodeURIComponent(fileName)}`;
-      await withTimeout(new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        const killer = setTimeout(() => { try { xhr.abort(); } catch {} reject(new Error('upload timed out')); }, timeoutMs);
-        xhr.open('POST', endpoint, true);
-        xhr.setRequestHeader('Authorization', `Bearer ${access}`);
-        try { xhr.setRequestHeader('apikey', (supabase as any).supabaseKey || ''); } catch {}
-        xhr.setRequestHeader('x-upsert', 'false');
-        if (file.type) xhr.setRequestHeader('Content-Type', file.type);
-        xhr.upload.onprogress = (evt) => {
-          if (evt.lengthComputable && onProgress) {
-            onProgress((evt.loaded / evt.total) * 100);
-          }
-        };
-        xhr.onreadystatechange = () => {
-          if (xhr.readyState === XMLHttpRequest.DONE) {
-            clearTimeout(killer);
-            if (xhr.status >= 200 && xhr.status < 300) resolve();
-            else reject(new Error(`Upload failed (HTTP ${xhr.status}): ${xhr.responseText || 'unknown error'}`));
-          }
-        };
-        xhr.onerror = () => { clearTimeout(killer); reject(new Error('Network error during upload')); };
-        xhr.send(file);
-      }), timeoutMs, 'upload');
-    };
-
-    const trySDK = async () => {
-      const { error } = await withTimeout(
-        supabase.storage
-          .from(bucket)
-          .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type || undefined }),
-        timeoutMs,
-        'upload'
-      );
-      if (error) throw error as any;
-    };
-
-    try {
-      await tryXHR();
-      } catch (e: any) {
-      // Fallback to SDK if no session or XHR unsupported
-        if ((e?.message || '').includes('no-session')) {
-          // No active session: try SDK upload which may succeed if anon access allowed,
-          // otherwise surface a clear error to the caller so UI can prompt re-login.
-          try {
-            await trySDK();
-          } catch (ee) {
-            throw new Error('no-session');
-          }
-        }
-        // For other errors, try SDK once more
-        try {
-          await trySDK();
-        } catch (ee) {
-          throw ee;
-        }
-    }
-
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(fileName);
-
-    return publicUrl;
-  };
-
-  const mapUploadError = (error: any): Error => {
-    const status = (error as any)?.status as number | undefined;
-    const msgRaw = (error && (error as any).message) ? (error as any).message : String(error);
-    const msg = msgRaw.toLowerCase();
-    // Handle generic/opaque network errors (status 0) with actionable hints
-    if (status === 0 || msg.includes('http 0') || msg.includes('unknown error')) {
-      return new Error('Network/CORS error during upload (HTTP 0). Check your Supabase URL/key configuration, browser extensions (ad blockers), and retry. If this persists, try logging in to Admin and uploading from there.');
-    }
-    if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
-      return new Error(
-        `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
-      );
-    }
-    if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
-      setMissingBucket(bucket);
-      return new Error(`Storage bucket '${bucket}' not found in this Supabase project. Run the SQL shown below to create it, then retry.`);
-    }
-    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
-      return new Error('Network error during upload. Check your internet connection or try a smaller image.');
-    }
-    return new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
-  };
+  // --- Handlers ---
 
   const handleFileSelect = async (file: File) => {
     setIsProcessing(true);
-    try {
-      // Skip type validation if acceptedTypes is "*"
-      if (acceptedTypes !== '*') {
-        if (isVideoUpload) {
-          if (!file.type.startsWith('video/')) {
-            setError('Please select a video file (MP4 or MOV)');
-            setIsProcessing(false);
-            return;
-          }
-        } else if (isPdfUpload) {
-          if (file.type !== 'application/pdf') {
-            setError('Please select a PDF file');
-            setIsProcessing(false);
-            return;
-          }
-        } else if (isAudioUpload) {
-          if (!file.type.startsWith('audio/')) {
-            setError('Please select an audio file (MP3 or OGG)');
-            setIsProcessing(false);
-            return;
-          }
-        } else {
-          // Only check for image if NOT a video/pdf/audio upload
-          if (!file.type.startsWith('image/')) {
-            setError('Please select an image file');
-            setIsProcessing(false);
-            return;
-          }
-        }
-      }
-
-      // Check file size (max 50MB for videos by default, unless overridden)
-      const maxSize = isVideoUpload
-        ? (maxImageBytes || 50 * 1024 * 1024)
-        : isPdfUpload
-          ? 10 * 1024 * 1024
-          : isAudioUpload
-            ? defaultAudioMaxBytes
-            : effectiveImageMaxBytes;
-
-      // Auto-optimize images before size check if possible
-      if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
-         try {
-           // Use caller-provided optimization options when supplied, otherwise fall back to sensible defaults
-           const defaultOpts: OptimizationOptions = { maxWidth: 1920, maxHeight: 1920, quality: 0.8, format: 'auto', preserveTransparency: true };
-           const opts = optimizeOptions ? { ...defaultOpts, ...optimizeOptions } : defaultOpts;
-           const optimized = await optimizeImage(file, opts);
-           // Update preview metadata for admin feedback
-           try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type }); } catch {}
-           file = optimized;
-         } catch (e) {
-           console.warn('Auto-optimization failed', e);
-         }
-      }
-
-    // Auto-optimize videos before upload when possible
-    // Only if file is larger than the limit, OR if optimization is explicitly requested via options
-    // This dramatically speeds up uploads for user-provided files that are already compressed enough.
-    if (isVideoUpload && (file.size > maxSize || optimizeVideoOptions?.force)) {
-      try {
-        const vopts = optimizeVideoOptions || { maxWidth: 1280, maxHeight: 720, bitrate: 800_000, mimeType: 'video/webm;codecs=vp8,opus' };
-        const optimized = await optimizeVideo(file, vopts);
-        // For videos we can also set preview meta using blob type/size
-        try { setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type || file.type }); } catch {}
-        file = optimized;
-      } catch (e) {
-        console.warn('Video optimization failed', e);
-        setIsProcessing(false); // Force stop processing on error
-        // Optionally return here if critical, but code continues to upload unoptimized
-      }
+    setError('');
+    
+    // 1. Validation
+    if (!validateFileType(file)) {
+      setIsProcessing(false);
+      return;
     }
-
-    if (file.size > maxSize) {
-      // For images, if a strict maxImageBytes is set, try auto-compress instead of erroring out.
-  if (!isVideoUpload && !isPdfUpload && !isAudioUpload && maxImageBytes) {
-    // Try aggressive compression if still over limit.
-    // Respect caller opts but force JPEG for max compression when necessary.
-    const aggressiveBase: OptimizationOptions = { maxWidth: 1280, maxHeight: 1280, quality: 0.6, format: 'image/jpeg' };
-    const compressed = await optimizeImage(file, optimizeOptions ? { ...optimizeOptions, ...aggressiveBase } : aggressiveBase);
-        
-        if (!compressed || compressed.size > maxImageBytes * 1.1) {
-          setError(`File size must be less than ${Math.ceil(maxImageBytes / 1024)}KB (even after compression). Please choose a smaller image.`);
-          setIsProcessing(false);
-          return;
-        }
-        // Replace the file with compressed version and proceed
-        file = compressed as File;
-      } else {
-        const sizeLabel = isVideoUpload
-          ? humanSize(maxSize)
-          : isPdfUpload
-            ? '10MB'
-            : humanSize(effectiveImageMaxBytes);
-        setError(`File size must be less than ${sizeLabel}`);
-        setIsProcessing(false);
-        return;
-      }
-    }
-
-    // For images, optionally open cropper instead of immediate upload
-  if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setCropSrc(dataUrl);
-        // Show immediate preview behind the crop modal
-        setLocalPreview(dataUrl);
-        setZoom(0.9); // start slightly zoomed-out for easier full-photo view
-        setCrop({ x: 0, y: 0 });
-        setError('');
-        setPreviewMode('full');
-        if (croppedPreviewUrl) {
-          try { URL.revokeObjectURL(croppedPreviewUrl); } catch {}
-          setCroppedPreviewUrl(null);
-        }
-        setIsProcessing(false);
-      };
-      reader.onerror = () => setIsProcessing(false);
-      reader.readAsDataURL(file);
-      setOriginalImageMime(file.type || null);
-      // stash the original file object for later in input (not stored; we’ll recreate from canvas)
+    
+    if (!validateFileSize(file)) {
+      // Logic inside validateFileSize handles error setting but returns false
+      setIsProcessing(false);
       return;
     }
 
-    // If cropper is disabled but this is an image, still create a quick local preview
-  if (!isPdfUpload && !isVideoUpload && !isAudioUpload && !enableCropper) {
-      try {
-        const r = new FileReader();
-        r.onload = () => setLocalPreview(r.result as string);
-        r.readAsDataURL(file);
-      } catch {}
+    // 2. Optimization (Images/Videos)
+    let processedFile = file;
+    if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+      processedFile = await handleImageOptimization(file);
+    } else if (isVideoUpload) {
+      processedFile = await handleVideoOptimization(file);
     }
 
-    // Default path: direct upload (videos/PDFs or cropper disabled)
-    setIsProcessing(false);
-    setUploading(true);
-  setUploadHint('');
-  setUploadPercent(0);
-  // Start global overlay for uploads
-  try { savingProgress.start('Uploading…', 1); } catch {}
-  let hintTimer: ReturnType<typeof setTimeout> | undefined;
-  hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
-    setError('');
-    try {
-      const fileUrl = await uploadToSupabase(file, (p) => {
-        const pct = Math.round(p);
-        setUploadPercent(pct);
-        try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
-      });
-      try { savingProgress.set(100); } catch {}
-      // cleanup any previous pending (replaced before save)
-      if (pendingImage && pendingImage !== fileUrl) {
-        await deleteFromStorageByPublicUrl(pendingImage);
-      }
-      setPendingImage(fileUrl);
-      if (autoSave || hideControls) {
-        const prev = currentImage;
-        onImageSelect(fileUrl);
-        setHasUnsavedChanges(false);
-        if (prev && prev !== fileUrl) {
-          await deleteFromStorageByPublicUrl(prev);
-        }
-      } else {
-        setHasUnsavedChanges(true);
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      if (err instanceof Error && /mime type/i.test(err.message)) {
-        setError('Upload failed: this file type is not allowed in the bucket. Allowed: PNG, JPG, WEBP, GIF, MP4, MOV');
-      } else if (err instanceof Error) {
-        setError(mapUploadError(err).message);
-      } else {
-        setError('Upload failed');
-      }
-    } finally {
-      if (hintTimer) clearTimeout(hintTimer);
-      setUploading(false);
-      setUploadHint('');
-      setUploadPercent(0);
-      try { savingProgress.done(); } catch {}
-    }
-    } catch (e) {
-      console.error('Processing error:', e);
-      setIsProcessing(false);
-    }
-  };
-
-  const handleSaveImage = async () => {
-    if (pendingImage) {
-      const prev = currentImage;
-      onImageSelect(pendingImage);
-      setHasUnsavedChanges(false);
-      setError('');
-      if (prev && prev !== pendingImage) {
-        await deleteFromStorageByPublicUrl(prev);
-      }
-    }
-  };
-
-  const handleDiscardChanges = async () => {
-    if (pendingImage && pendingImage !== currentImage) {
-      await deleteFromStorageByPublicUrl(pendingImage);
-    }
-    setPendingImage('');
-    setHasUnsavedChanges(false);
-    setError('');
-  };
-
-  const onCropComplete = useCallback((_: any, areaPixels: { x: number; y: number; width: number; height: number }) => {
-    setCroppedAreaPixels(areaPixels);
-  }, []);
-
-  // Create a blob from the cropped area via canvas
-
-
-  // Decide export format: strictly preserve PNG/JPG; otherwise choose sensible fallback
-  const chooseOutputFormat = () => {
-    const orig = (originalImageMime || '').toLowerCase();
-    if (orig.includes('image/png')) {
-      return { mime: 'image/png' as const, ext: 'png' };
-    }
-    if (orig.includes('image/jpeg') || orig.includes('image/jpg')) {
-      return { mime: 'image/jpeg' as const, ext: 'jpg' };
-    }
-    // Fallbacks for other types
-    if (bucket === 'sponsor-logos') {
-      // Prefer PNG for logos when original type is unknown/other to preserve transparency
-      return { mime: 'image/png' as const, ext: 'png' };
-    }
-    // Default to JPEG for photos
-    return { mime: 'image/jpeg' as const, ext: 'jpg' };
-  };
-
-  const confirmCropAndUpload = async () => {
-    if (!cropSrc) return;
-  let hintTimer: ReturnType<typeof setTimeout> | undefined;
-  try {
-  setUploading(true);
-  setUploadHint('');
-  setUploadPercent(0);
-  try { savingProgress.start('Uploading…', 1); } catch {}
-    hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
-    // Allow full-image fallback when croppedAreaPixels is not yet set
-  const fmt = chooseOutputFormat();
-  const blob = await getCroppedImgBlob(cropSrc, croppedAreaPixels, fmt.mime);
-  const file = new File([blob], `crop_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
-    const fileUrl = await uploadToSupabase(file, (p) => {
-      const pct = Math.round(p);
-      setUploadPercent(pct);
-      try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
-    });
-    try { savingProgress.set(100); } catch {}
-    if (pendingImage && pendingImage !== fileUrl) {
-      await deleteFromStorageByPublicUrl(pendingImage);
-    }
-    setPendingImage(fileUrl);
-    if (autoSave || hideControls) {
-      const prev = currentImage;
-      onImageSelect(fileUrl);
-      setHasUnsavedChanges(false);
-      if (prev && prev !== fileUrl) {
-        await deleteFromStorageByPublicUrl(prev);
-      }
+    // 3. Cropper or Direct Upload
+    if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
+      openCropper(processedFile);
     } else {
-      setHasUnsavedChanges(true);
+      // Direct upload
+      // Local preview fallback
+      if (!isPdfUpload && !isVideoUpload) {
+         const r = new FileReader();
+         r.onload = () => setLocalPreview(r.result as string);
+         r.readAsDataURL(processedFile);
+      }
+      setIsProcessing(false);
+      try {
+        await handleUploadProcess(processedFile, isVideoUpload, isPdfUpload, isAudioUpload, autoSave, hideControls, currentImage);
+        setHasUnsavedChanges(!autoSave && !hideControls);
+      } catch (e) { /* Hook handles error */ }
     }
-    setCropSrc(null);
-  } catch (err) {
-    console.error('Crop upload failed:', err);
-    setError(mapUploadError(err).message);
-  } finally {
-    if (hintTimer) clearTimeout(hintTimer);
-    setUploadHint('');
-    setUploading(false);
-    setUploadPercent(0);
-    try { savingProgress.done(); } catch {}
-  }
   };
 
-  // Explicit "Use Full Photo" path: ignore the crop area and upload the whole image
-  const confirmFullImageUpload = async () => {
-    if (!cropSrc) return;
-    let hintTimer: ReturnType<typeof setTimeout> | undefined;
+  const validateFileType = (file: File) => {
+    if (acceptedTypes === '*') return true;
+    if (isVideoUpload && !file.type.startsWith('video/')) return setError('Invalid file type. Video required.'), false;
+    if (isPdfUpload && file.type !== 'application/pdf') return setError('Invalid file type. PDF required.'), false;
+    if (isAudioUpload && !file.type.startsWith('audio/')) return setError('Invalid file type. Audio required.'), false;
+    if (!isVideoUpload && !isPdfUpload && !isAudioUpload && !file.type.startsWith('image/')) return setError('Invalid file type. Image required.'), false;
+    return true;
+  };
+
+  const validateFileSize = (file: File) => {
+    const maxSize = isVideoUpload ? (maxImageBytes || 50 * 1024 * 1024) : 
+                isPdfUpload ? 10 * 1024 * 1024 : 
+                isAudioUpload ? defaultAudioMaxBytes : effectiveImageMaxBytes;
+    
+    if (file.size > maxSize) {
+      setError(`File too large. Max size: ${humanSize(maxSize)}`);
+      return false;
+    }
+    return true;
+  };
+
+  const handleImageOptimization = async (file: File) => {
     try {
-  setUploading(true);
-  setUploadHint('');
-  setUploadPercent(0);
-  try { savingProgress.start('Uploading…', 1); } catch {}
-      hintTimer = setTimeout(() => setUploadHint('Taking longer than usual… If the image is large, try a smaller one.'), 8000);
-  const fmt = chooseOutputFormat();
-  const blob = await getCroppedImgBlob(cropSrc, null, fmt.mime);
-  const file = new File([blob], `full_${Date.now()}.${fmt.ext}`, { type: fmt.mime });
-      const fileUrl = await uploadToSupabase(file, (p) => {
-        const pct = Math.round(p);
-        setUploadPercent(pct);
-        try { savingProgress.set(Math.max(1, Math.min(99, pct))); } catch {}
-      });
-      try { savingProgress.set(100); } catch {}
-        if (pendingImage && pendingImage !== fileUrl) {
-          await deleteFromStorageByPublicUrl(pendingImage);
-        }
-        setPendingImage(fileUrl);
-        if (autoSave || hideControls) {
-          const prev = currentImage;
-          onImageSelect(fileUrl);
-          setHasUnsavedChanges(false);
-          if (prev && prev !== fileUrl) {
-            await deleteFromStorageByPublicUrl(prev);
-          }
-        } else {
-          setHasUnsavedChanges(true);
-        }
+      const defaultOpts: OptimizationOptions = { maxWidth: 1920, maxHeight: 1920, quality: 0.8, format: 'auto', preserveTransparency: true };
+      const opts = optimizeOptions ? { ...defaultOpts, ...optimizeOptions } : defaultOpts;
+      const optimized = await optimizeImage(file, opts);
+      setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type });
+      return optimized as File;
+    } catch (e) {
+      console.warn('Image optimization skipped', e);
+      return file;
+    }
+  };
+
+  const handleVideoOptimization = async (file: File) => {
+    try {
+      if (file.size > (maxImageBytes || 50 * 1024 * 1024) || optimizeVideoOptions?.force) {
+        const vopts = optimizeVideoOptions || { maxWidth: 1280, maxHeight: 720, bitrate: 800_000, mimeType: 'video/webm;codecs=vp8,opus' };
+        const optimized = await optimizeVideo(file, vopts);
+        setOptimizedPreviewMeta({ size: optimized.size, type: optimized.type || file.type });
+        return optimized as File;
+      }
+    } catch (e) {
+      console.warn('Video optimization skipped', e);
+    }
+    return file;
+  };
+
+  const openCropper = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCropSrc(reader.result as string);
+      setLocalPreview(reader.result as string);
+      setZoom(1);
+      setCrop({ x: 0, y: 0 });
+      setError('');
+      setIsProcessing(false);
+    };
+    reader.readAsDataURL(file);
+    setOriginalImageMime(file.type || null);
+  };
+
+  // --- Crop Actions ---
+  
+  const getCroppedImgBlob = async (pixelCrop: any): Promise<Blob> => {
+    if (!cropSrc) throw new Error('No crop source');
+    const image = await new Promise<HTMLImageElement>((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; 
+      img.src = cropSrc;
+      img.onload = () => resolve(img);
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('No context');
+
+    // High quality scale
+    const maxDim = 1200;
+    const scale = Math.min(1, maxDim / Math.max(pixelCrop.width, pixelCrop.height));
+    
+    canvas.width = pixelCrop.width * scale;
+    canvas.height = pixelCrop.height * scale;
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      image,
+      pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+      0, 0, canvas.width, canvas.height
+    );
+
+    return new Promise((resolve) => {
+      canvas.toBlob(blob => resolve(blob!), originalImageMime === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
+    });
+  };
+
+  const onConfirmCrop = async () => {
+    try {
+      const blob = await getCroppedImgBlob(croppedAreaPixels);
+      const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: originalImageMime || 'image/jpeg' });
+      await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      setHasUnsavedChanges(!autoSave && !hideControls);
       setCropSrc(null);
-    } catch (err) {
-      console.error('Full image upload failed:', err);
-      setError(mapUploadError(err).message);
-    } finally {
-      if (hintTimer) clearTimeout(hintTimer);
-      setUploadHint('');
-      setUploading(false);
-      setUploadPercent(0);
-      try { savingProgress.done(); } catch {}
+    } catch (e) {
+      console.error(e);
+      setError('Cropping failed');
     }
   };
 
-  const cancelCrop = () => {
-    setCropSrc(null);
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
+  const onConfirmFull = async () => {
+    try {
+      // Just fetch the blob from src and upload
+      const res = await fetch(cropSrc!);
+      const blob = await res.blob();
+      const file = new File([blob], `original_${Date.now()}.jpg`, { type: blob.type });
+      await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      setHasUnsavedChanges(!autoSave && !hideControls);
+      setCropSrc(null);
+    } catch (e) {
+      setError('Upload failed');
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const removeFile = async () => {
+  // --- Delete Actions ---
+  const handleDelete = async () => {
+    const target = pendingImage || currentImage;
+    if (target) await deleteFromStorageByPublicUrl(target);
+    resetUploadState();
+    setHasUnsavedChanges(false);
+    onImageSelect('');
+    setLocalPreview('');
     setShowDeleteConfirm(false);
-
-    try {
-      const imageToRemove = pendingImage || currentImage;
-      
-      // Delete from storage if it's in the current bucket
-      if (imageToRemove && imageToRemove.includes(bucket)) {
-        await deleteFromStorageByPublicUrl(imageToRemove);
-      }
-      
-      // Clear the image in the UI
-      if (pendingImage) {
-        setPendingImage('');
-        setHasUnsavedChanges(false);
-      }
-      
-      // Always notify parent to clear the image
-      onImageSelect('');
-      
-      // Clear local preview
-      setLocalPreview('');
-      
-    } catch (err) {
-      console.error('Failed to delete file:', err);
-      alert('Failed to delete file. Please try again.');
-    }
   };
+  
+  // --- UI Renderers ---
 
-  const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
-    setDeleteCountdown(2);
-    
-    // Countdown timer
-    const timer = setInterval(() => {
-      setDeleteCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const getFileName = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/');
-      return pathParts[pathParts.length - 1];
-    } catch {
-      return 'Document';
-    }
-  };
-
-  // Display the pending image if available, otherwise show current image
-  // Prefer local preview so that private buckets still show an image immediately after selection
   const displayImage = localPreview || pendingImage || currentImage;
+
   return (
-    <div className={`relative mb-3 ${className}`}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept={acceptedTypes}
-        onChange={handleFileChange}
-        className="hidden"
-      />
-      
-      {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-center">
-          <AlertCircle className="w-5 h-5 text-red-500 mr-2" />
-          <span className="text-red-700 text-sm">{error}</span>
-        </div>
-      )}
-      {missingBucket && (
-        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm font-semibold text-yellow-800 mb-2">Create missing bucket '{missingBucket}'</p>
-          <pre className="text-xs whitespace-pre-wrap bg-yellow-100 p-2 rounded border border-yellow-200 overflow-x-auto">
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  '{missingBucket}','{missingBucket}', true, 83886080,
-  ARRAY['image/png','image/jpeg','image/jpg','image/webp','image/gif','video/mp4','video/quicktime','video/webm']
-)
-ON CONFLICT (id) DO UPDATE
-SET file_size_limit = EXCLUDED.file_size_limit,
-    allowed_mime_types = EXCLUDED.allowed_mime_types,
-    public = EXCLUDED.public;
+    <div className={`relative ${className}`}>
+      <input ref={fileInputRef} type="file" accept={acceptedTypes} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} className="hidden" />
 
--- Policies
-DROP POLICY IF EXISTS "Public read {missingBucket}" ON storage.objects;
-DROP POLICY IF EXISTS "Auth insert {missingBucket}" ON storage.objects;
-DROP POLICY IF EXISTS "Auth update {missingBucket}" ON storage.objects;
-DROP POLICY IF EXISTS "Auth delete {missingBucket}" ON storage.objects;
-
-CREATE POLICY "Public read {missingBucket}" ON storage.objects FOR SELECT TO public USING (bucket_id = '{missingBucket}');
-CREATE POLICY "Auth insert {missingBucket}" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = '{missingBucket}');
-CREATE POLICY "Auth update {missingBucket}" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = '{missingBucket}') WITH CHECK (bucket_id = '{missingBucket}');
-CREATE POLICY "Auth delete {missingBucket}" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = '{missingBucket}');
-          </pre>
-          <p className="text-[11px] text-yellow-700 mt-1">Run in Supabase SQL editor, then retry upload.</p>
-        </div>
-      )}
-      
-      {hasUnsavedChanges && (
-        <div className="mb-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 flex items-center">
-          <AlertCircle className="w-4 h-4 text-yellow-500 mr-2" />
-          <span className="text-yellow-700 text-sm">You have unsaved changes to this image</span>
-        </div>
-      )}
-      
-      {displayImage ? (
-  <div className={`relative group ${hideControls ? 'cursor-pointer' : ''}`} onClick={hideControls ? handleClick : undefined}>
-          {isVideoUpload ? (
-            <div className="w-full h-48 bg-black border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center overflow-hidden relative">
-              <video 
-                src={displayImage} 
-                controls 
-                className="w-full h-full object-contain" 
-                preload="metadata"
-              />
-            </div>
-          ) : isPdfUpload ? (
-            <div className="w-full h-48 bg-gray-100 border-2 border-gray-300 rounded-lg flex flex-col items-center justify-center">
-              <FileText className="w-16 h-16 text-red-500 mb-2" />
-              <span className="text-sm text-gray-600 text-center px-2">
-                {getFileName(displayImage)}
-              </span>
-              <a
-                href={displayImage}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 text-xs mt-1"
-              >
-                View PDF
-              </a>
-            </div>
-          ) : (
-            <img
-              src={displayImage}
-              alt="Selected"
-             className="w-full h-24 object-cover rounded-lg border-2 border-gray-300"
-            />
-          )}
-          {optimizedPreviewMeta && (
-            <div className="mt-2 text-xs text-gray-500">Optimized: {humanSize(optimizedPreviewMeta.size)} ({optimizedPreviewMeta.type.replace('image/','')})</div>
-          )}
-          {hideControls && (
-            <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded opacity-80 group-hover:opacity-100 select-none">
-              Change
-            </div>
-          )}
-          {!hideControls && (
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={handleClick}
-                disabled={uploading}
-                className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors disabled:opacity-50"
-              >
-                Change
-              </button>
-              {hasUnsavedChanges && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleSaveImage}
-                    disabled={uploading}
-                    className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600 transition-colors disabled:opacity-50"
-                  >
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDiscardChanges}
-                    disabled={uploading}
-                    className="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
-                  >
-                    Discard
-                  </button>
-                </>
-              )}
-              <button
-                type="button"
-                onClick={handleDeleteClick}
-                className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div
-          onClick={handleClick}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            dragOver 
-              ? 'border-yellow-400 bg-yellow-50' 
-              : 'border-gray-300 hover:border-gray-400'
-          } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
-        >
-          {uploading || isProcessing ? (
-            <div className="flex flex-col items-center justify-center min-h-[160px]">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-3" />
-                  <p className="text-gray-600 font-medium">{isVideoUpload ? 'Optimizing video...' : 'Processing file...'}</p>
-                  <p className="text-xs text-gray-500 mt-1">{isVideoUpload ? 'This may take a moment for large files' : 'Optimizing media for web...'}</p>
-                </>
-              ) : (
-                <>
-                  {/* Circular progress ring */}
-                  <div className="relative mb-2" style={{ width: 72, height: 72 }}>
-                    <svg className="transform -rotate-90" width="72" height="72" viewBox="0 0 72 72">
-                      <circle cx="36" cy="36" r="32" stroke="#e5e7eb" strokeWidth="6" fill="none" />
-                      <circle
-                        cx="36"
-                        cy="36"
-                        r="32"
-                        stroke="#f59e0b"
-                        strokeWidth="6"
-                        fill="none"
-                        strokeLinecap="round"
-                        strokeDasharray={2 * Math.PI * 32}
-                        strokeDashoffset={(1 - (uploadPercent || 0) / 100) * (2 * Math.PI * 32)}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-sm font-semibold text-gray-700">{Math.max(0, Math.min(100, Math.round(uploadPercent || 0)))}%</span>
-                    </div>
-                  </div>
-                  <p className="text-gray-600">Uploading to Supabase…</p>
-                  {uploadHint && <p className="text-xs text-gray-500 mt-1">{uploadHint}</p>}
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              <div className="bg-gray-100 p-4 rounded-full mb-4">
-                {isVideoUpload ? (
-                  <Play className="w-8 h-8 text-gray-400" />
-                ) : isPdfUpload ? (
-                  <FileText className="w-8 h-8 text-gray-400" />
-                ) : (
-                  <ImageIcon className="w-8 h-8 text-gray-400" />
-                )}
-              </div>
-              <p className="text-gray-600 mb-2">
-                <span className="font-medium">Click to upload</span> or drag and drop
-              </p>
-              <p className="text-sm text-gray-500">{displayFileTypeLabel}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Cropper Modal */}
-  {cropSrc && !isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper && (
-        <div className="fixed inset-0 z-[1000] bg-black/70 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-5xl overflow-hidden">
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold">Adjust & Crop</h3>
-              <p className="text-sm text-gray-500">Drag to reposition, pinch/scroll to zoom. Right panel shows how it will appear inside the Event card ({posterFit}).</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-              {/* Cropper area */}
-              <div className="relative" style={{ height: cropperHeight }}>
-                <Cropper
-                  image={cropSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={cropAspectLocal}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  restrictPosition={false}
-                  objectFit="contain"
-                  cropShape="rect"
-                  showGrid={false}
-                  minZoom={0.2}
-                  maxZoom={8}
-                />
-              </div>
-              {/* Event card live preview */}
-              <div className="border-l md:block hidden overflow-y-auto" style={{ height: cropperHeight }}>
-                <div className="h-full w-full flex flex-col">
-                  <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
-                    <div className="text-sm text-gray-600">Event card preview</div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        className={`text-xs px-2 py-1 rounded ${previewMode === 'full' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`}
-                        onClick={() => setPreviewMode('full')}
-                      >Full Photo</button>
-                      <button
-                        type="button"
-                        className={`text-xs px-2 py-1 rounded ${previewMode === 'crop' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`}
-                        onClick={() => setPreviewMode('crop')}
-                      >Cropped</button>
-                    </div>
-                  </div>
-                  {/* Preview fit toggle */}
-                  <div className="flex items-center justify-between px-4 py-2 border-b bg-white">
-                    <div className="text-[11px] text-gray-500">Site fit: {posterFit}</div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1">
-                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'site' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('site')}>Match site</button>
-                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'contain' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('contain')}>Fit (no crop)</button>
-                      <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewFitMode === 'cover' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewFitMode('cover')}>Cover (fill)</button>
-                      </div>
-                        <div className="flex gap-1 ml-1">
-                          <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'actual' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('actual')}>Actual</button>
-                          <button type="button" className={`text-[11px] px-2 py-1 rounded ${previewCardScaleMode === 'fit' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => setPreviewCardScaleMode('fit')}>Fit card</button>
-                        </div>
-                    </div>
-                  </div>
-                  {previewCardScaleMode === 'actual' && previewCardTaller && (
-                    <div className="px-4 py-1 text-[11px] text-gray-500 bg-white/60">Scroll to see the full card preview</div>
-                  )}
-                    {previewCardScaleMode === 'fit' && (
-                      <div className="px-4 py-1 text-[11px] text-gray-500 bg-white/60">Fit card shows the full image without crop (fit).</div>
-                    )}
-                  <div className="p-4 flex-1 flex items-center justify-center bg-white" ref={previewViewportRef}>
-                    <div className="w-full max-w-[560px] rounded-md shadow-inner overflow-hidden border border-gray-200 bg-black" style={{ borderRadius: 12, padding: previewIsMd ? 3 : 0, transform: `scale(${fitScale})`, transformOrigin: 'top center' }}>
-                      {/* Visible media area exactly like flip-front-media (fills entire face) */}
-                      <div
-                        className="w-full"
-                        style={{
-                          height: Math.max(0, previewCardHeight - FRONT_MEDIA_TOP),
-                            backgroundImage: `url(${previewMode === 'crop' && croppedPreviewUrl ? croppedPreviewUrl : cropSrc})`,
-                            // In Fit card mode, force contain to ensure no cropping while fitting the whole card
-                            backgroundSize: previewCardScaleMode === 'fit' ? 'contain' : effectivePosterFit,
-                          backgroundPosition: 'center',
-                          backgroundRepeat: 'no-repeat',
-                          backgroundColor: '#000',
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="px-4 pb-3 text-[11px] text-gray-500">Preview matches Events card height ({previewCardHeight}px) and reserves the same top area ({FRONT_MEDIA_TOP}px). Mode: {effectivePosterFit}.</div>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-4 border-t bg-gray-50">
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-gray-600">Zoom</label>
-                <input type="range" min={0.2} max={8} step={0.01} value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))} />
-                {/* Aspect ratio toggle */}
-                <div className="ml-4 flex items-center gap-1">
-                  <span className="text-sm text-gray-600">Aspect</span>
-                  <button type="button" className={`text-xs px-2 py-1 rounded ${Math.abs(cropAspectLocal - 16/9) < 0.001 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => { setCropAspectLocal(16/9); setPreviewMode('full'); }}>16:9</button>
-                  <button type="button" className={`text-xs px-2 py-1 rounded ${Math.abs(cropAspectLocal - 9/16) < 0.001 ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-800'}`} onClick={() => { setCropAspectLocal(9/16); setPreviewMode('full'); }}>9:16</button>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={cancelCrop} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm">Cancel</button>
-                <button type="button" onClick={confirmFullImageUpload} disabled={uploading} className="px-4 py-2 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm">Use Full Photo</button>
-                <button type="button" onClick={confirmCropAndUpload} disabled={uploading} className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm">Crop & Upload</button>
-              </div>
-            </div>
+      {/* Error / Warning Alert */}
+      {(error || missingBucket) && (
+        <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm text-red-100 font-medium">{error || `Bucket '${missingBucket}' missing`}</p>
+            {missingBucket && <p className="text-xs text-red-300 mt-1">Please contact admin to initialize storage.</p>}
           </div>
+          <button onClick={() => { setError(''); }} className="text-red-400 hover:text-red-200"><X size={16} /></button>
         </div>
       )}
+
+      {/* Main Container */}
+      <div 
+        className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${
+           displayImage 
+            ? 'border border-white/10 bg-black/40' 
+            : dragOver 
+              ? 'border-2 border-dashed border-purple-500 bg-purple-500/10' 
+              : 'border-2 border-dashed border-white/10 bg-white/5 hover:border-purple-500/50 hover:bg-white/10'
+        }`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); e.dataTransfer.files?.[0] && handleFileSelect(e.dataTransfer.files[0]); }}
+      >
+        
+        {/* Loading Overlay */}
+        {(isProcessing || uploading) && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="relative w-16 h-16 mb-4">
+               <svg className="animate-spin w-full h-full text-purple-500" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+               </svg>
+               {uploadPercent > 0 && (
+                 <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">{uploadPercent}%</div>
+               )}
+            </div>
+            <p className="text-sm font-medium text-purple-200">{uploading ? 'Uploading media...' : 'Optimizing...'}</p>
+            {uploadHint && <p className="text-xs text-gray-400 mt-2 text-center max-w-[80%]">{uploadHint}</p>}
+          </div>
+        )}
+
+        {/* Content State */}
+        {displayImage ? (
+          <div className="relative min-h-[200px] w-full flex flex-col">
+            {/* Display Area */}
+            <div className="relative flex-1 bg-black/50 flex items-center justify-center overflow-hidden min-h-[200px] max-h-[400px]">
+              {isVideoUpload ? (
+                <video src={displayImage} className="max-h-full max-w-full w-auto h-auto object-contain" controls />
+              ) : isPdfUpload ? (
+                 <div className="flex flex-col items-center gap-2 p-6">
+                   <FileText className="w-16 h-16 text-red-400" />
+                   <span className="text-sm text-gray-300 font-mono break-all text-center">{getFileName(displayImage)}</span>
+                   <a href={displayImage} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline">Open PDF</a>
+                 </div>
+              ) : (
+                <img src={displayImage} alt="Preview" className="w-full h-full object-contain" />
+              )}
+              
+              {/* Overlay Actions (Desktop Hover) */}
+              {!hideControls && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
+                     <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white transition-colors" title="Change">
+                       <RotateCcw size={18} />
+                     </button>
+                     <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/40 backdrop-blur border border-red-500/30 text-red-200 transition-colors" title="Delete">
+                        <Trash2 size={18} />
+                     </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Mobile Actions Bar (Always Visible on Touch) */}
+            {!hideControls && (
+               <div className="lg:hidden flex items-center justify-between p-3 bg-white/5 border-t border-white/5">
+                  <button onClick={() => fileInputRef.current?.click()} typeof="button" className="text-xs font-bold text-gray-300 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
+                    <RotateCcw size={14} /> Change
+                  </button>
+                   {hasUnsavedChanges && (
+                      <span className="text-[10px] text-yellow-400 font-mono uppercase tracking-wider animate-pulse">Unsaved</span>
+                   )}
+                  <button onClick={() => setShowDeleteConfirm(true)} typeof="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10">
+                    <Trash2 size={14} /> Remove
+                  </button>
+               </div>
+            )}
+            
+            {/* Unsaved & Optimization Info Badge */}
+            <div className="absolute top-2 right-2 flex flex-col items-end gap-1 pointer-events-none">
+              {hasUnsavedChanges && !hideControls && (
+                 <div className="px-2 py-1 rounded-md bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider shadow-lg backdrop-blur-sm flex items-center gap-1">
+                   <AlertCircle size={10} /> Unsaved
+                 </div>
+              )}
+              {optimizedPreviewMeta && (
+                <div className="px-2 py-1 rounded-md bg-black/60 border border-white/10 text-gray-400 text-[9px] backdrop-blur-md">
+                  {humanSize(optimizedPreviewMeta.size)} • {optimizedPreviewMeta.type.split('/')[1].toUpperCase()}
+                </div>
+              )}
+            </div>
+
+          </div>
+        ) : (
+          /* Empty State Dropzone */
+          <div 
+             onClick={() => fileInputRef.current?.click()}
+             className="flex flex-col items-center justify-center py-10 px-4 cursor-pointer text-center min-h-[160px]"
+          >
+            <div className={`p-4 rounded-full mb-4 transition-all duration-300 ${dragOver ? 'bg-purple-500/20 scale-110' : 'bg-white/5 group-hover:bg-white/10 group-hover:scale-105'}`}>
+               {isVideoUpload ? <Play className="w-8 h-8 text-purple-400" /> : <UploadCloud className="w-8 h-8 text-purple-400" />}
+            </div>
+            <h3 className="text-sm font-bold text-white mb-1">
+              Click to upload or drag & drop
+            </h3>
+            <p className="text-xs text-gray-500 max-w-[200px]">
+              {effectiveFileTypeLabel}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete this image?</h3>
-            <p className="text-gray-600 text-sm mb-4">This action cannot be undone.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-white mb-2">Delete File?</h3>
+            <p className="text-sm text-gray-400 mb-6">This action cannot be undone. The file will be permanently removed.</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50"
-              >
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={removeFile}
-                disabled={deleteCountdown > 0}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {deleteCountdown > 0 ? `Wait ${deleteCountdown}s` : 'OK'}
+              <button onClick={handleDelete} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-900/20 transition-all">
+                Delete
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Mobile-First Cropper Modal */}
+      {cropSrc && (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black animate-in fade-in duration-300">
+           {/* Header */}
+           <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur border-b border-white/10 z-10 shrink-0">
+             <div className="flex items-center gap-2">
+                <CropIcon size={16} className="text-purple-400" />
+                <span className="text-sm font-bold text-white tracking-wide">ADJUST IMAGE</span>
+             </div>
+             <button onClick={() => setCropSrc(null)} className="p-2 -mr-2 text-gray-400 hover:text-white">
+                <X size={20} />
+             </button>
+           </div>
+           
+           {/* Canvas */}
+           <div className="relative flex-1 bg-[#1a1a1a] w-full overflow-hidden">
+             <Cropper
+                image={cropSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={cropAspectLocal}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
+                objectFit="contain"
+                showGrid={true}
+             />
+           </div>
+
+           {/* Controls Footer */}
+           <div className="bg-gray-900 border-t border-white/10 p-4 md:p-6 shrink-0 safe-area-pb">
+              {/* Zoom Slider */}
+              <div className="flex items-center gap-4 mb-6 max-w-lg mx-auto">
+                 <ZoomIn size={16} className="text-gray-500" />
+                 <input 
+                   type="range" min={1} max={3} step={0.1} 
+                   value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))}
+                   className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                 />
+              </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar justify-start md:justify-center">
+                 {[
+                   ...(bucket === 'event-images' ? [{ label: 'Card', val: 49 / 59.4 }] : []),
+                   { label: 'Square', val: 1 }, 
+                   { label: '16:9', val: 16/9 }, 
+                   { label: '4:3', val: 4/3 }, 
+                   { label: 'Portrait', val: 3/4 },
+                   { label: 'Story', val: 9/16 }
+                 ].map(r => (
+                   <button 
+                     key={r.label}
+                     onClick={() => setCropAspectLocal(r.val)}
+                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                       Math.abs(cropAspectLocal - r.val) < 0.01 
+                         ? 'bg-purple-500 border-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' 
+                         : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                     }`}
+                   >
+                     {r.label}
+                   </button>
+                 ))}
+                 <div className="w-px h-6 bg-white/10 mx-2" />
+                 <button 
+                    onClick={onConfirmFull} 
+                    className="px-3 py-1.5 rounded-full text-xs font-medium text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 whitespace-nowrap"
+                 >
+                    Full Original
+                 </button>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
+                 <button onClick={() => setCropSrc(null)} className="py-3 rounded-xl bg-white/5 text-white font-medium text-sm hover:bg-white/10 transition-colors">
+                    Cancel
+                 </button>
+                 <button onClick={onConfirmCrop} className="py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-900/30 hover:bg-purple-500 transition-colors flex items-center justify-center gap-2">
+                    <Check size={18} /> Apply Crop
+                 </button>
+              </div>
+           </div>
         </div>
       )}
     </div>
