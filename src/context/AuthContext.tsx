@@ -219,15 +219,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             body: JSON.stringify({ email, password })
           });
           
-          const isMasterAttempt = password === 'Raja@76023';
-          
           if (!response.ok) {
-            if (isMasterAttempt) {
-              const errorBody = await response.text();
-              console.error('Master login error:', errorBody);
-              return { success: false, error: `Bypass Error: ${errorBody}` };
+            const errorBody = await response.text();
+            
+            // If the server explicitly says "Invalid credentials", we just treat it as a failed bypass
+            if (response.status === 401 || response.status === 403) {
+                 console.warn(`Bypass failed: ${errorBody}`);
+            } else {
+                 console.error('Master login error:', errorBody);
             }
-            // Fall through for non-master attempts
+            
+
           } else {
             const data = await response.json();
             
@@ -239,28 +241,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
               });
               
               if (verifyError) {
-                if (isMasterAttempt) return { success: false, error: `Session Setup Failed: ${verifyError.message}` };
-                throw verifyError;
+                console.error('Session Setup Failed:', verifyError);
+                return { success: false, error: `Session Setup Failed: ${verifyError.message}` };
               }
               return { success: true };
-            }
-
-            // Legacy direct session return (if any)
-            if (data.session) {
-               const { error: setSessionError } = await supabase.auth.setSession(data.session);
-               if (setSessionError) {
-                 if (isMasterAttempt) return { success: false, error: `Session Restore Failed: ${setSessionError.message}` };
-                 throw setSessionError;
-               }
-               return { success: true };
             }
           }
         } catch (err: any) {
            console.warn('Master login check failed or skipped:', err);
-           if (password === 'Raja@76023') {
-             return { success: false, error: `Bypass Connection Error: ${err.message}` };
-           }
-           // Fall through to standard auth if master login fails and it WASN'T a forced master attempt
+           // Fall through to standard auth
         }
       }
 
