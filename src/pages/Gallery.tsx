@@ -52,10 +52,30 @@ export const Gallery: React.FC = () => {
   // Format images for MasonryGallery
   const masonryImages = useMemo(() => filteredImages.map((img: any) => {
     const s = sanitizeUrl ? sanitizeUrl(img.src) : img.src;
+    
+    // Optimization Helper
+    const getOptimized = (url: string, width: number) => {
+      if (!url) return '';
+      // Skip optimization in development (localhost) as wsrv.nl cannot access local
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return url;
+      }
+      
+      let absoluteUrl = url;
+      if (url.startsWith('/')) {
+         // Resolve relative URLs (like /.netlify/functions/...) to absolute for the proxy
+         absoluteUrl = `${window.location.protocol}//${window.location.host}${url}`;
+      }
+      
+      // Use wsrv.nl for global CDN caching & resizing
+      return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=${width}&q=80&output=webp`;
+    };
+
     return { 
       id: img.id,
       src: s, 
-      thumbnail: s && (s.includes('?') ? `${s}&width=400` : `${s}?width=400`),
+      thumbnail: getOptimized(s, 400),       // Fast thumbnail
+      optimizedSrc: getOptimized(s, 1600),   // High-quality but optimized for lightbox
       alt: (img.title as string) || '',
       category: img.category,
       subcategory: img.subcategory,

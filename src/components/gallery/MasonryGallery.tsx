@@ -5,6 +5,7 @@ import gsap from 'gsap';
 interface GalleryImage {
   id: number;
   src: string;
+  optimizedSrc?: string;
   thumbnail?: string;
   alt: string;
   category?: string;
@@ -179,7 +180,9 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
               <div className="absolute inset-0 border-2 border-transparent group-hover:border-indigo-500/50 rounded-2xl transition-all duration-500 box-border pointer-events-none shadow-[inset_0_0_20px_rgba(79,70,229,0.3)]" />
               
               <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-100">
-                <p className="text-white font-bold text-sm line-clamp-2 drop-shadow-md">{img.alt || 'Untitled'}</p>
+                {!/^(IMG|DSC|PXL|Screenshot|VID|WA|FB)_/i.test(img.alt || '') && !/^\d{4}[-_]\d{2}[-_]\d{2}/.test(img.alt || '') && !/\.(jpg|png|jpeg|webp)$/i.test(img.alt || '') && (
+                  <p className="text-white font-bold text-sm line-clamp-2 drop-shadow-md">{img.alt || ''}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-2 mt-2">
                   {img.year && (
                     <span className="text-[10px] font-mono bg-indigo-600/30 border border-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full backdrop-blur-md">
@@ -276,7 +279,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           {/* Main Image Container */}
           <div className="relative max-w-full max-h-screen p-4 sm:p-10 flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
             <img 
-              src={images[lightboxIndex].src} 
+              src={images[lightboxIndex].optimizedSrc || images[lightboxIndex].src} 
               alt={images[lightboxIndex].alt}
               className="main-image max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg select-none"
               style={{ boxShadow: '0 0 50px rgba(0,0,0,0.5)' }}
@@ -284,7 +287,11 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
             
             {/* Info Metadata */}
             <div className="mt-6 max-w-2xl text-center space-y-2 animate-in slide-in-from-bottom-4 duration-500 delay-100">
-              <h2 className="text-white font-bold text-xl sm:text-2xl tracking-tight">{images[lightboxIndex].alt || 'Untitled Image'}</h2>
+              <h2 className="text-white font-bold text-xl sm:text-2xl tracking-tight">
+                {!/^(IMG|DSC|PXL|Screenshot|VID|WA|FB)_/i.test(images[lightboxIndex].alt || '') && !/^\d{4}[-_]\d{2}[-_]\d{2}/.test(images[lightboxIndex].alt || '') && !/\.(jpg|png|jpeg|webp)$/i.test(images[lightboxIndex].alt || '') 
+                  ? (images[lightboxIndex].alt || '') 
+                  : ''}
+              </h2>
               <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-gray-400">
                 {images[lightboxIndex].year && <span>{images[lightboxIndex].year}</span>}
                 {images[lightboxIndex].year && images[lightboxIndex].category && <span>•</span>}
