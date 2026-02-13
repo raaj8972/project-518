@@ -306,6 +306,38 @@ interface DataContextType {
   lastEventReorderError?: { phase: string; message?: string; details?: string; hint?: string } | null;
 }
 
+// Helper to fetch ALL gallery images (bypassing the 1000 limit via pagination)
+const fetchAllGalleryImages = async () => {
+  let allData: any[] = [];
+  let page = 0;
+  const PAGE_SIZE = 1000;
+  
+  while (true) {
+    const { data, error } = await supabase
+      .from('gallery_images')
+      .select('*')
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    
+    if (error) {
+      console.error('Error fetching gallery page', page, error);
+      // If we have some data, continue with partial result
+      if (allData.length > 0) return { data: allData, error: null };
+      return { data: null, error };
+    }
+    
+    if (!data || data.length === 0) break;
+    
+    allData = [...allData, ...data];
+    
+    // If we got fewer than requested, we're done
+    if (data.length < PAGE_SIZE) break;
+    
+    page++;
+  }
+  
+  return { data: allData, error: null };
+};
+
 // React context + provider
 const DataContext = React.createContext<DataContextType | undefined>(undefined);
 
@@ -1430,7 +1462,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         eventWinnersRes,
         sponsorsRes
       ] = await Promise.all([
-        supabase.from('gallery_images').select('*').limit(10000),
+        fetchAllGalleryImages(),
         supabase.from('about_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('homebound_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('social_media_settings').select('*').eq('id', 1).maybeSingle(),
@@ -1917,7 +1949,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const prefetchGalleryImages = async () => {
     try {
-      const { data: galleryImagesData } = await supabase.from('gallery_images').select('*').limit(10000);
+      const { data: galleryImagesData } = await fetchAllGalleryImages();
       if (galleryImagesData) setGalleryImages((galleryImagesData || []).map((g: any) => ({ ...g, src: sanitizeUrl(g.src) })));
     } catch (e) {
       // ignore — best-effort
