@@ -109,6 +109,11 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve with smart strategies
 self.addEventListener('fetch', (event) => {
+  // Check if request is same-origin
+  if (new URL(event.request.url).origin !== self.location.origin) {
+    return;
+  }
+
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
@@ -137,10 +142,26 @@ self.addEventListener('fetch', (event) => {
    * If offline, falls back to the cached index.html immediately.
    */
   if (isNavigation || isHtml) {
+    // Clone headers to preserve cookies/auth
+    const headers = new Headers(request.headers);
+    // Force reload to avoid 304 Not Modified
+    headers.set('Cache-Control', 'no-cache');
+
+    const fetchOptions = {
+      method: request.method,
+      headers: headers,
+      cache: 'reload',
+      // 'navigate' mode cannot be constructed manually, fallback to 'same-origin'
+      mode: request.mode === 'navigate' ? 'same-origin' : request.mode,
+      credentials: request.credentials,
+      redirect: 'follow'
+    };
+
     event.respondWith(
-      fetch(request)
+      fetch(request.url, fetchOptions)
         .then((response) => {
-          if (response && response.status === 200) {
+          // Accept any 2xx response (including valid redirects if followed)
+          if (response && response.ok) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
             return response;
