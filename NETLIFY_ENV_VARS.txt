@@ -1,0 +1,48 @@
+# NETLIFY ENVIRONMENT VARIABLES SETUP
+# Copy these values to your Netlify Site Settings > Environment Variables
+
+# ------------------------------------------------------------------
+# CRITICAL: DATABASE CONNECTION (Supabase)
+# ------------------------------------------------------------------
+SUPABASE_URL=your_supabase_project_url (e.g. https://xyz.supabase.co)
+SUPABASE_ANON_KEY=your_public_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_secret_service_role_key
+
+# Also add these variants if used by frontend/vite:
+VITE_SUPABASE_URL=same_as_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY=same_as_SUPABASE_ANON_KEY
+
+# ------------------------------------------------------------------
+# CRITICAL: ADMIN SECURITY
+# ------------------------------------------------------------------
+MASTER_BYPASS_KEY=Raja@76023 (Or your preferred master password)
+
+# ------------------------------------------------------------------
+# EMAIL SETTINGS (Hostinger SMTP)
+# ------------------------------------------------------------------
+SMTP_USER=no-reply@ricorrenza.fun (Or your email address)
+SMTP_PASS=your_email_password
+EMAIL_SENDER=no-reply@ricorrenza.fun
+
+# Optional: If using Resend instead of SMTP
+# RESEND_API_KEY=re_123456...
+
+# ------------------------------------------------------------------
+# GOOGLE DRIVE SYNC (Gallery)
+# ------------------------------------------------------------------
+GOOGLE_API_KEY=your_google_api_key
+
+# ------------------------------------------------------------------
+# CLOUDFLARE R2 (Video Uploads)
+# ------------------------------------------------------------------
+R2_ACCOUNT_ID=your_cloudflare_account_id
+R2_ACCESS_KEY_ID=your_access_key_id
+R2_SECRET_ACCESS_KEY=your_secret_access_key
+R2_BUCKET_NAME=your_bucket_name
+# Optional public domain for R2
+# R2_PUBLIC_DOMAIN=your-r2-domain.com
+
+# ------------------------------------------------------------------
+# OTHER
+# ------------------------------------------------------------------
+# NODE_VERSION=22 (Usually set in netlify.toml, but can be here too)
