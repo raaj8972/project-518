@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail } from './lib/email.js';
+import { sendEmail } from './lib/email';
 
 export default async (req: Request) => {
   // CORS headers

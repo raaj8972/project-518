@@ -1,6 +1,6 @@
 
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail } from './lib/email.js';
+import { sendEmail } from './lib/email';
 
 // Initialize Supabase Admin client
 const supabaseUrl = process.env.SUPABASE_URL || '';
