@@ -2,42 +2,42 @@ function isRequest(arg: any): arg is Request {
     return arg instanceof Request;
 }
 
-import { vercelAdapter, webAdapter } from './utils/adapter';
+import { vercelAdapter, webAdapter } from './utils/adapter.js';
 
-import * as add_admin_user from '../netlify/functions/add-admin-user';
-import * as admin_security_controls from '../netlify/functions/admin-security-controls';
-import * as broadcast_schedule from '../netlify/functions/broadcast-schedule';
-import * as client_ip from '../netlify/functions/client-ip';
-import * as create_admin_device_session from '../netlify/functions/create-admin-device-session';
-import * as create_admin from '../netlify/functions/create-admin';
-import * as delete_admin_user from '../netlify/functions/delete-admin-user';
-import * as delete_admin from '../netlify/functions/delete-admin';
-import * as delete_r2_file from '../netlify/functions/delete-r2-file';
-import * as force_logout from '../netlify/functions/force-logout';
-import * as get_r2_upload_url from '../netlify/functions/get-r2-upload-url';
-import * as grant_permissions from '../netlify/functions/grant-permissions';
-import * as health from '../netlify/functions/health';
-import * as heartbeat_schedule from '../netlify/functions/heartbeat-schedule';
-import * as heartbeat from '../netlify/functions/heartbeat';
-import * as heartbeat_fallback from '../netlify/functions/heartbeat_fallback';
-import * as install_heartbeat from '../netlify/functions/install-heartbeat';
-import * as list_admin_users from '../netlify/functions/list-admin-users';
-import * as master_login from '../netlify/functions/master-login';
-import * as notify_event_update from '../netlify/functions/notify-event-update';
-import * as passkey_challenge from '../netlify/functions/passkey-challenge';
-import * as passkey_delete from '../netlify/functions/passkey-delete';
-import * as passkey_list from '../netlify/functions/passkey-list';
-import * as passkey_login from '../netlify/functions/passkey-login';
-import * as passkey_register from '../netlify/functions/passkey-register';
-import * as purge_audit from '../netlify/functions/purge-audit';
-import * as r2_garbage_collector from '../netlify/functions/r2-garbage-collector';
-import * as send_confirmation from '../netlify/functions/send-confirmation';
-import * as send_custom_email from '../netlify/functions/send-custom-email';
-import * as send_rejection from '../netlify/functions/send-rejection';
-import * as sync_google_drive from '../netlify/functions/sync-google-drive';
-import * as update_admin_email from '../netlify/functions/update-admin-email';
-import * as update_admin_password from '../netlify/functions/update-admin-password';
-import * as update_form_settings from '../netlify/functions/update-form-settings';
+import * as add_admin_user from '../netlify/functions/add-admin-user.js';
+import * as admin_security_controls from '../netlify/functions/admin-security-controls.js';
+import * as broadcast_schedule from '../netlify/functions/broadcast-schedule.js';
+import * as client_ip from '../netlify/functions/client-ip.js';
+import * as create_admin_device_session from '../netlify/functions/create-admin-device-session.js';
+import * as create_admin from '../netlify/functions/create-admin.js';
+import * as delete_admin_user from '../netlify/functions/delete-admin-user.js';
+import * as delete_admin from '../netlify/functions/delete-admin.js';
+import * as delete_r2_file from '../netlify/functions/delete-r2-file.js';
+import * as force_logout from '../netlify/functions/force-logout.js';
+import * as get_r2_upload_url from '../netlify/functions/get-r2-upload-url.js';
+import * as grant_permissions from '../netlify/functions/grant-permissions.js';
+import * as health from '../netlify/functions/health.js';
+import * as heartbeat_schedule from '../netlify/functions/heartbeat-schedule.js';
+import * as heartbeat from '../netlify/functions/heartbeat.js';
+import * as heartbeat_fallback from '../netlify/functions/heartbeat_fallback.js';
+import * as install_heartbeat from '../netlify/functions/install-heartbeat.js';
+import * as list_admin_users from '../netlify/functions/list-admin-users.js';
+import * as master_login from '../netlify/functions/master-login.js';
+import * as notify_event_update from '../netlify/functions/notify-event-update.js';
+import * as passkey_challenge from '../netlify/functions/passkey-challenge.js';
+import * as passkey_delete from '../netlify/functions/passkey-delete.js';
+import * as passkey_list from '../netlify/functions/passkey-list.js';
+import * as passkey_login from '../netlify/functions/passkey-login.js';
+import * as passkey_register from '../netlify/functions/passkey-register.js';
+import * as purge_audit from '../netlify/functions/purge-audit.js';
+import * as r2_garbage_collector from '../netlify/functions/r2-garbage-collector.js';
+import * as send_confirmation from '../netlify/functions/send-confirmation.js';
+import * as send_custom_email from '../netlify/functions/send-custom-email.js';
+import * as send_rejection from '../netlify/functions/send-rejection.js';
+import * as sync_google_drive from '../netlify/functions/sync-google-drive.js';
+import * as update_admin_email from '../netlify/functions/update-admin-email.js';
+import * as update_admin_password from '../netlify/functions/update-admin-password.js';
+import * as update_form_settings from '../netlify/functions/update-form-settings.js';
 
 const handlers: Record<string, any> = {
   'add-admin-user': add_admin_user,

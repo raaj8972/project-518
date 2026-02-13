@@ -5,7 +5,7 @@ dispatcher_template = """function isRequest(arg: any): arg is Request {
     return arg instanceof Request;
 }
 
-import { vercelAdapter, webAdapter } from './utils/adapter';
+import { vercelAdapter, webAdapter } from './utils/adapter.js';
 
 """
 
@@ -22,7 +22,7 @@ for f in files:
     # Let's try importing from source directly if Vercel allows (usually yes)
     # But Vercel's build expects compiled output? No, it compiles source.
     # So '../netlify/functions/foo' is safest.
-    imports.append(f"import * as {safe_name} from '../netlify/functions/{name}';")
+    imports.append(f"import * as {safe_name} from '../netlify/functions/{name}.js';")
     mapping.append(f"  '{name}': {safe_name},")
 
 dispatcher_template += '\n'.join(imports) + '\n\n'

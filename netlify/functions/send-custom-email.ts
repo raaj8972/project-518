@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { sendEmail } from './lib/email';
+import { sendEmail } from './lib/email.js';
 
 export default async (req: Request) => {
   const headers = {
