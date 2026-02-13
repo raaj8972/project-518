@@ -1,0 +1,11 @@
+PLEASE ADD THESE TO VERCEL ENVIRONMENT VARIABLES:
+
+SMTP_USER=support@ricorrenza.fun  (Or your hostinger email)
+SMTP_PASS=YourEmailPassword       (The password for the email account)
+
+Optional (if not using Hostinger):
+SMTP_HOST=smtp.hostinger.com
+SMTP_PORT=465
+SMTP_SECURE=true
+
+WITHOUT THESE KEYS, EMAILS WILL FAIL.

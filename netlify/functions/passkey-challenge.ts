@@ -5,9 +5,17 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 // Use ricorrenza.fun for production, localhost only for local dev
-const RP_ID = process.env.URL?.includes('localhost') || process.env.CONTEXT === 'dev' ? 'localhost' : 'ricorrenza.fun';
-const RP_NAME = 'Ricorrenza Admin';
-const ORIGIN = RP_ID === 'localhost' ? 'http://localhost:8888' : `https://${RP_ID}`;
+// Dynamic configuration based on request host handles both Vercel and Custom Domain
+const getRpConfig = (headers: any) => {
+  const host = headers.host || headers.Host || 'localhost';
+  // Remove port if present for RP_ID (unless localhost)
+  const hostname = host.split(':')[0];
+  const rpId = hostname === 'localhost' ? 'localhost' : hostname;
+  // Origin needs protocol
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const origin = `${protocol}://${host}`;
+  return { rpId, origin };
+};
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
@@ -36,9 +44,11 @@ export const handler: Handler = async (event) => {
         .select('credential_id, transports')
         .eq('user_id', userId);
 
+      const { rpId } = getRpConfig(event.headers);
+
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
-        rpID: RP_ID,
+        rpID: rpId,
         userName: email,
         userID: Buffer.from(userId),
         timeout: 60000,
@@ -72,8 +82,9 @@ export const handler: Handler = async (event) => {
 
     // 2. LOGIN CHALLENGE
     if (action === 'login') {
+      const { rpId } = getRpConfig(event.headers);
       const options = await generateAuthenticationOptions({
-        rpID: RP_ID,
+        rpID: rpId,
         userVerification: 'preferred',
       });
 
