@@ -1917,7 +1917,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   const prefetchGalleryImages = async () => {
     try {
-      const { data: galleryImagesData } = await supabase.from('gallery_images').select('*');
+      const { data: galleryImagesData } = await supabase.from('gallery_images').select('*').limit(10000);
       if (galleryImagesData) setGalleryImages((galleryImagesData || []).map((g: any) => ({ ...g, src: sanitizeUrl(g.src) })));
     } catch (e) {
       // ignore — best-effort
