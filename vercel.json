@@ -1,4 +1,8 @@
 {
+  "crons": [
+    { "path": "/api/heartbeat-schedule", "schedule": "*/15 * * * *" },
+    { "path": "/api/r2-garbage-collector", "schedule": "0 3 * * *" }
+  ],
   "images": {
     "sizes": [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     "domains": ["pub-58ff2c8f3319429d8feb2eadb1b3713d.r2.dev", "lh3.googleusercontent.com", "drive.google.com"],
