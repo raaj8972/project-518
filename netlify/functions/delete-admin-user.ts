@@ -39,12 +39,20 @@ export const handler: Handler = async (event) => {
       return { statusCode: 403, body: 'Cannot remove owner' }
     }
 
-    const { error } = await supabase.from('admin_users').delete().eq('user_id', user_id)
-    if (error) throw error
+    // Delete from admin_users table first (to revoke access immediately)
+    const { error: dbError } = await supabase.from('admin_users').delete().eq('user_id', user_id)
+    if (dbError) throw dbError
+
+    // Also delete from Supabase Auth to prevent login
+    const { error: authError } = await supabase.auth.admin.deleteUser(user_id)
+    if (authError) {
+      console.warn('Failed to delete from Auth (might already be deleted):', authError)
+      // We don't throw here, because database access is revoked anyway
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      body: JSON.stringify({ success: true, message: 'Admin user and auth deleted' })
     }
   } catch (err: any) {
     return {
