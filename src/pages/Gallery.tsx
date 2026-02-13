@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Image as ImageIcon, Scan, RotateCcw } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import DomeGallery from '../components/DomeGallery';
+import { MasonryGallery } from '../components/gallery/MasonryGallery';
 import { SEO } from '../components/SEO';
 import { FaceSearchDialog } from '../components/gallery/FaceSearchDialog';
 
@@ -30,35 +30,38 @@ export const Gallery: React.FC = () => {
 
   const selectedCategoryNormalized = (selectedCategory || '').toString().trim().toLowerCase();
 
-  const filteredImages = (matchingImageIds !== null
-    ? galleryImages.filter((img: any) => matchingImageIds.includes(img.id))
-    : (selectedCategory === 'All'
-        ? galleryImages
-        : galleryImages.filter((image: any) => {
-            const imgCat = (image?.category || '').toString().trim().toLowerCase();
-            if (imgCat !== selectedCategoryNormalized) return false;
-            // Apply subcategory filter if one is selected
-            if (selectedSubcategory) {
-              const imgSub = ((image as any)?.subcategory || '').toString().trim();
-              return imgSub === selectedSubcategory;
-            }
-            return true;
-          }))
-  ).filter((img: any) => img.src && img.src.trim() !== '');
+  // Memoized filtered images to prevent unnecessary re-renders in MasonryGallery
+  const filteredImages = useMemo(() => {
+    return (matchingImageIds !== null
+      ? galleryImages.filter((img: any) => matchingImageIds.includes(img.id))
+      : (selectedCategory === 'All'
+          ? galleryImages
+          : galleryImages.filter((image: any) => {
+              const imgCat = (image?.category || '').toString().trim().toLowerCase();
+              if (imgCat !== selectedCategoryNormalized) return false;
+              // Apply subcategory filter if one is selected
+              if (selectedSubcategory) {
+                const imgSub = ((image as any)?.subcategory || '').toString().trim();
+                return imgSub === selectedSubcategory;
+              }
+              return true;
+            }))
+    ).filter((img: any) => img.src && img.src.trim() !== '');
+  }, [galleryImages, matchingImageIds, selectedCategory, selectedCategoryNormalized, selectedSubcategory]);
 
-  // Build images for DomeGallery. Never pass undefined to avoid demo/default images.
-  const domeImages = filteredImages.map((img: any) => {
+  // Format images for MasonryGallery
+  const masonryImages = useMemo(() => filteredImages.map((img: any) => {
     const s = sanitizeUrl ? sanitizeUrl(img.src) : img.src;
-    // Append width param for thumbnails (works for both drive-proxy and Supabase transforms)
-    const thumbnail = s && (s.includes('?') ? `${s}&width=400` : `${s}?width=400`);
     return { 
+      id: img.id,
       src: s, 
-      thumbnail,
-      alt: (img.title as string) || '' 
+      thumbnail: s && (s.includes('?') ? `${s}&width=400` : `${s}?width=400`),
+      alt: (img.title as string) || '',
+      category: img.category,
+      subcategory: img.subcategory,
+      year: img.year
     };
-  });
-  // Only show the Dome when we actually have images for the current filter.
-  const showDome = filteredImages.length > 0;
+  }), [filteredImages, sanitizeUrl]);
 
   // Intersection Observer for scroll animations
   useEffect(() => {
@@ -89,20 +92,6 @@ export const Gallery: React.FC = () => {
 
     attach();
 
-    // Immediately reveal any nodes already in/near viewport so category switches
-    // or route returns don't leave the page blank while the observer settles.
-    try {
-      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
-      const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
-      nodesNow.forEach((n) => {
-        const r = n.getBoundingClientRect();
-        if (r.top < viewportH * 0.9) {
-          n.classList.add('animate-in');
-          try { (n as any).__observed = true; } catch {}
-        }
-      });
-    } catch (e) { /* ignore */ }
-
     const t1 = setTimeout(attach, 100);
     const t2 = setTimeout(attach, 300);
     const safety = setTimeout(() => {
@@ -112,29 +101,6 @@ export const Gallery: React.FC = () => {
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
   }, [selectedCategory, galleryImages.length, matchingImageIds]);
 
-  // Parallax effect
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.pageYOffset;
-      const parallaxElements = document.querySelectorAll('.parallax');
-      
-      parallaxElements.forEach((element) => {
-        const speed = parseFloat(element.getAttribute('data-speed') || '0.5');
-        const yPos = -(scrolled * speed);
-        (element as HTMLElement).style.transform = `translateY(${yPos}px)`;
-      });
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Lightbox removed; DomeGallery provides its own enlarge experience
-
-  // No category color helper needed in DomeGallery layout
-
-  // Social media links (unused here, kept in context if needed elsewhere)
-
   return (
     <div className="cyberpunk-theme min-h-screen">
       <SEO 
@@ -142,8 +108,6 @@ export const Gallery: React.FC = () => {
         description="Relive the best moments from past RICORRENZA festivals." 
         canonical="https://ricorrenza.fun/gallery" 
       />
-      {/* Hero Section */}
-      {/* Hero Section removed as per request */}
 
       {/* ── Gallery Filter Bar ── */}
       <section className="py-8 pt-24 relative z-10">
@@ -258,7 +222,6 @@ export const Gallery: React.FC = () => {
                     </button>
                     {subcategories.map((sub) => {
                       const isSubActive = selectedSubcategory === sub;
-                      // Count images in this subcategory
                       const subCount = galleryImages.filter((img: any) => {
                         const imgCat = (img?.category || '').toString().trim().toLowerCase();
                         const imgSub = ((img as any)?.subcategory || '').toString().trim();
@@ -320,59 +283,38 @@ export const Gallery: React.FC = () => {
         </div>
       </section>
 
-      {/* Dome Gallery (immersive) */}
-      <section className="relative" style={{ height: '90vh', overflow: 'hidden' }}>
-        <div className="absolute inset-0 pointer-events-none" style={{
-          background: 'radial-gradient(ellipse at center, rgba(10,10,20,0.6) 0%, rgba(10,10,10,0.95) 70%)'
-        }} />
-        {/* Loading state: prevent showing default/demo images before data arrives */}
+      {/* Masonry Gallery */}
+      <section className="relative min-h-[50vh]">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="cyberpunk-card px-6 py-4 text-sm text-gray-300 bg-black/30 border-cyan-500/30">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" aria-hidden="true" />
-                <span>Loading gallery…</span>
+                <span>Loading gallery...</span>
               </div>
             </div>
           </div>
         )}
-        {!loading && showDome && (
-          <div className="absolute inset-0 dome-fade-in">
-            <DomeGallery
-              images={domeImages}
-              fit={0.52}
-              fitBasis="auto"
-              minRadius={480}
-              maxRadius={1200}
-              padFactor={0.18}
-              overlayBlurColor="#0a0a0a"
-              grayscale={false}
-              imageBorderRadius="18px"
-              openedImageBorderRadius="18px"
-              openedImageWidth="70vmin"
-              openedImageHeight="70vmin"
-            />
+
+        {!loading && (
+          <div className="container mx-auto">
+             {masonryImages.length > 0 ? (
+               <MasonryGallery images={masonryImages} />
+             ) : (
+               <div className="text-center py-12 scroll-animate opacity-0 transform translate-y-20">
+                 <div className="cyberpunk-card max-w-md mx-auto">
+                   <ImageIcon size={64} className="mx-auto mb-4 text-gray-400" />
+                   <h3 className="text-xl font-semibold text-gray-300 mb-2">No Images Found</h3>
+                   {selectedCategory === 'All' ? (
+                     <p className="text-gray-500">No images uploaded yet. Please check back later.</p>
+                   ) : (
+                     <p className="text-gray-500">{`No images found in the ${selectedCategory} category.`}</p>
+                   )}
+                 </div>
+               </div>
+             )}
           </div>
         )}
-
-          {/* No Images Message */}
-          {!loading && !showDome && (
-            <div className="text-center py-12 scroll-animate opacity-0 transform translate-y-20">
-              <div className="cyberpunk-card max-w-md mx-auto">
-                <ImageIcon size={64} className="mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">No Images Found</h3>
-                {selectedCategory === 'All' ? (
-                  <p className="text-gray-500">No images uploaded yet. Please check back later.</p>
-                ) : (
-                  <p className="text-gray-500">{`No images found in the ${selectedCategory} category.`}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Lightbox removed: DomeGallery handles enlarge */}
-
-          {/* Stats (optional) removed for cleaner dome focus */}
       </section>
 
       <style>{`
@@ -382,16 +324,6 @@ export const Gallery: React.FC = () => {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           min-height: 100vh;
         }
-
-        /* Soft fade-in for Dome once real images are ready */
-        .dome-fade-in {
-          animation: domeFadeIn 320ms ease-out both;
-        }
-        @keyframes domeFadeIn {
-          from { opacity: 0; transform: scale(0.985); filter: blur(2px); }
-          to { opacity: 1; transform: scale(1); filter: blur(0); }
-        }
-        @media (prefers-reduced-motion: reduce) { .dome-fade-in { animation: none; } }
 
         .cyberpunk-card {
           background: rgba(20, 20, 40, 0.8);
@@ -403,22 +335,6 @@ export const Gallery: React.FC = () => {
           overflow: hidden;
         }
 
-        .cyberpunk-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
-          transform: translateX(-100%);
-          transition: transform 0.5s ease;
-        }
-
-        .cyberpunk-card:hover::before {
-          transform: translateX(0);
-        }
-
         .scroll-animate {
           transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
@@ -428,7 +344,6 @@ export const Gallery: React.FC = () => {
           transform: translateY(0) !important;
         }
 
-        /* Category Filter Scrollbar */
         .filter-row::-webkit-scrollbar {
           height: 4px;
         }
@@ -439,17 +354,8 @@ export const Gallery: React.FC = () => {
           background: rgba(255, 255, 255, 0.2);
           border-radius: 10px;
         }
-
-        @keyframes bounce-subtle {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-
-        .animate-bounce-subtle {
-          animation: bounce-subtle 2s ease-in-out infinite;
-        }
       `}</style>
-
+      
       {showFaceSearch && (
         <FaceSearchDialog 
           onClose={() => setShowFaceSearch(false)} 
