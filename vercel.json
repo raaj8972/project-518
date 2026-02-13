@@ -1,0 +1,38 @@
+{
+  "images": {
+    "sizes": [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    "domains": ["pub-58ff2c8f3319429d8feb2eadb1b3713d.r2.dev", "lh3.googleusercontent.com", "drive.google.com"],
+    "minimumCacheTTL": 60,
+    "remotePatterns": [
+        { "protocol": "https", "hostname": "**.r2.dev" },
+        { "protocol": "https", "hostname": "**.googleusercontent.com" }
+    ]
+  },
+  "rewrites": [
+    { "source": "/api/image-proxy", "destination": "/api/image-proxy" },
+    { "source": "/api/drive-proxy", "destination": "/api/drive-proxy" },
+    { "source": "/api/:fn", "destination": "/api/dispatcher?fn=:fn" },
+    { "source": "/.netlify/functions/image-proxy", "destination": "/api/image-proxy" },
+    { "source": "/.netlify/functions/drive-proxy", "destination": "/api/drive-proxy" },
+    { "source": "/.netlify/functions/:fn", "destination": "/api/dispatcher?fn=:fn" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, PUT, DELETE, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    },
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
+      ]
+    }
+  ]
+}
