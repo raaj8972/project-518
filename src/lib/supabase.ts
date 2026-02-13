@@ -516,6 +516,7 @@ export interface Database {
           id: number
           src: string
           category: string
+          subcategory: string
           title: string
           year: string
           featured: boolean
@@ -525,6 +526,7 @@ export interface Database {
           id?: number
           src: string
           category: string
+          subcategory?: string
           title: string
           year: string
           featured?: boolean
@@ -534,6 +536,7 @@ export interface Database {
           id?: number
           src?: string
           category?: string
+          subcategory?: string
           title?: string
           year?: string
           featured?: boolean

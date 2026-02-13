@@ -1,26 +1,62 @@
-import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Image as ImageIcon, Scan, RotateCcw } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import DomeGallery from '../components/DomeGallery';
 import { SEO } from '../components/SEO';
+import { FaceSearchDialog } from '../components/gallery/FaceSearchDialog';
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, eventCategories, loading } = useData() as any;
+  const { galleryImages, eventCategories, loading, sanitizeUrl } = useData() as any;
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [matchingImageIds, setMatchingImageIds] = useState<number[] | null>(null);
+  const [showFaceSearch, setShowFaceSearch] = useState(false);
+
+  // Derive subcategories for the currently selected category
+  const subcategories = useMemo(() => {
+    if (selectedCategory === 'All') return [];
+    const subs = new Set<string>();
+    galleryImages.forEach((img: any) => {
+      const imgCat = (img?.category || '').toString().trim().toLowerCase();
+      const sub = (img as any)?.subcategory || '';
+      if (imgCat === selectedCategory.trim().toLowerCase() && sub) {
+        subs.add(sub);
+      }
+    });
+    return Array.from(subs).sort();
+  }, [selectedCategory, galleryImages]);
 
   const categories = ['All', ...eventCategories.map((cat: any) => cat.name as string)];
 
   const selectedCategoryNormalized = (selectedCategory || '').toString().trim().toLowerCase();
 
-  const filteredImages = (selectedCategory === 'All'
-    ? galleryImages
-    : galleryImages.filter((image: any) => {
-        const imgCat = (image?.category || '').toString().trim().toLowerCase();
-        return imgCat === selectedCategoryNormalized;
-      })).filter((img: any) => img.src && img.src.trim() !== '');
+  const filteredImages = (matchingImageIds !== null
+    ? galleryImages.filter((img: any) => matchingImageIds.includes(img.id))
+    : (selectedCategory === 'All'
+        ? galleryImages
+        : galleryImages.filter((image: any) => {
+            const imgCat = (image?.category || '').toString().trim().toLowerCase();
+            if (imgCat !== selectedCategoryNormalized) return false;
+            // Apply subcategory filter if one is selected
+            if (selectedSubcategory) {
+              const imgSub = ((image as any)?.subcategory || '').toString().trim();
+              return imgSub === selectedSubcategory;
+            }
+            return true;
+          }))
+  ).filter((img: any) => img.src && img.src.trim() !== '');
 
   // Build images for DomeGallery. Never pass undefined to avoid demo/default images.
-  const domeImages = filteredImages.map((img: any) => ({ src: img.src as string, alt: (img.title as string) || '' }));
+  const domeImages = filteredImages.map((img: any) => {
+    const s = sanitizeUrl ? sanitizeUrl(img.src) : img.src;
+    // Append width param for thumbnails (works for both drive-proxy and Supabase transforms)
+    const thumbnail = s && (s.includes('?') ? `${s}&width=400` : `${s}?width=400`);
+    return { 
+      src: s, 
+      thumbnail,
+      alt: (img.title as string) || '' 
+    };
+  });
   // Only show the Dome when we actually have images for the current filter.
   const showDome = filteredImages.length > 0;
 
@@ -74,7 +110,7 @@ export const Gallery: React.FC = () => {
     }, 1500);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safety); observer.disconnect(); };
-  }, [selectedCategory, galleryImages.length]);
+  }, [selectedCategory, galleryImages.length, matchingImageIds]);
 
   // Parallax effect
   useEffect(() => {
@@ -109,42 +145,178 @@ export const Gallery: React.FC = () => {
       {/* Hero Section */}
       {/* Hero Section removed as per request */}
 
-      {/* Category Filter (optional) */}
-      <section className="py-12 pt-24 relative">
+      {/* ── Gallery Filter Bar ── */}
+      <section className="py-8 pt-24 relative z-10">
         <div className="container mx-auto px-4">
           <div className="scroll-animate opacity-0 transform translate-y-20">
-            <div className="flex justify-center mb-8">
-              <div className="cyberpunk-card inline-block p-3 md:p-4">
-                <div className="filter-row flex gap-2 md:gap-3 justify-start md:justify-center flex-nowrap overflow-x-auto max-w-full px-1 md:px-0">
+            {/* Active filter breadcrumb */}
+            {(selectedCategory !== 'All' || matchingImageIds !== null) && (
+              <div className="flex items-center justify-center gap-2 mb-5 text-sm">
+                <span className="text-gray-500">Viewing:</span>
+                {matchingImageIds !== null ? (
+                  <span className="px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold">
+                    🔍 {filteredImages.length} matching photos
+                  </span>
+                ) : (
+                  <>
+                    <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold">
+                      {selectedCategory}
+                    </span>
+                    {selectedSubcategory && (
+                      <>
+                        <span className="text-gray-600">›</span>
+                        <span className="px-3 py-1 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30 font-semibold">
+                          {selectedSubcategory}
+                        </span>
+                      </>
+                    )}
+                    <span className="text-gray-500 ml-1">({filteredImages.length})</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-5 items-center mb-8">
+              {/* ── Main Category Row ── */}
+              <div className="w-full max-w-5xl">
+                <div
+                  className="flex gap-2 md:gap-2.5 justify-start md:justify-center flex-nowrap overflow-x-auto px-1 py-2 scrollbar-hide"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                   {categories.map((category) => {
                     const categoryData = eventCategories.find((cat: any) => cat.name === category);
                     const categoryColor = categoryData ? categoryData.color : '#6B7280';
-                    
+                    const isActive = selectedCategory === category && matchingImageIds === null;
+                    // Count images in this category
+                    const catCount = category === 'All'
+                      ? galleryImages.length
+                      : galleryImages.filter((img: any) =>
+                          (img?.category || '').toString().trim().toLowerCase() === category.trim().toLowerCase()
+                        ).length;
+
                     return (
                       <button
                         key={category}
-                        onClick={() => setSelectedCategory(category)}
-                        className={`filter-btn px-4 py-2 md:px-6 md:py-3 rounded-lg font-medium transition-all duration-300 border-2 whitespace-nowrap ${
-                          selectedCategory === category
-                            ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white border-purple-500 shadow-lg shadow-purple-500/25'
-                            : 'text-gray-300 border-gray-600 hover:border-purple-500/50 hover:text-purple-400'
+                        onClick={() => {
+                          setSelectedCategory(category);
+                          setSelectedSubcategory(null);
+                          setMatchingImageIds(null);
+                        }}
+                        className={`group relative px-4 py-2.5 md:px-5 md:py-3 rounded-2xl font-bold text-sm transition-all duration-400 border whitespace-nowrap flex items-center gap-2 ${
+                          isActive
+                            ? 'bg-gradient-to-br from-purple-600/90 to-pink-600/90 text-white border-purple-400/60 shadow-[0_4px_20px_rgba(168,85,247,0.35)] scale-[1.03]'
+                            : 'text-gray-400 border-gray-700/40 hover:border-purple-500/40 hover:text-purple-300 hover:bg-purple-500/5 hover:shadow-[0_2px_12px_rgba(168,85,247,0.1)]'
                         }`}
                       >
-                        {category !== 'All' && (
-                          <span 
-                            className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full mr-1.5 md:mr-2 inline-block"
-                            style={{ backgroundColor: categoryColor }}
-                          ></span>
+                        {/* Glow effect on active */}
+                        {isActive && (
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-xl -z-10" />
                         )}
-                        {category}
+                        {category !== 'All' && (
+                          <span
+                            className={`w-2 h-2 rounded-full transition-all duration-300 ${isActive ? 'scale-125 shadow-[0_0_8px_currentColor]' : ''}`}
+                            style={{ backgroundColor: categoryColor, color: categoryColor }}
+                          />
+                        )}
+                        {category === 'All' && <span className="text-base">📸</span>}
+                        <span>{category}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full transition-all ${
+                          isActive ? 'bg-white/20 text-white/80' : 'bg-gray-800/50 text-gray-500'
+                        }`}>
+                          {catCount}
+                        </span>
                       </button>
                     );
                   })}
                 </div>
               </div>
+
+              {/* ── Subcategory Row (animated slide-in) ── */}
+              <div
+                className="w-full max-w-5xl overflow-hidden transition-all duration-500 ease-out"
+                style={{
+                  maxHeight: subcategories.length > 0 && matchingImageIds === null ? '200px' : '0px',
+                  opacity: subcategories.length > 0 && matchingImageIds === null ? 1 : 0,
+                }}
+              >
+                <div className="relative">
+                  {/* Decorative line */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-px bg-gradient-to-r from-transparent via-purple-500/40 to-transparent" />
+
+                  <div
+                    className="flex gap-2 flex-wrap justify-center pt-3 pb-1 px-2"
+                  >
+                    <button
+                      onClick={() => setSelectedSubcategory(null)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 border ${
+                        selectedSubcategory === null
+                          ? 'bg-purple-500/30 text-purple-200 border-purple-400/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]'
+                          : 'text-gray-500 border-gray-700/30 hover:border-purple-500/30 hover:text-gray-300'
+                      }`}
+                    >
+                      All Events
+                    </button>
+                    {subcategories.map((sub) => {
+                      const isSubActive = selectedSubcategory === sub;
+                      // Count images in this subcategory
+                      const subCount = galleryImages.filter((img: any) => {
+                        const imgCat = (img?.category || '').toString().trim().toLowerCase();
+                        const imgSub = ((img as any)?.subcategory || '').toString().trim();
+                        return imgCat === selectedCategory.trim().toLowerCase() && imgSub === sub;
+                      }).length;
+
+                      return (
+                        <button
+                          key={sub}
+                          onClick={() => setSelectedSubcategory(sub)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-300 border flex items-center gap-1.5 ${
+                            isSubActive
+                              ? 'bg-gradient-to-r from-purple-500/40 to-pink-500/40 text-white border-purple-400/50 shadow-[0_0_12px_rgba(168,85,247,0.25)]'
+                              : 'text-gray-400 border-gray-700/30 hover:border-purple-500/25 hover:text-purple-300 hover:bg-purple-500/5'
+                          }`}
+                        >
+                          <span>{sub}</span>
+                          <span className={`text-[9px] px-1 py-0.5 rounded-full ${
+                            isSubActive ? 'bg-white/15 text-white/70' : 'bg-gray-800/40 text-gray-600'
+                          }`}>
+                            {subCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Face Search Actions ── */}
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setShowFaceSearch(true)}
+                  className={`px-8 py-3.5 rounded-2xl font-black transition-all duration-500 border-2 flex items-center gap-3 group overflow-hidden relative ${
+                    matchingImageIds 
+                    ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white border-indigo-400 shadow-[0_0_25px_rgba(79,70,229,0.4)]'
+                    : 'text-indigo-400 border-indigo-500/40 hover:border-indigo-400 hover:bg-indigo-500/10 hover:shadow-[0_0_20px_rgba(79,70,229,0.2)]'
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                  <Scan size={22} className="group-hover:scale-110 group-hover:rotate-12 transition-transform duration-300" />
+                  <span className="tracking-wider uppercase">
+                    {matchingImageIds ? 'Results found' : 'Find My Photos'}
+                  </span>
+                </button>
+
+                {matchingImageIds !== null && (
+                  <button
+                    onClick={() => setMatchingImageIds(null)}
+                    className="p-3.5 text-red-400 border-2 border-red-500/40 rounded-2xl hover:bg-red-500/10 hover:border-red-400 transition-all group shadow-lg shadow-red-500/5"
+                    title="Clear Results"
+                  >
+                    <RotateCcw size={22} className="group-hover:rotate-[-180deg] transition-transform duration-500" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-          {/* dev debug panel removed */}
         </div>
       </section>
 
@@ -221,142 +393,10 @@ export const Gallery: React.FC = () => {
         }
         @media (prefers-reduced-motion: reduce) { .dome-fade-in { animation: none; } }
 
-        .hero-section {
-          position: relative;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .cyberpunk-grid {
-          background-image: 
-            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        /* particles CSS removed */
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1);
-            opacity: 0;
-          }
-        }
-
-        .cyberpunk-title {
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .neon-text {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .neon-pink {
-          color: #ff00ff;
-          text-shadow: 
-            0 0 2px #ff00ff,
-            0 0 4px #ff00ff;
-        }
-
-        .neon-blue {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .neon-purple {
-          color: #8a2be2;
-          text-shadow: 
-            0 0 2px #8a2be2,
-            0 0 4px #8a2be2;
-        }
-
-        .cyberpunk-btn {
-          position: relative;
-          padding: 12px 32px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border: 2px solid;
-          background: transparent;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
-        }
-
-        .cyberpunk-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .cyberpunk-btn:hover::before {
-          left: 100%;
-        }
-
-        .cyberpunk-btn-primary {
-          border-color: #ff00ff;
-          color: #ff00ff;
-          box-shadow: 
-            0 0 10px rgba(255, 0, 255, 0.2),
-            inset 0 0 10px rgba(255, 0, 255, 0.05);
-        }
-
-        .cyberpunk-btn-primary:hover {
-          background: rgba(255, 0, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 0, 255, 0.4),
-            inset 0 0 20px rgba(255, 0, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
-        }
-
-        .cyberpunk-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
         .cyberpunk-card {
           background: rgba(20, 20, 40, 0.8);
           border: 1px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
+          border-radius: 12px;
           backdrop-filter: blur(10px);
           transition: all 0.3s ease;
           position: relative;
@@ -379,14 +419,6 @@ export const Gallery: React.FC = () => {
           transform: translateX(0);
         }
 
-        .cyberpunk-card:hover {
-          border-color: rgba(255, 0, 255, 0.6);
-          box-shadow: 
-            0 10px 30px rgba(0, 0, 0, 0.5),
-            0 0 15px rgba(255, 0, 255, 0.1);
-          transform: translateY(-5px);
-        }
-
         .scroll-animate {
           transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
@@ -396,69 +428,34 @@ export const Gallery: React.FC = () => {
           transform: translateY(0) !important;
         }
 
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+        /* Category Filter Scrollbar */
+        .filter-row::-webkit-scrollbar {
+          height: 4px;
+        }
+        .filter-row::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        .filter-row::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 10px;
         }
 
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          /* Make category row a one-line scroller */
-          .filter-row {
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-          }
-          .filter-row::-webkit-scrollbar { display: none; }
-          .filter-btn { font-size: 0.85rem; }
-          .cyberpunk-title {
-            font-size: 2rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 2.5rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 1rem !important;
-          }
-          
-          /* particles CSS removed */
-          
-          .cyberpunk-btn {
-            padding: 10px 24px;
-            font-size: 0.9rem;
-            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 10px 100%);
-          }
-          
-          .cyberpunk-card {
-            margin: 0 4px;
-          }
+        @keyframes bounce-subtle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
         }
-        
-        @media (max-width: 480px) {
-          .filter-btn { font-size: 0.8rem; }
-          .cyberpunk-card { padding: 8px 6px !important; }
-          .cyberpunk-title {
-            font-size: 1.5rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 2rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 0.9rem !important;
-          }
-          
-          .cyberpunk-btn {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
-          }
+
+        .animate-bounce-subtle {
+          animation: bounce-subtle 2s ease-in-out infinite;
         }
       `}</style>
+
+      {showFaceSearch && (
+        <FaceSearchDialog 
+          onClose={() => setShowFaceSearch(false)} 
+          onResults={(ids) => setMatchingImageIds(ids)} 
+        />
+      )}
     </div>
   );
 };

@@ -1,13 +1,9 @@
 import React, { useMemo, useState } from 'react';
-// Lazy require for DOMPurify to avoid ESM/SSR issues — same pattern used on Home
-let _DOMPurify: any = null;
+import DOMPurify from 'dompurify';
+
 const sanitize = (html: string) => {
   try {
-    if (!_DOMPurify) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      _DOMPurify = require('dompurify');
-    }
-    return _DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
   } catch {
     return html;
   }

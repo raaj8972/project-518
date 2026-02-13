@@ -18,6 +18,7 @@ import { useData } from '../../context/DataContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { GuestArtistForm } from './GuestArtistForm';
+import { deleteFromStorageByPublicUrl } from '../../utils/uploadUtils';
 
 export const GuestArtistManagement: React.FC = () => {
   const savingProgress = useSavingProgress();
@@ -66,6 +67,23 @@ export const GuestArtistManagement: React.FC = () => {
         alert('Request submitted for approval. An owner will review your changes.');
       } else {
         if (isEdit && editingId) {
+          // Cleanup replaced files
+          const original = guestArtists.find(a => a.id === editingId);
+          if (original) {
+              const { deleteFromStorageByPublicUrl } = await import('../../utils/uploadUtils');
+              const checks = [
+                  { old: original.image, new: data.image, bucket: 'guest-artist-images' },
+                  { old: (original as any).video_url, new: data.video_url, bucket: 'guest-artist-videos' },
+                  { old: (original as any).card_media_url, new: data.card_media_url, bucket: (original as any).card_media_is_video ? 'guest-artist-videos' : 'guest-artist-images' },
+                  { old: (original as any).detail_music_url, new: data.detail_music_url, bucket: 'guest-artist-audio' }
+              ];
+
+              for (const check of checks) {
+                  if (check.old && check.old !== check.new) {
+                      await deleteFromStorageByPublicUrl(check.old, check.bucket);
+                  }
+              }
+          }
           await updateGuestArtist(editingId, data);
         } else {
           await addGuestArtist(data);
@@ -83,11 +101,32 @@ export const GuestArtistManagement: React.FC = () => {
     }
   };
 
+
   const handleDelete = async (id: number) => {
     if (confirm('Are you sure you want to delete this guest artist? This action cannot be undone.')) {
       try {
         const steps = savingProgress.withSteps(2, 'Preparing…');
-        steps.next('Deleting');
+        steps.next('Deleting files');
+        
+        // Find the artist to search for files
+        const artist = guestArtists.find(a => a.id === id);
+        if (artist) {
+            // Delete associated files
+            const filesToDelete = [
+                { url: artist.image, bucket: 'guest-artist-images' },
+                { url: (artist as any).video_url, bucket: 'guest-artist-videos' },
+                { url: (artist as any).card_media_url, bucket: (artist as any).card_media_is_video ? 'guest-artist-videos' : 'guest-artist-images' },
+                { url: (artist as any).detail_music_url, bucket: 'guest-artist-audio' }
+            ];
+
+            for (const file of filesToDelete) {
+                if (file.url) {
+                    await deleteFromStorageByPublicUrl(file.url, file.bucket);
+                }
+            }
+        }
+
+        steps.next('Deleting record');
         if (requiresApproval) {
           await submitForApproval('guest_artist', 'delete', {}, id);
           alert('Request submitted for approval. An owner will review your changes.');

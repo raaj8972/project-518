@@ -64,7 +64,28 @@ export const mapUploadError = (error: any, bucket: string): Error => {
 
 // Best-effort deletion of a storage object by its public URL
 export const deleteFromStorageByPublicUrl = async (urlStr: string, bucket: string) => {
-  if (!urlStr || !urlStr.includes(bucket)) return;
+  if (!urlStr) return;
+
+  // Check if it's an R2 URL (heuristic: r2.dev or matching the configured custom domain if known, or just not supabase)
+  const isSupabaseUrl = urlStr.includes('/storage/v1/object/');
+  
+  // Folders that are definitely R2 now
+  const r2Folders = ['gallery', 'events', 'sponsors', 'team', 'faculty', 'guests', 'videos', 'audio', 'band', 'hero', 'hero-video', 'documents', 'registrations', 'sports', 'pdf'];
+  const isR2Folder = r2Folders.some(f => urlStr.includes(`/${f}/`));
+
+  if (!isSupabaseUrl && (isR2Folder || urlStr.includes('r2.dev'))) {
+    try {
+      // Dynamic import to avoid circular dependencies if any, and keep bundle size low
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { deleteFromR2 } = await import('./r2Utils');
+      await deleteFromR2(urlStr);
+      return;
+    } catch (e) {
+      console.warn('Failed to route delete to R2:', e);
+    }
+  }
+
+  if (!urlStr.includes(bucket)) return;
   const objectPath = extractObjectPathFromPublicUrl(urlStr, bucket);
   if (!objectPath) return;
   try {

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react'
 import { useGesture } from '@use-gesture/react';
 import './DomeGallery.css';
 
-type ImageItem = string | { src: string; alt?: string };
+type ImageItem = string | { src: string; thumbnail?: string; alt?: string };
 
 type DomeGalleryProps = {
   images?: ImageItem[];
@@ -26,6 +26,7 @@ type DomeGalleryProps = {
 
 type ItemDef = {
   src: string;
+  thumbnail: string;
   alt: string;
   x: number;
   y: number;
@@ -105,9 +106,9 @@ function buildItems(pool: ImageItem[], seg: number): ItemDef[] {
 
   const normalizedImages = pool.map(image => {
     if (typeof image === 'string') {
-      return { src: image, alt: '' };
+      return { src: image, thumbnail: image, alt: '' };
     }
-    return { src: image.src || '', alt: image.alt || '' };
+    return { src: image.src || '', thumbnail: (image as any).thumbnail || image.src || '', alt: image.alt || '' };
   });
 
   const usedImages = Array.from({ length: totalSlots }, (_, i) => normalizedImages[i % normalizedImages.length]);
@@ -128,6 +129,7 @@ function buildItems(pool: ImageItem[], seg: number): ItemDef[] {
   return coords.map((c, i) => ({
     ...c,
     src: usedImages[i].src,
+    thumbnail: usedImages[i].thumbnail,
     alt: usedImages[i].alt
   }));
 }
@@ -846,10 +848,10 @@ export default function DomeGallery({
                   onPointerUp={onTilePointerUp}
                   onTouchEnd={onTileTouchEnd}
                 >
-                  {/* Blurred duplicate for background glow */}
-                  <img className="dg-glow" src={it.src} aria-hidden="true" alt="" draggable={false} />
-                  {/* Main image */}
-                  <img className="dg-img" src={it.src} draggable={false} alt={it.alt} />
+                  {/* Blurred duplicate for background glow — use thumbnail for speed */}
+                  <img className="dg-glow" src={it.thumbnail || it.src} aria-hidden="true" alt="" draggable={false} loading="lazy" decoding="async" />
+                  {/* Main image — use thumbnail for grid, full-res loads on enlarge */}
+                  <img className="dg-img" src={it.thumbnail || it.src} draggable={false} alt={it.alt} loading="lazy" decoding="async" />
                 </div>
               </div>
             ))}

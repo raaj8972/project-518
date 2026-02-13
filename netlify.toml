@@ -4,6 +4,9 @@
 
 # Enable Netlify's built-in prerendering for better SEO
 # This crawls your SPA and generates static HTML for all routes
+[images]
+  remote_images = ["https://pub-58ff2c8f3319429d8feb2eadb1b3713d.r2.dev/*"]
+
 [[plugins]]
   package = "@netlify/plugin-sitemap"
   
@@ -40,6 +43,13 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
+
+[[headers]]
+  for = "/.netlify/functions/get-r2-upload-url"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
 
 [[headers]]
   for = "/service-worker.js"

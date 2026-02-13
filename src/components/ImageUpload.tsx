@@ -34,6 +34,8 @@ interface ImageUploadProps {
   maxImageBytes?: number;
   optimizeOptions?: OptimizationOptions;
   optimizeVideoOptions?: VideoOptimizationOptions;
+  allowMultiple?: boolean;
+  onBatchComplete?: (results: { url: string; file: File }[]) => void;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -50,7 +52,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   hideControls = false,
   maxImageBytes,
   optimizeOptions,
-  optimizeVideoOptions
+  optimizeVideoOptions,
+  allowMultiple = false,
+  onBatchComplete
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -60,6 +64,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [optimizedPreviewMeta, setOptimizedPreviewMeta] = useState<{ size: number; type: string } | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Batch state
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
   
   // Cropper state
   const [cropSrc, setCropSrc] = useState<string | null>(null);
@@ -134,6 +141,61 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   // --- Handlers ---
 
+  const handleFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    
+    // Single file fallback
+    if (files.length === 1) {
+      handleFileSelect(files[0]);
+      return;
+    }
+
+    // Batch processing
+    if (!allowMultiple) {
+      handleFileSelect(files[0]);
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    const results: { url: string; file: File }[] = [];
+    const fileArray = Array.from(files);
+    
+    setBatchProgress({ current: 0, total: fileArray.length });
+
+    for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setBatchProgress({ current: i + 1, total: fileArray.length });
+        
+        // Validate
+        if (!validateFileType(file) || !validateFileSize(file)) {
+          continue; // Skip invalid
+        }
+
+        try {
+            // Optimize
+            let processed = file;
+             if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+                processed = await handleImageOptimization(file);
+            }
+            
+            // Upload (Direct, no crop for batch)
+            // Note: We bypass cropping for batch uploads for speed
+            const url = await handleUploadProcess(processed, isVideoUpload, isPdfUpload, isAudioUpload, true, true); // Auto-save true to ensure we just get URL and don't hold state
+            results.push({ url, file: processed });
+        } catch (e) {
+            console.warn('Batch upload error for', file.name, e);
+            // Continue with others
+        }
+    }
+
+    setIsProcessing(false);
+    setBatchProgress(null);
+    if (onBatchComplete && results.length > 0) {
+        onBatchComplete(results);
+    }
+  };
+
   const handleFileSelect = async (file: File) => {
     setIsProcessing(true);
     setError('');
@@ -171,9 +233,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       }
       setIsProcessing(false);
       try {
-        await handleUploadProcess(processedFile, isVideoUpload, isPdfUpload, isAudioUpload, autoSave, hideControls, currentImage);
+        const uploadedUrl = await handleUploadProcess(processedFile, isVideoUpload, isPdfUpload, isAudioUpload, autoSave, hideControls, currentImage);
+        
+        // Ensure parent gets the URL even if autoSave is false (manual save mode)
+        if (!autoSave && !hideControls) {
+          onImageSelect(uploadedUrl);
+        }
+        
         setHasUnsavedChanges(!autoSave && !hideControls);
-      } catch (e) { /* Hook handles error */ }
+      } catch (e: any) {
+        console.error('Upload process failed:', e);
+        setError(e.message || 'Upload failed');
+        alert(`Upload Error: ${e.message}`);
+      }
     }
   };
 
@@ -278,12 +350,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       const blob = await getCroppedImgBlob(croppedAreaPixels);
       const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: originalImageMime || 'image/jpeg' });
-      await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      const uploadedUrl = await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      
+      // Ensure parent gets URL even if not auto-saving
+      if (!autoSave && !hideControls) {
+        onImageSelect(uploadedUrl);
+      }
+      
       setHasUnsavedChanges(!autoSave && !hideControls);
       setCropSrc(null);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setError('Cropping failed');
+      setError(e.message || 'Cropping failed');
+      alert(`Cropping Error: ${e.message}`);
     }
   };
 
@@ -293,11 +372,19 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       const res = await fetch(cropSrc!);
       const blob = await res.blob();
       const file = new File([blob], `original_${Date.now()}.jpg`, { type: blob.type });
-      await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      
+      const uploadedUrl = await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      
+      // Ensure parent gets URL even if not auto-saving
+      if (!autoSave && !hideControls) {
+        onImageSelect(uploadedUrl);
+      }
+      
       setHasUnsavedChanges(!autoSave && !hideControls);
       setCropSrc(null);
-    } catch (e) {
-      setError('Upload failed');
+    } catch (e: any) {
+      setError(e.message || 'Upload failed');
+      alert(`Upload Error: ${e.message}`);
     }
   };
 
@@ -318,7 +405,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   return (
     <div className={`relative ${className}`}>
-      <input ref={fileInputRef} type="file" accept={acceptedTypes} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} className="hidden" />
+      <input 
+        ref={fileInputRef} 
+        type="file" 
+        accept={acceptedTypes} 
+        multiple={allowMultiple}
+        onChange={(e) => e.target.files && handleFiles(e.target.files)} 
+        className="hidden" 
+      />
 
       {/* Error / Warning Alert */}
       {(error || missingBucket) && (
@@ -343,7 +437,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
-        onDrop={(e) => { e.preventDefault(); setDragOver(false); e.dataTransfer.files?.[0] && handleFileSelect(e.dataTransfer.files[0]); }}
+        onDrop={(e) => { 
+          e.preventDefault(); 
+          setDragOver(false); 
+          if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleFiles(e.dataTransfer.files);
+          }
+        }}
       >
         
         {/* Loading Overlay */}
@@ -354,11 +454,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                </svg>
-               {uploadPercent > 0 && (
+               {uploadPercent > 0 && !batchProgress && (
                  <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">{uploadPercent}%</div>
                )}
             </div>
-            <p className="text-sm font-medium text-purple-200">{uploading ? 'Uploading media...' : 'Optimizing...'}</p>
+            {batchProgress ? (
+              <p className="text-sm font-medium text-purple-200">
+                Uploading {batchProgress.current} of {batchProgress.total}...
+              </p>
+            ) : (
+              <p className="text-sm font-medium text-purple-200">{uploading ? 'Uploading media...' : 'Optimizing...'}</p>
+            )}
             {uploadHint && <p className="text-xs text-gray-400 mt-2 text-center max-w-[80%]">{uploadHint}</p>}
           </div>
         )}

@@ -3,6 +3,7 @@ import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import type { Database } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { encryptData, decryptData } from '../utils/encryption';
+import { extractFaceDescriptorsFromUrl } from '../utils/faceUtils';
 
 // Define types for your data based on Supabase schema
 export type Event = Database['public']['Tables']['events']['Row'];
@@ -152,6 +153,7 @@ interface DataContextType {
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
   deleteGalleryImage: (id: number) => Promise<void>;
+  deleteAllGalleryImages: () => Promise<void>;
   toggleGalleryImageFeatured: (id: number) => Promise<void>;
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
   updateSponsor: (id: number, sponsor: Partial<Sponsor>) => Promise<void>;
@@ -267,6 +269,11 @@ interface DataContextType {
   storageQuotaBytes: number | null;
   // Diagnostics
   pingNow?: () => Promise<void>;
+  // Google Drive Integration
+  syncGoogleDrive?: (folderId: string, year?: string, category?: string) => Promise<{ message: string; imagesCount: number; categoriesCount: number }>;
+  sanitizeUrl?: (url: string | null | undefined) => string;
+  // Face Recognition
+  indexGalleryImageFaces?: (imageId: number, url: string) => Promise<void>;
   // Admin users management
   adminUsers?: Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>;
   refreshAdminUsers?: () => Promise<void>;
@@ -469,6 +476,18 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (!u) return '';
     let s = String(u).trim();
     if (!s) return '';
+
+    // Handle Google Drive custom protocol
+    if (s.startsWith('drive://')) {
+      const fileId = s.replace('drive://', '').trim();
+      // Validate: Google Drive IDs are typically 20+ alphanumeric chars with hyphens/underscores
+      if (!fileId || !/^[\w-]{10,}$/.test(fileId)) {
+        console.warn('[sanitizeUrl] Invalid drive:// ID:', fileId);
+        return '';
+      }
+      return `/.netlify/functions/drive-proxy?id=${fileId}`;
+    }
+
     // Prefix relative Supabase storage paths with our Supabase origin
     // Example: /storage/v1/object/public/bucket/path -> https://<project>.supabase.co/storage/v1/object/public/...
     if (s.startsWith('/storage/')) {
@@ -729,7 +748,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     
     // Check if current user is Master Admin to inject bypass key
-    const isMaster = user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
+    const isMaster = authUser?.user_metadata?.master_bypass || authUser?.id === 'master-admin-bypass';
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -1135,7 +1154,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const interval = setInterval(async () => {
       try {
         // Skip background tabs to save resources
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        if (typeof document !== 'undefined' && document && 'onLine' in navigator && !navigator.onLine) return;
         const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
         const { error } = await supabase.from('events').select('id', { head: true, count: 'exact' });
         const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -2003,10 +2022,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     // Fallback if remote schema missing new columns
     if (error && (error.message || '').toLowerCase().includes('column') && ((error.message.includes('mobile_video_url')) || (error.message.includes('mobile_poster_url')) || (error.message.includes('mobile_image_url')))) {
       console.warn('[Data:updateHeroMedia] Remote schema missing mobile columns, retrying without them. Run migration to add mobile_image_url/mobile_video_url/mobile_poster_url.');
-      const fallback = { ...payload } as any;
-      delete fallback.mobile_video_url;
-      delete fallback.mobile_poster_url;
-      delete fallback.mobile_image_url;
+      const fallback = { ...payload };
+      delete (fallback as any).mobile_video_url;
+      delete (fallback as any).mobile_poster_url;
+      delete (fallback as any).mobile_image_url;
       const retry = await supabase
         .from('hero_media')
         .upsert([{ page_key: pageKey, ...fallback }], { onConflict: 'page_key' })
@@ -2196,7 +2215,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
-  // Realtime subscription for hero_media so hero background framing updates propagate across tabs
+  // Realtime: keep hero_media so hero background framing updates propagate across tabs
   useEffect(() => {
     const channelName = 'ctx-hero-media';
     const channel = supabase
@@ -2549,7 +2568,6 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     if (error) {
       const msg = ((error as any)?.message || '').toLowerCase() + ' ' + (((error as any)?.details) || '').toLowerCase();
       if (msg.includes('registration_opens_at') || msg.includes('registration_timer_enabled') || msg.includes('watch_live_url') || msg.includes('schema cache') || msg.includes('team_max_members')) {
-        // Backend likely hasn't been migrated yet; strip newer fields and retry once
         timersSupportedRef.current = false;
         const safe: any = { ...event };
         delete safe.registration_opens_at;
@@ -2926,42 +2944,61 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     // Only include DB columns and strip client-only/computed fields
     const allowedKeys = new Set(['event_id','category','registration_id','position','name','photo_url','year']);
     const sanitized = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowedKeys.has(k)));
+    const prev = (eventWinners || []).find((w: any) => w.id === id);
     let { error } = await supabase.from('event_winners').update(sanitized).eq('id', id);
-    if (error) {
-      const msg = (error as any)?.message || '';
-      const lower = String(msg).toLowerCase();
-      if (lower.includes('column') && lower.includes('year') && lower.includes('does not exist')) {
-        // Retry without the 'year' key
-        const { year, ...fallback } = (patch || {}) as any;
-        const retry = await supabase.from('event_winners').update(fallback).eq('id', id);
-        if (retry.error) {
-          throw retry.error;
+  if (error) {
+    const msg = (error as any)?.message || '';
+    const lower = String(msg).toLowerCase();
+    if (lower.includes('column') && lower.includes('year') && lower.includes('does not exist')) {
+      // Retry without the 'year' key
+      const { year, ...fallback } = (patch || {}) as any;
+      const retry = await supabase.from('event_winners').update(fallback).eq('id', id);
+      if (retry.error) {
+        throw retry.error;
+      }
+      // Cleanup replaced photo if changed
+      if (prev && fallback.photo_url && !urlsEqual((prev as any).photo_url, fallback.photo_url)) {
+        if (!isUrlReferencedSomewhere((prev as any).photo_url, { table: 'event_winners', id })) {
+          deleteStorageFileByPublicUrl((prev as any).photo_url);
         }
-        await fetchData(true);
-        return;
       }
-      if (lower.includes('relation') || lower.includes('does not exist')) {
-        console.warn('event_winners table likely missing; cannot update winner');
-        return;
-      }
-      throw error;
+      await fetchData(true);
+      return;
     }
-    await fetchData(true);
-  };
+    if (lower.includes('relation') || lower.includes('does not exist')) {
+      console.warn('event_winners table likely missing; cannot update winner');
+      return;
+    }
+    throw error;
+  }
+  // Cleanup replaced photo if changed
+  if (prev && sanitized.photo_url && !urlsEqual((prev as any).photo_url, sanitized.photo_url)) {
+    if (!isUrlReferencedSomewhere((prev as any).photo_url, { table: 'event_winners', id })) {
+      deleteStorageFileByPublicUrl((prev as any).photo_url);
+    }
+  }
+  await fetchData(true);
+};
 
   const deleteEventWinner = async (id: number) => {
-    const { error } = await supabase.from('event_winners').delete().eq('id', id);
-    if (error) {
-      const msg = (error as any)?.message || '';
-      const lower = String(msg).toLowerCase();
-      if (lower.includes('relation') || lower.includes('does not exist')) {
-        console.warn('event_winners table likely missing; cannot delete winner');
-        return;
-      }
-      throw error;
+  // Capture photo for storage cleanup before record is gone
+  const winner = (eventWinners || []).find((w: any) => w.id === id);
+  const { error } = await supabase.from('event_winners').delete().eq('id', id);
+  if (error) {
+    const msg = (error as any)?.message || '';
+    const lower = String(msg).toLowerCase();
+    if (lower.includes('relation') || lower.includes('does not exist')) {
+      console.warn('event_winners table likely missing; cannot delete winner');
+      return;
     }
-    await fetchData(true);
-  };
+    throw error;
+  }
+  // Cleanup asset
+  if (winner?.photo_url) {
+    deleteStorageFileByPublicUrl(winner.photo_url);
+  }
+  await fetchData(true);
+};
 
   // Notifications CRUD (owner/admin only; optional table)
   const addNotification = async (n: { title?: string | null; message: string; type?: string; link_url?: string | null; visible?: boolean; starts_at?: string | null; ends_at?: string | null; priority?: number; admin_only?: boolean; auto_dismiss_seconds?: number | null; text_color?: string | null; glow_color?: string | null }) => {
@@ -3181,13 +3218,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       if (u1 === t || u2 === t || u3 === t || uv === t) return true;
     }
     // events.image / motion_poster_url
-    for (const e of events) {
-      if (skip('events', e.id)) continue;
-      const ei = normalizeStorageUrl((e as any).image);
-      const em = normalizeStorageUrl((e as any).motion_poster_url);
-      if (ei === t || em === t) return true;
-    }
-    // homepage_settings.hero_media_url and sponsor_logos[].logo_url and brand_logo_url
+  for (const e of events) {
+    if (skip('events', e.id)) continue;
+    const ei = normalizeStorageUrl((e as any).image);
+    const em = normalizeStorageUrl((e as any).motion_poster_url);
+    if (ei === t || em === t) return true;
+  }
+  // event_winners.photo_url
+  if ((eventWinners || []).some((w: any) => !skip('event_winners', w.id) && normalizeStorageUrl(w.photo_url) === t)) return true;
+
+  // homepage_settings.hero_media_url and sponsor_logos[].logo_url and brand_logo_url
     if (homepageSettings) {
       const hm = normalizeStorageUrl((homepageSettings as any).hero_media_url);
       if (hm === t) return true;
@@ -3220,6 +3260,25 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       if (!url) return;
       // Strip query params / fragments (signed URLs etc.)
       url = url.split('?')[0].split('#')[0];
+
+      // --- R2 Deletion Handler ---
+      // If matches R2 domains or ANY of our new folders and is NOT a Supabase URL
+      // Folders: gallery, events, sponsors, team, faculty, guests, videos, audio, band, hero, documents, registrations, sports, pdf
+      const r2Folders = ['gallery', 'events', 'sponsors', 'team', 'faculty', 'guests', 'videos', 'audio', 'band', 'hero', 'documents', 'registrations', 'sports', 'pdf'];
+      const isR2Folder = r2Folders.some(f => url.includes(`/${f}/`));
+      
+      if (!url.includes('/storage/v1/object/public/') && (isR2Folder || url.includes('r2.dev') || url.includes('cloudflarestorage'))) {
+        try {
+           const { deleteFromR2 } = await import('../utils/r2Utils');
+           await deleteFromR2(url);
+           return;
+        } catch (e) {
+           console.warn('Failed to delete R2 file via context:', e);
+           // Continue to standard logic just in case, though unlikely to match
+        }
+      }
+      // ---------------------------
+
       // If it's already a full Supabase public URL
       let bucket: string | null = null;
       let path: string | null = null;
@@ -3298,10 +3357,78 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   // Gallery Management
+  const indexGalleryImageFaces = async (imageId: number, url: string) => {
+    try {
+      console.log(`[FaceIndex] Starting detection for image ${imageId}: ${url}`);
+      const sanitizedUrl = sanitizeUrl(url);
+      const faces = await extractFaceDescriptorsFromUrl(sanitizedUrl);
+      
+      if (!faces || faces.length === 0) {
+        console.log(`[FaceIndex] No faces detected in image ${imageId}`);
+        return;
+      }
+
+      console.log(`[FaceIndex] Detected ${faces.length} faces in image ${imageId}. Saving to DB...`);
+      const { error } = await supabase.from('gallery_faces' as any).insert(
+        faces.map(f => ({
+          image_id: imageId,
+          embedding: f.descriptor,
+          bounds: f.bounds
+        }))
+      );
+      
+      if (error) {
+        console.error('[FaceIndex] DB Insert Error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+      
+      console.log(`[FaceIndex] Detected ${faces.length} faces in image ${imageId}. Saving to DB...`);
+    } catch (err: any) {
+      console.error('[FaceIndex] Critical failure during detection/save:', err);
+      throw err;
+    } finally {
+      // Mark as indexed regardless of whether faces were found, to avoid re-scanning
+      await supabase.from('gallery_images').update({ faces_indexed: true } as any).eq('id', imageId);
+      console.log(`[FaceIndex] Image ${imageId} marked as indexed.`);
+      await fetchData(true); // Ensure global state is updated
+    }
+  };
+
+  const syncGoogleDrive = async (folderId: string, year?: string, category?: string) => {
+    try {
+      const response = await fetch('/.netlify/functions/sync-google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId, year, category })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to sync Google Drive');
+      }
+
+      const result = await response.json();
+      await fetchData(true); // Refresh local data after sync
+      return result;
+    } catch (err: any) {
+      console.error('[DataContext] Google Drive Sync Failed:', err);
+      throw err;
+    }
+  };
+
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
-    const { error } = await supabase.from('gallery_images').insert(image);
+    const { data, error } = await supabase.from('gallery_images').insert(image).select().single();
     if (error) throw error;
-    await fetchData(true);
+    
+    // Auto face detect (background)
+    if (data && data.src) {
+      indexGalleryImageFaces(data.id, data.src);
+    }
+    
+    // Optimistic update: append to local state immediately (no full refetch)
+    if (data) {
+      setGalleryImages(prev => [...prev, { ...data, src: sanitizeUrl(data.src) }]);
+    }
   };
 
   const updateGalleryImage = async (id: number, image: Partial<GalleryImage>) => {
@@ -3324,7 +3451,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     if (error) throw error;
     // Fire-and-forget storage delete (do not block UI)
     deleteStorageFileByPublicUrl(img?.src);
-    await fetchData(true);
+    // Optimistic update: remove from local state immediately (no full refetch)
+    setGalleryImages(prev => prev.filter(g => g.id !== id));
+  };
+
+  const deleteAllGalleryImages = async () => {
+    // Delete all images in one go (using 'id' > 0 condition)
+    const { error } = await supabase.from('gallery_images').delete().neq('id', 0);
+    if (error) throw error;
+    // Optimistic update: clear local state immediately
+    setGalleryImages([]);
   };
 
   const toggleGalleryImageFeatured = async (id: number) => {
@@ -3352,15 +3488,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       ...sponsor,
       description: sponsor.description ?? '',
     } as Partial<Sponsor>;
+    const prev = sponsors.find(s => s.id === id);
   const { error } = await supabase.from('sponsors').update(payload).eq('id', id);
     if (error) throw error;
-    // NOTE: Previously we attempted to automatically delete the previous sponsor logo
-    // from storage when it appeared to be unreferenced. This has caused cases where
-    // logos disappear from the UI due to subtle URL-normalization or reference-check
-    // mismatches. To avoid accidental removal of assets, we no longer auto-delete
-    // previous sponsor logos here. If you want automatic cleanup, implement a
-    // manual garbage-collection job that verifies references server-side before
-    // deleting storage objects.
+    
+  // Cleanup old logo if replaced and unreferenced
+  if (prev && payload.logo && !urlsEqual(prev.logo, payload.logo)) {
+    if (!isUrlReferencedSomewhere(prev.logo, { table: 'sponsors', id })) {
+      deleteStorageFileByPublicUrl(prev.logo);
+    }
+  }
     await fetchData(true);
   };
 
@@ -4877,8 +5014,10 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         toggleEventVisibility,
         toggleEventRegistration,
         addGalleryImage,
+        indexGalleryImageFaces,
         updateGalleryImage,
         deleteGalleryImage,
+        deleteAllGalleryImages,
         toggleGalleryImageFeatured,
         addSponsor,
         updateSponsor,
@@ -4983,7 +5122,9 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         storageQuotaBytes,
         // Diagnostics
         pingNow,
-  realtimeStatus,
+        realtimeStatus,
+        // Google Drive
+        syncGoogleDrive,
         // Admin users
         adminUsers,
         refreshAdminUsers,

@@ -25,7 +25,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Bell,
-
+  Scan,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -74,6 +74,7 @@ const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerAp
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
+const GalleryFaceIndexer = React.lazy(() => import('../components/admin/GalleryFaceIndexer').then(m => ({ default: m.GalleryFaceIndexer })));
 
 
 
@@ -177,11 +178,17 @@ export const AdminDashboard: React.FC = () => {
       'site-settings': 'Site Settings',
       'admin-users': 'Admin Users',
       notifications: 'Notifications',
+      'face-indexing': 'Face Indexing',
+      'registration-photos': 'Registration Photos',
+      sports: 'Sports',
+      artist: 'Artist',
+      'chief-guest': 'Chief Guest',
+      'sponsorship-packages': 'Sponsorship Packages',
       'owner-approvals': 'Owner Approvals',
       'coordinator-passwords': 'Coordinator Passwords',
-      'security-passes': 'Entry Pass Security',
+      'security-passes': 'Security Passes',
       'council-access': 'Council Access',
-      'audit-logs': 'Audit Logs'
+      'audit-logs': 'Audit Logs',
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
   }, [activeTab, updatePresence]);
@@ -369,6 +376,7 @@ export const AdminDashboard: React.FC = () => {
     ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield, group: 'Security & System' }] : []),
     ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council Access', icon: Lock, group: 'Security & System' }] : []),
     ...(isOwner ? [{ id: 'audit-logs' as TabType, name: 'Audit Logs', icon: HistoryIcon, group: 'Security & System' }] : []),
+    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexing', icon: Scan, group: 'Security & System' }] : []),
 
     // Content
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'Content' },
@@ -390,7 +398,6 @@ export const AdminDashboard: React.FC = () => {
     { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image, group: 'Registrations' },
     { id: 'auditions' as TabType, name: 'Auditions', icon: Users, group: 'Registrations' },
     { id: 'memberships' as TabType, name: 'Memberships', icon: Users, group: 'Registrations' },
-    { id: 'form-settings' as TabType, name: 'Form Settings', icon: Settings, group: 'Registrations' },
     { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck, group: 'Registrations' },
 
     // People
@@ -850,6 +857,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
             {activeTab === 'audit-logs' && isOwner && <AuditLogPanel />}
+            {activeTab === 'face-indexing' && isOwner && <GalleryFaceIndexer />}
             {activeTab === 'roadmap' && <RoadmapMilestonesAdmin />}
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}

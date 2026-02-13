@@ -1091,8 +1091,8 @@ export const Events: React.FC = () => {
                       aria-label={`Open details for ${event.title}`}
                       onMouseEnter={() => {
                         try {
-                          // play on hover only when prefer_video is enabled and autoplay isn't forced
-                          if ((event as any).prefer_video && !(event as any).motion_poster_autoplay) {
+                          // play on hover only when video url exists and autoplay isn't forced
+                          if (event.motion_poster_url && !(event as any).motion_poster_autoplay) {
                             const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
                             if (v) import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { const p = v.play(); if (p) p.catch(() => {}); });
                           }
@@ -1100,7 +1100,7 @@ export const Events: React.FC = () => {
                       }}
                       onMouseLeave={() => {
                         try {
-                          if ((event as any).prefer_video && !(event as any).motion_poster_autoplay) {
+                          if (event.motion_poster_url && !(event as any).motion_poster_autoplay) {
                             const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
                             if (v) {
                               v.pause();

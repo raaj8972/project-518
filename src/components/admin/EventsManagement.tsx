@@ -12,6 +12,7 @@ import type { Event } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
+import { deleteFromStorageByPublicUrl } from '../../utils/uploadUtils';
 
 import { useToast } from '../../components/ToastProvider';
 
@@ -637,7 +638,22 @@ export const EventsManagement: React.FC = () => {
         // Direct update (no approval required)
         
         // Detect changes before saving to ask for notification later
+        // Detect changes before saving to ask for notification later
         const originalEvent = events.find((e: any) => e.id === id);
+
+        // Cleanup abandoned files if assets changed
+        if (originalEvent) {
+             const checks = [
+                 { old: originalEvent.image, new: eventData.image },
+                 { old: originalEvent.motion_poster_url, new: eventData.motion_poster_url }
+             ];
+             for (const check of checks) {
+                 if (check.old && check.old !== check.new) {
+                     await deleteFromStorageByPublicUrl(check.old, 'event-images');
+                 }
+             }
+        }
+
         const hasScheduleChanges = originalEvent && (
           (originalEvent.date || '') !== (eventData.date || '') ||
           (originalEvent.time || '') !== (eventData.time || '') ||
@@ -749,6 +765,7 @@ export const EventsManagement: React.FC = () => {
     }
   };
 
+
   const handleDeleteEvent = async (id: number) => {
     if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) return;
     
@@ -767,6 +784,14 @@ export const EventsManagement: React.FC = () => {
         }
       } else {
         // Direct delete
+        const event = events.find((e: any) => e.id === id);
+        if (event) {
+            // Cleanup files
+            const files = [event.image, event.motion_poster_url];
+            for (const url of files) {
+                if (url) await deleteFromStorageByPublicUrl(url, 'event-images');
+            }
+        }
         await deleteEvent(id);
         alert('✓ Event deleted successfully!');
       }

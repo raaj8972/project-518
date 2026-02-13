@@ -55,7 +55,47 @@ export const useMediaUpload = ({
     const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     const timeoutMs = isVideoUpload ? 300_000 : isPdfUpload ? 60_000 : isAudioUpload ? 180_000 : 120_000;
 
+  /* 115 original line; replaced content follows */
+  /* 115 original line; replaced content follows */
     const tryXHR = async () => {
+      // --- INTERCEPTION: Route ALL images to/from Cloudflare R2 ---
+      // Map Supabase buckets to R2 folders for cleaner organization
+      const BUCKET_TO_R2: Record<string, string> = {
+        'gallery-images': 'gallery',
+        'event-images': 'events',
+        'sponsor-logos': 'sponsors',
+        'team-images': 'team',
+        'faculty-images': 'faculty',
+        'guest-artist-images': 'guests', 
+        'guest-artist-videos': 'videos',
+        'guest-artist-audio': 'audio',
+        'band-images': 'band',
+        'hero-media': 'hero',
+        'hero-video': 'hero-video',
+        'documents': 'documents',
+        'registration-photos': 'registrations',
+        'sports-images': 'sports',
+        'pdf': 'pdf'
+      };
+
+      // If bucket is in our map (or we want to catch-all), use R2
+      const r2Folder = BUCKET_TO_R2[bucket];
+      
+      if (r2Folder) {
+        try {
+          const { uploadToR2 } = await import('../utils/r2Utils');
+          const secureUrl = await withTimeout(
+            uploadToR2(file, r2Folder), // Pass mapped folder
+            Math.max(timeoutMs, 60000), 
+            'r2-upload'
+          );
+          return secureUrl; 
+        } catch (e: any) {
+          throw new Error(`R2 Upload Error: ${e.message || 'Upload failed'}`);
+        }
+      }
+      // --- End Interception ---
+
       const access = await ensureValidSession();
       const base = `https://${SUPABASE_HOST}`;
       const endpoint = `${base}/storage/v1/object/${bucket}/${encodeURIComponent(fileName)}`;
@@ -85,9 +125,46 @@ export const useMediaUpload = ({
         xhr.onerror = () => { clearTimeout(killer); reject(new Error('Network error during upload')); };
         xhr.send(file);
       }), timeoutMs, 'upload');
+      
+      // If we used XHR successfully for Supabase, extract the public URL below
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      return publicUrl;
     };
 
     const trySDK = async () => {
+      // --- INTERCEPTION (Backup): Ensure R2 is used even in fallback ---
+      // Simplified check: validation is done in tryXHR mostly, but if session fails, we still want R2
+      // We can re-derive folder or just default to 'uploads' if not found, but let's replicate map
+      const BUCKET_TO_R2_BACKUP: Record<string, string> = {
+        'gallery-images': 'gallery',
+        'event-images': 'events',
+        'sponsor-logos': 'sponsors',
+        'team-images': 'team',
+        'faculty-images': 'faculty',
+        'guest-artist-images': 'guests', 
+        'guest-artist-videos': 'videos',
+        'guest-artist-audio': 'audio',
+        'band-images': 'band',
+        'hero-media': 'hero',
+        'hero-video': 'hero-video',
+        'documents': 'documents',
+        'registration-photos': 'registrations',
+        'sports-images': 'sports',
+        'pdf': 'pdf'
+      };
+      
+      const r2Folder = BUCKET_TO_R2_BACKUP[bucket];
+
+      if (r2Folder) {
+         const { uploadToR2 } = await import('../utils/r2Utils');
+         return await withTimeout(
+           uploadToR2(file, r2Folder),
+           timeoutMs,
+           'r2-retry'
+         );
+      }
+      // --- End Interception ---
+
       const { error } = await withTimeout(
         supabase.storage
           .from(bucket)
@@ -96,20 +173,23 @@ export const useMediaUpload = ({
         'upload'
       );
       if (error) throw error as any;
+      
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
+      return publicUrl;
     };
 
     try {
-      await tryXHR();
+      // Execute the appropriate path, returning the URL immediately if successful
+      return await tryXHR();
     } catch (e: any) {
       if ((e?.message || '').includes('no-session')) {
-        try { await trySDK(); } catch (ee) { throw new Error('no-session'); }
+        try { return await trySDK(); } catch (ee) { throw new Error('no-session'); }
       } else {
-        try { await trySDK(); } catch (ee) { throw ee; }
+        try { return await trySDK(); } catch (ee) { throw ee; }
       }
     }
-
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
-    return publicUrl;
+    // Unreachable if returns above work correctly, but safeguard
+    // The returns are inside tryXHR/trySDK for R2 paths
   };
 
   const handleUploadProcess = async (

@@ -234,6 +234,29 @@ export const HeroMediaManagement: React.FC = () => {
   const handleSave = async () => {
     const steps = savingProgress.withSteps(3, 'Preparing…');
     try {
+      steps.next('Checking for abandoned files');
+      
+      // Check for replaced/removed files and delete them
+      if (current) {
+         const { deleteFromStorageByPublicUrl } = await import('../../utils/uploadUtils');
+         const checks = [
+             { old: current.image_url, new: form.image_url, bucket: 'hero-media' },
+             { old: (current as any).mobile_image_url, new: form.mobile_image_url, bucket: 'hero-media' },
+             { old: current.video_url, new: form.video_url, bucket: 'hero-media' }, // hero-media bucket maps to hero-video folder in some cases, but upload uses 'hero-media' bucket context
+             { old: (current as any).mobile_video_url, new: form.mobile_video_url, bucket: 'hero-media' },
+             { old: current.poster_url, new: form.poster_url, bucket: 'hero-media' },
+             { old: (current as any).mobile_poster_url, new: form.mobile_poster_url, bucket: 'hero-media' }
+         ];
+
+         for (const check of checks) {
+             // If old exists, and new is different (changed or cleared), delete old
+             if (check.old && check.old !== check.new) {
+                 console.log('Deleting abandoned file:', check.old);
+                 await deleteFromStorageByPublicUrl(check.old, check.bucket);
+             }
+         }
+      }
+
       steps.next('Uploading/validating');
       await updateHeroMedia(selectedPage, form as any);
       // Force refetch to ensure any DB-side defaults/triggers & realtime consistency

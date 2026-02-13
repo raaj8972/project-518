@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Play, Upload, Trash2, AlertCircle, Scissors } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { VideoTrimmer } from './VideoTrimmer';
+import { useMediaUpload } from '../hooks/useMediaUpload';
 
 interface VideoUploadProps {
   onVideoSelect: (videoUrl: string) => void;
@@ -19,14 +19,32 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   maxSizeMB = 50
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string>('');
-  const [previewUrl, setPreviewUrl] = useState<string>(currentVideo || '');
   const [showTrimmer, setShowTrimmer] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteCountdown, setDeleteCountdown] = useState(2);
+  
+  // Local preview state
+  const [localPreview, setLocalPreview] = useState<string>(currentVideo || '');
+
+  // Use the hook for R2 routing
+  const {
+    uploading,
+    uploadPercent,
+    error,
+    setError,
+    handleUploadProcess,
+    deleteFromStorageByPublicUrl,
+    resetUploadState
+  } = useMediaUpload({
+    bucket,
+    folder,
+    onImageSelect: (url) => {
+        onVideoSelect(url);
+        setLocalPreview(url);
+    },
+    maxImageBytes: maxSizeMB * 1024 * 1024
+  });
 
   const handleFileSelect = async (file: File) => {
     // Validate file type
@@ -42,41 +60,12 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       return;
     }
 
-    setError('');
-    setUploading(true);
-    setUploadProgress(0);
-
     try {
-      // Create file name
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder ? folder + '/' : ''}${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-
-      // Upload to Supabase
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
-
-      setPreviewUrl(publicUrl);
-      onVideoSelect(publicUrl);
-      setUploadProgress(100);
+      // Use handleUploadProcess from hook which routes to R2 if configured
+      await handleUploadProcess(file, true, false, false, true, true, currentVideo);
     } catch (err: any) {
       console.error('Upload error:', err);
-      setError(err.message || 'Failed to upload video');
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      // Error handling is managed by the hook mostly, but we log here just in case
     }
   };
 
@@ -87,14 +76,14 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
       setSelectedFile(file);
       // Show local preview immediately
       const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      setLocalPreview(url);
     }
   };
 
   const handleTrimComplete = (trimmedFile: File) => {
     setSelectedFile(trimmedFile);
     const url = URL.createObjectURL(trimmedFile);
-    setPreviewUrl(url);
+    setLocalPreview(url);
     setShowTrimmer(false);
     // Auto-upload trimmed video
     handleFileSelect(trimmedFile);
@@ -129,16 +118,13 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   const confirmDelete = async () => {
     setShowDeleteConfirm(false);
     try {
-      if (previewUrl && previewUrl.includes(bucket)) {
-        const urlParts = previewUrl.split(`/${bucket}/`);
-        if (urlParts.length > 1) {
-          const filePath = urlParts[1];
-          await supabase.storage.from(bucket).remove([filePath]);
-        }
+      if (localPreview) {
+          await deleteFromStorageByPublicUrl(localPreview);
       }
-      setPreviewUrl('');
+      setLocalPreview('');
       setSelectedFile(null);
       onVideoSelect('');
+      resetUploadState();
     } catch (err) {
       console.error('Delete error:', err);
     }
@@ -161,11 +147,11 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         </div>
       )}
 
-      {previewUrl ? (
+      {localPreview ? (
         <div className="space-y-3">
           <div className="bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden">
             <video
-              src={previewUrl}
+              src={localPreview}
               controls
               className="w-full h-48 object-contain bg-black"
               preload="metadata"
@@ -222,7 +208,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
           {uploading ? (
             <div className="space-y-3">
               <div className="w-16 h-16 mx-auto border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-gray-600 font-medium">Uploading... {uploadProgress}%</p>
+              <p className="text-gray-600 font-medium">Uploading... {uploadPercent}%</p>
             </div>
           ) : (
             <div className="space-y-3">

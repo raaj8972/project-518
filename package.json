@@ -25,6 +25,7 @@
     "@types/crypto-js": "^4.2.2",
     "@types/nodemailer": "^7.0.4",
     "@use-gesture/react": "^10.3.1",
+    "@vladmandic/face-api": "^1.7.15",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "buffer": "^6.0.3",
@@ -59,6 +60,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.989.0",
+    "@aws-sdk/s3-request-presigner": "^3.989.0",
     "@eslint/js": "^9.9.1",
     "@netlify/functions": "^2.8.2",
     "@types/canvas-confetti": "^1.9.0",

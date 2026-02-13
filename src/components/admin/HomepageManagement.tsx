@@ -194,7 +194,35 @@ export const HomepageManagement: React.FC = () => {
     try {
       if (savingPage || savingBranding) return;
       setSavingPage(true);
-      const steps = savingProgress.withSteps(4, 'Preparing…');
+      const steps = savingProgress.withSteps(5, 'Preparing…'); // Increased steps
+      
+      // Cleanup Logic
+      steps.next('Checking for abandoned files');
+      const { deleteFromStorageByPublicUrl } = await import('../../utils/uploadUtils');
+      
+      // 1. Hero Media Cleanup
+      const oldHero = homepageSettings?.hero_media_url;
+      const newHero = form.hero_media_url;
+      if (oldHero && oldHero !== newHero && !oldHero.includes('instagram.com')) {
+          // Assuming hero media is uploaded to 'hero-media' bucket (need to verify bucket if not obvious, but clean to try)
+          // Actually hero media upload usually goes to 'hero-media'.
+          await deleteFromStorageByPublicUrl(oldHero, 'hero-media');
+      }
+
+      // 2. Sponsor Logos Cleanup
+      const oldLogos = (homepageSettings?.sponsor_logos as SponsorLogo[]) || [];
+      const newLogos = form.sponsor_logos;
+      const oldUrls = new Set(oldLogos.map(l => l.logo_url).filter(u => u));
+      const newUrls = new Set(newLogos.map(l => l.logo_url).filter(u => u));
+      
+      // Find URLs in old but not in new
+      for (const url of oldUrls) {
+          if (!newUrls.has(url)) {
+              console.log('Deleting abandoned sponsor logo:', url);
+              await deleteFromStorageByPublicUrl(url, 'sponsor-logos');
+          }
+      }
+
       steps.next('Validating');
       const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
       const payload = {
@@ -391,7 +419,17 @@ export const HomepageManagement: React.FC = () => {
     try {
       if (savingBranding || savingPage) return;
       setSavingBranding(true);
-      const steps = savingProgress.withSteps(3, 'Preparing…');
+      const steps = savingProgress.withSteps(4, 'Preparing…');
+      
+      // Cleanup abandoned brand logo
+      steps.next('Checking files');
+      const oldBrand = (homepageSettings as any)?.brand_logo_url;
+      const newBrand = (form as any).brand_logo_url;
+      if (oldBrand && oldBrand !== newBrand) {
+         const { deleteFromStorageByPublicUrl } = await import('../../utils/uploadUtils');
+         await deleteFromStorageByPublicUrl(oldBrand, 'hero-media');
+      }
+
       steps.next('Validating');
       const clamp = (v: any, min: number, max: number) => (typeof v === 'number' && !isNaN(v) ? Math.min(max, Math.max(min, v)) : null);
       const brandingPayload: any = {

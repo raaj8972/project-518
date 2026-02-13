@@ -1,5 +1,6 @@
 import React, { useState, useEffect, startTransition, useCallback, useRef } from 'react';
 import { useLocation, Link } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import { Calendar, Users, ArrowRight, Zap, Sparkles, Crown, Instagram, Youtube, Music2, X as XIcon, Ticket } from 'lucide-react';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
@@ -1269,13 +1270,7 @@ export const Home: React.FC = () => {
                         'Born from the vision of creating a platform where digital dreams meet reality, RICORRENZA has evolved into the most anticipated festival experience, attracting visionaries, innovators, and creators from across the digital landscape.',
                         'Our festival celebrates the convergence of disciplines—where medical students become tech innovators, where artists code their creativity, and where the future of human potential is explored through immersive experiences.'
                       ]).map((para, i) => {
-                        // Lazy import dompurify to keep bundle size in check; fall back to raw if unavailable
-                        let html = para;
-                        try {
-                          // eslint-disable-next-line @typescript-eslint/no-var-requires
-                          const DOMPurify = require('dompurify');
-                          html = DOMPurify.sanitize(para, { USE_PROFILES: { html: true } });
-                        } catch {}
+                        const html = DOMPurify.sanitize(para, { USE_PROFILES: { html: true } });
                         return (<p key={i} dangerouslySetInnerHTML={{ __html: html }} />);
                       })}
                   </div>

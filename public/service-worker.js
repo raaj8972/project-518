@@ -117,6 +117,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip Netlify Functions (let them handle their own errors/proxying)
+  if (event.request.url.includes('/.netlify/functions/')) {
+    return;
+  }
+
   const { request } = event;
   const isNavigation = request.mode === 'navigate';
   const isHtml = request.headers.get('accept')?.includes('text/html');
@@ -172,7 +177,8 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           // Fallback for image failures
           if (request.destination === 'image') {
-            return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#111"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#333" font-family="sans-serif">Offline</text></svg>', {
+            // Return a more informative but subtle SVG for broken images
+            return new Response('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0f0f15"/><text x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="#3b3b4f" font-family="sans-serif" font-size="12px">Image</text><text x="50%" y="60%" dominant-baseline="middle" text-anchor="middle" fill="#2d2d3d" font-family="sans-serif" font-size="10px">Unavailable</text></svg>', {
               headers: { 'Content-Type': 'image/svg+xml' }
             });
           }
