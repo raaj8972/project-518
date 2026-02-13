@@ -57,3 +57,33 @@
     Content-Type = "application/javascript"
     Cache-Control = "public, max-age=0, must-revalidate"
     Service-Worker-Allowed = "/"
+
+# --- ONE-CLICK DEPLOY SETUP ---
+# This configures the "Deploy to Netlify" button to ask for these variables automatically.
+[template.environment]
+  VITE_SUPABASE_URL = "Your Supabase Project URL"
+  VITE_SUPABASE_ANON_KEY = "Your Supabase Anonymous Key"
+  SUPABASE_SERVICE_ROLE_KEY = "Your Supabase Service Role Key (Keep Secret!)"
+  
+  # Optional / Advanced Defaults can be pre-filled
+  VITE_FETCH_MAX_RETRIES = "3"
+  VITE_FETCH_TIMEOUT_MS = "15000"
+  
+  # Storage
+  R2_ACCOUNT_ID = "Cloudflare R2 Account ID"
+  R2_ACCESS_KEY_ID = "R2 Access Key ID"
+  R2_SECRET_ACCESS_KEY = "R2 Secret Access Key"
+  R2_BUCKET_NAME = "R2 Bucket Name"
+  R2_PUBLIC_DOMAIN = "R2 Public URL (e.g. pub-xxx.r2.dev)"
+  
+  # Email
+  RESEND_API_KEY = "Resend API Key (Optional)"
+  SMTP_HOST = "smtp.gmail.com"
+  SMTP_PORT = "465"
+  SMTP_SECURE = "true"
+  SMTP_USER = "Email sender address"
+  SMTP_PASS = "Email password or App Password"
+  
+  # Auth
+  MASTER_BYPASS_KEY = "Admin Master Password"
+
