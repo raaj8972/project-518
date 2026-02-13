@@ -55,3 +55,34 @@ export const vercelAdapter = (netlifyHandler: Handler) => async (req: any, res: 
     if (!res.headersSent) res.status(500).send(String(error));
   }
 };
+
+export const webAdapter = (webHandler: (req: Request) => Promise<Response>) => async (req: any, res: any) => {
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const fullUrl = `${protocol}://${host}${req.url}`;
+    
+    let body = req.body;
+    if (typeof body === 'object' && body !== null) {
+        body = JSON.stringify(body);
+    }
+
+    const request = new Request(fullUrl, {
+        method: req.method,
+        headers: req.headers,
+        body: (req.method !== 'GET' && req.method !== 'HEAD') ? body : undefined
+    });
+
+    const response = await webHandler(request);
+    
+    if (!res.headersSent) {
+      res.status(response.status);
+      response.headers.forEach((v, k) => res.setHeader(k, v));
+      const text = await response.text();
+      res.send(text);
+    }
+  } catch (error) {
+    console.error('Web Adapter Error:', error);
+    if (!res.headersSent) res.status(500).send(String(error));
+  }
+};
