@@ -47,24 +47,21 @@ if (import.meta.env.DEV && (!VITE_URL_RAW || !VITE_KEY_RAW)) {
 
 // Basic sanity checks to catch malformed inputs early in dev/prod logs
 try {
-  const url = new URL(supabaseUrl)
+  const url = new URL(supabaseUrl);
   if (!/^https?:$/.test(url.protocol)) {
-    // eslint-disable-next-line no-console
-    if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
-      console.warn('[Supabase] Unexpected protocol in VITE_SUPABASE_URL:', url.protocol)
-    }
+    console.warn('[Supabase] Unexpected protocol in VITE_SUPABASE_URL:', url.protocol);
+    // Fallback to default if protocol is wrong
+    supabaseUrl = DEFAULT_SUPABASE_URL;
   }
-  if (!/\.supabase\.(co|in)$/.test(url.host)) {
-    // eslint-disable-next-line no-console
-    if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
-      console.warn('[Supabase] Host does not look like a Supabase domain:', url.host)
-    }
+  else if (!/\.supabase\.(co|in)$/.test(url.host)) {
+    console.warn('[Supabase] Host does not look like a Supabase domain:', url.host);
+    // Be lenient here, custom domains might exist, but if it looks totally wrong, maybe warn.
+    // We won't force fallback for domain check to allow self-hosting/proxies, 
+    // but for 'Invalid URL' structure we MUST fallback.
   }
 } catch (e) {
-  // eslint-disable-next-line no-console
-  if (((import.meta as any)?.env?.VITE_DEBUG_SUPABASE_LOGS === '1')) {
-    console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot.', e)
-  }
+  console.error('[Supabase] Invalid VITE_SUPABASE_URL. Check for stray spaces or trailing dot. Falling back to default.', e);
+  supabaseUrl = DEFAULT_SUPABASE_URL;
 }
 
 // Create the client from resolved values (env or safe defaults)
