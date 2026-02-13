@@ -2,8 +2,11 @@ import { Handler } from '@netlify/functions';
 
 export const vercelAdapter = (netlifyHandler: Handler) => async (req: any, res: any) => {
   // Normalize body to string (as Netlify expects string body for JSON requests)
+  // Normalize body to string (as Netlify expects string body for JSON requests)
   let body = req.body;
-  if (typeof body === 'object' && body !== null) {
+  if (Buffer.isBuffer(body)) {
+    body = body.toString('utf-8');
+  } else if (typeof body === 'object' && body !== null) {
     body = JSON.stringify(body);
   }
 
@@ -63,8 +66,10 @@ export const webAdapter = (webHandler: (req: Request) => Promise<Response>) => a
     const fullUrl = `${protocol}://${host}${req.url}`;
     
     let body = req.body;
-    if (typeof body === 'object' && body !== null) {
-        body = JSON.stringify(body);
+    if (Buffer.isBuffer(body)) {
+      body = body.toString('utf-8');
+    } else if (typeof body === 'object' && body !== null) {
+      body = JSON.stringify(body);
     }
 
     const request = new Request(fullUrl, {

@@ -1,16 +1,21 @@
-import type { Handler } from '@netlify/functions'
+import { Handler } from '@netlify/functions';
 
-export const handler: Handler = async () => {
-  try {
-    return {
-      statusCode: 200,
-      headers: {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-store',
+export const handler: Handler = async (event, context) => {
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({
+      status: 'ok',
+      version: 'v1.4-vercel-debug',
+      env: {
+        supabase_url: !!process.env.SUPABASE_URL,
+        supabase_service_role: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        supabase_anon: !!process.env.SUPABASE_ANON_KEY
       },
-      body: JSON.stringify({ ok: true, ts: new Date().toISOString() })
-    }
-  } catch (e: any) {
-    return { statusCode: 500, body: e?.message || 'error' }
-  }
-}
+      time: new Date().toISOString()
+    }),
+  };
+};
