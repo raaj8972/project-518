@@ -1430,7 +1430,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         eventWinnersRes,
         sponsorsRes
       ] = await Promise.all([
-        supabase.from('gallery_images').select('*'),
+        supabase.from('gallery_images').select('*').limit(10000),
         supabase.from('about_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('homebound_settings').select('*').eq('id', 1).maybeSingle(),
         supabase.from('social_media_settings').select('*').eq('id', 1).maybeSingle(),
@@ -3361,7 +3361,13 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     try {
       console.log(`[FaceIndex] Starting detection for image ${imageId}: ${url}`);
       const sanitizedUrl = sanitizeUrl(url);
-      const faces = await extractFaceDescriptorsFromUrl(sanitizedUrl);
+      let targetUrl = sanitizedUrl;
+      // Use proxy for external images (R2, Cloudinary, etc.) to ensure CORS headers for canvas access
+      if (targetUrl.startsWith('http') && !targetUrl.includes(window.location.hostname)) {
+        targetUrl = `/.netlify/functions/image-proxy?url=${encodeURIComponent(targetUrl)}`;
+      }
+      
+      const faces = await extractFaceDescriptorsFromUrl(targetUrl);
       
       if (!faces || faces.length === 0) {
         console.log(`[FaceIndex] No faces detected in image ${imageId}`);
