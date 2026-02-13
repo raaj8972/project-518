@@ -57,6 +57,9 @@ export default defineConfig({
       output: {
         // Use a function so we can place large/rarely-used libraries into
         // separate chunks and keep admin pages out of the main bundle.
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
         manualChunks(id: string) {
           if (!id) return undefined;
           // Group node_modules into focused vendor chunks where possible
