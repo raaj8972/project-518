@@ -1,7 +1,7 @@
 // Service Worker for RICORRENZA
 // Provides comprehensive offline support with progressive caching
 
-const CACHE_NAME = 'ricorrenza-v2';
+const CACHE_NAME = 'ricorrenza-v4-fix';
 const OFFLINE_URL = '/offline.html';
 
 // CRITICAL pages to preload immediately (don't slow down installation)
@@ -117,8 +117,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Skip Netlify Functions (let them handle their own errors/proxying)
-  if (event.request.url.includes('/.netlify/functions/')) {
+  // Skip API Routes (don't cache dynamic data)
+  if (event.request.url.includes('/api/')) {
+    return;
+  }
+
+  // Skip Netlify/Vercel Functions
+  if (event.request.url.includes('/.netlify/functions/') || event.request.url.includes('/_vercel/')) {
     return;
   }
 
