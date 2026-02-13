@@ -67,8 +67,9 @@ export const Gallery: React.FC = () => {
          absoluteUrl = `${window.location.protocol}//${window.location.host}${url}`;
       }
       
-      // Use wsrv.nl for global CDN caching & resizing
-      return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=${width}&q=80&output=webp`;
+      // Use wsrv.nl for global CDN caching & resizing - DISABLED due to caching issues on new domain
+      // return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=${width}&q=80&output=webp`;
+      return absoluteUrl;
     };
 
     return { 
