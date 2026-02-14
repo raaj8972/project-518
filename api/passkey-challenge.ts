@@ -16,6 +16,9 @@ const getRpConfig = (headers: any) => {
   return { rpId, origin };
 };
 
+
+const RP_NAME = 'Ricorrenza';
+
 export default async (req: Request) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -31,21 +34,14 @@ export default async (req: Request) => {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers });
 
   try {
-    console.log('Passkey Challenge Request Received');
     const body = await req.json();
     const { action, userId, email } = body;
-    console.log('Request Body:', { action, userId, email });
-
-    // Debugging Supabase environment variables
-    console.log('Supabase URL exists:', !!SUPABASE_URL);
-    console.log('Service Role exists:', !!SERVICE_ROLE);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     // 1. REGISTRATION CHALLENGE
     if (action === 'register') {
       if (!userId || !email) {
-        console.error('Missing userId or email for registration');
         return new Response(JSON.stringify({ error: 'Missing userId or email' }), { status: 400, headers });
       }
 
@@ -70,13 +66,12 @@ export default async (req: Request) => {
           transports: pk.transports as any[],
         })) || [],
         authenticatorSelection: {
-          // Allow both platform (Face ID, Touch ID, Windows Hello) and cross-platform (USB keys)
-          authenticatorAttachment: undefined, // Don't restrict - works on all devices
-          requireResidentKey: false, // More compatible with older devices
-          residentKey: 'preferred', // Use resident key if available
-          userVerification: 'preferred', // Prefer biometric but allow PIN as fallback
+          authenticatorAttachment: undefined,
+          requireResidentKey: false,
+          residentKey: 'preferred',
+          userVerification: 'preferred',
         },
-        supportedAlgorithmIDs: [-7, -257], // ES256 and RS256 for broad compatibility
+        supportedAlgorithmIDs: [-7, -257],
       });
 
       // Store challenge
@@ -85,10 +80,7 @@ export default async (req: Request) => {
         user_id: userId,
       });
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify(options),
-      };
+      return new Response(JSON.stringify(options), { status: 200, headers });
     }
 
     // 2. LOGIN CHALLENGE
@@ -104,10 +96,7 @@ export default async (req: Request) => {
         challenge: options.challenge,
       });
 
-      return {
-        statusCode: 200,
-        body: JSON.stringify(options),
-      };
+      return new Response(JSON.stringify(options), { status: 200, headers });
     }
 
     return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400, headers });
@@ -116,3 +105,4 @@ export default async (req: Request) => {
     return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
   }
 };
+

@@ -6,18 +6,17 @@ const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
-const handler: Handler = async (event) => {
-  // Handle CORS
+
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS, DELETE',
+    'Content-Type': 'application/json'
+  };
+
   if (req.method === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS, DELETE'
-      },
-      body: ''
-    };
+    return new Response(null, { status: 200, headers });
   }
 
   if (req.method !== 'POST' && req.method !== 'DELETE') {
@@ -53,23 +52,12 @@ const handler: Handler = async (event) => {
 
     await s3Client.send(command);
     
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*', 
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ success: true, message: 'File deleted' }),
-    };
+    return new Response(JSON.stringify({ success: true, message: 'File deleted' }), { status: 200, headers });
 
   } catch (error) {
     console.error('Error deleting file:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to delete file' }),
-    };
+    return new Response(JSON.stringify({ error: 'Failed to delete file' }), { status: 500, headers });
   }
 };
 
-export { handler };
 // Force rebuild

@@ -58,24 +58,16 @@ export default async (req: Request) => {
   };
 
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers });
+    return new Response(null, { status: 200, headers: CORS_HEADERS });
   }
 
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
-
-  const fileId = event.queryStringParameters?.id;
+  const { searchParams } = new URL(req.url);
+  const fileId = searchParams.get('id');
   if (!fileId || !/^[\w-]{10,}$/.test(fileId)) {
-    return {
-      statusCode: 400,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Missing or malformed file ID' }),
-    };
+    return new Response(JSON.stringify({ error: 'Missing or malformed file ID' }), { status: 400, headers: CORS_HEADERS });
   }
 
-  const width = parseInt(event.queryStringParameters?.width || '1600', 10);
+  const width = parseInt(searchParams.get('width') || '1600', 10);
   const safeWidth = Math.min(Math.max(width, 100), 4000);
 
   const key = r2Key(fileId, safeWidth);
@@ -88,15 +80,14 @@ export default async (req: Request) => {
       await s3.send(new HeadObjectCommand({ Bucket: R2_BUCKET, Key: key }));
       // Cache HIT → redirect to Cloudflare CDN
       console.log(`[DriveProxy] R2 cache HIT: ${key}`);
-      return {
-        statusCode: 302,
+      return new Response(null, {
+        status: 302,
         headers: {
           ...CORS_HEADERS,
           Location: publicUrl,
           'Cache-Control': 'public, max-age=31536000, immutable',
         },
-        body: '',
-      };
+      });
     } catch {
       // Cache MISS → continue to fetch from Drive
     }
@@ -149,15 +140,14 @@ export default async (req: Request) => {
           console.log(`[DriveProxy] Cached to R2: ${key} (${(buffer.length / 1024).toFixed(0)} KB)`);
 
           // Redirect to R2 instead of returning the image through Netlify
-          return {
-            statusCode: 302,
+          return new Response(null, {
+            status: 302,
             headers: {
               ...CORS_HEADERS,
               Location: publicUrl,
               'Cache-Control': 'public, max-age=31536000, immutable',
             },
-            body: '',
-          };
+          });
         } catch (r2Err: any) {
           console.warn(`[DriveProxy] R2 upload failed, falling back to direct response: ${r2Err.message}`);
           // Fall through to return image directly
@@ -165,16 +155,14 @@ export default async (req: Request) => {
       }
 
       // Fallback: return image directly through Netlify (if R2 is not configured)
-      return {
-        statusCode: 200,
+      return new Response(buffer, {
+        status: 200,
         headers: {
           ...CORS_HEADERS,
           'Content-Type': contentType,
           'Cache-Control': 'public, max-age=3600',
         },
-        body: buffer.toString('base64'),
-        isBase64Encoded: true,
-      };
+      });
     } catch (err: any) {
       console.warn(`[DriveProxy] URL failed (${err?.name || 'unknown'}): ${driveUrl} – ${err?.message || ''}`);
     }
@@ -182,9 +170,5 @@ export default async (req: Request) => {
 
   // All candidates exhausted
   console.error(`[DriveProxy] All URL patterns failed for fileId=${fileId}`);
-  return {
-    statusCode: 502,
-    headers: CORS_HEADERS,
-    body: JSON.stringify({ error: 'Unable to fetch image from Google Drive' }),
-  };
+  return new Response(JSON.stringify({ error: 'Unable to fetch image from Google Drive' }), { status: 502, headers: CORS_HEADERS });
 };

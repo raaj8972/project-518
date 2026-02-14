@@ -21,8 +21,13 @@ const s3Client = new S3Client({
 
 const supabase = createClient(SUPABASE_URL || '', SUPABASE_SERVICE_ROLE_KEY || '');
 
-const collector: Handler = async (event) => {
+
+export default async (req: Request) => {
   console.log('Starting R2 Garbage Collection job...');
+
+  const headers = {
+    'Content-Type': 'application/json'
+  };
 
   if (!R2_BUCKET_NAME || !R2_PUBLIC_DOMAIN) {
     console.error('Missing R2 configuration');
@@ -128,23 +133,15 @@ const collector: Handler = async (event) => {
       }
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
-        success: true, 
-        deletedCount: orphanedKeys.length,
-        orphanedKeys 
-      }),
-    };
+    return new Response(JSON.stringify({ 
+      success: true, 
+      deletedCount: orphanedKeys.length,
+      orphanedKeys 
+    }), { status: 200, headers });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Garbage Collection Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to run garbage collection' }),
-    };
+    return new Response(JSON.stringify({ error: 'Failed to run garbage collection' }), { status: 500, headers });
   }
 };
 
-// Run daily at 3 AM
-export const handler = schedule('0 3 * * *', collector);

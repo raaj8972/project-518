@@ -35,6 +35,19 @@
       ]
     }
   ],
-  "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/r2-garbage-collector",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/heartbeat-schedule",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/broadcast-schedule",
+      "schedule": "*/1 * * * *"
+    }
+  ]
 }

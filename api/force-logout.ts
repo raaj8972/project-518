@@ -1,20 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
-const handler: Handler = async (event, context) => {
+
+export default async (req: Request) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-master-key, x-force-logout-secret',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
   }
 
   // 1. Security Check
   const secret = process.env.FORCE_LOGOUT_SECRET;
-  const headerSecret = req.headers['x-force-logout-secret'];
-  const masterKey = req.headers['x-master-key'];
+  const headerSecret = req.headers.get('x-force-logout-secret');
+  const masterKey = req.headers.get('x-master-key');
   
   // Allow if secret matches OR if master key is provided (for UI integration)
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
@@ -24,11 +26,7 @@ const handler: Handler = async (event, context) => {
   const isAuthorized = (secret && secret === headerSecret) || isMaster;
 
   if (!isAuthorized) {
-    return {
-      statusCode: 401,
-      headers,
-      body: JSON.stringify({ error: 'Unauthorized: Invalid or missing secret/key' }),
-    };
+    return new Response(JSON.stringify({ error: 'Unauthorized: Invalid or missing secret/key' }), { status: 401, headers });
   }
 
   // 2. Initialize Supabase Admin Client
@@ -37,11 +35,7 @@ const handler: Handler = async (event, context) => {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseServiceKey) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing' }),
-    };
+    return new Response(JSON.stringify({ error: 'Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing' }), { status: 500, headers });
   }
 
   const supabase = createClient(supabaseUrl, supabaseServiceKey, {
@@ -58,33 +52,20 @@ const handler: Handler = async (event, context) => {
 
     if (error) {
       console.error('Supabase RPC Error:', error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ 
-          error: 'Database Error', 
-          details: error.message 
-        }),
-      };
+      return new Response(JSON.stringify({ 
+        error: 'Database Error', 
+        details: error.message 
+      }), { status: 500, headers });
     }
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ message: 'Successfully cleared all sessions via RPC' }),
-    };
+    return new Response(JSON.stringify({ message: 'Successfully cleared all sessions via RPC' }), { status: 200, headers });
 
   } catch (err: any) {
     console.error('Unexpected Error:', err);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: 'Internal Server Error', 
-        details: err.message 
-      }),
-    };
+    return new Response(JSON.stringify({ 
+      error: 'Internal Server Error', 
+      details: err.message 
+    }), { status: 500, headers });
   }
 };
 
-export { handler };
