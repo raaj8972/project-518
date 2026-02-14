@@ -7,7 +7,7 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   const START_TIME = Date.now();
   const TIMEOUT_MS = 9000; // 9 seconds to avoid Vercel 10s hard limit
 

@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }

@@ -17,7 +17,7 @@ const getRpConfig = (headers: any) => {
   return { rpId, origin };
 };
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
   try {

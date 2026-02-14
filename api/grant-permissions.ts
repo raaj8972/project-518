@@ -21,7 +21,7 @@ type Flags = Partial<{
   can_security_passes: boolean;
 }>;
 
-export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+export default = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL

@@ -1,7 +1,7 @@
 import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   
   const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL

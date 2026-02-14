@@ -80,7 +80,7 @@ const getDbUrl = () => {
   return candidates[0] || null
 }
 
-export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
+export default = async (event: HandlerEvent, _context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
 

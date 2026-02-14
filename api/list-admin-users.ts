@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 // Endpoint: GET /.netlify/functions/list-admin-users
 // Headers: x-master-key: 9693
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   if (event.httpMethod !== 'GET') return { statusCode: 405, body: 'Method Not Allowed' }
   
   try {

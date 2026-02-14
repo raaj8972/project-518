@@ -8,7 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 //
 // Endpoint: POST /.netlify/functions/update-form-settings
 // Body: { audition_form_enabled?, audition_form_message?, membership_form_enabled?, membership_form_message? }
-export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
+export default = async (event: HandlerEvent, _context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') {
       return { statusCode: 405, body: 'Method Not Allowed' }

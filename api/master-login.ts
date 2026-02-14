@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
 
-export const handler: Handler = async (event) => {
+export default = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   
   try {

@@ -1,7 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export const handler: Handler = async (event, context) => {
+export default = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-master-key',
