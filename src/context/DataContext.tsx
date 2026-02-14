@@ -3443,8 +3443,18 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to sync Google Drive');
+        // Try to parse error response, but handle cases where it's empty or malformed
+        let errorMessage = `Failed to sync Google Drive (${response.status} ${response.statusText})`;
+        try {
+          const errData = await response.json();
+          if (errData.error) errorMessage = errData.error;
+          if (errData.details) errorMessage += `: ${errData.details}`;
+        } catch {
+          // If JSON parsing fails, try to get text
+          const errText = await response.text().catch(() => '');
+          if (errText) errorMessage += `: ${errText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
