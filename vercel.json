@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/.netlify/functions/:match*", "destination": "/api/:match*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
