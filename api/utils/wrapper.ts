@@ -23,13 +23,16 @@ export const vercelWrapper = (handler: Handler) => async (req: VercelRequest, re
     functionName: 'vercel-func',
     functionVersion: '1',
     invokedFunctionArn: '',
-    memoryLimitInMB: 1024,
+    memoryLimitInMB: '1024',
     awsRequestId: '',
     logGroupName: '',
     logStreamName: '',
     identity: undefined,
     clientContext: undefined,
     getRemainingTimeInMillis: () => 10000,
+    done: () => {},
+    fail: () => {},
+    succeed: () => {},
   };
 
   try {

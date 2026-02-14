@@ -29,3 +29,4 @@ dist-ssr
 
 # Vercel config (not used)
 vercel.json
+.vercel

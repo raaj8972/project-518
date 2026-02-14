@@ -13,7 +13,6 @@ import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import { EventWinnersEditor } from '../components/admin/EventWinnersEditor';
 
 // Preload Component for Hero Carousel Media (Performance Optimization)
 const HeroMediaPreloader: React.FC<{ events: any[] }> = React.memo(({ events }) => {
