@@ -1,4 +1,3 @@
-import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // Fallback heartbeat function in case primary route is unavailable in prod
@@ -11,19 +10,19 @@ export default async () => {
         SUPABASE_URL: Boolean(SUPABASE_URL),
         SUPABASE_SERVICE_ROLE_or_KEY: Boolean(SERVICE_ROLE),
       }
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Server not configured', missing }) }
+      return new Response(JSON.stringify({ ok: false, error: 'Server not configured', missing }), { status: 500, headers })
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
     const { error } = await admin
       .from('health_heartbeats' as any)
       .upsert({ id: 1, last_run: new Date().toISOString(), updated_by: 'netlify-func:heartbeat-fallback' } as any, { onConflict: 'id' })
-    if (error) return { statusCode: 500, body: JSON.stringify({ ok: false, error: error.message }) }
+    if (error) return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers })
 
     const { data, error: selErr } = await admin.from('health_heartbeats' as any).select('*').eq('id', 1).maybeSingle()
-    if (selErr) return { statusCode: 500, body: JSON.stringify({ ok: false, error: selErr.message }) }
-    return { statusCode: 200, body: JSON.stringify({ ok: true, row: data }) }
+    if (selErr) return new Response(JSON.stringify({ ok: false, error: selErr.message }), { status: 500, headers })
+    return new Response(JSON.stringify({ ok: true, row: data }), { status: 200, headers })
   } catch (e: any) {
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: e?.message || 'Internal error' }) }
+    return new Response(JSON.stringify({ ok: false, error: e?.message || 'Internal error' }), { status: 500, headers })
   }
 }

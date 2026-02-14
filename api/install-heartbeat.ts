@@ -1,4 +1,3 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 import { Client } from 'pg'
 
@@ -80,24 +79,45 @@ const getDbUrl = () => {
   return candidates[0] || null
 }
 
-export default async (event: HandlerEvent, _context: HandlerContext) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   try {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
+    if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers })
 
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
     const DB_URL = getDbUrl()
+    
     if (!SUPABASE_URL || !SERVICE_ROLE) {
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Server not configured', flags: { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE: !!SERVICE_ROLE, DB_URL: !!DB_URL } }) }
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: 'Server not configured', 
+        flags: { SUPABASE_URL: !!SUPABASE_URL, SERVICE_ROLE: !!SERVICE_ROLE, DB_URL: !!DB_URL } 
+      }), { status: 500, headers })
     }
+    
     if (!DB_URL) {
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: 'Missing database connection string. Set SUPABASE_DB_URL (or DATABASE_URL) in Netlify environment.', flags: { DB_URL: false } }) }
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: 'Missing database connection string. Set SUPABASE_DB_URL (or DATABASE_URL).', 
+        flags: { DB_URL: false } 
+      }), { status: 500, headers })
     }
 
     // Verify caller is OWNER
-    const authHeader = event.headers['authorization'] || event.headers['Authorization']
+    const authHeader = req.headers.get('authorization')
     if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
-      return { statusCode: 401, body: 'Missing auth' }
+      return new Response('Missing auth', { status: 401, headers })
     }
     const accessToken = authHeader.toString().replace('Bearer ', '')
 
@@ -105,15 +125,15 @@ export default async (event: HandlerEvent, _context: HandlerContext) => {
     const userClient = createClient(SUPABASE_URL, accessToken, { auth: { persistSession: false } } as any)
 
     const { data: me, error: meErr } = await userClient.auth.getUser()
-    if (meErr || !me?.user) return { statusCode: 401, body: 'Invalid session' }
+    if (meErr || !me?.user) return new Response('Invalid session', { status: 401, headers })
     const callerId = me.user.id
     const { data: ownerRow, error: ownerErr } = await adminClient
       .from('admin_users')
       .select('user_id, role')
       .eq('user_id', callerId)
       .maybeSingle()
-    if (ownerErr) return { statusCode: 400, body: ownerErr.message }
-    if (!ownerRow || ownerRow.role !== 'owner') return { statusCode: 403, body: 'Only owner can install heartbeat table' }
+    if (ownerErr) return new Response(ownerErr.message, { status: 400, headers })
+    if (!ownerRow || ownerRow.role !== 'owner') return new Response('Only owner can install heartbeat table', { status: 403, headers })
 
     // Connect to Postgres and run the SQL
     const client = new Client({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } as any })
@@ -129,12 +149,10 @@ export default async (event: HandlerEvent, _context: HandlerContext) => {
       await client.end()
     }
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true }) }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
   } catch (e: any) {
     console.error('[install-heartbeat] error', e)
     const msg = e?.message || 'Internal error'
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: msg }) }
+    return new Response(JSON.stringify({ ok: false, error: msg }), { status: 500, headers })
   }
 }
-
-export default handler

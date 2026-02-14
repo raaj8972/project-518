@@ -1,4 +1,3 @@
-import { Handler, schedule } from '@netlify/functions';
 import { S3Client, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3';
 import { createClient } from '@supabase/supabase-js';
 
@@ -27,7 +26,7 @@ const collector: Handler = async (event) => {
 
   if (!R2_BUCKET_NAME || !R2_PUBLIC_DOMAIN) {
     console.error('Missing R2 configuration');
-    return { statusCode: 500, body: 'Missing R2 configuration' };
+    return new Response('Missing R2 configuration', { status: 500, headers });
   }
 
   try {

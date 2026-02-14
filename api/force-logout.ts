@@ -1,4 +1,3 @@
-import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
 const handler: Handler = async (event, context) => {
@@ -14,8 +13,8 @@ const handler: Handler = async (event, context) => {
 
   // 1. Security Check
   const secret = process.env.FORCE_LOGOUT_SECRET;
-  const headerSecret = event.headers['x-force-logout-secret'];
-  const masterKey = event.headers['x-master-key'];
+  const headerSecret = req.headers['x-force-logout-secret'];
+  const masterKey = req.headers['x-master-key'];
   
   // Allow if secret matches OR if master key is provided (for UI integration)
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;

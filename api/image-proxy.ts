@@ -1,10 +1,20 @@
-import { Handler } from '@netlify/functions';
 
-export default async (event) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   const { url } = event.queryStringParameters || {};
 
   if (!url) {
-    return { statusCode: 400, body: 'Missing "url" parameter' };
+    return new Response('Missing "url" parameter', { status: 400, headers });
   }
 
   try {
@@ -35,9 +45,6 @@ export default async (event) => {
     };
   } catch (error) {
     console.error('Proxy Error:', error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Failed to proxy image', details: String(error) })
-    };
+    return new Response(JSON.stringify({ error: 'Failed to proxy image', details: String(error) }), { status: 500, headers });
   }
 };

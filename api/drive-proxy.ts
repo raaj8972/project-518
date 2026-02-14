@@ -1,4 +1,3 @@
-import { Handler } from '@netlify/functions';
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 
 /**
@@ -50,9 +49,20 @@ function r2PublicUrl(key: string) {
   return `https://${R2_PUBLIC_HOST}/${key}`;
 }
 
-export default async (event) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   // CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
+  if (req.method === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
 

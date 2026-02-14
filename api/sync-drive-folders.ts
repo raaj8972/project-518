@@ -1,27 +1,32 @@
-import { Handler } from '@netlify/functions';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
-export default async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405, headers });
   }
 
   try {
-    const { folderId } = JSON.parse(event.body || '{}');
+    const body = await req.json();
+    const { folderId } = body;
 
     if (!folderId) {
-      return { 
-        statusCode: 400, 
-        body: JSON.stringify({ error: 'folderId is required' }) 
-      };
+      return new Response(JSON.stringify({ error: 'folderId is required' }), { status: 400, headers });
     }
 
     if (!GOOGLE_API_KEY) {
-      return { 
-        statusCode: 500, 
-        body: JSON.stringify({ error: 'GOOGLE_API_KEY not configured' }) 
-      };
+      return new Response(JSON.stringify({ error: 'GOOGLE_API_KEY not configured' }), { status: 500, headers });
     }
 
     console.log(`[Folder List] Fetching subfolders for: ${folderId}`);

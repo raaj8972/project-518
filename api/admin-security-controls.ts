@@ -1,4 +1,3 @@
-import { Handler } from '@netlify/functions';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export default async (event, context) => {
@@ -83,7 +82,7 @@ export default async (event, context) => {
     // 1. Authentication
     // We require a privileged admin (owner OR admin) to perform these actions.
     let isAdmin = false;
-    const masterKey = event.headers['x-master-key'];
+    const masterKey = req.headers['x-master-key'];
 
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
     const isMaster = (masterKey === 'Raja@76023') || 
@@ -93,7 +92,7 @@ export default async (event, context) => {
     if (isMaster) {
       isAdmin = true;
     } else {
-      const authHeader = event.headers.authorization;
+      const authHeader = req.headers.authorization;
       if (!authHeader) {
         console.log('401: Missing authorization header');
         return { statusCode: 401, headers, body: JSON.stringify({ error: 'Missing authorization header' }) };
@@ -123,7 +122,7 @@ export default async (event, context) => {
     }
 
     // 2. Parse Request
-    const body = JSON.parse(event.body || '{}');
+    const body = await req.json();
     const { action, targetUserId, enable } = body;
 
     if (!action) {
@@ -266,7 +265,7 @@ export default async (event, context) => {
       let requestingUserId = '';
 
       try {
-        const authHeader = event.headers.authorization;
+        const authHeader = req.headers.authorization;
         if (authHeader) {
           const token = authHeader.replace('Bearer ', '');
           const { data: { user } } = await supabase.auth.getUser(token);
@@ -323,7 +322,7 @@ export default async (event, context) => {
       let requestingUserId = '';
       
       try {
-        const authHeader = event.headers.authorization;
+        const authHeader = req.headers.authorization;
         if (authHeader) {
           const token = authHeader.replace('Bearer ', '');
           const { data: { user } } = await supabase.auth.getUser(token);

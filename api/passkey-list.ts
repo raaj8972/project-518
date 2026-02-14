@@ -1,15 +1,26 @@
-import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
-export default async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers });
 
   try {
-    const { userId } = JSON.parse(event.body || '{}');
-    if (!userId) return { statusCode: 400, body: JSON.stringify({ error: 'Missing userId' }) };
+    const body = await req.json();
+    const { userId } = body;
+    if (!userId) return new Response(JSON.stringify({ error: 'Missing userId' }), { status: 400, headers });
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -28,6 +39,6 @@ export default async (event) => {
     };
   } catch (error: any) {
     console.error('List passkeys error:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
   }
 };

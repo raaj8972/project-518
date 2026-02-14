@@ -1,14 +1,24 @@
 
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // This function lets the OWNER update an admin's email.
 // Endpoint: POST /.netlify/functions/update-admin-email { userId, newEmail }
 // Auth: requires a Supabase session JWT in Authorization: Bearer <access_token>
 
-export default async (event: HandlerEvent, context: HandlerContext) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   try {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
+    if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers })
     // Hardcoded defaults to match admin-security-controls.ts
     const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
     const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9zZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
@@ -23,13 +33,14 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       serviceRole = DEFAULT_SERVICE_ROLE_KEY;
     }
 
-    if (!supabaseUrl || !serviceRole) return { statusCode: 500, body: 'Server not configured' }
+    if (!supabaseUrl || !serviceRole) return new Response('Server not configured', { status: 500, headers })
 
-    const { userId, newEmail } = JSON.parse(event.body || '{}')
-    if (!userId || !newEmail) return { statusCode: 400, body: 'Missing userId/newEmail' }
+    const body = await req.json();
+    const { userId, newEmail } = body
+    if (!userId || !newEmail) return new Response('Missing userId/newEmail', { status: 400, headers })
 
-    const authHeader = event.headers['authorization'] || event.headers['Authorization']
-    const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+    const masterKey = req.headers.get('x-master-key') || req.headers.get('X-Master-Key')
     
     const adminClient = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } })
 
@@ -42,7 +53,7 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       // Bypass mode
     } else {
       if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
-        return { statusCode: 401, body: 'Missing auth' }
+        return new Response('Missing auth', { status: 401, headers })
       }
       const accessToken = authHeader.toString().replace('Bearer ', '')
       
@@ -55,7 +66,7 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       }
       const callerId = caller.user.id
       const { data: rows } = await adminClient.from('admin_users').select('user_id, role').eq('user_id', callerId).maybeSingle()
-      if (!rows || rows.role !== 'owner') return { statusCode: 403, body: 'Only owner can update admins' }
+      if (!rows || rows.role !== 'owner') return new Response('Only owner can update admins', { status: 403, headers })
     }
 
     // Update auth user
@@ -64,7 +75,7 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       email_confirm: true,
     } as any)
     
-    if (updateErr) return { statusCode: 400, body: updateErr.message }
+    if (updateErr) return new Response(updateErr.message, { status: 400, headers })
 
     // Update admin_users table
     const { error: dbErr } = await adminClient
@@ -72,12 +83,9 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       .update({ email: newEmail })
       .eq('user_id', userId)
     
-    if (dbErr) return { statusCode: 400, body: dbErr.message }
+    if (dbErr) return new Response(dbErr.message, { status: 400, headers })
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ ok: true })
-    }
+    return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
   } catch (e: any) {
     return { statusCode: 500, body: e?.message || 'Internal error' }
   }

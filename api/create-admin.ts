@@ -1,4 +1,3 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // This function lets the OWNER create an auth user (email+password) and add them to admin_users.
@@ -6,18 +5,30 @@ import { createClient } from '@supabase/supabase-js'
 // Endpoint: POST /.netlify/functions/create-admin  { email, password }
 // Auth: requires a Supabase session JWT in Authorization: Bearer <access_token>
 
-export default async (event: HandlerEvent, context: HandlerContext) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   try {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
+    if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers })
   const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
   const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!SUPABASE_URL || !SERVICE_ROLE) return { statusCode: 500, body: 'Server not configured' }
+  if (!SUPABASE_URL || !SERVICE_ROLE) return new Response('Server not configured', { status: 500, headers })
 
-    const { email, password } = JSON.parse(event.body || '{}')
-    if (!email || !password) return { statusCode: 400, body: 'Missing email/password' }
+    const body = await req.json();
+    const { email, password } = body
+    if (!email || !password) return new Response('Missing email/password', { status: 400, headers })
 
-    const authHeader = event.headers['authorization'] || event.headers['Authorization']
-    const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
+    const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+    const masterKey = req.headers.get('x-master-key') || req.headers.get('X-Master-Key')
     
     // Bypass for Master Admin (using same keys as add-admin-user.ts)
     const MASTER_KEY_ENV = process.env.MASTER_BYPASS_KEY;
@@ -31,17 +42,17 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
         // Skip auth check if master key is valid
     } else {
         if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
-          return { statusCode: 401, body: 'Missing auth' }
+          return new Response('Missing auth', { status: 401, headers })
         }
         const accessToken = authHeader.toString().replace('Bearer ', '')
         const userClient = createClient(SUPABASE_URL, accessToken, { auth: { persistSession: false } } as any)
     
         // Check caller is OWNER
         const { data: caller, error: meErr } = await userClient.auth.getUser()
-        if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
+        if (meErr || !caller?.user) return new Response('Invalid session', { status: 401, headers })
         const callerId = caller.user.id
         const { data: rows } = await adminClient.from('admin_users').select('user_id, role').eq('user_id', callerId).maybeSingle()
-        if (!rows || rows.role !== 'owner') return { statusCode: 403, body: 'Only owner can create admins' }
+        if (!rows || rows.role !== 'owner') return new Response('Only owner can create admins', { status: 403, headers })
     }
 
     // Create auth user
@@ -50,18 +61,15 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       password,
       email_confirm: true,
     } as any)
-    if (createErr) return { statusCode: 400, body: createErr.message }
+    if (createErr) return new Response(createErr.message, { status: 400, headers })
     const newUserId = (created?.user as any)?.id
-    if (!newUserId) return { statusCode: 500, body: 'Failed to create user' }
+    if (!newUserId) return new Response('Failed to create user', { status: 500, headers })
 
     // Insert admin as regular admin via service role (bypass RLS)
     const { error: insErr } = await adminClient.from('admin_users').insert({ user_id: newUserId, email, role: 'admin' })
-    if (insErr) return { statusCode: 400, body: insErr.message }
+    if (insErr) return new Response(insErr.message, { status: 400, headers })
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ ok: true, user_id: newUserId, email })
-    }
+    return new Response(JSON.stringify({ ok: true, user_id: newUserId, email }), { status: 200, headers })
   } catch (e: any) {
     return { statusCode: 500, body: e?.message || 'Internal error' }
   }

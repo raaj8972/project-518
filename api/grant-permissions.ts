@@ -1,4 +1,3 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // POST /.netlify/functions/grant-permissions  { email, flags? or all:true }
@@ -21,19 +20,33 @@ type Flags = Partial<{
   can_security_passes: boolean;
 }>;
 
-export default async (event: HandlerEvent, context: HandlerContext) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   try {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!SUPABASE_URL || !SERVICE_ROLE) return { statusCode: 500, body: 'Server not configured' }
+    if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers })
+    
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
+    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!SUPABASE_URL || !SERVICE_ROLE) return new Response('Server not configured', { status: 500, headers })
 
-    const { email, all, flags } = JSON.parse(event.body || '{}') as { email?: string; all?: boolean; flags?: Flags }
-    if (!email) return { statusCode: 400, body: 'Missing email' }
+    const body = await req.json()
+    const { email, all, flags } = body as { email?: string; all?: boolean; flags?: Flags }
+    
+    if (!email) return new Response('Missing email', { status: 400, headers })
 
-    const authHeader = event.headers['authorization'] || event.headers['Authorization']
+    const authHeader = req.headers.get('authorization')
     if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
-      return { statusCode: 401, body: 'Missing auth' }
+      return new Response('Missing auth', { status: 401, headers })
     }
     const accessToken = authHeader.toString().replace('Bearer ', '')
 
@@ -42,15 +55,15 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
 
     // Check caller is OWNER
     const { data: caller, error: meErr } = await userClient.auth.getUser()
-    if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
+    if (meErr || !caller?.user) return new Response('Invalid session', { status: 401, headers })
     const callerId = caller.user.id
     const { data: ownerRow, error: ownerErr } = await adminClient
       .from('admin_users')
       .select('user_id, role')
       .eq('user_id', callerId)
       .maybeSingle()
-    if (ownerErr) return { statusCode: 400, body: ownerErr.message }
-    if (!ownerRow || ownerRow.role !== 'owner') return { statusCode: 403, body: 'Only owner can grant permissions' }
+    if (ownerErr) return new Response(ownerErr.message, { status: 400, headers })
+    if (!ownerRow || ownerRow.role !== 'owner') return new Response('Only owner can grant permissions', { status: 403, headers })
 
     // Find admin user by email in admin_users
     const { data: adminRow, error: findErr } = await adminClient
@@ -58,8 +71,8 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
       .select('user_id, email, role')
       .ilike('email', email)
       .maybeSingle()
-    if (findErr) return { statusCode: 400, body: findErr.message }
-    if (!adminRow?.user_id) return { statusCode: 400, body: 'Admin user not found. Add admin first.' }
+    if (findErr) return new Response(findErr.message, { status: 400, headers })
+    if (!adminRow?.user_id) return new Response('Admin user not found. Add admin first.', { status: 400, headers })
 
     const targetUserId = adminRow.user_id
 
@@ -87,10 +100,10 @@ export default async (event: HandlerEvent, context: HandlerContext) => {
     const { error: upsertErr } = await adminClient
       .from('admin_permissions')
       .upsert(insertRow, { onConflict: 'user_id' })
-    if (upsertErr) return { statusCode: 400, body: upsertErr.message }
+    if (upsertErr) return new Response(upsertErr.message, { status: 400, headers })
 
-    return { statusCode: 200, body: JSON.stringify({ ok: true, user_id: targetUserId, flags: fullFlags }) }
+    return new Response(JSON.stringify({ ok: true, user_id: targetUserId, flags: fullFlags }), { status: 200, headers })
   } catch (e: any) {
-    return { statusCode: 500, body: e?.message || 'Internal error' }
+    return new Response(e?.message || 'Internal error', { status: 500, headers })
   }
 }

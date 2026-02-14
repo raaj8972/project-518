@@ -1,5 +1,4 @@
 
-import { Handler } from '@netlify/functions';
 import { S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
@@ -9,7 +8,7 @@ const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
 
 const handler: Handler = async (event) => {
   // Handle CORS
-  if (event.httpMethod === 'OPTIONS') {
+  if (req.method === 'OPTIONS') {
     return {
       statusCode: 200,
       headers: {
@@ -21,20 +20,21 @@ const handler: Handler = async (event) => {
     };
   }
 
-  if (event.httpMethod !== 'POST' && event.httpMethod !== 'DELETE') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+  if (req.method !== 'POST' && req.method !== 'DELETE') {
+    return new Response('Method Not Allowed', { status: 405, headers });
   }
 
   try {
-    const { fileKey } = JSON.parse(event.body || '{}');
+    const body = await req.json();
+    const { fileKey } = body;
 
     if (!fileKey) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing fileKey' }) };
+      return new Response(JSON.stringify({ error: 'Missing fileKey' }), { status: 400, headers });
     }
 
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
       console.error('Missing R2 environment variables');
-      return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error' }) };
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), { status: 500, headers });
     }
 
     const s3Client = new S3Client({

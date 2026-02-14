@@ -1,4 +1,3 @@
-import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // On-demand heartbeat: upserts last_run = now() into health_heartbeats (id=1)
@@ -24,17 +23,17 @@ export default async () => {
       .upsert({ id: 1, last_run: new Date().toISOString(), updated_by: 'netlify-func:heartbeat' } as any, { onConflict: 'id' })
     if (error) {
       console.error('Heartbeat upsert error', error)
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: error.message }) }
+      return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers })
     }
 
     const { data, error: selErr } = await admin.from('health_heartbeats' as any).select('*').eq('id', 1).maybeSingle()
     if (selErr) {
       console.error('Heartbeat select error', selErr)
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: selErr.message }) }
+      return new Response(JSON.stringify({ ok: false, error: selErr.message }), { status: 500, headers })
     }
-    return { statusCode: 200, body: JSON.stringify({ ok: true, row: data }) }
+    return new Response(JSON.stringify({ ok: true, row: data }), { status: 200, headers })
   } catch (e: any) {
     console.error('Heartbeat unexpected error', e)
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: e?.message || 'Internal error' }) }
+    return new Response(JSON.stringify({ ok: false, error: e?.message || 'Internal error' }), { status: 500, headers })
   }
 }

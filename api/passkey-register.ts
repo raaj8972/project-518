@@ -1,12 +1,11 @@
-import { Handler } from '@netlify/functions';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 // Dynamic configuration based on request host handles both Vercel and Custom Domain
-const getRpConfig = (headers: any) => {
-  const host = headers.host || headers.Host || 'localhost';
+const getRpConfig = (headers: Headers) => {
+  const host = headers.get('host') || 'localhost';
   // Remove port if present for RP_ID (unless localhost)
   const hostname = host.split(':')[0];
   const rpId = hostname === 'localhost' ? 'localhost' : hostname;
@@ -16,12 +15,24 @@ const getRpConfig = (headers: any) => {
   return { rpId, origin };
 };
 
-export default async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers });
 
   try {
-    const { response, userId } = JSON.parse(event.body || '{}');
-    if (!response || !userId) return { statusCode: 400, body: JSON.stringify({ error: 'Missing response or userId' }) };
+    const body = await req.json();
+    const { response, userId } = body;
+    if (!response || !userId) return new Response(JSON.stringify({ error: 'Missing response or userId' }), { status: 400, headers });
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
@@ -34,7 +45,7 @@ export default async (event) => {
       .limit(1)
       .single();
 
-    if (!challengeData) return { statusCode: 400, body: JSON.stringify({ error: 'Challenge not found or expired' }) };
+    if (!challengeData) return new Response(JSON.stringify({ error: 'Challenge not found or expired' }), { status: 400, headers });
 
     // 1.5. Validate challenge hasn't expired (5 minute window)
     const expiresAt = new Date(challengeData.expires_at);
@@ -42,10 +53,10 @@ export default async (event) => {
     if (now > expiresAt) {
       // Delete expired challenge
       await supabase.from('passkey_challenges').delete().eq('id', challengeData.id);
-      return { statusCode: 400, body: JSON.stringify({ error: 'Challenge expired. Please try again.' }) };
+      return new Response(JSON.stringify({ error: 'Challenge expired. Please try again.' }), { status: 400, headers });
     }
 
-    const { rpId, origin } = getRpConfig(event.headers);
+    const { rpId, origin } = getRpConfig(req.headers);
 
     // 2. Verify the response
     const verification = await verifyRegistrationResponse({
@@ -80,17 +91,15 @@ export default async (event) => {
 
       if (error) throw error;
 
-
-
       // Cleanup challenge (single-use enforcement)
       await supabase.from('passkey_challenges').delete().eq('id', challengeData.id);
 
-      return { statusCode: 200, body: JSON.stringify({ verified: true }) };
+      return new Response(JSON.stringify({ verified: true }), { status: 200, headers });
     }
 
-    return { statusCode: 400, body: JSON.stringify({ verified: false, error: 'Verification failed' }) };
+    return new Response(JSON.stringify({ verified: false, error: 'Verification failed' }), { status: 400, headers });
   } catch (error: any) {
     console.error('Register error:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
   }
 };

@@ -1,4 +1,3 @@
-import type { Handler, Config } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // Scheduled heartbeat: configure in netlify.toml [[scheduled]]
@@ -24,12 +23,12 @@ export default async () => {
       .upsert({ id: 1, last_run: new Date().toISOString(), updated_by: 'netlify-cron:heartbeat' } as any, { onConflict: 'id' })
     if (error) {
       console.error('Heartbeat-schedule upsert error', error)
-      return { statusCode: 500, body: JSON.stringify({ ok: false, error: error.message }) }
+      return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers })
     }
-    return { statusCode: 200, body: JSON.stringify({ ok: true, updated: true }) }
+    return new Response(JSON.stringify({ ok: true, updated: true }), { status: 200, headers })
   } catch (e: any) {
     console.error('Heartbeat-schedule unexpected error', e)
-    return { statusCode: 500, body: JSON.stringify({ ok: false, error: e?.message || 'Internal error' }) }
+    return new Response(JSON.stringify({ ok: false, error: e?.message || 'Internal error' }), { status: 500, headers })
   }
 }
 

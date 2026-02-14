@@ -1,4 +1,3 @@
-import { Handler } from '@netlify/functions';
 import { generateRegistrationOptions, generateAuthenticationOptions } from '@simplewebauthn/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -17,12 +16,24 @@ const getRpConfig = (headers: any) => {
   return { rpId, origin };
 };
 
-export default async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers });
 
   try {
     console.log('Passkey Challenge Request Received');
-    const { action, userId, email } = JSON.parse(event.body || '{}');
+    const body = await req.json();
+    const { action, userId, email } = body;
     console.log('Request Body:', { action, userId, email });
 
     // Debugging Supabase environment variables
@@ -35,7 +46,7 @@ export default async (event) => {
     if (action === 'register') {
       if (!userId || !email) {
         console.error('Missing userId or email for registration');
-        return { statusCode: 400, body: JSON.stringify({ error: 'Missing userId or email' }) };
+        return new Response(JSON.stringify({ error: 'Missing userId or email' }), { status: 400, headers });
       }
 
       // Get user's existing authenticators to prevent duplicates
@@ -44,7 +55,7 @@ export default async (event) => {
         .select('credential_id, transports')
         .eq('user_id', userId);
 
-      const { rpId } = getRpConfig(event.headers);
+      const { rpId } = getRpConfig(req.headers);
 
       const options = await generateRegistrationOptions({
         rpName: RP_NAME,
@@ -82,7 +93,7 @@ export default async (event) => {
 
     // 2. LOGIN CHALLENGE
     if (action === 'login') {
-      const { rpId } = getRpConfig(event.headers);
+      const { rpId } = getRpConfig(req.headers);
       const options = await generateAuthenticationOptions({
         rpID: rpId,
         userVerification: 'preferred',
@@ -99,9 +110,9 @@ export default async (event) => {
       };
     }
 
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid action' }) };
+    return new Response(JSON.stringify({ error: 'Invalid action' }), { status: 400, headers });
   } catch (error: any) {
     console.error('Challenge error:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    return new Response(JSON.stringify({ error: error.message }), { status: 500, headers });
   }
 };

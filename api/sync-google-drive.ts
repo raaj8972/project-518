@@ -1,4 +1,3 @@
-import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
@@ -7,19 +6,30 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-export default async (event) => {
+export default async (req: Request) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type': 'application/json',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 200, headers });
+  }
+
   const START_TIME = Date.now();
   const TIMEOUT_MS = 9000; // 9 seconds to avoid Vercel 10s hard limit
 
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405, headers });
   }
 
   if (!GOOGLE_API_KEY) {
-    return { 
-      statusCode: 500, 
-      body: JSON.stringify({ error: 'GOOGLE_API_KEY not configured.' }) 
-    };
+    return new Response(
+      JSON.stringify({ error: 'GOOGLE_API_KEY not configured.' }),
+      { status: 500, headers }
+    );
   }
 
   const checkTimeout = () => {
@@ -27,10 +37,10 @@ export default async (event) => {
   };
 
   try {
-    const { folderId, year, category, subfolderId } = JSON.parse(event.body || '{}');
+    const { folderId, year, category, subfolderId } = await req.json();
 
     if (!folderId) {
-      return { statusCode: 400, body: 'Missing folderId' };
+      return new Response('Missing folderId', { status: 400, headers });
     }
 
     // NEW: If subfolderId provided, sync only that specific folder (batch mode)
@@ -154,7 +164,10 @@ export default async (event) => {
     }
 
     if (allImages.length === 0) {
-        return { statusCode: 200, body: JSON.stringify({ message: 'No images found.' }) };
+        return new Response(
+          JSON.stringify({ message: 'No images found.' }),
+          { status: 200, headers }
+        );
     }
 
     console.log(`[DriveSync] Syncing ${allImages.length} images...`);
@@ -173,23 +186,26 @@ export default async (event) => {
         if (e.message === 'TimeLimit') isPartial = true;
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ 
+    return new Response(
+      JSON.stringify({ 
         message: isPartial ? 'Sync partially completed (time limit)' : 'Sync complete!', 
         imagesCount: allImages.length,
         partial: isPartial
-      })
-    };
+      }),
+      { status: 200, headers }
+    );
 
   } catch (error: any) {
     console.error('[DriveSync] Error:', error);
     if (error.message === 'TimeLimit') {
-        return { statusCode: 200, body: JSON.stringify({ message: 'Sync stopped due to timeout', partial: true }) };
+        return new Response(
+          JSON.stringify({ message: 'Sync stopped due to timeout', partial: true }),
+          { status: 200, headers }
+        );
     }
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: error.message || 'Internal Server Error' })
-    };
+    return new Response(
+      JSON.stringify({ error: error.message || 'Internal Server Error' }),
+      { status: 500, headers }
+    );
   }
-};
+}
