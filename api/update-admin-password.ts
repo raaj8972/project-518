@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 // Endpoint: POST /.netlify/functions/update-admin-password  { userId, password }
 // Auth: requires a Supabase session JWT in Authorization: Bearer <access_token>
 
-export default = async (event: HandlerEvent, context: HandlerContext) => {
+export default async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
     

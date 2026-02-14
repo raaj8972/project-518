@@ -1,6 +1,6 @@
 import { Handler } from '@netlify/functions';
 
-export default = async (event) => {
+export default async (event) => {
   const { url } = event.queryStringParameters || {};
 
   if (!url) {

@@ -2,7 +2,7 @@ import type { Handler } from '@netlify/functions'
 import { createClient } from '@supabase/supabase-js'
 
 // On-demand heartbeat: upserts last_run = now() into health_heartbeats (id=1)
-export default = async () => {
+export default async () => {
   try {
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
     const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -50,7 +50,7 @@ function r2PublicUrl(key: string) {
   return `https://${R2_PUBLIC_HOST}/${key}`;
 }
 
-export default = async (event) => {
+export default async (event) => {
   // CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
