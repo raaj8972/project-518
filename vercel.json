@@ -14,7 +14,7 @@
   ],
   "rewrites": [
     { "source": "/.netlify/functions/:match*", "destination": "/api/:match*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/.*).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
@@ -37,11 +37,5 @@
   ],
   "cleanUrls": true,
   "trailingSlash": false,
-  "functions": {
-    "api/**/*.ts": {
-      "includeFiles": "netlify/**",
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+
 }
