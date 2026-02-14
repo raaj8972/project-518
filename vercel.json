@@ -1,7 +1,39 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.ricorrenza.fun"
+        }
+      ],
+      "destination": "https://ricorrenza.fun/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/.netlify/functions/:match*", "destination": "/api/:match*" },
     { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "X-Requested-With, Content-Type, Authorization"
+        }
+      ]
+    }
   ],
   "cleanUrls": true,
   "trailingSlash": false,
