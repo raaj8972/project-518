@@ -4,5 +4,12 @@
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "functions": {
+    "api/**/*.ts": {
+      "includeFiles": "netlify/**",
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
 }
