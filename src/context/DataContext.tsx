@@ -271,6 +271,8 @@ interface DataContextType {
   pingNow?: () => Promise<void>;
   // Google Drive Integration
   syncGoogleDrive?: (folderId: string, year?: string, category?: string) => Promise<{ message: string; imagesCount: number; categoriesCount: number }>;
+  fetchDriveFolders?: (folderId: string) => Promise<{ folders: Array<{ id: string; name: string; imageCount: number }>; totalFolders: number }>;
+  syncGoogleDriveBatch?: (folderId: string, subfolderId: string, year?: string, category?: string) => Promise<{ message: string; imagesCount: number; categoriesCount: number }>;
   sanitizeUrl?: (url: string | null | undefined) => string;
   // Face Recognition
   indexGalleryImageFaces?: (imageId: number, url: string) => Promise<void>;
@@ -3454,6 +3456,50 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     }
   };
 
+  // NEW: Fetch list of subfolders with image counts
+  const fetchDriveFolders = async (folderId: string) => {
+    try {
+      const response = await fetch('/api/sync-drive-folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to fetch folder structure');
+      }
+
+      return await response.json();
+    } catch (err: any) {
+      console.error('[DataContext] Fetch Drive Folders Failed:', err);
+      throw err;
+    }
+  };
+
+  // NEW: Sync a single subfolder (batch mode)
+  const syncGoogleDriveBatch = async (folderId: string, subfolderId: string, year?: string, category?: string) => {
+    try {
+      const response = await fetch('/api/sync-google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId, subfolderId, year, category })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to sync subfolder');
+      }
+
+      const result = await response.json();
+      await fetchData(true); // Refresh local data after sync
+      return result;
+    } catch (err: any) {
+      console.error('[DataContext] Batch Sync Failed:', err);
+      throw err;
+    }
+  };
+
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     const { data, error } = await supabase.from('gallery_images').insert(image).select().single();
     if (error) throw error;
@@ -5163,6 +5209,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         realtimeStatus,
         // Google Drive
         syncGoogleDrive,
+        fetchDriveFolders,
+        syncGoogleDriveBatch,
         // Admin users
         adminUsers,
         refreshAdminUsers,

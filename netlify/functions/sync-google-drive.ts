@@ -27,30 +27,45 @@ export const handler: Handler = async (event) => {
   };
 
   try {
-    const { folderId, year, category } = JSON.parse(event.body || '{}');
+    const { folderId, year, category, subfolderId } = JSON.parse(event.body || '{}');
 
     if (!folderId) {
       return { statusCode: 400, body: 'Missing folderId' };
     }
 
-    const useSubcategoryMode = !!category;
-    console.log(`[DriveSync] Checking folder: ${folderId}`);
-
-    // 1. Fetch subfolders
-    const folderRes = await fetch(
-      `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&key=${GOOGLE_API_KEY}`
-    );
+    // NEW: If subfolderId provided, sync only that specific folder (batch mode)
+    const targetFolderId = subfolderId || folderId;
+    const isBatchMode = !!subfolderId;
     
-    if (!folderRes.ok) {
+    const useSubcategoryMode = !!category;
+    console.log(`[DriveSync] Mode: ${isBatchMode ? 'BATCH' : 'FULL'}, Folder: ${targetFolderId}`);
+
+    // 1. Fetch subfolders (skip in batch mode - we already know the target)
+    let subfolders: any[] = [];
+    
+    if (isBatchMode) {
+      // In batch mode, treat targetFolderId as the direct folder to sync
+      console.log(`[DriveSync] Batch mode: syncing single folder directly`);
+      subfolders = [{ id: targetFolderId, name: 'Target Folder' }];
+    } else {
+      // Full mode: enumerate all subfolders
+      const folderRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q='${targetFolderId}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&key=${GOOGLE_API_KEY}`
+      );
+      
+      if (!folderRes.ok) {
         const errText = await folderRes.text();
         console.error(`Google Drive API Error (${folderRes.status}):`, errText);
         return { 
-            statusCode: folderRes.status, 
-            body: JSON.stringify({ error: `Google Drive API Error: ${folderRes.statusText}`, details: errText }) 
+          statusCode: folderRes.status, 
+          body: JSON.stringify({ error: `Google Drive API Error: ${folderRes.statusText}`, details: errText }) 
         };
+      }
+      
+      const data = await folderRes.json();
+      subfolders = data.files || [];
+      console.log(`[DriveSync] Found ${subfolders.length} subfolders.`);
     }
-    const { files: subfolders = [] } = await folderRes.json();
-    console.log(`[DriveSync] Found ${subfolders.length} subfolders.`);
 
     const allImages: any[] = [];
     let isPartial = false;
