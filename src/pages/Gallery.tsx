@@ -63,7 +63,7 @@ export const Gallery: React.FC = () => {
       
       let absoluteUrl = url;
       if (url.startsWith('/')) {
-         // Resolve relative URLs (like /.netlify/functions/...) to absolute for the proxy
+         // Resolve relative URLs (like /api/...) to absolute for the proxy
          absoluteUrl = `${window.location.protocol}//${window.location.host}${url}`;
       }
       

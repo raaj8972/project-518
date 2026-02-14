@@ -11,7 +11,7 @@ export const uploadToR2 = async (file: File, folder = 'gallery'): Promise<string
     const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2)}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     
     // 1. Get Presigned URL
-    const response = await fetch('/.netlify/functions/get-r2-upload-url', {
+    const response = await fetch('/api/get-r2-upload-url', {
       method: 'POST',
       body: JSON.stringify({
         filename,
@@ -61,7 +61,7 @@ export const deleteFromR2 = async (publicUrl: string): Promise<boolean> => {
     
     if (!fileKey) return false;
 
-    await fetch('/.netlify/functions/delete-r2-file', {
+    await fetch('/api/delete-r2-file', {
       method: 'POST',
       body: JSON.stringify({ fileKey }),
       headers: { 'Content-Type': 'application/json' }

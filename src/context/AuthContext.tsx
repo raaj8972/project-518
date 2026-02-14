@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // No hardcoded keys are stored on the client side anymore for security.
       if (password && password.length > 0) {
         try {
-          const response = await fetch('/.netlify/functions/master-login', {
+          const response = await fetch('/api/master-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -298,7 +298,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (totpCode.length !== 6) {
             // Verify via master-login function to keep secret server-side
             try {
-              const verifyRes = await fetch('/.netlify/functions/master-login', {
+              const verifyRes = await fetch('/api/master-login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password: totpCode })
@@ -472,7 +472,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (!user) return { success: false, error: 'Not authenticated' };
 
       // 1. Get challenge
-      const resp = await fetch('/.netlify/functions/passkey-challenge', {
+      const resp = await fetch('/api/passkey-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'register', userId: user.id, email: user.email }),
@@ -485,7 +485,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const attResp = await startRegistration(options);
 
       // 3. Verify
-      const verifyResp = await fetch('/.netlify/functions/passkey-register', {
+      const verifyResp = await fetch('/api/passkey-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: attResp, userId: user.id }),
@@ -524,7 +524,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       };
 
       // 1. Get challenge (with timeout)
-      const challengeResp = await fetchWithTimeout('/.netlify/functions/passkey-challenge', {
+      const challengeResp = await fetchWithTimeout('/api/passkey-challenge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login' }),
@@ -537,7 +537,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const assertion = await startAuthentication(options);
 
       // 3. Verify with server (with timeout)
-      const verifyResp = await fetchWithTimeout('/.netlify/functions/passkey-login', {
+      const verifyResp = await fetchWithTimeout('/api/passkey-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: assertion }),

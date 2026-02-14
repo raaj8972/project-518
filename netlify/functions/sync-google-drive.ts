@@ -41,7 +41,14 @@ export const handler: Handler = async (event) => {
       `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&key=${GOOGLE_API_KEY}`
     );
     
-    if (!folderRes.ok) throw new Error(`Folder API error: ${folderRes.status}`);
+    if (!folderRes.ok) {
+        const errText = await folderRes.text();
+        console.error(`Google Drive API Error (${folderRes.status}):`, errText);
+        return { 
+            statusCode: folderRes.status, 
+            body: JSON.stringify({ error: `Google Drive API Error: ${folderRes.statusText}`, details: errText }) 
+        };
+    }
     const { files: subfolders = [] } = await folderRes.json();
     console.log(`[DriveSync] Found ${subfolders.length} subfolders.`);
 

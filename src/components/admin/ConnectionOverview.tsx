@@ -42,7 +42,7 @@ export const ConnectionOverview: React.FC = () => {
     setFuncLatency(null);
     try {
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      const res = await fetch('/.netlify/functions/health', { cache: 'no-store' });
+      const res = await fetch('/api/health', { cache: 'no-store' });
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       setFuncLatency(Math.round(t1 - t0));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -118,10 +118,10 @@ export const ConnectionOverview: React.FC = () => {
     setHbPending(true);
     setHbError(null);
     try {
-      let res = await fetch('/.netlify/functions/heartbeat', { method: 'POST' });
+      let res = await fetch('/api/heartbeat', { method: 'POST' });
       if (res.status === 404) {
         // Fallback endpoint name
-        res = await fetch('/.netlify/functions/heartbeat_fallback', { method: 'POST' });
+        res = await fetch('/api/heartbeat_fallback', { method: 'POST' });
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await fetchHeartbeat();
@@ -144,7 +144,7 @@ export const ConnectionOverview: React.FC = () => {
       // Get current session token
       const { data: { session }, error: sessErr } = await supabase.auth.getSession();
       if (sessErr || !session?.access_token) throw new Error('Not authenticated');
-      const res = await fetch('/.netlify/functions/install-heartbeat', {
+      const res = await fetch('/api/install-heartbeat', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       });

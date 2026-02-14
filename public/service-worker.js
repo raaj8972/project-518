@@ -128,7 +128,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Skip Netlify/Vercel Functions
-  if (event.request.url.includes('/.netlify/functions/') || event.request.url.includes('/_vercel/')) {
+  if (event.request.url.includes('/api/') || event.request.url.includes('/_vercel/')) {
     return;
   }
 

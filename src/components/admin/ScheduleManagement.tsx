@@ -272,7 +272,7 @@ export const ScheduleManagement = () => {
         return;
       }
 
-      const response = await fetch('/.netlify/functions/broadcast-schedule', {
+      const response = await fetch('/api/broadcast-schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

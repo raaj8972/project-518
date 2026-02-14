@@ -429,7 +429,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-      const response = await fetch('/.netlify/functions/list-admin-users', {
+      const response = await fetch('/api/list-admin-users', {
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal
       });
@@ -517,7 +517,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         console.warn('[sanitizeUrl] Invalid drive:// ID:', fileId);
         return '';
       }
-      return `/.netlify/functions/drive-proxy?id=${fileId}`;
+      return `/api/drive-proxy?id=${fileId}`;
     }
 
     // Prefix relative Supabase storage paths with our Supabase origin
@@ -732,7 +732,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.from('admin_users' as any).insert([{ user_id: userId, email }]);
     if (error) {
       // Fallback: Try bypass for Mock Owner
-      const res = await fetch('/.netlify/functions/add-admin-user', {
+      const res = await fetch('/api/add-admin-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId, email })
@@ -746,7 +746,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.from('admin_users' as any).delete().eq('user_id', userId);
     if (error) {
       // Fallback: Try bypass for Mock Owner
-      const res = await fetch('/.netlify/functions/delete-admin-user', {
+      const res = await fetch('/api/delete-admin-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: userId })
@@ -761,7 +761,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     const { error } = await supabase.rpc('add_admin_by_email', { p_email: email });
     if (error) {
       // Fallback: Try bypass for Mock Owner
-      const res = await fetch('/.netlify/functions/add-admin-user', {
+      const res = await fetch('/api/add-admin-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
@@ -794,7 +794,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // Fallback for unauthenticated scenarios if any (shouldn't happen for admin creation)
     }
 
-    const resp = await fetch('/.netlify/functions/create-admin', {
+    const resp = await fetch('/api/create-admin', {
       method: 'POST',
       headers,
       body: JSON.stringify({ email, password }),
@@ -820,7 +820,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       // headers['x-master-key'] = '9693';
     }
 
-    const resp = await fetch('/.netlify/functions/update-admin-email', {
+    const resp = await fetch('/api/update-admin-email', {
       method: 'POST',
       headers,
       body: JSON.stringify({ userId, newEmail }),
@@ -3396,7 +3396,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       let targetUrl = sanitizedUrl;
       // Use proxy for external images (R2, Cloudinary, etc.) to ensure CORS headers for canvas access
       if (targetUrl.startsWith('http') && !targetUrl.includes(window.location.hostname)) {
-        targetUrl = `/.netlify/functions/image-proxy?url=${encodeURIComponent(targetUrl)}`;
+        targetUrl = `/api/image-proxy?url=${encodeURIComponent(targetUrl)}`;
       }
       
       const faces = await extractFaceDescriptorsFromUrl(targetUrl);
@@ -3434,7 +3434,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
 
   const syncGoogleDrive = async (folderId: string, year?: string, category?: string) => {
     try {
-      const response = await fetch('/.netlify/functions/sync-google-drive', {
+      const response = await fetch('/api/sync-google-drive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ folderId, year, category })
@@ -4727,7 +4727,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token;
           if (!token) throw (rpcErr || error);
-          let resp = await fetch('/.netlify/functions/update-form-settings', {
+          let resp = await fetch('/api/update-form-settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(settings),

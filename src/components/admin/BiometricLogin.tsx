@@ -21,7 +21,7 @@ export const BiometricLogin: React.FC = () => {
     if (!user) return;
     setIsLoadingPasskeys(true);
     try {
-      const res = await fetch('/.netlify/functions/passkey-list', {
+      const res = await fetch('/api/passkey-list', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
@@ -57,7 +57,7 @@ export const BiometricLogin: React.FC = () => {
     if (!confirm('Are you sure you want to delete this passkey?')) return;
     
     try {
-      const res = await fetch('/.netlify/functions/passkey-delete', {
+      const res = await fetch('/api/passkey-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passkeyId, userId: user?.id }),

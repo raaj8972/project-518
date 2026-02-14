@@ -62,7 +62,7 @@ export const SecuritySettings: React.FC = () => {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
+      const res = await fetch('/api/admin-security-controls', {
         method: 'POST',
         headers,
         body: JSON.stringify({ 
@@ -107,7 +107,7 @@ export const SecuritySettings: React.FC = () => {
       if (isPinVerified) {
       }
 
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
+      const res = await fetch('/api/admin-security-controls', {
         method: 'POST',
         headers,
         body: JSON.stringify({ action: 'list_users' })
@@ -138,7 +138,7 @@ export const SecuritySettings: React.FC = () => {
         // headers['x-master-key'] = '9693'; // Removed insecure key
       }
 
-      const res = await fetch('/.netlify/functions/admin-security-controls', {
+      const res = await fetch('/api/admin-security-controls', {
         method: 'POST',
         headers,
         body: JSON.stringify({ action: 'toggle_2fa', targetUserId: userId, enable })
@@ -184,7 +184,7 @@ export const SecuritySettings: React.FC = () => {
           'Authorization': `Bearer ${token}`
         };
 
-        const res = await fetch('/.netlify/functions/admin-security-controls', {
+        const res = await fetch('/api/admin-security-controls', {
           method: 'POST',
           headers,
           body:JSON.stringify({ 
