@@ -14,7 +14,6 @@ import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/OfflineIndicator';
-import { BUILD_INFO } from './buildInfo';
 
 // Convert heavy/non-critical routes to lazy-loaded to keep the initial bundle small
 const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
