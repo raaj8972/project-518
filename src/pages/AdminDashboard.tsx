@@ -58,8 +58,10 @@ const HeroMediaManagement = React.lazy(() => import('../components/admin/HeroMed
 const AboutSettings = React.lazy(() => import('../components/admin/AboutSettings').then(m => ({ default: m.AboutSettings })));
 const NotificationsManagement = React.lazy(() => import('../components/admin/NotificationsManagement').then(m => ({ default: m.NotificationsManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useRegistrations } from '../hooks/useRegistrations';
 import { StatsOverview } from '../components/admin/dashboard/StatsOverview';
 import { WelcomeSplash } from '../components/admin/dashboard/WelcomeSplash';
+import { AIBrainHUD } from '../components/admin/dashboard/AIBrainHUD';
 const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
 const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
@@ -82,7 +84,7 @@ export const AdminDashboard: React.FC = () => {
   const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
   const {
     events,
-    registrations,
+    // registrations removed - use hook
     galleryImages,
     sponsors,
     coreCommittees,
@@ -141,6 +143,13 @@ export const AdminDashboard: React.FC = () => {
 
   // Admin messaging
   const { unreadMessages, sendMessage, markAsRead } = useAdminMessages();
+
+  // Fetch registration stats for badges
+  const { stats: registrationStats } = useRegistrations({ 
+    page: 1, 
+    pageSize: 1, 
+    filters: {} // No filters to get global stats
+  });
 
   // ... existing code ...
 
@@ -376,7 +385,7 @@ export const AdminDashboard: React.FC = () => {
     ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield, group: 'Security & System' }] : []),
     ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council Access', icon: Lock, group: 'Security & System' }] : []),
     ...(isOwner ? [{ id: 'audit-logs' as TabType, name: 'Audit Logs', icon: HistoryIcon, group: 'Security & System' }] : []),
-    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexing', icon: Scan, group: 'Security & System' }] : []),
+    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexer', icon: Scan, group: 'Security & System' }] : []),
 
     // Content
     { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'Content' },
@@ -494,8 +503,8 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-  const pendingRegistrations = registrations.filter(r => r.status === 'pending').length;
-  const approvedRegistrations = registrations.filter(r => r.status === 'approved').length;
+  const pendingRegistrations = registrationStats.pending;
+  const approvedRegistrations = registrationStats.approved;
   const pendingAuditions = auditions.filter(a => a.status === 'pending').length;
   const pendingMemberships = memberships.filter(m => m.status === 'pending').length;
 
@@ -541,95 +550,128 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
             {isOwner && activeTab === 'overview' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                {/* Modern Welcome Header */}
-                <div className="bg-gradient-to-br from-gray-900 to-indigo-950 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-yellow-400/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl group-hover:bg-yellow-400/20 transition-all duration-1000"></div>
-                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                      <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-2 tracking-tight">
-                        {getGreeting()}, <span className="text-yellow-400">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
-                      </h2>
-                      <p className="text-indigo-200 text-lg font-medium flex items-center gap-2">
-                        <Clock className="w-5 h-5" />
-                        {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="bg-white/10 backdrop-blur-md rounded-2xl px-4 py-2 border border-white/10 flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${connectionStatus === 'ok' ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></div>
-                        <span className="text-white text-sm font-semibold uppercase tracking-wider">System Live</span>
+              <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
+                {/* SUPERIA V3 Welcome Hero */}
+                <div className="superia-glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden group">
+                   {/* Decorative background effects */}
+                   <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] group-hover:bg-indigo-500/15 transition-all duration-1000"></div>
+                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
+                   
+                   <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                      <div className="space-y-4">
+                         <div className="flex items-center gap-3">
+                            <div className="w-1 h-12 bg-gradient-to-b from-indigo-500 to-transparent rounded-full"></div>
+                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tighter">
+                               {getGreeting()}, <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-400 bg-clip-text text-transparent">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
+                            </h2>
+                         </div>
+                         <div className="flex items-center gap-4 pl-4">
+                            <div className="flex items-center gap-2">
+                               <Clock className="w-5 h-5 text-indigo-400" />
+                               <span className="text-white/80 tabular-nums text-lg font-medium">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/10"></div>
+                            <span className="uppercase tracking-[0.1em] text-xs font-black text-gray-500">{currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+                         </div>
                       </div>
-                      {isTOTPEnabled && (
-                        <div className="bg-green-500/20 backdrop-blur-md rounded-2xl px-4 py-2 border border-green-500/20 flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-green-400" />
-                          <span className="text-green-400 text-sm font-semibold uppercase tracking-wider">2FA Secure</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                      
+                      <div className="flex flex-wrap items-center gap-4">
+                         <div className="bg-white/[0.03] backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 flex items-center gap-3 shadow-2xl">
+                            <div className={`w-2.5 h-2.5 rounded-full ${connectionStatus === 'ok' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-rose-400'}`}></div>
+                            <span className="text-white/80 text-xs font-black uppercase tracking-[0.2em]">Neural Link: Active</span>
+                         </div>
+                         {isTOTPEnabled && (
+                            <div className="bg-indigo-500/10 backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-indigo-500/20 flex items-center gap-3 shadow-2xl">
+                               <Shield className="w-5 h-5 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.4)]" />
+                               <span className="text-indigo-400 text-xs font-black uppercase tracking-[0.2em]">Tier-1 Security</span>
+                            </div>
+                         )}
+                      </div>
+                   </div>
                 </div>
 
-                {/* Priority Actions Hub - Mobile Friendly */}
+                {/* AI Intelligence HUD */}
+                <AIBrainHUD stats={{
+                   pendingRegistrations,
+                   approvedRegistrations,
+                   totalEvents: events.length,
+                   systemHealth: connectionStatus === 'ok' ? 'optimal' : 'warning',
+                   facesIndexed: galleryImages.filter(img => (img as any).faces_indexed).length,
+                   totalFaces: galleryImages.length
+                }} />
+
+                {/* Priority Attention Vector */}
                 {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8 overflow-hidden relative">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-full translate-x-1/2 -translate-y-1/2"></div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2 relative z-10">
-                        <Bell className="w-6 h-6 text-red-500" />
-                        Attention Required
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 relative z-10">
-                        {pendingRegistrations > 0 && (
-                          <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('registrations')}>
-                            <div className="flex items-center justify-between mb-2">
-                              <UserCheck className="w-8 h-8 text-amber-600" />
-                              <span className="bg-amber-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingRegistrations}</span>
-                            </div>
-                            <div className="font-bold text-gray-900">New Registrations</div>
-                            <div className="text-xs text-amber-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
-                          </div>
-                        )}
-                        {pendingAuditions > 0 && (
-                          <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('auditions')}>
-                            <div className="flex items-center justify-between mb-2">
-                              <Users className="w-8 h-8 text-blue-600" />
-                              <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingAuditions}</span>
-                            </div>
-                            <div className="font-bold text-gray-900">Audition Forms</div>
-                            <div className="text-xs text-blue-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
-                          </div>
-                        )}
-                        {pendingMemberships > 0 && (
-                          <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 hover:shadow-md transition-all cursor-pointer group" onClick={() => setActiveTab('memberships')}>
-                            <div className="flex items-center justify-between mb-2">
-                              <Star className="w-8 h-8 text-purple-600" />
-                              <span className="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">{pendingMemberships}</span>
-                            </div>
-                            <div className="font-bold text-gray-900">Membership Requests</div>
-                            <div className="text-xs text-purple-700 mt-1 flex items-center">Review now <ArrowRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" /></div>
-                          </div>
-                        )}
+                   <div className="superia-glass-card rounded-[2.5rem] p-8 border-rose-500/10 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
+                      
+                      <div className="flex items-center gap-4 mb-8 relative z-10">
+                         <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-lg shadow-rose-500/5">
+                            <Bell className="w-6 h-6 text-rose-400 animate-bounce" />
+                         </div>
+                         <div>
+                            <h3 className="text-2xl font-black text-white tracking-tighter">Priority Intercepts</h3>
+                            <p className="text-gray-500 text-[10px] uppercase tracking-[0.3em] font-black">System requires operator input</p>
+                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 flex flex-col justify-center text-center group">
-                      <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:rotate-12 transition-transform duration-500">
-                        <CheckCircle className="w-10 h-10 text-green-600" />
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                         {pendingRegistrations > 0 && (
+                            <div 
+                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
+                               onClick={() => setActiveTab('registrations')}
+                            >
+                               <div className="flex items-center justify-between mb-4">
+                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
+                                     <UserCheck size={24} />
+                                  </div>
+                                  <span className="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-indigo-500/20">{pendingRegistrations}</span>
+                               </div>
+                               <h4 className="text-white font-black tracking-tight mb-1">Registrations</h4>
+                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
+                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
+                               </p>
+                            </div>
+                         )}
+                         {pendingAuditions > 0 && (
+                            <div 
+                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-purple-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
+                               onClick={() => setActiveTab('auditions')}
+                            >
+                               <div className="flex items-center justify-between mb-4">
+                                  <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400 group-hover/action:scale-110 transition-transform">
+                                     <Users size={24} />
+                                  </div>
+                                  <span className="px-3 py-1 bg-purple-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-purple-500/20">{pendingAuditions}</span>
+                               </div>
+                               <h4 className="text-white font-black tracking-tight mb-1">Auditions</h4>
+                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
+                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
+                               </p>
+                            </div>
+                         )}
+                         {pendingMemberships > 0 && (
+                            <div 
+                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-amber-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
+                               onClick={() => setActiveTab('memberships')}
+                            >
+                               <div className="flex items-center justify-between mb-4">
+                                  <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 group-hover/action:scale-110 transition-transform">
+                                     <Star size={24} />
+                                  </div>
+                                  <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-amber-500/20">{pendingMemberships}</span>
+                               </div>
+                               <h4 className="text-white font-black tracking-tight mb-1">Memberships</h4>
+                               <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
+                                  PENDING REVIEW <ArrowRight size={10} className="group-hover/action:translate-x-2 transition-transform" />
+                               </p>
+                            </div>
+                         )}
                       </div>
-                      <h4 className="text-xl font-bold text-gray-900 mb-2">Registration Goal</h4>
-                      <p className="text-gray-600 text-sm mb-6">You've reached {Math.round((approvedRegistrations / Math.max(1, registrations.length)) * 100)}% of processed applications.</p>
-                      <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-green-500 h-full transition-all duration-1000 ease-out" 
-                          style={{ width: `${(approvedRegistrations / Math.max(1, registrations.length)) * 100}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
+                   </div>
                 )}
 
-                {/* Stats Overview */}
+                {/* SUPERIA Real-time Stats */}
                 <StatsOverview stats={{
                   eventsCount: events.length,
                   registrationsCount: registrations.length,

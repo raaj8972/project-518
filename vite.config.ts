@@ -21,6 +21,11 @@ export default defineConfig({
   // Local dev/preview ergonomics
   server: {
     proxy: {
+      '/api': {
+        target: 'http://localhost:8888/.netlify/functions',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
       '/.netlify/functions': {
         target: 'http://localhost:8888',
         changeOrigin: true,

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, User as UserIcon, Award, ChevronDown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 
+
 export const EventWinnersEditor: React.FC<{ eventId: number }> = ({ eventId }) => {
-  const { eventWinners = [], addEventWinner, updateEventWinner, deleteEventWinner, registrations = [] } = useData() as any;
+  const { eventWinners = [], addEventWinner, updateEventWinner, deleteEventWinner } = useData() as any;
   const winners = (eventWinners || []).filter((w: any) => w.event_id === eventId).sort((a: any, b: any) => a.position - b.position);
   const [isAdding, setIsAdding] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -11,7 +12,42 @@ export const EventWinnersEditor: React.FC<{ eventId: number }> = ({ eventId }) =
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<any>(null);
 
-  const eventRegistrations = (registrations || []).filter((r: any) => r.event_id === eventId && (r.status === 'approved' || r.status === 'pending'));
+  const [eventRegistrations, setEventRegistrations] = useState<any[]>([]);
+
+  // Fetch candidates for this event only
+  useEffect(() => {
+    let mounted = true;
+    const fetchCandidates = async () => {
+      console.log('EventWinnersEditor: Fetching candidates for eventId:', eventId);
+      try {
+        // Use server-side function to bypass RLS restrictions
+        const response = await fetch('/.netlify/functions/get-event-candidates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId })
+        });
+        
+        if (!response.ok) {
+           const errorText = await response.text();
+           console.error(`EventWinnersEditor: Server error ${response.status}: ${errorText}`);
+           setEventRegistrations([]); // Clear invalid state
+           return; 
+        }
+        
+        const data = await response.json();
+        console.log('EventWinnersEditor: Fetched candidates:', data?.length);
+        
+        if (mounted) {
+          setEventRegistrations(data || []);
+        }
+      } catch (err: any) {
+        console.error('Error fetching event candidates:', err);
+      }
+    };
+    
+    if (eventId) fetchCandidates();
+    return () => { mounted = false; };
+  }, [eventId]);
 
   const handleSave = async (id: number, data: any) => {
     setBusy(true);

@@ -13,7 +13,7 @@ import { useSavingProgress } from '../../context/SavingProgressContext';
 
 export const HomepageManagement: React.FC = () => {
   const { isAuthenticated, user, loading: authLoading } = useAuth();
-  const { homepageSettings, updateHomepageSettings, sponsors, coreTeamMembers } = useData();
+  const { homepageSettings, updateHomepageSettings, sponsors, coreTeamMembers, sanitizeUrl } = useData() as any;
   const [isEditing, setIsEditing] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [bgRemoveBusyId, setBgRemoveBusyId] = useState<string | null>(null);
@@ -312,26 +312,6 @@ export const HomepageManagement: React.FC = () => {
     }
   };
   
-  // Normalize potentially problematic image/asset URLs so they render in admin previews
-  const sanitizeUrl = (u: string | null | undefined): string => {
-    if (!u) return '';
-    let s = String(u).trim();
-    if (!s) return '';
-    // Prefix relative Supabase storage paths with our Supabase origin
-    if (s.startsWith('/storage/')) {
-      const origin = `https://${SUPABASE_HOST}`;
-      s = origin + s;
-    }
-    // Avoid mixed content if admin is served over https in prod
-    try {
-      const url = new URL(s);
-      if (typeof window !== 'undefined' && window.location?.protocol === 'https:' && url.protocol === 'http:') {
-        url.protocol = 'https:';
-        s = url.toString();
-      }
-    } catch {}
-    return s;
-  };
 
   // --- Helper: remove near-black background and return transparent PNG Blob
   const removeBlackBackground = async (input: Blob, threshold = 24): Promise<Blob> => {
@@ -1164,7 +1144,15 @@ export const HomepageManagement: React.FC = () => {
                       logos={(sponsors || [])
                         .filter((s: any) => s.enabled)
                         .sort((a: any, b: any) => (a.order_position ?? 0) - (b.order_position ?? 0))
-                        .map((s: any) => ({ src: s.logo, alt: s.name ?? '', href: s.website ?? undefined, title: s.name ?? undefined }))}
+                        .map((s: any) => ({ 
+                          src: (() => {
+                            const sanitized = sanitizeUrl?.(s.logo) || s.logo;
+                            return sanitized;
+                          })(), 
+                          alt: s.name ?? '', 
+                          href: s.website ?? undefined, 
+                          title: s.name ?? undefined 
+                        }))}
                       speed={Math.min(800, Math.max(1, Math.abs((form.sponsors_belt_speed_px_per_sec === '' ? 140 : form.sponsors_belt_speed_px_per_sec) as number)))}
                       direction={form.sponsors_belt_direction}
                       pauseOnHover={true}
@@ -1234,8 +1222,15 @@ export const HomepageManagement: React.FC = () => {
                     items={(coreTeamMembers || []).filter((m: any) => m.enabled && m.is_head)}
                     renderItem={(m: any) => (
                       <div className="flex items-center gap-3 bg-white/70 rounded-md px-3 py-2 shadow-sm">
-                        {m.photo_url ? (
-                          <img src={m.photo_url} alt={m.name} className="w-8 h-8 rounded-full object-cover" />
+                        {m.image ? (
+                          <img
+                            src={(() => {
+                              const sanitized = sanitizeUrl?.(m.image) || m.image;
+                              return sanitized;
+                            })()}
+                            alt={m.name}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gray-300" />
                         )}
@@ -1427,7 +1422,10 @@ export const HomepageManagement: React.FC = () => {
                             .map((logo: SponsorLogo) => (
                               <div key={logo.id} className="flex flex-col items-center">
                                 <img
-                                  src={sanitizeUrl(logo.logo_url)}
+                                  src={(() => {
+                                    const sanitized = sanitizeUrl?.(logo.logo_url) || logo.logo_url;
+                                    return sanitized;
+                                  })()}
                                   alt={logo.name}
                                   className="h-8 opacity-80 mb-1"
                                 />

@@ -17,7 +17,12 @@ const PAGE_LABELS: Record<PageKey, string> = {
 };
 
 export const HeroMediaManagement: React.FC = () => {
-  const { heroMedia, fetchHeroMedia, updateHeroMedia } = useData();
+  const { 
+    heroMedia, 
+    fetchHeroMedia, 
+    updateHeroMedia,
+    sanitizeUrl
+  } = useData() as any;
   const savingProgress = useSavingProgress();
   const [selectedPage, setSelectedPage] = useState<PageKey>('home');
   const current = heroMedia?.[selectedPage] || null;
@@ -600,9 +605,12 @@ export const HeroMediaManagement: React.FC = () => {
                         <div className="w-full h-full" style={{ transform: `translate(${form.desktop_offset_x*100}%, ${form.desktop_offset_y*100}%) scale(${form.desktop_zoom})`, transformOrigin: 'center center' }}>
                           {form.background_type !== 'image' && form.video_url ? (
                             <>
-                              {!miniDesktopLoaded && (form.poster_url ? <img src={form.poster_url} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />)}
+                              {!miniDesktopLoaded && (form.poster_url ? <img src={sanitizeUrl?.(form.poster_url) || form.poster_url} className="absolute inset-0 w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-gray-900 to-black" />)}
                               <video
-                                src={form.video_url}
+                                src={(() => {
+                                  const sanitized = sanitizeUrl?.(form.video_url) || form.video_url;
+                                  return sanitized;
+                                })()}
                                 muted
                                 playsInline
                                 autoPlay={miniDesktopPlaying}

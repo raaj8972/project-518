@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical, UserPlus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
@@ -12,6 +12,8 @@ import PreserveNewlines from '../PreserveNewlines';
 // Spotify icon component since it's not in lucide-react
 // Spotify icon component removed
 
+
+import { AdminModal } from './layout/AdminModal';
 
 export const CoreTeamManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -34,8 +36,9 @@ export const CoreTeamManagement: React.FC = () => {
     updateCoreTeamMember,
     deleteCoreTeamMember,
     toggleCoreTeamMemberEnabled,
-  toggleCoreTeamMemberIsHead
-  } = useData();
+  toggleCoreTeamMemberIsHead,
+    sanitizeUrl
+  } = useData() as any;
 
   const [activeSection, setActiveSection] = useState<'committees' | 'members'>('committees');
   const [isAddingCommittee, setIsAddingCommittee] = useState(false);
@@ -57,14 +60,7 @@ export const CoreTeamManagement: React.FC = () => {
 
 
   // Refs for scrolling
-  const memberFormRef = useRef<HTMLDivElement>(null);
 
-  // Scroll helpers
-  const scrollToMemberForm = () => {
-    setTimeout(() => {
-      memberFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
-  };
 
   const [committeeForm, setCommitteeForm] = useLocalStorage('admin_core_committee_form_draft', {
     name: '',
@@ -209,7 +205,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleDeleteCommittee = async (id: number) => {
-  const membersInCommittee = coreTeamMembers.filter(m => m.committee_id === id);
+  const membersInCommittee = coreTeamMembers.filter((m: any) => m.committee_id === id);
     
     if (membersInCommittee.length > 0) {
       if (!confirm(`This committee has ${membersInCommittee.length} members. Deleting it will also delete all members. Are you sure?`)) {
@@ -306,7 +302,7 @@ export const CoreTeamManagement: React.FC = () => {
   };
 
   const handleUpdateMember = async (id: number) => {
-    const member = coreTeamMembers.find(m => m.id === id);
+    const member = coreTeamMembers.find((m: any) => m.id === id);
     if (!member) return;
     if (!memberForm.name || !memberForm.name.trim() || !memberForm.image) return;
     const payload = {
@@ -406,8 +402,6 @@ export const CoreTeamManagement: React.FC = () => {
       isCouncil: ((member as any).isCouncil ?? false) || false,
       phone: (member as any).phone || '',
     });
-    // Scroll to form
-    scrollToMemberForm();
   };
 
   const addAchievement = () => {
@@ -642,101 +636,16 @@ export const CoreTeamManagement: React.FC = () => {
             </button>
           </div>
 
-          {/* Add Committee Form */}
-          {isAddingCommittee && (
-            <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 border-l-4 border-l-amber-500">
-              <h4 className="text-lg font-bold text-white mb-6">Add New Committee</h4>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Name *</label>
-                    <input
-                      type="text"
-                      value={committeeForm.name}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="e.g., Technical Team"
-                      className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
-                    <textarea
-                      value={committeeForm.description}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Brief description of the committee's responsibilities"
-                      rows={3}
-                      className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
-                      <input
-                        type="number"
-                        value={committeeForm.order_position}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                        min="1"
-                        max="10"
-                        className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
-                      />
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input
-                          type="checkbox"
-                          checked={committeeForm.is_core}
-                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
-                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
-                        />
-                        <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Core Committee</span>
-                      </label>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <label className="flex items-center gap-2 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={committeeForm.enabled}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                        className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
-                      />
-                      <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
-                    </label>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Color</label>
-                  <div className="space-y-3">
-                    <input
-                      type="color"
-                      value={committeeForm.color}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
-                      className="w-full h-12 border border-white/20 rounded-xl cursor-pointer bg-black/20"
-                    />
-                    <div className="grid grid-cols-5 gap-2">
-                      {predefinedColors.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setCommitteeForm(prev => ({ ...prev, color }))}
-                          className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                            committeeForm.color === color ? 'border-white scale-110 shadow-lg' : 'border-white/20 hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: color }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
-                      <div
-                        className="w-6 h-6 rounded-full shadow-lg"
-                        style={{ backgroundColor: committeeForm.color }}
-                      />
-                      <span className="text-sm text-gray-300 font-medium">Preview: {committeeForm.name || 'Committee Name'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
+          {/* Add Committee Modal */}
+          <AdminModal
+            isOpen={isAddingCommittee}
+            onClose={() => {
+              setIsAddingCommittee(false);
+              resetCommitteeForm();
+            }}
+            title="Add New Committee"
+            footer={
+              <div className="flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -762,11 +671,103 @@ export const CoreTeamManagement: React.FC = () => {
                   Add Committee
                 </button>
               </div>
-              {!committeeForm.name.trim() && (
-                <p className="mt-2 text-sm text-red-400">Committee name is required.</p>
-              )}
+            }
+          >
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Name *</label>
+                  <input
+                    type="text"
+                    value={committeeForm.name}
+                    onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., Technical Team"
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
+                  />
+                  {!committeeForm.name.trim() && (
+                    <p className="mt-2 text-xs text-red-400">Committee name is required.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
+                  <textarea
+                    value={committeeForm.description}
+                    onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description of the committee's responsibilities"
+                    rows={3}
+                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
+                    <input
+                      type="number"
+                      value={committeeForm.order_position}
+                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                      min="1"
+                      max="10"
+                      className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={committeeForm.is_core}
+                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
+                        className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
+                      />
+                      <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Core Committee</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={committeeForm.enabled}
+                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
+                      className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
+                    />
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Color</label>
+                <div className="space-y-3">
+                  <input
+                    type="color"
+                    value={committeeForm.color}
+                    onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-full h-12 border border-white/20 rounded-xl cursor-pointer bg-black/20"
+                  />
+                  <div className="grid grid-cols-5 gap-2">
+                    {predefinedColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setCommitteeForm(prev => ({ ...prev, color }))}
+                        className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                          committeeForm.color === color ? 'border-white scale-110 shadow-lg' : 'border-white/20 hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
+                    <div
+                      className="w-6 h-6 rounded-full shadow-lg"
+                      style={{ backgroundColor: committeeForm.color }}
+                    />
+                    <span className="text-sm text-gray-300 font-medium">Preview: {committeeForm.name || 'Committee Name'}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
+          </AdminModal>
+
 
           {/* Committees List - Responsive Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -775,110 +776,135 @@ export const CoreTeamManagement: React.FC = () => {
                 {/* Decorative Top Border */}
                 <div className="h-1.5 w-full opacity-75" style={{ backgroundColor: committee.color }} />
                 
-                {editingCommittee === committee.id ? (
-                  <div className="p-6 space-y-4 bg-white/[0.02]">
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Name</label>
-                       <input
-                        type="text"
-                        value={committeeForm.name}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Committee name"
-                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Description</label>
-                       <textarea
-                        value={committeeForm.description}
-                        onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                        rows={3}
-                        placeholder="Description"
-                        className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm resize-none"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Color</label>
-                         <div className="relative">
+                {editingCommittee === committee.id && (
+                  <AdminModal
+                    isOpen={editingCommittee === committee.id}
+                    onClose={() => {
+                      setEditingCommittee(null);
+                      resetCommitteeForm();
+                    }}
+                    title={`Edit Committee: ${committee.name}`}
+                    footer={
+                      <div className="flex justify-end gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCommittee(null);
+                            resetCommitteeForm();
+                          }}
+                          className="px-4 py-2 text-gray-400 hover:text-white flex items-center gap-2 font-medium"
+                        >
+                          <X size={16} />
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateCommittee(committee.id)}
+                          disabled={!committeeForm.name.trim()}
+                          className={`px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-lg font-bold ${
+                            committeeForm.name.trim()
+                              ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:from-amber-400 hover:to-yellow-400 shadow-yellow-500/20 hover:-translate-y-0.5'
+                              : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          <Save size={16} />
+                          Update Committee
+                        </button>
+                      </div>
+                    }
+                  >
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Name *</label>
+                          <input
+                            type="text"
+                            value={committeeForm.name}
+                            onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g., Technical Team"
+                            className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
+                          <textarea
+                            value={committeeForm.description}
+                            onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Brief description of the committee's responsibilities"
+                            rows={3}
+                            className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
                             <input
-                              type="color"
-                              value={committeeForm.color}
-                              onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
-                              className="w-full h-9 border border-white/10 rounded-lg cursor-pointer bg-black/20"
+                              type="number"
+                              value={committeeForm.order_position}
+                              onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                              min="1"
+                              max="10"
+                              className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white"
                             />
-                         </div>
+                          </div>
+                          <div className="flex items-end">
+                            <label className="flex items-center gap-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                checked={committeeForm.is_core}
+                                onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
+                                className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
+                              />
+                              <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Core Committee</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="flex items-center">
+                          <label className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                              type="checkbox"
+                              checked={committeeForm.enabled}
+                              onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
+                              className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50"
+                            />
+                            <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
+                          </label>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Order</label>
-                         <input
-                          type="number"
-                          value={committeeForm.order_position}
-                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                          min="1"
-                          max="10"
-                          placeholder="Order"
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
-                        />
+                      <div>
+                        <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Committee Color</label>
+                        <div className="space-y-3">
+                          <input
+                            type="color"
+                            value={committeeForm.color}
+                            onChange={(e) => setCommitteeForm(prev => ({ ...prev, color: e.target.value }))}
+                            className="w-full h-12 border border-white/20 rounded-xl cursor-pointer bg-black/20"
+                          />
+                          <div className="grid grid-cols-5 gap-2">
+                            {predefinedColors.map((color) => (
+                              <button
+                                key={color}
+                                type="button"
+                                onClick={() => setCommitteeForm(prev => ({ ...prev, color }))}
+                                className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                                  committeeForm.color === color ? 'border-white scale-110 shadow-lg' : 'border-white/20 hover:scale-105'
+                                }`}
+                                style={{ backgroundColor: color }}
+                              />
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3 p-3 bg-black/30 rounded-lg">
+                            <div
+                              className="w-6 h-6 rounded-full shadow-lg"
+                              style={{ backgroundColor: committeeForm.color }}
+                            />
+                            <span className="text-sm text-gray-300 font-medium">Preview: {committeeForm.name || committee.name}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center space-x-6 pt-2">
-                      <label className="flex items-center group cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={committeeForm.is_core}
-                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, is_core: e.target.checked }))}
-                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-purple-600 focus:ring-purple-500/50 cursor-pointer"
-                        />
-                         <div className="flex items-center gap-1.5 ml-2">
-                           <Crown size={12} className={committeeForm.is_core ? "text-amber-500" : "text-gray-600"} />
-                           <span className={`text-xs font-medium group-hover:text-white transition-colors ${committeeForm.is_core ? "text-amber-400" : "text-gray-400"}`}>Core Committee</span>
-                         </div>
-                      </label>
-                      <label className="flex items-center group cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={committeeForm.enabled}
-                          onChange={(e) => setCommitteeForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                          className="w-4 h-4 rounded border-gray-600 bg-black/20 text-emerald-500 focus:ring-emerald-500/50 cursor-pointer"
-                        />
-                        <span className={`text-xs font-medium ml-2 group-hover:text-white transition-colors ${committeeForm.enabled ? "text-emerald-400" : "text-gray-400"}`}>Public Visible</span>
-                      </label>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingCommittee(null);
-                          resetCommitteeForm();
-                        }}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-all"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateCommittee(committee.id)}
-                        disabled={!committeeForm.name.trim()}
-                        className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          committeeForm.name.trim()
-                            ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
-                            : 'bg-white/5 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        <Save size={12} />
-                        Save Changes
-                      </button>
-                    </div>
-                    {!committeeForm.name.trim() && (
-                      <p className="mt-2 text-sm text-red-400">Committee name is required.</p>
-                    )}
-                  </div>
-                ) : (
+                  </AdminModal>
+                )}
                   <div 
                     className={`p-6 cursor-move relative transition-colors bg-gradient-to-br from-transparent to-white/[0.02] ${
                       draggedCommittee === committee.id ? 'opacity-50' : ''
@@ -990,7 +1016,6 @@ export const CoreTeamManagement: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                )}
               </div>
             ))}
           </div>
@@ -1035,247 +1060,25 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
 
 
-          {/* Add/Edit Member Form - Modern Redesign */}
-          {(isAddingMember || editingMember !== null) && coreCommittees.length > 0 && (
-            <div ref={memberFormRef} className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8 border-l-4 border-l-amber-500 shadow-2xl animate-in fade-in zoom-in duration-300 my-6 relative overflow-hidden">
-              
-              {/* Background gradient for depth */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
-              
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 pb-6 border-b border-white/5 relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-lg shadow-amber-500/5">
-                    {editingMember ? <Edit className="w-6 h-6 text-amber-500" /> : <UserPlus className="w-6 h-6 text-amber-500" />}
-                  </div>
-                  <div>
-                    <h4 className="text-xl font-bold text-white tracking-tight">
-                      {editingMember ? 'Edit Team Member' : 'New Team Member'}
-                    </h4>
-                    <p className="text-sm text-gray-400 mt-0.5">
-                      {editingMember ? 'Update member details and permissions' : 'Add a core member to the leadership team'}
-                    </p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => { setIsAddingMember(false); setEditingMember(null); resetMemberForm(); }}
-                  className="p-2 hover:bg-white/5 rounded-full transition-colors text-gray-500 hover:text-white"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
-                {/* Left Column: Media & Identity */}
-                <div className="lg:col-span-4 space-y-6">
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Profile Photo</label>
-                    <div className="bg-black/20 rounded-2xl p-2 border border-white/5">
-                      <ImageUpload
-                        onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
-                        currentImage={memberForm.image}
-                        bucket="team-images"
-                        folder="core-team"
-                        cropAspect={1}
-                        className="rounded-xl overflow-hidden aspect-square"
-                      />
-                    </div>
-                    {!memberForm.image && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5 pl-1">
-                        <span className="w-1 h-1 rounded-full bg-red-400" /> Photo is required
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Committee Assignment</label>
-                    <div className="relative group">
-                       <select
-                        value={memberForm.committee_id}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
-                        className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500/50 appearance-none transition-all cursor-pointer font-medium"
-                      >
-                        <option value={0} className="text-gray-500">Unassigned</option>
-                        {sortedCommittees.map(committee => (
-                          <option key={committee.id} value={committee.id}>
-                            {committee.name} {committee.is_core ? '(Core)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                        <GripVertical size={16} className="rotate-90" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#0f0f13] rounded-xl p-4 border border-white/5 space-y-1">
-                    <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Visibility & Status</h5>
-                    
-                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-                      <span className="text-sm font-medium text-gray-300 group-hover:text-white">Active on Website</span>
-                      <div className={`w-10 h-5 rounded-full relative transition-colors ${memberForm.enabled ? 'bg-green-500' : 'bg-gray-700'}`}>
-                        <input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="sr-only" />
-                        <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${memberForm.enabled ? 'left-6' : 'left-1'}`} />
-                      </div>
-                    </label>
-
-                    <div className="h-px bg-white/5 my-1" />
-
-                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-                      <div className="flex items-center gap-2">
-                         <Crown size={14} className={memberForm.is_head ? "text-amber-500" : "text-gray-600"} />
-                         <span className={`text-sm font-medium group-hover:text-white ${memberForm.is_head ? "text-amber-400" : "text-gray-300"}`}>Committee Head</span>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={memberForm.is_head} 
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked, ...(e.target.checked ? { isCouncil: false } : {}) }))}
-                        className="w-4 h-4 rounded border-gray-600 bg-black/40 text-amber-500 focus:ring-amber-500/50 transition-all cursor-pointer" 
-                      />
-                    </label>
-
-                    <div className="h-px bg-white/5 my-1" />
-
-                    <label className="flex items-center justify-between p-2 rounded-lg hover:bg-red-500/5 transition-colors cursor-pointer group">
-                      <div className="flex items-center gap-2">
-                         <div className={`w-3.5 h-3.5 rounded-full border-2 ${memberForm.isCouncil ? "border-red-500" : "border-gray-600"}`} />
-                         <span className={`text-sm font-medium group-hover:text-red-300 ${memberForm.isCouncil ? "text-red-400" : "text-gray-300"}`}>Council Member</span>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        checked={memberForm.isCouncil} 
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, isCouncil: e.target.checked, ...(e.target.checked ? { is_head: false } : {}) }))}
-                        className="w-4 h-4 rounded border-gray-600 bg-black/40 text-red-500 focus:ring-red-500/50 transition-all cursor-pointer" 
-                      />
-                    </label>
-                  </div>
-                </div>
-
-                {/* Right Column: Member Details */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                  
-                  <div className="grid md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Full Name *</label>
-                      <input
-                        type="text"
-                        value={memberForm.name}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="e.g. Rahul Kapoor"
-                        className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Role / Title</label>
-                       <input
-                        type="text"
-                        value={memberForm.role}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
-                        placeholder="e.g. Lead Coordinator"
-                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone Number (Hidden)</label>
-                       <input
-                        type="tel"
-                        value={memberForm.phone}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="+91..."
-                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                      />
-                    </div>
-                     <div className="space-y-2">
-                       <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Specialty Tag</label>
-                       <input
-                        type="text"
-                        value={memberForm.specialty}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                        placeholder="e.g. Developer"
-                         className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Bio / Description</label>
-                    <textarea
-                      value={memberForm.description}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Share a brief description of their role and contributions..."
-                      rows={3}
-                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
-                    />
-                  </div>
-
-                  <div className="space-y-3 pt-2">
-                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
-                       Social Profiles <span className="text-[10px] font-normal opacity-50 lowercase">(optional)</span>
-                     </label>
-                     <div className="grid md:grid-cols-2 gap-4">
-                        <div className="relative group">
-                          <Instagram className="absolute left-3 top-3.5 text-pink-500 transition-transform group-focus-within:scale-110" size={16} />
-                           <input
-                            type="url"
-                            value={memberForm.social_links.instagram}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))}
-                            placeholder="Instagram URL"
-                             className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all"
-                          />
-                        </div>
-                        <div className="relative group">
-                          <Youtube className="absolute left-3 top-3.5 text-red-500 transition-transform group-focus-within:scale-110" size={16} />
-                           <input
-                            type="url"
-                            value={memberForm.social_links.youtube}
-                            onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))}
-                            placeholder="YouTube URL"
-                             className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                          />
-                        </div>
-
-                     </div>
-                  </div>
-
-                  {/* Achievements */}
-                  <div className="space-y-3 pt-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Key Achievements</label>
-                    <div className="space-y-2">
-                       {memberForm.achievements.map((achievement, index) => (
-                        <div key={index} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50 flex-shrink-0" />
-                          <input
-                            type="text"
-                            value={achievement}
-                            onChange={(e) => updateAchievement(index, e.target.value)}
-                            placeholder="e.g. Best Organizer 2025"
-                             className="flex-1 bg-transparent border-b border-white/10 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-all"
-                          />
-                           <button onClick={() => removeAchievement(index)} className="p-1.5 hover:bg-white/10 rounded-full text-red-400/70 hover:text-red-400 transition-colors">
-                            <X size={14} />
-                           </button>
-                        </div>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={addAchievement}
-                        className="mt-2 text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/10 transition-all"
-                      >
-                        <Plus size={12} /> Add Achievement
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Action Footer */}
-              <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-white/5 relative z-10">
+          {/* Add/Edit Member Modal */}
+          <AdminModal
+            isOpen={isAddingMember || editingMember !== null}
+            onClose={() => {
+              setIsAddingMember(false);
+              setEditingMember(null);
+              resetMemberForm();
+            }}
+            title={editingMember ? 'Edit Team Member' : 'Add New Team Member'}
+            maxWidth="max-w-5xl"
+            footer={
+              <div className="flex justify-end gap-4">
                 <button
                   type="button"
-                  onClick={() => { setIsAddingMember(false); setEditingMember(null); resetMemberForm(); }}
+                  onClick={() => {
+                    setIsAddingMember(false);
+                    setEditingMember(null);
+                    resetMemberForm();
+                  }}
                   className="px-6 py-2.5 text-sm font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
                 >
                   Cancel
@@ -1294,8 +1097,215 @@ export const CoreTeamManagement: React.FC = () => {
                   {editingMember ? 'Update Member' : 'Save Member'}
                 </button>
               </div>
+            }
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative z-10">
+              {/* Left Column: Media & Identity */}
+              <div className="lg:col-span-4 space-y-6">
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Profile Photo</label>
+                  <div className="bg-black/20 rounded-2xl p-2 border border-white/5">
+                    <ImageUpload
+                      onImageSelect={(url) => setMemberForm(prev => ({ ...prev, image: url }))}
+                      currentImage={memberForm.image}
+                      bucket="team-images"
+                      folder="core-team"
+                      cropAspect={1}
+                      className="rounded-xl overflow-hidden aspect-square"
+                    />
+                  </div>
+                  {!memberForm.image && (
+                    <p className="text-xs text-red-400 flex items-center gap-1.5 pl-1">
+                      <span className="w-1 h-1 rounded-full bg-red-400" /> Photo is required
+                    </p>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Committee Assignment</label>
+                  <div className="relative group">
+                     <select
+                      value={memberForm.committee_id}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, committee_id: parseInt(e.target.value) }))}
+                      className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-amber-500/50 appearance-none transition-all cursor-pointer font-medium"
+                    >
+                      <option value={0} className="text-gray-500">Unassigned</option>
+                      {sortedCommittees.map(committee => (
+                        <option key={committee.id} value={committee.id}>
+                          {committee.name} {committee.is_core ? '(Core)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                      <GripVertical size={16} className="rotate-90" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#0f0f13] rounded-xl p-4 border border-white/5 space-y-1">
+                  <h5 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Visibility & Status</h5>
+                  
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                    <span className="text-sm font-medium text-gray-300 group-hover:text-white">Active on Website</span>
+                    <div className={`w-10 h-5 rounded-full relative transition-colors ${memberForm.enabled ? 'bg-green-500' : 'bg-gray-700'}`}>
+                      <input type="checkbox" checked={memberForm.enabled} onChange={(e) => setMemberForm(prev => ({ ...prev, enabled: e.target.checked }))} className="sr-only" />
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-transform ${memberForm.enabled ? 'left-6' : 'left-1'}`} />
+                    </div>
+                  </label>
+
+                  <div className="h-px bg-white/5 my-1" />
+
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                       <Crown size={14} className={memberForm.is_head ? "text-amber-500" : "text-gray-600"} />
+                       <span className={`text-sm font-medium group-hover:text-white ${memberForm.is_head ? "text-amber-400" : "text-gray-300"}`}>Committee Head</span>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={memberForm.is_head} 
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, is_head: e.target.checked, ...(e.target.checked ? { isCouncil: false } : {}) }))}
+                      className="w-4 h-4 rounded border-gray-600 bg-black/40 text-amber-500 focus:ring-amber-500/50 transition-all cursor-pointer" 
+                    />
+                  </label>
+
+                  <div className="h-px bg-white/5 my-1" />
+
+                  <label className="flex items-center justify-between p-2 rounded-lg hover:bg-red-500/5 transition-colors cursor-pointer group">
+                    <div className="flex items-center gap-2">
+                       <div className={`w-3.5 h-3.5 rounded-full border-2 ${memberForm.isCouncil ? "border-red-500" : "border-gray-600"}`} />
+                       <span className={`text-sm font-medium group-hover:text-red-300 ${memberForm.isCouncil ? "text-red-400" : "text-gray-300"}`}>Council Member</span>
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      checked={memberForm.isCouncil} 
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, isCouncil: e.target.checked, ...(e.target.checked ? { is_head: false } : {}) }))}
+                      className="w-4 h-4 rounded border-gray-600 bg-black/40 text-red-500 focus:ring-red-500/50 transition-all cursor-pointer" 
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Right Column: Member Details */}
+              <div className="lg:col-span-8 flex flex-col gap-6">
+                
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Full Name *</label>
+                    <input
+                      type="text"
+                      value={memberForm.name}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Rahul Kapoor"
+                      className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Role / Title</label>
+                     <input
+                      type="text"
+                      value={memberForm.role}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))}
+                      placeholder="e.g. Lead Coordinator"
+                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone Number (Hidden)</label>
+                     <input
+                      type="tel"
+                      value={memberForm.phone}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
+                      placeholder="+91..."
+                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                    />
+                  </div>
+                   <div className="space-y-2">
+                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Specialty Tag</label>
+                     <input
+                      type="text"
+                      value={memberForm.specialty}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
+                      placeholder="e.g. Developer"
+                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Bio / Description</label>
+                  <textarea
+                    value={memberForm.description}
+                    onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Share a brief description of their role and contributions..."
+                    rows={3}
+                     className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
+                  />
+                </div>
+
+                <div className="space-y-3 pt-2">
+                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                     Social Profiles <span className="text-[10px] font-normal opacity-50 lowercase">(optional)</span>
+                   </label>
+                   <div className="grid md:grid-cols-2 gap-4">
+                      <div className="relative group">
+                        <Instagram className="absolute left-3 top-3.5 text-pink-500 transition-transform group-focus-within:scale-110" size={16} />
+                         <input
+                          type="url"
+                          value={memberForm.social_links.instagram}
+                          onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))}
+                          placeholder="Instagram URL"
+                           className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all"
+                        />
+                      </div>
+                      <div className="relative group">
+                        <Youtube className="absolute left-3 top-3.5 text-red-500 transition-transform group-focus-within:scale-110" size={16} />
+                         <input
+                          type="url"
+                          value={memberForm.social_links.youtube}
+                          onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))}
+                          placeholder="YouTube URL"
+                           className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                        />
+                      </div>
+
+                   </div>
+                </div>
+
+                {/* Achievements */}
+                <div className="space-y-3 pt-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Key Achievements</label>
+                  <div className="space-y-2">
+                     {memberForm.achievements.map((achievement, index) => (
+                      <div key={index} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={achievement}
+                          onChange={(e) => updateAchievement(index, e.target.value)}
+                          placeholder="e.g. Best Organizer 2025"
+                           className="flex-1 bg-transparent border-b border-white/10 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-all"
+                        />
+                         <button onClick={() => removeAchievement(index)} className="p-1.5 hover:bg-white/10 rounded-full text-red-400/70 hover:text-red-400 transition-colors">
+                          <X size={14} />
+                         </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addAchievement}
+                      className="mt-2 text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/10 transition-all"
+                    >
+                      <Plus size={12} /> Add Achievement
+                    </button>
+                  </div>
+                </div>
+
+              </div>
             </div>
-          )}
+          </AdminModal>
 
           {/* Members by Committee */}
           {sortedCommittees.map((committee) => {
@@ -1340,7 +1350,7 @@ export const CoreTeamManagement: React.FC = () => {
                 
                 {committeeMembers.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 relative z-10">
-                  {committeeMembers.map((member) => (
+                  {committeeMembers.map((member: any) => (
                     <div key={member.id} className={`bg-black/20 backdrop-blur-sm border border-white/5 rounded-2xl p-5 transition-all duration-300 group/card hover:bg-white/[0.02] hover:border-white/10 ${editingMember === member.id ? 'ring-2 ring-amber-500/50 ring-offset-2 ring-offset-[#181824]' : dragOverMember === member.id ? 'border-amber-500 scale-[1.02] shadow-2xl shadow-amber-500/10' : 'hover:-translate-y-1 hover:shadow-2xl hover:shadow-black/50'}`}>
                         <div 
                           className={`cursor-move relative flex flex-col h-full ${
@@ -1357,7 +1367,10 @@ export const CoreTeamManagement: React.FC = () => {
                             <div className="flex items-center gap-3">
                               <div className="relative">
                                 <img
-                                  src={member.image}
+                                  src={(() => {
+                                    const sanitized = sanitizeUrl?.(member.image) || member.image;
+                                    return sanitized;
+                                  })()}
                                   alt={member.name}
                                   className="w-14 h-14 object-cover rounded-xl shadow-lg ring-1 ring-white/10"
                                 />
@@ -1518,7 +1531,7 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
           <div className="p-2">
             <div className="text-3xl font-black text-blue-500 mb-1">
-              {coreCommittees.filter(c => c.is_core).length}
+              {coreCommittees.filter((c: any) => c.is_core).length}
             </div>
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Core Committees</div>
           </div>
@@ -1528,7 +1541,7 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
           <div className="p-2">
             <div className="text-3xl font-black text-purple-500 mb-1">
-              {coreTeamMembers.filter(m => m.enabled).length}
+              {coreTeamMembers.filter((m: any) => m.enabled).length}
             </div>
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Visible Members</div>
           </div>

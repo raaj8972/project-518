@@ -19,11 +19,23 @@
 
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["@tensorflow/tfjs-node", "canvas", "@tensorflow/tfjs-backend-wasm"]
+
+[functions.index-faces-batch]
+  timeout = 26
 
 # Environment variables (set these in Netlify dashboard)
 # SUPABASE_URL - Your Supabase project URL
 # SUPABASE_SERVICE_ROLE_KEY - Your Supabase service role key (keep secret!)
 # SUPABASE_ANON_KEY - Your Supabase anon/public key
+
+# Domain Redirects - Enforce non-www (canonical)
+[[redirects]]
+  from = "https://www.ricorrenza.fun/*"
+  to = "https://ricorrenza.fun/:splat"
+  status = 301
+  force = true
 
 # API Routes - Redirect to Netlify Functions (Node.js)
 [[redirects]]
@@ -36,6 +48,13 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Global Assets - Allow CORS (helps with redirects for scripts)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/api/*"

@@ -76,7 +76,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
   
   // Responsive / Layout state
-  const { adminUsers } = (useData?.() || {}) as any;
+  const { adminUsers, sanitizeUrl } = (useData?.() || {}) as any;
   const [isOwner, setIsOwner] = useState<boolean>(false);
   const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
 
@@ -401,7 +401,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   
   // --- UI Renderers ---
 
-  const displayImage = localPreview || pendingImage || currentImage;
+  const displayImageRaw = localPreview || pendingImage || currentImage;
+  const displayImage = (() => {
+    const sanitized = sanitizeUrl?.(displayImageRaw) || displayImageRaw || '';
+    return sanitized;
+  })();
 
   return (
     <div className={`relative ${className}`}>

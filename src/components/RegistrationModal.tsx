@@ -199,13 +199,20 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       console.error(err);
       const msg = err?.message || '';
       if (msg.includes('duplicate key value') || msg.includes('unique constraint')) {
-        // Try to find existing ID from loaded registrations (best effort)
-        const existing = (events as any[])?.flatMap(e => e.registrations || []).find((r: any) => r.email === formData.email && r.event_id === eventId);
-        // Note: events.registrations might not be populated depending on RLS/fetching strategy.
-        // Fallback to searching the main registrations list if available in context
-        // const existingFromContext = ... (can't easily access without restructuring)
-        if (existing?.id) {
-           setError(`You have already registered for this event! (ID: ${existing.id}) Check your email for details.`);
+        // Try to find existing ID from database
+        let existingId = null;
+        try {
+          const { data: existingReg } = await supabase
+            .from('registrations')
+            .select('id')
+            .eq('email', formData.email)
+            .eq('event_id', eventId)
+            .maybeSingle();
+          if (existingReg) existingId = existingReg.id;
+        } catch (e) { /* ignore */ }
+
+        if (existingId) {
+           setError(`You have already registered for this event! (ID: ${existingId}) Check your email for details.`);
         } else {
            setError(`You have already registered for this event! Check your email for details.`);
         }

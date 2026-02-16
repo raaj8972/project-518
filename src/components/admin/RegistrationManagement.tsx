@@ -6,7 +6,7 @@ import {
   CheckCircle, XCircle, 
   Mail, Eye, Loader2, Sparkles, AlertTriangle,
   Phone, Building, Award, Send, Calendar, X, FileText, RotateCcw, ChevronDown, Settings, MailCheck, MailX,
-  Pencil, Check
+  Pencil, Check, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
@@ -17,6 +17,8 @@ import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
 import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
+import { useRegistrations } from '../../hooks/useRegistrations';
+import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
 
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg 
@@ -158,7 +160,8 @@ interface RegistrationManagementProps {
 }
 
 export function RegistrationManagement({ coordinatorMode = false, coordinatorEventId }: RegistrationManagementProps) {
-  const { events, registrations, deletedRegistrations, updateRegistrationStatus, deleteRegistration, restoreRegistration, permanentDeleteRegistration, bulkApproveRegistrations, bulkRejectRegistrations, bulkDeleteRegistrations, bulkRestoreRegistrations, bulkPermanentDeleteRegistrations, resetRegistrationIdSequence, siteSettings, updateSiteSettings, adminUsers, eventCoordinators } = useData();
+  // Removed registrations, deletedRegistrations and mutation methods from useData
+  const { events, siteSettings, updateSiteSettings, adminUsers, eventCoordinators, resetRegistrationIdSequence } = useData();
   const { user } = useAuth();
 
   const isOwner = useMemo(() => {
@@ -167,33 +170,65 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   }, [user, adminUsers]);
 
   const { push } = useToast();
-  const [bulkSaving, setBulkSaving] = useState(false);
-  const [bulkRejecting, setBulkRejecting] = useState(false);
+  
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
 
-  // Processing State for Progress Bar
-  const [processingState, setProcessingState] = useState<{ active: boolean, title: string, progress: number, item?: string }>({
-    active: false, title: '', progress: 0
-  });
-
+  // Filters State
   const [selectedEvent, setSelectedEvent] = useState<string>(
     coordinatorMode && coordinatorEventId ? String(coordinatorEventId) : 'all'
   );
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
-  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all'); // 'all', 'sent', 'not-sent'
+  const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all'); 
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
-    // Allow other admin panels to pre-fill the search via localStorage key
-    const [searchTerm, setSearchTerm] = useState(() => {
-      try {
-        const raw = localStorage.getItem('admin_registrations_search');
-        if (raw) {
-          localStorage.removeItem('admin_registrations_search');
-          return raw;
-        }
-      } catch {}
-      return '';
-    });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Fetch Registrations using new Hook
+  const { 
+    registrations, 
+    count, 
+    isLoading: isRegistrationsLoading, 
+    error: registrationsError,
+    refresh: refreshRegistrations,
+    stats
+  } = useRegistrations({
+    page,
+    pageSize,
+    filters: {
+      event: selectedEvent,
+      status: selectedStatus,
+      type: selectedParticipantType,
+      category: selectedCategory,
+      search: searchTerm,
+      viewMode
+    }
+  });
+
+  // Mutations Hook
+  const {
+    isMutating,
+    updateStatus: updateRegistrationStatus,
+    deleteRegistration,
+    restoreRegistration,
+    permanentDelete: permanentDeleteRegistration,
+    bulkApprove: bulkApproveRegistrations,
+    bulkReject: bulkRejectRegistrations,
+    bulkDelete: bulkDeleteRegistrations,
+    bulkRestore: bulkRestoreRegistrations,
+    bulkPermanentDelete: bulkPermanentDeleteRegistrations
+  } = useRegistrationMutations(refreshRegistrations);
+
+  // const [bulkSaving, setBulkSaving] = useState(false);
+  // const [bulkRejecting, setBulkRejecting] = useState(false);
+
+  // Processing State for Progress Bar
+  const [processingState, setProcessingState] = useState<{ active: boolean, title: string, progress: number, item?: string }>({
+    active: false, title: '', progress: 0
+  });
+
   const [emailProvider, setEmailProvider] = useState<'smtp' | 'resend'>('smtp'); // Default to Hostinger
   const [expandedRegistration, setExpandedRegistration] = useState<string | null>(null);
   const [emailLogs, setEmailLogs] = useState<any[]>([]); // New state for logs
@@ -269,7 +304,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const [savingRegSettings, setSavingRegSettings] = useState<boolean>(false);
   // Selection for bulk actions
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  // const [bulkDeleting, setBulkDeleting] = useState(false);
   // User option: exclude Registration ID and College/Institution specifically for PDF
   const [pdfExcludeIdCollege, setPdfExcludeIdCollege] = useState<boolean>(true);
   // Date range filter
@@ -551,138 +586,86 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     }
   };
 
-  // Filter registrations based on selected filters
-  const sourceRegistrations = viewMode === 'trash' ? deletedRegistrations : registrations;
-  const filteredRegistrations = useMemo(() => {
-    return sourceRegistrations.filter(registration => {
-      // Event filter - for coordinator mode, filter by event_id; otherwise by title
-      const matchesEvent = coordinatorMode && coordinatorEventId 
-        ? registration.event_id === coordinatorEventId
-        : (selectedEvent === 'all' || registration.event_title === selectedEvent);
-      // Category filter
-      const matchesCategory = selectedCategory === 'all' || (registration as any).event_category === selectedCategory;
-      // Status filter
-      const matchesStatus = selectedStatus === 'all' || registration.status === selectedStatus;
-      // Participant type filter
-      const matchesParticipantType = selectedParticipantType === 'all' || registration.participant_type === selectedParticipantType;
-      const matchesSearch = searchTerm === '' || 
-        registration.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        registration.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        registration.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        registration.college.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Duplicate filter
-      const matchesDuplicate = showDuplicatesOnly ? duplicateIds.has(registration.id) : true;
+  // Server-side filtered via useRegistrations hook
+  const filteredRegistrations = registrations; 
 
-      // Email status filter (only for approved registrations)
-      let matchesEmailStatus = true;
-      if (selectedEmailStatus !== 'all' && registration.status === 'approved') {
-        const emailStatus = emailStatusMap[registration.id];
-        if (selectedEmailStatus === 'sent') {
-          matchesEmailStatus = emailStatus?.sent === true;
-        } else if (selectedEmailStatus === 'not-sent') {
-          matchesEmailStatus = !emailStatus || emailStatus.sent !== true;
-        }
-      }
 
-      // Date range filter (inclusive). Uses local timezone for inputs.
-      let matchesDate = true;
-      try {
-        const regDate = new Date((registration as any).registration_date);
-        if (dateFrom) {
-          const from = new Date(`${dateFrom}T00:00:00`);
-          if (regDate < from) matchesDate = false;
-        }
-        if (matchesDate && dateTo) {
-          const to = new Date(`${dateTo}T23:59:59.999`);
-          if (regDate > to) matchesDate = false;
-        }
-      } catch {}
-      
-      return matchesEvent && matchesStatus && matchesCategory && matchesParticipantType && matchesSearch && matchesDate && matchesDuplicate && matchesEmailStatus;
+  // Get unique event titles from events context instead of registrations list
+  const uniqueEvents = useMemo(() => 
+    events.map(e => e.title).sort(),
+    [events]
+  );
+
+  const uniqueCategories = useMemo(() => 
+    // Use event categories context or derive from events if needed. Using events context is safer.
+    // If eventCategories context is empty, we can't show them, but that's fine.
+    // Assuming eventCategories is available in useData.
+    // Actually useData returns eventCategories.
+    (useData().eventCategories || []).map(c => c.name).sort(),
+    [useData().eventCategories]
+  );
+
+  const uniqueParticipantTypes = ['Individual', 'Team', 'Group']; // simplified
+
+  // Use event.current_registrations for counts
+  const eventCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    events.forEach(e => {
+      counts[e.title] = e.current_registrations || 0;
     });
-  }, [sourceRegistrations, coordinatorMode, coordinatorEventId, selectedEvent, selectedStatus, selectedCategory, selectedParticipantType, searchTerm, showDuplicatesOnly, duplicateIds, selectedEmailStatus, emailStatusMap, dateFrom, dateTo]);
+    return counts;
+  }, [events]);
 
-  // Selection helpers (needs filteredRegistrations)
+  const participantTypeCounts: Record<string, number> = {}; // Simplified/Removed for performance
+
+  // Selection helpers
   const toggleRowSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const toggleSelectAllVisible = () => setSelectedIds(prev => {
     const n = new Set(prev);
-    const allSelected = filteredRegistrations.every(r => n.has(r.id));
+    const allSelected = filteredRegistrations.length > 0 && filteredRegistrations.every(r => n.has(r.id));
     if (allSelected) filteredRegistrations.forEach(r => n.delete(r.id)); else filteredRegistrations.forEach(r => n.add(r.id));
     return n;
   });
   const allVisibleSelected = filteredRegistrations.length > 0 && filteredRegistrations.every(r => selectedIds.has(r.id));
+  
   const doBulkDelete = async () => {
-    const ids = filteredRegistrations.map(r => r.id).filter(id => selectedIds.has(id));
+    const ids = Array.from(selectedIds);
     if (!ids.length) { push({ message: 'Select at least one row to delete.', type: 'info' }); return; }
     
-    if (viewMode === 'trash') {
+      if (viewMode === 'trash') {
       if (!confirm(`PERMANENTLY DELETE ${ids.length} registration(s)?\n\nThis cannot be undone.`)) return;
-      try { setBulkDeleting(true); await (bulkPermanentDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Permanently deleted ${ids.length} registrations.`, type: 'success' }); }
-      catch (e) { console.error(e); push({ message: 'Bulk permanent delete failed.', type: 'error' }); }
-      finally { setBulkDeleting(false); }
+      try { 
+        await bulkPermanentDeleteRegistrations?.(ids); 
+        setSelectedIds(new Set()); 
+      }
+      catch (e) { console.error(e); }
     } else {
       if (!confirm(`Move ${ids.length} registration(s) to Trash?`)) return;
-      try { setBulkDeleting(true); await (bulkDeleteRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Moved ${ids.length} registrations to Trash.`, type: 'success' }); }
-      catch (e) { console.error(e); push({ message: 'Move to trash failed.', type: 'error' }); }
-      finally { setBulkDeleting(false); }
+      try { 
+        await bulkDeleteRegistrations?.(ids); 
+        setSelectedIds(new Set()); 
+      }
+      catch (e) { console.error(e); }
     }
   };
 
   const doBulkRestore = async () => {
-    const ids = filteredRegistrations.map(r => r.id).filter(id => selectedIds.has(id));
+    const ids = Array.from(selectedIds);
     if (!ids.length) { push({ message: 'Select at least one row to restore.', type: 'info' }); return; }
     if (!confirm(`Restore ${ids.length} registration(s)?`)) return;
-    try { setBulkSaving(true); await (bulkRestoreRegistrations?.(ids)); setSelectedIds(new Set()); push({ message: `Restored ${ids.length} registrations.`, type: 'success' }); }
-    catch (e) { console.error(e); push({ message: 'Bulk restore failed.', type: 'error' }); }
-    finally { setBulkSaving(false); }
+    try { 
+        await bulkRestoreRegistrations?.(ids); 
+        setSelectedIds(new Set()); 
+    }
+    catch (e) { console.error(e); }
   };
-
-  // Get unique event titles, categories, and participant types for filter dropdowns
-  const uniqueEvents = useMemo(() => 
-    Array.from(new Set(registrations.map(reg => reg.event_title))), 
-    [registrations]
-  );
-  const uniqueCategories = useMemo(() => 
-    Array.from(new Set(registrations.map(reg => (reg as any).event_category).filter(Boolean))), 
-    [registrations]
-  );
-  const uniqueParticipantTypes = useMemo(() => 
-    Array.from(new Set(registrations.map(reg => reg.participant_type).filter(Boolean))), 
-    [registrations]
-  );
-  
-  // Compute counts per event for the dropdown
-  const eventCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    registrations.forEach(r => {
-      counts[r.event_title] = (counts[r.event_title] || 0) + 1;
-    });
-    return counts;
-  }, [registrations]);
-
-  // Compute counts per participant type for the dropdown (filtered by selected event)
-  const participantTypeCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    // Filter by selected event first to show event-specific batch counts
-    const eventFilteredRegs = selectedEvent === 'all' 
-      ? registrations 
-      : registrations.filter(r => r.event_title === selectedEvent);
-    
-    eventFilteredRegs.forEach(r => {
-      if (r.participant_type) {
-        counts[r.participant_type] = (counts[r.participant_type] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [registrations, selectedEvent]);
-
   // Fetch email status for all registrations (not just filtered ones to avoid flicker)
   // EXTRACTED: Made fetchEmailStatuses a stable function to call after sending emails
   const fetchEmailStatuses = React.useCallback(async () => {
     try {
       // Use all registrations from current view mode (active or trash)
-      const sourceRegs = viewMode === 'trash' ? deletedRegistrations : registrations;
+      // Hook handles the viewMode filtering so registrations IS the correct source
+      const sourceRegs = registrations;
       const regIds = sourceRegs.map(r => r.id);
       if (regIds.length === 0) return;
       
@@ -711,7 +694,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     } catch (err) {
       console.error('Error fetching email statuses:', err);
     }
-  }, [viewMode, deletedRegistrations, registrations]);
+  }, [registrations]);
 
   useEffect(() => {
     fetchEmailStatuses();
@@ -838,7 +821,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       return;
     }
 
-    const registration = registrations.concat(deletedRegistrations).find(r => r.id === registrationId);
+    const registration = registrations.find(r => r.id === registrationId);
     if (!registration) {
       console.error('[Delete] Registration not found:', registrationId);
       push({ message: 'Registration not found.', type: 'error' });
@@ -847,8 +830,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
     const isTrash = viewMode === 'trash';
     const confirmMessage = isTrash
-      ? `PERMANENTLY DELETE registration for \"${registration.full_name}\"?\n\nThis cannot be undone.`
-      : `Move registration for \"${registration.full_name}\" to Trash?`;
+      ? `PERMANENTLY DELETE registration for "${registration.full_name}"?\n\nThis cannot be undone.`
+      : `Move registration for "${registration.full_name}" to Trash?`;
     
     const confirmed = confirm(confirmMessage);
     console.log('[Delete] User confirmation:', confirmed, 'ViewMode:', viewMode);
@@ -885,19 +868,15 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   };
 
   const handleRestoreRegistration = async (registrationId: string) => {
-    if (bulkSaving) return;
-    const registration = deletedRegistrations.find(r => r.id === registrationId);
+    const registration = registrations.find(r => r.id === registrationId);
     if (!confirm(`Restore registration for "${registration?.full_name || 'Unknown'}"?`)) return;
     
     try {
-      setBulkSaving(true); 
       await restoreRegistration(registrationId);
       push({ message: 'Registration restored.', type: 'success' });
     } catch (e) {
       console.error(e);
       push({ message: 'Restore failed.', type: 'error' });
-    } finally {
-      setBulkSaving(false);
     }
   };
 
@@ -1130,7 +1109,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     if (!confirm(`Approve ${pendingRegs.length} pending registration(s)?\nThis will trigger emails for all of them.`)) return;
     
     try {
-      setBulkSaving(true);
       const ids = pendingRegs.map(r => r.id);
       
       setProcessingState({ active: true, title: 'Bulk Approving...', progress: 0 });
@@ -1172,8 +1150,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     } catch (e) {
       console.error(e);
       push({ message: 'Bulk approve partially failed.', type: 'error' });
-    } finally {
-      setBulkSaving(false);
     }
   };
 
@@ -1185,14 +1161,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     }
     if (!confirm(`Reject ${pending.length} pending registration(s)?`)) return;
     try {
-      setBulkRejecting(true);
       await (bulkRejectRegistrations?.(pending));
       push({ message: `Rejected ${pending.length} registrations.`, type: 'success' });
     } catch (e) {
       console.error(e);
       push({ message: 'Bulk reject failed.', type: 'error' });
-    } finally {
-      setBulkRejecting(false);
     }
   };
 
@@ -1259,13 +1232,17 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         />
       )}
       
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <div className="w-1.5 h-8 bg-gradient-to-b from-purple-400 to-indigo-600 rounded-full" />
-            Registrations
+          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+            <div className="w-2 h-10 bg-gradient-to-b from-indigo-500 to-purple-600 rounded-full shadow-[0_0_20px_rgba(99,102,241,0.5)]" />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Registrations</span>
+            <div className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-black text-indigo-400 tracking-widest uppercase ml-2">v3.0</div>
           </h2>
-          <p className="text-gray-400 mt-1">Manage participant registrations</p>
+          <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
+            <Users size={14} className="text-indigo-400" />
+            Strategic participant lifecycle management
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
@@ -1289,7 +1266,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       </div>
           
           {/* Quick Actions Bar */}
-          <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4">
+          <div className="superia-glass-card rounded-[2rem] p-5 border-white/5 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-indigo-500/10 transition-colors duration-700"></div>
             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 md:gap-4">
               <div className="flex flex-wrap items-center gap-2">
                 {/* Status Actions (only in active view) */}
@@ -1297,8 +1275,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <>
                     <button
                       onClick={handleBulkApprove}
-                      disabled={bulkSaving}
-                      className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${bulkSaving ? 'opacity-70 cursor-not-allowed':''}`}
+                      disabled={isMutating}
+                      className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${isMutating ? 'opacity-70 cursor-not-allowed':''}`}
                       title="Approve all pending registrations in current filter"
                     >
                       <CheckCircle size={16} className="mr-2" />
@@ -1307,8 +1285,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     
                     <button
                       onClick={handleBulkReject}
-                      disabled={bulkRejecting}
-                      className={`flex items-center bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${bulkRejecting ? 'opacity-70 cursor-not-allowed':''}`}
+                      disabled={isMutating}
+                      className={`flex items-center bg-red-600 text-white px-4 py-2.5 rounded-xl hover:bg-red-500 transition-all shadow-lg shadow-red-600/20 text-sm font-bold ${isMutating ? 'opacity-70 cursor-not-allowed':''}`}
                       title="Reject all pending registrations in current filter"
                     >
                       <XCircle size={16} className="mr-2" />
@@ -1333,8 +1311,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 {viewMode === 'trash' ? (
                   <button
                     onClick={doBulkRestore}
-                    disabled={bulkSaving || selectedIds.size === 0}
-                    className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${bulkSaving || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-500'}`}
+                    disabled={isMutating || selectedIds.size === 0}
+                    className={`flex items-center bg-emerald-600 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-600/20 text-sm font-bold ${isMutating || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-emerald-500'}`}
                     title="Restore selected registrations"
                   >
                     <RotateCcw size={16} className="mr-2" />
@@ -1344,11 +1322,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
                 <button
                   onClick={doBulkDelete}
-                  disabled={bulkDeleting || selectedIds.size === 0}
-                  className={`flex items-center bg-red-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-700/20 text-sm font-bold ${bulkDeleting || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
+                  disabled={isMutating || selectedIds.size === 0}
+                  className={`flex items-center bg-red-700 text-white px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-red-700/20 text-sm font-bold ${isMutating || selectedIds.size === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-600'}`}
                   title={viewMode === 'trash' ? "Permanently delete selected registrations" : "Move selected to trash"}
                 >
-                  {bulkDeleting ? (
+                  {isMutating ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                   ) : <Trash2 size={16} className="mr-2" />}
                   {viewMode === 'trash' ? 'Delete Forever' : 'Delete Selected'}
@@ -1365,13 +1343,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 }`}
               >
                 <Trash2 size={16} className="mr-2" />
-                {viewMode === 'trash' ? 'Back to Active' : `Trash (${deletedRegistrations.length})`}
+                {viewMode === 'trash' ? 'Back to Active' : `Trash (${stats?.trash || 0})`}
               </button>
             </div>
           </div>
 
         {/* Export Section */}
-        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full translate-x-1/3 translate-y-1/4 blur-[100px] group-hover:bg-purple-500/10 transition-colors duration-700"></div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-3">
               <div className="p-2 bg-purple-500/20 rounded-lg">
@@ -1477,7 +1456,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Advanced Settings */}
-        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-4 md:p-6">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-amber-500/10 transition-colors duration-700"></div>
           <button
             onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
             className="flex items-center justify-between w-full text-left group"
@@ -1700,7 +1680,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
       {/* Active Filters Display */}
       {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedParticipantType !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="superia-glass-card border-indigo-500/20 rounded-2xl p-6 shadow-indigo-500/5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-blue-900 flex items-center">
               <Filter size={16} className="mr-2" />
@@ -1797,7 +1777,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       )}
 
       {/* Filters Section - Reorganized */}
-      <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
+      <div className="superia-glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <Filter size={20} className="mr-2" />
@@ -1998,9 +1979,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       </div>
 
       {/* Statistics Cards - Enhanced & Responsive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Registrations */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-blue-500/10 hover:border-blue-500/30 transition-all duration-500 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
             <div className="text-3xl md:text-4xl font-bold text-blue-700">{filteredRegistrations.length}</div>
@@ -2014,7 +1996,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Pending */}
-        <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-amber-500 hover:shadow-lg transition-shadow">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-amber-500/10 hover:border-amber-500/30 transition-all duration-500 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-amber-600" />
             <div className="text-3xl md:text-4xl font-bold text-amber-700">
@@ -2026,7 +2009,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Approved */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-green-500/10 hover:border-green-500/30 transition-all duration-500 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
             <div className="text-3xl md:text-4xl font-bold text-green-700">
@@ -2038,7 +2022,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Rejected */}
-        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl shadow-md p-4 md:p-6 border-l-4 border-red-500 hover:shadow-lg transition-shadow">
+        <div className="superia-glass-card rounded-[2rem] p-8 border-red-500/10 hover:border-red-500/30 transition-all duration-500 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <XCircle className="w-6 h-6 md:w-8 md:h-8 text-red-600" />
             <div className="text-3xl md:text-4xl font-bold text-red-700">
@@ -2051,40 +2036,40 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       </div>
 
       {/* Registrations List */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <div className="superia-glass-card rounded-[2.5rem] border-white/5 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-white/5">
+            <thead className="bg-white/[0.02]">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} />
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  <input type="checkbox" checked={allVisibleSelected} onChange={toggleSelectAllVisible} className="rounded border-white/10 bg-black/20 text-indigo-500 focus:ring-indigo-500/50" />
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Participant
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Event
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Type
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   {viewMode === 'trash' ? 'Deleted On' : 'Date'}
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-white/5">
               {filteredRegistrations.map((registration) => (
                 <React.Fragment key={registration.id}>
-                  <tr className="hover:bg-gray-50">
+                  <tr className="hover:bg-white/[0.03] transition-all duration-300 group/row">
                     <td className="px-6 py-4 whitespace-nowrap align-top">
-                      <input type="checkbox" checked={selectedIds.has(registration.id)} onChange={() => toggleRowSelect(registration.id)} />
+                      <input type="checkbox" checked={selectedIds.has(registration.id)} onChange={() => toggleRowSelect(registration.id)} className="rounded border-white/10 bg-black/20 text-indigo-500 focus:ring-indigo-500/50" />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -2103,7 +2088,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                           )}
                         </div>
                           <div className="flex-1">
-                            <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                            <div className="text-sm font-bold text-white flex items-center gap-2">
                               {registration.full_name}
                               {duplicateIds.has(registration.id) && (
                               <span
@@ -2129,11 +2114,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                 } else {
                                   return (
                                     <span
-                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200"
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black bg-orange-500/10 text-orange-400 border border-orange-500/20 uppercase tracking-tighter"
                                       title="Confirmation email not sent"
                                     >
                                       <MailX size={10} />
-                                      Not Sent
+                                      Pending Dispatch
                                     </span>
                                   );
                                 }
@@ -2182,7 +2167,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{registration.event_title}</div>
+                      <div className="text-sm font-bold text-white/90">{registration.event_title}</div>
                       <div className="text-sm text-gray-500 flex items-center">
                         <Building size={12} className="mr-1" />
                         {registration.college}
@@ -2581,6 +2566,55 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          {count > 0 && (
+            <div className="px-6 py-4 flex items-center justify-between border-t border-white/5 bg-white/[0.02]">
+              <div className="flex items-center gap-4">
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, count)} of {count}
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1); // Reset to page 1 on size change
+                  }}
+                  className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                >
+                  <option value={10}>10 / page</option>
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || isRegistrationsLoading}
+                  className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-400 hover:text-white"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                
+                <div className="flex items-center gap-1">
+                  {/* Simplified pagination: just show current page */}
+                  <span className="text-xs font-bold text-gray-400 bg-white/5 px-3 py-1.5 rounded">
+                    Page {page} of {Math.ceil(count / pageSize) || 1}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => setPage(p => Math.min(Math.ceil(count / pageSize), p + 1))}
+                  disabled={page >= Math.ceil(count / pageSize) || isRegistrationsLoading}
+                  className="p-2 rounded-lg hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-gray-400 hover:text-white"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* No Results */}

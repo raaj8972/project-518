@@ -24,7 +24,8 @@ export const SportsTeamManagement: React.FC = () => {
     toggleSportsTeamMemberEnabled,
     toggleSportsTeamMemberIsHead,
     updateHomepageSettings,
-  } = useData();
+    sanitizeUrl
+  } = useData() as any;
 
   const [activeSection, setActiveSection] = useState<'committees' | 'members'>('committees');
   const [isAddingCommittee, setIsAddingCommittee] = useState(false);
@@ -141,7 +142,7 @@ export const SportsTeamManagement: React.FC = () => {
   };
 
   const handleDeleteCommittee = async (id: number) => {
-    const membersIn = sportsTeamMembers.filter(m => m.committee_id === id);
+    const membersIn = sportsTeamMembers.filter((m: any) => m.committee_id === id);
     if (membersIn.length > 0) {
       if (!confirm(`This committee has ${membersIn.length} members. Deleting it will also delete all members. Proceed?`)) return;
     } else if (!confirm('Delete this committee?')) return;
@@ -755,7 +756,14 @@ export const SportsTeamManagement: React.FC = () => {
                 ) : (
                   <div className="flex items-start gap-4">
                     <div className="relative group/photo">
-                      <img src={m.image} alt={m.name} className="w-20 h-20 rounded-xl object-cover border border-white/10 group-hover/photo:border-yellow-500/50 transition-all" />
+                      <img
+                        src={(() => {
+                          const sanitized = sanitizeUrl?.(m.image) || m.image;
+                          return sanitized;
+                        })()}
+                        alt={m.name}
+                        className="w-20 h-20 rounded-xl object-cover border border-white/10 group-hover/photo:border-yellow-500/50 transition-all"
+                      />
                       {m.is_head && (
                         <div className="absolute -top-2 -right-2 bg-gradient-to-br from-yellow-400 to-amber-600 p-1 rounded-lg shadow-lg">
                           <Crown size={12} className="text-black" />
@@ -779,7 +787,7 @@ export const SportsTeamManagement: React.FC = () => {
                       
                       {m.achievements?.length > 0 && (
                         <div className="flex flex-wrap gap-1">
-                          {m.achievements.slice(0, 2).map((a, i) => (
+                          {m.achievements.slice(0, 2).map((a: string, i: number) => (
                             <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded-md border border-white/5 truncate max-w-[100px]">{a}</span>
                           ))}
                           {m.achievements.length > 2 && <span className="text-[9px] text-gray-600">+{m.achievements.length - 2}</span>}

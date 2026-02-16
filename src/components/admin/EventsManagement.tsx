@@ -75,6 +75,7 @@ export const EventsManagement: React.FC = () => {
     reorderEvents,
     lastEventReorderError,
     adminUsers,
+    sanitizeUrl,
   } = (useData() || {}) as any;
   
   // Determine if current user is the OWNER
@@ -1089,13 +1090,17 @@ export const EventsManagement: React.FC = () => {
         </div>
       )}
       {/* Header - Improved Responsive */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <div className="w-1.5 h-8 bg-gradient-to-b from-purple-400 to-indigo-600 rounded-full" />
-            Events Management
+          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+            <div className="w-2 h-10 bg-gradient-to-b from-purple-500 to-indigo-600 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Events Management</span>
+            <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black text-purple-400 tracking-widest uppercase ml-2">v3.0</div>
           </h2>
-          <p className="text-gray-400 mt-1">Manage festival events and registrations</p>
+          <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
+            <Calendar size={14} className="text-purple-400" />
+            Curating the festival's digital epicenter
+          </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {canReorder && events.length > 1 && (
@@ -1134,7 +1139,7 @@ export const EventsManagement: React.FC = () => {
       </div>
 
       {/* Email Configuration (Email Stamp) - Glassmorphic */}
-      <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 relative overflow-hidden group">
+      <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-50" />
         <div className="relative flex flex-col sm:flex-row items-center gap-6">
           <div className="w-24 h-24 bg-black/40 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden relative shadow-inner group-hover:border-indigo-500/30 transition-colors">
@@ -1191,7 +1196,8 @@ export const EventsManagement: React.FC = () => {
 
       {/* Add Event Form - Responsive */}
       {isAddingEvent && (
-        <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 md:p-8 border-l-4 border-l-purple-500 animate-in slide-in-from-left-2 duration-300">
+        <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-indigo-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(99,102,241,0.1)] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
               <Plus className="w-6 h-6 text-purple-400" />
@@ -2126,12 +2132,16 @@ export const EventsManagement: React.FC = () => {
         </div>
       )}
       {/* Events List - Responsive Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.map((event: any) => (
-          <div key={event.id} className="bg-[#181824]/40 backdrop-blur-xl border border-white/5 rounded-3xl overflow-hidden group hover:border-purple-500/30 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-900/10">
+          <div key={event.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-purple-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-900/20 tilt-3d relative">
+            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/0 via-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative aspect-[16/10] overflow-hidden">
                 <img
-                  src={event.image}
+                  src={(() => {
+                    const sanitized = sanitizeUrl?.(event.image) || event.image;
+                    return sanitized;
+                  })()}
                   alt={event.title}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />

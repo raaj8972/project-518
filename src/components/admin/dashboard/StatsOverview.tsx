@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, UserCheck, Image, Building, TrendingUp } from 'lucide-react';
+import { Calendar, UserCheck, Image, Building, Sparkles } from 'lucide-react';
 
 interface StatsOverviewProps {
   stats: {
@@ -13,75 +13,100 @@ interface StatsOverviewProps {
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
   const items = [
     {
-      name: 'Total Events',
+      name: 'Network Events',
       value: stats.eventsCount,
       icon: Calendar,
-      from: 'from-blue-500',
-      to: 'to-cyan-400',
+      color: 'indigo',
+      glow: 'shadow-indigo-500/20',
       description: 'Active & upcoming'
     },
     {
-      name: 'Registrations',
+      name: 'Verified Registrations',
       value: stats.registrationsCount,
       icon: UserCheck,
-      from: 'from-emerald-500',
-      to: 'to-green-400',
+      color: 'emerald',
+      glow: 'shadow-emerald-500/20',
       description: 'Total applications'
     },
     {
-      name: 'Gallery Images',
+      name: 'Media Assets',
       value: stats.galleryCount,
       icon: Image,
-      from: 'from-violet-500',
-      to: 'to-purple-400',
-      description: 'Media assets'
+      color: 'purple',
+      glow: 'shadow-purple-500/20',
+      description: 'Gallery content'
     },
     {
-      name: 'Sponsors',
+      name: 'Global Sponsors',
       value: stats.sponsorsCount,
       icon: Building,
-      from: 'from-amber-500',
-      to: 'to-orange-400',
-      description: 'partners' // Lowercase intentional for style
+      color: 'amber',
+      glow: 'shadow-amber-500/20',
+      description: 'Strategic partners'
     },
   ];
 
+  const getColorClasses = (color: string) => {
+    switch (color) {
+      case 'indigo': return 'from-indigo-500 to-blue-600 text-indigo-400';
+      case 'emerald': return 'from-emerald-500 to-teal-600 text-emerald-400';
+      case 'purple': return 'from-purple-500 to-violet-600 text-purple-400';
+      case 'amber': return 'from-amber-500 to-orange-600 text-amber-400';
+      default: return 'from-gray-500 to-gray-600 text-gray-400';
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
       {items.map((item, index) => {
         const Icon = item.icon;
+        const colorClasses = getColorClasses(item.color);
+        
         return (
           <div 
             key={item.name}
-            className="group relative overflow-hidden rounded-2xl bg-[#181824]/60 backdrop-blur-md border border-white/5 p-6 hover:bg-[#181824]/80 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-black/20"
+            className="group relative"
             style={{ animationDelay: `${index * 100}ms` }}
           >
-            {/* Ambient Background Gradient */}
-            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${item.from} ${item.to} opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-500`} />
-            
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-xl bg-gradient-to-br ${item.from} ${item.to} bg-opacity-10 shadow-lg shadow-black/10 group-hover:shadow-${item.from}/20 transition-shadow`}>
-                  <Icon className="w-6 h-6 text-white" />
+            {/* Floating Card - Superia Glass */}
+            <div className="superia-glass-card rounded-[2rem] p-8 h-full transition-all duration-700 hover:translate-y-[-10px] hover:shadow-[0_20px_50px_rgba(0,0,0,0.6)] relative overflow-hidden group/card">
+              
+              {/* Animated Background Gradient Orb */}
+              <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full bg-gradient-to-br ${colorClasses.split(' ').slice(0,2).join(' ')} opacity-5 blur-3xl group-hover/card:opacity-15 transition-opacity duration-1000`} />
+              
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-8">
+                  <div className={`p-4 rounded-2xl bg-white/[0.03] border border-white/5 shadow-inner ${item.glow} group-hover/card:scale-110 transition-all duration-500`}>
+                    <Icon className={`w-7 h-7 ${colorClasses.split(' ')[2]}`} />
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.02] border border-white/5 opacity-0 group-hover/card:opacity-100 transition-all duration-500 transform translate-x-4 group-hover/card:translate-x-0">
+                    <Sparkles size={10} className="text-white/40" />
+                    <span className="text-[8px] font-black text-white/40 uppercase tracking-widest">Real-time</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-medium text-green-400 bg-green-400/10 px-2 py-1 rounded-full border border-green-400/20 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-1 group-hover:translate-y-0">
-                  <TrendingUp size={10} />
-                  <span>LIVE</span>
+                
+                <div className="mt-auto space-y-2">
+                  <h3 className="text-4xl font-black text-white tracking-tighter tabular-nums leading-none">
+                    {item.value.toLocaleString()}
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">
+                      {item.name}
+                    </p>
+                    <div className="flex-1 h-[1px] bg-white/5" />
+                  </div>
+                  <p className="text-[10px] font-medium text-gray-600 italic">
+                    {item.description}
+                  </p>
                 </div>
               </div>
-              
-              <div className="space-y-1">
-                <h3 className="text-3xl font-bold text-white tracking-tight tabular-nums">
-                  {item.value.toLocaleString()}
-                </h3>
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  {item.name}
-                </p>
+
+              {/* Progress Bar Accent */}
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white/5">
+                <div className={`h-full bg-gradient-to-r ${colorClasses.split(' ').slice(0,2).join(' ')} w-0 group-hover/card:w-full transition-all duration-1000 ease-[cubic-bezier(0.2,0.8,0.2,1)]`} />
               </div>
             </div>
-
-            {/* Bottom Accent Line */}
-            <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${item.from} ${item.to} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
           </div>
         );
       })}

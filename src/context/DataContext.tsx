@@ -81,8 +81,8 @@ interface DataContextType {
   galleryImages: GalleryImage[];
   sponsors: Sponsor[];  
   schedule: ScheduleDay[];
-  registrations: Registration[];
-  deletedRegistrations: Registration[];
+  // registrations: Registration[]; // Removed
+  // deletedRegistrations: Registration[]; // Removed
   sponsorshipSettings: SponsorshipSettings | null;
   eventCategories: EventCategory[];
   facultyHeads: FacultyHead[];
@@ -153,6 +153,7 @@ interface DataContextType {
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
   deleteGalleryImage: (id: number) => Promise<void>;
+  bulkDeleteGalleryImages?: (ids: number[]) => Promise<void>;
   deleteAllGalleryImages: () => Promise<void>;
   toggleGalleryImageFeatured: (id: number) => Promise<void>;
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
@@ -351,8 +352,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
-  const [registrations, setRegistrations] = useState<Registration[]>([]);
-  const [deletedRegistrations, setDeletedRegistrations] = useState<Registration[]>([]);
+  // const [registrations, setRegistrations] = useState<Registration[]>([]);
+  // const [deletedRegistrations, setDeletedRegistrations] = useState<Registration[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
   const [eventCategories, setEventCategories] = useState<EventCategory[]>([]);
   const [eventWinners, setEventWinners] = useState<Array<{
@@ -1671,13 +1672,10 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
                   if (directRegs) fetchedRegs = directRegs;
                }
                
-               // Combine potentially empty state 'registrations' with our direct fetch
-               // Use a Map to prioritize direct fetch (most fresh)
-               const combinedRegs = new Map();
-               (registrations || []).forEach((r: any) => combinedRegs.set(r.id, r));
-               fetchedRegs.forEach((r: any) => combinedRegs.set(r.id, { ...combinedRegs.get(r.id), ...r }));
-               
-               const regsById: Record<string, any> = Object.fromEntries(combinedRegs); 
+               // Combined regs handling removed
+               // Removed registrations fallback for performance
+               const regsById: Record<string, any> = {};
+               fetchedRegs.forEach((r: any) => { regsById[r.id] = r; }); 
 
                setEventWinners((fallbackData || []).map((w:any)=>{
                  const reg = w.registration_id ? regsById[w.registration_id] : null;
@@ -1792,35 +1790,12 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   const fetchAdminData = async () => {
     try {
       // Parallel fetch for admin tables - separate active and deleted registrations
-      const [registrationsRes, auditionsRes, membershipsRes] = await Promise.all([
-        supabase.from('registrations').select('*').order('created_at', { ascending: false }),
+      const [auditionsRes, membershipsRes] = await Promise.all([
         supabase.from('auditions').select('*').order('created_at', { ascending: false }),
         supabase.from('memberships').select('*').order('created_at', { ascending: false })
       ]);
 
-      if (registrationsRes.error) markErr('Error fetching registrations', registrationsRes.error);
-      else {
-        // Decrypt sensitive data (email, phone, college)
-        const allRegistrations = (registrationsRes.data || []).map((r: any) => {
-           try {
-             return {
-               ...r,
-               email: decryptData(r.email),
-               phone: decryptData(r.phone),
-               college: decryptData(r.college)
-             };
-           } catch { return r; }
-        });
-        
-        // Separate active registrations from deleted ones based on deleted_at field
-        const active = allRegistrations.filter((r: any) => !r.deleted_at);
-        const deleted = allRegistrations.filter((r: any) => r.deleted_at);
-        
-        console.log('[DataContext] Fetched registrations - Active:', active.length, 'Deleted:', deleted.length);
-        
-        setRegistrations(active);
-        setDeletedRegistrations(deleted);
-      }
+      // registrations removed for performance
 
       if (auditionsRes.error) markErr('Error fetching auditions', auditionsRes.error);
       else setAuditions(auditionsRes.data || []);
@@ -2293,74 +2268,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
   }, []);
 
-  // Realtime: keep registrations list in sync (insert/update/delete)
-  useEffect(() => {
-    const channelName = 'ctx-registrations';
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, (payload: any) => {
-        const row = (payload.new || payload.old) as Registration;
-        
-        // Decrypt incoming data if it exists
-        const decryptedRow = payload.new ? {
-          ...payload.new,
-          email: decryptData(payload.new.email),
-          phone: decryptData(payload.new.phone),
-          college: decryptData(payload.new.college),
-          // Ensure team_members is handled safely if needed, though usually it's JSON/array
-        } as Registration : row;
-
-        if (payload.eventType === 'INSERT') {
-          if (decryptedRow.deleted_at) {
-            setDeletedRegistrations((cur) => {
-              if (cur.find(r => r.id === decryptedRow.id)) return cur;
-              return [decryptedRow, ...cur];
-            });
-          } else {
-            setRegistrations((cur) => {
-              if (cur.find((r) => r.id === decryptedRow.id)) return cur; // avoid dup
-              return [decryptedRow, ...cur];
-            });
-          }
-        }
-        else if (payload.eventType === 'UPDATE') {
-          // Handle potential move between active and deleted
-          const isNowDeleted = !!decryptedRow.deleted_at;
-          
-          if (isNowDeleted) {
-            // Remove from active, Add to deleted (if not already there)
-            setRegistrations(cur => cur.filter(r => r.id !== decryptedRow.id));
-            setDeletedRegistrations(cur => {
-              const exists = cur.find(r => r.id === decryptedRow.id);
-              if (exists) return cur.map(r => r.id === decryptedRow.id ? decryptedRow : r);
-              return [decryptedRow, ...cur];
-            });
-          } else {
-            // Remove from deleted, Add/Update in active
-            setDeletedRegistrations(cur => cur.filter(r => r.id !== decryptedRow.id));
-            setRegistrations(cur => {
-              const exists = cur.find(r => r.id === decryptedRow.id);
-              if (exists) return cur.map(r => r.id === decryptedRow.id ? decryptedRow : r);
-              return [decryptedRow, ...cur];
-            });
-          }
-        }
-        else if (payload.eventType === 'DELETE') {
-          // Hard delete: remove from both
-          setRegistrations((cur) => cur.filter((r) => r.id !== row.id));
-          setDeletedRegistrations((cur) => cur.filter((r) => r.id !== row.id));
-        }
-      })
-      .subscribe((status: any) => {
-        const s = String(status);
-        setRealtimeStatus((prev) => ({ ...prev, [channelName]: s }));
-        if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
-          scheduleResubscribe(`Realtime(${s}) registrations`);
-        }
-      });
-    try { realtimeChannelsRef.current.add(channel); } catch {}
-    return () => { try { supabase.removeChannel(channel); realtimeChannelsRef.current.delete(channel); } catch {} };
-  }, []);
+  // Realtime: registrations subscription removed for performance
+  // Components should handle their own refreshing or subscriptions if needed.
 
   // Realtime: admin_users updates
   useEffect(() => {
@@ -3391,6 +3300,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
   };
 
   // Gallery Management
+  /* 
+  // Disable client-side indexing to avoid CORS issues and use server-side batch processing instead
   const indexGalleryImageFaces = async (imageId: number, url: string) => {
     try {
       console.log(`[FaceIndex] Starting detection for image ${imageId}: ${url}`);
@@ -3432,6 +3343,16 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
       console.log(`[FaceIndex] Image ${imageId} marked as indexed.`);
       await fetchData(true); // Ensure global state is updated
     }
+  }; 
+  */
+  // No-op replacement
+  const indexGalleryImageFaces = async (imageId: number, url: string) => {
+      console.log("Client-side indexing disabled. Please use server-side batch indexer.");
+      // Mark as indexed regardless, to avoid re-scanning attempts
+      await supabase.from('gallery_images').update({ faces_indexed: true } as any).eq('id', imageId);
+      console.log(`[FaceIndex] Image ${imageId} marked as indexed (client-side no-op).`);
+      await fetchData(true); // Ensure global state is updated
+      return Promise.resolve();
   };
 
   const syncGoogleDrive = async (folderId: string, year?: string, category?: string) => {
@@ -3547,6 +3468,26 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
     deleteStorageFileByPublicUrl(img?.src);
     // Optimistic update: remove from local state immediately (no full refetch)
     setGalleryImages(prev => prev.filter(g => g.id !== id));
+  };
+
+  const bulkDeleteGalleryImages = async (ids: number[]) => {
+    if (!ids.length) return;
+    
+    // Find all images first to capture srcs for storage cleanup
+    const imgsToDelete = galleryImages.filter(g => ids.includes(g.id));
+    
+    const CHUNK = 50;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const slice = ids.slice(i, i + CHUNK);
+      const { error } = await supabase.from('gallery_images').delete().in('id', slice);
+      if (error) throw error;
+    }
+
+    // Fire-and-forget storage delete for all
+    imgsToDelete.forEach(img => deleteStorageFileByPublicUrl(img?.src));
+
+    // Optimistic update
+    setGalleryImages(prev => prev.filter(g => !ids.includes(g.id)));
   };
 
   const deleteAllGalleryImages = async () => {
@@ -3772,11 +3713,8 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
 
   // Registration Management
   const addRegistration = async (registration: Partial<Registration>) => {
-    // Optimistic UI: prepend a pending registration so the modal can confirm instantly
+    // Optimistic UI removed for performance
     // This does not affect counts; the background refresh will reconcile actual data
-    try {
-      setRegistrations((prev) => [{ ...(registration as Registration), status: 'pending' } as Registration, ...prev]);
-    } catch {}
 
     // Encrypt sensitive data before sending to Supabase
     const payload = {
@@ -5050,7 +4988,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         galleryImages,
         sponsors,
         schedule,
-        registrations,
+
         sponsorshipSettings,
         eventCategories,
         facultyHeads,
@@ -5111,6 +5049,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         indexGalleryImageFaces,
         updateGalleryImage,
         deleteGalleryImage,
+        bulkDeleteGalleryImages,
         deleteAllGalleryImages,
         toggleGalleryImageFeatured,
         addSponsor,
@@ -5133,7 +5072,7 @@ const reorderEvents = async (orderedIds: number[]): Promise<boolean> => {
         permanentDeleteRegistration,
         bulkRestoreRegistrations,
         bulkPermanentDeleteRegistrations,
-        deletedRegistrations,
+        // deletedRegistrations, // Removed
         resetRegistrationIdSequence,
         updateSponsorshipSettings,
   addContactSection,

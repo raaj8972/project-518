@@ -7,9 +7,15 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+console.log('[DriveSync] Supabase configured:', { 
+    hasUrl: !!SUPABASE_URL, 
+    hasRole: !!SERVICE_ROLE,
+    roleLen: SERVICE_ROLE?.length 
+});
+
 export const handler: Handler = async (event) => {
   const START_TIME = Date.now();
-  const TIMEOUT_MS = 9000; // 9 seconds to avoid Vercel 10s hard limit
+  const TIMEOUT_MS = 25000; // 25 seconds for Netlify (default is 10s, can be increased)
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -49,8 +55,9 @@ export const handler: Handler = async (event) => {
       subfolders = [{ id: targetFolderId, name: 'Target Folder' }];
     } else {
       // Full mode: enumerate all subfolders
+      const q = `'${targetFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
       const folderRes = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${targetFolderId}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&key=${GOOGLE_API_KEY}`
+        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&key=${GOOGLE_API_KEY}`
       );
       
       if (!folderRes.ok) {
@@ -71,12 +78,13 @@ export const handler: Handler = async (event) => {
     let isPartial = false;
 
     // Helper to fetch files from a folder with pagination
-    const fetchFiles = async (parentId: string, folderName: string, subName: string = '') => {
+    const fetchFiles = async (parentId: string, catText: string, subText: string) => {
         let pageToken = '';
+        console.log(`[DriveSync] Fetching images for: ${catText} > ${subText || '(Main)'}`);
         do {
             checkTimeout();
-            const q = `'${parentId}'+in+parents+and+mimeType+contains+'image/'+and+trashed=false`;
-            const fields = 'nextPageToken,files(id,name,mimeType,createdTime)';
+            const q = `'${parentId}' in parents and mimeType contains 'image/' and trashed = false`;
+            const fields = 'nextPageToken, files(id, name, mimeType, createdTime)';
             const res = await fetch(
                 `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&pageToken=${pageToken}&key=${GOOGLE_API_KEY}`
             );
@@ -90,8 +98,8 @@ export const handler: Handler = async (event) => {
             files.forEach((f: any) => {
                 allImages.push({
                     src: `drive://${f.id}`,
-                    category: useSubcategoryMode ? category : folderName,
-                    subcategory: useSubcategoryMode ? folderName : subName,
+                    category: catText,
+                    subcategory: subText || catText, // Fallback to category name if no specific subtopic
                     title: f.name.split('.')[0],
                     year: year || new Date().getFullYear().toString(),
                     featured: false,
@@ -105,24 +113,32 @@ export const handler: Handler = async (event) => {
 
     // 2. Process folders in chunks to manage concurrency
     const BATCH_SIZE = 5;
+    const tasks: any[] = [];
     
-    // Include root folder as a "task"
-    const tasks = [
-        () => fetchFiles(folderId, useSubcategoryMode ? category : 'General', '') // Root folder images
-    ];
+    // Include root folder images task
+    // Skip if batch mode (we only want the specific subfolder)
+    if (!isBatchMode) {
+        tasks.push(() => fetchFiles(folderId, useSubcategoryMode ? category : 'General', useSubcategoryMode ? category : ''));
+    }
 
     // Add subfolders tasks
     for (const folder of subfolders) {
         tasks.push(async () => {
             // Fetch images in this folder
-            await fetchFiles(folder.id, useSubcategoryMode ? category : folder.name, useSubcategoryMode ? folder.name : '');
+            // If DEFAULT CATEGORY (useSubcategoryMode) is set, subfolders become subcategories
+            // If NO default category, this folder IS the category
+            const finalCat = useSubcategoryMode ? category : folder.name;
+            const finalSub = useSubcategoryMode ? folder.name : '';
+            
+            await fetchFiles(folder.id, finalCat, finalSub);
             
             // If NOT subcategory mode, check sub-subfolders (1 level deep)
             if (!useSubcategoryMode) {
                 try {
                     checkTimeout();
+                    const q = `'${folder.id}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
                     const subRes = await fetch(
-                        `https://www.googleapis.com/drive/v3/files?q='${folder.id}'+in+parents+and+mimeType='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name)&key=${GOOGLE_API_KEY}`
+                        `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name)&key=${GOOGLE_API_KEY}`
                     );
                     if (subRes.ok) {
                         const { files: subSub = [] } = await subRes.json();
@@ -161,13 +177,40 @@ export const handler: Handler = async (event) => {
 
     // 3. Upsert to Supabase
     // We try to upsert all we found, even if partial
-    const CHUNK_SIZE = 100; // Smaller chunk for safety
+    const CHUNK_SIZE = 500; // Smaller chunk for safety
     try {
         for (let i = 0; i < allImages.length; i += CHUNK_SIZE) {
-            checkTimeout(); // Check before DB op
+            // We removed checkTimeout here to ensure we try to save as much as possible once scanning is done
             const chunk = allImages.slice(i, i + CHUNK_SIZE);
             const { error } = await supabase.from('gallery_images').upsert(chunk, { onConflict: 'src' } as any);
-            if (error) console.error('Upsert error:', error);
+            if (error) {
+                console.error(`[DriveSync] Upsert error (chunk ${i/CHUNK_SIZE}):`, error);
+                throw new Error(`DB Error: ${error.message}`);
+            }
+        }
+
+        // 4. NEW: Auto-register categories
+        // Extract unique categories from found images and ensure they exist in event_categories
+        const uniqueCategories = Array.from(new Set(allImages.map(img => img.category)));
+        if (uniqueCategories.length > 0) {
+            console.log(`[DriveSync] Registering ${uniqueCategories.length} categories...`);
+            
+            // Get existing categories to avoid redundant color generation
+            const { data: existingCats } = await supabase.from('event_categories').select('name');
+            const existingNames = new Set((existingCats || []).map(c => c.name));
+            
+            const newCategories = uniqueCategories
+                .filter(name => !existingNames.has(name))
+                .map(name => ({
+                    name,
+                    color: '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'), // Random color
+                    description: `Automatically imported from Google Drive folder on ${new Date().toLocaleDateString()}`
+                }));
+
+            if (newCategories.length > 0) {
+                const { error: catError } = await supabase.from('event_categories').insert(newCategories);
+                if (catError) console.error('[DriveSync] Category registration failed:', catError);
+            }
         }
     } catch (e: any) {
         if (e.message === 'TimeLimit') isPartial = true;

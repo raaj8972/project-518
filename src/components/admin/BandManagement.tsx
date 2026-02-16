@@ -24,8 +24,9 @@ export const BandManagement: React.FC = () => {
     updateBandMember,
     deleteBandMember,
     toggleBandMemberEnabled,
-    toggleBandMemberFeatured
-  } = useData();
+    toggleBandMemberFeatured,
+    sanitizeUrl
+  } = useData() as any;
 
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
@@ -190,7 +191,7 @@ export const BandManagement: React.FC = () => {
         await submitForApproval(
           'band_member',
           'update',
-          { enabled: !bandMembers.find(m => m.id === id)?.enabled },
+          { enabled: !bandMembers.find((m: any) => m.id === id)?.enabled },
           id
         );
         alert('Request submitted for approval. An owner will review your changes.');
@@ -213,7 +214,7 @@ export const BandManagement: React.FC = () => {
         await submitForApproval(
           'band_member',
           'update',
-          { is_featured: !bandMembers.find(m => m.id === id)?.is_featured },
+          { is_featured: !bandMembers.find((m: any) => m.id === id)?.is_featured },
           id
         );
         alert('Request submitted for approval. An owner will review your changes.');
@@ -662,7 +663,10 @@ export const BandManagement: React.FC = () => {
               <>
                 <div className="relative h-48">
                   <img
-                    src={member.image}
+                    src={(() => {
+                      const sanitized = sanitizeUrl?.(member.image) || member.image;
+                      return sanitized;
+                    })()}
                     alt={member.name}
                     className="w-full h-full object-cover"
                   />
@@ -717,7 +721,7 @@ export const BandManagement: React.FC = () => {
                         {member.achievements.length} Achievement{member.achievements.length !== 1 ? 's' : ''}
                       </p>
                       <div className="text-xs text-gray-500">
-                        {member.achievements.slice(0, 2).map((achievement, index) => (
+                        {member.achievements.slice(0, 2).map((achievement: any, index: number) => (
                           <div key={index} className="truncate">• {achievement}</div>
                         ))}
                         {member.achievements.length > 2 && (
@@ -808,19 +812,19 @@ export const BandManagement: React.FC = () => {
           </div>
           <div>
             <div className="text-2xl font-bold text-pink-500 mb-1">
-              {bandMembers.filter(m => m.is_featured).length}
+              {bandMembers.filter((m: any) => m.is_featured).length}
             </div>
             <div className="text-gray-600 text-sm">Featured Artists</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-blue-500 mb-1">
-              {bandMembers.filter(m => m.enabled).length}
+              {bandMembers.filter((m: any) => m.enabled).length}
             </div>
             <div className="text-gray-600 text-sm">Visible Members</div>
           </div>
           <div>
             <div className="text-2xl font-bold text-green-500 mb-1">
-              {bandMembers.reduce((total, m) => total + m.achievements.length, 0)}
+              {bandMembers.reduce((total: number, m: any) => total + m.achievements.length, 0)}
             </div>
             <div className="text-gray-600 text-sm">Total Achievements</div>
           </div>

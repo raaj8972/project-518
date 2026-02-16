@@ -52,8 +52,9 @@ export const handler: Handler = async (event) => {
       subfolders.map(async (folder: any) => {
         try {
           // Quick count query (doesn't fetch actual files, just counts)
+          const q = `'${folder.id}' in parents and (mimeType contains 'image/' or name contains '.jpg' or name contains '.jpeg' or name contains '.png') and trashed = false`;
           const countRes = await fetch(
-            `https://www.googleapis.com/drive/v3/files?q='${folder.id}'+in+parents+and+(mimeType+contains+'image/'+or+name+contains+'.jpg'+or+name+contains+'.jpeg'+or+name+contains+'.png')+and+trashed=false&fields=files(id)&pageSize=1000&key=${GOOGLE_API_KEY}`
+            `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)&pageSize=1000&key=${GOOGLE_API_KEY}`
           );
 
           if (countRes.ok) {

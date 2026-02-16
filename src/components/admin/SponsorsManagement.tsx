@@ -27,8 +27,9 @@ export const SponsorsManagement: React.FC = () => {
     updateSponsorshipSettings,
     addContactSection,
     updateContactSection,
-    deleteContactSection
-  } = useData();
+    deleteContactSection,
+    sanitizeUrl
+  } = useData() as any;
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
   const [requiresApproval, setRequiresApproval] = useState(false);
@@ -105,9 +106,9 @@ export const SponsorsManagement: React.FC = () => {
   const getAvailableCategories = () => {
     const fixedCategories = ['Title Sponsor', 'Co Sponsor'];
     const packageTiers = sponsorshipPackages
-      .filter(pkg => pkg.enabled)
-      .map(pkg => pkg.tier)
-      .sort((a, b) => {
+      .filter((pkg: SponsorshipPackage) => pkg.enabled)
+      .map((pkg: SponsorshipPackage) => pkg.tier)
+      .sort((a: string, b: string) => {
         // Sort by typical sponsorship hierarchy
         const hierarchy = ['Platinum', 'Gold', 'Silver', 'Bronze'];
         const aIndex = hierarchy.findIndex(h => a.toLowerCase().includes(h.toLowerCase()));
@@ -127,7 +128,7 @@ export const SponsorsManagement: React.FC = () => {
   // Dedupe categories derived from packages to avoid duplicate labels
   const availableCategories = Array.from(new Set(getAvailableCategories()));
   // Include any categories present on sponsors that are not in available (package-derived) categories
-  const sponsorCategories = Array.from(new Set(sponsors.map((s) => s.category)));
+  const sponsorCategories = Array.from(new Set(sponsors.map((s: Sponsor) => s.category)));
   const missingCategories = sponsorCategories.filter((c) => !availableCategories.includes(c));
   // Merge and dedupe combined categories (package-derived first, then any sponsor-only categories)
   const allCategories = Array.from(new Set([...availableCategories, ...missingCategories]));
@@ -260,7 +261,7 @@ export const SponsorsManagement: React.FC = () => {
     try {
       if (requiresApproval) {
         // Find the sponsor to get current state
-        const sponsor = sponsors.find(s => s.id === id);
+        const sponsor = sponsors.find((s: Sponsor) => s.id === id);
         if (!sponsor) return;
         
         const result = await submitForApproval('sponsor', 'update', { featured: !sponsor.featured }, id);
@@ -389,7 +390,7 @@ export const SponsorsManagement: React.FC = () => {
   const handleTogglePackageEnabled = async (id: number) => {
     try {
       if (requiresApproval) {
-        const pkg = sponsorshipPackages.find(p => p.id === id);
+        const pkg = sponsorshipPackages.find((p: SponsorshipPackage) => p.id === id);
         if (!pkg) return;
         
         const result = await submitForApproval('sponsorship_package', 'update', { enabled: !pkg.enabled }, id);
@@ -589,7 +590,7 @@ export const SponsorsManagement: React.FC = () => {
 
   const getCategoryColor = (category: string) => {
     // Find matching sponsorship package
-    const matchingPackage = sponsorshipPackages.find(pkg => 
+    const matchingPackage = sponsorshipPackages.find((pkg: SponsorshipPackage) => 
       pkg.tier.toLowerCase() === category.toLowerCase()
     );
     
@@ -630,7 +631,7 @@ export const SponsorsManagement: React.FC = () => {
 
   // Group sponsors by category for better organization
   const groupedSponsors = allCategories.reduce((acc, category) => {
-    acc[category] = sponsors.filter(sponsor => sponsor.category === category);
+    acc[category] = sponsors.filter((sponsor: Sponsor) => sponsor.category === category);
     return acc;
   }, {} as Record<string, Sponsor[]>);
 
@@ -731,55 +732,65 @@ export const SponsorsManagement: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sponsors Management</h2>
-          <p className="text-gray-600">Manage sponsors, packages, and sponsorship settings</p>
+          <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
+            <div className="w-2 h-10 bg-gradient-to-b from-amber-500 to-orange-600 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)]" />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Partnerships</span>
+            <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-400 tracking-widest uppercase ml-2">v3.0</div>
+          </h2>
+          <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
+            <Award size={14} className="text-amber-400" />
+            Cultivating global ecosystem synergy
+          </p>
         </div>
-        <div className="ml-6 w-full max-w-md">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Page Title</label>
-          <input
-            type="text"
-            value={settingsForm.page_title}
-            onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
-            placeholder="OUR SPONSORS"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-900"
-          />
+        <div className="w-full max-w-md">
+          <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 px-1">Global Page Anchor</label>
+          <div className="relative group/input">
+            <div className="absolute inset-0 bg-amber-500/5 rounded-xl blur-lg opacity-0 group-focus-within/input:opacity-100 transition-opacity"></div>
+            <input
+              type="text"
+              value={settingsForm.page_title}
+              onChange={(e) => setSettingsForm(prev => ({ ...prev, page_title: e.target.value }))}
+              placeholder="OUR SPONSORS"
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/50 text-white placeholder-gray-600 transition-all relative z-10"
+            />
+          </div>
         </div>
       </div>
 
       {/* Sub Navigation */}
-      <div className="bg-white rounded-lg shadow-md p-4">
-        <div className="flex space-x-1">
+      <div className="superia-glass-card rounded-2xl p-2 border-white/5 shadow-xl">
+        <div className="flex flex-wrap gap-1">
           <button
             onClick={() => setActiveSubTab('sponsors')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
               activeSubTab === 'sponsors'
-                ? 'bg-yellow-400 text-black'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Sponsors
+            Tactical List
           </button>
           <button
             onClick={() => setActiveSubTab('packages')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
               activeSubTab === 'packages'
-                ? 'bg-yellow-400 text-black'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Packages
+            Tier Architecture
           </button>
           <button
             onClick={() => setActiveSubTab('settings')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-2.5 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all duration-300 ${
               activeSubTab === 'settings'
-                ? 'bg-yellow-400 text-black'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/25 translate-z-10'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Settings
+            Core Parameters
           </button>
         </div>
       </div>
@@ -788,10 +799,11 @@ export const SponsorsManagement: React.FC = () => {
       {activeSubTab === 'sponsors' && (
         <div className="space-y-6">
           {/* Add Sponsor Button */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center bg-white/5 border border-white/10 rounded-[2rem] p-6 shadow-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-[60px] group-hover:bg-amber-500/20 transition-colors"></div>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900">Sponsors ({sponsors.length})</h3>
-              <p className="text-gray-600">Manage festival sponsors and partnerships</p>
+              <h3 className="text-xl font-black text-white tracking-tight">Active Partners</h3>
+              <p className="text-gray-400 text-xs font-medium mt-1">Sponsoring ({sponsors.length}) global ecosystem entities</p>
             </div>
             <button
               type="button"
@@ -799,15 +811,16 @@ export const SponsorsManagement: React.FC = () => {
                 setIsAdding(true);
                 resetForm();
               }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              className="superia-premium-button-amber group/btn relative overflow-hidden px-8 py-3 rounded-2xl flex items-center transition-all active:scale-95"
             >
-              <Plus size={16} className="mr-2" />
-              Add Sponsor
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 group-hover/btn:opacity-90 transition-opacity"></div>
+              <Plus size={18} className="mr-2 relative z-10 text-white" />
+              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">Scale Ecosystem</span>
             </button>
           </div>
 
           {/* Package Categories Info */}
-          {sponsorshipPackages.length > 0 && (
+          {sponsorshipPackages.filter((p: SponsorshipPackage) => p.enabled).length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-sm font-semibold text-blue-900 mb-2">Available Sponsorship Categories</h3>
               <div className="flex flex-wrap gap-2">
@@ -838,8 +851,9 @@ export const SponsorsManagement: React.FC = () => {
 
           {/* Add Sponsor Form */}
           {isAdding && (
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-              <h3 className="text-lg font-semibold mb-6">Add New Sponsor</h3>
+            <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-amber-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative overflow-hidden mb-8">
+              <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
+              <h3 className="text-2xl font-black text-white tracking-tight mb-8">Onboard New Partner</h3>
               <div className="grid lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
@@ -959,19 +973,22 @@ export const SponsorsManagement: React.FC = () => {
             if (categorySponsors.length === 0 && !isAdding && editing === null) return null;
 
             return (
-              <div key={category} className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-xl font-semibold text-gray-900">{category}</h3>
-                  <span 
-                    className="w-4 h-4 rounded-full"
+              <div key={category} className="space-y-6">
+                <div className="flex items-center space-x-4 bg-white/5 border border-white/10 rounded-2xl px-6 py-4">
+                  <div 
+                    className="w-3 h-10 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                     style={{ backgroundColor: getCategoryColor(category) }}
-                  ></span>
-                  <span className="text-sm text-gray-500">({categorySponsors.length} sponsors)</span>
+                  ></div>
+                  <div>
+                    <h3 className="text-xl font-black text-white tracking-tight leading-none">{category}</h3>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1 block">Strategic Tier • {categorySponsors.length} Partners</span>
+                  </div>
                 </div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {categorySponsors.map((sponsor) => (
-                    <div key={sponsor.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {categorySponsors.map((sponsor: Sponsor) => (
+                    <div key={sponsor.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
+                      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                       {editing === sponsor.id ? (
                         <div className="p-6 space-y-4">
                           <input
@@ -1059,7 +1076,10 @@ export const SponsorsManagement: React.FC = () => {
                           <div className="relative h-32 bg-black rounded-md overflow-hidden">
                             <div className="relative h-full flex items-center justify-center p-4 logo-no-bg">
                               <img
-                                src={sponsor.logo}
+                                src={(() => {
+                                  const sanitized = sanitizeUrl?.(sponsor.logo) || sponsor.logo;
+                                  return sanitized;
+                                })()}
                                 alt={sponsor.name}
                                 className="max-h-full max-w-full object-contain"
                               />
@@ -1210,7 +1230,7 @@ export const SponsorsManagement: React.FC = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold text-yellow-500 mb-1">
-                  {sponsors.filter(s => s.featured).length}
+                  {sponsors.filter((s: Sponsor) => s.featured).length}
                 </div>
                 <div className="text-gray-600 text-sm">Featured Sponsors</div>
               </div>
@@ -1413,11 +1433,12 @@ export const SponsorsManagement: React.FC = () => {
           )}
 
           {/* Packages List */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedPackages.map((pkg, index) => {
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {sortedPackages.map((pkg: SponsorshipPackage, index: number) => {
               const IconComponent = getIconComponent(pkg.icon);
               return (
-                <div key={pkg.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div key={pkg.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
+                  <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                   {editingPackage === pkg.id ? (
                     <div className="p-6 space-y-4">
                       <input
@@ -1563,7 +1584,7 @@ export const SponsorsManagement: React.FC = () => {
                           <span className="text-xs text-gray-500">Order: {pkg.order_position}</span>
                         </div>
                         <ul className="space-y-2 mb-4">
-                          {pkg.benefits.slice(0, 3).map((benefit, index) => (
+                          {pkg.benefits.slice(0, 3).map((benefit: string, index: number) => (
                             <li key={index} className="flex items-start text-sm">
                               <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
                               <span className="text-gray-700">{benefit}</span>
