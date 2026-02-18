@@ -4,15 +4,11 @@ import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 
-type PageKey = 'home' | 'events' | 'schedule' | 'gallery' | 'homebound' | 'ricofamily' | 'sponsors';
+type PageKey = 'home' | 'homebound' | 'sponsors';
 
 const PAGE_LABELS: Record<PageKey, string> = {
   home: 'Home',
-  events: 'Events',
-  schedule: 'Schedule',
-  gallery: 'Gallery',
   homebound: 'Home Bound',
-  ricofamily: 'Rico Family',
   sponsors: 'Sponsors',
 };
 
@@ -291,7 +287,7 @@ export const HeroMediaManagement: React.FC = () => {
 
   const copyDesktopFramingToAll = async () => {
     if (!confirm('Copy current DESKTOP framing (zoom + X/Y) to ALL pages? This overwrites each page\'s desktop framing.')) return;
-    const pages: PageKey[] = ['home','events','schedule','gallery','homebound','ricofamily','sponsors'];
+    const pages: PageKey[] = ['home', 'homebound', 'sponsors'];
     for (const pk of pages) {
       try { await updateHeroMedia(pk, { desktop_zoom: form.desktop_zoom, desktop_offset_x: form.desktop_offset_x, desktop_offset_y: form.desktop_offset_y } as any); } catch(e){ console.warn('Copy desktop failed', pk, e); }
     }
@@ -299,7 +295,7 @@ export const HeroMediaManagement: React.FC = () => {
   };
   const copyMobileFramingToAll = async () => {
     if (!confirm('Copy current MOBILE framing (zoom + X/Y) to ALL pages? This overwrites each page\'s mobile framing.')) return;
-    const pages: PageKey[] = ['home','events','schedule','gallery','homebound','ricofamily','sponsors'];
+    const pages: PageKey[] = ['home', 'homebound', 'sponsors'];
     for (const pk of pages) {
       try { await updateHeroMedia(pk, { mobile_zoom: form.mobile_zoom, mobile_offset_x: form.mobile_offset_x, mobile_offset_y: form.mobile_offset_y } as any); } catch(e){ console.warn('Copy mobile failed', pk, e); }
     }
@@ -326,7 +322,7 @@ export const HeroMediaManagement: React.FC = () => {
       return;
     }
     if (!confirm('Copy this page\'s mobile portrait video/poster to ALL pages? This overwrites other pages\' mobile values.')) return;
-    const pages: PageKey[] = ['home','events','schedule','gallery','homebound','ricofamily','sponsors'];
+    const pages: PageKey[] = ['home', 'homebound', 'sponsors'];
     for (const pk of pages) {
       try {
         await updateHeroMedia(pk, {

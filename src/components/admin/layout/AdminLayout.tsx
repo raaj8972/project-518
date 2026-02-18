@@ -190,30 +190,30 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                             setSearchQuery(''); 
                           }}
                           className={`
-                            w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-500 group relative overflow-hidden
+                            w-full flex items-center gap-3.5 px-4 py-3 rounded-2xl text-sm transition-all duration-500 group relative overflow-hidden
                             ${isActive 
-                              ? 'bg-gradient-to-r from-indigo-500/10 to-purple-500/5 text-white shadow-[0_4px_20px_rgba(0,0,0,0.2)] border border-white/10' 
+                              ? 'bg-gradient-to-r from-indigo-500/15 to-purple-500/10 text-white shadow-[0_8px_32px_rgba(0,0,0,0.3)] border border-white/10' 
                               : 'text-gray-500 hover:text-white hover:bg-white/[0.04]'}
                           `}
                         >
-                          {/* Active Indicator Bar */}
+                          {/* Active Indicator Bar - Premium Glow */}
                           {isActive && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-500 rounded-r-full shadow-[0_0_15px_rgba(99,102,241,0.8)]" />
+                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-indigo-400 to-indigo-600 rounded-r-full shadow-[0_0_20px_rgba(99,102,241,1)]" />
                           )}
                           
                           {/* Background Glow on Hover */}
-                          <div className={`absolute inset-0 bg-gradient-to-r from-indigo-500/0 to-purple-500/0 group-hover:from-indigo-500/[0.03] group-hover:to-purple-500/[0.03] transition-all duration-700`} />
+                          <div className={`absolute inset-0 bg-gradient-to-r from-indigo-500/0 to-purple-500/0 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} group-hover:from-indigo-500/[0.05] group-hover:to-purple-500/[0.05] transition-all duration-700`} />
 
-                          <Icon size={20} className={`flex-shrink-0 relative z-10 transition-all duration-500 ${isActive ? 'text-indigo-400 drop-shadow-[0_0_10px_rgba(99,102,241,0.6)] scale-110' : 'group-hover:text-indigo-300 group-hover:scale-110'}`} />
-                          <span className={`flex-1 text-left truncate relative z-10 tracking-tight transition-colors ${isActive ? 'font-black' : 'group-hover:text-white'}`}>{tab.name}</span>
+                          <Icon size={18} className={`flex-shrink-0 relative z-10 transition-all duration-500 ${isActive ? 'text-indigo-400 drop-shadow-[0_0_12px_rgba(99,102,241,0.8)] scale-110' : 'group-hover:text-indigo-300 group-hover:scale-110'}`} />
+                          <span className={`flex-1 text-left truncate relative z-10 tracking-tight transition-colors ${isActive ? 'font-black' : 'font-bold group-hover:text-white'}`}>{tab.name}</span>
                           
                           {badgeCount !== undefined && badgeCount > 0 && (
-                            <span className="relative z-10 px-2 py-0.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black shadow-[0_0_20px_rgba(99,102,241,0.4)]">
+                            <span className="relative z-10 px-2 py-0.5 rounded-lg bg-indigo-500 text-white text-[10px] font-black shadow-[0_0_20px_rgba(99,102,241,0.5)] border border-white/10">
                               {badgeCount}
                             </span>
                           )}
                           {tab.id === 'security' && isTOTPEnabled && (
-                             <Shield size={12} className="relative z-10 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                             <Shield size={12} className="relative z-10 text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.6)]" />
                           )}
                         </button>
                       );

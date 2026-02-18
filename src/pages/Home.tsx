@@ -261,7 +261,7 @@ export const Home: React.FC = () => {
     }, { threshold: 0.12 });
 
     const attach = () => {
-      const nodes = document.querySelectorAll('.scroll-animate');
+      const nodes = document.querySelectorAll('.scroll-animate, .scroll-animate-3d');
       nodes.forEach((el) => {
         const node = el as HTMLElement & { __observed?: boolean };
         if (!node.__observed) {
@@ -276,7 +276,7 @@ export const Home: React.FC = () => {
     const t2 = setTimeout(attach, 300);
 
     try {
-      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate')) as HTMLElement[];
+      const nodesNow = Array.from(document.querySelectorAll('.scroll-animate, .scroll-animate-3d')) as HTMLElement[];
       const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
       nodesNow.forEach((n) => {
         const r = n.getBoundingClientRect();
@@ -288,7 +288,7 @@ export const Home: React.FC = () => {
     } catch (e) { /* ignore */ }
 
     const safetyTimer = setTimeout(() => {
-      document.querySelectorAll('.scroll-animate').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
+      document.querySelectorAll('.scroll-animate, .scroll-animate-3d').forEach((el) => (el as HTMLElement).classList.add('animate-in'));
     }, 1500);
 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(safetyTimer); observer.disconnect(); };
@@ -394,7 +394,30 @@ export const Home: React.FC = () => {
   // const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
 
   return (
-    <div className="cyberpunk-theme min-h-screen">
+    <div className="superia-mesh-glow min-h-screen text-white overflow-x-hidden">
+      <style>{`
+        .superia-mesh-glow {
+          background-color: #030712;
+          background-image: 
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%),
+            radial-gradient(at 50% 100%, rgba(245, 158, 11, 0.05) 0px, transparent 50%);
+        }
+        .superia-title-gradient {
+          background: linear-gradient(135deg, #fff 0%, #a5b4fc 50%, #818cf8 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.3));
+        }
+        .superia-btn-glass {
+          @apply relative px-8 py-4 rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/10 
+                 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300
+                 hover:bg-white/[0.08] hover:border-white/20 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)];
+        }
+        .superia-btn-primary {
+          @apply bg-indigo-600/20 border-indigo-500/30 hover:bg-indigo-600/30 hover:border-indigo-500/50 hover:shadow-[0_20px_40px_rgba(79,70,229,0.2)];
+        }
+      `}</style>
       <SEO />
       {/* Hero Section */}
       <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -408,40 +431,40 @@ export const Home: React.FC = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
-          <div className="scroll-animate animate-in">
-            <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm pulse-glow">
-              <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
-              FESTIVAL {BRAND_YEAR}
+          <div className="scroll-animate-3d animate-in-3d">
+            <div className="inline-flex items-center bg-white/[0.03] backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-indigo-300/80">
+              <Sparkles className="w-3.5 h-3.5 mr-2.5 text-indigo-400" />
+              ANNUAL FESTIVAL {BRAND_YEAR}
             </div>
-            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 cyberpunk-title ${glitchActive ? 'glitch-active' : ''}`}>
+            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black mb-8 superia-title-gradient tracking-tighter leading-none">
               {homepageSettings?.hero_title || 'RICORRENZA'}
             </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">
+            <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-relaxed mb-6 text-white/90">
               {homepageSettings?.hero_subtitle || 'Experience the Future'}
             </p>
-            <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-12">
-              {homepageSettings?.hero_description || 'Experience the future of Healthcare, Technology, and Creativity'}
+            <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-12 font-light">
+              {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
             </p>
             
-            <div className="flex flex-wrap justify-center items-center gap-4">
+            <div className="flex flex-wrap justify-center items-center gap-6">
               <a
                 href="/events"
-                className="cyberpunk-btn cyberpunk-btn-primary group hover-float"
+                className="superia-btn-glass superia-btn-primary group"
               >
-                <span className="relative z-10 flex items-center">
-                  <Calendar className="mr-2 group-hover:animate-pulse" size={20} />
-                  EXPLORE EVENTS
+                <span className="relative z-10 flex items-center gap-3">
+                  <Calendar className="w-5 h-5 transition-transform group-hover:scale-110" />
+                  Explore Events
                 </span>
               </a>
               
               {securitySettings?.entry_pass_button_enabled && (
                 <Link
                   to="/pass-registration"
-                  className="cyberpunk-btn cyberpunk-btn-secondary group hover-float"
+                  className="superia-btn-glass group"
                 >
-                  <span className="relative z-10 flex items-center">
-                    <Ticket className="mr-2 group-hover:animate-pulse" size={20} />
-                    REGISTER FOR ENTRY PASS
+                  <span className="relative z-10 flex items-center gap-3">
+                    <Ticket className="w-5 h-5 transition-transform group-hover:scale-110" />
+                    Entry Pass
                   </span>
                 </Link>
               )}
@@ -522,15 +545,14 @@ export const Home: React.FC = () => {
 
       {featuredGuestArtists.length > 0 && (
       <section className="pt-28 pb-14 md:pt-36 md:pb-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/30 to-pink-900/20"></div>
           <div className="container mx-auto px-0 sm:px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
+            <div className="scroll-animate-3d">
               <div className="text-center mb-10 md:mb-16">
-                <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                  FEATURED <span className="neon-pink">ARTISTS</span>
+                <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
+                  FEATURED ARTISTS
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-6 md:mb-8 expand-width"></div>
-                <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+                <div className="w-24 h-1 bg-indigo-500/50 mx-auto mb-8 rounded-full"></div>
+                <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto font-light">
                   Meet the incredible artists who will light up {BRAND_NAME} {BRAND_YEAR}
                 </p>
               </div>
@@ -588,13 +610,13 @@ export const Home: React.FC = () => {
           <section className="py-16 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
             <div className="container mx-auto px-0 relative z-10">
-              <div className="scroll-animate opacity-0 transform translate-y-20">
+            <div className="scroll-animate-3d">
                 <div className="text-center mb-12">
-                  <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                    CHIEF <span className="neon-blue">GUEST{multi ? 'S' : ''}</span>
+                  <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
+                    CHIEF GUEST{multi ? 'S' : ''}
                   </h2>
-                  <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-6 expand-width" />
-                  <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
+                  <div className="w-24 h-1 bg-blue-500/40 mx-auto mb-8 rounded-full" />
+                  <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto font-light">
                     {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for {BRAND_NAME} {BRAND_YEAR}
                   </p>
                 </div>
@@ -751,19 +773,19 @@ export const Home: React.FC = () => {
   <section className="py-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
       <div className="container mx-auto px-0 relative z-10">
-            <div className="scroll-animate animate-in">
-              <div className="text-center mb-10">
-                <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                  FEATURED <span className="neon-blue">EVENTS</span>
+            <div className="scroll-animate-3d">
+              <div className="text-center mb-14">
+                <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
+                  FEATURED EVENTS
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                <div className="w-24 h-1 bg-indigo-500/50 mx-auto mb-8 rounded-full"></div>
+                <p className="text-xl text-white/60 max-w-3xl mx-auto font-light">
                   Don't miss these highlighted experiences at {BRAND_NAME} {BRAND_YEAR}
                 </p>
                 {hasManyEvents && (
-                  <div className="mt-6">
-                    <a href="/events" className="inline-flex items-center text-blue-400 hover:text-blue-300 font-semibold">
-                      View all events <ArrowRight className="ml-1 h-4 w-4" />
+                  <div className="mt-8">
+                    <a href="/events" className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-bold uppercase tracking-widest text-xs">
+                      View all events <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </div>
                 )}
@@ -783,40 +805,40 @@ export const Home: React.FC = () => {
               {featuredEvents.map((event, index) => (
                 <div
                   key={event.id}
-                  className="hover-float w-60 sm:w-64 md:w-72 scroll-animate animate-in"
-                  style={{ animationDelay: `${index * 0.15}s` }}
+                  className="w-64 sm:w-72 md:w-80 scroll-animate-3d animate-in-3d group"
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className="cyberpunk-card group h-full overflow-hidden">
-                    <div className="relative h-72 md:h-80 overflow-hidden bg-black">
+                  <div className="superia-glass-card rounded-[2.5rem] p-4 h-full tilt-3d transition-all duration-500 hover:shadow-[0_30px_60px_rgba(0,0,0,0.4)]">
+                    <div className="relative h-64 md:h-72 mb-6 rounded-[2rem] overflow-hidden bg-black/40">
                       <img
                         src={event.image}
                         alt={event.title}
                         loading={index === 0 ? 'eager' : 'lazy'}
                         decoding="async"
-                        className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none"></div>
-
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#030712]/80 to-transparent"></div>
+                      
                       <div className="absolute top-4 left-4">
-                        <span className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-3 py-1 rounded-full text-xs font-bold shadow-lg pulse-ring">
-                          FEATURED
-                        </span>
-                      </div>
-
-                      <div className="absolute top-3 right-4 z-10 pointer-events-none">
-                        {/* Top-right small category pill (glass effect). */}
-                        <span className="inline-flex items-center text-xs font-semibold text-white bg-white/10 backdrop-blur-sm border border-white/20 px-2 py-0.5 rounded-full shadow-sm opacity-100 transition-opacity">
-                          {event.category}
-                        </span>
+                        <div className="px-4 py-1.5 rounded-xl bg-[#030712]/60 backdrop-blur-xl border border-white/10 text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-2">
+                          <Zap size={10} className="text-amber-400" />
+                          {event.category || 'EVENT'}
+                        </div>
                       </div>
                     </div>
 
-                    <div className="p-4 md:p-5">
-                      <h3 className="text-lg md:text-xl font-bold text-white mb-2">{event.title}</h3>
-                      <p className="text-gray-300 text-sm mb-4 line-clamp-2">{event.description}</p>
-                      <div className="flex justify-between items-center">
-                        <div className="text-xs text-gray-500">
-                          {event.date} • {event.venue}
+                    <div className="px-4 pb-4">
+                      <h3 className="text-xl md:text-2xl font-black text-white mb-2 leading-tight uppercase tracking-tight">
+                        {event.title}
+                      </h3>
+                      <p className="text-sm text-white/50 font-light mb-6 line-clamp-2">
+                        {event.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                        <div className="flex items-center gap-2 text-indigo-400">
+                          <Crown size={14} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Compete Now</span>
                         </div>
                         <a
                           href="/events"
@@ -842,21 +864,20 @@ export const Home: React.FC = () => {
       {/* Featured Gallery */}
       {featuredImages.length > 0 && (
   <section className="pt-20 pb-16 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
           <div className="container mx-auto px-0 md:px-4 relative z-10">
-            <div className="scroll-animate animate-in">
+            <div className="scroll-animate-3d">
               <div className="text-center mb-16">
-                <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                  DIGITAL <span className="neon-green">MEMORIES</span>
+                <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
+                  DIGITAL MEMORIES
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                <div className="w-24 h-1 bg-green-500/40 mx-auto mb-8 rounded-full"></div>
+                <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto font-light">
                   Glimpses from our journey through the years
                 </p>
                 {hasManyImages && (
-                  <div className="mt-6">
-                    <a href="/gallery" className="inline-flex items-center text-green-300 hover:text-green-200 font-semibold">
-                      View all photos <ArrowRight className="ml-1 h-4 w-4" />
+                  <div className="mt-8">
+                    <a href="/gallery" className="inline-flex items-center text-green-400 hover:text-green-300 font-bold uppercase tracking-widest text-[10px]">
+                      View all photos <ArrowRight className="ml-2 h-4 w-4" />
                     </a>
                   </div>
                 )}
@@ -964,70 +985,34 @@ export const Home: React.FC = () => {
                 smoothTauSec={0.6}
                 scaleOnHover={false}
                 fadeOut={true}
-                fadeOutColor="#0b0f1a"
+                fadeOutColor="#030712"
                 glow={true}
-                cardRadius={24}
+                cardRadius={32}
                 cardPaddingX={18}
                 cardPaddingY={0}
                 ariaLabel="Our partners"
                 className=""
                 style={{
-                  background: '#0b0f1a',
+                  background: 'transparent',
                   paddingTop: 0,
                   paddingBottom: 0,
                   isolation: 'isolate',
-                  // Allow hover events to pause the belt when hovering
                   pointerEvents: 'auto',
-                  // Responsive sizing like the reference: bigger on phones, capped on desktop
-                  ['--logoloop-logoHeight' as any]: 'clamp(70px, 16vw, 110px)',
-                  ['--logoloop-gap' as any]: 'clamp(18px, 4.5vw, 28px)',
-                  // Belt background removed so only inner card is filled
-                  // Disable any pulse/glow animation
+                  ['--logoloop-logoHeight' as any]: 'clamp(60px, 14vw, 100px)',
+                  ['--logoloop-gap' as any]: 'clamp(24px, 6vw, 40px)',
                   ['--ll-pulse-duration' as any]: '0s',
-                  // Disable floor glow entirely
                   ['--ll-floor-opacity' as any]: 0,
-                  ['--ll-floor-width' as any]: '66%',
-                  // Remove any base glow
                   ['--ll-glow-color' as any]: 'rgba(0,0,0,0)',
-                  ['--ll-border-blur' as any]: '0em',
-                  ['--ll-border-spread' as any]: '0em',
-                  ['--ll-outer-blur' as any]: '0em',
-                  ['--ll-outer-spread' as any]: '0em',
-                  ['--ll-pulse-outer-blur' as any]: '0em',
-                  ['--ll-pulse-outer-spread' as any]: '0em',
                   ['--ll-rim-alpha' as any]: 0,
-                  ['--ll-glow-spread-color' as any]: 'rgba(0,0,0,0)',
-                  // Disable glass sheen overlay
-                  ['--ll-glass-blur' as any]: '0px',
-                  ['--ll-glass-saturate' as any]: '100%',
-                  ['--ll-glass-sheen' as any]: 0,
-                  // Enable subtle white glow on hover + gentle lift
-                  ['--ll-hover-outer-color' as any]: 'rgba(255,255,255,0.6)',
-                  ['--ll-hover-outer-blur' as any]: '0.75em',
-                  ['--ll-hover-outer-spread' as any]: '0.18em',
-                  ['--ll-card-scale-hover' as any]: 1.04,
-                  // Disable card depth shadow to avoid any banding across the row
-                  ['--ll-depth-shadow-fn' as any]: '0 0 0 rgba(0,0,0,0)',
-                  // Darker inner container (pure black)
-                  ['--ll-card-bg' as any]: '#000000',
-                  // Remove border line for a cleaner pill
-                  ['--ll-card-border-w' as any]: '0px',
-                  // Square rounded tiles: fixed equal H & W
-                  ['--ll-card-min-h' as any]: 'unset',
-                  ['--ll-card-h' as any]: 'clamp(140px, 24vw, 200px)',
-                  ['--ll-card-w' as any]: 'clamp(140px, 24vw, 200px)',
-                  // Center logos inside square without cropping
-                  ['--ll-logo-h' as any]: 'auto',
-                  ['--ll-logo-w' as any]: 'auto',
-                  ['--ll-logo-fit' as any]: 'contain',
-                  ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 4px)',
-                  ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 4px)',
-                  // Remove inner image rounding and extra shadows for a crisp tile
-                  ['--ll-logo-radius' as any]: '8px',
-                  ['--ll-logo-filter' as any]: 'none',
-                  ['--ll-logo-filter-hover' as any]: 'none',
-                  // Narrow edge fades to frame the belt subtly
-                  ['--logoloop-fadeWidth' as any]: 'clamp(8px, 3vw, 28px)'
+                  ['--ll-card-bg' as any]: 'rgba(255,255,255,0.02)',
+                  ['--ll-card-border-w' as any]: '1px',
+                  ['--ll-card-border-color' as any]: 'rgba(255,255,255,0.05)',
+                  ['--ll-card-h' as any]: 'clamp(140px, 22vw, 180px)',
+                  ['--ll-card-w' as any]: 'clamp(140px, 22vw, 180px)',
+                  ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 60px)',
+                  ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 60px)',
+                  ['--ll-card-radius' as any]: '2rem',
+                  ['--logoloop-fadeWidth' as any]: 'clamp(20px, 5vw, 60px)'
                 }}
               />
               </React.Suspense>
@@ -1039,16 +1024,17 @@ export const Home: React.FC = () => {
 
       {/* Leadership (Faculty + Committee Heads) — placed directly below Partners */}
   {(enabledFacultyHeads.length > 0 || committeeHeads.length > 0) && ((homepageSettings?.show_faculty_heads) || (homepageSettings?.show_committee_heads)) && (
-        <section className="py-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/30 to-pink-900/20"></div>
+        <section className="py-24 relative overflow-hidden">
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-12">
-                <h2 className="text-4xl md:text-5xl font-black mb-4 cyberpunk-title">
-                  OUR <span className="neon-white">LEADERSHIP</span>
+            <div className="scroll-animate-3d">
+              <div className="text-center mb-16">
+                <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
+                  OUR LEADERSHIP
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-yellow-400 to-amber-500 mx-auto mb-4 expand-width"></div>
-                <p className="text-gray-300">Faculty leadership and heads of our core committees. Meet the entire team on our <Link to="/rico-family" className="text-blue-400 hover:text-blue-300 underline font-semibold">Rico Family page</Link>.</p>
+                <div className="w-24 h-1 bg-amber-500/40 mx-auto mb-8 rounded-full"></div>
+                <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto font-light leading-relaxed">
+                  Faculty chairs and heads of our core committees. Meet the entire team on our <Link to="/rico-family" className="text-indigo-400 hover:text-indigo-300 underline font-bold underline-offset-4 decoration-indigo-500/30">Rico Family page</Link>.
+                </p>
               </div>
 
               {/* Faculty Heads */}
@@ -1090,12 +1076,12 @@ export const Home: React.FC = () => {
                     showDots={false}
                     className="py-6"
                     renderItem={(head: any) => (
-                      <div className={`w-72 md:w-80 cyberpunk-card p-5 transition-shadow duration-150 ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}>
-                        <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30 flex items-center justify-center">
+                      <div className={`w-72 md:w-80 superia-glass-card p-6 rounded-[2.5rem] transition-all duration-500 tilt-3d ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.4)]'}`}>
+                        <div className="aspect-square w-full overflow-hidden rounded-2xl mb-6 bg-black/40">
                           <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover"/>
                         </div>
-                        <div className="font-bold text-white text-base md:text-lg text-center">{head.name}</div>
-                        <div className="text-sm md:text-base text-gray-300 text-center">{head.title}</div>
+                        <div className="font-black text-white text-lg md:text-xl text-center uppercase tracking-tight">{head.name}</div>
+                        <div className="text-sm md:text-base text-white/50 text-center font-light italic mt-1">{head.title}</div>
                       </div>
                     )}
                   />
@@ -1106,9 +1092,9 @@ export const Home: React.FC = () => {
               {sortedCommitteeHeads.length > 0 && homepageSettings?.show_committee_heads && (
                 <>
                   {/* Heading aligned with container (matches Faculty Heads) */}
-                  <div className="mb-4">
-                    <h3 className="text-xl font-semibold text-gray-200 flex items-center leading-[1.2] md:leading-[1.25] pt-1 relative z-10">
-                      <Crown className="w-5 h-5 mr-2 text-yellow-400" /> Leadership <span className="ml-2 text-sm text-gray-400 font-normal">(Heads + Council: {sortedCommitteeHeads.length})</span>
+                  <div className="mb-8">
+                    <h3 className="text-xl md:text-2xl font-black text-white flex items-center leading-none tracking-tight uppercase">
+                      <Crown className="w-6 h-6 mr-3 text-indigo-400" /> COMMITTEE MEMBERS <span className="ml-3 text-[10px] text-white/30 font-black tracking-widest">{sortedCommitteeHeads.length} MEMBERS</span>
                     </h3>
                   </div>
                   {/* Full-bleed marquee below heading */}
@@ -1155,7 +1141,7 @@ export const Home: React.FC = () => {
 
                           return (
                             <div
-                              className={`w-[232px] sm:w-[262px] md:w-80 cyberpunk-card p-4 sm:p-5 cursor-pointer transition-shadow duration-150 ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-yellow-400/80 shadow-lg shadow-yellow-500/25' : ''}`}
+                              className={`w-[232px] sm:w-[262px] md:w-80 superia-glass-card p-5 rounded-[2rem] cursor-pointer transition-all duration-500 tilt-3d ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)]'}`}
                               onClick={() => {
                                 setClicked({ type: 'committee', id: m.id });
                                 const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
@@ -1170,32 +1156,24 @@ export const Home: React.FC = () => {
                                 }, 180);
                               }}
                             >
-                              <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 sm:mb-4 bg-black/30 flex items-center justify-center">
+                              <div className="aspect-square w-full overflow-hidden rounded-xl mb-6 bg-black/40 relative">
                                 <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
                                 {/* Hover badge for council / committee */}
-                                <div className="absolute top-2 left-2">
+                                <div className="absolute top-3 left-3">
                                   {isCouncil ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-600/90 text-white shadow shadow-red-500/40 ring-1 ring-red-400/70 backdrop-blur-sm leadership-badge">COUNCIL</span>
+                                    <span className="px-3 py-1 rounded-lg text-[8px] font-black bg-white/10 backdrop-blur-xl text-white border border-white/10 tracking-[0.2em] shadow-2xl">COUNCIL</span>
                                   ) : isLeadWebDev ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-cyan-500 to-blue-600 text-black shadow shadow-cyan-400/40 ring-1 ring-cyan-300/70 backdrop-blur-sm leadership-badge">FOUNDER OF WEBSITE</span>
-                                  ) : isTechLeadRaaj ? (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow shadow-green-400/40 ring-1 ring-green-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
+                                    <span className="px-3 py-1 rounded-lg text-[8px] font-black bg-indigo-600/90 text-white border border-indigo-500/50 tracking-[0.2em] shadow-2xl">FOUNDER</span>
                                   ) : (
-                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-500/90 text-black shadow shadow-yellow-400/40 ring-1 ring-yellow-300/70 backdrop-blur-sm leadership-badge">COMMITTEE HEAD</span>
+                                    <span className="px-3 py-1 rounded-lg text-[8px] font-black bg-white/5 backdrop-blur-xl text-white border border-white/5 tracking-[0.2em] shadow-2xl">HEAD</span>
                                   )}
                                 </div>
                               </div>
-                              <div className={`font-bold flex items-center text-sm sm:text-base md:text-lg ${isCouncil ? 'text-red-400' : (isLeadWebDev ? 'text-cyan-300' : (isTechLeadRaaj ? 'text-green-400' : 'text-white'))}`}> 
+                              <div className={`font-black flex items-center text-sm sm:text-base md:text-lg uppercase tracking-tight ${isCouncil ? 'text-red-400' : (isLeadWebDev ? 'text-indigo-300' : 'text-white')}`}> 
                                 {isCouncil ? (
-                                  <Crown className="w-5 h-5 mr-1 text-red-500 drop-shadow-[0_0_6px_rgba(255,0,0,0.7)] council-crown" />
-                                ) : isLeadWebDev ? (
-                                  <span className="webdev-crown-wrapper mr-1" title='Founder of Website'>
-                                    <Crown className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_6px_rgba(56,189,248,0.9)] webdev-crown" />
-                                  </span>
-                                ) : isTechLeadRaaj ? (
-                                  <Crown className="w-4 h-4 mr-1 text-green-400 head-crown" />
+                                  <Crown className="w-5 h-5 mr-2 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
                                 ) : (
-                                  <Crown className="w-4 h-4 mr-1 text-yellow-400 head-crown" />
+                                  <Crown className="w-4 h-4 mr-2 text-indigo-400" />
                                 )}
                                 {isTechLeadRaaj ? 'RAAJ' : m.name}
                               </div>
@@ -1240,29 +1218,26 @@ export const Home: React.FC = () => {
 
   {/* About Section */}
     {aboutSettings?.enabled === true && (
-    <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/20 via-blue-900/30 to-purple-900/20"></div>
+    <section className="py-24 relative overflow-hidden">
         <div className="container mx-auto px-4 relative z-10">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
+            <div className="scroll-animate-3d">
             <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-black mb-6 cyberpunk-title">
-                {(aboutSettings?.hero_title) ? aboutSettings.hero_title : (<>
-                  ABOUT <span className="neon-cyan">RICORRENZA</span>
-                </>)}
+              <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient uppercase">
+                {(aboutSettings?.hero_title) ? aboutSettings.hero_title : 'ABOUT RICORRENZA'}
               </h2>
-              <div className="w-32 h-1 bg-gradient-to-r from-cyan-500 to-blue-500 mx-auto mb-8 expand-width"></div>
+              <div className="w-24 h-1 bg-indigo-500/40 mx-auto mb-8 rounded-full"></div>
             </div>
           </div>
 
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               {/* About Content */}
-              <div className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: '0.2s' }}>
-                <div className="cyberpunk-card p-8">
-                  <h3 className="text-2xl md:text-3xl font-bold mb-6 neon-cyan">
+              <div className="scroll-animate-3d" style={{ animationDelay: '0.2s' }}>
+                <div className="superia-glass-card p-10 rounded-[3rem]">
+                  <h3 className="text-2xl md:text-4xl font-black mb-8 text-white uppercase tracking-tight">
                     {aboutSettings?.hero_heading || 'THE FUTURE IS NOW'}
                   </h3>
-                  <div className="space-y-4 text-gray-300 leading-relaxed">
+                  <div className="space-y-6 text-white/60 leading-relaxed font-light text-lg">
                     {(aboutSettings?.hero_paragraphs && aboutSettings.hero_paragraphs.length > 0
                       ? aboutSettings.hero_paragraphs
                       : [
@@ -1317,29 +1292,29 @@ export const Home: React.FC = () => {
               </div>
 
               {/* Visual Element */}
-              <div className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: '0.4s' }}>
-                <div className="cyberpunk-card p-8 text-center">
+              <div className="scroll-animate-3d" style={{ animationDelay: '0.4s' }}>
+                <div className="superia-glass-card p-10 rounded-[3rem] text-center">
                   <div className="relative">
                     {/* Animated Stats */}
-                    <div className="grid grid-cols-2 gap-6 mb-8">
+                    <div className="grid grid-cols-2 gap-8 mb-12">
                       {(aboutSettings?.stats?.length ? aboutSettings.stats : [
                         { value: BRAND_YEAR, label: 'FESTIVAL YEAR' },
                         { value: '3+', label: 'DAYS OF EVENTS' },
                         { value: '1000+', label: 'PARTICIPANTS' },
                         { value: '∞', label: 'POSSIBILITIES' }
                       ]).map((s, i) => (
-                        <div key={i} className="text-center">
-                          <div className={`text-4xl font-black mb-2 counter-animation ${i===0?'neon-cyan':i===1?'neon-pink':i===2?'neon-purple':'neon-blue'}`}>{s.value}</div>
-                          <div className="text-gray-400 text-sm">{s.label}</div>
+                        <div key={i} className="text-center group">
+                          <div className={`text-4xl md:text-5xl font-black mb-3 transition-transform duration-500 group-hover:scale-110 superia-title-gradient`}>{s.value}</div>
+                          <div className="text-white/30 text-[9px] font-black tracking-widest uppercase">{s.label}</div>
                         </div>
                       ))}
                     </div>
                     
                     {/* Mission Statement */}
-                    <div className="border-t border-cyan-500/30 pt-6">
-                      <h4 className="text-xl font-bold mb-4 cyberpunk-title">OUR MISSION</h4>
-                      <p className="text-gray-300 text-sm leading-relaxed">
-                        {aboutSettings?.hero_heading || 'Merging medicine, tech & culture to inspire, innovate and shape the future of healthcare'}
+                    <div className="border-t border-white/5 pt-8">
+                      <h4 className="text-lg font-black mb-6 text-white uppercase tracking-widest">OUR MISSION</h4>
+                      <p className="text-white/50 text-base leading-relaxed font-light italic">
+                        "{aboutSettings?.hero_heading || 'Merging medicine, tech & culture to inspire, innovate and shape the future of healthcare'}"
                       </p>
                     </div>
                   </div>
@@ -1352,38 +1327,37 @@ export const Home: React.FC = () => {
   )}
 
       {/* Call to Action */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-900/40 via-purple-900/60 to-blue-900/40"></div>
+      <section className="py-32 relative overflow-hidden">
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="scroll-animate opacity-0 transform translate-y-20">
-            <h2 className="text-5xl md:text-7xl font-black mb-6 cyberpunk-title">
-              JOIN THE <span className="neon-pink">FUTURE</span>
+          <div className="scroll-animate-3d">
+            <h2 className="text-6xl md:text-8xl font-black mb-8 superia-title-gradient uppercase tracking-tighter">
+              JOIN THE FUTURE
             </h2>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Be part of the most innovative  festival experience
+            <p className="text-xl md:text-2xl text-white/50 mb-16 max-w-3xl mx-auto font-light leading-relaxed">
+              Be part of the most innovative festival experience
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
+            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
               <a
                 href="/events"
-                className="cyberpunk-btn cyberpunk-btn-primary group text-lg px-8 py-4 hover-float"
+                className="superia-btn-glass superia-btn-primary px-12 py-5 text-base"
               >
-                <span className="relative z-10 flex items-center">
-                  <Zap className="mr-2 group-hover:animate-pulse" size={24} />
-                  REGISTER FOR EVENTS
-                  <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={24} />
+                <span className="relative z-10 flex items-center gap-4">
+                  <Zap className="w-6 h-6" />
+                  Register Now
+                  <ArrowRight className="w-6 h-6" />
                 </span>
               </a>
               
               {formSettings?.membership_form_enabled && (
                 <button 
                   onClick={() => startTransition(() => setMembershipModal(true))}
-                  className="cyberpunk-btn cyberpunk-btn-secondary group text-lg px-8 py-4 hover-float"
+                  className="superia-btn-glass px-12 py-5 text-base"
                 >
-                  <span className="relative z-10 flex items-center">
-                    <Users className="mr-2 group-hover:animate-pulse" size={24} />
-                    JOIN RICO FAMILY
-                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={24} />
+                  <span className="relative z-10 flex items-center gap-4">
+                    <Users className="w-6 h-6" />
+                    Join the Family
+                    <ArrowRight className="w-6 h-6" />
                   </span>
                 </button>
               )}
@@ -1408,248 +1382,6 @@ export const Home: React.FC = () => {
       />
 
       <style>{`
-        .cyberpunk-theme {
-          background: #0a0a0a;
-          color: #ffffff;
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-          min-height: 100vh;
-        }
-
-        .hero-section {
-          position: relative;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .cyberpunk-grid {
-          background-image: 
-            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        /* particles CSS removed */
-
-        .cyberpunk-title {
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .neon-pink {
-          color: #ff00ff;
-          text-shadow: 
-            0 0 2px #ff00ff,
-            0 0 4px #ff00ff;
-        }
-
-        .neon-blue {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .neon-green {
-          color: #00ff00;
-          text-shadow: 
-            0 0 2px #00ff00,
-            0 0 4px #00ff00;
-        }
-
-        .neon-yellow {
-          color: #ffff00;
-          text-shadow: 
-            0 0 2px #ffff00,
-            0 0 4px #ffff00;
-        }
-
-        .neon-white {
-          color: #ffffff;
-          text-shadow: 
-            0 0 2px #ffffff,
-            0 0 4px #ffffff;
-        }
-
-        .neon-cyan {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .counter-animation {
-          animation: counterPulse 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes counterPulse {
-          from {
-            text-shadow: 
-              0 0 2px currentColor,
-              0 0 4px currentColor;
-          }
-          to {
-            text-shadow: 
-              0 0 4px currentColor,
-              0 0 8px currentColor,
-              0 0 12px currentColor;
-          }
-        }
-
-        .glow-text {
-          text-shadow: 
-            0 0 2px currentColor,
-            0 0 4px currentColor;
-        }
-
-        .glitch-active {
-          animation: glitch 0.3s ease-in-out;
-        }
-
-        @keyframes glitch {
-          0% { transform: translate(0); }
-          20% { transform: translate(-2px, 2px); }
-          40% { transform: translate(-2px, -2px); }
-          60% { transform: translate(2px, 2px); }
-          80% { transform: translate(2px, -2px); }
-          100% { transform: translate(0); }
-        }
-
-        .glitch-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255, 0, 255, 0.1) 50%,
-            transparent 100%
-          );
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.3s ease;
-        }
-
-        .glitch-overlay.active {
-          opacity: 1;
-          animation: glitchSweep 0.3s ease-in-out;
-        }
-
-        @keyframes glitchSweep {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        .pulse-glow {
-          animation: pulseGlow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes pulseGlow {
-          from {
-            box-shadow: 0 0 5px rgba(255, 0, 255, 0.3);
-          }
-          to {
-            box-shadow: 0 0 15px rgba(255, 0, 255, 0.6);
-          }
-        }
-
-        .cyberpunk-btn {
-          position: relative;
-          padding: 12px 32px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border: 2px solid;
-          background: transparent;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
-        }
-
-        .cyberpunk-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .cyberpunk-btn:hover::before {
-          left: 100%;
-        }
-
-        .cyberpunk-btn-primary {
-          border-color: #ff00ff;
-          color: #ff00ff;
-          box-shadow: 
-            0 0 10px rgba(255, 0, 255, 0.2),
-            inset 0 0 10px rgba(255, 0, 255, 0.05);
-        }
-
-        .cyberpunk-btn-primary:hover {
-          background: rgba(255, 0, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 0, 255, 0.4),
-            inset 0 0 20px rgba(255, 0, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
-        }
-
-        .cyberpunk-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .cyberpunk-card {
-          background: rgba(20, 20, 40, 0.8);
-          border: 1px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
-          backdrop-filter: blur(10px);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .featured-artist-card {
-          width: clamp(230px, 70vw, 320px);
-          max-width: 340px;
-          min-height: clamp(360px, 52vw, 520px);
-        }
-
-        .featured-artist-card .card-footer {
-          font-size: clamp(0.82rem, 2.4vw, 0.95rem);
-        }
-
-        .featured-artist-card .card-footer h3 {
-          font-size: clamp(0.95rem, 3.5vw, 1.2rem);
           line-height: 1.1;
         }
 

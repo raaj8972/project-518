@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
-import toast from 'react-hot-toast';
-import { Shield, Crown, Eye, EyeOff, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search } from 'lucide-react';
+import { useToast } from '../../components/ToastProvider';
+import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search, Settings, History, Users, Palette, Loader2, Image as ImageIcon } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
 import { useData } from '../../context/DataContext';
 import { DEFAULT_RULES, ValidationRule } from '../../utils/validationRules';
@@ -50,6 +50,7 @@ interface SecurityManagementProps {
 
 export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultTab = 'users' }) => {
   const { securitySettings, updateSecuritySettings } = useData();
+  const { push: toast } = useToast();
   const [activeTab, setActiveTab] = useState<'users' | 'passes' | 'vip' | 'settings' | 'rules' | 'history' | 'council' | 'design'>(defaultTab);
   const [securityUsers, setSecurityUsers] = useState<SecurityUser[]>([]);
   const [passRegistrations, setPassRegistrations] = useState<PassRegistration[]>([]);
@@ -126,15 +127,15 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const [councilPassword, setCouncilPassword] = useState('');
 
   const updateCouncilPassword = async () => {
-    if (!councilPassword.trim()) return toast.error('Enter a password');
+    if (!councilPassword.trim()) return toast({ message: 'Enter a password', type: 'error' });
     setLoading(true);
     try {
       const { error } = await supabase.rpc('set_council_password', { p_password: councilPassword });
       if (error) throw error;
-      toast.success('Council password updated');
+      toast({ message: 'Council password updated', type: 'success' });
       setCouncilPassword('');
     } catch (err: any) {
-       toast.error(err.message || 'Failed to update');
+       toast({ message: err.message || 'Failed to update', type: 'error' });
     } finally {
        setLoading(false);
     }
@@ -215,10 +216,10 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           ));
           throw error;
        }
-       toast.success(!currentHidden ? 'Pass hidden from Council' : 'Pass visible to Council');
+       toast({ message: !currentHidden ? 'Pass hidden from Council' : 'Pass visible to Council', type: 'success' });
     } catch (err: any) {
        console.error(err);
-       toast.error('Failed to update visibility');
+       toast({ message: 'Failed to update visibility', type: 'error' });
     }
   };
 
@@ -227,11 +228,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     try {
       const { error } = await supabase.rpc('reset_pass_usage', { p_pass_id: passId });
       if (error) throw error;
-      toast.success('Pass usage reset');
+      toast({ message: 'Pass usage reset', type: 'success' });
       loadData(); // Refresh list
     } catch (err) {
       console.error(err);
-      toast.error('Failed to reset pass');
+      toast({ message: 'Failed to reset pass', type: 'error' });
     }
   };
 
@@ -243,26 +244,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         p_date: dateStr 
       });
       if (error) throw error;
-      toast.success(`Day ${dayNum} entry removed`);
+      toast({ message: `Day ${dayNum} entry removed`, type: 'success' });
       await loadData(); // Reload pass status and trigger fetchPassUsage via effect
     } catch (err) {
       console.error(err);
-      toast.error('Failed to update scan');
+      toast({ message: 'Failed to update scan', type: 'error' });
     }
   };
 
-  const updateEntryPassButtonSetting = async (enabled: boolean) => {
-    try {
-      setLoading(true);
-      await updateSecuritySettings({ entry_pass_button_enabled: enabled });
-      toast.success(`Entry pass button ${enabled ? 'enabled' : 'disabled'}`);
-    } catch (err: any) {
-      console.error('Error updating settings:', err);
-      toast.error('Failed to update settings');
-    } finally {
-      setLoading(false);
-    }
-  };
   const loadData = async () => {
     if (activeTab === 'users') {
       const { data: users } = await supabase.from('security_users').select('*').order('created_at', { ascending: false });
@@ -342,7 +331,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   }, [activeTab]);
 
   const handleToggleRule = async (rule: ValidationRule) => {
-    if (!rulesTableReady) return toast.error('Database table not ready');
+    if (!rulesTableReady) return toast({ message: 'Database table not ready', type: 'error' });
     
     // Optimistic update
     const updated = { ...rule, is_active: !rule.is_active };
@@ -355,16 +344,16 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         .select();
         
       if (error) throw error;
-      toast.success(`Rule ${updated.is_active ? 'enabled' : 'disabled'}`);
+      toast({ message: `Rule ${updated.is_active ? 'enabled' : 'disabled'}`, type: 'success' });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save rule');
+      toast({ message: 'Failed to save rule', type: 'error' });
       loadData(); // Revert
     }
   };
 
   const handleRuleConfigUpdate = async (ruleId: string, newConfig: any) => {
-    if (!rulesTableReady) return toast.error('Database table not ready');
+    if (!rulesTableReady) return toast({ message: 'Database table not ready', type: 'error' });
     
     try {
       setLoading(true);
@@ -380,17 +369,17 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       if (error) throw error;
       
       setValidationRules(prev => prev.map(r => r.id === ruleId ? updated : r));
-      toast.success('Rule configuration updated');
+      toast({ message: 'Rule configuration updated', type: 'success' });
     } catch (err) {
       console.error(err);
-      toast.error('Failed to update config');
+      toast({ message: 'Failed to update config', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleCreateRule = async (type: 'date_restriction' | 'time_window' | 'capacity') => {
-    if (!rulesTableReady) return toast.error('Database not ready');
+    if (!rulesTableReady) return toast({ message: 'Database not ready', type: 'error' });
     
     try {
       setLoading(true);
@@ -412,17 +401,17 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       if (error) throw error;
       
       setValidationRules(prev => [data as ValidationRule, ...prev]);
-      toast.success('Rule created');
+      toast({ message: 'Rule created', type: 'success' });
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to create rule');
+      toast({ message: err.message || 'Failed to create rule', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteRule = async (id: string) => {
-    if (!rulesTableReady) return toast.error('Database not ready');
+    if (!rulesTableReady) return toast({ message: 'Database not ready', type: 'error' });
     if (!window.confirm('Are you sure you want to delete this rule?')) return;
     
     try {
@@ -431,9 +420,9 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       if (error) throw error;
       
       setValidationRules(prev => prev.filter(r => r.id !== id));
-      toast.success('Rule deleted');
+      toast({ message: 'Rule deleted', type: 'success' });
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete rule');
+      toast({ message: err.message || 'Failed to delete rule', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -452,12 +441,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       if (error) throw error;
 
-      toast.success('Security user created successfully');
+      toast({ message: 'Security user created successfully', type: 'success' });
       setNewUser({ username: '', password: '', full_name: '' });
       setShowCreateUser(false);
       loadData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create user');
+      toast({ message: error.message || 'Failed to create user', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -468,11 +457,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     try {
       const { error } = await supabase.rpc('delete_security_user', { p_user_id: id });
       if (error) throw error;
-      toast.success('Security user deleted');
+      toast({ message: 'Security user deleted', type: 'success' });
       loadData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to delete user');
+      toast({ message: err.message || 'Failed to delete user', type: 'error' });
     }
   };
 
@@ -486,10 +475,10 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       if (error) throw error;
 
-      toast.success('Pass approved and generated');
+      toast({ message: 'Pass approved and generated', type: 'success' });
       loadData();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to approve pass');
+      toast({ message: error.message || 'Failed to approve pass', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -506,10 +495,10 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       if (error) throw error;
 
-      toast.success('Pass registration rejected');
+      toast({ message: 'Pass registration rejected', type: 'success' });
       loadData();
     } catch (error: any) {
-      toast.error('Failed to reject pass');
+      toast({ message: 'Failed to reject pass', type: 'error' });
     }
   };
 
@@ -526,12 +515,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       if (error) throw error;
 
-      toast.success('VIP pass created successfully');
+      toast({ message: 'VIP pass created successfully', type: 'success' });
       setNewVIP({ name: '', notes: '', validDate: '' });
       setShowCreateVIP(false);
       loadData(); // Refresh the VIP passes list
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create VIP pass');
+      toast({ message: error.message || 'Failed to create VIP pass', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -556,7 +545,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         const data = XLSX.utils.sheet_to_json(ws);
         
         if (data.length === 0) {
-          toast.error('File is empty');
+          toast({ message: 'File is empty', type: 'error' });
           return;
         }
 
@@ -565,14 +554,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         const nameKey = Object.keys(firstRow).find(k => k.toLowerCase() === 'name' || k.toLowerCase() === 'participant_name');
         
         if (!nameKey) {
-          toast.error('File must have a "name" column');
+          toast({ message: 'File must have a "name" column', type: 'error' });
           return;
         }
 
         setImportData(data);
-        toast.success(`Loaded ${data.length} records. Click "Process" to create passes.`);
+        toast({ message: `Loaded ${data.length} records. Click "Process" to create passes.`, type: 'success' });
       } catch (err) {
-        toast.error('Failed to parse file');
+        toast({ message: 'Failed to parse file', type: 'error' });
         console.error(err);
       }
     };
@@ -585,7 +574,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     let successCount = 0;
     let failCount = 0;
 
-    const toastId = toast.loading(`Processing ${importData.length} VIP passes...`);
+    toast({ message: `Processing ${importData.length} VIP passes...`, type: 'info' });
 
     try {
       for (const row of importData) {
@@ -609,21 +598,21 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         
         // Update toast every 10 records or at the end
         if (successCount % 10 === 0 || successCount === importData.length) {
-          toast.loading(`Processing: ${successCount}/${importData.length} done...`, { id: toastId });
+          toast({ message: `Processing: ${successCount}/${importData.length} done...`, type: 'info' });
         }
       }
 
       if (failCount > 0) {
-        toast.success(`Batch complete: ${successCount} created, ${failCount} failed`, { id: toastId });
+        toast({ message: `Batch complete: ${successCount} created, ${failCount} failed`, type: 'success' });
       } else {
-        toast.success(`Successfully created ${successCount} VIP passes!`, { id: toastId });
+        toast({ message: `Successfully created ${successCount} VIP passes!`, type: 'success' });
       }
       
       setImportData([]);
       setShowBulkVIP(false);
       loadData();
     } catch (err) {
-      toast.error('Bulk processing failed', { id: toastId });
+      toast({ message: 'Bulk processing failed', type: 'error' });
     } finally {
       setProcessingBulk(false);
     }
@@ -635,7 +624,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     
     // Fallback: If no designs exist at all, we can't do anything
     if (Object.keys(config).length === 0) {
-      toast.error('Please configure a pass design in the "Pass Design" tab first.');
+      toast({ message: 'Please configure a pass design in the "Pass Design" tab first.', type: 'error' });
       setActiveTab('design');
       return;
     }
@@ -663,7 +652,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     });
 
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
-    const toastId = toast.loading('Generating PDF...');
+    toast({ message: 'Generating PDF...', type: 'info' });
 
     try {
       await generatePassPDF({
@@ -679,14 +668,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         selectedDays: specificDay !== undefined ? [specificDay] : (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates: eventDates,
         onProgress: (pct) => {
-          toast.loading(`Generating PDF: ${pct}%`, { id: toastId });
+          toast({ message: `Generating PDF: ${pct}%`, type: 'info' });
         },
         includeName // Global default if pass specific is undefined
       });
-      toast.success('PDF downloaded!', { id: toastId });
+      toast({ message: 'PDF downloaded!', type: 'success' });
     } catch (e) {
       console.error(e);
-      toast.error('Failed to generate PDF', { id: toastId });
+      toast({ message: 'Failed to generate PDF', type: 'error' });
     }
   };
 
@@ -695,7 +684,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     const eventDates = securitySettings?.event_dates || [];
     
     if (Object.keys(config).length === 0) {
-      toast.error('Configure pass design first');
+      toast({ message: 'Configure pass design first', type: 'error' });
       return;
     }
 
@@ -725,7 +714,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     }
 
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
-    const toastId = toast.loading('Generating A4 Sheet...');
+    toast({ message: 'Generating A4 Sheet...', type: 'info' });
 
     try {
       await generateA4SheetPDF({
@@ -741,14 +730,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         selectedDays: (securitySettings?.event_dates || []).map((_, i) => i),
         eventDates,
         onProgress: (pct) => {
-          toast.loading(`Generating A4: ${pct}%`, { id: toastId });
+          toast({ message: `Generating A4: ${pct}%`, type: 'info' });
         },
         includeName
       });
-      toast.success('A4 Sheet downloaded!', { id: toastId });
+      toast({ message: 'A4 Sheet downloaded!', type: 'success' });
     } catch (e) {
       console.error(e);
-      toast.error('Failed to generate A4 PDF', { id: toastId });
+      toast({ message: 'Failed to generate A4 Sheet', type: 'error' });
     }
   };
 
@@ -757,13 +746,13 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     const eventDates = securitySettings?.event_dates || [];
     
     if (Object.keys(config).length === 0) {
-      toast.error('Please configure a pass design in the "Pass Design" tab first.');
+      toast({ message: 'Please configure a pass design in the "Pass Design" tab first.', type: 'error' });
       setActiveTab('design');
       return;
     }
 
     const passes = Array.isArray(passOrPasses) ? passOrPasses : [passOrPasses];
-    const toastId = toast.loading(`Generating ${format.toUpperCase()}...`);
+    toast({ message: `Generating ${format.toUpperCase()}...`, type: 'info' });
 
     try {
       await generatePassImages({
@@ -780,14 +769,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         eventDates: eventDates,
         format,
         onProgress: (pct) => {
-          toast.loading(`Generating ${format.toUpperCase()}: ${pct}%`, { id: toastId });
+          toast({ message: `Generating ${format.toUpperCase()}: ${pct}%`, type: 'info' });
         },
         includeName,
       });
-      toast.success(`${format.toUpperCase()} downloaded!`, { id: toastId });
+      toast({ message: `${format.toUpperCase()} downloaded!`, type: 'success' });
     } catch (e) {
       console.error(e);
-      toast.error('Failed to generate images', { id: toastId });
+      toast({ message: 'Failed to generate images', type: 'error' });
     }
   };
 
@@ -808,11 +797,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     try {
       const { error } = await supabase.rpc('delete_pass_registration', { p_reg_id: id });
       if (error) throw error;
-      toast.success('Registration deleted');
+      toast({ message: 'Registration deleted', type: 'success' });
       loadData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to delete registration');
+      toast({ message: err.message || 'Failed to delete registration', type: 'error' });
     }
   };
 
@@ -822,11 +811,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     try {
       const { error } = await supabase.rpc('delete_entry_pass_v3', { p_pass_id: id });
       if (error) throw error;
-      toast.success('VIP pass deleted');
+      toast({ message: 'VIP pass deleted', type: 'success' });
       loadData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to delete pass');
+      toast({ message: err.message || 'Failed to delete pass', type: 'error' });
     }
   };
 
@@ -839,12 +828,12 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       if (error) throw error;
 
-      toast.success(newDate ? 'Pass date updated' : 'Pass is now valid for ALL days');
+      toast({ message: 'Pass date updated', type: 'success' });
       setEditingPassId(null);
       loadData();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || 'Failed to update date');
+      toast({ message: err.message || 'Failed to update date', type: 'error' });
     }
   };
 
@@ -858,190 +847,173 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     if (data) {
       setSelectedPass(data);
     } else {
-      toast.error('Pass not generated yet');
+      toast({ message: 'Pass not generated yet', type: 'error' });
     }
   };
 
   return (
-    <div className="space-y-6 bg-gray-900 text-white p-6 rounded-xl shadow-2xl border border-gray-800">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <Shield className="w-6 h-6 text-cyan-500" />
-          Security Management
-        </h2>
+    <div className="space-y-8 min-h-screen pb-20">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-12 relative z-10">
+        <div className="flex items-center gap-5">
+          <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5 group-hover:scale-110 transition-all duration-500">
+            <Shield className="w-8 h-8 text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3">
+              Security <span className="text-xs not-italic font-black bg-indigo-500 text-white px-2 py-0.5 rounded tracking-widest uppercase">OS</span>
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Global Protocol Governor</span>
+              <div className="w-1 h-1 rounded-full bg-white/20" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Status: Neural Link Active</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-gray-700">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'users'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          Security Users
-        </button>
-        <button
-          onClick={() => setActiveTab('passes')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'passes'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          Pass Registrations
-        </button>
-        <button
-          onClick={() => setActiveTab('vip')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'vip'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          VIP Passes
-        </button>
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'settings'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
+      {/* Modern Tabs */}
+      <div className="superia-glass-card p-2 rounded-[1.5rem] border-white/5 shadow-2xl flex flex-wrap gap-1.5 sticky top-24 z-40 backdrop-blur-3xl bg-black/40">
+        {[
+          { id: 'users', label: 'Nodes', icon: Users, color: 'indigo' },
+          { id: 'passes', label: 'Inbound', icon: FileUp, color: 'blue' },
+          { id: 'vip', label: 'Matrix', icon: Crown, color: 'yellow' },
+          { id: 'settings', label: 'Config', icon: Settings, color: 'purple' },
+          { id: 'rules', label: 'Firewall', icon: Shield, color: 'emerald' },
+          { id: 'history', label: 'Audit', icon: History, color: 'rose' },
+          { id: 'council', label: 'Council', icon: Lock, color: 'amber' },
+          { id: 'design', label: 'Studio', icon: Palette, color: 'teal' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`
+              flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all duration-500 relative overflow-hidden group/tab
+              ${activeTab === tab.id
+                ? 'bg-white/10 text-white shadow-xl border border-white/10 translate-y-[-2px]'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'}
+            `}
           >
-          Settings
-        </button>
-        <button
-          onClick={() => setActiveTab('rules')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'rules'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-          >
-          Rules
-        </button>  
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'history'
-              ? 'text-cyan-400 border-b-2 border-cyan-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-          >
-          Scan History
-        </button>  
-        <button
-          onClick={() => setActiveTab('council')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'council'
-              ? 'text-purple-400 border-b-2 border-purple-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-          >
-          Council Access
-        </button>
-        <button
-          onClick={() => setActiveTab('design')}
-          className={`px-4 py-2 font-semibold transition-colors ${
-            activeTab === 'design'
-              ? 'text-pink-400 border-b-2 border-pink-400'
-              : 'text-gray-400 hover:text-gray-300'
-          }`}
-        >
-          Pass Design
-        </button>
+            {activeTab === tab.id && (
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 via-blue-500/20 to-indigo-500/20 animate-pulse" />
+            )}
+            <tab.icon size={14} className={`relative z-10 ${activeTab === tab.id ? 'animate-pulse' : 'group-hover/tab:scale-110 transition-transform'}`} />
+            <span className="relative z-10">{tab.label}</span>
+            {activeTab === tab.id && (
+               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[2px] bg-gradient-to-r from-transparent via-indigo-400 to-transparent" />
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Security Users Tab */}
       {activeTab === 'users' && (
-        <div className="space-y-4">
-          <button
-            onClick={() => setShowCreateUser(!showCreateUser)}
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
-          >
-            <UserPlus className="w-4 h-4" />
-            Create Security User
-          </button>
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-black text-white tracking-tight uppercase">System Nodes</h3>
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Security Personnel Directory</p>
+            </div>
+            <button
+              onClick={() => setShowCreateUser(!showCreateUser)}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-indigo-500/20 border border-indigo-400/30"
+            >
+              <UserPlus size={14} />
+              Create Node
+            </button>
+          </div>
 
           {showCreateUser && (
-            <form onSubmit={handleCreateSecurityUser} className="bg-gray-800/50 p-6 rounded-lg space-y-4">
-              <div>
-                <label className="block text-gray-300 mb-2">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={newUser.username}
-                  onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
+            <form onSubmit={handleCreateSecurityUser} className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600"
+                    placeholder="e.g. jdoe_admin"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={newUser.password}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-••••••••"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Full Identity</label>
+                  <input
+                    type="text"
+                    required
+                    value={newUser.full_name}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600"
+                    placeholder="Full Legal Name"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-gray-300 mb-2">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={newUser.password}
-                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newUser.full_name}
-                  onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
-                >
-                  {loading ? 'Creating...' : 'Create'}
-                </button>
+              <div className="flex gap-3 justify-end pt-4 border-t border-white/5">
                 <button
                   type="button"
                   onClick={() => setShowCreateUser(false)}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                 >
-                  Cancel
+                  Terminate
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-500/20 disabled:opacity-50"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 size={12} className="animate-spin" /> Initializing...
+                    </div>
+                  ) : 'Initialize Node'}
                 </button>
               </div>
             </form>
           )}
 
           {securityUsers.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No security users created yet</p>
+            <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+              <Users size={32} className="mx-auto text-gray-500 mb-4" />
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Zero security nodes detected in the matrix</p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {securityUsers.map((user) => (
-              <div key={user.id} className="bg-gray-800/50 p-4 rounded-lg flex items-center justify-between border border-gray-700/50">
-                <div>
-                  <p className="text-white font-semibold text-lg">{user.full_name}</p>
-                  <p className="text-cyan-400 text-sm">@{user.username}</p>
+                <div key={user.id} className="superia-glass-card p-5 rounded-2xl border-white/10 shadow-xl flex items-center justify-between hover:bg-white/5 transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors" />
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-indigo-400 shadow-inner group-hover:scale-105 transition-transform">
+                      {user.full_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-white font-black text-sm tracking-tight leading-tight">{user.full_name}</p>
+                      <p className="text-indigo-400 text-[10px] font-bold uppercase tracking-widest opacity-80 mt-0.5">@{user.username}</p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
+                        <span className={`text-[9px] font-black uppercase tracking-[0.2em] ${user.is_active ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {user.is_active ? 'Active Node' : 'Suspended'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDeleteSecurityUser(user.id, user.username)}
+                    className="relative z-10 p-2 text-gray-500 hover:text-red-400 transition-colors bg-white/5 rounded-lg opacity-0 group-hover:opacity-100"
+                    title="Purge Node"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </button>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs ${
-                  user.is_active
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-red-500/20 text-red-400'
-                }`}>
-                  {user.is_active ? 'Active' : 'Inactive'}
-                </span>
-                <button
-                  onClick={() => handleDeleteSecurityUser(user.id, user.username)}
-                  className="ml-4 p-2 text-gray-400 hover:text-red-500 transition-colors"
-                  title="Delete User"
-                >
-                  <Trash className="w-4 h-4" />
-                </button>
-              </div>
               ))}
             </div>
           )}
@@ -1050,76 +1022,102 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
       {/* Pass Registrations Tab */}
       {activeTab === 'passes' && (
-        <div className="space-y-4">
-          {passRegistrations.filter(p => p.status === 'pending').length > 0 && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-              <p className="text-yellow-400 font-semibold">
-                {passRegistrations.filter(p => p.status === 'pending').length} pending approvals
-              </p>
+        <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-black text-white tracking-tight uppercase">Incoming Protocols</h3>
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Pending & Processed Requests</p>
             </div>
-          )}
+            {passRegistrations.filter(p => p.status === 'pending').length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                <AlertTriangle size={14} className="text-amber-400 animate-pulse" />
+                <span className="text-amber-400 font-black text-[10px] uppercase tracking-widest">
+                  {passRegistrations.filter(p => p.status === 'pending').length} Critical Approvals
+                </span>
+              </div>
+            )}
+          </div>
 
           {passRegistrations.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No pass registrations yet</p>
+            <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+              <FileUp size={32} className="mx-auto text-gray-500 mb-4" />
+              <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No registration data streams detected</p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid gap-4">
               {passRegistrations.map((reg) => (
-              <div key={reg.id} className="bg-gray-800/30 p-4 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-white font-semibold">{reg.full_name}</p>
-                    <p className="text-gray-400 text-sm">{reg.email} • {reg.phone}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {new Date(reg.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs ${
-                    reg.status === 'approved'
-                      ? 'bg-green-500/20 text-green-400'
-                      : reg.status === 'rejected'
-                      ? 'bg-red-500/20 text-red-400'
-                      : 'bg-yellow-500/20 text-yellow-400'
-                  }`}>
-                    {reg.status.toUpperCase()}
-                  </span>
-                </div>
+                <div key={reg.id} className="superia-glass-card p-6 rounded-3xl border-white/10 shadow-xl hover:bg-white/5 transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
+                  
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+                    <div className="flex items-start gap-5">
+                      <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-indigo-400 shadow-inner group-hover:bg-indigo-500/10 transition-all">
+                        {reg.full_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-white font-black text-lg tracking-tight">{reg.full_name}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <p className="text-gray-400 text-xs font-bold font-mono opacity-80">{reg.email}</p>
+                          <span className="text-white/10 text-[10px]">•</span>
+                          <p className="text-gray-400 text-xs font-bold font-mono opacity-80">{reg.phone}</p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Clock size={12} className="text-gray-500" />
+                          <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">
+                            {new Date(reg.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="flex gap-2 mt-3">
-                  {reg.status === 'pending' && (
-                    <>
-                      <button
-                        onClick={() => handleApprovePass(reg.id)}
-                        className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => handleRejectPass(reg.id)}
-                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                  {reg.status === 'approved' && (
-                    <button
-                      onClick={() => viewPassQR(reg.id)}
-                      className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-sm rounded flex items-center gap-1"
-                    >
-                      <Eye className="w-3 h-3" />
-                      View QR
-                  </button>
-                  )}
-                  <button
-                    onClick={() => handleDeletePassRegistration(reg.id, reg.full_name)}
-                    className="px-3 py-1 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-sm rounded flex items-center gap-1 transition-colors border border-red-500/20"
-                    title="Permanent Delete"
-                  >
-                    <Trash className="w-3 h-3" />
-                    Delete
-                  </button>
+                    <div className="flex flex-col md:items-end gap-4">
+                      <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black tracking-[0.2em] border ${
+                        reg.status === 'approved'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                          : reg.status === 'rejected'
+                          ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                          : 'bg-amber-500/10 text-amber-400 border-amber-500/20 animate-pulse'
+                      }`}>
+                        {reg.status.toUpperCase()}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {reg.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleApprovePass(reg.id)}
+                              className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-95"
+                            >
+                              Authorize
+                            </button>
+                            <button
+                              onClick={() => handleRejectPass(reg.id)}
+                              className="px-6 py-2 bg-white/5 hover:bg-white/10 text-red-400 hover:text-red-300 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 active:scale-95"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {reg.status === 'approved' && (
+                          <button
+                            onClick={() => viewPassQR(reg.id)}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl flex items-center gap-2 transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95"
+                          >
+                            <Eye size={12} />
+                            Deploy Pass
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDeletePassRegistration(reg.id, reg.full_name)}
+                          className="p-2 bg-white/5 hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-all rounded-xl border border-white/10 hover:border-red-500/20"
+                          title="Purge Protocol"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
               ))}
             </div>
           )}
@@ -1127,240 +1125,145 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       )}
 
       {/* VIP Passes Tab */}
-        {activeTab === 'vip' && (
-          <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Crown className="w-6 h-6 text-yellow-500" />
-                VIP Access Management
+      {/* VIP Passes Tab */}
+      {activeTab === 'vip' && (
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+            <div>
+              <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic flex items-center gap-3">
+                <Crown size={24} className="text-yellow-500" />
+                Access Matrix <span className="text-[10px] not-italic font-black bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded tracking-widest uppercase border border-yellow-500/20">VIP</span>
               </h3>
-              <div className="flex flex-wrap items-center gap-2">
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60 mt-1">High-Priority Personnel Management</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+              <button
+                onClick={() => setShowCreateVIP(!showCreateVIP)}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95"
+              >
+                <Plus size={14} /> Initialize VIP
+              </button>
+              <button
+                onClick={() => setShowBulkVIP(!showBulkVIP)}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border border-white/10"
+              >
+                <FileUp size={14} /> Bulk Uplink
+              </button>
+              {Object.keys(securitySettings?.pass_template_config || {}).length > 0 && (
                 <button
-                  onClick={() => setShowCreateVIP(!showCreateVIP)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  onClick={toggleSelectAll}
+                  className={`flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border ${
+                    filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id))
+                      ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20 shadow-lg shadow-yellow-500/5'
+                      : 'bg-white/5 text-gray-500 border-white/10 hover:text-white'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  Create VIP Pass
+                  {filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? <CheckSquare size={14} /> : <Square size={14} />}
+                  <span>{filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? 'De-select All' : 'Select Sector'}</span>
                 </button>
-                <button
-                  onClick={() => setShowBulkVIP(!showBulkVIP)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors border border-gray-600"
-                >
-                  <FileUp className="w-4 h-4" />
-                  Bulk Import
-                </button>
-                {Object.keys(securitySettings?.pass_template_config || {}).length > 0 && (
-                  <button
-                    onClick={toggleSelectAll}
-                    className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition-colors border ${
-                      filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id))
-                        ? 'bg-purple-600/20 text-purple-400 border-purple-500/30'
-                        : 'bg-gray-800/50 text-gray-400 border-gray-700 hover:text-gray-300'
-                    }`}
-                  >
-                    {filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? (
-                      <CheckSquare className="w-4 h-4" />
-                    ) : (
-                      <Square className="w-4 h-4" />
-                    )}
-                    {filteredVipPasses.length > 0 && filteredVipPasses.every(p => selectedVipIds.has(p.id)) ? 'Deselect All' : 'Select All'}
-                  </button>
-                )}
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col xl:flex-row items-center gap-4">
+            <div className="relative flex-1 group w-full">
+              <Search className="w-4 h-4 text-gray-500 absolute left-5 top-1/2 -translate-y-1/2 group-focus-within:text-yellow-500 transition-colors" />
+              <input 
+                type="text" 
+                value={vipSearch}
+                onChange={(e) => setVipSearch(e.target.value)}
+                placeholder="Scan for identity, protocol notes, or token hash..."
+                className="w-full bg-white/[0.03] border border-white/10 rounded-[1.5rem] pl-14 pr-6 py-5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-yellow-500/50 focus:ring-4 focus:ring-yellow-500/5 transition-all font-bold"
+              />
+              <div className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-600 uppercase tracking-widest tabular-nums">
+                 {filteredVipPasses.length} <span className="opacity-30">/</span> {vipPasses.length} DETECTED
               </div>
             </div>
-
-            {/* Search Bar */}
-            <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700/50 flex items-center gap-3">
-              <div className="relative flex-1">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                 <input 
-                   type="text" 
-                   value={vipSearch}
-                   onChange={(e) => setVipSearch(e.target.value)}
-                   placeholder="Search VIPs by name, notes, or token..."
-                   className="w-full bg-gray-900 border border-gray-700 text-white pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 placeholder-gray-600"
-                 />
-              </div>
-              <div className="text-xs text-gray-500 font-mono whitespace-nowrap">
-                 {filteredVipPasses.length} / {vipPasses.length}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2 items-end">
-               {/* Name Toggle */}
-               <label className="flex items-center gap-2 cursor-pointer bg-gray-800/50 px-3 py-1.5 rounded-lg border border-gray-700 hover:bg-gray-800 transition-colors">
+            
+            <div className="flex flex-wrap gap-2 items-center justify-end w-full xl:w-auto">
+               <label className="flex items-center gap-3 cursor-pointer bg-white/5 px-5 py-3 rounded-2xl border border-white/10 hover:bg-white/10 transition-all active:scale-95 group">
+                  <div className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${includeName ? 'bg-yellow-500 border-yellow-400 shadow-[0_0_10px_rgba(234,179,8,0.3)]' : 'bg-black/40 border-white/20 group-hover:border-white/40'}`}>
+                     {includeName && <CheckCircle2 size={10} className="text-black" strokeWidth={4} />}
+                  </div>
                   <input 
                     type="checkbox" 
                     checked={includeName} 
                     onChange={(e) => setIncludeName(e.target.checked)} 
-                    className="rounded bg-gray-700 border-gray-600 text-purple-500 focus:ring-purple-500 focus:ring-offset-gray-900" 
+                    className="hidden" 
                   />
-                  <span className="text-sm font-medium text-gray-300 select-none">Include Name on Pass</span>
+                  <span className="text-[10px] font-black text-gray-400 group-hover:text-white uppercase tracking-widest select-none transition-colors">ID Visibility</span>
                </label>
 
-              {/* PDF Row */}
-              <div className="flex flex-wrap gap-2 items-center justify-end">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">PDF:</span>
+               <div className="flex items-center gap-1.5 p-1 bg-black/40 rounded-2xl border border-white/10">
                   {(securitySettings?.event_dates || []).length > 1 ? (
-                    <div className="flex flex-wrap gap-1 w-full sm:w-auto">
-                      {(securitySettings?.event_dates || []).map((_, idx) => {
-                        const dayNum = idx + 1;
-                        const targetPasses = selectedVipIds.size > 0 
-                          ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                          : filteredVipPasses;
-                        
-                        return (
-                          <button
-                            key={`pdf-${idx}`}
-                            onClick={() => handleDownloadPDF(targetPasses, idx)}
-                            disabled={vipPasses.length === 0}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
-                          >
-                            <Download className="w-3 h-3" />
-                            {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `D${dayNum}`}
-                          </button>
-                        );
-                      })}
+                    <div className="flex gap-1">
+                      {(securitySettings?.event_dates || []).map((_, idx) => (
+                        <button
+                          key={`pdf-${idx}`}
+                          onClick={() => handleDownloadPDF(selectedVipIds.size > 0 ? vipPasses.filter(p => selectedVipIds.has(p.id)) : filteredVipPasses, idx)}
+                          className="px-4 py-2 bg-white/5 hover:bg-indigo-500 hover:text-white text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+                        >
+                          D{idx + 1}
+                        </button>
+                      ))}
                       <button
-                        onClick={() => {
-                          const targetPasses = selectedVipIds.size > 0 
-                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                            : filteredVipPasses;
-                          handleDownloadPDF(targetPasses);
-                        }}
-                        disabled={vipPasses.length === 0}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors border border-indigo-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
+                        onClick={() => handleDownloadPDF(selectedVipIds.size > 0 ? vipPasses.filter(p => selectedVipIds.has(p.id)) : filteredVipPasses)}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-indigo-500/20"
                       >
-                        <Download className="w-3 h-3" />
-                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} All` : 'All'}
+                        FULL PDF
                       </button>
                     </div>
                   ) : (
                     <button
-                       onClick={() => {
-                         const targetPasses = selectedVipIds.size > 0 
-                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                           : filteredVipPasses;
-                         handleDownloadPDF(targetPasses);
-                       }}
-                       disabled={vipPasses.length === 0}
-                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors border border-blue-500/30 disabled:opacity-50 text-xs font-bold"
+                       onClick={() => handleDownloadPDF(selectedVipIds.size > 0 ? vipPasses.filter(p => selectedVipIds.has(p.id)) : filteredVipPasses)}
+                       className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
                     >
-                      <Download className="w-3 h-3" />
-                      {selectedVipIds.size > 0 ? `Download PDF (${selectedVipIds.size})` : 'Download PDF'}
+                      GENERATE PDF
                     </button>
                   )}
-              </div>
-
-              {/* PNG Row */}
-              <div className="flex flex-wrap gap-2 items-center justify-end">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">PNG:</span>
-                  {(securitySettings?.event_dates || []).length > 1 ? (
-                    <div className="flex flex-wrap gap-1 w-full sm:w-auto">
-                      {(securitySettings?.event_dates || []).map((_, idx) => {
-                        const dayNum = idx + 1;
-                        const targetPasses = selectedVipIds.size > 0 
-                          ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                          : filteredVipPasses;
-                        
-                        return (
-                          <button
-                            key={`png-${idx}`}
-                            onClick={() => handleDownloadImage(targetPasses, 'png', idx)}
-                            disabled={vipPasses.length === 0}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-teal-600/10 hover:bg-teal-600/20 text-teal-400 rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
-                          >
-                            <Download className="w-3 h-3" />
-                            {selectedVipIds.size > 0 ? `${selectedVipIds.size} (D${dayNum})` : `D${dayNum}`}
-                          </button>
-                        );
-                      })}
-                      <button
-                        onClick={() => {
-                          const targetPasses = selectedVipIds.size > 0 
-                            ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                            : filteredVipPasses;
-                          handleDownloadImage(targetPasses, 'png');
-                        }}
-                        disabled={vipPasses.length === 0}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-[10px] sm:text-xs font-bold"
-                      >
-                        <Download className="w-3 h-3" />
-                        {selectedVipIds.size > 0 ? `${selectedVipIds.size} All` : 'All'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                       onClick={() => {
-                         const targetPasses = selectedVipIds.size > 0 
-                           ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                           : filteredVipPasses;
-                         handleDownloadImage(targetPasses, 'png');
-                       }}
-                       disabled={vipPasses.length === 0}
-                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg transition-colors border border-teal-500/30 disabled:opacity-50 text-xs font-bold"
-                    >
-                      <Download className="w-3 h-3" />
-                      {selectedVipIds.size > 0 ? `Download PNG (${selectedVipIds.size})` : 'Download PNG'}
-                    </button>
-                  )}
-              </div>
-
-              {/* A4 Sheet Row */}
-              <div className="flex flex-wrap gap-2 items-center justify-end">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Sheet:</span>
-                  <button
-                     onClick={() => {
-                       const targetPasses = selectedVipIds.size > 0 
-                         ? vipPasses.filter(p => selectedVipIds.has(p.id)) 
-                         : filteredVipPasses;
-                       handleDownloadA4PDF(targetPasses);
-                     }}
-                     disabled={vipPasses.length === 0}
-                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors border border-purple-500/30 disabled:opacity-50 text-xs font-bold"
-                  >
-                    <FileUp className="w-3 h-3" />
-                    {selectedVipIds.size > 0 ? `Download A4 Sheet (${selectedVipIds.size})` : 'Download A4 Sheet'}
-                  </button>
-              </div>
+               </div>
+               
+               <button
+                 onClick={() => handleDownloadA4PDF(selectedVipIds.size > 0 ? vipPasses.filter(p => selectedVipIds.has(p.id)) : filteredVipPasses)}
+                 className="px-6 py-3 bg-purple-600/10 hover:bg-purple-600 text-purple-400 hover:text-white rounded-2xl border border-purple-500/20 transition-all font-black text-[10px] uppercase tracking-widest"
+               >
+                 A4 SHEET
+               </button>
             </div>
+          </div>
 
           {showBulkVIP && (
-            <div className="bg-indigo-950/20 border border-indigo-500/30 p-6 rounded-lg space-y-4">
+            <div className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-indigo-400">Bulk VIP Import</h3>
-                  <p className="text-sm text-gray-400">Upload a CSV or Excel file with a "name" column.</p>
+                  <h3 className="text-xl font-black text-white tracking-tight uppercase">Bulk Import Nexus</h3>
+                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Upload CSV/Excel Protocol</p>
                 </div>
                 <button
                   onClick={downloadTemplate}
-                  className="flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
                 >
-                  <Download className="w-3 h-3" />
-                  Download Template
+                  <Download className="w-4 h-4" /> Download Template
                 </button>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <div className="flex flex-col lg:flex-row gap-4 items-center p-6 bg-black/20 rounded-2xl border border-white/5">
                 <input
                   type="file"
                   accept=".csv,.xlsx,.xls"
                   onChange={handleFileUpload}
-                  className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer"
+                  className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-6 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"
                 />
                 
                 {importData.length > 0 && (
                   <button
                     onClick={handleProcessBulk}
                     disabled={processingBulk}
-                    className="w-full sm:w-auto px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
+                    className="w-full lg:w-auto px-8 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2"
                   >
-                    {processingBulk ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4" />
-                    )}
-                    {processingBulk ? 'Creating...' : `Process ${importData.length} Records`}
+                    {processingBulk ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    {processingBulk ? 'Synchronizing...' : `Inject ${importData.length} Nodes`}
                   </button>
                 )}
               </div>
@@ -1368,174 +1271,175 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           )}
 
           {showCreateVIP && (
-            <form onSubmit={handleCreateVIP} className="bg-gray-800/50 p-6 rounded-lg space-y-4">
-              <div>
-                <label className="block text-gray-300 mb-2">VIP Name (Optional)</label>
-                <input
-                  type="text"
-                  value={newVIP.name}
-                  onChange={(e) => setNewVIP({ ...newVIP, name: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  placeholder="Leave blank for unnamed VIP pass"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 mb-2">Notes (Optional)</label>
-                <textarea
-                  value={newVIP.notes}
-                  onChange={(e) => setNewVIP({ ...newVIP, notes: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
-                  rows={3}
-                  placeholder="Internal notes about this VIP pass"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-300 mb-2">Valid Date (Optional)</label>
-                <div className="flex flex-col gap-1">
+            <form onSubmit={handleCreateVIP} className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Identity Designation</label>
+                  <input
+                    type="text"
+                    value={newVIP.name}
+                    onChange={(e) => setNewVIP({ ...newVIP, name: e.target.value })}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600"
+                    placeholder="Full Subject Name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Temporal Lockout</label>
                   <input
                     type="date"
                     value={newVIP.validDate}
                     onChange={(e) => setNewVIP({ ...newVIP, validDate: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all"
                   />
-                  <span className="text-xs text-gray-500">
-                    Leave blank for ALL-DAY access. Select a date to restrict pass to that day only.
-                  </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
-                >
-                  {loading ? 'Creating...' : 'Create VIP Pass'}
-                </button>
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Protocol Notes</label>
+                <textarea
+                  value={newVIP.notes}
+                  onChange={(e) => setNewVIP({ ...newVIP, notes: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all placeholder-gray-600 resize-none"
+                  rows={3}
+                  placeholder="Additional security clearance details..."
+                />
+              </div>
+              <div className="flex gap-3 justify-end pt-4 border-t border-white/5">
                 <button
                   type="button"
                   onClick={() => setShowCreateVIP(false)}
-                  className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
+                  className="px-6 py-2.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-8 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50"
+                >
+                  {loading ? 'Initializing...' : 'Authorize VIP'}
                 </button>
               </div>
             </form>
           )}
 
-          <div className="space-y-2">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             {filteredVipPasses.length === 0 ? (
-              <p className="text-gray-400 text-sm text-center py-8">
-                {vipPasses.length === 0 ? 'No VIP passes created yet' : 'No passes match your search'}
-              </p>
+              <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+                <Crown size={32} className="mx-auto text-gray-500 mb-4" />
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">
+                  {vipPasses.length === 0 ? 'Zero VIP signals detected' : 'No matches in the matrix'}
+                </p>
+              </div>
             ) : (
-              filteredVipPasses.map((pass) => (
-                <div key={pass.id} className={`bg-gray-800/30 p-4 rounded-lg border transition-all ${
-                  selectedVipIds.has(pass.id) ? 'border-purple-500/50 bg-purple-500/5' : 'border-transparent'
-                }`}>
-                  <div className="flex items-start gap-4 mb-2">
-                    <button 
-                      onClick={() => toggleSelectVip(pass.id)}
-                      className={`mt-1.5 transition-colors p-1 -m-1 ${
-                        selectedVipIds.has(pass.id) ? 'text-purple-400' : 'text-gray-600 hover:text-gray-500'
-                      }`}
-                    >
-                      {selectedVipIds.has(pass.id) ? (
-                        <CheckSquare className="w-6 h-6" />
-                      ) : (
-                        <Square className="w-6 h-6" />
-                      )}
-                    </button>
-                    <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <p className="text-white font-bold text-lg leading-tight">
-                          {pass.participant_name || <span className="text-gray-500 italic">Unnamed VIP</span>}
-                        </p>
-                        {pass.notes && (
-                          <p className="text-gray-400 text-sm">{pass.notes}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(pass.created_at).toLocaleString()}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Token: {pass.pass_token}
-                        </p>
-                        {/* Date Validity / Editor */}
-                        {editingPassId === pass.id ? (
-                          <div className="mt-2 p-2 bg-gray-900 rounded border border-gray-700 flex items-center gap-2">
-                             <input 
-                               type="date" 
-                               value={editDateValue}
-                               onChange={e => setEditDateValue(e.target.value)}
-                               className="bg-gray-800 text-white text-xs px-2 py-1 rounded border border-gray-600 focus:border-cyan-500 outline-none"
-                             />
-                             <button
-                               onClick={() => handleUpdatePassDate(pass.id, editDateValue)}
-                               className="p-1 bg-green-600 text-white rounded hover:bg-green-700"
-                               title="Save Date"
-                             >
-                               <CheckCircle2 className="w-4 h-4" />
-                             </button>
-                             <button
-                               onClick={() => setEditingPassId(null)}
-                               className="p-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                               title="Cancel"
-                             >
-                                <XCircle className="w-4 h-4" />
-                             </button>
-                             <button
-                               onClick={() => handleUpdatePassDate(pass.id, '')} // Set to null (All Access)
-                               className="p-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-[10px] font-bold px-2"
-                               title="Make All-Day Access"
-                             >
-                               ALL
-                             </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            {pass.valid_date ? (
-                               <p className="text-xs font-bold text-amber-500 mt-1 flex items-center gap-1">
-                                 <Clock className="w-3 h-3" />
-                                 Valid: {new Date(pass.valid_date).toLocaleDateString()}
-                               </p>
-                            ) : (
-                               <p className="text-xs font-bold text-green-500 mt-1 flex items-center gap-1">
-                                 <Crown className="w-3 h-3" />
-                                 All-Day Access
-                               </p>
-                            )}
-                            
-                            <button
-                              onClick={() => {
-                                setEditingPassId(pass.id);
-                                setEditDateValue(pass.valid_date || '');
-                              }}
-                              className="text-gray-500 hover:text-cyan-400 p-1 opacity-50 hover:opacity-100 transition-all"
-                              title="Edit Valid Date"
-                            >
-                               <FileUp className="w-3 h-3" />
-                            </button>
-
-                            {/* Name Visibility Toggle */}
-                            <button
-                               onClick={() => {
-                                  const current = perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName;
-                                  setPerPassNameVisibility(prev => ({ ...prev, [pass.id]: !current }));
-                               }}
-                               className={`p-1 rounded transition-all text-[10px] font-bold border ${
-                                  (perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName)
-                                    ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                                    : 'bg-gray-700 text-gray-500 border-gray-600'
-                               }`}
-                               title="Toggle Name on Pass"
-                            >
-                               Aa
-                            </button>
-                          </div>
-                        )}
+              <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-6">
+                {filteredVipPasses.map((pass) => (
+                  <div key={pass.id} className={`group relative rounded-[2rem] transition-all duration-700 ${
+                    selectedVipIds.has(pass.id) 
+                      ? 'bg-indigo-500/[0.08] border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30' 
+                      : 'bg-white/[0.02] border border-white/10 hover:border-white/20 hover:bg-white/[0.04] shadow-xl'
+                  }`}>
+                    {/* Holographic Accent */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none rounded-[2rem]" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors" />
+                    
+                    <div className="p-8 relative z-10">
+                      <div className="flex items-start gap-4 mb-6">
+                        <button 
+                          onClick={() => toggleSelectVip(pass.id)}
+                          className={`mt-1 flex-shrink-0 w-6 h-6 rounded-lg border transition-all flex items-center justify-center ${
+                            selectedVipIds.has(pass.id) 
+                              ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' 
+                              : 'bg-white/5 border-white/10 text-transparent hover:border-white/30'
+                          }`}
+                        >
+                          <CheckCircle2 size={12} strokeWidth={3} className={selectedVipIds.has(pass.id) ? 'scale-100 opacity-100' : 'scale-75 opacity-0'} />
+                        </button>
                         
-                        {/* Day Usage Badges */}
+                        <div className="flex-1">
+                          <h4 className="text-xl font-black text-white tracking-tight leading-none group-hover:text-indigo-400 transition-colors">
+                            {pass.participant_name || <span className="text-gray-600 italic uppercase text-[10px] tracking-[0.2em] opacity-50 font-bold">Anonymous Protocol</span>}
+                          </h4>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest font-mono opacity-60">#{pass.pass_token.slice(-8)}</span>
+                            <div className="w-1 h-1 rounded-full bg-white/10" />
+                            <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{new Date(pass.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`px-4 py-1.5 rounded-full text-[8px] font-black tracking-[0.2em] uppercase border transition-all duration-500 ${
+                            (pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used)
+                              ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]'
+                              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
+                          }`}>
+                            {(pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used) ? 'LOGGED' : 'STANDBY'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {pass.notes && (
+                        <div className="p-4 bg-white/[0.03] rounded-2xl border border-white/5 text-[11px] font-medium text-gray-400 leading-relaxed italic mb-6 border-l-2 border-l-indigo-500/50">
+                          {pass.notes}
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        {/* Status Grid */}
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Date Validity / Editor */}
+                          <div className="col-span-1">
+                            {editingPassId === pass.id ? (
+                              <div className="p-1.5 bg-indigo-500/5 rounded-2xl border border-indigo-500/20 flex items-center gap-2 animate-in slide-in-from-top-2">
+                                 <input 
+                                   type="date" 
+                                   value={editDateValue}
+                                   onChange={e => setEditDateValue(e.target.value)}
+                                   className="bg-black/40 text-white text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none w-full"
+                                 />
+                                 <div className="flex gap-1">
+                                   <button onClick={() => handleUpdatePassDate(pass.id, editDateValue)} className="p-2 bg-emerald-600 text-white rounded-lg"><CheckCircle2 size={12} /></button>
+                                   <button onClick={() => setEditingPassId(null)} className="p-2 bg-white/10 text-gray-400 rounded-lg"><XCircle size={12} /></button>
+                                 </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setEditingPassId(pass.id);
+                                  setEditDateValue(pass.valid_date || '');
+                                }}
+                                className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-2xl border transition-all ${
+                                  pass.valid_date 
+                                    ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' 
+                                    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                }`}
+                              >
+                                {pass.valid_date ? <Calendar size={12} /> : <Crown size={12} />}
+                                <span className="text-[9px] font-black uppercase tracking-widest truncate">
+                                  {pass.valid_date ? `Day: ${new Date(pass.valid_date).toLocaleDateString()}` : 'FULL ACCESS'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
+                          <button
+                             onClick={() => {
+                                const current = perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName;
+                                setPerPassNameVisibility(prev => ({ ...prev, [pass.id]: !current }));
+                             }}
+                             className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-2xl transition-all text-[9px] font-black uppercase tracking-widest border ${
+                                (perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName)
+                                  ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                  : 'bg-white/5 text-gray-600 border-white/10'
+                             }`}
+                          >
+                            <Eye size={12} className={(perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName) ? 'text-indigo-400' : 'text-gray-600'} />
+                            ID: {(perPassNameVisibility[pass.id] !== undefined ? perPassNameVisibility[pass.id] : includeName) ? 'ON' : 'OFF'}
+                          </button>
+                        </div>
+
+                        {/* Day Usage */}
                         {(securitySettings?.event_dates || []).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
+                          <div className="flex flex-wrap gap-2 p-3 bg-black/20 rounded-2xl border border-white/5">
                             {(securitySettings?.event_dates || []).map((date, idx) => {
                                 const dayNum = idx + 1;
                                 const isUsed = passUsage[pass.id]?.includes(dayNum);
@@ -1543,370 +1447,299 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                                   <button key={idx} 
                                      disabled={!isUsed}
                                      onClick={() => isUsed && date && handleResetDay(pass.id, date, dayNum)}
-                                     className={`text-[10px] px-1.5 py-0.5 rounded border inline-flex items-center gap-1 transition-colors ${
+                                     className={`min-w-[40px] px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all flex items-center justify-center gap-1.5 ${
                                       isUsed 
-                                      ? 'bg-green-500/20 text-green-400 border-green-500/30 hover:bg-red-500/20 hover:text-red-400 hover:border-red-500/30 cursor-pointer' 
-                                      : 'bg-gray-700 text-gray-500 border-gray-600 cursor-default'
-                                  }`}
-                                  title={isUsed ? "Click to remove this day's entry" : "Not visited"}
+                                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-rose-500/20 hover:text-rose-400 hover:border-rose-500/30' 
+                                      : 'bg-white/5 text-gray-600 border-transparent opacity-40'
+                                   }`}
                                   >
-                                    <span className="opacity-80">Day {dayNum}</span>
-                                    {isUsed ? (
-                                      <CheckCircle2 className="w-2.5 h-2.5" />
-                                    ) : (
-                                      <Clock className="w-2.5 h-2.5 opacity-40" />
-                                    )}
+                                    D{dayNum} {isUsed && <CheckCircle2 size={10} />}
                                   </button>
                                 );
                             })}
                           </div>
                         )}
                       </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest whitespace-nowrap ${
-                          (pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used)
-                            ? 'bg-red-500/10 text-red-500 border border-red-500/20'
-                            : 'bg-green-500/10 text-green-400 border border-green-500/20'
-                        }`}>
-                          {(pass.pass_type === 'vip' ? (currentDayNum && passUsage[pass.id]?.includes(currentDayNum)) : pass.is_used) ? 'CHECKED IN' : 'VALID'}
-                        </span>
+
+                      <div className="flex items-center gap-3 mt-8 pt-6 border-t border-white/5">
+                        <button
+                          onClick={() => setSelectedPass(pass)}
+                          className="flex-1 flex items-center justify-center gap-3 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-indigo-500/20 active:scale-95 group/btn"
+                        >
+                          <Download size={14} className="group-hover/btn:-translate-y-0.5 transition-transform" /> DEPLOY QR
+                        </button>
+                        <button
+                          onClick={() => handleToggleCouncilVisibility(pass.id, pass.is_hidden_from_council || false)}
+                          className={`p-3 rounded-2xl transition-all border ${
+                            pass.is_hidden_from_council 
+                              ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]' 
+                              : 'bg-white/5 text-gray-500 border-white/10 hover:border-white/20'
+                          }`}
+                          title={pass.is_hidden_from_council ? "Make Visible to Council" : "Hide from Council"}
+                        >
+                          {pass.is_hidden_from_council ? <Lock size={16} /> : <Eye size={16} className="opacity-40" />}
+                        </button>
+                        <button
+                          onClick={() => handleResetPass(pass.id)}
+                          className="p-3 bg-white/5 hover:bg-blue-500/10 text-gray-500 hover:text-blue-400 rounded-2xl transition-all border border-white/10 hover:border-blue-500/20"
+                          title="Reset All History"
+                        >
+                          <RefreshCw size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadImage(pass)}
+                          className="p-3 bg-white/5 hover:bg-indigo-500/10 text-gray-500 hover:text-indigo-400 rounded-2xl transition-all border border-white/10 hover:border-indigo-500/20"
+                          title="Download PNG"
+                        >
+                          <ImageIcon size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
+                          className="p-3 bg-white/5 hover:bg-rose-500/10 text-gray-500 hover:text-rose-500 rounded-2xl transition-all border border-white/10 hover:border-rose-500/20"
+                          title="Purge Node"
+                        >
+                          <Trash size={16} />
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t border-gray-700/30">
-                    <button
-                      onClick={() => setSelectedPass(pass)}
-                      className="flex items-center gap-1.5 text-cyan-400 hover:text-cyan-300 text-sm font-medium"
-                    >
-                      <Eye className="w-4 h-4" />
-                      View QR
-                    </button>
-                    
-                    <div className="flex flex-wrap gap-1.5 items-center">
-                      {(securitySettings?.event_dates || []).length > 1 ? (
-                        <div className="flex flex-col gap-1">
-                          {/* PDF Row */}
-                          <div className="flex items-center gap-1">
-                             <span className="text-[9px] text-gray-500 uppercase w-6">PDF</span>
-                             {(securitySettings?.event_dates || []).map((_, idx) => {
-                            const dayNum = idx + 1;
-                            return (
-                              <button
-                                key={`pdf-${idx}`}
-                                onClick={() => handleDownloadPDF(pass, idx)}
-                                className="flex items-center gap-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded text-[10px] font-bold border border-blue-500/20 transition-colors"
-                              >
-                                D{dayNum}
-                              </button>
-                            );
-                          })}
-                          <button
-                            onClick={() => handleDownloadPDF(pass)}
-                            className="flex items-center gap-1 px-2 py-1 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded text-[10px] font-bold border border-indigo-500/20 transition-colors"
-                          >
-                            All
-                          </button>
-                          </div>
-                          
-                          {/* PNG Row */}
-                          <div className="flex items-center gap-1">
-                             <span className="text-[9px] text-gray-500 uppercase w-6">PNG</span>
-                             {(securitySettings?.event_dates || []).map((_, idx) => {
-                            const dayNum = idx + 1;
-                            return (
-                              <button
-                                key={`png-${idx}`}
-                                onClick={() => handleDownloadImage(pass, 'png', idx)}
-                                className="flex items-center gap-1 px-2 py-1 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 rounded text-[10px] font-bold border border-teal-500/20 transition-colors"
-                              >
-                                D{dayNum}
-                              </button>
-                            );
-                          })}
-                          <button
-                            onClick={() => handleDownloadImage(pass, 'png')}
-                            className="flex items-center gap-1 px-2 py-1 bg-teal-500/10 hover:bg-teal-500/20 text-teal-400 rounded text-[10px] font-bold border border-teal-500/20 transition-colors"
-                          >
-                            All
-                          </button>
-                          </div>
-                          
-                          {/* A4 Sheet Row */}
-                          <div className="flex items-center gap-1 justify-end mt-1">
-                             <button
-                                onClick={() => handleDownloadA4PDF(pass)}
-                                className="flex items-center gap-1 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded text-[10px] font-bold border border-purple-500/20 transition-colors"
-                             >
-                               <FileUp className="w-3 h-3" />
-                               Download A4 Sheet
-                             </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleDownloadA4PDF(pass)}
-                            className="flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm font-medium"
-                          >
-                            <FileUp className="w-4 h-4" />
-                            A4
-                          </button>
-                          <button
-                            onClick={() => handleDownloadPDF(pass)}
-                            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm font-medium"
-                          >
-                            <Download className="w-4 h-4" />
-                            PDF
-                          </button>
-                          <button
-                            onClick={() => handleDownloadImage(pass, 'png')}
-                            className="flex items-center gap-2 text-teal-400 hover:text-teal-300 text-sm font-medium"
-                          >
-                            <Download className="w-4 h-4" />
-                            PNG
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3 items-center ml-auto">
-                      {/* Council Visibility Toggle */}
-                      <button
-                        onClick={() => handleToggleCouncilVisibility(pass.id, pass.is_hidden_from_council || false)}
-                        className={`p-2 rounded-lg transition-colors border ${
-                           pass.is_hidden_from_council 
-                           ? 'bg-gray-700/50 text-gray-400 border-gray-600 hover:bg-gray-700 hover:text-gray-300' 
-                           : 'bg-indigo-600/20 text-indigo-400 border-indigo-500/30 hover:bg-indigo-600/30 hover:text-indigo-300'
-                        }`}
-                        title={pass.is_hidden_from_council ? "Hidden from Council (Click to Show)" : "Visible to Council (Click to Hide)"}
-                      >
-                        {pass.is_hidden_from_council ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-
-                      <button
-                        onClick={() => handleResetPass(pass.id)}
-                        className="flex items-center gap-1.5 text-orange-400 hover:text-orange-300 text-sm font-medium"
-                        title="Clear scan history"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                        Reset
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVIPPass(pass.id, pass.participant_name)}
-                        className="flex items-center gap-1.5 text-red-500 hover:text-red-400 text-sm font-medium"
-                        title="Permanent Delete"
-                      >
-                        <Trash className="w-4 h-4" />
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
       )}
 
-
       {/* Settings Tab */}
       {activeTab === 'settings' && (
-        <div className="space-y-6">
-          <div className="bg-gray-800/50 p-6 rounded-lg border border-gray-700/50">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-cyan-500" />
-              Entry Pass Registration Settings
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
-                <div className="flex-1">
-                  <h4 className="text-white font-semibold mb-1">Show Registration Button on Homepage</h4>
-                  <p className="text-gray-400 text-sm">
-                    Control whether the "Register for Entry Pass" button appears on the homepage hero section
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer ml-4">
-                  <input
-                    type="checkbox"
-                    checked={securitySettings?.entry_pass_button_enabled ?? true}
-                    onChange={(e) => updateEntryPassButtonSetting(e.target.checked)}
-                    disabled={loading}
-                    className="sr-only peer"
-                  />
-                  <div className="w-14 h-7 bg-gray-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-cyan-600"></div>
-                </label>
-              </div>
-              
-              <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <p className="text-blue-400 text-sm">
-                  💡 <strong>Tip:</strong> Disable this toggle when you want to temporarily stop accepting new entry pass registrations, such as when the event is at capacity or registration has closed.
-                </p>
-              </div>
-
-              {/* Event Dates Configuration */}
-              <div className="pt-6 border-t border-gray-700 mt-6">
-                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-purple-500" />
-                  Event Schedule (Multi-day Access)
-                </h3>
-                <p className="text-gray-400 text-sm mb-4">
-                  Define the dates of the event. Passes will be valid for <strong>one entry per day</strong> on each of these dates.
-                </p>
-                <div className="space-y-3">
-                  {(securitySettings?.event_dates || []).map((date, idx) => (
-                    <div key={idx} className="flex items-center gap-3">
-                      <span className="text-gray-400 w-16 text-sm font-medium">Day {idx + 1}:</span>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={(e) => {
-                          const newDates = [...(securitySettings?.event_dates || [])];
-                          newDates[idx] = e.target.value;
-                          updateSecuritySettings({ event_dates: newDates });
-                        }}
-                        className="bg-gray-700 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-cyan-500"
-                      />
-                      <button
-                        onClick={() => {
-                          const newDates = (securitySettings?.event_dates || []).filter((_, i) => i !== idx);
-                          updateSecuritySettings({ event_dates: newDates });
-                        }}
-                        className="text-red-400 hover:text-red-300 p-2 hover:bg-gray-700 rounded transition-colors"
-                        title="Remove Day"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      const today = new Date().toISOString().split('T')[0];
-                      const newDates = [...(securitySettings?.event_dates || []), today];
-                      updateSecuritySettings({ event_dates: newDates });
-                    }}
-                    className="text-cyan-400 hover:text-cyan-300 text-sm font-medium flex items-center gap-2 mt-2 px-2 py-1 hover:bg-gray-700/50 rounded transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Event Day
-                  </button>
-                </div>
-              </div>
-
-            </div>
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div>
+            <h3 className="text-xl font-black text-white tracking-tight uppercase">System Calibration</h3>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Global Parameters & Access Control</p>
           </div>
 
+          <div className="grid gap-6">
+            <div className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-xl space-y-8 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
+               
+               <div className="space-y-4 relative z-10">
+                 <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
+                   <Shield className="text-indigo-400" size={18} />
+                   Frontend Access Protocol
+                 </h4>
+                 <div className="flex items-center justify-between p-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner group hover:bg-white/10 transition-all">
+                   <div className="flex-1">
+                     <h5 className="text-white font-bold text-lg tracking-tight">Public Registration Node</h5>
+                     <p className="text-gray-400 text-xs font-medium leading-relaxed opacity-80 mt-1 max-w-md">
+                       Toggle visibility of the "Register for Entry Pass" interface on the primary terminal.
+                     </p>
+                   </div>
+                   <label className="relative inline-flex items-center cursor-pointer ml-8">
+                     <input
+                       type="checkbox"
+                       checked={securitySettings?.entry_pass_button_enabled ?? true}
+                       onChange={(e) => updateSecuritySettings({ entry_pass_button_enabled: e.target.checked })}
+                       disabled={loading}
+                       className="sr-only peer"
+                     />
+                     <div className="w-16 h-8 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-1 after:left-[4px] after:bg-gray-400 after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600 peer-checked:after:bg-white shadow-inner"></div>
+                   </label>
+                 </div>
+               </div>
+
+               <div className="space-y-4 relative z-10 pt-8 border-t border-white/5">
+                 <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
+                   <Calendar className="text-teal-400" size={18} />
+                   Temporal Parameters
+                 </h4>
+                 <div className="p-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
+                   <p className="text-gray-400 text-xs font-medium leading-relaxed opacity-80 mb-6 font-mono">
+                     OPERATIONAL DATES: Passes are valid for single-entry protocols on the following galactic cycles.
+                   </p>
+                   <div className="flex flex-wrap gap-3">
+                     {(securitySettings?.event_dates || []).map((date, idx) => (
+                       <div key={idx} className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/10 shadow-sm group hover:border-indigo-500/30 transition-all">
+                         <span className="text-indigo-400 font-black text-[10px] uppercase tracking-widest opacity-60">ID-{idx+1}</span>
+                         <span className="text-white font-mono text-xs font-bold">{date}</span>
+                         <button
+                           onClick={async () => {
+                             const next = (securitySettings?.event_dates || []).filter((_, i) => i !== idx);
+                             await updateSecuritySettings({ event_dates: next });
+                           }}
+                           className="text-gray-600 hover:text-red-400 transition-all"
+                         >
+                           <Trash size={14} />
+                         </button>
+                       </div>
+                     ))}
+                     <button
+                        onClick={async () => {
+                           const d = prompt("Enter date (YYYY-MM-DD):");
+                           if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+                              const next = [...(securitySettings?.event_dates || []), d].sort();
+                              await updateSecuritySettings({ event_dates: next });
+                           }
+                        }}
+                        className="flex items-center gap-2 px-5 py-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600/30 transition-all shadow-sm"
+                     >
+                       <Plus size={14} />
+                       Add Cycle
+                     </button>
+                   </div>
+                 </div>
+               </div>
+
+               <div className="space-y-4 relative z-10 pt-8 border-t border-white/5">
+                 <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-3">
+                   <Lock className="text-amber-400" size={18} />
+                   Security Overrides
+                 </h4>
+                 <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10 shadow-inner">
+                      <h5 className="text-white font-bold text-sm tracking-tight mb-2">Council Access Key</h5>
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={councilPassword}
+                          onChange={(e) => setCouncilPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="flex-1 bg-black/40 text-white text-sm px-4 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                        />
+                        <button
+                          onClick={updateCouncilPassword}
+                          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95"
+                        >
+                          Sync
+                        </button>
+                      </div>
+                    </div>
+                 </div>
+               </div>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Council Access Tab */}
       {activeTab === 'council' && (
-        <div className="bg-gray-800/50 p-6 rounded-lg border border-purple-500/30">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <Lock className="w-6 h-6 text-purple-500" />
-            Council Dashboard Access
-          </h3>
-          <p className="text-gray-400 text-sm mb-6 max-w-2xl">
-            Configure access credentials for the Student Council Dashboard. This dashboard is distinct from the security scanner and is used for monitoring attendance statistics and managing VIP passes.
-          </p>
-          
-          <div className="bg-gray-900/50 p-6 rounded-xl border border-gray-700/50 max-w-xl">
-             <label className="block text-sm font-medium text-gray-400 mb-2">
-                Council Password
-             </label>
-             <div className="flex gap-2">
-              <input 
-                type="text" 
-                value={councilPassword}
-                onChange={e => setCouncilPassword(e.target.value)}
-                placeholder="Set new password..."
-                className="bg-gray-800 border border-gray-700 text-white px-4 py-3 rounded-lg flex-1 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-              />
-              <button 
-                onClick={updateCouncilPassword}
-                disabled={loading}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                   <RefreshCw className="w-4 h-4 animate-spin" />
-                   Updating...
-                  </>
-                ) : (
-                  'Update Password'
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Note: This password is required for all Council members to log in.
-            </p>
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div>
+            <h3 className="text-xl font-black text-white tracking-tight uppercase">Council Authority</h3>
+            <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Dashboard Credentials & Access Keys</p>
+          </div>
+
+          <div className="superia-glass-card p-10 rounded-3xl border-white/10 shadow-2xl relative overflow-hidden">
+             <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
+             
+             <div className="max-w-2xl space-y-6 relative z-10">
+               <div className="flex items-start gap-5">
+                 <div className="p-4 bg-purple-500/10 rounded-2xl border border-purple-500/20 text-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+                   <Lock size={24} />
+                 </div>
+                 <div className="space-y-1">
+                   <h4 className="text-white font-black text-lg tracking-tight">Main Terminal Password</h4>
+                   <p className="text-gray-400 text-xs font-medium leading-relaxed opacity-80">
+                     This key authorizes Student Council members to access their dedicated management terminal.
+                     Update this if rotation protocols require fresh credentials.
+                   </p>
+                 </div>
+               </div>
+
+               <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                 <div className="flex-1 relative">
+                    <input 
+                      type="password" 
+                      value={councilPassword}
+                      onChange={e => setCouncilPassword(e.target.value)}
+                      placeholder="ENTER NEW PROTOCOL KEY"
+                      className="w-full bg-black/40 text-white text-sm font-mono tracking-widest px-6 py-4 rounded-2xl border border-white/10 focus:border-purple-500 outline-none transition-all shadow-inner placeholder:text-gray-700 placeholder:text-[10px]"
+                    />
+                 </div>
+                 <button 
+                   onClick={updateCouncilPassword}
+                   disabled={loading}
+                   className="bg-purple-600 hover:bg-purple-500 text-white px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl hover:shadow-purple-500/20 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"
+                 >
+                   {loading ? (
+                     <RefreshCw size={16} className="animate-spin" />
+                   ) : (
+                     <CheckCircle2 size={16} />
+                   )}
+                   Synchronize Key
+                 </button>
+               </div>
+               
+               <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center gap-3">
+                 <AlertTriangle className="text-amber-500/60" size={16} />
+                 <p className="text-[10px] text-amber-500/60 font-bold uppercase tracking-widest">
+                   Changing this key will terminate current active sessions on the Council Terminal.
+                 </p>
+               </div>
+             </div>
           </div>
         </div>
       )}
 
       {/* Rules Tab */}
       {activeTab === 'rules' && (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in duration-500">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-black text-white tracking-tight uppercase">Validation Protocols</h3>
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Security Firewall Configuration</p>
+            </div>
+            <div className="flex gap-2">
+               <button
+                 onClick={() => handleCreateRule('date_restriction')}
+                 className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all active:scale-95"
+               >
+                 <Plus size={14} className="text-indigo-400" />
+                 Temporal Gate
+               </button>
+               <button
+                 onClick={() => handleCreateRule('capacity')}
+                 className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all active:scale-95"
+               >
+                 <Plus size={14} className="text-teal-400" />
+                 Capacity Cap
+               </button>
+            </div>
+          </div>
+
           {!rulesTableReady && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 p-4 rounded-lg flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div className="superia-glass-card p-6 rounded-2xl border-amber-500/20 bg-amber-500/5 flex items-start gap-4">
+              <AlertTriangle className="text-amber-500 mt-1" size={20} />
               <div>
-                <p className="text-yellow-200/70 text-sm mt-1">
-                  The 'validation_rules' table issue detected. 
-                  Showing default rules from code. Changes here will not persist.
+                <p className="text-amber-500 font-black text-sm uppercase tracking-widest">Database Sync Error</p>
+                <p className="text-amber-500/60 text-xs font-medium mt-1">
+                  The security firewall table is offline. Default protocols are active.
+                  <button onClick={() => loadData()} className="ml-2 underline font-black hover:text-amber-400 transition-colors">Retry Sync</button>
                 </p>
-                {ruleLoadError && (
-                  <div className="mt-2 bg-black/20 p-2 rounded border border-yellow-500/20">
-                     <p className="font-mono text-xs text-yellow-200">{ruleLoadError}</p>
-                  </div>
-                )}
-                <button 
-                  onClick={() => loadData()}
-                  className="mt-2 text-xs bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-200 px-2 py-1 rounded transition-colors"
-                >
-                  Retry Connection
-                </button>
               </div>
             </div>
           )}
-          
 
-          
-          <div className="flex gap-2 pb-2">
-            <button
-              onClick={() => handleCreateRule('date_restriction')}
-              disabled={!rulesTableReady}
-              className="flex items-center gap-2 px-3 py-2 bg-cyan-600/20 text-cyan-400 border border-cyan-600/30 rounded-lg hover:bg-cyan-600/30 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Date Rule</span>
-            </button>
-            <button
-              onClick={() => handleCreateRule('time_window')}
-              disabled={!rulesTableReady}
-              className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 text-purple-400 border border-purple-600/30 rounded-lg hover:bg-purple-600/30 transition-colors"
-            >
-              <Clock className="w-4 h-4" />
-              <span>Add Time Rule</span>
-            </button>
-          </div>
-
-          <div className="grid gap-4">
+          <div className="grid md:grid-cols-2 gap-6">
             {validationRules.map((rule) => (
-              <div key={rule.id} className={`bg-gray-800/50 rounded-lg border p-4 ${rule.is_active ? 'border-green-500/30' : 'border-gray-700'}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${rule.is_active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700 text-gray-400'}`}>
-                      {rule.rule_type === 'date_restriction' ? <Calendar className="w-5 h-5" /> : 
-                       rule.rule_type === 'time_window' ? <Clock className="w-5 h-5" /> :
-                       <Shield className="w-5 h-5" />}
+              <div key={rule.id} className={`superia-glass-card p-6 rounded-3xl border-white/10 shadow-xl transition-all group relative overflow-hidden ${
+                !rule.is_active ? 'opacity-50 grayscale' : ''
+              }`}>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
+                
+                <div className="flex items-start justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-2xl border ${
+                      rule.rule_type === 'date_restriction' ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 
+                      rule.rule_type === 'capacity' ? 'bg-teal-500/10 border-teal-500/20 text-teal-400' : 
+                      'bg-white/5 border-white/10 text-gray-500'
+                    }`}>
+                      {rule.rule_type === 'date_restriction' ? <Calendar size={20} /> : 
+                       rule.rule_type === 'capacity' ? <Users size={20} /> : <Lock size={20} />}
                     </div>
                     <div>
-                      <h3 className="text-white font-bold">{rule.rule_name}</h3>
-                      <p className="text-sm text-gray-400">
-                        Type: <span className="font-mono text-cyan-400">{rule.rule_type}</span>
-                        {rule.pass_type && <span className="ml-2">• Allows: {rule.pass_type === 'vip' ? 'VIP' : rule.pass_type}</span>}
+                      <h4 className="text-white font-black text-lg tracking-tight">{rule.rule_name}</h4>
+                      <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60 leading-none mt-1">
+                        {rule.rule_type.replace('_', ' ')}
                       </p>
                     </div>
                   </div>
@@ -1915,183 +1748,209 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
                       type="checkbox"
                       checked={rule.is_active}
                       onChange={() => handleToggleRule(rule)}
-                      disabled={!rulesTableReady}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    <div className="w-12 h-6 bg-white/5 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-gray-400 after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
                   </label>
-                  <button onClick={() => handleDeleteRule(rule.id)} className="ml-4 text-gray-500 hover:text-red-400">
-                    <Trash className="w-4 h-4" />
-                  </button>
                 </div>
 
-                {/* Rule Specific Editors */}
-                {rule.rule_type === 'date_restriction' && rule.config.allowedDates && (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50">
-                    <p className="text-sm text-gray-300 mb-2 font-semibold">Allowed Dates (YYYY-MM-DD):</p>
-                    <div className="space-y-2">
-                       {rule.config.allowedDates?.map((date: string, idx: number) => (
-                         <div key={idx} className="flex items-center gap-2">
-                           <input type="date" value={date} readOnly className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm text-gray-300 flex-1" />
-                           <button 
-                             onClick={() => {
-                               const newDates = (rule.config.allowedDates || []).filter((_: any, i: number) => i !== idx);
-                               handleRuleConfigUpdate(rule.id, { ...rule.config, allowedDates: newDates });
-                             }}
-                             disabled={!rulesTableReady}
-                             className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded"
-                           >
-                             <Trash className="w-4 h-4" />
-                           </button>
-                         </div>
-                       ))}
-                       <div className="flex gap-2">
-                         <input 
-                           type="date" 
-                           id={`new-date-${rule.id}`}
-                           className="bg-gray-700 border border-gray-600 rounded px-3 py-1 text-white text-sm focus:outline-none focus:border-cyan-500"
-                         />
-                         <button
-                           onClick={() => {
-                             const input = document.getElementById(`new-date-${rule.id}`) as HTMLInputElement;
-                             if (input && input.value) {
-                               const newDates = [...(rule.config.allowedDates || []), input.value];
-                               handleRuleConfigUpdate(rule.id, { ...rule.config, allowedDates: newDates });
-                               input.value = '';
-                             }
-                           }}
-                           disabled={!rulesTableReady}
-                           className="px-3 py-1 bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold rounded"
-                         >
-                           Add Date
-                         </button>
-                       </div>
-                    </div>
-                  </div>
-                )}
-                
-                {rule.rule_type === 'time_window' && (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50 flex gap-4">
-                     <div>
-                       <label className="text-xs text-gray-400 block mb-1">Start Time</label>
-                       <input 
-                         type="time" 
-                         value={rule.config.startTime || ''}
-                         onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, startTime: e.target.value })}
-                         className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm"
-                       />
+                <div className="space-y-4 relative z-10">
+                  {rule.rule_type === 'date_restriction' && (
+                     <div className="pt-4 border-t border-white/5">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Permitted Cycles (IST)</label>
+                        <div className="flex flex-wrap gap-2">
+                           {(securitySettings?.event_dates || []).map((date) => {
+                              const isAllowed = rule.config.allowedDates?.includes(date);
+                              return (
+                                 <button
+                                    key={date}
+                                    onClick={() => {
+                                       const current = rule.config.allowedDates || [];
+                                       const next = current.includes(date) ? current.filter(d => d !== date) : [...current, date];
+                                       handleRuleConfigUpdate(rule.id, { ...rule.config, allowedDates: next });
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                       isAllowed 
+                                       ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' 
+                                       : 'bg-white/5 text-gray-600 border-white/5 hover:border-white/20'
+                                    }`}
+                                 >
+                                    {date}
+                                 </button>
+                              );
+                           })}
+                        </div>
                      </div>
-                     <div>
-                       <label className="text-xs text-gray-400 block mb-1">End Time</label>
-                       <input 
-                         type="time" 
-                         value={rule.config.endTime || ''}
-                         onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, endTime: e.target.value })}
-                         className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm"
-                       />
+                  )}
+
+                  {rule.rule_type === 'capacity' && (
+                     <div className="pt-4 border-t border-white/5">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Max Capacity Per Cycle</label>
+                        <input
+                           type="number"
+                           value={rule.config.maxCapacity || ''}
+                           onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, maxCapacity: parseInt(e.target.value) || 0 })}
+                           className="w-full bg-black/40 text-white text-sm px-4 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none transition-all shadow-inner"
+                           placeholder="Enter threshold..."
+                        />
                      </div>
-                  </div>
-                )}
-                
-                {rule.rule_type === 'capacity' && (
-                  <div className="mt-4 pt-4 border-t border-gray-700/50">
-                     <label className="text-xs text-gray-400 block mb-1">Max Capacity</label>
-                     <input 
-                       type="number" 
-                       value={rule.config.maxCapacity || 0}
-                       onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, maxCapacity: parseInt(e.target.value) })}
-                       className="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-white text-sm w-32"
-                     />
-                  </div>
-                )}
+                  )}
+                  
+                  {rule.rule_type === 'time_window' && (
+                     <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Start Time</label>
+                           <input
+                             type="time"
+                             value={rule.config.startTime || ''}
+                             onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, startTime: e.target.value })}
+                             className="w-full bg-black/40 text-white text-xs px-3 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none transition-all"
+                           />
+                        </div>
+                        <div className="space-y-1">
+                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">End Time</label>
+                           <input
+                             type="time"
+                             value={rule.config.endTime || ''}
+                             onChange={(e) => handleRuleConfigUpdate(rule.id, { ...rule.config, endTime: e.target.value })}
+                             className="w-full bg-black/40 text-white text-xs px-3 py-2 rounded-xl border border-white/10 focus:border-indigo-500 outline-none transition-all"
+                           />
+                        </div>
+                     </div>
+                  )}
+                </div>
+
+                <div className="mt-6 flex justify-end relative z-10">
+                   <button
+                     onClick={() => handleDeleteRule(rule.id)}
+                     className="p-2 text-gray-500 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                   >
+                     <Trash size={16} />
+                   </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
+      {activeTab === 'design' && (
+        <PassTemplateDesigner />
+      )}
+
       {/* QR Modal */}
       {selectedPass && createPortal(
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-gray-800 rounded-2xl p-8 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Entry Pass QR Code</h3>
-            <QRCodeGenerator
-              passToken={selectedPass.pass_token}
-              participantName={selectedPass.participant_name}
-              passType={selectedPass.pass_type}
-              size={256}
-            />
-            <button
-              onClick={() => setSelectedPass(null)}
-              className="w-full mt-6 px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-            >
-              Close
-            </button>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-300">
+          <div className="superia-glass-card p-10 rounded-[3rem] max-w-md w-full border-white/10 shadow-[0_0_100px_rgba(99,102,241,0.2)] text-center relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
+             <div className="relative z-10 flex flex-col items-center">
+                <div className="w-16 h-1 w-24 bg-indigo-500 rounded-full mb-8 opacity-20" />
+                <h3 className="text-xl font-black text-white mb-8 tracking-tight uppercase">Protocol Authorization</h3>
+                
+                <div className="p-6 bg-white rounded-[2rem] shadow-2xl mb-8 relative">
+                   <div className="absolute -inset-4 bg-indigo-500/20 rounded-[3rem] blur-2xl -z-10" />
+                   <QRCodeGenerator
+                     passToken={selectedPass.pass_token}
+                     participantName={selectedPass.participant_name}
+                     passType={selectedPass.pass_type}
+                     size={240}
+                   />
+                </div>
+
+                <div className="space-y-2 mb-10 w-full">
+                   <p className="text-white font-black text-lg tracking-tight">{selectedPass.participant_name || 'VIP Guest'}</p>
+                   <p className="text-indigo-400 font-mono text-xs font-bold tracking-widest">{selectedPass.pass_token}</p>
+                   <div className="pt-2">
+                     <span className="px-4 py-1.5 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                       {selectedPass.pass_type.toUpperCase()} PASS
+                     </span>
+                   </div>
+                </div>
+
+                <button
+                  onClick={() => setSelectedPass(null)}
+                  className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest transition-all border border-white/10 active:scale-95"
+                >
+                  Return to Control
+                </button>
+             </div>
           </div>
         </div>
       , document.body)}
-      {/* Scan History Tab */}
+
+      {/* History Tab */}
       {activeTab === 'history' && (
-        <div className="space-y-4">
+        <div className="space-y-8 animate-in fade-in duration-500">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">Full Scan History</h3>
+            <div>
+              <h3 className="text-xl font-black text-white tracking-tight uppercase">Audit Logs</h3>
+              <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Complete Scan History Matrix</p>
+            </div>
             <button
               onClick={() => loadData()}
-              className="p-2 text-cyan-400 hover:bg-cyan-400/10 rounded-lg transition-colors"
-              title="Refresh History"
+              className="p-3 bg-white/5 hover:bg-white/10 text-indigo-400 rounded-2xl border border-white/10 transition-all shadow-lg active:scale-95"
+              title="Refresh Stream"
             >
-              <RefreshCw className="w-5 h-5" />
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
 
-          <div className="bg-gray-800/30 rounded-xl border border-gray-700 overflow-hidden">
+          <div className="superia-glass-card rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden bg-white/[0.02]">
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-800/50 border-b border-gray-700">
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Time</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Participant</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Result</th>
-                    <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Guard</th>
+                  <tr className="bg-white/5 border-b border-white/10">
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Temporal Stamp</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Identity</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Protocol</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Result</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-gray-500 uppercase tracking-widest">Operator</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700/50">
+                <tbody className="divide-y divide-white/[0.03]">
                   {scanHistory.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-10 text-center text-gray-500 italic">
-                        No scan history found
+                      <td colSpan={5} className="px-8 py-20 text-center">
+                        <History size={40} className="mx-auto text-gray-600 mb-4 opacity-20" />
+                        <p className="text-gray-500 font-bold uppercase tracking-widest text-xs">No scan events recorded in the current cycle</p>
                       </td>
                     </tr>
                   ) : (
                     scanHistory.map((scan) => (
-                      <tr key={scan.id} className="hover:bg-gray-700/20 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                          {new Date(scan.scanned_at).toLocaleString()}
+                      <tr key={scan.id} className="hover:bg-white/[0.03] transition-colors group">
+                        <td className="px-8 py-5 whitespace-nowrap">
+                          <span className="text-gray-400 font-mono text-xs">{new Date(scan.scanned_at).toLocaleString()}</span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-sm font-semibold text-white">{scan.participant_name || 'VIP Guest'}</p>
-                          <p className="text-[10px] font-mono text-gray-500">{scan.pass_token}</p>
+                        <td className="px-8 py-5 whitespace-nowrap">
+                          <p className="text-white font-black text-sm tracking-tight">{scan.participant_name || 'Anonymous Guest'}</p>
+                          <p className="text-[10px] font-mono text-gray-500 uppercase tracking-tighter mt-0.5">{scan.pass_token}</p>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            scan.pass_type === 'vip' ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                        <td className="px-8 py-5 whitespace-nowrap">
+                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
+                            scan.pass_type === 'vip' 
+                              ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-[0_0_10px_rgba(168,85,247,0.15)]' 
+                              : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
                           }`}>
                             {scan.pass_type?.toUpperCase() || 'REGULAR'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        <td className="px-8 py-5 whitespace-nowrap">
+                          <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border ${
                             scan.scan_result === 'valid' 
-                              ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
+                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
                               : scan.scan_result === 'already_used'
-                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                                : 'bg-red-500/10 text-red-500 border-red-500/20'
                           }`}>
-                            {scan.scan_result === 'already_used' ? 'ALREADY SCANNED' : scan.scan_result.toUpperCase()}
+                            {scan.scan_result === 'already_used' ? 'DUPLICATE' : scan.scan_result.toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-cyan-400 font-medium font-mono text-[10px]">
-                          {scan.guard_name || scan.scanned_by_username || <span className="text-gray-600 italic">Not recorded</span>}
+                        <td className="px-8 py-5 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500/50" />
+                            <span className="text-indigo-300 font-black text-[10px] uppercase tracking-widest opacity-80">
+                              {scan.guard_name || scan.scanned_by_username || 'System Admin'}
+                            </span>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -2102,9 +1961,6 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
         </div>
       )}
-      {activeTab === 'design' && (
-        <PassTemplateDesigner />
-      )}
     </div>
   );
-}
+};

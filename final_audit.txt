@@ -1,0 +1,202 @@
+[dotenv@17.3.1] injecting env (29) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+--- Analyzing Supabase Data for Egress Audit ---
+
+[1] Gallery Images Host Distribution:
+┌────────────────────┬────────┐
+│ (index)            │ Values │
+├────────────────────┼────────┤
+│ Google Drive Proxy │ 2545   │
+└────────────────────┴────────┘
+
+[2] Hero Media Videos:
+┌─────────┬─────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ (index) │ page_key    │ video_url                                                                                                                          │
+├─────────┼─────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 0       │ 'homebound' │ 'https://pub-58ff2c8f3319429d8feb2eadb1b3713d.r2.dev/hero-video/1770968840261-ydkmhy1blpl_migrated_hero_media_5_1770968840261.mp4' │
+│ 1       │ 'home'      │ 'https://pub-58ff2c8f3319429d8feb2eadb1b3713d.r2.dev/hero-video/1770968928394-py6lriqa6q_migrated_hero_media_1_1770968928394.mov'  │
+└─────────┴─────────────┴────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+[3] Storage Usage (Deep Scan):
+
+Bucket: uploads - Total: 0.00 GB (0 files)
+
+Bucket: gallery - Total: 0.00 GB (0 files)
+
+Bucket: events - Total: 0.00 GB (0 files)
+
+Bucket: sponsors - Total: 0.00 GB (0 files)
+
+Bucket: members - Total: 0.00 GB (0 files)
+
+Bucket: artists - Total: 0.00 GB (0 files)
+
+Bucket: hero-videos - Total: 0.00 GB (0 files)
+
+Bucket: guest-artist-videos - Total: 0.08 GB (6 files)
+Largest 5 files:
+┌─────────┬────────────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                               │ size_mb │
+├─────────┼────────────────────────────────────────────────────┼─────────┤
+│ 0       │ 'artists/card-media/1766323278793-ss55c1han4.mp4'  │ '41.72' │
+│ 1       │ 'artists/card-media/1765990246494-8yjrsvuvfyb.MP4' │ '13.06' │
+│ 2       │ 'artists/card-media/1767376384314-giy3fqzs55k.mov' │ '8.76'  │
+│ 3       │ 'artists/card-media/1763888527322-1y66wrc7yzx.mov' │ '6.58'  │
+│ 4       │ 'artists/card-media/1763889268900-5g6samnayec.mov' │ '6.58'  │
+└─────────┴────────────────────────────────────────────────────┴─────────┘
+
+Bucket: band-images - Total: 0.00 GB (9 files)
+Largest 5 files:
+┌─────────┬──────────────────────────────────────┬─────────┐
+│ (index) │ name                                 │ size_mb │
+├─────────┼──────────────────────────────────────┼─────────┤
+│ 0       │ 'band/1757749826388-x1u7uvoyq8.jpg'  │ '0.72'  │
+│ 1       │ 'band/1757753992861-f3561eslbnr.jpg' │ '0.60'  │
+│ 2       │ 'band/1757754237776-cn3bptw1w0n.jpg' │ '0.52'  │
+│ 3       │ 'band/1757753894234-t9yqrnmro6.jpg'  │ '0.25'  │
+│ 4       │ 'band/1757754348848-pokj3vddz9s.jpg' │ '0.23'  │
+└─────────┴──────────────────────────────────────┴─────────┘
+
+Bucket: gallery-images - Total: 0.00 GB (4 files)
+Largest 5 files:
+┌─────────┬─────────────────────────────────────────┬─────────┐
+│ (index) │ name                                    │ size_mb │
+├─────────┼─────────────────────────────────────────┼─────────┤
+│ 0       │ 'gallery/1768233473499-3jeakxic8zx.jpg' │ '0.51'  │
+│ 1       │ 'gallery/1768233590017-axdvjhzi1u6.jpg' │ '0.37'  │
+│ 2       │ 'gallery/1764245814515-xitn0fbldlg.jpg' │ '0.22'  │
+│ 3       │ 'gallery/1768233525120-2k9k38rurp6.jpg' │ '0.10'  │
+└─────────┴─────────────────────────────────────────┴─────────┘
+
+Bucket: team-images - Total: 0.02 GB (100 files)
+Largest 5 files:
+┌─────────┬───────────────────────────────────────────┬─────────┐
+│ (index) │ name                                      │ size_mb │
+├─────────┼───────────────────────────────────────────┼─────────┤
+│ 0       │ 'core-team/1758011664855-7059ubl3k3u.jpg' │ '1.10'  │
+│ 1       │ 'core-team/1759043407924-hrp7ozy9uue.jpg' │ '0.93'  │
+│ 2       │ 'core-team/1758090785121-yvqxsptrp.jpg'   │ '0.73'  │
+│ 3       │ 'core-team/1764774736743-r5529pfid1j.jpg' │ '0.59'  │
+│ 4       │ 'core-team/1758199342697-jon0hbgqq3p.jpg' │ '0.58'  │
+└─────────┴───────────────────────────────────────────┴─────────┘
+
+Bucket: faculty-images - Total: 0.00 GB (3 files)
+Largest 5 files:
+┌─────────┬─────────────────────────────────────────┬─────────┐
+│ (index) │ name                                    │ size_mb │
+├─────────┼─────────────────────────────────────────┼─────────┤
+│ 0       │ 'faculty/1758989524644-1a6qhkdgidc.jpg' │ '0.68'  │
+│ 1       │ 'faculty/1759162099082-w37cf3chlzp.jpg' │ '0.17'  │
+│ 2       │ 'faculty/1759071847362-7dk2j4kagjy.jpg' │ '0.07'  │
+└─────────┴─────────────────────────────────────────┴─────────┘
+
+Bucket: sports-images - Total: 0.00 GB (7 files)
+Largest 5 files:
+┌─────────┬─────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                        │ size_mb │
+├─────────┼─────────────────────────────────────────────┼─────────┤
+│ 0       │ 'sports-team/1758654814943-q2fa5n7bkw.jpg'  │ '0.68'  │
+│ 1       │ 'sports-team/1758654334707-ovgmn28982.jpg'  │ '0.46'  │
+│ 2       │ 'sports-team/1758550458240-kounsqq19ek.jpg' │ '0.33'  │
+│ 3       │ 'sports-team/1758549438696-euantp10byu.jpg' │ '0.12'  │
+│ 4       │ 'sports-team/1758514538487-z7vqyhkn9fq.jpg' │ '0.11'  │
+└─────────┴─────────────────────────────────────────────┴─────────┘
+
+Bucket: event-images - Total: 0.28 GB (82 files)
+Largest 5 files:
+┌─────────┬───────────────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                                  │ size_mb │
+├─────────┼───────────────────────────────────────────────────────┼─────────┤
+│ 0       │ 'events/motion-posters/1765268421388-47iekgbi6ou.MP4' │ '7.45'  │
+│ 1       │ 'events/motion-posters/1765008076618-7w6kuvx4s2y.mov' │ '7.33'  │
+│ 2       │ 'events/motion-posters/1764863225718-mn699lpmmc.mov'  │ '7.33'  │
+│ 3       │ 'events/motion-posters/1764866899076-dyghy9s0os.mov'  │ '7.33'  │
+│ 4       │ 'events/motion-posters/1764870530388-q0lp3p853ao.mov' │ '7.33'  │
+└─────────┴───────────────────────────────────────────────────────┴─────────┘
+
+Bucket: hero-video - Total: 0.00 GB (0 files)
+
+Bucket: fonts - Total: 0.00 GB (1 files)
+Largest 5 files:
+┌─────────┬───────────────────────────────────────┬─────────┐
+│ (index) │ name                                  │ size_mb │
+├─────────┼───────────────────────────────────────┼─────────┤
+│ 0       │ 'fonts/1759337792687-fd2ljncwt6f.ttf' │ '0.03'  │
+└─────────┴───────────────────────────────────────┴─────────┘
+
+Bucket: documents - Total: 0.00 GB (0 files)
+
+Bucket: pdf - Total: 0.00 GB (0 files)
+
+Bucket: guest-artist-images - Total: 0.00 GB (10 files)
+Largest 5 files:
+┌─────────┬─────────────────────────────────────────┬─────────┐
+│ (index) │ name                                    │ size_mb │
+├─────────┼─────────────────────────────────────────┼─────────┤
+│ 0       │ 'artists/1767376100725-o3r0208ykrb.jpg' │ '0.56'  │
+│ 1       │ 'artists/1765870916885-fmdbqqns5p.jpg'  │ '0.45'  │
+│ 2       │ 'artists/1766323556774-slyfgn2pvg.jpg'  │ '0.38'  │
+│ 3       │ 'artists/1763888682187-cjhrd92h93h.jpg' │ '0.27'  │
+│ 4       │ 'artists/1759866426293-47g3s8zbz2v.jpg' │ '0.22'  │
+└─────────┴─────────────────────────────────────────┴─────────┘
+
+Bucket: sponsor-logos - Total: 0.01 GB (41 files)
+Largest 5 files:
+┌─────────┬───────────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                              │ size_mb │
+├─────────┼───────────────────────────────────────────────────┼─────────┤
+│ 0       │ 'homepage-sponsors/1759944638514-86b8l6yyg3g.png' │ '1.45'  │
+│ 1       │ 'homepage-sponsors/1758726997183-j1tojrla28.png'  │ '1.25'  │
+│ 2       │ 'sponsors/1768484116133-yvym8g1fh7h.png'          │ '0.55'  │
+│ 3       │ 'homepage-sponsors/1757983850253-b8wi94mpbi4.png' │ '0.51'  │
+│ 4       │ 'homepage-sponsors/1758153085691-acadbnmnfxn.png' │ '0.38'  │
+└─────────┴───────────────────────────────────────────────────┴─────────┘
+
+Bucket: hero-media - Total: 0.16 GB (18 files)
+Largest 5 files:
+┌─────────┬──────────────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                                 │ size_mb │
+├─────────┼──────────────────────────────────────────────────────┼─────────┤
+│ 0       │ 'hero/home/1759594985289-b12og93rw1.mp4'             │ '42.34' │
+│ 1       │ 'hero/homebound/1759488089772-wij8qfbj34.mp4'        │ '28.43' │
+│ 2       │ 'hero/homebound/mobile/1759504489078-yk9sfol95z.mp4' │ '26.29' │
+│ 3       │ 'hero/events/mobile/1759826942208-x3qa4vfpnh8.mp4'   │ '21.04' │
+│ 4       │ 'hero/events/mobile/1759495714080-gx21bm7nut.mp4'    │ '12.49' │
+└─────────┴──────────────────────────────────────────────────────┴─────────┘
+
+Bucket: registration-photos - Total: 0.00 GB (0 files)
+
+Bucket: guest-artist-audio - Total: 0.00 GB (4 files)
+Largest 5 files:
+┌─────────┬─────────────────────────────────────────┬─────────┐
+│ (index) │ name                                    │ size_mb │
+├─────────┼─────────────────────────────────────────┼─────────┤
+│ 0       │ 'artists/1766323523620-wg0cxjhota.mp3'  │ '1.45'  │
+│ 1       │ 'artists/1765871049456-is8uaqpct5l.mp3' │ '1.00'  │
+│ 2       │ 'artists/1763895956357-s4n7bn0ty6g.mp3' │ '0.91'  │
+│ 3       │ 'artists/1763894522380-75a8fatypau.mp3' │ '0.46'  │
+└─────────┴─────────────────────────────────────────┴─────────┘
+
+Bucket: pdf-watermarks - Total: 0.00 GB (3 files)
+Largest 5 files:
+┌─────────┬───────────────────┬─────────┐
+│ (index) │ name              │ size_mb │
+├─────────┼───────────────────┼─────────┤
+│ 0       │ 'email_stamp.png' │ '0.53'  │
+│ 1       │ 'watermark.png'   │ '0.18'  │
+│ 2       │ 'stamp.png'       │ '0.18'  │
+└─────────┴───────────────────┴─────────┘
+
+Bucket: public-content - Total: 0.27 GB (32 files)
+Largest 5 files:
+┌─────────┬───────────────────────────────────────────────────┬─────────┐
+│ (index) │ name                                              │ size_mb │
+├─────────┼───────────────────────────────────────────────────┼─────────┤
+│ 0       │ 'templates/pass-template-day_0-1767438560434.png' │ '14.97' │
+│ 1       │ 'templates/pass-template-day_0-1767438608189.png' │ '14.97' │
+│ 2       │ 'templates/pass-template-day_2-1767509811433.png' │ '11.26' │
+│ 3       │ 'templates/pass-template-day_2-1767707231795.png' │ '11.25' │
+│ 4       │ 'templates/pass-template-day_2-1767707356410.png' │ '11.25' │
+└─────────┴───────────────────────────────────────────────────┴─────────┘
+
+[4] Registration Photos check:
+No registration photos found in sample.

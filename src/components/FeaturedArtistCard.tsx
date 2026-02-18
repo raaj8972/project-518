@@ -45,7 +45,7 @@ const FeaturedArtistCard: React.FC<FeaturedArtistCardProps> = ({
   return (
     <div
       id={`artist-${artist.id}`}
-      className="group relative w-full h-[550px] sm:h-[600px] md:h-[700px] rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-[0_0_40px_rgba(236,72,153,0.3)] hover:scale-[1.02] border border-white/10 bg-[#0b0f1a]"
+      className="group relative w-full h-[550px] sm:h-[600px] md:h-[700px] rounded-[2.5rem] overflow-hidden cursor-pointer transition-all duration-700 hover:shadow-[0_40px_80px_rgba(0,0,0,0.4),0_0_50px_rgba(99,102,241,0.2)] hover:scale-[1.01] border border-white/10 bg-[#030712] tilt-3d"
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       onTouchStart={onMouseEnter}
@@ -54,7 +54,7 @@ const FeaturedArtistCard: React.FC<FeaturedArtistCardProps> = ({
       <div className="absolute inset-0 z-0">
         {hasCardMedia ? (
           <InlineArtistPreview
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105"
             videoUrl={cardMediaMode === 'video' ? cardMediaUrl : undefined}
             imgSrc={cardMediaMode === 'image' ? cardMediaUrl : undefined}
             poster={artist.image}
@@ -67,21 +67,20 @@ const FeaturedArtistCard: React.FC<FeaturedArtistCardProps> = ({
           <img
             src={artist.image}
             alt={artist.name}
-            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-105"
             loading={priority ? "eager" : "lazy"}
           />
         )}
         
         {/* Cinematic Gradient Overlays */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-500" />
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-blue-500/10 mix-blend-overlay opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-[#030712]/40 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-700" />
       </div>
 
       {/* Floating Badges */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-        <div className="px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-bold tracking-wider shadow-lg flex items-center gap-2">
-          <Sparkles className="w-3 h-3 text-yellow-400 animate-pulse" />
-          FEATURED
+      <div className="absolute top-6 left-6 z-20 flex flex-col gap-2.5">
+        <div className="px-5 py-2 rounded-2xl bg-white/[0.03] backdrop-blur-2xl border border-white/10 text-white text-[9px] font-black tracking-[0.2em] shadow-2xl flex items-center gap-2.5">
+          <Sparkles className="w-3 h-3 text-indigo-400" />
+          FEATURED ARTIST
         </div>
         {(() => {
           const isUpcoming = artist.countdown_enabled && artist.performance_at && new Date(artist.performance_at) > new Date();
@@ -89,18 +88,18 @@ const FeaturedArtistCard: React.FC<FeaturedArtistCardProps> = ({
 
           if (isUpcoming) {
             return (
-              <div className="px-4 py-1.5 rounded-full bg-blue-500/20 backdrop-blur-md border border-blue-500/30 text-blue-200 text-xs font-bold tracking-wider shadow-lg flex items-center gap-2">
+              <div className="px-5 py-2 rounded-2xl bg-indigo-500/10 backdrop-blur-2xl border border-indigo-500/20 text-indigo-300 text-[9px] font-black tracking-[0.2em] shadow-2xl flex items-center gap-2.5">
                 <Calendar className="w-3 h-3" />
-                UPCOMING
+                UPCOMING PERFORMANCE
               </div>
             );
           }
           
           if (isLive) {
             return (
-              <div className="px-4 py-1.5 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 text-red-200 text-xs font-bold tracking-wider shadow-lg flex items-center gap-2 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-                LIVE
+              <div className="px-5 py-2 rounded-2xl bg-red-500/10 backdrop-blur-2xl border border-red-500/20 text-red-300 text-[9px] font-black tracking-[0.2em] shadow-2xl flex items-center gap-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                LIVE NOW
               </div>
             );
           }
@@ -110,52 +109,42 @@ const FeaturedArtistCard: React.FC<FeaturedArtistCardProps> = ({
       </div>
 
       {/* Content Layer */}
-      <div className="absolute inset-0 z-10 flex flex-col justify-end p-6 md:p-8">
+      <div className="absolute inset-0 z-10 flex flex-col justify-end p-8 md:p-10">
         
         {/* Artist Name & Title */}
-        <div className="transform transition-transform duration-500 group-hover:-translate-y-2">
-          <h3 className="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-100 to-gray-400 uppercase font-heading leading-none mb-2 drop-shadow-sm">
+        <div className="transform transition-transform duration-700 group-hover:-translate-y-3">
+          <h3 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter leading-none mb-3">
             {artist.name}
           </h3>
-          <div className="flex items-center gap-3">
-             <div className="h-0.5 w-8 bg-pink-500 rounded-full" />
-             <p className="text-lg md:text-xl text-pink-200 font-light tracking-wide font-sans">
+          <div className="flex items-center gap-4">
+             <div className="h-px w-10 bg-indigo-500/50 rounded-full" />
+             <p className="text-xl md:text-2xl text-white/60 font-light tracking-wide italic">
                {artist.title}
              </p>
           </div>
         </div>
 
-        {/* Hover Reveal Details - NOW ALWAYS VISIBLE */}
-        <div className="mt-6 border-t border-white/10 pt-4">
-           <div className="overflow-hidden">
-             
-             {/* Date/Venue Info */}
-
-
-             {/* Action Buttons */}
-             <div className="flex items-center gap-3">
-               <button 
-                 className="flex-1 bg-white text-black font-bold py-2 px-5 text-sm rounded-full hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 group/btn"
-               >
-                 View Details
-                 <ArrowUpRight className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
-               </button>
-               
-               {(artist.video_url || artist.youtube_url || cardMediaMode === 'video') && onPlayVideo && (
-                 <button
-                   onClick={(e) => {
-                     e.stopPropagation();
-                     onPlayVideo(artist);
-                   }}
-                   className="w-11 h-11 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 hover:scale-105 transition-all"
-                   aria-label="Play Video"
-                 >
-                   <Play className="w-5 h-5 ml-0.5" fill="currentColor" />
-                 </button>
-               )}
-             </div>
-
-           </div>
+        {/* Action Buttons */}
+        <div className="mt-10 pt-8 border-t border-white/5 flex items-center gap-4">
+           <button 
+             className="flex-1 bg-white/[0.03] hover:bg-white/[0.08] backdrop-blur-2xl border border-white/10 text-white font-black py-4 px-8 text-[10px] uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center gap-3 group/btn"
+           >
+             View Details
+             <ArrowUpRight className="w-4 h-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
+           </button>
+           
+           {(artist.video_url || artist.youtube_url || cardMediaMode === 'video') && onPlayVideo && (
+             <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 onPlayVideo(artist);
+               }}
+               className="w-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-[0_10px_20px_rgba(79,70,229,0.3)] flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+               aria-label="Play Video"
+             >
+               <Play className="w-6 h-6 ml-1" fill="currentColor" />
+             </button>
+           )}
         </div>
       </div>
     </div>

@@ -63,76 +63,72 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
   const styles = getRankStyles(position);
 
   return (
-    <div className={`relative group w-56 h-80 sm:w-64 sm:h-80 md:w-72 md:h-96 flex-shrink-0 cursor-pointer ${className}`}>
-      {/* Glitch Effect - Base Layer */}
-      <div className="absolute inset-0 bg-black border border-gray-800 rounded-xl transform transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-[0_0_30px_rgba(236,72,153,0.3)] overflow-hidden">
+    <div className={`relative group w-64 h-[26rem] sm:w-72 sm:h-[28rem] md:w-80 md:h-[30rem] flex-shrink-0 cursor-pointer tilt-3d ${className}`}>
+      {/* Superia Glass Container */}
+      <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-2xl border border-white/10 rounded-[2rem] transform transition-all duration-500 group-hover:scale-[1.02] group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)] overflow-hidden">
         
         {/* Background Gradients */}
-        <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} opacity-50`}></div>
-        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay"></div>
+        <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} opacity-20`}></div>
         
-        {/* Scanlines */}
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)50%,rgba(0,0,0,0.25)50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] pointer-events-none"></div>
-
         {/* Content Container */}
-        <div className="relative h-full flex flex-col p-5 z-10">
+        <div className="relative h-full flex flex-col p-6 z-10">
           
           {/* Header: Rank */}
-          <div className="flex justify-between items-start mb-2 md:mb-4">
-             <div className={`flex items-center gap-2 px-3 py-1 rounded-full border ${styles.borderColor} bg-black/40 backdrop-blur-md`}>
+          <div className="flex justify-between items-start mb-4">
+             <div className={`flex items-center gap-2.5 px-4 py-1.5 rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl`}>
                 {styles.icon}
-                <span className={`text-[10px] font-black tracking-widest ${styles.textColor}`}>{styles.label}</span>
+                <span className={`text-[9px] font-black tracking-[0.2em] ${styles.textColor}`}>{styles.label}</span>
              </div>
              {year && (
-                <div className="px-2 py-0.5 rounded border border-white/10 bg-white/5 text-[10px] text-gray-400 font-mono">
+                <div className="px-3 py-1 rounded-lg border border-white/5 bg-white/[0.02] text-[9px] text-white/40 font-black tracking-widest">
                   {year}
                 </div>
              )}
           </div>
 
           {/* Photo or Placeholder */}
-          <div className="flex-shrink-0 flex items-center justify-center my-2">
-             <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28">
-               {/* Glowing ring behind image */}
-               <div className={`absolute inset-0 rounded-full border-2 ${styles.borderColor} opacity-60 animate-pulse`}></div>
-               <div className={`absolute -inset-1 rounded-full bg-gradient-to-r ${styles.gradient} opacity-20 blur-md`}></div>
+          <div className="flex-shrink-0 flex items-center justify-center my-6">
+             <div className="relative w-28 h-28 sm:w-32 sm:h-32 md:w-40 md:h-40">
+               {/* Premium Glow ring behind image */}
+               <div className={`absolute -inset-2 rounded-full border border-white/5 opacity-50`}></div>
+               <div className={`absolute -inset-4 rounded-full bg-gradient-to-r ${styles.gradient} opacity-20 blur-2xl`}></div>
                
                {photoUrl ? (
                  <img 
                    src={photoUrl} 
                    alt={name} 
-                   className="w-full h-full object-cover rounded-full border-2 border-white/10 shadow-lg relative z-10"
+                   className="w-full h-full object-cover rounded-full border border-white/10 shadow-2xl relative z-10"
                  />
                ) : (
-                 <div className="w-full h-full rounded-full bg-slate-900 border border-white/10 flex items-center justify-center relative z-10">
-                   <span className="text-3xl font-black text-white/20">{name.charAt(0)}</span>
+                 <div className="w-full h-full rounded-full bg-white/[0.03] border border-white/10 flex items-center justify-center relative z-10 backdrop-blur-xl">
+                   <span className="text-4xl font-black text-white/20">{name.charAt(0)}</span>
                  </div>
                )}
              </div>
           </div>
 
           {/* Text Details */}
-          <div className="text-center space-y-1 relative z-20 mt-1 sm:mt-2">
-             <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white uppercase tracking-wider line-clamp-2 leading-tight drop-shadow-md group-hover:text-pink-400 transition-colors">
+          <div className="text-center space-y-3 relative z-20 mt-4">
+             <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase tracking-tighter line-clamp-2 leading-tight">
                {name}
              </h3>
              
              {members && members.length > 0 && (
                 <div className="flex flex-col items-center justify-center mt-1">
-                  <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold mb-0.5">Team Members</span>
-                  <div className="text-xs text-cyan-300 font-mono leading-tight px-1 break-words">
+                  <span className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-black mb-1">TEAM CREW</span>
+                  <div className="text-[10px] text-white/60 font-medium leading-tight px-1 italic">
                     {members.map(m => typeof m === 'object' ? (m as any).name : m).join(', ')}
                   </div>
                 </div>
              )}
              
-             <div className="w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent my-2"></div>
+             <div className="w-16 h-0.5 bg-white/10 mx-auto my-6 rounded-full"></div>
              
-             <p className="text-xs sm:text-sm md:text-base font-semibold text-cyan-300 uppercase tracking-wide line-clamp-1">
+             <p className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-[0.2em] leading-snug">
                {eventName}
              </p>
              {category && (
-               <p className="text-[10px] sm:text-xs md:text-sm text-gray-400 font-mono truncate">
+               <p className="text-[10px] sm:text-xs text-white/30 font-bold uppercase tracking-widest mt-1">
                  {category}
                </p>
              )}
@@ -140,8 +136,8 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
 
         </div>
 
-        {/* Hover overlay effects */}
-        <div className="absolute inset-0 border-2 border-white/0 group-hover:border-pink-500/50 rounded-xl transition-colors duration-300 pointer-events-none"></div>
+        {/* Hover overlay border */}
+        <div className="absolute inset-0 border border-white/0 group-hover:border-white/10 rounded-[2rem] transition-colors duration-500 pointer-events-none"></div>
       </div>
     </div>
   );

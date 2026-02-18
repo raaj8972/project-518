@@ -1157,7 +1157,9 @@ export interface Database {
           image_url: string | null
           mobile_image_url?: string | null
           video_url: string | null
+          mobile_video_url?: string | null
           poster_url: string | null
+          mobile_poster_url?: string | null
           overlay_color: string | null
           overlay_opacity: number
           enabled: boolean
@@ -1171,7 +1173,9 @@ export interface Database {
           image_url?: string | null
           mobile_image_url?: string | null
           video_url?: string | null
+          mobile_video_url?: string | null
           poster_url?: string | null
+          mobile_poster_url?: string | null
           overlay_color?: string | null
           overlay_opacity?: number
           enabled?: boolean
@@ -1185,7 +1189,9 @@ export interface Database {
           image_url?: string | null
           mobile_image_url?: string | null
           video_url?: string | null
+          mobile_video_url?: string | null
           poster_url?: string | null
+          mobile_poster_url?: string | null
           overlay_color?: string | null
           overlay_opacity?: number
           enabled?: boolean

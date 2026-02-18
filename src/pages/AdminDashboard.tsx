@@ -145,9 +145,10 @@ export const AdminDashboard: React.FC = () => {
   const { unreadMessages, sendMessage, markAsRead } = useAdminMessages();
 
   // Fetch registration stats for badges
-  const { stats: registrationStats } = useRegistrations({ 
+  // Fetch registration stats for badges
+  const { stats: registrationStats, registrations } = useRegistrations({ 
     page: 1, 
-    pageSize: 1, 
+    pageSize: 5, 
     filters: {} // No filters to get global stats
   });
 
@@ -683,107 +684,111 @@ export const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Recent Activity */}
                   <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                      <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                          <Activity className="w-6 h-6 text-indigo-600" />
+                    <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                      <div className="flex justify-between items-center mb-8">
+                        <h3 className="text-xl font-black text-white flex items-center gap-4">
+                          <div className="p-3 bg-indigo-500/15 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+                            <Activity className="w-6 h-6 text-indigo-400" />
+                          </div>
                           Recent Registrations
                         </h3>
                         <button
                           onClick={() => setActiveTab('registrations')}
-                          className="px-4 py-2 text-indigo-600 hover:bg-indigo-50 rounded-xl text-sm font-bold transition-all flex items-center gap-1 group"
+                          className="px-6 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-2xl text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] transition-all flex items-center gap-3 group"
                         >
-                          View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                          Access Logs <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </div>
                       
                       {registrations.length > 0 ? (
                         <div className="space-y-4">
-                          {registrations.slice(0, 5).map((registration) => (
-                            <div key={registration.id} className="flex items-center justify-between p-4 bg-gray-50/50 hover:bg-white hover:shadow-md rounded-2xl border border-transparent hover:border-gray-100 transition-all group">
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-bold text-indigo-600 text-lg border border-gray-100 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                          {registrations.slice(0, 5).map((registration, idx) => (
+                            <div key={registration.id} 
+                              className="flex items-center justify-between p-5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group animate-in fade-in slide-in-from-right-4 duration-500" 
+                              style={{ animationDelay: `${300 + idx * 100}ms` }}
+                            >
+                              <div className="flex items-center gap-5">
+                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center font-black text-indigo-400 text-xl border border-white/5 group-hover:scale-110 transition-transform shadow-xl">
                                   {registration.full_name.charAt(0)}
                                 </div>
                                 <div>
-                                  <div className="font-bold text-gray-900">{registration.full_name}</div>
-                                  <div className="text-xs text-gray-500 font-medium">{registration.email}</div>
+                                  <div className="font-black text-white text-lg group-hover:text-indigo-300 transition-colors tracking-tight">{registration.full_name}</div>
+                                  <div className="text-[10px] text-gray-500 font-black uppercase tracking-[0.1em]">{registration.email}</div>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                  registration.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                                  registration.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                  'bg-red-100 text-red-700'
+                                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg ${
+                                  registration.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                  registration.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
+                                  'bg-rose-500/10 text-rose-500 border border-rose-500/20'
                                 }`}>
                                   {registration.status}
                                 </span>
-                                <div className="text-[10px] text-gray-400 font-bold mt-1 uppercase">
-                                  {new Date(registration.registration_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                <div className="text-[10px] text-gray-400 font-black mt-3 uppercase tracking-tighter opacity-70">
+                                  System Node: {new Date(registration.registration_date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-12">
-                          <div className="bg-gray-100 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-4">
-                            <Users className="w-8 h-8 text-gray-400" />
+                        <div className="text-center py-20 bg-white/[0.01] rounded-[2rem] border border-dashed border-white/10">
+                          <div className="bg-white/5 w-20 h-20 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 border border-white/5 shadow-inner">
+                            <Users className="w-10 h-10 text-gray-700" />
                           </div>
-                          <p className="text-gray-500 font-medium">No recent activity detected.</p>
+                          <p className="text-gray-500 text-xs font-black uppercase tracking-[0.3em]">No activity streams detected</p>
                         </div>
                       )}
                     </div>
 
                     {/* Team Pulse & Applications */}
                     <div className="grid md:grid-cols-2 gap-8">
-                      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 group">
-                        <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                          <Users className="w-6 h-6 text-blue-500" />
-                          Team Overview
+                      <div className="superia-glass-card rounded-[2.5rem] p-8 group animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+                        <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/5">
+                            <Users className="w-6 h-6 text-blue-400" />
+                          </div>
+                          Personnel Matrix
                         </h3>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 bg-blue-50 rounded-2xl group-hover:bg-blue-100 transition-colors">
-                            <div className="text-2xl font-black text-blue-600">{coreTeamMembers?.length || 0}</div>
-                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Core Team</div>
-                          </div>
-                          <div className="p-4 bg-purple-50 rounded-2xl group-hover:bg-purple-100 transition-colors">
-                            <div className="text-2xl font-black text-purple-600">{coreCommittees?.length || 0}</div>
-                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Committees</div>
-                          </div>
-                          <div className="p-4 bg-amber-50 rounded-2xl group-hover:bg-amber-100 transition-colors">
-                            <div className="text-2xl font-black text-amber-600">{bandMembers?.length || 0}</div>
-                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Band</div>
-                          </div>
-                          <div className="p-4 bg-pink-50 rounded-2xl group-hover:bg-pink-100 transition-colors">
-                            <div className="text-2xl font-black text-pink-600">{guestArtists?.length || 0}</div>
-                            <div className="text-gray-600 text-xs font-bold uppercase tracking-wider">Guests</div>
-                          </div>
+                          {[
+                            { label: 'Core Team', val: coreTeamMembers?.length || 0, color: 'text-blue-400' },
+                            { label: 'Committees', val: coreCommittees?.length || 0, color: 'text-purple-400' },
+                            { label: 'Live Band', val: bandMembers?.length || 0, color: 'text-amber-400' },
+                            { label: 'Guest Artists', val: guestArtists?.length || 0, color: 'text-pink-400' },
+                          ].map((item) => (
+                            <div key={item.label} className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl group-hover:bg-white/[0.05] transition-all duration-500 shadow-lg">
+                              <div className={`text-3xl font-black ${item.color} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] mb-1`}>{item.val}</div>
+                              <div className="text-gray-500 text-[9px] font-black uppercase tracking-[0.2em]">{item.label}</div>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                        <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-                          <Star className="w-6 h-6 text-yellow-500" />
-                          Applications
+                      <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400">
+                        <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/5">
+                            <Star className="w-6 h-6 text-amber-400" />
+                          </div>
+                          Application HUD
                         </h3>
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                          <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/aud cursor-pointer" onClick={() => setActiveTab('auditions')}>
                             <div>
-                              <div className="font-bold text-gray-900">{auditions?.length || 0}</div>
-                              <div className="text-xs text-gray-500 font-bold uppercase">Band Auditions</div>
+                               <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Band Auditions</div>
+                               <div className="text-2xl font-black text-white group-hover/aud:text-amber-400 transition-colors">{auditions?.length || 0}</div>
                             </div>
                             {pendingAuditions > 0 && (
-                              <div className="bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">{pendingAuditions} Pending</div>
+                              <div className="bg-rose-500/20 text-rose-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-rose-500/20 animate-pulse shadow-lg shadow-rose-500/10">{pendingAuditions} Pending</div>
                             )}
                           </div>
-                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                          <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/mem cursor-pointer" onClick={() => setActiveTab('memberships')}>
                             <div>
-                              <div className="font-bold text-gray-900">{memberships?.length || 0}</div>
-                              <div className="text-xs text-gray-500 font-bold uppercase">Memberships</div>
+                               <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Memberships</div>
+                               <div className="text-2xl font-black text-white group-hover/mem:text-indigo-400 transition-colors">{memberships?.length || 0}</div>
                             </div>
                             {pendingMemberships > 0 && (
-                              <div className="bg-red-100 text-red-600 text-[10px] font-black px-2 py-1 rounded-full uppercase">{pendingMemberships} Pending</div>
+                              <div className="bg-rose-500/20 text-rose-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-rose-500/20 animate-pulse shadow-lg shadow-rose-500/10">{pendingMemberships} Pending</div>
                             )}
                           </div>
                         </div>
@@ -794,22 +799,25 @@ export const AdminDashboard: React.FC = () => {
                   {/* Sidebar Components Dashboard */}
                   <div className="lg:col-span-1 space-y-8">
                     {/* Quick Launchpad */}
-                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-                      <h4 className="text-lg font-bold text-gray-900 mb-6">Quick Navigator</h4>
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-right-8 duration-700 delay-500">
+                      <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-8 text-center">Neural Navigator</h4>
+                      <div className="grid grid-cols-2 gap-5">
                         {[
-                          { id: 'events', label: 'Events', icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-100' },
-                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-purple-600', bg: 'bg-purple-100' },
-                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-amber-600', bg: 'bg-amber-100' },
-                          { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-                        ].map((item) => (
+                          { id: 'events', label: 'Events', icon: Calendar, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                          { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+                        ].map((item, idx) => (
                           <button
                             key={item.id}
                             onClick={() => setActiveTab(item.id as TabType)}
-                            className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-2xl hover:scale-105 transition-all duration-300 group shadow-sm border border-transparent hover:border-gray-200"
+                            className="flex flex-col items-center justify-center p-7 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:scale-[1.03] hover:bg-white/[0.06] hover:border-white/20 transition-all duration-500 group shadow-2xl animate-in fade-in slide-in-from-right-4 duration-700"
+                            style={{ animationDelay: `${700 + idx * 100}ms` }}
                           >
-                            <item.icon className={`w-8 h-8 ${item.color} mb-3 group-hover:rotate-12 transition-transform`} />
-                            <span className="text-sm font-bold text-gray-800 tracking-tight">{item.label}</span>
+                            <div className={`w-14 h-14 ${item.bg} rounded-2xl flex items-center justify-center mb-4 group-hover:rotate-12 transition-transform shadow-inner border border-white/5`}>
+                              <item.icon size={26} className={`${item.color} drop-shadow-[0_0_12px_currentColor]`} />
+                            </div>
+                            <span className="text-[10px] font-black text-white/70 uppercase tracking-[0.2em] group-hover:text-white transition-colors">{item.label}</span>
                           </button>
                         ))}
                       </div>
@@ -817,35 +825,42 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* Security Card */}
                     {!isTOTPEnabled && (
-                      <div className="bg-gradient-to-r from-red-500 to-pink-600 rounded-3xl p-8 shadow-xl text-white relative overflow-hidden group">
-                        <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-                        <h4 className="text-xl font-black mb-2 flex items-center gap-2">
-                            <AlertTriangle className="w-6 h-6" />
-                            Security Warning
-                        </h4>
-                        <p className="text-white/90 text-sm mb-6 leading-relaxed">Your account access is currently unprotected. Enable Two-Factor Authentication now to secure Raja events data.</p>
-                        <button 
-                          onClick={() => setActiveTab('security')}
-                          className="w-full bg-white text-red-600 font-black py-4 rounded-2xl hover:bg-gray-50 transition-all flex items-center justify-center gap-2 group/btn shadow-lg"
-                        >
-                          Enable 2FA <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                        </button>
+                      <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden group animate-in fade-in zoom-in duration-700 delay-700">
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                        <div className="relative z-10">
+                          <h4 className="text-xl font-black mb-3 flex items-center gap-3">
+                              <AlertTriangle className="w-6 h-6 animate-pulse" />
+                              Security Alert
+                          </h4>
+                          <p className="text-white/80 text-sm mb-8 leading-relaxed font-medium">Your operator profile is unprotected. Enable Tier-1 Authentication to secure system data.</p>
+                          <button 
+                            onClick={() => setActiveTab('security')}
+                            className="w-full bg-white text-rose-600 font-black py-4 rounded-3xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3 group/btn shadow-xl"
+                          >
+                            Shield Upgrade <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Bottom Full-Width System Section */}
-                <div className="space-y-8 pt-8 border-t border-gray-200">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Activity className="w-6 h-6 text-indigo-600" />
-                    <h3 className="text-xl font-bold text-gray-900">System & Health Pulse</h3>
+                <div className="space-y-10 pt-12 border-t border-white/5">
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="p-3 bg-indigo-500/10 rounded-2xl">
+                      <Activity className="w-6 h-6 text-indigo-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-white tracking-tight">Core Pulse Analytics</h3>
+                      <p className="text-gray-500 text-[10px] uppercase font-black tracking-[0.3em]">System Telemetry & Health</p>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-8">
-                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="superia-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
                       <ConnectionOverview />
                     </div>
-                    <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+                    <div className="superia-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
                       <StorageOverview />
                     </div>
                   </div>

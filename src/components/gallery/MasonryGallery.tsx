@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Download, Share2, ZoomIn } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Download, Share2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 
 interface GalleryImage {
   id: number;
@@ -20,9 +21,13 @@ interface MasonryGalleryProps {
 export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
   const [visibleCount, setVisibleCount] = useState(20);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [scale, setScale] = useState(1);
+  const [isPanning, setIsPanning] = useState(false);
+  
   const observerTarget = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // Reset visible count when source images change
   useEffect(() => {
@@ -82,25 +87,68 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     }
   }, [lightboxIndex]);
 
-  // Keyboard Navigation
+  // Keyboard Navigation & Zoom
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (lightboxIndex === null) return;
-    if (e.key === 'Escape') setLightboxIndex(null);
-    if (e.key === 'ArrowLeft') setLightboxIndex(prev => (prev !== null && prev > 0 ? prev - 1 : prev));
-    if (e.key === 'ArrowRight') setLightboxIndex(prev => (prev !== null && prev < images.length - 1 ? prev + 1 : prev));
-  }, [lightboxIndex, images.length]);
+    
+    // Navigation
+    if (e.key === 'Escape') closeLightbox();
+    if (e.key === 'ArrowLeft') prevImage();
+    if (e.key === 'ArrowRight') nextImage();
+    
+    // Zoom shortcuts
+    if (e.key === '=' || e.key === '+') handleZoomIn();
+    if (e.key === '-') handleZoomOut();
+    if (e.key === '0') resetZoom();
+  }, [lightboxIndex, images.length, scale]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const openLightbox = (index: number) => setLightboxIndex(index);
-  const closeLightbox = () => setLightboxIndex(null);
+  const openLightbox = (index: number) => {
+    setLightboxIndex(index);
+    setScale(1);
+  };
+  
+  const closeLightbox = () => {
+    setLightboxIndex(null);
+    setScale(1);
+  };
+
+  const handleZoomIn = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale(prev => Math.min(prev + 0.5, 4));
+  };
+
+  const handleZoomOut = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale(prev => Math.max(prev - 0.5, 1));
+  };
+
+  const resetZoom = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setScale(1);
+  };
+
+  const toggleZoom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setScale(prev => prev > 1 ? 1 : 2.5);
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (lightboxIndex === null) return;
+    if (e.deltaY < 0) {
+      setScale(prev => Math.min(prev + 0.1, 4));
+    } else {
+      setScale(prev => Math.max(prev - 0.1, 1));
+    }
+  };
   
   const nextImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
     if (lightboxIndex !== null && lightboxIndex < images.length - 1) {
+       setScale(1); // Reset zoom on nav
        // Micro-animation for slide
        const img = lightboxRef.current?.querySelector('img.main-image');
        if (img) {
@@ -112,7 +160,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
          setLightboxIndex(lightboxIndex + 1);
        }
     } else {
-       // Loop
+       setScale(1);
        setLightboxIndex(0);
     }
   };
@@ -120,6 +168,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
   const prevImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (lightboxIndex !== null && lightboxIndex > 0) {
+      setScale(1);
       const img = lightboxRef.current?.querySelector('img.main-image');
       if (img) {
         gsap.to(img, { x: 50, opacity: 0, duration: 0.2, onComplete: () => {
@@ -130,8 +179,43 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
         setLightboxIndex(lightboxIndex - 1);
       }
     } else {
-      // Loop
+      setScale(1);
       setLightboxIndex(images.length - 1);
+    }
+  };
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const img = images[lightboxIndex];
+    if (!img) return;
+
+    const downloadUrl = img.src;
+    // Extract filename from URL or use alt text
+    const filename = img.alt ? `${img.alt.slice(0, 20).replace(/[^a-z0-9]/gi, '_')}.jpg` : 'download.jpg';
+
+    try {
+      const response = await fetch(downloadUrl, { mode: 'cors' }); // Try to fetch from cache/network
+      if (!response.ok) throw new Error('Network response was not ok');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Download failed, falling back to direct link:', err);
+      // Fallback: just open/download the link directly
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.target = '_blank';
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -234,28 +318,57 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
              </div>
           </div>
 
-          <div className="absolute top-4 right-4 flex items-center gap-3 z-50">
+          <div className="absolute top-4 right-4 flex items-center gap-2 sm:gap-3 z-50">
+           {/* Zoom Controls */}
+           <div className="flex items-center gap-1 bg-white/5 backdrop-blur-md rounded-full border border-white/10 p-1 mr-2">
+             <button 
+                onClick={handleZoomOut}
+                disabled={scale <= 1}
+                className="p-2 rounded-full hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Zoom Out"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <div className="w-px h-4 bg-white/10 mx-1" />
+              <button 
+                onClick={handleZoomIn}
+                disabled={scale >= 4}
+                className="p-2 rounded-full hover:bg-white/10 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Zoom In"
+              >
+                <ZoomIn size={18} />
+              </button>
+              {scale > 1 && (
+                <>
+                  <div className="w-px h-4 bg-white/10 mx-1" />
+                  <button 
+                    onClick={resetZoom}
+                    className="p-2 rounded-full hover:bg-white/10 text-indigo-400 transition-all"
+                    title="Reset Zoom"
+                  >
+                    <RotateCcw size={18} />
+                  </button>
+                </>
+              )}
+           </div>
+
            <button 
               onClick={(e) => { e.stopPropagation(); shareImage(images[lightboxIndex]); }}
-              className="p-3 rounded-full bg-white/5 hover:bg-white/20 text-white border border-white/10 hover:border-white/30 transition-all hover:scale-105 active:scale-95"
+              className="p-3 rounded-full bg-white/5 hover:bg-white/20 text-white border border-white/10 hover:border-white/30 transition-all hidden sm:block"
               title="Share"
             >
               <Share2 size={20} />
             </button>
-           <a 
-              href={images[lightboxIndex].src} 
-              download 
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="p-3 rounded-full bg-white/5 hover:bg-white/20 text-white border border-white/10 hover:border-white/30 transition-all hover:scale-105 active:scale-95"
+            <button 
+              onClick={handleDownload}
+              className="p-3 rounded-full bg-white/5 hover:bg-white/20 text-white border border-white/10 hover:border-white/30 transition-all hidden sm:block"
               title="Download Original"
             >
               <Download size={20} />
-            </a>
+            </button>
             <button 
               onClick={closeLightbox}
-              className="p-3 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition-all hover:scale-105 active:scale-95 group"
+              className="p-3 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/40 transition-all group"
             >
               <X size={24} className="group-hover:rotate-90 transition-transform duration-300" />
             </button>
@@ -277,33 +390,37 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           </button>
 
           {/* Main Image Container */}
-          <div className="relative max-w-full max-h-screen p-4 sm:p-10 flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
-            <img 
-              src={images[lightboxIndex].optimizedSrc || images[lightboxIndex].src} 
-              alt={images[lightboxIndex].alt}
-              className="main-image max-w-full max-h-[80vh] object-contain shadow-2xl rounded-lg select-none"
-              style={{ boxShadow: '0 0 50px rgba(0,0,0,0.5)' }}
-            />
+          <div 
+            className="relative w-full h-full flex items-center justify-center overflow-hidden" 
+            onClick={(e) => scale === 1 && closeLightbox()}
+            onWheel={handleWheel}
+          >
+            <motion.div
+              drag={scale > 1}
+              dragConstraints={lightboxRef}
+              dragElastic={0.1}
+              onDragStart={() => setIsPanning(true)}
+              onDragEnd={() => setIsPanning(false)}
+              animate={{ scale }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="relative cursor-grab active:cursor-grabbing flex items-center justify-center pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={toggleZoom}
+            >
+              <img 
+                ref={imageRef}
+                src={images[lightboxIndex].optimizedSrc || images[lightboxIndex].src} 
+                alt={images[lightboxIndex].alt}
+                className="main-image max-w-[90vw] max-h-[85vh] object-contain shadow-2xl rounded-lg select-none pointer-events-none"
+                style={{ 
+                  boxShadow: '0 0 50px rgba(0,0,0,0.5)',
+                  willChange: 'transform'
+                }}
+              />
+            </motion.div>
             
             {/* Info Metadata */}
-            <div className="mt-6 max-w-2xl text-center space-y-2 animate-in slide-in-from-bottom-4 duration-500 delay-100">
-              <h2 className="text-white font-bold text-xl sm:text-2xl tracking-tight">
-                {!/^(IMG|DSC|PXL|Screenshot|VID|WA|FB)_/i.test(images[lightboxIndex].alt || '') && !/^\d{4}[-_]\d{2}[-_]\d{2}/.test(images[lightboxIndex].alt || '') && !/\.(jpg|png|jpeg|webp)$/i.test(images[lightboxIndex].alt || '') 
-                  ? (images[lightboxIndex].alt || '') 
-                  : ''}
-              </h2>
-              <div className="flex flex-wrap items-center justify-center gap-3 text-sm text-gray-400">
-                {images[lightboxIndex].year && <span>{images[lightboxIndex].year}</span>}
-                {images[lightboxIndex].year && images[lightboxIndex].category && <span>•</span>}
-                {images[lightboxIndex].category && <span className="text-indigo-400">{images[lightboxIndex].category}</span>}
-                {images[lightboxIndex].subcategory && (
-                  <>
-                    <span>•</span>
-                    <span className="text-pink-400">{images[lightboxIndex].subcategory}</span>
-                  </>
-                )}
-              </div>
-            </div>
+            {/* Info Metadata removed as per user request */}
           </div>
         </div>
       )}

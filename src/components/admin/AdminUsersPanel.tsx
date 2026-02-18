@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../components/ToastProvider';
 import { supabase } from '../../lib/supabase';
-import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, Lock, Edit, X, Mail, Key, UserCheck, Settings, AlertCircle, Check, Loader2 } from 'lucide-react';
+import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, Lock, Edit, X, Mail, Key, UserCheck, Settings, AlertCircle, Check, Loader2, Fingerprint } from 'lucide-react';
 
 interface AdminUsersPanelProps {
   onManage2FA?: () => void;
@@ -12,6 +13,7 @@ interface AdminUsersPanelProps {
 export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA }) => {
   const { adminUsers, refreshAdminUsers, removeAdminUser, updateAdminEmail, listAdminPermissions, setAdminPermission } = useData();
   const { user } = useAuth();
+  const { push: toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -33,22 +35,14 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     can_security_passes?: boolean;
   }>>({});
   
-  // Track approval requirements
   const [requiresApproval, setRequiresApproval] = useState<Record<string, boolean>>({});
 
   const currentUserAdmin = useMemo(() => adminUsers?.find(u => u.user_id === user?.id), [adminUsers, user]);
-  /* 
-    Updated Owner Check:
-    - Checks database role 'owner'
-    - Checks 'is_primary' flag
-    - CRITICAL: Checks if current user is the Master Bypass Admin (emergency access)
-  */
   const isMasterBypass = user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
   const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary || isMasterBypass;
 
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
   
-  // Initial load of permissions
   useEffect(() => {
     (async () => {
       try {
@@ -74,7 +68,6 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         }
         setPerm(map);
         
-        // Also load requires_approval settings
         const { data: admins } = await supabase
           .from('admin_users')
           .select('user_id, requires_approval');
@@ -88,7 +81,6 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     })();
   }, [listAdminPermissions]);
 
-  // Realtime sync for permission changes - update local state when other admins change
   useEffect(() => {
     const channel = supabase
       .channel('admin-users-panel-permissions')
@@ -100,8 +92,6 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         const row = payload.new || payload.old;
         if (!row?.user_id) return;
         
-        console.log(`[Realtime] Permission update for ${row.user_id}:`, payload.eventType, row);
-
         if (payload.eventType === 'DELETE') {
           setPerm(p => {
             const next = { ...p };
@@ -147,12 +137,19 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
   const onRemove = async (uid: string) => {
     if (!removeAdminUser) return;
     if ((adminUsers?.length || 0) <= 1) {
-      alert('Cannot remove the last remaining admin. Add another admin first.');
+      toast({ message: 'Cannot remove the last remaining admin.', type: 'error' });
       return;
     }
     if (!confirm('Remove this admin?')) return;
     setBusy(true);
-    try { await removeAdminUser(uid); } catch (e: any) { alert(e?.message || 'Failed to remove admin'); } finally { setBusy(false); }
+    try { 
+      await removeAdminUser(uid); 
+      toast({ message: 'Admin removed successfully', type: 'success' });
+    } catch (e: any) { 
+      toast({ message: e?.message || 'Failed to remove admin', type: 'error' }); 
+    } finally { 
+      setBusy(false); 
+    }
   };
 
   const onEditEmail = async (uid: string, currentEmail: string) => {
@@ -162,8 +159,9 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     setBusy(true);
     try {
       await updateAdminEmail(uid, newEmail.trim());
+      toast({ message: 'Email updated successfully', type: 'success' });
     } catch (e: any) {
-      alert(e?.message || 'Failed to update email');
+      toast({ message: e?.message || 'Failed to update email', type: 'error' });
     } finally {
       setBusy(false);
     }
@@ -178,12 +176,10 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
     } catch {}
   };
   
-  // Toggle approval requirement for an admin
   const toggleApprovalRequirement = async (uid: string) => {
     const current = requiresApproval[uid] || false;
     const next = !current;
     
-    // Optimistic UI update
     setRequiresApproval(prev => ({ ...prev, [uid]: next }));
     
     try {
@@ -197,72 +193,80 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         .eq('user_id', uid);
       
       if (error) throw error;
+      toast({ message: `Approval requirement ${next ? 'enabled' : 'disabled'}`, type: 'info' });
     } catch (e: any) {
-      console.error('Failed to toggle approval requirement:', e);
-      // Rollback on error
       setRequiresApproval(prev => ({ ...prev, [uid]: current }));
-      alert(e?.message || 'Failed to update approval setting');
+      toast({ message: e?.message || 'Failed to update approval setting', type: 'error' });
     }
   };
 
   return (
-    <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
-            <Shield className="w-6 h-6 text-blue-400" />
+    <div className="superia-glass-card rounded-[2.5rem] p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden group">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
+        <div className="flex items-center gap-4">
+          <div className="p-4 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5 group-hover:scale-110 transition-all duration-500">
+            <Shield className="w-8 h-8 text-indigo-400" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white tracking-tight">Admin Users</h3>
-            <p className="text-gray-400 text-sm">Manage access rights and roles</p>
+            <h3 className="text-3xl font-black text-white tracking-tighter uppercase italic">Access Control</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Personnel Management System</span>
+              <div className="w-1 h-1 rounded-full bg-white/20" />
+              <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Security Clearance: {currentUserAdmin?.role || 'Admin'}</span>
+            </div>
           </div>
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl px-5 py-3 text-sm font-bold shadow-xl shadow-indigo-600/20 transition-all transform active:scale-[0.98]"
+          className="group relative inline-flex items-center justify-center gap-3 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl px-8 py-4 text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 overflow-hidden"
         >
-          <UserPlus className="w-5 h-5"/> Add New Admin
+          <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-700" />
+          <UserPlus className="w-5 h-5 relative z-10"/> <span className="relative z-10">Authorize New Admin</span>
         </button>
       </div>
 
-      <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 mb-8 text-sm text-blue-200/80">
-        <strong className="text-blue-400">Roles:</strong>
-        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-xs font-bold uppercase tracking-wider">owner</span>
-        <span className="mx-1 opacity-60">Full control (cannot be removed)</span>
-        <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold uppercase tracking-wider">admin</span>
-        <span className="mx-1 opacity-60">Configurable access</span>
+      <div className="flex flex-wrap gap-4 mb-10">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+          <Shield size={10} className="text-yellow-500" />
+          <span className="text-[10px] font-black text-yellow-500 uppercase tracking-tighter">ROLE: OWNER</span>
+          <span className="text-[10px] text-gray-400 font-bold">Unrestricted clearance</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+          <UserCheck size={10} className="text-indigo-500" />
+          <span className="text-[10px] font-black text-indigo-400 uppercase tracking-tighter">ROLE: ADMIN</span>
+          <span className="text-[10px] text-gray-400 font-bold">Modular permissions</span>
+        </div>
       </div>
 
       {isOwner && onManage2FA && (
-        <div className="mb-8 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-between group">
+        <div className="mb-10 p-6 bg-indigo-500/10 border border-indigo-500/20 rounded-[1.5rem] flex items-center justify-between group shadow-xl">
           <div>
-            <h4 className="text-sm font-bold text-white group-hover:text-indigo-400 transition-colors">Security Settings</h4>
-            <p className="text-xs text-gray-400 mt-1">Manage 2FA requirements and force logout for other admins.</p>
+            <h4 className="text-sm font-black text-white uppercase tracking-widest italic group-hover:text-indigo-400 transition-colors">Security Protocol Override</h4>
+            <p className="text-xs text-gray-500 mt-1 font-bold">Manage MFA requirements and session force-termination across the network.</p>
           </div>
           <button
             onClick={onManage2FA}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition-all shadow-lg shadow-indigo-600/10"
+            className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-xl shadow-indigo-600/20 active:scale-95"
           >
-            <Lock className="w-3.5 h-3.5" />
-            Manage 2FA
+            <Lock className="w-4 h-4" />
+            Launch 2FA Manager
           </button>
         </div>
       )}
 
-      <div className="flex items-center gap-4 mb-6">
-        <div className="relative flex-1 group">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3 group-focus-within:text-indigo-400 transition-colors" />
+      <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+        <div className="relative flex-1 group w-full">
+          <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-400 transition-colors" />
           <input 
-            className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all" 
+            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all" 
             placeholder="Search by email or user id..." 
             value={q} 
             onChange={(e) => setQ(e.target.value)} 
           />
         </div>
-        <button onClick={copyHelp} className="inline-flex items-center gap-2 border border-white/10 bg-white/5 rounded-xl px-4 py-2.5 text-xs font-medium text-gray-400 hover:bg-white/10 hover:text-white transition-all whitespace-nowrap">
-          {copied ? <CheckCircle2 className="w-4 h-4 text-green-400"/> : <Copy className="w-4 h-4"/>}
-          <span className="hidden sm:inline">Help: Find User ID</span>
-          <span className="sm:hidden">Help</span>
+        <button onClick={copyHelp} className="w-full md:w-auto inline-flex items-center justify-center gap-3 border border-white/10 bg-white/5 rounded-2xl px-6 py-4 text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-white/10 hover:text-white transition-all whitespace-nowrap group">
+          {copied ? <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-bounce"/> : <Fingerprint className="w-4 h-4 group-hover:scale-110 transition-transform"/>}
+          <span>{copied ? 'ID Copied' : 'Auth Guide'}</span>
         </button>
       </div>
 
@@ -274,37 +278,45 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         />
       )}
 
-      <div className="overflow-hidden rounded-xl border border-white/5 bg-black/20">
-        <table className="min-w-full text-sm text-left">
-          <thead>
-            <tr className="border-b border-white/5 bg-white/5 text-gray-400 font-medium">
-              <th className="px-4 py-4">User Details</th>
-              <th className="px-4 py-4">Role</th>
-              <th className="px-4 py-4">Access Control</th>
-              {isOwner && <th className="px-4 py-4 text-center">Safety</th>}
-              <th className="px-4 py-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
+      <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.01] backdrop-blur-3xl shadow-2xl">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="min-w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-white/10 bg-white/[0.03] text-gray-500 font-black uppercase tracking-[0.2em] text-[10px]">
+                <th className="px-8 py-6">Identity Profile</th>
+                <th className="px-8 py-6">Security Level</th>
+                <th className="px-8 py-6">Access Matrix</th>
+                {isOwner && <th className="px-8 py-6 text-center">Safety</th>}
+                <th className="px-8 py-6 text-right">Directives</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
             {(filtered || []).map((u) => (
               <tr key={u.user_id} className="hover:bg-white/5 transition-colors group">
-                <td className="px-4 py-4">
-                  <div className="flex flex-col">
-                    <span className="text-white font-medium">{u.email}</span>
-                    <span className="text-[10px] text-gray-500 font-mono mt-1 opacity-0 group-hover:opacity-100 transition-opacity">ID: {u.user_id}</span>
-                    <span className="text-[10px] text-gray-600">Added: {new Date(u.created_at).toLocaleDateString()}</span>
+                <td className="px-8 py-8">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <Mail size={12} className="text-indigo-400 opacity-60" />
+                      <span className="text-white font-black italic">{u.email}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-mono mt-1 group-hover:text-indigo-400 transition-colors uppercase tracking-widest">UID: {u.user_id}</span>
+                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Added: {new Date(u.created_at).toLocaleDateString()}</span>
                   </div>
                 </td>
-                <td className="px-4 py-4 align-top">
+                <td className="px-8 py-8 align-top">
                   {u.role === 'owner' || u.is_primary ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-xs font-bold uppercase tracking-wider shadow-sm shadow-yellow-500/10">owner</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/5">
+                      <Shield size={10} fill="currentColor" /> Owner
+                    </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs font-bold uppercase tracking-wider shadow-sm shadow-indigo-500/10">admin</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/5">
+                      <UserCheck size={10} fill="currentColor" /> Admin
+                    </span>
                   )}
                 </td>
-                <td className="px-4 py-4 max-w-md">
+                <td className="px-8 py-8 max-w-md">
                   {u.role === 'owner' || u.is_primary ? (
-                    <span className="text-xs text-gray-500 italic">Full system access granted</span>
+                    <span className="text-xs text-gray-500 italic opacity-60">Master bypass active - unrestricted clearance</span>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {([
@@ -319,8 +331,8 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                         ['can_guest_artists', 'Guest Artists'],
                         ['can_chief_guests', 'Chief Guests'],
                         ['can_homebound', 'Homebound'],
-                        ['can_sports', 'Sports Team'],
-                        ['can_security_passes', 'Entry Pass Security'],
+                        ['can_sports', 'Sports'],
+                        ['can_security_passes', 'Security'],
                       ] as Array<[keyof typeof perm[string], string]>).map(([key, label]) => (
                         <button
                           key={String(key)}
@@ -332,18 +344,18 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                               await setAdminPermission(u.user_id, { [key]: next } as any);
                             } catch (e: any) {
                               setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: !next } }));
-                              alert(e?.message || 'Failed to update permission');
+                              toast({ message: e?.message || 'Update failed', type: 'error' });
                             }
                           }}
                           className={`
-                            inline-flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wide rounded-md px-2 py-1.5 transition-all
+                            inline-flex items-center gap-2 text-[9px] uppercase font-black tracking-widest rounded-lg px-2.5 py-1.5 transition-all
                             ${perm[u.user_id]?.[key] 
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20' 
-                              : 'bg-white/5 text-gray-500 border border-transparent hover:border-white/10 hover:text-gray-300'
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 active:scale-95' 
+                              : 'bg-white/5 text-gray-600 border border-transparent hover:border-white/10 hover:text-gray-400'
                             }
                           `}
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full ${perm[u.user_id]?.[key] ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-gray-600'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${perm[u.user_id]?.[key] ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-gray-700'}`} />
                           {label}
                         </button>
                       ))}
@@ -351,27 +363,27 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                   )}
                 </td>
                 {isOwner && (
-                  <td className="px-4 py-4 text-center align-top">
+                  <td className="px-8 py-8 text-center align-top">
                     {u.role === 'owner' || u.is_primary ? (
                       <span className="text-gray-600 text-xs">-</span>
                     ) : (
                       <button
                         onClick={() => toggleApprovalRequirement(u.user_id)}
-                        className={`inline-flex items-center gap-2 text-xs font-medium rounded-lg px-3 py-2 transition-all ${
+                        className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2 transition-all ${
                           requiresApproval[u.user_id]
-                            ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20'
-                            : 'bg-white/5 border border-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300'
+                            ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500 shadow-lg shadow-amber-500/5'
+                            : 'bg-white/5 border border-white/5 text-gray-600 hover:text-gray-400'
                         }`}
                         title={requiresApproval[u.user_id] ? 'Changes require owner approval' : 'Changes go live immediately'}
                       >
                         {requiresApproval[u.user_id] ? (
                           <>
-                            <Lock className="w-3 h-3" />
+                            <Lock size={12} className="text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
                             <span>Locked</span>
                           </>
                         ) : (
                           <>
-                            <div className="w-3 h-3 rounded-full border border-gray-500" />
+                            <div className="w-2 h-2 rounded-full border-2 border-gray-600" />
                             <span>Open</span>
                           </>
                         )}
@@ -379,16 +391,16 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                     )}
                   </td>
                 )}
-                <td className="px-4 py-4 text-right align-top">
+                <td className="px-8 py-8 text-right align-top">
                   {u.role === 'owner' || u.is_primary ? (
-                    <span className="text-gray-600 text-[10px] uppercase font-bold tracking-wider">Protected</span>
+                    <span className="text-gray-600 text-[10px] uppercase font-black tracking-widest italic opacity-40">System Protected</span>
                   ) : (
-                    <div className="flex flex-col gap-2 items-end">
-                      <button disabled={busy} onClick={() => onEditEmail(u.user_id, u.email)} className="text-xs text-blue-400 hover:text-white transition-colors flex items-center gap-1">
-                        <Edit className="w-3 h-3"/> Edit Email
+                    <div className="flex flex-col gap-3 items-end">
+                      <button disabled={busy} onClick={() => onEditEmail(u.user_id, u.email)} className="text-[10px] font-black uppercase tracking-widest text-indigo-400/60 hover:text-indigo-400 transition-colors flex items-center gap-2 group/edit">
+                        <Edit size={12} className="group-hover/edit:scale-110 transition-transform"/> Edit Identity
                       </button>
-                      <button disabled={busy} onClick={() => onRemove(u.user_id)} className="text-xs text-red-400 hover:text-red-300 transition-colors flex items-center gap-1">
-                        <Trash2 className="w-3 h-3"/> Remove
+                      <button disabled={busy} onClick={() => onRemove(u.user_id)} className="text-[10px] font-black uppercase tracking-widest text-rose-500/60 hover:text-rose-500 transition-colors flex items-center gap-2 group/rem">
+                        <Trash2 size={12} className="group-hover/rem:scale-110 transition-transform"/> Terminate
                       </button>
                     </div>
                   )}
@@ -396,10 +408,11 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
               </tr>
             ))}
             {!filtered?.length && (
-              <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">No admins found matching your search.</td></tr>
+              <tr><td colSpan={5} className="px-8 py-20 text-center text-gray-600 font-black uppercase tracking-[0.2em] italic text-[10px]">No matches detected in identity database</td></tr>
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -413,6 +426,7 @@ interface AddAdminModalProps {
 
 const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner }) => {
   const { addAdminByEmail, addAdminUser, createAdminAccount, setAdminPermission, refreshAdminUsers } = useData();
+  const { push: toast } = useToast();
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [email, setEmail] = useState('');
   const [userId, setUserId] = useState('');
@@ -465,21 +479,16 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
           resultUserId = userId.trim();
         } else {
           if (!addAdminByEmail) throw new Error('Add by email not available');
-          // addAdminByEmail usually triggers a background process or returns nothing
-          // We might not get the UID back immediately if it's an RPC
           await addAdminByEmail(email.trim());
-          // Since we might not have the UID yet, we'll wait for refresh and then try to find it
-          // OR, if it's an existing user we just added, we can't set perms without the ID.
-          // For now, let's assume if it's an existing user, they might just want to add them first.
         }
       }
 
-      // If we have a result UID, set the permissions
       if (resultUserId && setAdminPermission) {
         await setAdminPermission(resultUserId, permissions);
       }
 
       await refreshAdminUsers?.();
+      toast({ message: mode === 'new' ? 'Account created and authorized' : 'Admin access granted', type: 'success' });
       onClose();
     } catch (err: any) {
       setError(err?.message || 'Action failed');
@@ -492,119 +501,121 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" onClick={onClose} />
       
-      <div className="relative w-full max-w-2xl bg-[#1c1c2b] border border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-        {/* Header */}
-        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
-              <UserPlus className="w-5 h-5 text-indigo-400" />
+      <div className="relative w-full max-w-3xl superia-glass-card rounded-[3rem] shadow-[0_50px_100px_rgba(0,0,0,0.8)] overflow-hidden animate-in fade-in zoom-in duration-500 border-white/10">
+        <div className="p-8 border-b border-white/10 flex items-center justify-between bg-white/[0.03]">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
+              <UserPlus className="w-6 h-6 text-indigo-400" />
             </div>
-            <h3 className="text-xl font-bold text-white tracking-tight">Add New Admin</h3>
+            <div>
+              <h3 className="text-2xl font-black text-white tracking-tighter uppercase italic">Authorization Terminal</h3>
+              <p className="text-[10px] font-black text-gray-500 tracking-[0.2em] uppercase mt-1">Personnel on-boarding sequence</p>
+            </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors">
-            <X className="text-gray-400" size={20} />
+          <button onClick={onClose} className="p-3 hover:bg-white/5 rounded-2xl transition-all group">
+            <X className="text-gray-500 group-hover:text-white group-hover:rotate-90 transition-all" size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8">
-          {/* Mode Switcher */}
-          <div className="flex p-1 bg-black/40 rounded-xl mb-8 border border-white/5 uppercase text-[10px] font-bold tracking-widest">
+        <form onSubmit={handleSubmit} className="p-10">
+          <div className="flex p-1.5 bg-black/40 rounded-2xl mb-10 border border-white/10 shadow-inner">
             <button
               type="button"
               onClick={() => { setMode('existing'); setError(null); }}
-              className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${mode === 'existing' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest transition-all ${mode === 'existing' ? 'bg-indigo-600 text-white shadow-2xl' : 'text-gray-500 hover:text-gray-400'}`}
             >
-              <UserCheck size={14} /> Add Existing User
+              <UserCheck size={16} /> Link Existing
             </button>
             <button
               type="button"
               disabled={!isOwner}
               onClick={() => { if(isOwner) { setMode('new'); setError(null); } }}
-              className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${mode === 'new' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300'} ${!isOwner ? 'opacity-30 cursor-not-allowed' : ''}`}
+              className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest transition-all ${mode === 'new' ? 'bg-indigo-600 text-white shadow-2xl' : 'text-gray-500 hover:text-gray-400'} ${!isOwner ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
-              <Key size={14} /> Create New Account
+              <Key size={16} /> Create Prime
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3.5 text-gray-500" size={16} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Identity Email</label>
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                   <input
                     required
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@rico.com"
-                    className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all"
+                    placeholder="personnel@rico.family"
+                    className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white font-bold placeholder-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all"
                   />
                 </div>
               </div>
 
               {mode === 'new' ? (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Initial Password</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-3.5 text-gray-500" size={16} />
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Security Hash (Password)</label>
+                  <div className="relative group">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                     <input
                       required
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all"
+                      placeholder="••••••••••••"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white font-bold placeholder-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all"
                     />
                   </div>
                 </div>
               ) : (
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">User ID (Optional)</label>
-                  <div className="relative">
-                    <Settings className="absolute left-3 top-3.5 text-gray-500" size={16} />
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Unique Identifier (Optional)</label>
+                  <div className="relative group">
+                    <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" size={18} />
                     <input
                       type="text"
                       value={userId}
                       onChange={(e) => setUserId(e.target.value)}
                       placeholder="Supabase Auth UUID"
-                      className="w-full bg-black/20 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all"
+                      className="w-full bg-white/[0.03] border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white font-mono text-xs placeholder-gray-700 focus:outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all"
                     />
                   </div>
                 </div>
               )}
 
               {error && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs">
-                  <AlertCircle size={14} /> {error}
+                <div className="flex items-center gap-3 p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-400 text-xs font-bold animate-shake">
+                  <AlertCircle size={18} /> {error}
                 </div>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Initial Permissions</label>
-              <div className="bg-black/20 border border-white/5 rounded-2xl p-4 max-h-[220px] overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-1 gap-2">
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Access Matrix Permissions</label>
+              <div className="bg-black/40 border border-white/10 rounded-[2rem] p-6 max-h-[300px] overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 gap-2.5">
                   {(Object.keys(permissions) as Array<keyof typeof permissions>).map((key) => {
                     const label = key.replace('can_', '').replace('_', ' ');
+                    const active = permissions[key];
                     return (
                       <button
                         key={key}
                         type="button"
                         onClick={() => togglePermission(key)}
-                        className={`flex items-center justify-between p-2 rounded-lg border transition-all ${
-                          permissions[key] 
-                            ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300' 
-                            : 'bg-white/5 border-transparent text-gray-500 hover:text-gray-400'
+                        className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 group/perm ${
+                          active 
+                            ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300 shadow-lg shadow-indigo-500/5' 
+                            : 'bg-white/[0.02] border-transparent text-gray-600 hover:text-gray-400 hover:bg-white/[0.04]'
                         }`}
                       >
-                        <span className="text-[10px] uppercase font-bold tracking-wide">{label}</span>
-                        <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-all ${
-                          permissions[key] ? 'border-indigo-400 bg-indigo-500' : 'border-gray-700 bg-black/20'
+                        <span className="text-[10px] uppercase font-black tracking-widest italic">{label}</span>
+                        <div className={`w-5 h-5 rounded-lg flex items-center justify-center border-2 transition-all duration-500 ${
+                          active ? 'border-indigo-400 bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] rotate-0' : 'border-gray-800 bg-black/40 rotate-45 group-hover/perm:rotate-0'
                         }`}>
-                          {permissions[key] && <Check size={10} className="text-white" strokeWidth={4} />}
+                          {active && <Check size={12} className="text-white" strokeWidth={4} />}
                         </div>
                       </button>
                     );
@@ -614,20 +625,25 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex gap-6">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+              className="flex-1 py-5 bg-white/[0.03] hover:bg-white/[0.06] text-gray-400 hover:text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all border border-white/5"
             >
-              Cancel
+              Abort
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="flex-[2] py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-indigo-600/20 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+              className="flex-[2] py-5 bg-gradient-to-br from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-indigo-600/30 active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
             >
-              {busy ? <Loader2 className="animate-spin" size={18} /> : mode === 'new' ? 'Create Account' : 'Add Admin'}
+              {busy ? <Loader2 className="animate-spin" size={20} /> : (
+                <>
+                  <Shield size={18} fill="currentColor" />
+                  {mode === 'new' ? 'Initialize Prime Account' : 'Grant Clearance Access'}
+                </>
+              )}
             </button>
           </div>
         </form>

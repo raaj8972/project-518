@@ -1,5 +1,5 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, FC } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
@@ -30,7 +30,7 @@ const isMasterBypassUser = (u: User | null | undefined): boolean => {
   return Boolean(meta.master_bypass) || u.id === 'master-admin-bypass';
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);

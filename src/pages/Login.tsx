@@ -255,7 +255,7 @@ export const Login: React.FC = () => {
             e.currentTarget.style.display = 'none';
           }}
         >
-          <source src="/login page video.mp4" type="video/mp4" />
+          <source src="/login_page_video.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_black_100%)]"></div>

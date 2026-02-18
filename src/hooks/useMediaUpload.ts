@@ -132,39 +132,6 @@ export const useMediaUpload = ({
     };
 
     const trySDK = async () => {
-      // --- INTERCEPTION (Backup): Ensure R2 is used even in fallback ---
-      // Simplified check: validation is done in tryXHR mostly, but if session fails, we still want R2
-      // We can re-derive folder or just default to 'uploads' if not found, but let's replicate map
-      const BUCKET_TO_R2_BACKUP: Record<string, string> = {
-        'gallery-images': 'gallery',
-        'event-images': 'events',
-        'sponsor-logos': 'sponsors',
-        'team-images': 'team',
-        'faculty-images': 'faculty',
-        'guest-artist-images': 'guests', 
-        'guest-artist-videos': 'videos',
-        'guest-artist-audio': 'audio',
-        'band-images': 'band',
-        'hero-media': 'hero',
-        'hero-video': 'hero-video',
-        'documents': 'documents',
-        'registration-photos': 'registrations',
-        'sports-images': 'sports',
-        'pdf': 'pdf'
-      };
-      
-      const r2Folder = BUCKET_TO_R2_BACKUP[bucket];
-
-      if (r2Folder) {
-         const { uploadToR2 } = await import('../utils/r2Utils');
-         return await withTimeout(
-           uploadToR2(file, r2Folder),
-           timeoutMs,
-           'r2-retry'
-         );
-      }
-      // --- End Interception ---
-
       const { error } = await withTimeout(
         supabase.storage
           .from(bucket)

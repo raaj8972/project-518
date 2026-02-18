@@ -129,7 +129,8 @@
     will-change: opacity, transform;
     perspective: 1000px;
   }
-  .animate-in-3d {
+  .scroll-animate-3d.animate-in,
+  .scroll-animate-3d.animate-in-3d {
     opacity: 1 !important;
     transform: translateY(0) rotateX(0deg) scale(1) !important;
   }

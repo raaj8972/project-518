@@ -42,16 +42,29 @@ const loadModels = async () => {
 
     try {
         console.log('[FaceIndex] Initializing TensorFlow WASM backend...');
-        await faceapi.tf.setBackend('wasm');
-        console.log('[FaceIndex] Backend set to:', faceapi.tf.getBackend());
+        try {
+            await faceapi.tf.setBackend('wasm');
+            console.log('[FaceIndex] Backend set to:', faceapi.tf.getBackend());
+        } catch (backendError) {
+            console.warn('[FaceIndex] WASM backend failed, falling back to CPU:', backendError);
+            await faceapi.tf.setBackend('cpu');
+        }
     } catch (e) {
-        console.error('[FaceIndex] Error setting backend:', e);
+        console.error('[FaceIndex] Critical error during TFJS initialization:', e);
     }
     
     console.log('[FaceIndex] Loading models from CDN...');
+    // Primary CDN
     const modelUrl = 'https://cdn.jsdelivr.net/gh/vladmandic/face-api@master/model';
+    // Fallback CDN if needed (future proofing)
     
     try {
+        // Test CDN connectivity
+        const testRes = await fetch(`${modelUrl}/ssd_mobilenet_v1_model-weights_manifest.json`, { method: 'HEAD' });
+        if (!testRes.ok) {
+            console.warn('[FaceIndex] Primary CDN seems unreachable, attempting load anyway...');
+        }
+
         await Promise.all([
             faceapi.nets.ssdMobilenetv1.loadFromUri(modelUrl),
             faceapi.nets.faceLandmark68Net.loadFromUri(modelUrl),
@@ -60,8 +73,8 @@ const loadModels = async () => {
         modelsLoaded = true;
         console.log('[FaceIndex] Models loaded successfully.');
     } catch (err) {
-        console.error('[FaceIndex] Failed to load models:', err);
-        throw err;
+        console.error('[FaceIndex] Failed to load models from CDN:', err);
+        throw new Error(`Vision models unreachable: ${err instanceof Error ? err.message : String(err)}`);
     }
 };
 
@@ -73,7 +86,7 @@ export const handler: Handler = async (event, context) => {
     }
 
     try {
-        console.log('[FaceIndex] Loading models...');
+        console.log('[FaceIndex] Ensuring models are loaded...');
         await loadModels();
         
         const body = JSON.parse(event.body || '{}');
@@ -87,9 +100,13 @@ export const handler: Handler = async (event, context) => {
             .or('faces_indexed.is.null,faces_indexed.eq.false')
             .limit(limit);
 
-        if (fetchError) throw fetchError;
+        if (fetchError) {
+            console.error('[FaceIndex] Database fetch error:', fetchError);
+            throw fetchError;
+        }
         
         if (!images || images.length === 0) {
+            console.log('[FaceIndex] No unindexed images found.');
             return {
                 statusCode: 200,
                 body: JSON.stringify({ message: 'No unindexed images found.', count: 0, processed: 0 })
@@ -103,24 +120,16 @@ export const handler: Handler = async (event, context) => {
 
         for (const img of images) {
             try {
-                console.log(`[FaceIndex] Processing ${img.id}: ${img.src}`);
+                console.log(`[FaceIndex] Image ${img.id} start: ${img.src}`);
                 
                 let loadedImage;
                 
                 if (img.src.startsWith('drive://')) {
                     const fileId = img.src.replace('drive://', '');
-                    // Use Google Drive thumbnail/download URL. 
-                    // 'https://drive.google.com/thumbnail?id=xxx&sz=w1000' is reliable for public/shared files.
-                    // Or use the API key if we have it? We don't verify permissions here, assuming public or valid key.
-                    // But 'drive://' implies we scanned it.
-                    // Let's use a standard download URL which follows redirects.
-                    
                     const driveUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                    console.log(`[FaceIndex] Fetching Drive URL: ${driveUrl}`);
                     
-                    // Fetch buffer directly because canvas.loadImage might struggle with 302 redirects on some platforms
                     const res = await fetch(driveUrl);
-                    if (!res.ok) throw new Error(`Failed to fetch drive image: ${res.status} ${res.statusText}`);
+                    if (!res.ok) throw new Error(`Google Drive access failed: ${res.status} ${res.statusText}`);
                     const arrayBuffer = await res.arrayBuffer();
                     loadedImage = await loadImage(Buffer.from(arrayBuffer));
                     
@@ -128,7 +137,7 @@ export const handler: Handler = async (event, context) => {
                     loadedImage = await loadImage(img.src);
                 }
 
-                console.log(`[FaceIndex] Image loaded: ${loadedImage.width}x${loadedImage.height}`);
+                console.log(`[FaceIndex] Image loaded successfully (${loadedImage.width}x${loadedImage.height})`);
                 
                 const options = new faceapi.SsdMobilenetv1Options({ 
                     minConfidence: SCORE_THRESHOLD, 
@@ -142,29 +151,33 @@ export const handler: Handler = async (event, context) => {
                 console.log(`[FaceIndex] Detections for ${img.id}: ${detections.length}`);
                 
                 if (detections.length > 0) {
-                    // Log scores for debugging
-                    detections.forEach((d, i) => console.log(`[FaceIndex] Face ${i} score: ${d.detection.score}`));
-
                     const faceRecords = detections.map(d => ({
                         image_id: img.id,
                         embedding: Array.from(d.descriptor),
                         bounds: {
-                            x: d.detection.box.x,
-                            y: d.detection.box.y,
-                            width: d.detection.box.width,
-                            height: d.detection.box.height
+                            x: Math.round(d.detection.box.x),
+                            y: Math.round(d.detection.box.y),
+                            width: Math.round(d.detection.box.width),
+                            height: Math.round(d.detection.box.height)
                         }
                     }));
                     
                     const { error: insertError } = await supabase.from('gallery_faces').insert(faceRecords);
-                    if (insertError) console.error(`[FaceIndex] Failed to insert faces for ${img.id}:`, insertError);
-                    else facesFound += detections.length;
+                    if (insertError) {
+                        console.error(`[FaceIndex] Failed to insert faces for ${img.id}:`, insertError);
+                    } else {
+                        facesFound += detections.length;
+                    }
                 }
                 
-            } catch (err) {
-                console.error(`[FaceIndex] Error processing image ${img.id}:`, err);
-            } finally {
-                // Always mark as indexed so we don't get stuck in a loop of failing images
+                // Mark success
+                await supabase.from('gallery_images').update({ faces_indexed: true }).eq('id', img.id);
+                processed++;
+
+            } catch (err: any) {
+                console.error(`[FaceIndex] Error on image ${img.id}:`, err.message);
+                // Still mark as indexed (with null or special state if we had one) to avoid infinite retry loops on corrupt images
+                // In this schema, we just set faces_indexed = true to skip it next time
                 await supabase.from('gallery_images').update({ faces_indexed: true }).eq('id', img.id);
                 processed++;
             }
@@ -173,14 +186,21 @@ export const handler: Handler = async (event, context) => {
         return {
             statusCode: 200,
             body: JSON.stringify({ 
-                message: `Processed ${processed} images, found ${facesFound} faces.`, 
+                success: true,
+                message: `Batch complete: ${processed} images processed, ${facesFound} faces indexed.`, 
                 processed, 
                 facesFound 
             })
         };
 
     } catch (error: any) {
-        console.error('[FaceIndex] Fatal error:', error);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+        console.error('[FaceIndex] Fatal processing error:', error);
+        return { 
+            statusCode: 500, 
+            body: JSON.stringify({ 
+                error: 'Face indexing failed', 
+                details: error.message 
+            }) 
+        };
     }
 };

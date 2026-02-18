@@ -1,8 +1,12 @@
-import { handler } from './netlify/functions/drive-proxy';
+import { handler } from './netlify/functions/drive-proxy.ts';
 import dotenv from 'dotenv';
-import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-dotenv.config({ path: resolve(__dirname, '.env.local') });
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+dotenv.config({ path: join(__dirname, '.env.local') });
 
 async function test(id: string, width?: number) {
     console.log(`Testing Proxy for ID: ${id}, Width: ${width || 'default(1600)'}`);
@@ -12,7 +16,7 @@ async function test(id: string, width?: number) {
     };
     if (width) event.queryStringParameters.width = width.toString();
 
-    const result = await handler(event, {} as any);
+    const result = await (handler as any)(event, {} as any);
     console.log('Result Status:', result?.statusCode);
     console.log('Result Headers:', JSON.stringify(result?.headers, null, 2));
     if (result?.statusCode === 502 || result?.statusCode === 400) {

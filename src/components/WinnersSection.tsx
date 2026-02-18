@@ -77,13 +77,13 @@ const WinnersSection: React.FC = () => {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse" style={{ animationDelay: '1s' }}></div>
 
       <div className="container mx-auto relative z-10 w-full">
-        <div className="scroll-animate animate-in">
-          <div className="text-center mb-8">
-            <h2 className="text-4xl md:text-6xl font-black mb-4 cyberpunk-title tracking-tight">
-              HALL OF <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500">GLORY</span>
+        <div className="scroll-animate-3d">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient tracking-tight">
+              HALL OF GLORY
             </h2>
-            <div className="w-40 h-1 bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 mx-auto mb-6 expand-width"></div>
-            <p className="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto font-mono">
+            <div className="w-24 h-1 bg-amber-500/40 mx-auto mb-8 rounded-full"></div>
+            <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto font-light italic">
               Celebrating the champions of RICORRENZA
             </p>
           </div>
@@ -117,7 +117,7 @@ const WinnersSection: React.FC = () => {
               intervalMs={3000}
               showArrows
               showDots={false}
-              className="py-10"
+              className="py-16 md:py-24"
               pauseOnHover
               stopOnInteraction
             >

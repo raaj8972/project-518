@@ -23,11 +23,23 @@ export const uploadToR2 = async (file: File, folder = 'gallery'): Promise<string
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Failed to get upload URL');
+      let errText = '';
+      try {
+        const err = await response.json();
+        errText = err.error || 'Failed to get upload URL';
+      } catch {
+        errText = await response.text() || 'Failed to get upload URL (Empty response)';
+      }
+      throw new Error(errText);
     }
 
-    const { uploadUrl, publicUrl } = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      throw new Error(`R2 API returned invalid JSON: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
+    const { uploadUrl, publicUrl } = data;
 
     // 2. Upload to R2
     const uploadResponse = await fetch(uploadUrl, {
