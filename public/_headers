@@ -1,8 +1,10 @@
-# HTML (always check for fresh content)
+# HTML (always check for fresh content - never cache on CDN)
 /index.html
 	Cache-Control: public, max-age=0, must-revalidate
+	Surrogate-Control: no-store
 /*.html
 	Cache-Control: public, max-age=0, must-revalidate
+	Surrogate-Control: no-store
 /*.xml
 	Cache-Control: public, max-age=0, must-revalidate
 	Content-Type: application/xml

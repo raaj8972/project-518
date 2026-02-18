@@ -372,9 +372,9 @@ self.addEventListener('message', (event) => {
   // Handle cache clear requests (useful when dynamic imports fail)
   if (event.data && event.data.type === 'CLEAR_CACHE') {
     event.waitUntil(
-      caches.delete(CACHE_NAME).then(() => {
-        console.log('[SW] Cache cleared, reloading...');
-        // Notify all clients to reload
+      caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n)))).then(() => {
+        console.log('[SW] All caches cleared.');
+        // Just notify clients - do NOT reload here, let the page handle redirect with cache-bust URL
         self.clients.matchAll().then((clients) => {
           clients.forEach((client) => {
             client.postMessage({ type: 'CACHE_CLEARED' });

@@ -246,45 +246,58 @@
       // Emergency Service Worker Reset + CDN Cache Bust for the Framer Motion v12 Regression
       // Only run once per session to avoid infinite reload loops
       var _emergencyRan = sessionStorage.getItem('_emergency_ran');
-      window.addEventListener('error', function(e) {
+
+      function _emergencyReset() {
         if (_emergencyRan) return;
+        _emergencyRan = true;
+        sessionStorage.setItem('_emergency_ran', '1');
+        console.error('[Emergency] Detected stale vendor bundle. Clearing caches and forcing hard reload...');
+        // Unregister all service workers
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(r) { r.unregister(); });
+          });
+        }
+        // Clear all caches
+        if (window.caches) {
+          caches.keys().then(function(names) {
+            names.forEach(function(n) { caches.delete(n); });
+          });
+        }
+        // Redirect with a cache-busting query param to force fresh index.html from CDN
+        setTimeout(function() {
+          window.location.replace('/?_v=' + Date.now());
+        }, 300);
+      }
+
+      // Detect the createContext error from a stale vendor bundle
+      window.addEventListener('error', function(e) {
         if (e.message && e.message.includes('createContext') && e.filename && e.filename.includes('vendor')) {
-          _emergencyRan = true;
-          sessionStorage.setItem('_emergency_ran', '1');
-          console.error('[Emergency] Detected stale vendor bundle. Clearing caches and forcing hard reload...');
-          var cleanup = function() {
-            // Unregister all service workers
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs) {
-                regs.forEach(function(r) { r.unregister(); });
-              });
-            }
-            // Clear all caches
-            if (window.caches) {
-              caches.keys().then(function(names) {
-                names.forEach(function(n) { caches.delete(n); });
-              });
-            }
-          };
-          cleanup();
-          // Fetch fresh index.html bypassing all caches, then redirect with a bust param
-          fetch('/?_bust=' + Date.now(), { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store' } })
-            .then(function() {
-              // Redirect to a fresh URL so the browser fetches new index.html and new assets
-              window.location.replace('/?_v=' + Date.now());
-            })
-            .catch(function() {
-              window.location.replace('/?_v=' + Date.now());
-            });
+          _emergencyReset();
         }
       });
-      // On load, clear the session flag so next hard error can trigger again
+
+      // Also listen for CACHE_CLEARED message from Service Worker
+      // (triggered by the "RELOAD & FIX SITE" button or CLEAR_CACHE message)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'CACHE_CLEARED') {
+            console.log('[Emergency] SW cache cleared, redirecting with cache-bust...');
+            // Use cache-busting redirect instead of plain reload
+            window.location.replace('/?_v=' + Date.now());
+          }
+        });
+      }
+
+      // On successful load, clear the session flag
       window.addEventListener('load', function() {
-        if (document.getElementById('root') && document.getElementById('root').children.length > 1) {
+        var root = document.getElementById('root');
+        if (root && root.children.length > 1) {
           sessionStorage.removeItem('_emergency_ran');
         }
       });
     </script>
+
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
   <div id="root" style="position: relative; z-index: 1;">
     <!-- Instant Paint Skeleton (Removed by React on mount) -->
