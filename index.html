@@ -243,23 +243,45 @@
   <body>
     <title>RICORRENZA</title>
     <script>
-      // Emergency Service Worker Reset for the Framer Motion v12 Regression
+      // Emergency Service Worker Reset + CDN Cache Bust for the Framer Motion v12 Regression
+      // Only run once per session to avoid infinite reload loops
+      var _emergencyRan = sessionStorage.getItem('_emergency_ran');
       window.addEventListener('error', function(e) {
+        if (_emergencyRan) return;
         if (e.message && e.message.includes('createContext') && e.filename && e.filename.includes('vendor')) {
-          console.error('Detected v12 regression. Unregistering Service Worker...');
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(registrations) {
-              for(let registration of registrations) {
-                registration.unregister();
-              }
-              // Clear caches
-              caches.keys().then(function(names) {
-                for (let name of names) caches.delete(name);
+          _emergencyRan = true;
+          sessionStorage.setItem('_emergency_ran', '1');
+          console.error('[Emergency] Detected stale vendor bundle. Clearing caches and forcing hard reload...');
+          var cleanup = function() {
+            // Unregister all service workers
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
               });
-              // Force reload after a brief delay
-              setTimeout(function() { window.location.reload(); }, 500);
+            }
+            // Clear all caches
+            if (window.caches) {
+              caches.keys().then(function(names) {
+                names.forEach(function(n) { caches.delete(n); });
+              });
+            }
+          };
+          cleanup();
+          // Fetch fresh index.html bypassing all caches, then redirect with a bust param
+          fetch('/?_bust=' + Date.now(), { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store' } })
+            .then(function() {
+              // Redirect to a fresh URL so the browser fetches new index.html and new assets
+              window.location.replace('/?_v=' + Date.now());
+            })
+            .catch(function() {
+              window.location.replace('/?_v=' + Date.now());
             });
-          }
+        }
+      });
+      // On load, clear the session flag so next hard error can trigger again
+      window.addEventListener('load', function() {
+        if (document.getElementById('root') && document.getElementById('root').children.length > 1) {
+          sessionStorage.removeItem('_emergency_ran');
         }
       });
     </script>
