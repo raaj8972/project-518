@@ -241,6 +241,28 @@
     </script>
   </head>
   <body>
+    <title>RICORRENZA</title>
+    <script>
+      // Emergency Service Worker Reset for the Framer Motion v12 Regression
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('createContext') && e.filename && e.filename.includes('vendor')) {
+          console.error('Detected v12 regression. Unregistering Service Worker...');
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for(let registration of registrations) {
+                registration.unregister();
+              }
+              // Clear caches
+              caches.keys().then(function(names) {
+                for (let name of names) caches.delete(name);
+              });
+              // Force reload after a brief delay
+              setTimeout(function() { window.location.reload(); }, 500);
+            });
+          }
+        }
+      });
+    </script>
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
   <div id="root" style="position: relative; z-index: 1;">
     <!-- Instant Paint Skeleton (Removed by React on mount) -->

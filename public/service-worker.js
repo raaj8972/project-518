@@ -1,7 +1,7 @@
 // Service Worker for RICORRENZA
 // Provides comprehensive offline support with progressive caching
 
-const CACHE_NAME = 'ricorrenza-v5-vercel-2024-02-14';
+const CACHE_NAME = 'ricorrenza-v6-vercel-2026-02-18';
 const OFFLINE_URL = '/offline.html';
 
 // CRITICAL pages to preload immediately (don't slow down installation)
