@@ -1,5 +1,4 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef, useEffect } from 'react';
 import { Instagram, Youtube, AlignJustify as Spotify } from 'lucide-react';
 import PreserveNewlines from '../PreserveNewlines';
 
@@ -24,6 +23,8 @@ interface BandMemberProps {
 
 export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
   const [isMobile, setIsMobile] = React.useState(false);
+  const photoRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -32,55 +33,50 @@ export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const photoVariants = {
-    hidden: { 
-      x: 0, 
-      y: 0, 
-      scale: 0.9,
-      opacity: 0,
-      transition: { 
-        duration: 0.6,
-        ease: [0.4, 0, 1, 1] as const // easeIn custom
-      }
-    },
-    visible: { 
-      x: isMobile ? 0 : "-25%",
-      y: isMobile ? "-10%" : 0,
-      scale: 1,
-      opacity: 1,
-      transition: { 
-        duration: 1, 
-        ease: [0.16, 1, 0.3, 1] as const // Apple easeOut
-      }
-    }
-  };
+  // IntersectionObserver-based animation (replaces framer-motion whileInView)
+  useEffect(() => {
+    const photoEl = photoRef.current;
+    const textEl = textRef.current;
+    if (!photoEl || !textEl) return;
 
-  const textVariants = {
-    hidden: { 
-      opacity: 0, 
-      x: isMobile ? 0 : 50, 
-      y: isMobile ? 50 : 0,
-      transition: { 
-        duration: 0.6,
-        ease: [0.4, 0, 1, 1] as const
-      }
-    },
-    visible: { 
-      opacity: 1, 
-      x: 0, 
-      y: 0,
-      transition: { 
-        duration: 0.8, 
-        delay: 0.3,
-        ease: [0, 0, 0.2, 1] as const // standard easeOut
-      }
-    }
-  };
-  
+    // Set initial hidden state
+    photoEl.style.opacity = '0';
+    photoEl.style.transform = 'scale(0.9)';
+    photoEl.style.transition = 'opacity 1s cubic-bezier(0.16,1,0.3,1), transform 1s cubic-bezier(0.16,1,0.3,1)';
+
+    textEl.style.opacity = '0';
+    textEl.style.transform = isMobile ? 'translateY(50px)' : 'translateX(50px)';
+    textEl.style.transition = 'opacity 0.8s cubic-bezier(0,0,0.2,1) 0.3s, transform 0.8s cubic-bezier(0,0,0.2,1) 0.3s';
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Animate in
+            photoEl.style.opacity = '1';
+            photoEl.style.transform = isMobile ? 'scale(1) translateY(-10%)' : 'scale(1) translateX(-25%)';
+            textEl.style.opacity = '1';
+            textEl.style.transform = 'translate(0, 0)';
+          } else {
+            // Reset for re-animation on scroll back
+            photoEl.style.opacity = '0';
+            photoEl.style.transform = 'scale(0.9)';
+            textEl.style.opacity = '0';
+            textEl.style.transform = isMobile ? 'translateY(50px)' : 'translateX(50px)';
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(photoEl);
+    return () => observer.disconnect();
+  }, [isMobile]);
+
   return (
     <section className="h-[100dvh] w-full relative flex flex-col md:flex-row items-center justify-center snap-start bg-black overflow-hidden support-[height:100dvh]:h-[100dvh]">
         
-        {/* Cinematic Background - Subtle */}
+        {/* Cinematic Background */}
         <div className="absolute inset-0 pointer-events-none">
            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] rounded-full blur-[150px] opacity-[0.10] ${member.is_featured ? 'bg-pink-900' : 'bg-blue-900'}`}></div>
         </div>
@@ -88,18 +84,13 @@ export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
         {/* Content Container */}
         <div className="relative w-full max-w-[1400px] h-full flex flex-col md:flex-row items-center justify-center p-4">
           
-          {/* PHOTO COMPONENT */}
-          <motion.div 
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ amount: 0.1, once: false }}
-            variants={photoVariants}
+          {/* PHOTO */}
+          <div 
+            ref={photoRef}
             className="absolute md:relative z-10 flex items-center justify-center w-full h-[50vh] md:h-auto md:w-auto perspective-1000 top-0 md:top-auto will-change-transform"
           >
              <div className="relative group w-[280px] h-[350px] md:w-[500px] md:h-[650px] rounded-[2rem] overflow-hidden shadow-2xl bg-black border border-white/5 transition-shadow duration-500 hover:shadow-pink-500/20">
-                {/* Spotlight Sheen */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent skew-x-12 translate-x-[-150%] group-hover:animate-sheen pointer-events-none z-20"></div>
-                
                 <img 
                   src={member.image} 
                   alt={member.name} 
@@ -108,14 +99,11 @@ export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
                   className="w-full h-full object-cover brightness-90 contrast-110"
                 />
              </div>
-          </motion.div>
+          </div>
 
-          {/* TEXT COMPONENT */}
-          <motion.div 
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ amount: 0.1, once: false }}
-            variants={textVariants}
+          {/* TEXT */}
+          <div 
+            ref={textRef}
             className="absolute md:relative z-20 w-full md:w-[600px] md:ml-[5%] text-center md:text-left bottom-0 md:bottom-auto px-6 pb-[env(safe-area-inset-bottom,20px)] md:pb-0 flex flex-col justify-end md:justify-center max-h-[60vh] md:max-h-full pointer-events-none will-change-transform"
           >
              <div className="pointer-events-auto bg-gradient-to-t from-black via-black/90 to-transparent md:bg-none p-6 md:p-0 pt-20 md:pt-0 rounded-t-3xl md:rounded-none">
@@ -131,7 +119,7 @@ export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
                  {member.name}
                </h2>
 
-               {/* Description Card - Simplified on mobile */}
+               {/* Description */}
                <div className="backdrop-blur-md bg-white/5 rounded-2xl md:rounded-3xl p-4 md:p-8 border border-white/10 mb-6 md:mb-10 shadow-lg relative overflow-hidden group">
                   <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-pink-500 to-purple-500"></div>
                   <PreserveNewlines 
@@ -161,7 +149,7 @@ export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member }) => {
                </div>
 
              </div>
-          </motion.div>
+          </div>
 
         </div>
 

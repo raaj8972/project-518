@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, Share2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 
 interface GalleryImage {
   id: number;
@@ -22,8 +21,13 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
   const [visibleCount, setVisibleCount] = useState(20);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
-  const [isPanning, setIsPanning] = useState(false);
   
+  // Pan state (replaces framer-motion drag)
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const isPanning = useRef(false);
+  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
   const observerTarget = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
@@ -42,7 +46,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           setVisibleCount((prev) => Math.min(prev + 20, images.length));
         }
       },
-      { threshold: 0.1, rootMargin: '400px' } // Load earlier
+      { threshold: 0.1, rootMargin: '400px' }
     );
 
     if (observerTarget.current) {
@@ -56,7 +60,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
   useLayoutEffect(() => {
     if (!containerRef.current) return;
     
-    // Select only items that haven't been animated yet
     const items = containerRef.current.querySelectorAll('.gallery-item:not(.animated)');
     
     if (items.length > 0) {
@@ -87,16 +90,21 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     }
   }, [lightboxIndex]);
 
+  // Reset pan when scale goes to 1
+  useEffect(() => {
+    if (scale <= 1) {
+      setPanX(0);
+      setPanY(0);
+    }
+  }, [scale]);
+
   // Keyboard Navigation & Zoom
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (lightboxIndex === null) return;
     
-    // Navigation
     if (e.key === 'Escape') closeLightbox();
     if (e.key === 'ArrowLeft') prevImage();
     if (e.key === 'ArrowRight') nextImage();
-    
-    // Zoom shortcuts
     if (e.key === '=' || e.key === '+') handleZoomIn();
     if (e.key === '-') handleZoomOut();
     if (e.key === '0') resetZoom();
@@ -110,11 +118,15 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
   const openLightbox = (index: number) => {
     setLightboxIndex(index);
     setScale(1);
+    setPanX(0);
+    setPanY(0);
   };
   
   const closeLightbox = () => {
     setLightboxIndex(null);
     setScale(1);
+    setPanX(0);
+    setPanY(0);
   };
 
   const handleZoomIn = (e?: React.MouseEvent) => {
@@ -124,32 +136,67 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
 
   const handleZoomOut = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setScale(prev => Math.max(prev - 0.5, 1));
+    setScale(prev => {
+      const next = Math.max(prev - 0.5, 1);
+      if (next <= 1) { setPanX(0); setPanY(0); }
+      return next;
+    });
   };
 
   const resetZoom = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setScale(1);
+    setPanX(0);
+    setPanY(0);
   };
 
   const toggleZoom = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setScale(prev => prev > 1 ? 1 : 2.5);
+    setScale(prev => {
+      if (prev > 1) { setPanX(0); setPanY(0); return 1; }
+      return 2.5;
+    });
   };
 
   const handleWheel = (e: React.WheelEvent) => {
     if (lightboxIndex === null) return;
+    e.stopPropagation();
     if (e.deltaY < 0) {
       setScale(prev => Math.min(prev + 0.1, 4));
     } else {
-      setScale(prev => Math.max(prev - 0.1, 1));
+      setScale(prev => {
+        const next = Math.max(prev - 0.1, 1);
+        if (next <= 1) { setPanX(0); setPanY(0); }
+        return next;
+      });
     }
+  };
+
+  // Pointer-based drag (replaces framer-motion drag)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (scale <= 1) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    isPanning.current = true;
+    panStart.current = { x: e.clientX, y: e.clientY, panX, panY };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isPanning.current) return;
+    const dx = e.clientX - panStart.current.x;
+    const dy = e.clientY - panStart.current.y;
+    setPanX(panStart.current.panX + dx);
+    setPanY(panStart.current.panY + dy);
+  };
+
+  const handlePointerUp = () => {
+    isPanning.current = false;
   };
   
   const nextImage = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (lightboxIndex !== null && lightboxIndex < images.length - 1) {
-       setScale(1); // Reset zoom on nav
-       // Micro-animation for slide
+       setScale(1);
+       setPanX(0); setPanY(0);
        const img = lightboxRef.current?.querySelector('img.main-image');
        if (img) {
          gsap.to(img, { x: -50, opacity: 0, duration: 0.2, onComplete: () => {
@@ -161,6 +208,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
        }
     } else {
        setScale(1);
+       setPanX(0); setPanY(0);
        setLightboxIndex(0);
     }
   };
@@ -169,6 +217,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     e?.stopPropagation();
     if (lightboxIndex !== null && lightboxIndex > 0) {
       setScale(1);
+      setPanX(0); setPanY(0);
       const img = lightboxRef.current?.querySelector('img.main-image');
       if (img) {
         gsap.to(img, { x: 50, opacity: 0, duration: 0.2, onComplete: () => {
@@ -180,21 +229,21 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
       }
     } else {
       setScale(1);
+      setPanX(0); setPanY(0);
       setLightboxIndex(images.length - 1);
     }
   };
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const img = images[lightboxIndex];
+    const img = images[lightboxIndex!];
     if (!img) return;
 
     const downloadUrl = img.src;
-    // Extract filename from URL or use alt text
     const filename = img.alt ? `${img.alt.slice(0, 20).replace(/[^a-z0-9]/gi, '_')}.jpg` : 'download.jpg';
 
     try {
-      const response = await fetch(downloadUrl, { mode: 'cors' }); // Try to fetch from cache/network
+      const response = await fetch(downloadUrl, { mode: 'cors' });
       if (!response.ok) throw new Error('Network response was not ok');
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
@@ -208,7 +257,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
       window.URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.error('Download failed, falling back to direct link:', err);
-      // Fallback: just open/download the link directly
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.target = '_blank';
@@ -225,7 +273,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
         await navigator.share({
           title: img.alt || 'RICORRENZA Gallery',
           text: `Check out this photo from RICORRENZA 2026!`,
-          url: window.location.href // Ideally specific image URL if routed
+          url: window.location.href
         });
       } catch (err) { console.error('Share failed', err); }
     } else {
@@ -249,7 +297,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
             className="gallery-item break-inside-avoid group relative rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 cursor-zoom-in"
             onClick={() => openLightbox(index)}
           >
-            {/* Image */}
             <img 
               src={img.thumbnail || img.src} 
               alt={img.alt}
@@ -260,7 +307,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
             {/* Cyberpunk Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
               
-              {/* Neon Border Effect */}
               <div className="absolute inset-0 border-2 border-transparent group-hover:border-indigo-500/50 rounded-2xl transition-all duration-500 box-border pointer-events-none shadow-[inset_0_0_20px_rgba(79,70,229,0.3)]" />
               
               <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-100">
@@ -308,7 +354,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl" 
           onClick={closeLightbox}
         >
-          {/* Animated Background Mesh */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black -z-10 pointer-events-none" />
 
           {/* Top Controls */}
@@ -319,7 +364,6 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           </div>
 
           <div className="absolute top-4 right-4 flex items-center gap-2 sm:gap-3 z-50">
-           {/* Zoom Controls */}
            <div className="flex items-center gap-1 bg-white/5 backdrop-blur-md rounded-full border border-white/10 p-1 mr-2">
              <button 
                 onClick={handleZoomOut}
@@ -374,7 +418,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
             </button>
           </div>
 
-          {/* Navigation Buttons (Floating) */}
+          {/* Navigation Buttons */}
           <button 
             onClick={prevImage}
             className="absolute left-4 sm:left-8 p-4 rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-white border border-white/5 hover:border-white/20 transition-all hover:scale-110 z-50 hidden sm:flex items-center justify-center w-14 h-14"
@@ -389,23 +433,26 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
             <ChevronRight size={32} />
           </button>
 
-          {/* Main Image Container */}
+          {/* Main Image Container - CSS transform replaces framer-motion */}
           <div 
             className="relative w-full h-full flex items-center justify-center overflow-hidden" 
             onClick={(e) => scale === 1 && closeLightbox()}
             onWheel={handleWheel}
           >
-            <motion.div
-              drag={scale > 1}
-              dragConstraints={lightboxRef}
-              dragElastic={0.1}
-              onDragStart={() => setIsPanning(true)}
-              onDragEnd={() => setIsPanning(false)}
-              animate={{ scale }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative cursor-grab active:cursor-grabbing flex items-center justify-center pointer-events-auto"
+            <div
+              style={{
+                transform: `scale(${scale}) translate(${panX / scale}px, ${panY / scale}px)`,
+                transition: isPanning.current ? 'none' : 'transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                cursor: scale > 1 ? 'grab' : 'default',
+                touchAction: 'none',
+              }}
+              className="relative flex items-center justify-center pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={toggleZoom}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
               <img 
                 ref={imageRef}
@@ -417,10 +464,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
                   willChange: 'transform'
                 }}
               />
-            </motion.div>
-            
-            {/* Info Metadata */}
-            {/* Info Metadata removed as per user request */}
+            </div>
           </div>
         </div>
       )}

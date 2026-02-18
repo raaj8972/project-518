@@ -1,11 +1,10 @@
-import React, { useState, startTransition } from 'react';
+import React, { useState, startTransition, useRef, useEffect } from 'react';
 import { Music, Instagram, ChevronDown } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { AuditionModal } from '../components/AuditionModal';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { ArtistScrollSection } from '../components/HomeBound/ArtistScrollSection';
-import { motion } from 'framer-motion';
 
 export const HomeBound: React.FC = () => {
   const { bandMembers, formSettings, homeboundSettings, heroMedia, fetchHeroMedia } = useData();
@@ -56,12 +55,9 @@ export const HomeBound: React.FC = () => {
 
         {/* STICKY HERO BACKGROUND (Shared by Phase 1 & 2) */}
         <div className="sticky top-0 h-[100dvh] w-full z-0 overflow-hidden">
-           <motion.div 
-             initial={{ opacity: 0, scale: 1.1 }}
-             whileInView={{ opacity: 1, scale: 1 }}
-             viewport={{ amount: 0.1 }}
-             transition={{ duration: 1.5, ease: "easeOut" }}
+           <div 
              className="absolute inset-0"
+             style={{ animation: 'heroFadeIn 1.5s ease-out forwards' }}
            >
              <div className="absolute inset-0 bg-black/40 z-10 transition-colors duration-1000"></div>
              <video 
@@ -76,7 +72,7 @@ export const HomeBound: React.FC = () => {
              >
                <source src={hero?.mobile_video_url || hero?.video_url || "https://assets.mixkit.co/videos/preview/mixkit-concert-crowd-with-lights-2292-large.mp4"} type="video/mp4" />
              </video>
-           </motion.div>
+           </div>
         </div>
 
         {/* HERO PHASE 1: VIDEO INTRO (SNAP POINT 1) */}
@@ -89,38 +85,25 @@ export const HomeBound: React.FC = () => {
 
         {/* HERO PHASE 2: TEXT REVEAL (SNAP POINT 2) */}
         <section className="relative h-[100dvh] w-full flex items-center justify-center snap-start z-20 overflow-hidden">
-          <div className="relative text-center px-6">
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ amount: 0.5, once: false }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            >
-              <div className="inline-flex items-center gap-2 px-4 md:px-6 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6 md:mb-8">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                <span className="text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Official Band</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-9xl font-black text-white mb-2 tracking-tighter mix-blend-overlay">
-                HOME<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">BOUND</span>
-              </h1>
-              
-              <p className="text-lg md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto mt-4 md:mt-6">
-                The Sonic Heartbeat of {BRAND_NAME} {BRAND_YEAR}
-              </p>
-            </motion.div>
+          <div className="relative text-center px-6" style={{ animation: 'heroTextReveal 1s ease-out 0.2s both' }}>
+            <div className="inline-flex items-center gap-2 px-4 md:px-6 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6 md:mb-8">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+              <span className="text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Official Band</span>
+            </div>
+            
+            <h1 className="text-5xl md:text-9xl font-black text-white mb-2 tracking-tighter mix-blend-overlay">
+              HOME<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">BOUND</span>
+            </h1>
+            
+            <p className="text-lg md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto mt-4 md:mt-6">
+              The Sonic Heartbeat of {BRAND_NAME} {BRAND_YEAR}
+            </p>
           </div>
 
-          <motion.div 
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ amount: 0.3 }}
-            transition={{ delay: 1, duration: 1 }}
-            className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 text-white/50 flex flex-col items-center gap-2"
-          >
+          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 text-white/50 flex flex-col items-center gap-2" style={{ animation: 'fadeIn 1s ease-out 1s both' }}>
             <span className="text-[10px] md:text-xs uppercase tracking-[0.2em]">Down to Lineup</span>
             <ChevronDown size={16} className="animate-bounce" />
-          </motion.div>
+          </div>
         </section>
 
         {/* 2. ARTIST SCROLL SECTIONS */}
@@ -144,13 +127,9 @@ export const HomeBound: React.FC = () => {
 
               {/* CTA */}
               <div className="max-w-2xl mx-auto">
-                <motion.h3 
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  className="text-xl md:text-3xl font-bold text-white mb-6 uppercase tracking-widest opacity-80"
-                >
+                <h3 className="text-xl md:text-3xl font-bold text-white mb-6 uppercase tracking-widest opacity-80">
                   Join The Experience
-                </motion.h3>
+                </h3>
                 
                 <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
                   {formSettings?.audition_form_enabled ? (
@@ -173,12 +152,7 @@ export const HomeBound: React.FC = () => {
 
             {/* Integrated Social Footer */}
             {(homeboundSettings?.instagram_enabled && homeboundSettings?.instagram_url) && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="mt-auto pt-8 border-t border-white/5"
-              >
+              <div className="mt-auto pt-8 border-t border-white/5">
                 <a
                   href={homeboundSettings.instagram_url}
                   target="_blank"
@@ -190,7 +164,7 @@ export const HomeBound: React.FC = () => {
                   </div>
                   <span className="font-bold tracking-[0.2em] text-xs uppercase transition-all">Official Instagram</span>
                 </a>
-              </motion.div>
+              </div>
             )}
           </div>
         </section>
@@ -210,10 +184,18 @@ export const HomeBound: React.FC = () => {
           font-family: 'Orbitron', 'Rajdhani', sans-serif;
           min-height: 100vh;
         }
-        
-        /* Smooth scrolling behavior for the whole page */
-        html {
-          scroll-behavior: smooth;
+        html { scroll-behavior: smooth; }
+        @keyframes heroFadeIn {
+          from { opacity: 0; transform: scale(1.1); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        @keyframes heroTextReveal {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
       `}</style>
     </div>
