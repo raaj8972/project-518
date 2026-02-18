@@ -10,8 +10,8 @@ export const Footer: React.FC = () => {
   const isHomeBound = location.pathname === '/home-bound' || location.pathname.startsWith('/home-bound');
 
   // Check if social media links should be shown
-  const showInstagram = socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl;
-  const showYoutube = socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl;
+  const showInstagram = socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url;
+  const showYoutube = socialMediaSettings?.youtube_enabled && socialMediaSettings?.youtube_url;
   const showSocialMedia = (showInstagram || showYoutube) && !isHomeBound;
 
   return (
@@ -30,7 +30,7 @@ export const Footer: React.FC = () => {
               <div className="flex justify-center items-center gap-6">
                 {showInstagram && (
                   <a
-                    href={socialMediaSettings.instagramUrl || '#'}
+                    href={socialMediaSettings.instagram_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-14 h-14 rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.08] hover:-translate-y-1 transition-all duration-300"
@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
                 )}
                 {showYoutube && (
                   <a
-                    href={socialMediaSettings.youtubeUrl || '#'}
+                    href={socialMediaSettings.youtube_url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-14 h-14 rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/[0.08] hover:-translate-y-1 transition-all duration-300"

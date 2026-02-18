@@ -1333,28 +1333,28 @@ export interface Database {
       social_media_settings: {
         Row: {
           id: number
-          instagramEnabled: boolean
-          instagramUrl: string | null
-          youtubeEnabled: boolean
-          youtubeUrl: string | null
+          instagram_enabled: boolean
+          instagram_url: string | null
+          youtube_enabled: boolean
+          youtube_url: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: number
-          instagramEnabled?: boolean
-          instagramUrl?: string | null
-          youtubeEnabled?: boolean
-          youtubeUrl?: string | null
+          instagram_enabled?: boolean
+          instagram_url?: string | null
+          youtube_enabled?: boolean
+          youtube_url?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: number
-          instagramEnabled?: boolean
-          instagramUrl?: string | null
-          youtubeEnabled?: boolean
-          youtubeUrl?: string | null
+          instagram_enabled?: boolean
+          instagram_url?: string | null
+          youtube_enabled?: boolean
+          youtube_url?: string | null
           created_at?: string
           updated_at?: string
         }

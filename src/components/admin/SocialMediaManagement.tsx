@@ -6,10 +6,10 @@ export const SocialMediaManagement: React.FC = () => {
   const { socialMediaSettings, updateSocialMediaSettings } = useData();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
-    instagramUrl: socialMediaSettings?.instagramUrl || '',
-    instagramEnabled: socialMediaSettings?.instagramEnabled !== false,
-    youtubeUrl: socialMediaSettings?.youtubeUrl || '',
-    youtubeEnabled: socialMediaSettings?.youtubeEnabled !== false
+    instagram_url: socialMediaSettings?.instagram_url || '',
+    instagram_enabled: socialMediaSettings?.instagram_enabled !== false,
+    youtube_url: socialMediaSettings?.youtube_url || '',
+    youtube_enabled: socialMediaSettings?.youtube_enabled !== false
   });
 
   const handleSave = async () => {
@@ -25,10 +25,10 @@ export const SocialMediaManagement: React.FC = () => {
 
   const handleCancel = () => {
     setForm({
-      instagramUrl: socialMediaSettings?.instagramUrl || '',
-      instagramEnabled: socialMediaSettings?.instagramEnabled !== false,
-      youtubeUrl: socialMediaSettings?.youtubeUrl || '',
-      youtubeEnabled: socialMediaSettings?.youtubeEnabled !== false
+      instagram_url: socialMediaSettings?.instagram_url || '',
+      instagram_enabled: socialMediaSettings?.instagram_enabled !== false,
+      youtube_url: socialMediaSettings?.youtube_url || '',
+      youtube_enabled: socialMediaSettings?.youtube_enabled !== false
     });
     setIsEditing(false);
   };
@@ -92,8 +92,8 @@ export const SocialMediaManagement: React.FC = () => {
                   <input
                     type="checkbox"
                     id="instagram-enabled"
-                    checked={form.instagramEnabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, instagramEnabled: e.target.checked }))}
+                    checked={form.instagram_enabled}
+                    onChange={(e) => setForm(prev => ({ ...prev, instagram_enabled: e.target.checked }))}
                     className="mr-3"
                   />
                   <label htmlFor="instagram-enabled" className="text-sm font-medium text-gray-700">
@@ -107,16 +107,16 @@ export const SocialMediaManagement: React.FC = () => {
                   </label>
                   <input
                     type="url"
-                    value={form.instagramUrl}
-                    onChange={(e) => setForm(prev => ({ ...prev, instagramUrl: e.target.value }))}
+                    value={form.instagram_url}
+                    onChange={(e) => setForm(prev => ({ ...prev, instagram_url: e.target.value }))}
                     placeholder="https://www.instagram.com/your_profile"
                     className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                      form.instagramUrl && !validateUrl(form.instagramUrl, 'instagram')
+                      form.instagram_url && !validateUrl(form.instagram_url, 'instagram')
                         ? 'border-red-300 bg-red-50'
                         : 'border-gray-300'
                     }`}
                   />
-                  {form.instagramUrl && !validateUrl(form.instagramUrl, 'instagram') && (
+                  {form.instagram_url && !validateUrl(form.instagram_url, 'instagram') && (
                     <p className="text-red-600 text-sm mt-1">
                       Please enter a valid Instagram URL (e.g., https://www.instagram.com/username)
                     </p>
@@ -140,8 +140,8 @@ export const SocialMediaManagement: React.FC = () => {
                   <input
                     type="checkbox"
                     id="youtube-enabled"
-                    checked={form.youtubeEnabled}
-                    onChange={(e) => setForm(prev => ({ ...prev, youtubeEnabled: e.target.checked }))}
+                    checked={form.youtube_enabled}
+                    onChange={(e) => setForm(prev => ({ ...prev, youtube_enabled: e.target.checked }))}
                     className="mr-3"
                   />
                   <label htmlFor="youtube-enabled" className="text-sm font-medium text-gray-700">
@@ -155,16 +155,16 @@ export const SocialMediaManagement: React.FC = () => {
                   </label>
                   <input
                     type="url"
-                    value={form.youtubeUrl}
-                    onChange={(e) => setForm(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                    value={form.youtube_url}
+                    onChange={(e) => setForm(prev => ({ ...prev, youtube_url: e.target.value }))}
                     placeholder="https://www.youtube.com/channel/your_channel"
                     className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                      form.youtubeUrl && !validateUrl(form.youtubeUrl, 'youtube')
+                      form.youtube_url && !validateUrl(form.youtube_url, 'youtube')
                         ? 'border-red-300 bg-red-50'
                         : 'border-gray-300'
                     }`}
                   />
-                  {form.youtubeUrl && !validateUrl(form.youtubeUrl, 'youtube') && (
+                  {form.youtube_url && !validateUrl(form.youtube_url, 'youtube') && (
                     <p className="text-red-600 text-sm mt-1">
                       Please enter a valid YouTube URL (e.g., https://www.youtube.com/channel/...)
                     </p>
@@ -190,8 +190,8 @@ export const SocialMediaManagement: React.FC = () => {
                 type="button"
                 onClick={handleSave}
                 disabled={
-                  (!!form.instagramUrl && !validateUrl(form.instagramUrl, 'instagram')) ||
-                  (!!form.youtubeUrl && !validateUrl(form.youtubeUrl, 'youtube'))
+                  (!!form.instagram_url && !validateUrl(form.instagram_url, 'instagram')) ||
+                  (!!form.youtube_url && !validateUrl(form.youtube_url, 'youtube'))
                 }
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
@@ -211,7 +211,7 @@ export const SocialMediaManagement: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">Instagram</h3>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {socialMediaSettings?.instagramEnabled ? (
+                  {socialMediaSettings?.instagram_enabled ? (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
                       <Eye size={14} className="mr-1.5" />
                       Visible
@@ -228,13 +228,13 @@ export const SocialMediaManagement: React.FC = () => {
               <div className="space-y-2">
                 <div>
                   <span className="text-sm font-medium text-gray-700">Profile URL:</span>
-                  {socialMediaSettings?.instagramUrl ? (
+                  {socialMediaSettings?.instagram_url ? (
                     <div className="flex items-center space-x-2 mt-1">
                       <span className="text-sm text-gray-600 break-all">
-                        {socialMediaSettings.instagramUrl}
+                        {socialMediaSettings.instagram_url}
                       </span>
                       <a
-                        href={socialMediaSettings.instagramUrl}
+                        href={socialMediaSettings.instagram_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800"
@@ -257,7 +257,7 @@ export const SocialMediaManagement: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900">YouTube</h3>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {socialMediaSettings?.youtubeEnabled ? (
+                  {socialMediaSettings?.youtube_enabled ? (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 border border-green-200">
                       <Eye size={14} className="mr-1.5" />
                       Visible
@@ -274,13 +274,13 @@ export const SocialMediaManagement: React.FC = () => {
               <div className="space-y-2">
                 <div>
                   <span className="text-sm font-medium text-gray-700">Channel URL:</span>
-                  {socialMediaSettings?.youtubeUrl ? (
+                  {socialMediaSettings?.youtube_url ? (
                     <div className="flex items-center space-x-2 mt-1">
                       <span className="text-sm text-gray-600 break-all">
-                        {socialMediaSettings.youtubeUrl}
+                        {socialMediaSettings.youtube_url}
                       </span>
                       <a
-                        href={socialMediaSettings.youtubeUrl}
+                        href={socialMediaSettings.youtube_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:text-blue-800"
@@ -302,9 +302,9 @@ export const SocialMediaManagement: React.FC = () => {
                 This is how the social media links will appear at the bottom of pages:
               </p>
               <div className="flex items-center justify-center space-x-6 p-4 bg-black rounded border text-white">
-                {socialMediaSettings?.instagramEnabled && socialMediaSettings?.instagramUrl && (
+                {socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url && (
                   <a
-                    href={socialMediaSettings.instagramUrl}
+                    href={socialMediaSettings.instagram_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-2 text-pink-400 hover:text-pink-300 transition-colors group"
@@ -313,9 +313,9 @@ export const SocialMediaManagement: React.FC = () => {
                     <span className="font-medium">Instagram</span>
                   </a>
                 )}
-                {socialMediaSettings?.youtubeEnabled && socialMediaSettings?.youtubeUrl && (
+                {socialMediaSettings?.youtube_enabled && socialMediaSettings?.youtube_url && (
                   <a
-                    href={socialMediaSettings.youtubeUrl}
+                    href={socialMediaSettings.youtube_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-2 text-red-400 hover:text-red-300 transition-colors group"
@@ -324,8 +324,8 @@ export const SocialMediaManagement: React.FC = () => {
                     <span className="font-medium">YouTube</span>
                   </a>
                 )}
-                {(!socialMediaSettings?.instagramEnabled || !socialMediaSettings?.instagramUrl) &&
-                 (!socialMediaSettings?.youtubeEnabled || !socialMediaSettings?.youtubeUrl) && (
+                {(!socialMediaSettings?.instagram_enabled || !socialMediaSettings?.instagram_url) &&
+                 (!socialMediaSettings?.youtube_enabled || !socialMediaSettings?.youtube_url) && (
                   <span className="text-gray-400 text-sm">No social media links configured</span>
                 )}
               </div>
