@@ -2,6 +2,38 @@ import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+// Local type definitions (previously imported from DataContext)
+interface Audition {
+  full_name: string;
+  participant_type: string;
+  instrument_role: string;
+  email: string;
+  phone: string;
+  status: string;
+  created_at: string;
+  portfolio_link?: string;
+  experience_motivation?: string;
+}
+
+interface Registration {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  college?: string;
+  status: string;
+  event_title: string;
+  participant_type?: string;
+  is_team_registration?: boolean;
+  team_name?: string;
+  total_members?: number;
+  team_members?: any;
+  amount?: number;
+  payment_reference?: string;
+  registration_date: string;
+  created_at?: string;
+  [key: string]: any;
+}
 
 // Watermark cache - stores pre-loaded watermark image data
 let watermarkCache: { url: string; dataUrl: string } | null = null;
