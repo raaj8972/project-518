@@ -5,6 +5,7 @@ import {
   RoadmapMilestone
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
+import { useAuth } from './AuthContext';
 import { fetchAllEvents, fetchSupabaseBatch } from '../utils/dataUtils';
 
 interface EventsContextType {
@@ -58,6 +59,7 @@ export const useEventsData = () => {
 
 export const EventsProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
+  const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [eventCoordinators, setEventCoordinators] = useState<EventCoordinator[]>([]);
   const [eventCategories, setEventCategories] = useState<EventCategory[]>([]);
@@ -122,10 +124,10 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (refreshTrigger > 0) {
+    if (refreshTrigger > 0 || user?.id) {
       fetchEventsData();
     }
-  }, [refreshTrigger, fetchEventsData]);
+  }, [refreshTrigger, user?.id, fetchEventsData]);
 
   const addEvent = async (event: Partial<Event>) => {
     const { error } = await supabase.from('events').insert(event);

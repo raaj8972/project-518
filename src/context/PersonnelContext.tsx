@@ -5,6 +5,7 @@ import {
   SportsTeamMember, BandMember, GuestArtist
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
+import { useAuth } from './AuthContext';
 import { fetchSupabaseBatch } from '../utils/dataUtils';
 
 interface PersonnelContextType {
@@ -63,6 +64,7 @@ export const usePersonnelData = () => {
 
 export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
+  const { user } = useAuth();
   const [facultyHeads, setFacultyHeads] = useState<FacultyHead[]>([]);
   const [coreCommittees, setCoreCommittees] = useState<CoreCommittee[]>([]);
   const [coreTeamMembers, setCoreTeamMembers] = useState<CoreTeamMember[]>([]);
@@ -100,10 +102,10 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (refreshTrigger > 0) {
+    if (refreshTrigger > 0 || user?.id) {
       fetchPersonnelData();
     }
-  }, [refreshTrigger, fetchPersonnelData]);
+  }, [refreshTrigger, user?.id, fetchPersonnelData]);
 
   // Faculty
   const addFacultyHead = async (head: Partial<FacultyHead>) => {

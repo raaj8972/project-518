@@ -600,6 +600,9 @@ export const exportRegistrationsToPDF = (
       teamInfo,
       reg.email,
       reg.phone,
+      reg.college || 'N/A',
+      reg.amount ? `Rs.${reg.amount}` : '0',
+      reg.payment_reference || 'N/A',
       reg.status.charAt(0).toUpperCase() + reg.status.slice(1),
       new Date(reg.registration_date).toLocaleDateString('en-IN', {
         day: '2-digit',
@@ -612,38 +615,38 @@ export const exportRegistrationsToPDF = (
   // Create main table
   autoTable(doc, {
     startY: 35,
-    head: [['S.No', 'Reg No', 'Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'Status', 'Date']],
+    head: [['S.No', 'Reg No', 'Name', 'Event', 'Email', 'Phone', 'College', 'Amount', 'Ref', 'Status']],
     body: tableData,
     theme: 'striped',
     headStyles: {
       fillColor: [52, 152, 219],
       textColor: 255,
-      fontSize: 9,
+      fontSize: 8,
       fontStyle: 'bold',
       halign: 'center'
     },
     bodyStyles: {
-      fontSize: 8,
+      fontSize: 7,
       textColor: 50
     },
     alternateRowStyles: {
       fillColor: [245, 245, 245]
     },
     columnStyles: {
-      0: { cellWidth: 12, halign: 'center' }, // S.No
-      1: { cellWidth: 22, fontStyle: 'bold' }, // Reg No
+      0: { cellWidth: 10, halign: 'center' }, // S.No
+      1: { cellWidth: 20, fontStyle: 'bold' }, // Reg No
       2: { cellWidth: 30, fontStyle: 'bold' }, // Name
-      3: { cellWidth: 18 }, // Type
-      4: { cellWidth: 30 }, // Event
-      5: { cellWidth: 25 }, // Team/Individual
-      6: { cellWidth: 40 }, // Email
-      7: { cellWidth: 22 }, // Phone
-      8: { cellWidth: 18, halign: 'center' }, // Status
-      9: { cellWidth: 20, halign: 'center' } // Date
+      3: { cellWidth: 30 }, // Event
+      4: { cellWidth: 40 }, // Email
+      5: { cellWidth: 25 }, // Phone
+      6: { cellWidth: 35 }, // College
+      7: { cellWidth: 15 }, // Amount
+      8: { cellWidth: 25 }, // Ref
+      9: { cellWidth: 18, halign: 'center' } // Status
     },
     didDrawCell: (data) => {
       // Color code status cells
-      if (data.column.index === 8 && data.section === 'body') {
+      if (data.column.index === 9 && data.section === 'body') {
         const status = data.cell.raw as string;
         let fillColor: [number, number, number] = [255, 255, 255];
         

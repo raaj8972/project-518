@@ -4,6 +4,7 @@ import {
   Sponsor, SponsorshipPackage, SponsorshipSettings, Registration
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
+import { useAuth } from './AuthContext';
 import { fetchAllRegistrations, fetchSupabaseBatch } from '../utils/dataUtils';
 
 interface ManagementContextType {
@@ -42,6 +43,7 @@ export const useManagementData = () => {
 
 export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
+  const { user } = useAuth();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
@@ -68,19 +70,22 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
           ...u,
           ...(u.admin_permissions?.[0] || u.admin_permissions || {})
         }));
+        console.log('[ManagementContext] Fetched admin users:', flattenedAdmins);
         setAdminUsers(flattenedAdmins);
+      } else {
+        console.error('[ManagementContext] Error fetching admin_users:', adminRes.error);
       }
 
     } catch (err) {
-      console.error('[ManagementContext] Failed to fetch management data', err);
+      console.error('[ManagementContext] Failed to fetch management data:', err);
     }
   }, []);
 
   useEffect(() => {
-    if (refreshTrigger > 0) {
+    if (refreshTrigger > 0 || user?.id) {
       fetchManagementData();
     }
-  }, [refreshTrigger, fetchManagementData]);
+  }, [refreshTrigger, user?.id, fetchManagementData]);
 
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
     const { error } = await supabase.from('sponsors').insert(sponsor);

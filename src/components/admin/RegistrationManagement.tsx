@@ -1094,10 +1094,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       label: 'Send Email',
       action: handleOpenEmailModal
     },
-    {
+    ...(!coordinatorMode ? [{
       label: 'Export All Registrations',
       action: () => exportRegistrationsToExcel(filteredRegistrations, 'all-registrations.xlsx')
-    }
+    }] : [])
   ];
 
   const handleBulkApprove = async () => {

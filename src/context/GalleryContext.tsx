@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   GalleryImage, GallerySettings
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
+import { useAuth } from './AuthContext';
 import { fetchAllGalleryImages, DEFAULT_GALLERY_SETTINGS } from '../utils/dataUtils';
 
 interface GalleryContextType {
@@ -31,6 +32,7 @@ export const useGalleryData = () => {
 
 export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
+  const { user } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
 
@@ -50,10 +52,10 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    if (refreshTrigger > 0) {
+    if (refreshTrigger > 0 || user?.id) {
       fetchGalleryData();
     }
-  }, [refreshTrigger, fetchGalleryData]);
+  }, [refreshTrigger, user?.id, fetchGalleryData]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     const { error } = await supabase.from('gallery_images').insert(image);

@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
-  HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey
+  HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone
 } from '../types/data';
 
 interface CoreContextType {
@@ -65,8 +65,8 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
-  const [realtimeStatus, setRealtimeStatus] = useState<Record<string, string>>({});
-  const [showConnectionBanner, setShowConnectionBanner] = useState(false);
+  const [realtimeStatus] = useState<Record<string, string>>({});
+  const [showConnectionBanner] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Settings state
@@ -227,7 +227,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     refreshAll();
-  }, [refreshAll]);
+  }, [refreshAll, user?.id]);
 
   const value: CoreContextType = {
     loading,
