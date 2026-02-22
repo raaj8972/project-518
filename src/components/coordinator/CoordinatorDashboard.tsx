@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 
 // WhatsApp Logo SVG Component
@@ -16,7 +16,7 @@ const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
 export const CoordinatorDashboard: React.FC = () => {
   const navigate = useNavigate();
   // We still use useData for events (public) but NOT for registrations (RLS protected)
-  const { events } = useData(); 
+  const { events, updateEvent } = useData() as any; 
   const { push } = useToast();
   
   const [session, setSession] = useState<{ eventId: number; eventTitle: string; token?: string } | null>(null);
@@ -44,6 +44,8 @@ export const CoordinatorDashboard: React.FC = () => {
   const [newRegsCount, setNewRegsCount] = useState(0); // real-time new count
   const [invitedSet, setInvitedSet] = useState<Set<string>>(new Set()); // bulk invite session tracking
   const [showBulkInvite, setShowBulkInvite] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [isTogglingReg, setIsTogglingReg] = useState(false);
 
   // Load session and fetch data (with offline-first caching)
   const fetchData = useCallback(async (sessionData: any, mounted: { current: boolean }) => {
@@ -130,6 +132,7 @@ export const CoordinatorDashboard: React.FC = () => {
         if (event && mounted.current) {
           setEventDetails(event);
           if (event.whatsapp_group_link) setWhatsappLink(event.whatsapp_group_link);
+          if (typeof event.registration_open === 'boolean') setRegistrationOpen(event.registration_open);
         }
 
         await fetchData(data, mounted);
@@ -337,6 +340,44 @@ export const CoordinatorDashboard: React.FC = () => {
     }
   }, [session, selectedReg, push]);
 
+  // Registration open/close toggle
+  const handleToggleRegistration = useCallback(async () => {
+    if (!session?.eventId || isTogglingReg) return;
+    const newValue = !registrationOpen;
+    setIsTogglingReg(true);
+    try {
+      // Call Netlify function (uses service role to bypass RLS),
+      // passing coordinator token for server-side validation
+      const res = await fetch('/.netlify/functions/coordinator-toggle-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_id: session.eventId,
+          token: session.token,
+          registration_open: newValue
+        })
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || 'Failed to update');
+      }
+      // Update local UI state
+      setRegistrationOpen(newValue);
+      // Patch DataContext in-memory events so Events page & Admin reflect change immediately
+      if (typeof updateEvent === 'function') {
+        await updateEvent(session.eventId, { registration_open: newValue });
+      }
+      push({
+        message: newValue ? '✅ Registration is now OPEN' : '🔒 Registration is now CLOSED',
+        type: newValue ? 'success' : 'info'
+      });
+    } catch (e: any) {
+      push({ message: e.message || 'Failed to update registration status', type: 'error' });
+    } finally {
+      setIsTogglingReg(false);
+    }
+  }, [session, registrationOpen, isTogglingReg, push, updateEvent]);
+
   // Process registrations stats & filters
   const { filteredRegs, approvedCount, pendingCount, rejectedCount } = useMemo(() => {
     const approved = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved');
@@ -500,6 +541,53 @@ export const CoordinatorDashboard: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* Registration Open/Close Toggle Card */}
+        {registrationOpen !== null && (
+          <div className={`rounded-2xl border shadow-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
+            registrationOpen
+              ? 'bg-green-500/10 border-green-500/20'
+              : 'bg-red-500/10 border-red-500/20'
+          }`}>
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl ${registrationOpen ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                {registrationOpen ? <Unlock className="w-5 h-5 text-green-400" /> : <Lock className="w-5 h-5 text-red-400" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-black text-white text-sm">Registration Gate</h3>
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    registrationOpen ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'
+                  }`}>
+                    {registrationOpen ? 'OPEN' : 'CLOSED'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {registrationOpen
+                    ? 'Participants can currently register for this event.'
+                    : 'Registrations are closed. Participants cannot register.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleRegistration}
+              disabled={isTogglingReg}
+              className={`flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${
+                registrationOpen
+                  ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
+                  : 'bg-green-500/20 border-green-500/30 text-green-300 hover:bg-green-500/30'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {isTogglingReg ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : registrationOpen ? (
+                <><ToggleRight className="w-5 h-5" /> Close Registration</>
+              ) : (
+                <><ToggleLeft className="w-5 h-5" /> Open Registration</>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Main Interface */}
         <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
