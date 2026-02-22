@@ -1434,3 +1434,94 @@ export const exportEventSummaryPDF = (
 
   doc.save(filename);
 };
+
+/**
+ * Coordinator-specific PDF Export
+ * Shows only: S.No | Reg No | Name | Type | Email | Phone
+ */
+export const exportCoordinatorRegistrationsToPDF = (
+  registrations: any[],
+  options: { filename?: string; title?: string } = {}
+) => {
+  const { filename = 'participants.pdf', title = 'Participants Report' } = options;
+
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Title
+  doc.setFontSize(20);
+  doc.setTextColor(40, 40, 40);
+  doc.text(title, pageWidth / 2, 15, { align: 'center' });
+
+  // Timestamp
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  const timestamp = new Date().toLocaleString('en-IN', {
+    dateStyle: 'long', timeStyle: 'short', timeZone: 'Asia/Kolkata'
+  });
+  doc.text(`Generated on: ${timestamp}`, pageWidth / 2, 22, { align: 'center' });
+
+  // Summary
+  doc.setFontSize(11);
+  doc.setTextColor(60, 60, 60);
+  const total = registrations.length;
+  const approved = registrations.filter(r => (r.status || '').toLowerCase() === 'approved').length;
+  const pending  = registrations.filter(r => (r.status || '').toLowerCase() === 'pending').length;
+  const rejected = registrations.filter(r => (r.status || '').toLowerCase() === 'rejected').length;
+  const individual = registrations.filter(r => !r.team_name).length;
+  const team = total - individual;
+  doc.text(
+    `Total: ${total} | Individual: ${individual} | Team: ${team} | Pending: ${pending} | Approved: ${approved} | Rejected: ${rejected}`,
+    pageWidth / 2, 28, { align: 'center' }
+  );
+
+  // Table rows
+  const tableData = registrations.map((reg, idx) => {
+    const typeLabel = reg.team_name ? `Team: ${reg.team_name}` : 'Individual';
+    // Strip non-digits; keep last 10 digits for local Indian phone
+    const rawPhone = String(reg.phone || '').replace(/\D/g, '');
+    const cleanPhone = rawPhone.length > 10 ? rawPhone.slice(-10) : rawPhone;
+    return [
+      (idx + 1).toString(),
+      String(reg.reg_id || reg.id || '').replace(/-/g, '').slice(0, 10).toUpperCase(),
+      reg.full_name || '',
+      typeLabel,
+      reg.email || '',
+      cleanPhone
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 35,
+    head: [['S.No', 'Reg No', 'Name', 'Type', 'Email', 'Phone']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: { fillColor: [52, 152, 219], textColor: 255, fontSize: 9, fontStyle: 'bold', halign: 'center' },
+    bodyStyles: { fontSize: 8, textColor: 50, overflow: 'linebreak' },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    columnStyles: {
+      0: { cellWidth: 12, halign: 'center' },
+      1: { cellWidth: 25, fontStyle: 'bold' },
+      2: { cellWidth: 50, fontStyle: 'bold' },
+      3: { cellWidth: 28 },
+      4: { cellWidth: 72 },  // wide email column avoids wrapping
+      5: { cellWidth: 32, halign: 'center' }  // wide phone — fits 10 digits
+    },
+    margin: { left: 10, right: 10 }
+  });
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    const pW = doc.internal.pageSize.getWidth();
+    const pH = doc.internal.pageSize.getHeight();
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text(`Page ${i} of ${pageCount}`, pW / 2, pH - 10, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text(`${BRAND_NAME} ${BRAND_YEAR}`, 10, pH - 10);
+  }
+
+  doc.save(filename);
+};

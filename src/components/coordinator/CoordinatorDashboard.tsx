@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal } from 'lucide-react';
-import { exportRegistrationsToPDF } from '../../utils/pdfExport';
+import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 
 // WhatsApp Logo SVG Component
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -383,7 +383,7 @@ export const CoordinatorDashboard: React.FC = () => {
     }));
 
     const title = `${session?.eventTitle} - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Participants`;
-    exportRegistrationsToPDF(formattedData, {
+    exportCoordinatorRegistrationsToPDF(filteredRegs, {
       title,
       filename: `${session?.eventTitle.replace(/\s+/g, '_')}_${activeTab}_participants.pdf`
     });
