@@ -3,7 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 
 // WhatsApp Logo SVG Component
@@ -371,17 +371,6 @@ export const CoordinatorDashboard: React.FC = () => {
       push({ message: "No data to export", type: "error" });
       return;
     }
-    
-    // Format data to match Registration type for PDF export
-    const formattedData = filteredRegs.map((row: any) => ({
-      ...row,
-      id: row.reg_id || '',
-      event_title: session?.eventTitle || '',
-      registration_date: row.created_at,
-      is_team_registration: row.team_name ? true : false,
-      total_members: row.team_members ? (typeof row.team_members === 'string' ? JSON.parse(row.team_members).length : row.team_members.length) : 0,
-    }));
-
     const title = `${session?.eventTitle} - ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Participants`;
     exportCoordinatorRegistrationsToPDF(filteredRegs, {
       title,

@@ -1,7 +1,7 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import type { Audition } from '../context/DataContext';
+
 
 // Watermark cache - stores pre-loaded watermark image data
 let watermarkCache: { url: string; dataUrl: string } | null = null;
@@ -512,7 +512,7 @@ export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?
  * Enhanced PDF Export for Registrations
  */
 
-import type { Registration } from '../context/DataContext';
+
 
 // Helper to safely parse team members
 const safeTeamMembers = (r: any): any[] => {
