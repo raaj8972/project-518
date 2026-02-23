@@ -108,7 +108,6 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const vehicleRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [positions, setPositions] = useState<{ x: number; y: number; angle: number }[]>([]); // path coords (viewBox space)
-  const [scale, setScale] = useState({ x: 1, y: 1 });
   const [viewWidth, setViewWidth] = useState(1200); // dynamic width
   const [containerWidth, setContainerWidth] = useState(0); // pixel width for overflow checks
   // Mobile responsiveness heuristics
@@ -134,11 +133,11 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
   const pathD = buildPathD(viewWidth, roadHeight, segmentCount, dynamicEdgePad);
   const [activeIndex, setActiveIndex] = useState(0);
-  // Reveal state for each milestone (years + content)
   const [revealed, setRevealed] = useState<boolean[]>([]);
   const revealedRef = useRef<boolean[]>([]);
   const prevProgressRef = useRef(0);
   const lengthRef = useRef(0);
+  const scaleRef = useRef({ x: 1, y: 1 });
   const startRef = useRef<number | null>(null);
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // Animate only when in view
@@ -146,18 +145,26 @@ const Roadmap: React.FC<RoadmapProps> = ({
 
   // Helper to place vehicle at a specific progress (0..1) without animation loop
   const positionVehicle = (progress: number) => {
-    const path = pathRef.current; const vehicle = vehicleRef.current; if (!path || !vehicle) return;
+    const path = pathRef.current;
+    const vehicle = vehicleRef.current;
+    if (!path || !vehicle) return;
+
     const length = lengthRef.current || path.getTotalLength();
     const l = progress * length;
     const pt = path.getPointAtLength(l);
+    
+    // Efficiency: get a point slightly ahead for rotation
     const ahead = path.getPointAtLength(Math.min(l + 2, length));
-    const dx = ahead.x - pt.x; const dy = ahead.y - pt.y;
+    const dx = ahead.x - pt.x; 
+    const dy = ahead.y - pt.y;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    const sx = scale.x; const sy = scale.y;
-    const vx = pt.x * sx; const vy = pt.y * sy;
-    vehicle.style.left = `${vx}px`;
-    vehicle.style.top = `${vy}px`;
-    vehicle.style.transform = `translate(-50%, -50%) rotate(${angle}deg) translate(${offsetAlong}px, ${offsetNormal}px)`;
+    
+    const { x: sx, y: sy } = scaleRef.current;
+    const vx = pt.x * sx; 
+    const vy = pt.y * sy;
+    
+    // Hardware acceleration: Use translate3d instead of top/left
+    vehicle.style.transform = `translate3d(${vx}px, ${vy}px, 0) translate(-50%, -50%) rotate(${angle}deg) translate(${offsetAlong}px, ${offsetNormal}px)`;
   };
 
   // Precompute milestone positions along path
@@ -196,10 +203,11 @@ const Roadmap: React.FC<RoadmapProps> = ({
       const el = containerRef.current; if (!el) return;
       const w = el.clientWidth;
       setContainerWidth(w);
-      setViewWidth(w < 600 ? 600 : w); // enforce a min width to maintain shape
+      setViewWidth(w < 600 ? 600 : w); 
+      
       const svg = svgRef.current; if (!svg) return;
       const rect = svg.getBoundingClientRect();
-    setScale({ x: rect.width / (viewWidth), y: rect.height / containerHeight });
+      scaleRef.current = { x: rect.width / (w < 600 ? 600 : w), y: rect.height / containerHeight };
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -214,7 +222,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
         const entry = entries[0];
         setInView(entry.isIntersecting);
       },
-      { root: null, threshold: 0.25, rootMargin: '0px 0px -10% 0px' }
+      { root: null, threshold: 0.1, rootMargin: '20% 0px 20% 0px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -292,7 +300,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
     };
     raf = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(raf);
-  }, [durationMs, reducedMotion, inView, scale.x, scale.y, offsetAlong, offsetNormal, MILESTONES.length]);
+  }, [durationMs, reducedMotion, inView, offsetAlong, offsetNormal, MILESTONES.length]);
 
   return (
   <section id="roadmap" className="relative w-full overflow-hidden pt-24 pb-48 bg-[#06121c]" aria-label="Ricorrenza Roadmap">
@@ -440,7 +448,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             ref={vehicleRef}
             aria-hidden="true"
             className="absolute z-20 will-change-transform"
-            style={{ left: 0, top: 0, width: vehicleSize, height: vehicleSize }}
+            style={{ width: vehicleSize, height: vehicleSize }}
           >
             <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full scale-150 animate-pulse" />
             
