@@ -299,16 +299,16 @@
     </script>
 
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
-  <div id="root" style="position: relative; z-index: 1;">
-    <!-- Instant Paint Skeleton (Removed by React on mount) -->
-    <div class="skeleton-container">
-      <div class="skeleton-title">RICORRENZA</div>
-      <div class="skeleton-buttons">
-        <div class="skeleton-btn"></div>
-        <div class="skeleton-btn"></div>
-      </div>
+  <!-- Instant Paint Skeleton (Manually removed by main.tsx) -->
+  <div id="app-skeleton" class="skeleton-container">
+    <div class="skeleton-title">RICORRENZA</div>
+    <div class="skeleton-buttons">
+      <div class="skeleton-btn"></div>
+      <div class="skeleton-btn"></div>
     </div>
   </div>
+
+  <div id="root" style="position: relative; z-index: 1;"></div>
     <!-- Main app module loaded with high priority -->
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 
@@ -317,11 +317,10 @@
       (function() {
         const timeout = 15000; // 15 seconds
         const check = () => {
-          const skeleton = document.querySelector('.skeleton-container');
-          const root = document.getElementById('root');
+          const skeleton = document.getElementById('app-skeleton');
           
-          // If skeleton is still visible and root has no children or just the skeleton
-          if (skeleton && (root.children.length === 0 || root.children[0] === skeleton)) {
+          // If skeleton is still visible and app hasn't flagged itself as ready
+          if (skeleton && !window.__APP_READY__) {
             console.warn('[Recovery] App mount hang detected after ' + (timeout/1000) + 's');
             
             // Inject emergency recovery button
@@ -347,9 +346,8 @@
 
         // Auto-recovery: If network returns and we are STILL stuck, auto-reload once
         window.addEventListener('online', () => {
-          const skeleton = document.querySelector('.skeleton-container');
-          const root = document.getElementById('root');
-          if (skeleton && (root.children.length === 0 || root.children[0] === skeleton)) {
+          const skeleton = document.getElementById('app-skeleton');
+          if (skeleton && !window.__APP_READY__) {
             console.log('[Recovery] Network returned, attempting auto-recovery...');
             window.location.reload();
           }
