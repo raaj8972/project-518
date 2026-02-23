@@ -451,7 +451,7 @@ export const Home: React.FC = () => {
                 <Sparkles className="w-4 h-4 md:w-3.5 md:h-3.5 mr-2 md:mr-2.5 text-indigo-400" />
                 ANNUAL FESTIVAL {BRAND_YEAR}
               </div>
-              <KineticText as="h1" className="text-7xl md:text-8xl lg:text-9xl font-black mb-4 md:mb-8 superia-title-gradient tracking-tighter leading-none">
+              <KineticText as="h1" className="text-8xl md:text-8xl lg:text-9xl font-black mb-4 md:mb-8 superia-title-gradient tracking-tighter leading-none">
                 {homepageSettings?.hero_title || 'RICORRENZA'}
               </KineticText>
               <p className="text-3xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-snug mb-3 md:mb-6 text-white/90">

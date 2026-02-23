@@ -106,11 +106,14 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const milestonesPerSegment = 2.5; 
   const segmentCount = Math.max(3, Math.ceil(MILESTONES.length / milestonesPerSegment));
   const dynamicHeight = Math.max(800, MILESTONES.length * 200);
-  const effectiveHeight = height || (isMobile ? Math.min(dynamicHeight, 2000) : dynamicHeight);
+  const ROAD_HEIGHT_BUFFER = 200; // room for last milestone text
+  const containerHeight = height || (isMobile ? Math.min(dynamicHeight, 2000) : dynamicHeight);
+  const roadHeight = containerHeight - ROAD_HEIGHT_BUFFER;
+  
   const milestoneWidth = isMobile ? 160 : 340;
   const sideNormalDistance = isMobile ? Math.min(textNormalDistance, 60) : textNormalDistance;
 
-  const pathD = buildPathD(viewWidth, effectiveHeight, segmentCount);
+  const pathD = buildPathD(viewWidth, roadHeight, segmentCount);
   const [activeIndex, setActiveIndex] = useState(0);
   // Reveal state for each milestone (years + content)
   const [revealed, setRevealed] = useState<boolean[]>([]);
@@ -171,12 +174,12 @@ const Roadmap: React.FC<RoadmapProps> = ({
       setViewWidth(w < 600 ? 600 : w); // enforce a min width to maintain shape
       const svg = svgRef.current; if (!svg) return;
       const rect = svg.getBoundingClientRect();
-    setScale({ x: rect.width / (w < 600 ? 600 : w), y: rect.height / effectiveHeight });
+    setScale({ x: rect.width / (w < 600 ? 600 : w), y: rect.height / containerHeight });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [effectiveHeight]);
+  }, [containerHeight]);
 
   // Observe visibility to gate animation
   useEffect(() => {
@@ -272,8 +275,8 @@ const Roadmap: React.FC<RoadmapProps> = ({
         </h2>
       </div>
         {/* Full-width path container (no max-width constraint) */}
-        <div className="relative w-full" style={{ height: effectiveHeight }} ref={containerRef}>
-          <svg ref={svgRef} viewBox={`0 0 ${viewWidth} ${effectiveHeight}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+        <div className="relative w-full" style={{ height: containerHeight }} ref={containerRef}>
+          <svg ref={svgRef} viewBox={`0 0 ${viewWidth} ${containerHeight}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="roadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="#352d62" />
