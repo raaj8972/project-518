@@ -52,24 +52,37 @@ interface RoadmapProps {
 
 
 const ROAD_WIDTH = 90; // stroke width of outer base (matches path strokeWidth below)
-// Edge padding so rounded caps appear visually flush; reduce extra gap for better edge alignment
-const EDGE_PAD = ROAD_WIDTH * 0.5; 
+// Edge padding so rounded caps appear visually flush; using dynamic padding inside component.
 
-const buildPathD = (w: number, h: number, segments: number) => {
-  const pts = [`M ${EDGE_PAD} 0`];
+const buildPathD = (w: number, h: number, segments: number, edgePad: number) => {
+  const pts = [`M ${edgePad} 0`];
   for (let i = 1; i <= segments; i++) {
-    const x = i % 2 === 0 ? EDGE_PAD : w - EDGE_PAD;
+    const x = i % 2 === 0 ? edgePad : w - edgePad;
     const y = (i / segments) * h;
     pts.push(`L ${x} ${y}`);
   }
+  // To make it "never ending", add one last segment pointing straight down or off-screen
+  pts.push(`L ${segments % 2 !== 0 ? edgePad : w - edgePad} ${h + 200}`);
   return pts.join(' ');
 };
+
+const DigitalGrid = () => (
+  <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+    <div className="absolute inset-0" style={{ 
+      backgroundImage: `linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px)`,
+      backgroundSize: '40px 40px'
+    }} />
+    <div className="absolute inset-0 bg-gradient-to-b from-[#06121c] via-transparent to-[#06121c]" />
+  </div>
+);
+
+
 
 const Roadmap: React.FC<RoadmapProps> = ({
   vehicleImage,
   vehicleAudio,
   height, // will use dynamic height if not provided
-  durationMs = 18000,
+  durationMs, // dynamic if not provided
   vehicleSize = 80,
   offsetAlong = 10,
   offsetNormal = -6,
@@ -100,20 +113,26 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const [containerWidth, setContainerWidth] = useState(0); // pixel width for overflow checks
   // Mobile responsiveness heuristics
   const isMobile = containerWidth > 0 && containerWidth < 640;
+  const isTablet = containerWidth >= 640 && containerWidth < 1024;
 
   // DYNAMIC SCALING: Height is now proportional to milestone count
-  // We want roughly 300px per zig-zag segment (one leg of the trip)
-  const milestonesPerSegment = 2.5; 
-  const segmentCount = Math.max(3, Math.ceil(MILESTONES.length / milestonesPerSegment));
-  const dynamicHeight = Math.max(800, MILESTONES.length * 200);
-  const ROAD_HEIGHT_BUFFER = 200; // room for last milestone text
-  const containerHeight = height || (isMobile ? Math.min(dynamicHeight, 2000) : dynamicHeight);
-  const roadHeight = containerHeight - ROAD_HEIGHT_BUFFER;
+  const dynamicHeight = Math.max(1200, MILESTONES.length * (isMobile ? 360 : isTablet ? 400 : 450));
+  const ROAD_TAIL = isMobile ? 500 : 650; // extra room for "infinite" feel on bigger screens
+  const containerHeight = height || (isMobile ? Math.min(dynamicHeight, 4000) : dynamicHeight);
+  const roadHeight = containerHeight - ROAD_TAIL;
   
-  const milestoneWidth = isMobile ? 160 : 340;
-  const sideNormalDistance = isMobile ? Math.min(textNormalDistance, 60) : textNormalDistance;
+  // Adaptive segments: maintain road slope (approx 450px per segment for desktop, 380px for mobile)
+  const segmentCount = Math.max(3, Math.ceil(roadHeight / (isMobile ? 380 : 450)));
+  
+  // Responsive milestone sizing
+  const milestoneWidth = isMobile ? 180 : isTablet ? 260 : 340;
+  const sideNormalDistance = isMobile ? 50 : isTablet ? 90 : textNormalDistance;
+  
+  // Responsive Roadmap Pad (Physical path width)
+  const dynamicRoadWidth = isMobile ? 50 : isTablet ? 70 : 90;
+  const dynamicEdgePad = dynamicRoadWidth * 0.6;
 
-  const pathD = buildPathD(viewWidth, roadHeight, segmentCount);
+  const pathD = buildPathD(viewWidth, roadHeight, segmentCount, dynamicEdgePad);
   const [activeIndex, setActiveIndex] = useState(0);
   // Reveal state for each milestone (years + content)
   const [revealed, setRevealed] = useState<boolean[]>([]);
@@ -144,16 +163,22 @@ const Roadmap: React.FC<RoadmapProps> = ({
   // Precompute milestone positions along path
   useEffect(() => {
     const path = pathRef.current; if (!path) return;
-    const length = path.getTotalLength();
-    lengthRef.current = length;
+    const totalLength = path.getTotalLength();
+    lengthRef.current = totalLength;
+    
+    // We only want milestones to sit on the first ~85% of the path
+    // so the rickshaw has a tail to drive into "forever"
+    const milestoneZoneLimit = totalLength * 0.85;
+    
     const arr: { x: number; y: number; angle: number }[] = [];
     MILESTONES.forEach((_, i) => {
-      const t = i / (MILESTONES.length - 1);
-      const l = t * length;
+      // Linear distribution within the zone
+      const t = MILESTONES.length > 1 ? i / (MILESTONES.length - 1) : 0;
+      const l = t * milestoneZoneLimit;
       const pt = path.getPointAtLength(l);
-      // small delta ahead to estimate tangent
+      
       const delta = 1;
-      const ahead = path.getPointAtLength(Math.min(l + delta, length));
+      const ahead = path.getPointAtLength(Math.min(l + delta, totalLength));
       const angle = Math.atan2(ahead.y - pt.y, ahead.x - pt.x) * (180 / Math.PI);
       arr.push({ x: pt.x, y: pt.y, angle });
     });
@@ -174,12 +199,12 @@ const Roadmap: React.FC<RoadmapProps> = ({
       setViewWidth(w < 600 ? 600 : w); // enforce a min width to maintain shape
       const svg = svgRef.current; if (!svg) return;
       const rect = svg.getBoundingClientRect();
-    setScale({ x: rect.width / (w < 600 ? 600 : w), y: rect.height / containerHeight });
+    setScale({ x: rect.width / (viewWidth), y: rect.height / containerHeight });
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [containerHeight]);
+  }, [containerHeight, viewWidth]);
 
   // Observe visibility to gate animation
   useEffect(() => {
@@ -227,10 +252,16 @@ const Roadmap: React.FC<RoadmapProps> = ({
     const path = pathRef.current; if (!path) return;
     const vehicle = vehicleRef.current; if (!vehicle) return;
     let raf: number;
+    
+    // FUTURE PROOF: Speed-based duration
+    // totalLength / speed(px per ms) = duration
+    const speed = 0.25; // slightly slower for premium feel
+    const dynamicDurationMs = durationMs || (lengthRef.current > 0 ? (lengthRef.current / speed) : 18000);
+
     const animate = (ts: number) => {
       if (startRef.current == null) startRef.current = ts;
       const elapsed = ts - startRef.current;
-      const progress = (elapsed % durationMs) / durationMs; // 0..1
+      const progress = (elapsed % dynamicDurationMs) / dynamicDurationMs; // 0..1
       positionVehicle(progress);
 
       // Track active milestone for pin highlighting
@@ -264,37 +295,50 @@ const Roadmap: React.FC<RoadmapProps> = ({
   }, [durationMs, reducedMotion, inView, scale.x, scale.y, offsetAlong, offsetNormal, MILESTONES.length]);
 
   return (
-  <section id="roadmap" className="relative w-full overflow-hidden py-24 bg-[#06121c]" aria-label="Ricorrenza Roadmap">
-      <div className="absolute inset-0 opacity-[0.15] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 30% 40%, #1b3a4d 0%, transparent 60%)' }} />
-      <div className="px-4">
-        <h2 className="text-4xl md:text-5xl font-black text-center mb-16 tracking-tight text-white">
+  <section id="roadmap" className="relative w-full overflow-hidden pt-24 pb-48 bg-[#06121c]" aria-label="Ricorrenza Roadmap">
+      <DigitalGrid />
+      <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 30% 0%, #4338ca 0%, transparent 60%)' }} />
+      <div className="px-4 relative z-10">
+        <h2 className="text-4xl md:text-5xl font-black text-center mb-16 tracking-tight text-white uppercase italic">
           <span className="relative inline-block">
-            RICORRENZA ROADMAP
-            <span className="absolute inset-x-0 -bottom-2 h-1 bg-gradient-to-r from-pink-500 via-indigo-400 to-cyan-400 rounded-full blur-[2px]" />
+            RICORRENZA Evolution
+            <span className="absolute inset-x-0 -bottom-2 h-1 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 rounded-full blur-[1px]" />
           </span>
         </h2>
       </div>
         {/* Full-width path container (no max-width constraint) */}
         <div className="relative w-full" style={{ height: containerHeight }} ref={containerRef}>
+          {/* Bottom fade mask to make it "never ending" */}
+          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#06121c] to-transparent z-30 pointer-events-none" />
+
           <svg ref={svgRef} viewBox={`0 0 ${viewWidth} ${containerHeight}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="roadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#352d62" />
-                <stop offset="50%" stopColor="#2d3f7a" />
-                <stop offset="100%" stopColor="#233d85" />
+                <stop offset="0%" stopColor="#1e293b" />
+                <stop offset="50%" stopColor="#334155" />
+                <stop offset="100%" stopColor="#1e293b" />
               </linearGradient>
-              <linearGradient id="dashGradRoad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#fcd34d" />
-                <stop offset="100%" stopColor="#f97316" />
+              <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#22d3ee" stopOpacity="0" />
+                <stop offset="50%" stopColor="#22d3ee" stopOpacity="1" />
+                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
               </linearGradient>
-              <filter id="roadGlow" x="-40%" y="-40%" width="180%" height="180%">
-                <feDropShadow dx="0" dy="0" stdDeviation="8" floodColor="#4338ca" floodOpacity="0.45" />
+              <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
             </defs>
             {/* Road base */}
-            <path d={pathD} ref={pathRef} stroke="url(#roadGrad)" strokeWidth={ROAD_WIDTH} fill="none" strokeLinecap="round" filter="url(#roadGlow)" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
-            <path d={pathD} stroke="#0d1420" strokeWidth={ROAD_WIDTH - 20} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
-            <path d={pathD} stroke="url(#dashGradRoad)" strokeWidth={8} strokeDasharray="28 28" strokeLinecap="round" fill="none" className="animate-[dash_10s_linear_infinite] mix-blend-screen" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
+            <path d={pathD} ref={pathRef} stroke="#101827" strokeWidth={ROAD_WIDTH} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
+            
+            {/* Inner lane */}
+            <path d={pathD} stroke="rgba(255,255,255,0.05)" strokeWidth={ROAD_WIDTH - 16} fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
+            
+            {/* Neon Pulse Line */}
+            <path d={pathD} stroke="url(#pulseGrad)" strokeWidth={4} fill="none" strokeLinecap="round" className="neon-pulse-anim" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" filter="url(#neonGlow)" />
+            
+            {/* Center Dashes */}
+            <path d={pathD} stroke="rgba(255,255,255,0.2)" strokeWidth={2} strokeDasharray="12 24" fill="none" strokeLinecap="round" shapeRendering="geometricPrecision" vectorEffect="non-scaling-stroke" />
           </svg>
 
           {/* Milestones */}
@@ -320,9 +364,9 @@ const Roadmap: React.FC<RoadmapProps> = ({
             // Decide which side to use to avoid clipping
             const halfWidth = milestoneWidth / 2; // responsive half width
             const margin = 24; // minimal horizontal margin from screen edge
+            
             // Determine forced side from DB metadata if available
-            const raw = roadmapMilestones.find(r => String(r.year) === milestone.year);
-            const sideSetting = raw?.side; // 'left' | 'right' | 'auto'
+            const sideSetting = roadmapMilestones?.[i]?.side; // 'left' | 'right' | 'auto'
             const forceLeft = sideSetting === 'left';
             const forceRight = sideSetting === 'right';
             let leftSide = forceLeft ? true : (forceRight ? false : baseLeftSide);
@@ -334,7 +378,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
               // Flip if preferred side overflows and the opposite doesn't
               if (leftSide && (overflowLeftIfLeft || overflowRightIfLeft) && !(overflowLeftIfRight || overflowRightIfRight)) {
                 leftSide = false;
-              } else if (!leftSide && (overflowLeftIfRight || overflowRightIfRight) && !(overflowLeftIfLeft || overflowRightIfLeft)) {
+              } else if (!leftSide && (overflowLeftIfRight || overflowRightIfRight) && !(overflowLeftIfLeft || overflowLeftIfLeft)) {
                 leftSide = true;
               }
             }
@@ -342,10 +386,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             // Choose final anchor based on resolved side
             let anchorX = leftSide ? candidateLeftX : candidateRightX;
             let anchorY = leftSide ? candidateLeftY : candidateRightY;
-            if (forceLeft && milestone.year === '2026') {
-              // Preserve special outward shift for 2026 hero milestone
-              anchorX -= 24;
-            }
+            
             // Clamp inside viewport to be safe
             if (containerWidth > 0) {
               const minX = margin + halfWidth;
@@ -359,26 +400,31 @@ const Roadmap: React.FC<RoadmapProps> = ({
                 className="absolute"
                 style={{ left: anchorX, top: anchorY, transform: 'translate(-50%, -50%)' }}
               >
-                <div className={`transition-all duration-700 ease-out ${isRevealed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'}`}>
+                <div className={`transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${isRevealed ? 'opacity-100 translate-y-0 filter-none' : 'opacity-0 translate-y-10 blur-md'}`}>
                 {/* Pin positioned back toward the path center */}
                 <div className="absolute" style={{ left: leftSide ? '100%' : 'auto', right: leftSide ? 'auto' : '100%', top: 14 }}>
-                  <MapPin className={`w-7 h-7 ${active ? 'text-yellow-300' : 'text-slate-300/70'} drop-shadow-[0_0_6px_rgba(255,255,255,0.3)] transition-colors`} />
+                  <div className={`relative ${active ? 'scale-125' : 'scale-100'} transition-transform duration-500`}>
+                    <MapPin className={`w-7 h-7 ${active ? 'text-cyan-400' : 'text-slate-500'} transition-colors duration-500`} />
+                    {active && <div className="absolute inset-0 bg-cyan-400 rounded-full blur-xl opacity-40 animate-pulse" />}
+                  </div>
                 </div>
-                <div style={{ width: milestoneWidth }} className={`${leftSide ? 'text-right pr-4 md:pr-6' : 'text-left pl-4 md:pl-6'} select-none`}>
+                <div style={{ width: milestoneWidth }} className={`${leftSide ? 'text-right pr-6' : 'text-left pl-6'} select-none relative group`}>
+                    {active && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-transparent -inset-y-4 -mx-4 rounded-2xl blur-xl" />
+                    )}
                   <h3
-                    className={`font-black tracking-tight ${isMobile ? 'text-xl' : 'text-2xl'} mb-2 ${active ? 'text-yellow-300' : 'text-slate-200'} transition-all duration-700`}
-                    style={{ transitionDelay: isRevealed ? '80ms' : '0ms' }}
+                    className={`font-black tracking-tighter ${isMobile ? 'text-2xl' : 'text-4xl'} mb-2 italic transition-all duration-700 ${active ? 'text-cyan-400' : 'text-slate-400/80 group-hover:text-slate-200'}`}
                   >
                     {milestone.year}
                   </h3>
-                  <ul className={`space-y-1 ${isMobile ? 'text-[11px]' : 'text-[13px]'} leading-snug text-slate-300 list-none pl-0`}>
+                  <ul className={`space-y-1.5 ${isMobile ? 'text-xs' : 'text-sm'} leading-snug font-medium text-slate-400 list-none pl-0`}>
                     {milestone.lines.map((l, j) => (
                       <li
                         key={j}
-                        className={`transition-all duration-500 ${active ? 'opacity-100' : 'opacity-80'} ${isRevealed ? 'translate-x-0 opacity-100' : (leftSide ? 'translate-x-2 opacity-0' : '-translate-x-2 opacity-0')} flex items-start gap-2`}
-                        style={{ transitionDelay: isRevealed ? `${120 + j * 80}ms` : '0ms' }}
+                        className={`transition-all duration-700 ${active ? 'text-slate-100' : 'text-slate-400'} flex items-start gap-2`}
+                        style={{ transitionDelay: isRevealed ? `${200 + j * 100}ms` : '0ms' }}
                       >
-                        <span className="heartbeat-bullet inline-block w-1.5 h-1.5 rounded-full bg-slate-300 mt-1.5 flex-shrink-0" />
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${active ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-slate-600'}`} />
                         <span className="flex-1">{l}</span>
                       </li>
                     ))}
@@ -393,9 +439,11 @@ const Roadmap: React.FC<RoadmapProps> = ({
           <div
             ref={vehicleRef}
             aria-hidden="true"
-            className="absolute z-10 will-change-transform"
+            className="absolute z-20 will-change-transform"
             style={{ left: 0, top: 0, width: vehicleSize, height: vehicleSize }}
           >
+            <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full scale-150 animate-pulse" />
+            
             {vehicleImage ? (
               vehicleImage.endsWith('.mp4') || vehicleImage.endsWith('.webm') || vehicleImage.endsWith('.mov') ? (
                 <video
@@ -404,25 +452,23 @@ const Roadmap: React.FC<RoadmapProps> = ({
                   loop
                   muted
                   playsInline
-                  className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
+                  className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(34,211,238,0.4)]"
                   onError={(e) => { (e.currentTarget as HTMLVideoElement).style.display = 'none'; }}
                 />
               ) : (
                 <img
                   src={vehicleImage}
-                  alt="Ambulance"
-                  className="w-full h-full object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.55)]"
+                  alt="Rickshaw"
+                  className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(34,211,238,0.4)]"
                   onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   draggable={false}
                 />
               )
-            ) : null}
-            {/* Fallback / overlay frame */}
-            {!vehicleImage && (
-              <div className="w-full h-full rounded-xl bg-gradient-to-br from-yellow-300 via-amber-400 to-orange-500 border border-amber-300 flex items-center justify-center relative shadow-[0_0_0_3px_rgba(255,255,255,0.15)_inset,0_6px_14px_-4px_rgba(0,0,0,0.6)]">
-                <span className="text-[10px] font-black text-black tracking-tight select-none">AUTO</span>
-                <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-white/20 via-transparent to-transparent mix-blend-overlay" />
-              </div>
+            ) : (
+                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-purple-600 border border-white/20 flex items-center justify-center relative shadow-2xl overflow-hidden group">
+                  <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors" />
+                  <span className="text-[10px] font-black text-white tracking-widest select-none drop-shadow-md">RICO-BOT</span>
+                </div>
             )}
           </div>
         </div>
@@ -437,14 +483,13 @@ const Roadmap: React.FC<RoadmapProps> = ({
         />
       )}
       <style>{`
-        @keyframes dash { to { stroke-dashoffset: -800; } }
-        @keyframes heartbeat {
-          0%, 100% { transform: scale(1); }
-          10%, 30% { transform: scale(0.9); }
-          20%, 40% { transform: scale(1.1); }
+        @keyframes neon-pulse {
+          0% { stroke-dashoffset: 2000; }
+          100% { stroke-dashoffset: 0; }
         }
-        .heartbeat-bullet {
-          animation: heartbeat 1.5s ease-in-out infinite;
+        .neon-pulse-anim {
+          stroke-dasharray: 400 1600;
+          animation: neon-pulse 5s linear infinite;
         }
       `}</style>
     </section>

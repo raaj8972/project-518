@@ -104,17 +104,26 @@ export const Home: React.FC = () => {
   // Selected artist for the detail modal
   const [detailArtist, setDetailArtist] = useState<GuestArtist | null>(null);
   const [glitchActive] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   // Defer mounting heavy interactive sections until browser is idle to improve initial load
   const [showInteractive, setShowInteractive] = useState(false);
   
   useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
     let idleId: number | null = null;
     if (typeof (window as any).requestIdleCallback === 'function') {
       idleId = (window as any).requestIdleCallback(() => setShowInteractive(true), { timeout: 500 });
-      return () => { if (idleId != null) (window as any).cancelIdleCallback(idleId); };
+      return () => { 
+        window.removeEventListener('resize', handleResize);
+        if (idleId != null) (window as any).cancelIdleCallback(idleId); 
+      };
     }
     const t = setTimeout(() => setShowInteractive(true), 350);
-    return () => clearTimeout(t);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(t);
+    };
   }, []);
 
   // Prefetch lazy modals on hover to avoid input-time Suspense
@@ -451,13 +460,13 @@ export const Home: React.FC = () => {
                 <Sparkles className="w-4 h-4 md:w-3.5 md:h-3.5 mr-2 md:mr-2.5 text-indigo-400" />
                 ANNUAL FESTIVAL {BRAND_YEAR}
               </div>
-              <KineticText as="h1" className="text-8xl md:text-8xl lg:text-9xl font-black mb-4 md:mb-8 superia-title-gradient tracking-tighter leading-none">
+              <KineticText as="h1" className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black mb-4 md:mb-8 superia-title-gradient tracking-tighter leading-none">
                 {homepageSettings?.hero_title || 'RICORRENZA'}
               </KineticText>
-              <p className="text-3xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-snug mb-3 md:mb-6 text-white/90">
+              <p className="text-2xl sm:text-3xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-snug mb-3 md:mb-6 text-white/90">
                 {homepageSettings?.hero_subtitle || 'Experience the Future'}
               </p>
-              <p className="text-xl md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-8 md:mb-12 font-light">
+              <p className="text-lg sm:text-xl md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-8 md:mb-12 font-light">
                 {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
               </p>
               
@@ -597,7 +606,7 @@ export const Home: React.FC = () => {
                 className="mt-6 md:mt-8"
                 stageHeight={'var(--featured-stage-height)'}
                 renderItem={(artist: GuestArtist, _: number, isActive: boolean) => (
-                  <div className="w-[340px] sm:w-[400px] md:w-[450px] lg:w-[500px] h-full px-2 py-4 flex items-center justify-center">
+                  <div className="w-[280px] sm:w-[320px] md:w-[450px] lg:w-[500px] h-full px-2 py-4 flex items-center justify-center">
                        <FeaturedArtistCard 
                          artist={artist}
                          priority={isActive}
@@ -1023,7 +1032,7 @@ export const Home: React.FC = () => {
                   isolation: 'isolate',
                   pointerEvents: 'auto',
                   ['--logoloop-logoHeight' as any]: 'clamp(60px, 14vw, 100px)',
-                  ['--logoloop-gap' as any]: 'clamp(24px, 6vw, 40px)',
+                  ['--logoloop-gap' as any]: 'clamp(16px, 4vw, 40px)',
                   ['--ll-pulse-duration' as any]: '0s',
                   ['--ll-floor-opacity' as any]: 0,
                   ['--ll-glow-color' as any]: 'rgba(0,0,0,0)',
@@ -1031,10 +1040,10 @@ export const Home: React.FC = () => {
                   ['--ll-card-bg' as any]: 'rgba(255,255,255,0.02)',
                   ['--ll-card-border-w' as any]: '1px',
                   ['--ll-card-border-color' as any]: 'rgba(255,255,255,0.05)',
-                  ['--ll-card-h' as any]: 'clamp(140px, 22vw, 180px)',
-                  ['--ll-card-w' as any]: 'clamp(140px, 22vw, 180px)',
-                  ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 60px)',
-                  ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 60px)',
+                  ['--ll-card-h' as any]: 'clamp(120px, 22vw, 180px)',
+                  ['--ll-card-w' as any]: 'clamp(120px, 22vw, 180px)',
+                  ['--ll-logo-max-h' as any]: 'calc(var(--ll-card-h) - 40px)',
+                  ['--ll-logo-max-w' as any]: 'calc(var(--ll-card-w) - 40px)',
                   ['--ll-card-radius' as any]: '2rem',
                   ['--logoloop-fadeWidth' as any]: 'clamp(20px, 5vw, 60px)'
                 }}
@@ -1100,7 +1109,7 @@ export const Home: React.FC = () => {
                     showDots={false}
                     className="py-6"
                     renderItem={(head: any) => (
-                      <div className={`w-72 md:w-80 superia-glass-card p-6 rounded-[2.5rem] transition-all duration-500 tilt-3d ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.4)]'}`}>
+                      <div className={`w-64 sm:w-72 md:w-80 superia-glass-card p-5 sm:p-6 rounded-[2.5rem] transition-all duration-500 tilt-3d ${clicked && clicked.type === 'faculty' && clicked.id === head.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.4)]'}`}>
                         <div className="aspect-square w-full overflow-hidden rounded-2xl mb-6 bg-black/40">
                           <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover"/>
                         </div>
@@ -1131,8 +1140,8 @@ export const Home: React.FC = () => {
                       <InfiniteMarquee
                         items={sortedCommitteeHeads}
                         direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                        // Use configured speed but default to a slightly gentler speed to reduce perceived jitter
-                        speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 70}
+                        // Adaptive speed based on screen size
+                        speedPxPerSec={(homepageSettings?.committee_marquee_speed_px_per_sec ?? 70) * (windowWidth < 640 ? 0.8 : windowWidth < 1024 ? 0.9 : 1)}
                         pauseOnHover={true}
                         paused={committeePaused}
                         pauseOnTouch={true}
@@ -1141,9 +1150,9 @@ export const Home: React.FC = () => {
                         glowOnPause
                         itemWrapperClassName="pr-3 sm:pr-4 md:pr-6 first:pl-0"
                         // Increase minimum item width to avoid tight wrapping and seam jitter at high speeds
-                        minItemWidthPx={220}
+                        minItemWidthPx={windowWidth < 640 ? 180 : windowWidth < 1024 ? 220 : 280}
                         // Keep a small side gutter to avoid items touching the viewport edge which can reveal seams
-                        sideGutterPx={12}
+                        sideGutterPx={windowWidth < 640 ? 8 : 12}
                         className="py-4 relative"
                         renderItem={(m: any) => {
                           const [glowColor, setGlowColor] = React.useState<string>('rgba(255,255,255,0.22)');
@@ -1165,7 +1174,7 @@ export const Home: React.FC = () => {
 
                           return (
                             <div
-                              className={`w-[232px] sm:w-[262px] md:w-80 superia-glass-card p-5 rounded-[2rem] cursor-pointer transition-all duration-500 tilt-3d ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)]'}`}
+                              className={`w-[200px] sm:w-[240px] md:w-80 superia-glass-card p-4 sm:p-5 rounded-[2rem] cursor-pointer transition-all duration-500 tilt-3d ${clicked && clicked.type === 'committee' && clicked.id === m.id ? 'ring-2 ring-indigo-500/50 shadow-2xl' : 'hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)]'}`}
                               onClick={() => {
                                 setClicked({ type: 'committee', id: m.id });
                                 const idx = sortedCommitteeHeads.findIndex(h => h.id === m.id);
@@ -1257,7 +1266,7 @@ export const Home: React.FC = () => {
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               {/* About Content */}
               <div className="scroll-animate-3d" style={{ animationDelay: '0.2s' }}>
-                <div className="superia-glass-card p-10 rounded-[3rem]">
+                <div className="superia-glass-card p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem]">
                   <h3 className="text-2xl md:text-4xl font-black mb-8 text-white uppercase tracking-tight">
                     {aboutSettings?.hero_heading || 'THE FUTURE IS NOW'}
                   </h3>
@@ -1317,7 +1326,7 @@ export const Home: React.FC = () => {
 
               {/* Visual Element */}
               <div className="scroll-animate-3d" style={{ animationDelay: '0.4s' }}>
-                <div className="superia-glass-card p-10 rounded-[3rem] text-center">
+                <div className="superia-glass-card p-6 sm:p-8 md:p-10 rounded-[2.5rem] md:rounded-[3rem] text-center">
                   <div className="relative">
                     {/* Animated Stats */}
                     <div className="grid grid-cols-2 gap-8 mb-12">
@@ -1355,7 +1364,7 @@ export const Home: React.FC = () => {
         <div className="container mx-auto px-4 text-center relative z-10">
           <Parallax speed={0.3}>
             <div className="scroll-animate-3d">
-              <KineticText as="h2" className="text-6xl md:text-8xl font-black mb-8 superia-title-gradient uppercase tracking-tighter">
+              <KineticText as="h2" className="text-4xl sm:text-6xl md:text-8xl font-black mb-8 superia-title-gradient uppercase tracking-tighter">
                 JOIN THE FUTURE
               </KineticText>
               <p className="text-xl md:text-2xl text-white/50 mb-16 max-w-3xl mx-auto font-light leading-relaxed">
