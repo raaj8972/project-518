@@ -68,36 +68,21 @@ export default defineConfig({
         manualChunks(id: string) {
           if (!id) return undefined;
           if (id.includes('node_modules')) {
-            // Core React & Framework
-            if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
-            if (id.includes('react-router-dom')) return 'vendor-router';
-            
-            // Heavy Utilities (Code-split by domain)
+            // Only split out truly INDEPENDENT heavy libraries that are
+            // lazy-loaded and don't depend on React at load time.
+            // Everything else stays in the default chunk so Rollup can
+            // resolve the React dependency chain correctly.
             if (id.includes('@tensorflow') || id.includes('face-api') || id.includes('@vladmandic')) return 'vendor-ai';
             if (id.includes('three') || id.includes('@react-three')) return 'vendor-three';
             if (id.includes('@ffmpeg')) return 'vendor-ffmpeg';
             if (id.includes('xlsx') || id.includes('exceljs')) return 'vendor-excel';
             if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('jspdf-autotable')) return 'vendor-pdf';
-            if (id.includes('gsap')) return 'vendor-gsap';
-            if (id.includes('lucide-react')) return 'vendor-icons';
-            if (id.includes('@supabase') || id.includes('supabase')) return 'vendor-supabase';
-            if (id.includes('dompurify')) return 'vendor-purify';
             if (id.includes('@aws-sdk')) return 'vendor-aws';
-            if (id.includes('@zxing')) return 'vendor-scanner';
-            if (id.includes('@hello-pangea/dnd')) return 'vendor-dnd';
-            if (id.includes('date-fns')) return 'vendor-date';
-            if (id.includes('crypto-js')) return 'vendor-crypto';
-            if (id.includes('dexie')) return 'vendor-db';
-            if (id.includes('jszip')) return 'vendor-zip';
-            if (id.includes('three')) return 'vendor-three';
-            
-            // Standard small deps
-            return 'vendor-utils';
           }
 
-          // Admin Dashboard
+          // Admin Dashboard — lazy-loaded via router
           if (id.includes('/src/pages/AdminDashboard') || id.includes('/src/pages/admin') || id.includes('/src/pages/Admin')) {
-            return 'admin-core';
+            return 'admin';
           }
 
           return undefined;
