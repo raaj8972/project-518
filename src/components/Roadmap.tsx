@@ -355,7 +355,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             const baseLeftSide = i % 2 === 0; // initial alternating preference
             const active = i === activeIndex;
             const isRevealed = revealed[i];
-            const sx = scale.x; const sy = scale.y;
+            const { x: sx, y: sy } = scaleRef.current;
             const px = pos.x * sx; const py = pos.y * sy;
             // Use path angle to compute a normal so text sits truly to the side of the road
             const theta = pos.angle * Math.PI / 180; // path tangent angle
