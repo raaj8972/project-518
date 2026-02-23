@@ -447,28 +447,28 @@ export const Home: React.FC = () => {
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
           <Parallax speed={0.4}>
             <ScrollReveal animation="glitchReveal">
-              <div className="flex w-fit mx-auto items-center bg-white/[0.03] backdrop-blur-xl border border-white/10 px-4 py-2 md:px-6 md:py-3 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] mb-6 md:mb-8 text-indigo-300/80 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
-                <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5 mr-2 md:mr-2.5 text-indigo-400" />
+              <div className="flex w-fit mx-auto items-center bg-white/[0.03] backdrop-blur-xl border border-white/10 px-5 py-2.5 md:px-6 md:py-3 rounded-full text-[13px] md:text-sm font-black uppercase tracking-[0.25em] mb-4 md:mb-8 text-indigo-300/80 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
+                <Sparkles className="w-4 h-4 md:w-3.5 md:h-3.5 mr-2 md:mr-2.5 text-indigo-400" />
                 ANNUAL FESTIVAL {BRAND_YEAR}
               </div>
-              <KineticText as="h1" className="text-6xl md:text-8xl lg:text-9xl font-black mb-8 superia-title-gradient tracking-tighter leading-none">
+              <KineticText as="h1" className="text-7xl md:text-8xl lg:text-9xl font-black mb-4 md:mb-8 superia-title-gradient tracking-tighter leading-none">
                 {homepageSettings?.hero_title || 'RICORRENZA'}
               </KineticText>
-              <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-relaxed mb-6 text-white/90">
+              <p className="text-3xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-snug mb-3 md:mb-6 text-white/90">
                 {homepageSettings?.hero_subtitle || 'Experience the Future'}
               </p>
-              <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-12 font-light">
+              <p className="text-xl md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-8 md:mb-12 font-light">
                 {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
               </p>
               
-              <div className="flex flex-wrap justify-center items-center gap-6 mb-12">
+              <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 mb-8 md:mb-12">
                 <MagneticWrapper>
                   <a
                     href="/events"
                     className="superia-btn-glass superia-btn-primary group"
                   >
-                    <span className="relative z-10 flex items-center gap-3">
-                      <Calendar className="w-5 h-5 transition-transform group-hover:scale-110" />
+                    <span className="relative z-10 flex items-center gap-3 text-lg md:text-base">
+                      <Calendar className="w-6 h-6 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
                       Explore Events
                     </span>
                   </a>
@@ -480,8 +480,8 @@ export const Home: React.FC = () => {
                       to="/pass-registration"
                       className="superia-btn-glass group"
                     >
-                      <span className="relative z-10 flex items-center gap-3">
-                        <Ticket className="w-5 h-5 transition-transform group-hover:scale-110" />
+                      <span className="relative z-10 flex items-center gap-3 text-lg md:text-base">
+                        <Ticket className="w-6 h-6 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
                         Entry Pass
                       </span>
                     </Link>
