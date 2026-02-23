@@ -49,28 +49,26 @@ interface RoadmapProps {
   textNormalDistance?: number; // perpendicular distance of text block from path center
 }
 
-const DEFAULT_HEIGHT = 1200;
+
 
 const ROAD_WIDTH = 90; // stroke width of outer base (matches path strokeWidth below)
 // Edge padding so rounded caps appear visually flush; reduce extra gap for better edge alignment
 const EDGE_PAD = ROAD_WIDTH * 0.5; 
 
-const buildPathD = (w: number, h: number) => {
-  // dynamic zig-zag based on width/height percentages
-  // Four points: left→right→left→right with vertical progression
-  const pts = [
-    `M ${EDGE_PAD} 0`,
-    `L ${w - EDGE_PAD} ${h * 0.29}`,
-    `L ${EDGE_PAD} ${h * 0.58}`,
-    `L ${w - EDGE_PAD} ${h * 0.87}`
-  ];
+const buildPathD = (w: number, h: number, segments: number) => {
+  const pts = [`M ${EDGE_PAD} 0`];
+  for (let i = 1; i <= segments; i++) {
+    const x = i % 2 === 0 ? EDGE_PAD : w - EDGE_PAD;
+    const y = (i / segments) * h;
+    pts.push(`L ${x} ${y}`);
+  }
   return pts.join(' ');
 };
 
 const Roadmap: React.FC<RoadmapProps> = ({
   vehicleImage,
   vehicleAudio,
-  height = DEFAULT_HEIGHT,
+  height, // will use dynamic height if not provided
   durationMs = 18000,
   vehicleSize = 80,
   offsetAlong = 10,
@@ -102,11 +100,17 @@ const Roadmap: React.FC<RoadmapProps> = ({
   const [containerWidth, setContainerWidth] = useState(0); // pixel width for overflow checks
   // Mobile responsiveness heuristics
   const isMobile = containerWidth > 0 && containerWidth < 640;
-  const effectiveHeight = isMobile ? Math.min(height, 900) : height; // reduce vertical scroll load on small screens
+
+  // DYNAMIC SCALING: Height is now proportional to milestone count
+  // We want roughly 300px per zig-zag segment (one leg of the trip)
+  const milestonesPerSegment = 2.5; 
+  const segmentCount = Math.max(3, Math.ceil(MILESTONES.length / milestonesPerSegment));
+  const dynamicHeight = Math.max(800, MILESTONES.length * 200);
+  const effectiveHeight = height || (isMobile ? Math.min(dynamicHeight, 2000) : dynamicHeight);
   const milestoneWidth = isMobile ? 160 : 340;
   const sideNormalDistance = isMobile ? Math.min(textNormalDistance, 60) : textNormalDistance;
 
-  const pathD = buildPathD(viewWidth, effectiveHeight);
+  const pathD = buildPathD(viewWidth, effectiveHeight, segmentCount);
   const [activeIndex, setActiveIndex] = useState(0);
   // Reveal state for each milestone (years + content)
   const [revealed, setRevealed] = useState<boolean[]>([]);
