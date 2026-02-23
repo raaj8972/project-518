@@ -3,7 +3,8 @@ import React from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { Home } from './pages/Home'; // keep Home eager for fast first paint
+// lazy load Home for fast first paint
+const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { useData } from './context/DataContext';
@@ -343,7 +344,7 @@ function App() {
           path: '/',
           element: <AppShell />,
           children: [
-            { index: true, element: <Home /> },
+            { index: true, element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Home /></React.Suspense> },
             { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Events /></React.Suspense> },
             { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Schedule /></React.Suspense> },
             { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Gallery /></React.Suspense> },
@@ -358,7 +359,7 @@ function App() {
             { path: 'security-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityDashboard /></React.Suspense> },
             { path: 'pass-registration', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassRegistration /></React.Suspense> },
             { path: 'pass-download', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassDownload /></React.Suspense> },
-            { path: 'health', element: <Home /> },
+            { path: 'health', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Home /></React.Suspense> },
             { path: 'master-node-access', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><MasterGate /></React.Suspense> },
             { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
           ]
