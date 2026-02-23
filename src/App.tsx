@@ -14,6 +14,13 @@ import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/OfflineIndicator';
+import { CustomCursor } from './components/ui/CustomCursor';
+import { NoiseOverlay } from './components/ui/NoiseOverlay';
+import { AudioController } from './components/ui/AudioController';
+import { Preloader } from './components/ui/Preloader';
+import { SmoothScroll } from './components/ui/SmoothScroll';
+import { getCachedLogoUrl } from './utils/preloadBrand';
+
 
 // Convert heavy/non-critical routes to lazy-loaded to keep the initial bundle small
 const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
@@ -247,7 +254,17 @@ function App() {
     const isSecurityRoute = location.pathname.startsWith('/security-');
     const isHealthRoute = location.pathname === '/health';
     const { user } = useAuth();
-    const { siteSettings, loading, adminUsers } = useData();
+    const { siteSettings, loading, adminUsers, homepageSettings } = useData();
+
+    // Seed logo URL from localStorage cache immediately (zero latency),
+    // then update once homepageSettings arrives from Supabase.
+    const [logoUrl, setLogoUrl] = React.useState<string | undefined>(
+      getCachedLogoUrl() ?? undefined
+    );
+    React.useEffect(() => {
+      const fresh = (homepageSettings as any)?.brand_logo_url;
+      if (fresh) setLogoUrl(fresh);
+    }, [homepageSettings]);
     
     // Determine if current user is an admin/owner to bypass maintenance
     const isAdminOrOwner = React.useMemo(() => {
@@ -262,33 +279,7 @@ function App() {
       }
     }, [user, adminUsers]);
 
-    // Controlled splash: keep the splash visible at least MIN_SPLASH_MS and fade out
-    // over FADE_MS when loading becomes false. This prevents an abrupt switch to
-    // the Home UI when the data layer finishes very quickly.
-    const MIN_SPLASH_MS = 700; // minimum time to show splash (ms)
-    const FADE_MS = 300; // fade-out duration (ms)
-    const splashStartRef = React.useRef<number | null>(null);
-    const [splashVisible, setSplashVisible] = React.useState<boolean>(loading);
-    const [splashHiding, setSplashHiding] = React.useState<boolean>(false);
-
-    React.useEffect(() => {
-      if (loading) {
-        splashStartRef.current = Date.now();
-        setSplashVisible(true);
-        setSplashHiding(false);
-        return;
-      }
-      // loading flipped to false -> ensure minimum display and then fade
-      const started = splashStartRef.current || Date.now();
-      const elapsed = Date.now() - started;
-      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
-      const t = setTimeout(() => {
-        setSplashHiding(true);
-        const t2 = setTimeout(() => setSplashVisible(false), FADE_MS);
-        return () => clearTimeout(t2);
-      }, remaining);
-      return () => clearTimeout(t);
-    }, [loading]);
+    const [splashVisible, setSplashVisible] = React.useState<boolean>(true);
 
     // Render the app shell normally but render the splash as a fixed overlay on top
     // so site chrome (navbar) remains visible above it. We intentionally avoid SVGs
@@ -315,7 +306,9 @@ function App() {
     return (
       <RouteErrorBoundary>
         <div className="min-h-screen bg-[#0a0a0a]">
-          {/* particles cursor removed */}
+          <NoiseOverlay />
+          <CustomCursor />
+          <AudioController />
           <GlobalErrorBanner />
           <ConnectionStatusBanner />
           {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
@@ -332,55 +325,7 @@ function App() {
               {!isAdminRoute && !isSecurityRoute && <Footer />}
               {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
                   We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
-              {splashVisible && (
-                <div
-                  aria-hidden={!loading}
-                  style={{ transition: `opacity ${FADE_MS}ms ease` , opacity: splashHiding ? 0 : 1 }}
-                  className="fixed inset-0 z-40 flex items-center justify-center bg-black/95 pointer-events-none"
-                >
-                  <div className="text-center select-none px-4 pointer-events-auto" style={{ transform: 'translateY(48px)' }}>
-                    <div
-                      className="mx-auto mb-6"
-                      style={{ width: 100, height: 100 }}
-                    >
-                      {/* Conic-gradient ring spinner with a hollow center (mask) */}
-                      <div
-                        className="rounded-full mx-auto"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          animation: 'spin 1s linear infinite',
-                          // Create a visible top/upper-arc by making the rest transparent
-                          background: 'conic-gradient(from -110deg, #00f8ff 0deg 110deg, transparent 110deg 360deg)',
-                          filter: 'drop-shadow(0 0 18px rgba(0,248,255,0.28)) drop-shadow(0 0 22px rgba(255,63,193,0.14))'
-                        }}
-                      >
-                        <div style={{
-                          width: '60%',
-                          height: '60%',
-                          margin: '20% auto',
-                          borderRadius: '50%',
-                          background: 'radial-gradient(circle at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.95) 100%)',
-                          boxShadow: 'inset 0 0 20px rgba(0,0,0,0.7)'
-                        }} />
-                      </div>
-                    </div>
-
-                    <h2 className="text-2xl md:text-3xl font-extrabold tracking-wider"
-                      style={{
-                        background: 'linear-gradient(90deg,#9bd1ff,#e86cff,#9b7bff)',
-                        WebkitBackgroundClip: 'text',
-                        backgroundClip: 'text',
-                        color: 'transparent',
-                        textShadow: '0 2px 12px rgba(155,123,255,0.25)'
-                      }}
-                    >
-                      LOADING RICORRENZA
-                    </h2>
-                    <div className="mt-2 text-sm font-mono text-cyan-300">Initializing experience...</div>
-                  </div>
-                </div>
-              )}
+              {splashVisible && <Preloader loading={loading} onComplete={() => setSplashVisible(false)} logoUrl={logoUrl} />}
             </>
           )}
         </div>
@@ -442,7 +387,9 @@ function App() {
             <SavingProgressProvider>
               <HelmetProvider>
                 <OfflineIndicator />
-                <InnerRouter />
+                <SmoothScroll>
+                  <InnerRouter />
+                </SmoothScroll>
               </HelmetProvider>
             </SavingProgressProvider>
           </ToastProvider>

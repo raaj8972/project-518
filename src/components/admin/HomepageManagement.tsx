@@ -296,6 +296,12 @@ export const HomepageManagement: React.FC = () => {
       } as const;
       steps.next('Saving to database');
       await updateHomepageSettings(payload as any);
+      // Cache logo URL immediately so Preloader gets it instantly on next visit
+      try {
+        const logoUrl = (form as any).brand_logo_url;
+        if (logoUrl) localStorage.setItem('rico_brand_logo_url', logoUrl);
+        else localStorage.removeItem('rico_brand_logo_url');
+      } catch { /* quota */ }
       setForm(payload as unknown as FormState);
       setIsEditing(false);
       setMessage({ type: 'success', text: 'Homepage settings updated successfully!' });
@@ -430,6 +436,12 @@ export const HomepageManagement: React.FC = () => {
       };
       steps.next('Saving to database');
       await updateHomepageSettings(brandingPayload);
+      // Cache logo URL immediately so Preloader gets it instantly on next visit
+      try {
+        const logoUrl = (form as any).brand_logo_url;
+        if (logoUrl) localStorage.setItem('rico_brand_logo_url', logoUrl);
+        else localStorage.removeItem('rico_brand_logo_url');
+      } catch { /* quota */ }
       setMessage({ type: 'success', text: 'Branding saved' });
       setTimeout(() => setMessage(null), 2000);
     } catch (e: any) {

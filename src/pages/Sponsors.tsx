@@ -5,6 +5,7 @@ import { useData } from '../context/DataContext';
 import HeroBackground from '../components/HeroBackground';
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
@@ -272,7 +273,7 @@ export const Sponsors: React.FC = () => {
                   }`}
                   style={{ animationDelay: `${index * 0.2}s` }}
                 >
-                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
+                  <SpotlightCard className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                     <div className="relative p-8">
                       {/* Crown moved to the section header; removed from individual cards */}
                       
@@ -320,7 +321,7 @@ export const Sponsors: React.FC = () => {
                         </a>
                       )}
                     </div>
-                  </div>
+                  </SpotlightCard>
                 </div>
               ))}
             </div>
@@ -362,7 +363,7 @@ export const Sponsors: React.FC = () => {
                   }`}
                   style={{ animationDelay: `${index * 0.2}s` }}
                 >
-                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
+                  <SpotlightCard className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                     <div className="relative p-8">
                       {/* Star Icon */}
                       <div className="absolute top-4 right-4">
@@ -413,7 +414,7 @@ export const Sponsors: React.FC = () => {
                         </a>
                       )}
                     </div>
-                  </div>
+                  </SpotlightCard>
                 </div>
               ))}
             </div>
@@ -462,7 +463,7 @@ export const Sponsors: React.FC = () => {
                       }`}
                       style={{ animationDelay: `${index * 0.1}s` }}
                     >
-                      <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
+                      <SpotlightCard className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d card-glow-hover">
                         <div className="p-6">
                           <div className="text-center mb-4">
                             <div
@@ -508,7 +509,7 @@ export const Sponsors: React.FC = () => {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </SpotlightCard>
                     </div>
                   ))}
                 </div>
@@ -542,7 +543,7 @@ export const Sponsors: React.FC = () => {
                   className="scroll-animate-3d hover-float"
                   style={{ animationDelay: `${index * 0.15}s` }}
                 >
-                  <div className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d">
+                  <SpotlightCard className="cyberpunk-card group h-full tilt-3d sponsor-zoom-card card-3d">
                     <div className={`bg-gradient-to-r ${tier.color} p-6 text-center rounded-t-lg`}>
                       <IconComponent className="w-12 h-12 mx-auto mb-4 text-white pulse-ring" />
                       <h3 className="text-xl font-bold text-white mb-2">{tier.tier}</h3>
@@ -558,7 +559,7 @@ export const Sponsors: React.FC = () => {
                         ))}
                       </ul>
                     </div>
-                  </div>
+                  </SpotlightCard>
                 </div>
               );
             })}

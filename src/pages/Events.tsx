@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { ChevronDown, ChevronUp, ExternalLink, Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Zap, Phone } from 'lucide-react';
 import WatchLiveButton from '../components/WatchLiveButton';
+import { SpotlightCard } from '../components/ui/SpotlightCard';
 import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import { parseEventDateTime } from '../utils/eventTime';
 import { useData } from '../context/DataContext';
@@ -1074,8 +1075,8 @@ export const Events: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((event: any, index: number) => (
               <div id={`event-${event.id}`} key={`${selectedCategory}-${event.id}`} style={{ contain: 'paint layout' }}>
-                <div className={`relative flip-3d neon-anim-border tilt-card ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
-                  <div className="flip-3d-inner">
+                <SpotlightCard className={`relative flip-3d neon-anim-border tilt-card h-[500px] ${flippedCards.has(event.id) ? 'is-flipped' : ''}`}>
+                  <div className="flip-3d-inner h-full">
                     <button
                       className={`flip-face flip-front relative group ${(event as any).watch_live_url ? 'no-front-overlay' : ''}`}
                       onClick={(e) => {
@@ -1725,7 +1726,7 @@ export const Events: React.FC = () => {
                       </div>
                     </div>
                   )}
-                </div>
+                </SpotlightCard>
               </div>
             ))}
           </div>

@@ -7,10 +7,10 @@
     isolation: isolate;
   }
   .superia-glass {
-    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)];
+    @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.5)];
   }
   .superia-glass-card {
-    @apply bg-gradient-to-br from-white/[0.05] to-white/[0.01] backdrop-blur-xl border border-white/10 shadow-2xl;
+    @apply bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-3xl border border-white/5 shadow-[0_24px_48px_rgba(0,0,0,0.6)];
   }
   .animate-superia-float {
     animation: superiaFloat 6s ease-in-out infinite;

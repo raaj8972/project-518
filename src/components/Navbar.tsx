@@ -5,6 +5,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo3D from './BrandLogo3D';
 import { BRAND_YEAR } from '../constants/brand';
+import { MagneticWrapper } from './ui/MagneticWrapper';
 
 export const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -204,21 +205,22 @@ export const Navbar: React.FC = () => {
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-              onMouseEnter={() => schedulePrefetch(item.onHover)}
-              onTouchStart={() => { if (isTouchDevice) schedulePrefetch(item.onHover); }}
-                  onClick={(e)=>handleNavClick(e, item.path)}
-                  className={`cyberpunk-nav-item group ${
-                    isActive(item.path) ? 'active' : ''
-                  }`}
-                >
-                  <div className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200">
-                    {Icon && <Icon size={16} className="group-hover:scale-110 transition-transform" />}
-                    <span className="font-medium">{item.name}</span>
-                  </div>
-                </Link>
+                <MagneticWrapper key={item.path} strength={10} textStrength={5}>
+                  <Link
+                    to={item.path}
+                    onMouseEnter={() => schedulePrefetch(item.onHover)}
+                    onTouchStart={() => { if (isTouchDevice) schedulePrefetch(item.onHover); }}
+                    onClick={(e)=>handleNavClick(e, item.path)}
+                    className={`cyberpunk-nav-item group ${
+                      isActive(item.path) ? 'active' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200">
+                      {Icon && <Icon size={16} className="group-hover:scale-110 transition-transform" />}
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </Link>
+                </MagneticWrapper>
               );
             })}
           </div>

@@ -16,17 +16,23 @@ const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfil
 const GuestArtistVideoModal = React.lazy(() => import('../components/GuestArtistVideoModal'));
 const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtistDetailModal'));
 const AutoCarousel = React.lazy(() => import('../components/AutoCarousel'));
-import type { GuestArtist } from '../context/DataContext';
+import type { GuestArtist } from '../types/data';
 const Roadmap = React.lazy(() => import('../components/Roadmap'));
 const WinnersSection = React.lazy(() => import('../components/WinnersSection'));
 const InstagramTrailerSection = React.lazy(() => import('../components/InstagramTrailerSection'));
-// CountdownTimer and Sparkle3D are not used in the featured artist card preview; keep them commented out in case we re-enable later
 // import CountdownTimer from '../components/CountdownTimer';
-// import Sparkle3D from '../components/Sparkle3D';
 import PreserveNewlines from '../components/PreserveNewlines';
+import ScrollHint from '../components/ScrollHint';
+import { ScrollReveal } from '../components/ui/ScrollReveal';
+import { MagneticWrapper } from '../components/ui/MagneticWrapper';
+import { KineticText } from '../components/ui/KineticText';
+import { Parallax } from '../components/ui/Parallax';
 
 import FeaturedArtistCard from '../components/FeaturedArtistCard';
 import { SEO } from '../components/SEO';
+import { FluidBackground } from '../components/ui/FluidBackground';
+
+const Canvas3D = React.lazy(() => import('../components/ui/Canvas3D').then(m => ({ default: m.Canvas3D })));
 
 
 
@@ -410,9 +416,9 @@ export const Home: React.FC = () => {
           filter: drop-shadow(0 0 30px rgba(99, 102, 241, 0.3));
         }
         .superia-btn-glass {
-          @apply relative px-8 py-4 rounded-2xl bg-white/[0.03] backdrop-blur-xl border border-white/10 
-                 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300
-                 hover:bg-white/[0.08] hover:border-white/20 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)];
+          @apply relative px-8 py-4 rounded-2xl bg-white/[0.02] backdrop-blur-3xl border border-white/5 
+                 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.5)]
+                 hover:bg-white/[0.06] hover:border-white/10 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,0,0,0.6)];
         }
         .superia-btn-primary {
           @apply bg-indigo-600/20 border-indigo-500/30 hover:bg-indigo-600/30 hover:border-indigo-500/50 hover:shadow-[0_20px_40px_rgba(79,70,229,0.2)];
@@ -424,6 +430,14 @@ export const Home: React.FC = () => {
         {/* Background Media via unified component */}
         <HeroBackground pageKey="home" />
 
+        {/* Fluid Canvas Effect */}
+        <FluidBackground />
+
+        {/* Interactive 3D WebGL Shape */}
+        <React.Suspense fallback={null}>
+          <Canvas3D />
+        </React.Suspense>
+
         {/* Floating Particles removed */}
 
         {/* Glitch Overlay */}
@@ -431,45 +445,55 @@ export const Home: React.FC = () => {
 
         {/* Hero Content */}
         <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4">
-          <div className="scroll-animate-3d animate-in-3d">
-            <div className="inline-flex items-center bg-white/[0.03] backdrop-blur-xl border border-white/10 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] mb-8 text-indigo-300/80">
-              <Sparkles className="w-3.5 h-3.5 mr-2.5 text-indigo-400" />
-              ANNUAL FESTIVAL {BRAND_YEAR}
-            </div>
-            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black mb-8 superia-title-gradient tracking-tighter leading-none">
-              {homepageSettings?.hero_title || 'RICORRENZA'}
-            </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-relaxed mb-6 text-white/90">
-              {homepageSettings?.hero_subtitle || 'Experience the Future'}
-            </p>
-            <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-12 font-light">
-              {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
-            </p>
-            
-            <div className="flex flex-wrap justify-center items-center gap-6">
-              <a
-                href="/events"
-                className="superia-btn-glass superia-btn-primary group"
-              >
-                <span className="relative z-10 flex items-center gap-3">
-                  <Calendar className="w-5 h-5 transition-transform group-hover:scale-110" />
-                  Explore Events
-                </span>
-              </a>
+          <Parallax speed={0.4}>
+            <ScrollReveal animation="glitchReveal">
+              <div className="flex w-fit mx-auto items-center bg-white/[0.03] backdrop-blur-xl border border-white/10 px-4 py-2 md:px-6 md:py-3 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] mb-6 md:mb-8 text-indigo-300/80 shadow-[0_4px_20px_rgba(0,0,0,0.3)]">
+                <Sparkles className="w-3 h-3 md:w-3.5 md:h-3.5 mr-2 md:mr-2.5 text-indigo-400" />
+                ANNUAL FESTIVAL {BRAND_YEAR}
+              </div>
+              <KineticText as="h1" className="text-6xl md:text-8xl lg:text-9xl font-black mb-8 superia-title-gradient tracking-tighter leading-none">
+                {homepageSettings?.hero_title || 'RICORRENZA'}
+              </KineticText>
+              <p className="text-xl md:text-2xl lg:text-3xl font-medium max-w-4xl mx-auto leading-relaxed mb-6 text-white/90">
+                {homepageSettings?.hero_subtitle || 'Experience the Future'}
+              </p>
+              <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto leading-relaxed mb-12 font-light">
+                {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
+              </p>
               
-              {securitySettings?.entry_pass_button_enabled && (
-                <Link
-                  to="/pass-registration"
-                  className="superia-btn-glass group"
-                >
-                  <span className="relative z-10 flex items-center gap-3">
-                    <Ticket className="w-5 h-5 transition-transform group-hover:scale-110" />
-                    Entry Pass
-                  </span>
-                </Link>
-              )}
-            </div>
-          </div>
+              <div className="flex flex-wrap justify-center items-center gap-6 mb-12">
+                <MagneticWrapper>
+                  <a
+                    href="/events"
+                    className="superia-btn-glass superia-btn-primary group"
+                  >
+                    <span className="relative z-10 flex items-center gap-3">
+                      <Calendar className="w-5 h-5 transition-transform group-hover:scale-110" />
+                      Explore Events
+                    </span>
+                  </a>
+                </MagneticWrapper>
+                
+                {securitySettings?.entry_pass_button_enabled && (
+                  <MagneticWrapper>
+                    <Link
+                      to="/pass-registration"
+                      className="superia-btn-glass group"
+                    >
+                      <span className="relative z-10 flex items-center gap-3">
+                        <Ticket className="w-5 h-5 transition-transform group-hover:scale-110" />
+                        Entry Pass
+                      </span>
+                    </Link>
+                  </MagneticWrapper>
+                )}
+              </div>
+            </ScrollReveal>
+          </Parallax>
+        </div>
+
+        <div className="absolute bottom-32 left-0 right-0 z-20 flex justify-center pointer-events-none">
+          <ScrollHint />
         </div>
 
         {/* Sponsor Logos Section */}
@@ -546,7 +570,7 @@ export const Home: React.FC = () => {
       {featuredGuestArtists.length > 0 && (
       <section className="pt-28 pb-14 md:pt-36 md:pb-20 relative overflow-hidden">
           <div className="container mx-auto px-0 sm:px-4 relative z-10">
-            <div className="scroll-animate-3d">
+            <ScrollReveal animation="fadeUp">
               <div className="text-center mb-10 md:mb-16">
                 <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
                   FEATURED ARTISTS
@@ -556,7 +580,7 @@ export const Home: React.FC = () => {
                   Meet the incredible artists who will light up {BRAND_NAME} {BRAND_YEAR}
                 </p>
               </div>
-            </div>
+            </ScrollReveal>
 
             {showInteractive ? (
               <React.Suspense fallback={<div className="h-[420px] flex items-center justify-center text-gray-400">Preparing featured artists…</div>}>
@@ -610,7 +634,7 @@ export const Home: React.FC = () => {
           <section className="py-16 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
             <div className="container mx-auto px-0 relative z-10">
-            <div className="scroll-animate-3d">
+              <ScrollReveal animation="fadeUp">
                 <div className="text-center mb-12">
                   <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient">
                     CHIEF GUEST{multi ? 'S' : ''}
@@ -620,7 +644,7 @@ export const Home: React.FC = () => {
                     {multi ? 'Honoring our distinguished chief guests' : 'Honoring our distinguished chief guest'} for {BRAND_NAME} {BRAND_YEAR}
                   </p>
                 </div>
-              </div>
+              </ScrollReveal>
               {multi ? (
                 <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading…</div>}>
                 <div className="max-w-6xl mx-auto">
@@ -695,12 +719,12 @@ export const Home: React.FC = () => {
                           {cg.specialty && (
                             <div className="absolute top-4 left-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-semibold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
                               <span className="w-2 h-2 rounded-full bg-cyan-300 animate-ping opacity-70" />
-                              <span>{cg.specialty}</span>
-                            </div>
-                          )}
+                                <span>{cg.specialty}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <div className="space-y-5">
+                        <div className="space-y-5 flex-1 pl-0 md:pl-6">
                         <div>
                           <h3 className="text-3xl md:text-4xl font-extrabold text-white mb-2 tracking-wide">
                             {cg.name}
@@ -1323,46 +1347,52 @@ export const Home: React.FC = () => {
             </div>
           </div>
         </div>
-  </section>
-  )}
+      </section>
+    )}
 
       {/* Call to Action */}
       <section className="py-32 relative overflow-hidden">
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="scroll-animate-3d">
-            <h2 className="text-6xl md:text-8xl font-black mb-8 superia-title-gradient uppercase tracking-tighter">
-              JOIN THE FUTURE
-            </h2>
-            <p className="text-xl md:text-2xl text-white/50 mb-16 max-w-3xl mx-auto font-light leading-relaxed">
-              Be part of the most innovative festival experience
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
-              <a
-                href="/events"
-                className="superia-btn-glass superia-btn-primary px-12 py-5 text-base"
-              >
-                <span className="relative z-10 flex items-center gap-4">
-                  <Zap className="w-6 h-6" />
-                  Register Now
-                  <ArrowRight className="w-6 h-6" />
-                </span>
-              </a>
+          <Parallax speed={0.3}>
+            <div className="scroll-animate-3d">
+              <KineticText as="h2" className="text-6xl md:text-8xl font-black mb-8 superia-title-gradient uppercase tracking-tighter">
+                JOIN THE FUTURE
+              </KineticText>
+              <p className="text-xl md:text-2xl text-white/50 mb-16 max-w-3xl mx-auto font-light leading-relaxed">
+                Be part of the most innovative festival experience
+              </p>
               
-              {formSettings?.membership_form_enabled && (
-                <button 
-                  onClick={() => startTransition(() => setMembershipModal(true))}
-                  className="superia-btn-glass px-12 py-5 text-base"
-                >
-                  <span className="relative z-10 flex items-center gap-4">
-                    <Users className="w-6 h-6" />
-                    Join the Family
-                    <ArrowRight className="w-6 h-6" />
-                  </span>
-                </button>
-              )}
+              <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
+                <MagneticWrapper>
+                  <a
+                    href="/events"
+                    className="superia-btn-glass superia-btn-primary px-12 py-5 text-base"
+                  >
+                    <span className="relative z-10 flex items-center gap-4">
+                      <Zap className="w-6 h-6" />
+                      Register Now
+                      <ArrowRight className="w-6 h-6" />
+                    </span>
+                  </a>
+                </MagneticWrapper>
+                
+                {formSettings?.membership_form_enabled && (
+                  <MagneticWrapper>
+                    <button 
+                      onClick={() => startTransition(() => setMembershipModal(true))}
+                      className="superia-btn-glass px-12 py-5 text-base"
+                    >
+                      <span className="relative z-10 flex items-center gap-4">
+                        <Users className="w-6 h-6" />
+                        Join the Family
+                        <ArrowRight className="w-6 h-6" />
+                      </span>
+                    </button>
+                  </MagneticWrapper>
+                )}
+              </div>
             </div>
-          </div>
+          </Parallax>
         </div>
       </section>
 
