@@ -11,7 +11,7 @@ import HeroBackground from '../components/HeroBackground';
 const LogoLoop = React.lazy(() => import('../components/LogoLoop'));
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
 import { getDominantColor } from '../utils/getDominantColor';
-const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
+const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel'));
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 const GuestArtistVideoModal = React.lazy(() => import('../components/GuestArtistVideoModal'));
 const GuestArtistDetailModal = React.lazy(() => import('../components/GuestArtistDetailModal'));
@@ -224,9 +224,9 @@ export const Home: React.FC = () => {
 
   // Heads data and memoized sorted lists (must be before any early return)
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== '');
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !(m as any).isCouncil && m.image && m.image.trim() !== '');
+  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !((m as any).isCouncil || (m as any).is_council) && m.image && m.image.trim() !== '');
   // Council members (non-head) are also part of leadership marquee
-  const councilMembers = coreTeamMembers.filter(m => m.enabled && (m as any).isCouncil && !m.is_head && m.image && m.image.trim() !== '');
+  const councilMembers = coreTeamMembers.filter(m => m.enabled && ((m as any).isCouncil || (m as any).is_council) && !m.is_head && m.image && m.image.trim() !== '');
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
   // Sorted full list of heads for display and navigation
   const sortedCommitteeHeads = React.useMemo(() => (
@@ -594,7 +594,7 @@ export const Home: React.FC = () => {
             {showInteractive ? (
               <React.Suspense fallback={<div className="h-[420px] flex items-center justify-center text-gray-400">Preparing featured artists…</div>}>
               <CoverflowCarousel
-                items={featuredGuestArtists}
+                items={featuredGuestArtists as any[]}
                 intervalMs={3200}
                 paused={detailOpen || videoModalOpen}
                 visibleRange={2}
@@ -602,10 +602,10 @@ export const Home: React.FC = () => {
                 pauseOnTouch={true}
                 showArrows={true}
                 showDots={false}
-                onItemClick={(artist: GuestArtist) => openDetailModal(artist, { userInitiated: true })}
+                onItemClick={(artist: any) => openDetailModal(artist, { userInitiated: true })}
                 className="mt-6 md:mt-8"
                 stageHeight={'var(--featured-stage-height)'}
-                renderItem={(artist: GuestArtist, _: number, isActive: boolean) => (
+                renderItem={(artist: any, _: number, isActive: boolean) => (
                   <div className="w-[280px] sm:w-[320px] md:w-[450px] lg:w-[500px] h-full px-2 py-4 flex items-center justify-center">
                        <FeaturedArtistCard 
                          artist={artist}
@@ -1161,7 +1161,7 @@ export const Home: React.FC = () => {
                             getDominantColor(m.image).then((color) => { if (mounted) setGlowColor(color); });
                             return () => { mounted = false; };
                           }, [m.image]);
-                          const isCouncil = Boolean((m as any).isCouncil) && !m.is_head;
+                          const isCouncil = Boolean((m as any).isCouncil || (m as any).is_council) && !m.is_head;
                           const roleLower = String(m.role || '').toLowerCase();
                           const committee = coreCommittees.find(c => c.id === m.committee_id);
                           const committeeNameLower = String(committee?.name || '').toLowerCase();

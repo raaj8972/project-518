@@ -1,4 +1,4 @@
-import React, { useState, startTransition, useRef, useEffect } from 'react';
+import React, { useState, startTransition } from 'react';
 import { Music, Instagram, ChevronDown } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { AuditionModal } from '../components/AuditionModal';
@@ -17,7 +17,6 @@ export const HomeBound: React.FC = () => {
   const hero = heroMedia['homebound'];
 
   // Filter enabled band members and sort by order
-  // Optimization: Memoize this list if possible, but useData already provides state
   const enabledBandMembers = (bandMembers || [])
     .filter(member => member.enabled)
     .sort((a, b) => {
@@ -44,22 +43,30 @@ export const HomeBound: React.FC = () => {
   }, [enabledBandMembers]);
 
   return (
-    <div className="cyberpunk-theme bg-[#050505] selection:bg-pink-500/30 overflow-x-hidden h-[100dvh]">
+    <div className="bg-[#030712] text-[#e2e8f0] selection:bg-cyan-500/30 min-h-screen font-sans antialiased overflow-x-hidden">
       <SEO 
         title="Home Bound" 
         description={`The official band of ${BRAND_NAME} ${BRAND_YEAR}.`} 
         canonical="https://ricorrenza.fun/home-bound" 
       />
 
-      <div className="relative snap-y snap-mandatory h-full overflow-y-scroll no-scrollbar">
+      {/* CONTINUOUS SCROLL CONTAINER */}
+      <div className="relative w-full">
+        
+        {/* SUBTLE GRITTY BACKGROUND (Fixed) */}
+        <div className="fixed inset-0 pointer-events-none z-0 opacity-[0.15]"
+             style={{
+               backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)',
+               backgroundSize: '32px 32px'
+             }}>
+        </div>
 
-        {/* STICKY HERO BACKGROUND (Shared by Phase 1 & 2) */}
-        <div className="sticky top-0 h-[100dvh] w-full z-0 overflow-hidden">
+        {/* FIXED HERO BACKGROUND */}
+        <div className="fixed top-0 left-0 w-full h-[100dvh] z-0 overflow-hidden pointer-events-none">
            <div 
-             className="absolute inset-0"
+             className="absolute inset-0 z-0"
              style={{ animation: 'heroFadeIn 1.5s ease-out forwards' }}
            >
-             <div className="absolute inset-0 bg-black/40 z-10 transition-colors duration-1000"></div>
              <video 
                autoPlay 
                loop 
@@ -67,102 +74,113 @@ export const HomeBound: React.FC = () => {
                playsInline 
                preload="auto"
                key={hero?.video_url}
+               src={hero?.mobile_video_url || hero?.video_url || "https://assets.mixkit.co/videos/preview/mixkit-concert-crowd-with-lights-2292-large.mp4"}
                poster={hero?.mobile_poster_url || hero?.mobile_image_url || undefined}
-               className="w-full h-full object-cover"
-             >
-               <source src={hero?.mobile_video_url || hero?.video_url || "https://assets.mixkit.co/videos/preview/mixkit-concert-crowd-with-lights-2292-large.mp4"} type="video/mp4" />
-             </video>
+               className="absolute inset-0 w-full h-full object-cover filter grayscale contrast-125 brightness-50 mix-blend-luminosity z-10"
+               ref={(el) => {
+                 if (el) {
+                   el.play().catch(e => console.log("Autoplay prevented:", e));
+                 }
+               }}
+             />
+             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-[#030712]/60 to-[#030712] z-20 transition-colors duration-1000"></div>
            </div>
         </div>
 
-        {/* HERO PHASE 1: VIDEO INTRO (SNAP POINT 1) */}
-        <section className="relative h-[100dvh] w-full flex items-center justify-center snap-start z-10 pointer-events-none">
-          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-white/50 flex flex-col items-center gap-2 pointer-events-auto">
-             <span className="text-[10px] uppercase tracking-[0.4em] font-medium pulse">Scroll to Reveal</span>
-             <ChevronDown size={20} className="animate-bounce" />
-          </div>
-        </section>
-
-        {/* HERO PHASE 2: TEXT REVEAL (SNAP POINT 2) */}
-        <section className="relative h-[100dvh] w-full flex items-center justify-center snap-start z-20 overflow-hidden">
-          <div className="relative text-center px-6" style={{ animation: 'heroTextReveal 1s ease-out 0.2s both' }}>
-            <div className="inline-flex items-center gap-2 px-4 md:px-6 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 mb-6 md:mb-8">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-              <span className="text-[10px] md:text-sm font-bold tracking-[0.3em] uppercase">Official Band</span>
+        {/* SEAMLESS HERO CONTENT */}
+        <section className="relative w-full min-h-[100dvh] flex flex-col items-center justify-center pt-24 pb-12 z-10 px-4">
+          
+          <div className="animate-[fadeInUp_1s_ease-out_forwards] flex flex-col items-center text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>
+              <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-cyan-50">Official Lineup</span>
             </div>
             
-            <h1 className="text-5xl md:text-9xl font-black text-white mb-2 tracking-tighter mix-blend-overlay">
-              HOME<span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">BOUND</span>
+            <h1 className="text-5xl sm:text-6xl md:text-9xl lg:text-[11rem] font-bold text-white mb-2 tracking-tighter leading-none" style={{ textShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+              HOME<span className="text-white/60 font-light">BOUND</span>
             </h1>
             
-            <p className="text-lg md:text-2xl text-gray-300 font-light tracking-wide max-w-2xl mx-auto mt-4 md:mt-6">
-              The Sonic Heartbeat of {BRAND_NAME} {BRAND_YEAR}
-            </p>
+            <div className="flex items-center gap-6 mt-6 md:mt-10 opacity-70">
+               <div className="h-[1px] w-12 md:w-24 bg-white/30"></div>
+               <p className="text-sm md:text-lg text-white font-light tracking-[0.3em] uppercase">
+                 {BRAND_YEAR} Core Identity
+               </p>
+               <div className="h-[1px] w-12 md:w-24 bg-white/30"></div>
+            </div>
           </div>
 
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 text-white/50 flex flex-col items-center gap-2" style={{ animation: 'fadeIn 1s ease-out 1s both' }}>
-            <span className="text-[10px] md:text-xs uppercase tracking-[0.2em]">Down to Lineup</span>
-            <ChevronDown size={16} className="animate-bounce" />
+          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 text-white/50 flex flex-col items-center gap-3 animate-[pulse_2s_infinite]">
+            <span className="text-[10px] uppercase tracking-[0.2em] font-mono">Scroll to explore</span>
+            <ChevronDown size={14} />
           </div>
         </section>
 
-        {/* 2. ARTIST SCROLL SECTIONS */}
-        {enabledBandMembers.map((member, index) => (
-          <ArtistScrollSection key={member.id} member={member} index={index} />
-        ))}
-        
-        {enabledBandMembers.length === 0 && (
-           <div className="h-screen flex items-center justify-center snap-start">
-              <p className="text-2xl text-gray-500 uppercase tracking-widest">Lineup Announcing Soon</p>
-           </div>
-        )}
+        {/* ARTIST LIST (Continuous) */}
+        <div className="relative z-20 w-full bg-[#030712] rounded-t-[2rem] md:rounded-t-[3rem] shadow-[0_-20px_50px_rgba(0,0,0,0.5)] pt-12 pb-24 md:pt-24 md:pb-32 flex flex-col gap-16 md:gap-40 min-h-screen">
+          <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-[#030712] to-transparent pointer-events-none"></div>
 
-        {/* 3. GROUP PHOTO / FINAL CTA SECTION */}
-        <section className="relative h-[100dvh] flex flex-col items-center justify-center overflow-hidden snap-start">
-          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-pink-900/20 to-transparent pointer-events-none"></div>
+          {enabledBandMembers.length > 0 ? (
+            enabledBandMembers.map((member, index) => (
+              <ArtistScrollSection key={member.id} member={member} index={index} />
+            ))
+          ) : (
+            <div className="py-32 flex items-center justify-center min-h-[50vh]">
+               <div className="flex flex-col items-center gap-4">
+                 <div className="w-8 h-8 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin"></div>
+                 <p className="text-sm text-cyan-500/50 font-mono uppercase tracking-widest">Loading Secure Core Data...</p>
+               </div>
+            </div>
+          )}
+        </div>
+
+        {/* 3. FINAL CTA SECTION */}
+        <section className="relative w-full bg-[#030712] flex flex-col items-center justify-center py-24 md:py-40 z-20">
+          <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#030712] via-[#030712] to-transparent z-10"></div>
           
-          <div className="container mx-auto px-4 z-10 text-center flex flex-col h-full py-12 md:py-20">
-            <div className="flex-1 flex flex-col justify-center">
-              {/* Removed Group Photo as requested */}
-
-              {/* CTA */}
-              <div className="max-w-2xl mx-auto">
-                <h3 className="text-xl md:text-3xl font-bold text-white mb-6 uppercase tracking-widest opacity-80">
-                  Join The Experience
-                </h3>
-                
-                <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
-                  {formSettings?.audition_form_enabled ? (
-                    <button 
-                      onClick={() => startTransition(() => setAuditionModal(true))}
-                      className="px-8 md:px-12 py-4 md:py-6 bg-white text-black font-black text-lg md:text-xl rounded-full hover:scale-105 active:scale-95 transition-all duration-300 shadow-[0_0_30px_rgba(255,255,255,0.3)] flex items-center gap-3 uppercase tracking-widest"
-                    >
-                      <Music className="w-5 h-5 md:w-6 md:h-6" />
-                      Audition Now
-                    </button>
-                  ) : (
-                    <div className="px-8 py-4 rounded-full bg-white/5 border border-white/10 flex items-center gap-3 text-gray-400">
-                      <Music className="w-5 h-5" />
-                      <span className="text-sm font-bold uppercase tracking-widest">Auditions Closed</span>
+          <div className="container mx-auto px-4 z-20 text-center flex flex-col items-center">
+            <div className="max-w-4xl w-full border border-white/5 bg-white/[0.02] backdrop-blur-2xl p-8 sm:p-12 md:p-20 rounded-[2rem] shadow-2xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-600/10 rounded-full blur-[100px]"></div>
+               <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px]"></div>
+               
+               <div className="relative z-10 mb-8 md:mb-10">
+                  <h3 className="text-3xl sm:text-4xl md:text-6xl font-black text-white tracking-tight mb-4">
+                    Join The Core
+                  </h3>
+                  <p className="text-white/50 text-base md:text-lg max-w-xl mx-auto font-light">
+                    The portal is open. If you have what it takes, submit your audition and become a part of the legacy.
+                  </p>
+               </div>
+              
+              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center relative z-10">
+                {formSettings?.audition_form_enabled ? (
+                  <button 
+                    onClick={() => startTransition(() => setAuditionModal(true))}
+                    className="group relative px-8 py-4 md:px-10 md:py-5 bg-white text-black hover:bg-cyan-50 rounded-full font-bold text-base md:text-xl transition-all duration-300 flex items-center gap-3 overflow-hidden shadow-[0_0_40px_rgba(255,255,255,0.1)] hover:shadow-[0_0_50px_rgba(255,255,255,0.2)] hover:scale-105"
+                  >
+                    <div className="relative z-20 flex items-center gap-3">
+                       <Music className="w-5 h-5" />
+                       Submit Audition
                     </div>
-                  )}
-                </div>
+                  </button>
+                ) : (
+                  <div className="px-8 py-4 md:px-10 md:py-5 bg-white/5 rounded-full border border-white/10 flex items-center gap-3 text-white/40">
+                    <Music className="w-5 h-5" />
+                    <span className="text-xs md:text-sm font-medium uppercase tracking-widest">Auditions Closed</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Integrated Social Footer */}
+            {/* Social Footer */}
             {(homeboundSettings?.instagram_enabled && homeboundSettings?.instagram_url) && (
-              <div className="mt-auto pt-8 border-t border-white/5">
+              <div className="mt-12 md:mt-20">
                 <a
                   href={homeboundSettings.instagram_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 text-gray-500 hover:text-white transition-colors group"
+                  className="w-14 h-14 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/30 hover:scale-110 transition-all text-white/50 hover:text-white"
                 >
-                  <div className="p-2 rounded-full bg-white/5 group-hover:bg-white/10 transition-colors">
-                    <Instagram className="w-4 h-4" />
-                  </div>
-                  <span className="font-bold tracking-[0.2em] text-xs uppercase transition-all">Official Instagram</span>
+                  <Instagram className="w-5 h-5" />
                 </a>
               </div>
             )}
@@ -178,20 +196,14 @@ export const HomeBound: React.FC = () => {
       )}
       
       <style>{`
-        .cyberpunk-theme {
-          background: #0a0a0a;
-          color: #ffffff;
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-          min-height: 100vh;
-        }
         html { scroll-behavior: smooth; }
         @keyframes heroFadeIn {
-          from { opacity: 0; transform: scale(1.1); }
-          to { opacity: 1; transform: scale(1); }
+          from { opacity: 0; filter: blur(10px) brightness(0); }
+          to { opacity: 1; filter: blur(0px) brightness(1); }
         }
         @keyframes heroTextReveal {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
+          from { opacity: 0; transform: translateY(10px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -201,3 +213,5 @@ export const HomeBound: React.FC = () => {
     </div>
   );
 };
+
+export default HomeBound;

@@ -909,3 +909,129 @@ img {
     filter: none !important; /* IMPORTANT: Disable drop-shadows on mobile to prevent crashes */
   }
 }
+
+/* Hologram Effects */
+@layer utilities {
+  .hologram-card {
+    @apply relative overflow-hidden;
+  }
+
+  .hologram-scanline {
+    @apply absolute inset-0 pointer-events-none z-10;
+    background: linear-gradient(
+      rgba(18, 16, 16, 0) 50%,
+      rgba(34, 211, 238, 0.05) 50%
+    );
+    background-size: 100% 4px;
+    opacity: 0.5;
+  }
+
+  .hologram-flicker {
+    animation: hologramFlicker 6s linear infinite;
+  }
+
+  @keyframes hologramFlicker {
+    0% { opacity: 0.98; }
+    5% { opacity: 0.9; }
+    10% { opacity: 0.98; }
+    15% { opacity: 0.95; }
+    25% { opacity: 0.98; }
+    30% { opacity: 1; }
+    100% { opacity: 0.98; }
+  }
+
+  .hologram-reveal {
+    animation: hologramGlitchReveal 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+
+  .hologram-booting {
+    animation: hologramBoot 0.4s ease-out both;
+  }
+
+  @keyframes hologramBoot {
+    0% { filter: brightness(5) contrast(2) saturate(0); transform: scaleY(0.01) scaleX(1.5); opacity: 0; }
+    40% { filter: brightness(2) contrast(1.5) saturate(1); transform: scaleY(1.2) scaleX(0.8); opacity: 1; }
+    70% { filter: brightness(1.5) contrast(1.1); transform: scaleY(0.9) scaleX(1.1); }
+    100% { filter: brightness(1) contrast(1); transform: scaleY(1) scaleX(1); opacity: 1; }
+  }
+
+  .hologram-glitch-active {
+    animation: hologramGlitchLoop 0.2s linear infinite;
+  }
+
+  @keyframes hologramGlitchLoop {
+    0% { transform: translate(0); filter: hue-rotate(0deg); }
+    25% { transform: translate(-2px, 1px); filter: hue-rotate(90deg) brightness(1.2); }
+    50% { transform: translate(2px, -1px); filter: hue-rotate(180deg) contrast(1.2); }
+    75% { transform: translate(-1px, -2px); filter: hue-rotate(270deg) brightness(1.1); }
+    100% { transform: translate(0); filter: hue-rotate(360deg); }
+  }
+
+  @keyframes hologramGlitchReveal {
+    0% { transform: scaleY(0.1) translateY(40px); opacity: 0; filter: brightness(2) saturate(0); }
+    60% { transform: scaleY(1.05) translateY(-4px); opacity: 0.9; filter: brightness(1.2) saturate(1.2); }
+    100% { transform: scaleY(1) translateY(0); opacity: 1; filter: brightness(1) saturate(1); }
+  }
+
+  .hologram-tint {
+    filter: sepia(100%) hue-rotate(150deg) brightness(1.05) saturate(1.2);
+  }
+
+  .hologram-projection-light {
+    @apply absolute -bottom-5 left-1/2 -translate-x-1/2 pointer-events-none transition-all duration-500;
+    width: 90%;
+    height: 30px;
+    background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.4) 0%, transparent 70%);
+    filter: blur(8px);
+    z-index: -1;
+  }
+
+  .hologram-projection-light-expanded {
+    height: 60px;
+    width: 110%;
+    background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.6) 0%, transparent 75%);
+    filter: blur(12px);
+  }
+  .hologram-text-reveal {
+    position: relative;
+    opacity: 0;
+    animation: hologramTextReveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  }
+
+  @keyframes hologramTextReveal {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+      filter: blur(10px) brightness(2);
+      letter-spacing: 0.3em;
+    }
+    30% {
+      opacity: 0.4;
+      filter: blur(5px) brightness(1.5);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0) brightness(1);
+      letter-spacing: normal;
+    }
+  }
+
+  .hologram-text-reveal::after {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.15), transparent);
+    animation: hologramTextScanBar 3s infinite;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @keyframes hologramTextScanBar {
+    0% { top: -100%; }
+    100% { top: 200%; }
+  }
+}

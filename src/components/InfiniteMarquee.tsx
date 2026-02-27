@@ -429,5 +429,3 @@ function InfiniteMarquee<T>(props: InfiniteMarqueeProps<T>) {
 }
 
 export default InfiniteMarquee;
-
-                  // Removed orphaned block referencing out-of-scope variables

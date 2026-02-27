@@ -1,57 +1,28 @@
 import React, { useEffect, useRef, useState, startTransition } from 'react';
-import { createPortal } from 'react-dom';
-import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield } from 'lucide-react';
+import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield, Instagram, Youtube, Facebook, Mail, Phone, UsersRound } from 'lucide-react';
 import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
-import Facebook3DButtonLink from '../components/Facebook3DButtonLink';
 import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
 import Phone3DButtonLink from '../components/Phone3DButtonLink';
 import Email3DButtonLink from '../components/Email3DButtonLink';
 import PreserveNewlines from '../components/PreserveNewlines';
 import DescriptionHeaderBody from '../components/DescriptionHeaderBody';
 import { useData } from '../context/DataContext';
-import HeroBackground from '../components/HeroBackground';
+
 import { MembershipModal } from '../components/MembershipModal';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
+import CommitteeBackgroundEffect from '../components/CommitteeBackgroundEffect';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee')) as unknown as React.ComponentType<any>;
-const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal')) as unknown as React.ComponentType<any>;
-const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel')) as unknown as React.ComponentType<any>;
-const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal')) as unknown as React.ComponentType<any>;
+const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
+const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal'));
+const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel'));
+const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
 
-// Isolated Glitch Overlay Component to prevent parent re-renders
-const GlitchOverlay = React.memo(() => {
-  const [active, setActive] = useState(false);
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setActive(true);
-      setTimeout(() => setActive(false), 200);
-    }, 12000);
-    return () => clearInterval(timer);
-  }, []);
-  return <div className={`glitch-overlay ${active ? 'active' : ''}`}></div>;
-});
 
-// Preload Component for Carousel Images (Performance Optimization)
-const CarouselImagePreloader: React.FC<{ images: string[] }> = React.memo(({ images }) => {
-  if (typeof document === 'undefined') return null;
-  return createPortal(
-    <>
-      {images.slice(0, 6).map((url, i) => (
-        <link key={`preload-${i}`} rel="preload" as="image" href={url} />
-      ))}
-    </>,
-    document.head
-  );
-});
 
 export const RicoFamily: React.FC = () => {
   const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
-  // Minimal web dev role detection (fallback to config if present)
-  const webDevPhraseList = (homepageSettings as any)?.web_dev_role_phrases && Array.isArray((homepageSettings as any).web_dev_role_phrases) && (homepageSettings as any).web_dev_role_phrases.length > 0
-    ? (homepageSettings as any).web_dev_role_phrases.map((p: string) => String(p).toLowerCase())
-    : ['web developer','lead developer','web design & maintenance','web design and maintenance','web design','developer'];
   // Refined developer role detection: only show cyan styling for lead developer tier
   const isLeadWebDevRole = (role?: string | null, committeeName?: string) => {
     const rl = String(role || '').toLowerCase();
@@ -59,11 +30,6 @@ export const RicoFamily: React.FC = () => {
     if (!rl) return false;
     // Must be a lead role AND in a web-related committee
     return ['lead developer','lead web developer','principal developer','principal engineer'].some(p => rl.includes(p)) && cn.includes('web');
-  };
-  const isAnyWebDevRole = (role?: string | null) => {
-    const rl = String(role || '').toLowerCase();
-    if (!rl) return false;
-    return webDevPhraseList.some((p: string) => rl.includes(p));
   };
 
   // Determine Mobile State (Moved up to prevent hoisting issues)
@@ -131,8 +97,22 @@ export const RicoFamily: React.FC = () => {
 
   // Track expanded member cards (non-head)
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
+  const [bootingMembers, setBootingMembers] = useState<Set<number>>(new Set());
 
   const toggleMemberExpanded = (id: number) => {
+    const isExpanding = !expandedMembers.has(id);
+    
+    if (isExpanding) {
+      setBootingMembers(prev => new Set(prev).add(id));
+      setTimeout(() => {
+        setBootingMembers(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }, 400); // Match hologram-boot animation duration
+    }
+
     setExpandedMembers(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -175,7 +155,7 @@ export const RicoFamily: React.FC = () => {
 
   // Council members (non-head)
   const councilMembers = (coreTeamMembers || [])
-    .filter(m => m.enabled && (m as any).isCouncil && !m.is_head)
+    .filter(m => m.enabled && ((m as any).isCouncil || (m as any).is_council) && !m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
   // Founders extraction (Hardcoded + Dynamic)
@@ -252,284 +232,76 @@ export const RicoFamily: React.FC = () => {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // --- HERO CAROUSEL LOGIC ---
-  const carouselMembers = React.useMemo(() => {
-    let base = [...councilMembers, ...committeeHeads].filter(m => m.image);
-    if (base.length === 0) return [];
-    while (base.length < 6) { base = [...base, ...base]; }
-    // Mobile optimization: Limit to 12 items to prevent memory crashes
-    const maxItems = isMobile ? 12 : 30;
-    if (base.length > maxItems) base = base.slice(0, maxItems);
-    return base;
-  }, [councilMembers, committeeHeads, isMobile]);
 
-  const [rotationIndex, setRotationIndex] = useState(0); 
-  const [isZoomed, setIsZoomed] = useState(false); 
-  const [transitionDuration, setTransitionDuration] = useState(3000);
-
-  // Shuffle Helper (Fisher-Yates)
-  const shuffleArray = (array: number[]) => {
-    const arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  };
-
-  // Queue to track non-repeating random sequence
-  const shuffledQueue = useRef<number[]>([]);
-
-  useEffect(() => {
-    if (carouselMembers.length === 0) return;
-    const cycleDuration = 10000;
-    
-    if (shuffledQueue.current.length === 0) {
-        shuffledQueue.current = shuffleArray(Array.from({ length: carouselMembers.length }, (_, i) => i));
-    }
-
-    const rotateInterval = setInterval(() => {
-      setIsZoomed(false);
-      setTransitionDuration(3000);
-      
-      setRotationIndex(prev => {
-         if (shuffledQueue.current.length === 0) {
-             let newBatch = shuffleArray(Array.from({ length: carouselMembers.length }, (_, i) => i));
-             const currentFace = prev % carouselMembers.length;
-             if (newBatch[0] === currentFace && newBatch.length > 1) {
-                 [newBatch[0], newBatch[newBatch.length - 1]] = [newBatch[newBatch.length - 1], newBatch[0]];
-             }
-             shuffledQueue.current = newBatch;
-         }
-         const targetFace = shuffledQueue.current.pop()!;
-         const count = carouselMembers.length;
-         const currentFace = prev % count;
-         let diff = (targetFace - currentFace + count) % count;
-         if (diff === 0) diff = count; 
-         return prev + diff + count; 
-      });
-
-      setTimeout(() => {
-        setTransitionDuration(1500);
-        setIsZoomed(true);
-      }, 3200); 
-    }, cycleDuration);
-
-    const initialZoomTimeout = setTimeout(() => {
-        setTransitionDuration(1500);
-        setIsZoomed(true);
-    }, 1000);
-
-    return () => {
-      clearInterval(rotateInterval);
-      clearTimeout(initialZoomTimeout);
-    };
-  }, [carouselMembers.length]);
-
-
-
-  const faceCount = carouselMembers.length;
-  const faceTitle = 360 / Math.max(1, faceCount);
-  // Universal Height (Mobile Size fit for Desktop as requested)
-  const faceHeight = 35; 
-  const faceWidthStr = isMobile ? 'w-[65vw] -ml-[32.5vw]' : 'w-[320px] -ml-[160px]';
-  const faceHeightStr = 'h-[35vh] -mt-[17.5vh]';
-  const radius = Math.round(((faceHeight / 2) / Math.tan(Math.PI / Math.max(1, faceCount))) * 1.05);
 
   return (
-  <div className="neon-theme min-h-screen">
+  <div className="bg-[#030712] text-[#e2e8f0] selection:bg-cyan-500/30 min-h-screen font-sans antialiased overflow-x-hidden">
     <SEO 
       title={`Rico Family — ${BRAND_NAME} ${BRAND_YEAR}`} 
       description={`Meet the team behind ${BRAND_NAME} ${BRAND_YEAR} - Faculty, Council, and Committee members.`} 
       canonical="https://ricorrenza.fun/rico-family" 
     />
     <ScrollHint />
-    {/* Preload hero carousel images for smooth experience - Optimized for mobile */}
-    <CarouselImagePreloader images={carouselMembers.map(m => {
-       if (isMobile && m.image?.includes('supabase')) return `${m.image}?width=400&resize=cover`;
-       return m.image;
-    })} />
-      <style>{`
-        @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-      `}</style>
-      <section className="hero-section group relative h-[80vh] md:min-h-screen flex items-center justify-center overflow-hidden" style={{ perspective: '2000px' }}>
-        <HeroBackground pageKey="ricofamily" />
 
-        {/* Glitch Overlay (Isolated) */}
-        <GlitchOverlay />
-        
-        {/* DARK OVERLAY FOR READABILITY */}
-        <div className="absolute inset-0 z-10 bg-black/80 pointer-events-none" />
-
-        {/* RESTORED HERO CONTENT OVERLAY */}
-        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none">
-          <div className="text-center text-white max-w-6xl mx-auto px-4">
-            <div className="scroll-animate opacity-0 transform translate-y-20 animate-in">
-                <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-8 backdrop-blur-sm">
-                  <Users className="w-5 h-4 mr-2 animate-pulse" />
-                  Fest Architects
-                </div>
-                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black mb-6 neon-title">
-                  RICO <span className="neon-blue">FAMILY</span>
-                </h1>
-                <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8 drop-shadow-md">
-                  Meet the <span className="neon-pink">visionaries</span>, 
-                  <span className="neon-purple"> innovators</span>, and 
-                  <span className="neon-blue"> leaders</span> who make RICORRENZA possible
-                </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 3D Rotating Drum */}
-        {carouselMembers.length > 0 && (
-          <div 
-            className={`absolute top-1/2 left-1/2 ${faceWidthStr} ${faceHeightStr} ease-in-out`}
-            style={{
-              transformStyle: 'preserve-3d',
-              transitionProperty: 'transform',
-              transitionDuration: `${transitionDuration}ms`,
-              transform: `rotateX(${-rotationIndex * faceTitle}deg)`
-            }}
-          >
-            {carouselMembers.map((member: any, idx: number) => {
-              const angle = faceTitle * idx;
-              const isActive = idx === rotationIndex % faceCount;
-              const isItemZoomed = isActive && isZoomed;
-  
-              // ... colors ...
-              const isLead = isLeadWebDevRole(member.role);
-              const isCouncil = member.isCouncil;
-              const isTech = String(member.role || '').toLowerCase().includes('tech');
-              const glowColor = isLead ? 'from-cyan-500/60 to-blue-600/60' 
-                : isCouncil ? 'from-red-600/60 to-orange-600/60'
-                : isTech ? 'from-green-500/60 to-emerald-600/60'
-                : 'from-purple-600/60 to-pink-600/60';
-
-              return (
-                <div 
-                  key={`hero-member-${member.id}-${idx}`}
-                  className={`absolute inset-0 w-full h-full backface-hidden transition-opacity duration-500 ${isItemZoomed ? 'opacity-100' : 'opacity-15'}`}
-                  style={{
-                    willChange: 'transform',
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                    transitionProperty: 'transform',
-                    transitionDuration: `${transitionDuration}ms`,
-                    transform: isItemZoomed && isMobile
-                      ? `rotateX(${angle}deg) translateZ(${radius + 15}vh) scale(1.1)` 
-                      : `rotateX(${angle}deg) translateZ(${radius}vh)`,
-                    height: '35vh',
-                    zIndex: isItemZoomed ? 100 : 0
-                  }}
-                > 
-                  <div className={`w-full h-full relative transition-all duration-1000 ${isActive ? 'scale-100' : 'scale-90 brightness-90' } ${isItemZoomed ? 'p-0' : 'p-2'}`}>
-                    {/* Active Glow - Disabled on mobile for performance */}
-                    {isActive && !isMobile && (
-                      <div className={`absolute -inset-16 md:-inset-32 bg-gradient-to-r ${glowColor} blur-[40px] md:blur-[80px] opacity-100 rounded-full animate-pulse z-[-1]`} />
-                    )}
-                    
-                    <div className="relative w-full h-full overflow-hidden rounded-xl bg-black/50 border border-white/10">
-                      <img
-                        className={`w-full h-full object-cover object-top shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
-                        src={isMobile && member.image?.includes('supabase') ? `${member.image}?width=400&resize=cover` : member.image}
-                        alt={member.name}
-                        loading="eager"
-                      />
-                      
-                      {/* Text Overlay (Visible always to identify person) */}
-                       <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-6 text-center transition-opacity duration-500 ${isItemZoomed ? 'opacity-0' : 'opacity-100'}`}>
-                          <h3 className="text-2xl font-black text-white uppercase tracking-wider mb-1 drop-shadow-lg">{member.name}</h3>
-                          <p className={`text-sm font-bold uppercase tracking-widest ${isCouncil ? 'text-red-400' : 'text-cyan-400'}`}>{isLead ? 'Founder of Website' : member.role}</p>
-                       </div>
-
-                      {/* Shine Effect - Disabled on mobile */}
-                      {isActive && !isItemZoomed && !isMobile && (
-                        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden rounded-xl">
-                          <div className="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] animate-shine" />
-                        </div>
-                      )}
-                    </div>
-                  
-                    {/* Reflection Effect at bottom (Disabled on mobile) */}
-                    {!isItemZoomed && !isMobile && (
-                        <div className="absolute top-full left-0 w-full h-[60%] bg-gradient-to-b from-white/30 to-transparent transform scale-y-[-1] opacity-50 mask-image-gradient" aria-hidden="true" />
-                    )}
-                  </div>
-                  {/* Inline styles for the shine & reflection animation */}
-                  <style>{`
-                    @keyframes shine {
-                        0% { left: -100%; opacity: 0; }
-                        50% { opacity: 0.5; }
-                        100% { left: 200%; opacity: 0; }
-                    }
-                    .animate-shine {
-                        animation: shine 3s infinite linear;
-                    }
-                    .mask-image-gradient {
-                        -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-                        mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-                    }
-                  `}</style>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
 
       {/* Founder Section — Dedicated spotlight ABOVE Faculty */}
       {founders.length > 0 && (
-        <section className="py-20 relative overflow-hidden bg-black/40">
-          <div className="absolute inset-0 bg-gradient-to-br from-cyan-900/30 via-sky-900/40 to-blue-900/30"></div>
+        <section className="pt-32 pb-20 md:pt-48 md:pb-32 relative overflow-hidden bg-[#030712]">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
-                <div className="inline-flex items-center bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 px-6 py-3 rounded-full text-xs font-black tracking-widest uppercase mb-6 backdrop-blur-md">
-                   <Crown className="w-4 h-4 mr-2 text-cyan-300 animate-pulse" /> Platform Architects
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-16 md:mb-24">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                   <Crown className="w-4 h-4 text-cyan-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-cyan-50">Platform Architects</span>
                 </div>
-                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                  FOUNDER OF <span className="neon-blue">WEBSITE</span>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter">
+                  FOUNDER OF <span className="text-white/50 font-light">WEBSITE</span>
                 </h2>
-                <div className="w-32 h-1.5 bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-600 mx-auto mb-8 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.5)]"></div>
               </div>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-12 max-w-7xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto px-4 sm:px-6">
               {founders.map((founder, idx) => (
-                <div key={founder.id} className="scroll-animate opacity-0 transform translate-y-20 w-full md:w-[450px]" style={{ animationDelay: `${idx * 0.2}s` }}>
-                  <div className="neon-card group overflow-hidden border-cyan-500/30 bg-black/60 backdrop-blur-xl shadow-2xl relative">
-                    <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                    <div className="grid md:grid-cols-2 gap-0 h-full">
+                <div key={founder.id} className="scroll-animate opacity-0 transform translate-y-20 w-full max-w-[360px] sm:max-w-[400px]" style={{ animationDelay: `${idx * 0.2}s` }}>
+                  <div className="group overflow-hidden rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-2xl shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)] transition-all duration-500 hover:border-cyan-500/30 hover:bg-white/[0.04]">
+                    <div className="flex flex-col h-full">
                       {/* Founder Photo */}
-                      <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:h-full overflow-hidden">
-                        <img loading="lazy" src={founder.image} alt={founder.name} className="w-full h-full object-cover object-top transition-transform duration-1000 group-hover:scale-110" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-                        <div className="absolute top-4 left-4">
-                           <div className="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center backdrop-blur-md">
-                              <Crown className="w-6 h-6 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                      <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden bg-black/40">
+                        <img loading="lazy" src={founder.image} alt={founder.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
+                        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030712] via-[#030712]/60 to-transparent"></div>
+                        <div className="absolute top-4 right-4">
+                           <div className="w-8 h-8 rounded-full bg-cyan-950/40 border border-cyan-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                              <Crown className="w-3.5 h-3.5 text-cyan-400" />
                            </div>
                         </div>
                       </div>
                       {/* Founder Info */}
-                      <div className="p-8 flex flex-col justify-center relative">
-                        <div className="mb-4">
-                           <h3 className="text-3xl font-black text-white mb-1 tracking-tight drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">{founder.name.toLowerCase().includes('raaj') ? 'RAAJ' : founder.name}</h3>
-                           <p className="text-cyan-400 font-black text-sm uppercase tracking-widest flex items-center gap-2">
+                      <div className="px-5 sm:px-8 pb-6 sm:pb-8 pt-2 flex flex-col items-center text-center relative z-10 -mt-8 sm:-mt-10">
+                        <div className="mb-5 sm:mb-6">
+                           <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1 tracking-tight group-hover:text-cyan-50 transition-colors">
+                             {founder.name.toLowerCase().includes('raaj') ? 'RAAJ' : founder.name}
+                           </h3>
+                           <p className="text-cyan-400/80 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
                              Founder of Website
                            </p>
                         </div>
                         
-                        <div className="flex flex-wrap gap-4 mt-auto">
+                        <div className="flex flex-wrap justify-center gap-3">
                           {founder.social_links?.instagram && (
-                             <Instagram3DButtonLink href={founder.social_links.instagram} iconSize={24} buttonSize={44} />
+                             <a href={founder.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(236,72,153,0.3)] transition-all duration-300">
+                               <Instagram size={18} />
+                             </a>
                           )}
                           {founder.social_links?.youtube && (
-                             <YouTube3DButtonLink href={founder.social_links.youtube} iconSize={20} buttonSize={40} />
+                             <a href={founder.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all duration-300">
+                               <Youtube size={18} />
+                             </a>
                           )}
                           {founder.social_links?.spotify && (
-                             <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center text-green-400 hover:bg-green-500 hover:text-white transition-all">
-                               <Spotify size={20} />
+                             <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-all duration-300">
+                               <Spotify size={18} />
                              </a>
                           )}
                         </div>
@@ -545,17 +317,20 @@ export const RicoFamily: React.FC = () => {
 
       {/* Faculty Head Section — 3D coverflow autoplay */}
       {enabledFacultyHeads.length > 0 && (
-        <section className="py-13 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-yellow-900/20 via-orange-900/30 to-red-900/20"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
+          <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl md:text-4xl font-black mb-4 neon-title">
-                  FACULTY <span className="neon-yellow">LEADERSHIP</span>
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-12 md:mb-16">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                   <Star className="w-4 h-4 text-indigo-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-indigo-50">Leadership</span>
+                </div>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
+                  FACULTY <span className="text-white/50 font-light">LEADERSHIP</span>
                 </h2>
-                <div className="w-24 h-1 bg-gradient-to-r from-yellow-300 to-orange-500 mx-auto mb-4 expand-width"></div>
-                <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-                  Leading the revolution in medical education
+                <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">
+                  Guiding the vision of {BRAND_NAME}
                 </p>
               </div>
             </div>
@@ -579,8 +354,8 @@ export const RicoFamily: React.FC = () => {
               showArrows={true}
               className="py-6"
               renderItem={(head: any) => (
-                <div className="w-72 md:w-80 neon-card p-5">
-                  <div className="aspect-square w-full overflow-hidden rounded-lg mb-4 bg-black/30">
+                <div className="w-72 md:w-80 p-6 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
+                  <div className="aspect-square w-full overflow-hidden rounded-xl mb-6 bg-black/50 border border-white/10">
                     <img loading="lazy" decoding="async" src={isMobile && head.image?.includes('supabase') ? `${head.image}?width=400&resize=cover` : head.image} alt={head.name} className="w-full h-full object-cover" />
                   </div>
                   <div className="font-bold text-white text-center">{head.name}</div>
@@ -594,64 +369,67 @@ export const RicoFamily: React.FC = () => {
 
       {/* Council Section (restored) */}
       {councilMembers.length > 0 && (
-        <section className="py-14 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-900/40 via-rose-900/50 to-orange-900/40"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712]">
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-900/10 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-10 flex flex-col items-center translate-x-2 md:translate-x-4">
-                <h2 className="text-4xl md:text-5xl font-black mb-4 neon-title tracking-wide text-center">
-                  <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-cyan-300 bg-clip-text text-transparent drop-shadow-[0_0_10px_rgba(56,189,248,0.55)]">
-                    COUNCIL
-                  </span>
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-16 flex flex-col items-center">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                   <Crown className="w-4 h-4 text-red-500" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-red-50">Core Team</span>
+                </div>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
+                  THE <span className="text-white/50 font-light">COUNCIL</span>
                 </h2>
-                <div className="w-52 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-yellow-400 mx-auto mb-4 rounded-full shadow-[0_0_12px_rgba(255,120,60,0.65)]"></div>
-                <p className="text-lg text-gray-300 max-w-3xl mx-auto mt-4">
+                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto mt-2 font-light">
                   Strategic leadership and executive oversight
                 </p>
               </div>
             </div>
             <div className="grid md:grid-cols-2 gap-10">
-              {councilMembers.map((member, idx) => { const lead = isLeadWebDevRole(member.role); const anyDev = !lead && isAnyWebDevRole(member.role); return (
+              {councilMembers.map((member, idx) => { const lead = isLeadWebDevRole(member.role); return (
                 <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${idx * 0.15}s` }}>
-                  <div className={`neon-card overflow-hidden grid md:grid-cols-2 gap-0 group border border-red-500/30 bg-black/40 backdrop-blur-sm ${lead ? 'ring-1 ring-cyan-500/40' : ''}`}> 
+                  <div className={`group overflow-hidden border bg-white/[0.02] backdrop-blur-2xl rounded-[2rem] shadow-2xl relative flex flex-col md:grid md:grid-cols-5 gap-0 h-full ${lead ? 'border-cyan-500/20' : 'border-white/5'}`}> 
                     {/* Image */}
-                    <div className="relative h-80 md:h-full overflow-hidden">
-                      <img decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-                      <div className="absolute top-4 right-4 flex items-center gap-2">
-                        <Crown className={`w-7 h-7 ${lead ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]' : 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.8)]'} animate-pulse`} />
+                    <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:col-span-2 md:h-full overflow-hidden">
+                      <img decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
+                      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#030712] md:from-transparent to-transparent opacity-90"></div>
+                      <div className="absolute top-4 right-4 md:right-auto md:left-4">
+                         <div className="w-8 h-8 rounded-full bg-black/40 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                            <Crown className={`w-3.5 h-3.5 ${lead ? 'text-cyan-400' : 'text-red-500'}`} />
+                         </div>
                       </div>
                       <div className="absolute bottom-4 left-4">
-                        <div className={`px-4 py-1 rounded-full text-sm font-bold tracking-wide inline-block shadow-md ${lead ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-black' : 'bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-black'}`}>COUNCIL</div>
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border backdrop-blur-md ${lead ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>COUNCIL</div>
                       </div>
                     </div>
                     {/* Content */}
-                    <div className="p-6 flex flex-col justify-center">
-                      <h3 className={`text-2xl font-extrabold mb-2 flex items-center gap-2 ${lead ? 'text-cyan-300 drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]' : 'text-white drop-shadow-[0_0_6px_rgba(255,80,80,0.5)] council-name'}`}>{member.name}</h3>
-                      <p className={`text-lg font-semibold mb-4 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>{lead ? 'Founder of Website' : (member.role || 'Member')}</p>
+                    <div className="px-6 pb-8 pt-4 md:p-8 flex flex-col justify-center relative md:col-span-3">
+                      <h3 className={`text-2xl sm:text-3xl font-bold mb-1 tracking-tight ${lead ? 'text-cyan-50' : 'text-white'}`}>{member.name}</h3>
+                      <p className={`text-[11px] font-bold uppercase tracking-widest mb-6 ${lead ? 'text-cyan-400/80' : 'text-red-400/80'}`}>{lead ? 'Founder of Website' : (member.role || 'Member')}</p>
                               {member.description && (
                                 (() => {
-                                  // Make the header glow green for Treasurer role (only in the Council section)
+                                  // Simplified clear highlighting
                                   const isTreasurer = String(member.role || '').toLowerCase().includes('treasur');
                                   const headerClass = isTreasurer
-                                    ? 'text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.6)] font-semibold mb-2 text-lg'
-                                    : 'text-gray-300 font-semibold mb-2 text-lg';
+                                    ? 'text-white font-semibold mb-2'
+                                    : 'text-white/80 font-semibold mb-2';
                                   return (
                                     <DescriptionHeaderBody
                                       text={member.description}
                                       headerClassName={headerClass}
-                                      bodyClassName="text-gray-300 mb-4 leading-relaxed text-sm"
+                                      bodyClassName="text-white/60 mb-6 leading-relaxed text-sm font-light"
                                       highlights={["I Treasure Ricorrenza", "Treasure"]}
                                       headerHighlightRules={[
                                         // General Secretary header line highlight (red glow) — match full phrase
                                         {
                                           pattern: new RegExp(`^\\s*as\\s+the\\s+(?:(?:g(?:\\.\\s*)?s(?:\\.|\\b))(?:\\s*\\/\\s*gen(?:e)?ral\\s+secretary)?|gen(?:e)?ral\\s+secretary)\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
-                                          className: 'text-red-400 font-semibold drop-shadow-[0_0_12px_rgba(248,113,113,1)] drop-shadow-[0_0_28px_rgba(248,113,113,0.55)]'
+                                          className: 'text-white font-semibold'
                                         },
                                         // President header line highlight (blue glow) — match full phrase
                                         {
                                           pattern: new RegExp(`^\\s*as\\s+the\\s+president\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
-                                          className: 'text-blue-400 font-semibold drop-shadow-[0_0_12px_rgba(96,165,250,1)] drop-shadow-[0_0_28px_rgba(96,165,250,0.55)]'
+                                          className: 'text-white font-semibold'
                                         }
                                       ]}
                                     />
@@ -659,48 +437,48 @@ export const RicoFamily: React.FC = () => {
                                 })()
                               )}
                       {member.specialty && (
-                        <div className="mb-4">
-                          <span className={`inline-block px-3 py-1 rounded-full text-[11px] font-medium border tracking-wide ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' : anyDev ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-red-500/15 text-red-300 border-red-500/40'}`}>{member.specialty}</span>
+                        <div className="mb-6">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border border-white/10 bg-white/5 text-white/70`}>
+                            {member.specialty}
+                          </span>
                         </div>
                       )}
                       {member.social_links && Object.values(member.social_links).some(l => l) && (
-                        <div className="flex flex-wrap items-center gap-2 mb-4">
-                          <span className={`text-[11px] uppercase tracking-wide ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'} font-semibold mr-1`}>Social Media:</span>
-                          {member.social_links.instagram && (
-                            <Instagram3DButtonLink href={member.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${member.name}`} />
-                          )}
-                          {member.social_links.youtube && (
-                            <YouTube3DButtonLink href={member.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${member.name}`} />
-                          )}
-                          {member.social_links.facebook && (
-                            <Facebook3DButtonLink href={member.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${member.name}`} />
-                          )}
-                          {member.social_links.spotify && (
-                            <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"><Spotify size={30} /></a>
-                          )}
+                        <div className="flex flex-wrap items-center gap-3 mb-6">
+                           {member.social_links.instagram && (
+                             <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"><Instagram size={18} /></a>
+                           )}
+                           {member.social_links.youtube && (
+                             <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"><Youtube size={18} /></a>
+                           )}
+                           {member.social_links.facebook && (
+                             <a href={member.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all"><Facebook size={18} /></a>
+                           )}
+                           {member.social_links.spotify && (
+                             <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all"><Spotify size={18} /></a>
+                           )}
                         </div>
                       )}
                       {(Boolean((member as any).email) || Boolean((member as any).phone)) && (
-                        <div className="mb-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`text-[11px] uppercase tracking-wide ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'} font-semibold`}>Contact:</span>
+                        <div className="mb-6">
+                          <div className="flex flex-wrap items-center gap-3">
                             {Boolean((member as any).email) && (
-                              <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${member.name}`} />
+                               <a href={`mailto:${(member as any).email}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"><Mail size={18} /></a>
                             )}
                             {Boolean((member as any).phone) && (
-                              <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${member.name}`} />
+                               <a href={`tel:${(member as any).phone}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"><Phone size={18} /></a>
                             )}
                           </div>
                         </div>
                       )}
                       {member.achievements && member.achievements.length > 0 && (
                         <div>
-                          <h6 className={`text-sm font-bold mb-3 ${lead ? 'text-cyan-400' : anyDev ? 'text-yellow-400' : 'text-red-400'}`}>KEY ACHIEVEMENTS</h6>
-                          <div className="space-y-2">
+                          <h6 className={`text-xs font-bold mb-4 tracking-widest uppercase text-white/50`}>Key Achievements</h6>
+                          <div className="space-y-3">
                             {member.achievements.map((a, i2) => (
-                              <div key={i2} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${i2 * 0.18}s` }}>
-                                <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${lead ? 'bg-cyan-400' : anyDev ? 'bg-yellow-400' : 'bg-red-400'}`}></div>
-                                <span className="text-gray-300 text-xs">{a}</span>
+                              <div key={i2} className="flex items-start space-x-3 achievement-item" style={{ animationDelay: `${i2 * 0.18}s` }}>
+                                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-white/30`}></div>
+                                <span className="text-white/60 text-sm font-light leading-snug">{a}</span>
                               </div>
                             ))}
                           </div>
@@ -715,27 +493,29 @@ export const RicoFamily: React.FC = () => {
         </section>
       )}
 
-      {/* Committee Heads marquee — opposite direction */}
+    {/* Committee Heads marquee */}
       {committeeHeads.length > 0 && (
-        <section className="py-13 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
+        <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-white/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-[#030712] to-blue-900/10"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-8">
-                <h2 className="text-2xl md:text-4xl font-black mb-4 neon-title">
-                  COMMITTEE <span className="neon-blue">HEADS</span>
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-12">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 font-mono">
+                   <UsersRound className="w-4 h-4 text-cyan-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-cyan-50">Team Leaders</span>
+                </div>
+                <h2 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tighter text-white">
+                  COMMITTEE <span className="text-white/50 font-light">HEADS</span>
                 </h2>
-                <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-4 expand-width"></div>
-                <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-                  Leading the specialized teams driving RICORRENZA's innovation
+                <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">
+                  Leading the specialized teams driving {BRAND_NAME}'s innovation
                 </p>
               </div>
             </div>
-            <div ref={committeeHeadsMarqueeRef} className="neon-marquee relative overflow-hidden w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
-              <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
-              <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+            <div ref={committeeHeadsMarqueeRef} className="relative overflow-hidden w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
+              <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-[#030712] via-transparent to-[#030712] z-10 opacity-50"></div>
               <InfiniteMarquee
-                items={committeeHeads}
+                items={committeeHeads as any[]}
                 direction={homepageSettings?.committee_marquee_direction ?? 'right'}
                 speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
                 glowOnPause
@@ -746,21 +526,20 @@ export const RicoFamily: React.FC = () => {
                 className="py-2"
                 instantPause={true}
                 renderItem={(m: any) => (
-                  <div className="w-64 neon-card borderless p-4">
-                    <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
+                  <div className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
+                    <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10">
                       <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
                     </div>
-                    <div className="font-bold text-white flex items-center">
-                      <Crown className="w-4 h-4 text-yellow-400 mr-1" /> {m.name}
+                    <div className="font-bold text-white flex items-center mb-1">
+                      <Crown className="w-3.5 h-3.5 text-cyan-400 mr-2" /> {m.name}
                     </div>
-                    <div className="text-sm text-gray-300">{m.role}</div>
+                    <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{m.role}</div>
                   </div>
                 )}
               />
               {/* edge fades to hide seams and reduce perceived flicker */}
-              {/* Hide edge fades on small screens to avoid a visible inner border */}
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-32 bg-gradient-to-r from-[#030712] to-transparent z-20" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-32 bg-gradient-to-l from-[#030712] to-transparent z-20" />
             </div>
           </div>
         </section>
@@ -768,17 +547,21 @@ export const RicoFamily: React.FC = () => {
 
       {/* Core Committees Section */}
       {enabledCommittees.length > 0 && (
-        <section className="py-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
+          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-purple-900/10 rounded-full blur-[150px] pointer-events-none translate-y-[-50%]"></div>
+          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
-                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                  CORE <span className="neon-blue">COMMITTEES</span>
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-16 md:mb-24">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                   <Star className="w-4 h-4 text-purple-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-purple-50">Operations</span>
+                </div>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
+                  CORE <span className="text-white/50 font-light">COMMITTEES</span>
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-                  The specialized teams driving RICORRENZA's innovation
+                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto font-light">
+                  The specialized teams managing {BRAND_NAME}'s operations
                 </p>
               </div>
             </div>
@@ -788,31 +571,32 @@ export const RicoFamily: React.FC = () => {
               {enabledCommittees.map((committee, committeeIndex) => {
                 const allCommitteeMembers = membersByCommittee[committee.id] || [];
                 // Exclude council members so they don't appear twice (in Council section + their committee)
-                const regularMembers = allCommitteeMembers.filter(member => !member.is_head && !(member as any).isCouncil);
+                const regularMembers = allCommitteeMembers.filter(member => !member.is_head && !((member as any).isCouncil || (member as any).is_council));
                 
                 if (allCommitteeMembers.length === 0) return null;
 
                 return (
                   <div
                     key={committee.id}
-                    className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}
+                    className={`relative overflow-hidden rounded-3xl ${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}`}
                     style={!isMobile ? { animationDelay: `${committeeIndex * 0.3}s` } : {}}
                   >
+                    <CommitteeBackgroundEffect committeeName={committee.name} mode="background" />
                     {/* Committee Header */}
-                    <div className="text-center mb-12">
-                      <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
+                    <div className="text-center mb-12 relative z-10">
+                      <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm shadow-xl">
                         <Users className="w-4 h-4 mr-2" />
                         {committee.is_core ? 'CORE COMMITTEE' : 'SPECIALIZED TEAM'}
                       </div>
-                      <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
+                      <h3 className="text-2xl md:text-3xl lg:text-4xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
                         {committee.name.toUpperCase()}
                       </h3>
-                      <PreserveNewlines as="div" text={committee.description} className="text-lg text-gray-300 max-w-2xl mx-auto" />
+                      <PreserveNewlines as="div" text={committee.description} className="text-sm md:text-base text-gray-300 max-w-2xl mx-auto" />
                     </div>
 
                     {/* Committee Head */}
                     {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
-                      <div className="mb-8">
+                      <div className="mb-8 relative z-10">
                         <h4 className="text-lg font-semibold text-gray-300 mb-4 flex items-center justify-center">
                           <Crown className="w-5 h-5 text-yellow-500 mr-2" />
                           Committee Heads ({allCommitteeMembers.filter(m => m.is_head).length})
@@ -820,70 +604,80 @@ export const RicoFamily: React.FC = () => {
                         <div className="grid md:grid-cols-2 gap-8">
                           {allCommitteeMembers.filter(m => m.is_head).map(head => {
                             const lead = isLeadWebDevRole(head.role, committee.name);
-                            const anyDev = !lead && isAnyWebDevRole(head.role);
                             // Special check for RAAJ in Tech Team (non-web) to show green
                             const isTechLeadRaaj = head.name.toLowerCase().includes('raaj') && !lead;
 
                             return (
-                              <div key={head.id} className={`committee-head-card neon-card overflow-hidden faculty-spotlight ${isTechLeadRaaj ? 'tech-lead-raaj' : ''}`}>
-                                <div className="grid md:grid-cols-2 gap-0">
+                              <div
+                                key={head.id}
+                                className={`group overflow-hidden bg-white/[0.02] border backdrop-blur-2xl rounded-3xl shadow-2xl transition-all duration-500 hover:bg-white/[0.04] ${isTechLeadRaaj ? 'border-green-500/20' : 'border-white/5'} hologram-card hologram-flicker hologram-reveal ${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}`}
+                                style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + 0.1}s` } : {}}
+                              >
+                                <div className="hologram-scanline"></div>
+                                <div className="grid md:grid-cols-2 gap-0 relative z-10">
                                   {/* Image Section */}
-                                  <div className="relative h-85 md:h-auto overflow-hidden">
-                                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover faculty-image" />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                                  <div className="relative h-72 md:h-auto overflow-hidden">
+                                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
+                                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#030712] md:from-transparent to-transparent opacity-90"></div>
                                     <div className="absolute top-4 right-4">
-                                      <Crown className={`w-6 h-6 animate-pulse pulse-ring ${lead ? 'text-cyan-300' : isTechLeadRaaj ? 'text-green-400' : 'text-yellow-400'}`} />
+                                      <div className="w-8 h-8 rounded-full bg-black/40 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                                        <Crown className={`w-3.5 h-3.5 ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : 'text-yellow-400'}`} />
+                                      </div>
                                     </div>
                                     <div className="absolute bottom-4 left-4 right-4">
-                                      {lead ? (
-                                        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
-                                      ) : isTechLeadRaaj ? (
-                                        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
-                                      ) : (
-                                        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-4 py-1 rounded-full text-sm font-bold inline-block">COMMITTEE HEAD</div>
-                                      )}
+                                      <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border backdrop-blur-md inline-block ${lead ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' : isTechLeadRaaj ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
+                                        COMMITTEE HEAD
+                                      </div>
                                     </div>
                                   </div>
                                   {/* Content Section */}
-                                  <div className="p-6 flex flex-col justify-center">
-                                    <h5 className={`text-2xl font-bold mb-2 faculty-name ${lead ? 'webdev text-cyan-300' : isTechLeadRaaj ? 'text-green-400 tech-lead-raaj-name' : 'text-white'}`}>{isTechLeadRaaj ? 'RAAJ' : head.name}</h5>
-                                    <p className={`text-lg mb-3 font-semibold ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : anyDev ? 'text-yellow-400' : 'text-yellow-400'}`}>{lead ? 'Founder of Website' : head.role}</p>
-                                    <PreserveNewlines text={head.description} className="text-gray-300 mb-4 leading-relaxed text-sm" />
+                                  <div className="p-6 md:p-8 flex flex-col justify-center">
+                                    <h5 className={`text-xl md:text-2xl font-bold mb-2 ${lead ? 'text-cyan-50' : isTechLeadRaaj ? 'text-white' : 'text-white'}`}>{isTechLeadRaaj ? 'RAAJ' : head.name}</h5>
+                                    <p className={`text-[11px] font-bold uppercase tracking-widest mb-4 ${lead ? 'text-cyan-400/80' : isTechLeadRaaj ? 'text-green-400/80' : 'text-yellow-400/80'}`}>{lead ? 'Founder of Website' : head.role}</p>
+                                    <PreserveNewlines text={head.description} className="text-white/60 mb-6 leading-relaxed text-sm font-light hologram-text-reveal" />
                                     {head.specialty && (
-                                      <div className="mb-4">
-                                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${lead ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : isTechLeadRaaj ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>{head.specialty}</span>
+                                      <div className="mb-6">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border border-white/10 bg-white/5 text-white/70`}>
+                                          {head.specialty}
+                                        </span>
                                       </div>
                                     )}
                                     {head.social_links && Object.values(head.social_links).some(link => link) && (
                                       <div className="flex flex-wrap items-center gap-2 mb-4">
-                                        <span className={`text-[11px] uppercase tracking-wide font-semibold mr-1 ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : 'text-cyan-400'}`}>Social Media:</span>
-                                        {head.social_links.instagram && <Instagram3DButtonLink href={head.social_links.instagram} iconSize={36} buttonSize={56} ariaLabel={`Instagram of ${head.name}`} />}
-                                        {head.social_links.youtube && <YouTube3DButtonLink href={head.social_links.youtube} iconSize={30} buttonSize={48} ariaLabel={`YouTube of ${head.name}`} />}
-                                        {head.social_links.facebook && <Facebook3DButtonLink href={head.social_links.facebook} iconSize={30} buttonSize={48} ariaLabel={`Facebook of ${head.name}`} />}
-                                        {head.social_links.spotify && (
-                                          <a href={head.social_links.spotify} target="_blank" rel="noopener noreferrer" className="text-green-400 hover:text-green-300 transition-colors hover:scale-110">
-                                            <Spotify size={30} />
-                                          </a>
-                                        )}
+                                         {head.social_links.instagram && (
+                                           <a href={head.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"><Instagram size={18} /></a>
+                                         )}
+                                         {head.social_links.youtube && (
+                                           <a href={head.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"><Youtube size={18} /></a>
+                                         )}
+                                         {head.social_links.facebook && (
+                                           <a href={head.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all"><Facebook size={18} /></a>
+                                         )}
+                                         {head.social_links.spotify && (
+                                           <a href={head.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all"><Spotify size={18} /></a>
+                                         )}
                                       </div>
                                     )}
                                     {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
-                                      <div className="mb-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <span className="text-[11px] uppercase tracking-wide text-cyan-400 font-semibold">Contact:</span>
-                                          {Boolean((head as any).email) && <Email3DButtonLink href={`mailto:${(head as any).email}`} iconSize={26} buttonSize={42} ariaLabel={`Email ${head.name}`} />}
-                                          {Boolean((head as any).phone) && <Phone3DButtonLink href={`tel:${(head as any).phone}`} iconSize={24} buttonSize={40} ariaLabel={`Call ${head.name}`} />}
+                                      <div className="mb-6">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                          {Boolean((head as any).email) && (
+                                             <a href={`mailto:${(head as any).email}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"><Mail size={18} /></a>
+                                          )}
+                                          {Boolean((head as any).phone) && (
+                                             <a href={`tel:${(head as any).phone}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"><Phone size={18} /></a>
+                                          )}
                                         </div>
                                       </div>
                                     )}
                                     {head.achievements.length > 0 && (
                                       <div>
-                                        <h6 className="text-sm font-bold text-cyan-400 mb-3">KEY ACHIEVEMENTS</h6>
-                                        <div className="space-y-2">
+                                        <h6 className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Key Achievements</h6>
+                                        <div className="space-y-3">
                                           {head.achievements.map((achievement, achievementIndex) => (
-                                            <div key={achievementIndex} className="flex items-start space-x-2 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
-                                              <div className={`w-2 h-2 rounded-full mt-2 pulse-ring flex-shrink-0 ${lead ? 'bg-cyan-400' : 'bg-yellow-400'}`}></div>
-                                              <span className="text-gray-300 text-xs">{achievement}</span>
+                                            <div key={achievementIndex} className="flex items-start space-x-3 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
+                                              <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-white/30`}></div>
+                                              <span className="text-white/60 text-sm font-light leading-snug">{achievement}</span>
                                             </div>
                                           ))}
                                         </div>
@@ -891,152 +685,158 @@ export const RicoFamily: React.FC = () => {
                                     )}
                                   </div>
                                 </div>
+                                <div className="hologram-projection-light"></div>
                               </div>
-                            );})}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
 
                     {/* Team Members Grid */}
                     {regularMembers.length > 0 && (
-                      <>
-                        <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">Team Members</h4>
-                        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      <div className="relative z-10">
+                        <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center mt-6 sm:mt-0">Team Members</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 px-1 sm:px-0">
                           {regularMembers.map((member, memberIndex) => {
                             const isExpanded = expandedMembers.has(member.id);
+                            const isBooting = bootingMembers.has(member.id);
                             return (
-                            <div
-                              key={member.id}
-                              className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card transition-all duration-500 ${isExpanded ? 'z-20' : 'hover-float'}`}
-                              style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` } : {}}
-                            >
-                              <div className={`neon-card group h-full overflow-hidden transition-all duration-500 ${isExpanded ? 'scale-105 ring-2 ring-blue-400 shadow-2xl shadow-blue-500/30' : ''}`}>
-                                {/* Member Image (always visible) */}
-                                <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
-                                  <img
-                                    src={member.image}
-                                    alt={member.name}
-                                    className={`w-full h-full object-cover object-top transition-transform duration-700 ${isExpanded ? 'scale-105' : 'group-hover:scale-110'} team-member-image`}
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                                  {/* Specialty Badge (overlay) */}
-                                  {member.specialty && (
-                                    <div
-                                      className="absolute top-2 left-2 opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto"
-                                      title={member.specialty}
-                                    >
-                                      <span
-                                        className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg"
-                                        style={{
-                                          backgroundColor: committee.color + 'CC',
-                                          borderColor: committee.color,
-                                          boxShadow: `0 0 6px ${committee.color}, 0 0 14px ${committee.color}55`
-                                        }}
-                                      >
-                                        {member.specialty}
-                                      </span>
+                              <div
+                                key={member.id}
+                                className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} transition-all duration-500 ${isExpanded ? 'z-20' : 'hover:-translate-y-1 hover:z-10'}`}
+                                style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` } : {}}
+                              >
+                                <div className={`group h-full overflow-hidden bg-white/[0.02] border backdrop-blur-xl transition-all duration-500 rounded-2xl ${isExpanded ? 'scale-105 border-cyan-400/50 shadow-2xl shadow-cyan-900/20' : 'border-white/5'} hologram-card hologram-flicker ${isBooting ? 'hologram-booting' : ''}`}>
+                                  <div className={`hologram-scanline ${isBooting ? 'opacity-100 scale-y-150 brightness-200' : 'opacity-50'}`}></div>
+                                  <div className={`relative z-10 h-full flex flex-col ${isBooting ? 'hologram-glitch-active' : ''}`}>
+                                    {/* Member Image (always visible) */}
+                                    <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
+                                      <img
+                                        src={member.image}
+                                        alt={member.name}
+                                        className={`w-full h-full object-cover object-top transition-transform duration-700 ${isExpanded ? 'scale-105' : 'group-hover:scale-110'} team-member-image hologram-tint`}
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                                      {/* Specialty Badge (overlay) */}
+                                      {member.specialty && (
+                                        <div
+                                          className="absolute top-2 left-2 opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto"
+                                          title={member.specialty}
+                                        >
+                                          <span
+                                            className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg"
+                                            style={{
+                                              backgroundColor: committee.color + 'CC',
+                                              borderColor: committee.color,
+                                              boxShadow: `0 0 6px ${committee.color}, 0 0 14px ${committee.color}55`
+                                            }}
+                                          >
+                                            {member.specialty}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {/* Floating Icon */}
+                                      <div className="absolute top-2 right-2 floating-icon">
+                                        <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
+                                      </div>
                                     </div>
-                                  )}
-                                  {/* Floating Icon */}
-                                  <div className="absolute top-2 right-2 floating-icon">
-                                    <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
+
+                                    {/* Collapsed Basic Info */}
+                                    <div className="p-4 flex-1">
+                                      <h4 className="text-base font-bold text-white mb-0.5 member-name">
+                                        {member.name}
+                                      </h4>
+                                      <p className="text-blue-400 font-semibold mb-2 text-xs">
+                                        {member.role}
+                                      </p>
+                                      {/* Social Links + More/Less button row */}
+                                      {((member.social_links && Object.values(member.social_links).some(link => Boolean(link))) || Boolean((member as any).phone)) ? (
+                                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                                          {member.social_links?.instagram && (
+                                            <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
+                                          )}
+                                          {member.social_links?.youtube && (
+                                            <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
+                                          )}
+                                          {member.social_links?.spotify && (
+                                            <a
+                                              href={member.social_links.spotify}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
+                                            >
+                                              <Spotify size={22} />
+                                            </a>
+                                          )}
+                                          {Boolean((member as any).phone) && (
+                                            <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
+                                          )}
+                                          {/* Spacer pushes button to right */}
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleMemberExpanded(member.id)}
+                                            className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
+                                            aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
+                                          >
+                                            {isExpanded ? 'Less' : 'More'}
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center mb-3">
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleMemberExpanded(member.id)}
+                                            className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
+                                            aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
+                                          >
+                                            {isExpanded ? 'Less' : 'More'}
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {/* Expanded Details */}
+                                      {isExpanded && (
+                                        <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
+                                          {member.description && (
+                                            <PreserveNewlines text={member.description} className="leading-relaxed" />
+                                          )}
+                                          {member.specialty && (
+                                            <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
+                                          )}
+                                          {Boolean((member as any).email) && (
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
+                                            </div>
+                                          )}
+                                          {member.achievements.length > 0 && (
+                                            <div>
+                                              <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
+                                                Achievements
+                                              </p>
+                                              <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-400">
+                                                {member.achievements.map((ach, i) => (
+                                                  <li key={i}>{ach}</li>
+                                                ))}
+                                              </ul>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                      {isExpanded && (
+                                      <div className="mt-0.5" />
+                                    )}
                                   </div>
                                 </div>
-
-                                {/* Collapsed Basic Info */}
-                                <div className="p-4">
-                                  <h4 className="text-base font-bold text-white mb-0.5 member-name">
-                                    {member.name}
-                                  </h4>
-                                  <p className="text-blue-400 font-semibold mb-2 text-xs">
-                                    {member.role}
-                                  </p>
-                                  {/* Social Links + More/Less button row */}
-                                  {((member.social_links && Object.values(member.social_links).some(link => Boolean(link))) || Boolean((member as any).phone)) ? (
-                                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                                      {member.social_links?.instagram && (
-                                        <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
-                                      )}
-                                      {member.social_links?.youtube && (
-                                        <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
-                                      )}
-                                      {member.social_links?.spotify && (
-                                        <a
-                                          href={member.social_links.spotify}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                                        >
-                                          <Spotify size={22} />
-                                        </a>
-                                      )}
-                                      {Boolean((member as any).phone) && (
-                                        <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
-                                      )}
-                                      {/* Spacer pushes button to right */}
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleMemberExpanded(member.id)}
-                                        className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:brightness-110 shadow-md shadow-blue-500/30 transition-all"
-                                        aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                                      >
-                                        {isExpanded ? 'Less' : 'More'}
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center mb-3">
-                                      <button
-                                        type="button"
-                                        onClick={() => toggleMemberExpanded(member.id)}
-                                        className="ml-auto text-[11px] px-3 py-1 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold hover:brightness-110 shadow-md shadow-blue-500/30 transition-all"
-                                        aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                                      >
-                                        {isExpanded ? 'Less' : 'More'}
-                                      </button>
-                                    </div>
-                                  )}
-
-                                  {/* Expanded Details */}
-                                  {isExpanded && (
-                                    <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
-                                      {member.description && (
-                                        <PreserveNewlines text={member.description} className="leading-relaxed" />
-                                      )}
-                                      {member.specialty && (
-                                        <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
-                                      )}
-                                      {Boolean((member as any).email) && (
-                                        <div className="flex flex-wrap items-center gap-2">
-                                          <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
-                                        </div>
-                                      )}
-                                      {member.achievements.length > 0 && (
-                                        <div>
-                                          <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
-                                            Achievements
-                                          </p>
-                                          <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-400">
-                                            {member.achievements.map((ach, i) => (
-                                              <li key={i}>{ach}</li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Button moved into social row above; keeping slight top spacing when expanded for visual balance */}
-                                  {isExpanded && (
-                                    <div className="mt-0.5" />
-                                  )}
+                                  <div className={`hologram-projection-light ${isExpanded ? 'hologram-projection-light-expanded' : ''}`}></div>
                                 </div>
                               </div>
-                            </div>
                             );
                           })}
                         </div>
-                      </>
+                      </div>
                     )}
+                    <CommitteeBackgroundEffect committeeName={committee.name} mode="foreground" />
                   </div>
                 );
               })}
@@ -1047,16 +847,20 @@ export const RicoFamily: React.FC = () => {
 
       {/* Sports Committees Section */}
       {enabledSportsCommittees.length > 0 && (
-        <section className="py-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-900/20 via-teal-900/30 to-blue-900/20"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
+          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-green-900/10 rounded-full blur-[150px] pointer-events-none translate-y-[-50%]"></div>
+          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-teal-900/10 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20">
-              <div className="text-center mb-16">
-                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                  SPORT <span className="neon-green">COMMITTEE</span>
+            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
+              <div className="text-center mb-16 md:mb-24">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                   <Zap className="w-4 h-4 text-green-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-green-50">Athletics</span>
+                </div>
+                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 tracking-tighter text-white">
+                  SPORT <span className="text-white/50 font-light">COMMITTEE</span>
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-green-500 to-teal-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto font-light">
                   Fast-paced teams, electric energy — game on.
                 </p>
               </div>
@@ -1064,16 +868,17 @@ export const RicoFamily: React.FC = () => {
 
             {/* Sports Organising Committee — always at the top if present */}
             {organisingCommittee && (
-              <div className="scroll-animate opacity-0 transform translate-y-20 mb-16">
-                <div className="text-center mb-10">
-                  <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
-                    <Shield className="w-4 h-4 mr-2" /> SPORT ORGANISING COMMITTEE
+              <div className="relative overflow-hidden rounded-3xl scroll-animate opacity-0 transform translate-y-20 mb-24 pb-8">
+                <CommitteeBackgroundEffect committeeName={organisingCommittee.name || 'Logistics'} mode="background" />
+                <div className="text-center mb-12 relative z-10">
+                  <div className="inline-flex items-center bg-white/5 border border-white/10 text-white/70 px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-semibold mb-6 backdrop-blur-md font-mono">
+                    <Shield className="w-3.5 h-3.5 mr-2 text-green-400" /> SPORT ORGANISING COMMITTEE
                   </div>
-                  <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: organisingCommittee.color }}>
+                  <h3 className="text-2xl md:text-4xl font-bold mb-4 tracking-tighter" style={{ color: organisingCommittee.color }}>
                     {String(organisingCommittee.name || '').toUpperCase()}
                   </h3>
                   {organisingCommittee.description && (
-                    <p className="text-lg text-gray-300 max-w-2xl mx-auto">{organisingCommittee.description}</p>
+                    <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">{organisingCommittee.description}</p>
                   )}
                 </div>
 
@@ -1081,13 +886,12 @@ export const RicoFamily: React.FC = () => {
                 {(() => {
                   const heads = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => m.is_head);
                   return heads.length > 0 ? (
-                    <div className="mb-8">
-                      <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">
-                        <Crown className="w-5 h-5 text-yellow-500 inline mr-2" /> Heads
+                    <div className="mb-12 relative z-10">
+                      <h4 className="text-sm tracking-widest uppercase font-semibold text-white/50 mb-6 text-center">
+                        <Crown className="w-4 h-4 text-green-400 inline mr-2" /> Heads
                       </h4>
-                      <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative neon-marquee w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
-                        <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
-                        <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+                      <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none border-y border-white/5 bg-white/[0.01]">
+                        <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-[#030712] via-transparent to-[#030712] z-10 opacity-50"></div>
                         <InfiniteMarquee
                           items={heads}
                           direction={homepageSettings?.committee_marquee_direction ?? 'right'}
@@ -1101,26 +905,26 @@ export const RicoFamily: React.FC = () => {
                           itemWrapperClassName="px-3"
                           className="py-2"
                           renderItem={(head: any) => (
-                            <div className="w-64 neon-card borderless p-4">
-                              <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
+                            <div className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
+                              <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10 group">
+                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
                               </div>
-                              <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
-                              <div className="text-sm text-gray-300">{head.role}</div>
-                              <div className="mt-3 text-center">
+                              <div className="font-bold text-white flex items-center mb-1"><Crown className="w-3.5 h-3.5 text-green-400 mr-2" /> {head.name}</div>
+                              <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{head.role}</div>
+                              <div className="mt-4">
                                 <button
-                                  className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                  className="w-full inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-white/70 transition-all uppercase tracking-widest"
                                   onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
                                 >
-                                  More
+                                  Dossier
                                 </button>
                               </div>
                             </div>
                           )}
                         />
-                        {/* gradient fades (hidden on mobile to remove inner border look) */}
-                        <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
-                        <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+                        {/* gradient fades */}
+                        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-32 bg-gradient-to-r from-[#030712] to-transparent z-20" />
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-32 bg-gradient-to-l from-[#030712] to-transparent z-20" />
                       </div>
                     </div>
                   ) : null;
@@ -1130,39 +934,40 @@ export const RicoFamily: React.FC = () => {
                 {(() => {
                   const regularMembers = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => !m.is_head);
                   return regularMembers.length > 0 ? (
-                    <>
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                    <div className="relative z-10">
+                      <h4 className="text-xs sm:text-sm uppercase tracking-widest font-semibold text-white/50 mb-6 text-center mt-12">Team Members</h4>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6 px-1 sm:px-0">
                         {regularMembers.map((member, idx) => (
-                          <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card hover-float`} style={{ animationDelay: `${idx * 0.12}s` }}>
-                            <div className="neon-card h-full overflow-hidden p-2">
-                              <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                                <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                <div className="absolute top-1.5 right-1.5">
-                                  <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />
+                          <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} group transition-all duration-500 hover:-translate-y-1 hover:z-10`} style={{ animationDelay: `${idx * 0.12}s` }}>
+                            <div className="bg-white/[0.02] border border-white/5 backdrop-blur-xl h-full overflow-hidden p-2 rounded-2xl transition-all duration-500 group-hover:border-green-500/30 group-hover:bg-white/[0.04] group-hover:shadow-2xl group-hover:shadow-green-900/20">
+                              <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden rounded-xl bg-black/50">
+                                <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
+                                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
+                                <div className="absolute top-2 right-2">
+                                  <div className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
+                                    <Zap className="w-3 h-3 text-green-400" />
+                                  </div>
                                 </div>
                               </div>
-                              <div className="p-2 sm:p-3">
-                                <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
-                                <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
-                                <div className="mt-2 text-center">
-                                  <button
-                                    className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
-                                    aria-label={`More about ${member.name}`}
-                                  >
-                                    More
-                                  </button>
-                                </div>
+                              <div className="p-3 sm:p-4 text-center">
+                                <div className="text-sm sm:text-base font-bold text-white mb-1 tracking-tight">{member.name}</div>
+                                <div className="text-green-400/80 font-semibold text-[9px] uppercase tracking-widest sm:text-[10px] mb-3">{member.role}</div>
+                                <button
+                                  className="w-full inline-flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
+                                  onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
+                                  aria-label={`Dossier for ${member.name}`}
+                                >
+                                  Dossier
+                                </button>
                               </div>
                             </div>
                           </div>
                         ))}
                       </div>
-                    </>
+                    </div>
                   ) : null;
                 })()}
+                <CommitteeBackgroundEffect committeeName={organisingCommittee.name || 'Logistics'} mode="foreground" />
               </div>
             )}
 
@@ -1176,26 +981,27 @@ export const RicoFamily: React.FC = () => {
                 if (allCommitteeMembers.length === 0) return null;
 
                 return (
-                  <div key={committee.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${committeeIndex * 0.25}s` }}>
-                    <div className="text-center mb-12">
-                      <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-teal-500/20 border border-green-500/30 text-green-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm">
-                        <Shield className="w-4 h-4 mr-2" /> SPORT COMMITTEE
+                  <div key={committee.id} className="relative overflow-hidden rounded-3xl scroll-animate opacity-0 transform translate-y-20 pb-8" style={{ animationDelay: `${committeeIndex * 0.25}s` }}>
+                    <CommitteeBackgroundEffect committeeName={committee.name} mode="background" />
+                    <div className="text-center mb-16 md:mb-20 relative z-10">
+                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
+                         <Shield className="w-4 h-4 text-green-400" />
+                         <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-green-50">Sport Committee</span>
                       </div>
-                      <h3 className="text-4xl md:text-5xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
+                      <h3 className="text-4xl md:text-6xl font-bold mb-4 tracking-tighter" style={{ color: committee.color }}>
                         {committee.name.toUpperCase()}
                       </h3>
-                      <p className="text-lg text-gray-300 max-w-2xl mx-auto">{committee.description}</p>
+                      <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">{committee.description}</p>
                     </div>
 
                     {/* Heads (marquee-like row) */}
                     {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
-                      <div className="mb-8">
-                        <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center">
-                          <Crown className="w-5 h-5 text-yellow-500 inline mr-2" /> Heads
+                      <div className="mb-12 relative z-10">
+                        <h4 className="text-sm tracking-widest uppercase font-semibold text-white/50 mb-6 text-center">
+                          <Crown className="w-4 h-4 text-green-400 inline mr-2" /> Heads
                         </h4>
-                        <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative neon-marquee w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none">
-                          <div className="pointer-events-none absolute inset-0 rounded-none neon-inner-glow"></div>
-                          <div className="pointer-events-none absolute inset-0 rounded-none scanline-overlay"></div>
+                        <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none border-y border-white/5 bg-white/[0.01]">
+                          <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-[#030712] via-transparent to-[#030712] z-10 opacity-50"></div>
                           <InfiniteMarquee
                             items={allCommitteeMembers.filter(m => m.is_head)}
                             direction={homepageSettings?.committee_marquee_direction ?? 'right'}
@@ -1209,65 +1015,66 @@ export const RicoFamily: React.FC = () => {
                             itemWrapperClassName="px-3"
                             className="py-2"
                             renderItem={(head: any) => (
-                              <div key={head.id} className="w-64 neon-card borderless p-4">
-                                <div className="aspect-square w-full overflow-hidden rounded-lg mb-3 bg-black/30">
-                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover" />
+                              <div key={head.id} className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
+                                <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10 group">
+                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
                                 </div>
-                                <div className="font-bold text-white flex items-center"><Crown className="w-4 h-4 text-yellow-400 mr-1" /> {head.name}</div>
-                                <div className="text-sm text-gray-300">{head.role}</div>
-                                <div className="mt-3 text-center">
+                                <div className="font-bold text-white flex items-center mb-1"><Crown className="w-3.5 h-3.5 text-green-400 mr-2" /> {head.name}</div>
+                                <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{head.role}</div>
+                                <div className="mt-4">
                                   <button
-                                    className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
+                                    className="w-full inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-white/70 transition-all uppercase tracking-widest"
                                     onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
                                   >
-                                    More
+                                    Dossier
                                   </button>
                                 </div>
                               </div>
                             )}
                           />
-                          {/* gradient fades (hidden on mobile to remove inner border look) */}
-                          <div className="pointer-events-none absolute inset-y-0 left-0 w-2 sm:w-16 bg-gradient-to-r from-[#0b0b0b] to-transparent opacity-60" />
-                          <div className="pointer-events-none absolute inset-y-0 right-0 w-2 sm:w-16 bg-gradient-to-l from-[#0b0b0b] to-transparent opacity-60" />
+                          {/* gradient fades */}
+                          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-32 bg-gradient-to-r from-[#030712] to-transparent z-20" />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-32 bg-gradient-to-l from-[#030712] to-transparent z-20" />
                         </div>
                       </div>
                     )}
 
                     {/* Team grid */}
                     {regularMembers.length > 0 && (
-                      <>
-                        <h4 className="text-base sm:text-lg font-semibold text-gray-300 mb-3 text-center">Team Members</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+                      <div className="relative z-10">
+                        <h4 className="text-xs sm:text-sm uppercase tracking-widest font-semibold text-white/50 mb-6 text-center mt-12">Team Members</h4>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4 md:gap-6 px-1 sm:px-0">
                           {regularMembers.map((member, idx) => (
-                            <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} team-card hover-float`} style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
-                              <div className="neon-card h-full overflow-hidden p-2">
-                                <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden">
-                                  <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top" />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                                  <div className="absolute top-1.5 right-1.5">
-                                    <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-400 animate-pulse" />
+                            <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} group transition-all duration-500 hover:-translate-y-1 hover:z-10`} style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
+                              <div className="bg-white/[0.02] border border-white/5 backdrop-blur-xl h-full overflow-hidden p-2 rounded-2xl transition-all duration-500 group-hover:border-green-500/30 group-hover:bg-white/[0.04] group-hover:shadow-2xl group-hover:shadow-green-900/20">
+                                <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden rounded-xl bg-black/50">
+                                  <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
+                                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
+                                  <div className="absolute top-2 right-2">
+                                    <div className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
+                                      <Zap className="w-3 h-3 text-green-400" />
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="p-2 sm:p-3">
-                                  <div className="text-sm sm:text-base font-bold text-white leading-tight">{member.name}</div>
-                                  <div className="text-green-400 font-semibold text-[10px] sm:text-xs">{member.role}</div>
-                                  <div className="mt-2 text-center">
-                                    <button
-                                      className="inline-flex items-center justify-center px-3 py-1.5 text-[11px] font-semibold rounded-md bg-green-600 hover:bg-green-500 text-white"
-                                      onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
-                                      aria-label={`More about ${member.name}`}
-                                    >
-                                      More
-                                    </button>
-                                  </div>
+                                <div className="p-3 sm:p-4 text-center">
+                                  <div className="text-sm sm:text-base font-bold text-white mb-1 tracking-tight">{member.name}</div>
+                                  <div className="text-green-400/80 font-semibold text-[9px] uppercase tracking-widest sm:text-[10px] mb-3">{member.role}</div>
+                                  <button
+                                    className="w-full inline-flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
+                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
+                                    aria-label={`Dossier for ${member.name}`}
+                                  >
+                                    Dossier
+                                  </button>
                                 </div>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                     <CommitteeBackgroundEffect committeeName={committee.name} mode="foreground" />
+                   </div>
                 );
               })}
             </div>
