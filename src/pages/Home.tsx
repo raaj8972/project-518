@@ -24,7 +24,6 @@ const InstagramTrailerSection = React.lazy(() => import('../components/Instagram
 import PreserveNewlines from '../components/PreserveNewlines';
 import ScrollHint from '../components/ScrollHint';
 import { ScrollReveal } from '../components/ui/ScrollReveal';
-import { MagneticWrapper } from '../components/ui/MagneticWrapper';
 import { KineticText } from '../components/ui/KineticText';
 import { Parallax } from '../components/ui/Parallax';
 
@@ -471,7 +470,6 @@ export const Home: React.FC = () => {
               </p>
               
               <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 mb-8 md:mb-12">
-                <MagneticWrapper>
                   <a
                     href="/events"
                     className="superia-btn-glass superia-btn-primary group"
@@ -481,10 +479,8 @@ export const Home: React.FC = () => {
                       Explore Events
                     </span>
                   </a>
-                </MagneticWrapper>
                 
                 {securitySettings?.entry_pass_button_enabled && (
-                  <MagneticWrapper>
                     <Link
                       to="/pass-registration"
                       className="superia-btn-glass group"
@@ -494,7 +490,6 @@ export const Home: React.FC = () => {
                         Entry Pass
                       </span>
                     </Link>
-                  </MagneticWrapper>
                 )}
               </div>
             </ScrollReveal>
@@ -1372,7 +1367,6 @@ export const Home: React.FC = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
-                <MagneticWrapper>
                   <a
                     href="/events"
                     className="superia-btn-glass superia-btn-primary px-12 py-5 text-base"
@@ -1383,10 +1377,8 @@ export const Home: React.FC = () => {
                       <ArrowRight className="w-6 h-6" />
                     </span>
                   </a>
-                </MagneticWrapper>
                 
                 {formSettings?.membership_form_enabled && (
-                  <MagneticWrapper>
                     <button 
                       onClick={() => startTransition(() => setMembershipModal(true))}
                       className="superia-btn-glass px-12 py-5 text-base"
@@ -1397,7 +1389,6 @@ export const Home: React.FC = () => {
                         <ArrowRight className="w-6 h-6" />
                       </span>
                     </button>
-                  </MagneticWrapper>
                 )}
               </div>
             </div>

@@ -15,7 +15,6 @@ import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/OfflineIndicator';
-import { CustomCursor } from './components/ui/CustomCursor';
 import { NoiseOverlay } from './components/ui/NoiseOverlay';
 import { AudioController } from './components/ui/AudioController';
 import { Preloader } from './components/ui/Preloader';
@@ -322,7 +321,6 @@ function App() {
       <RouteErrorBoundary>
         <div className="min-h-screen bg-[#0a0a0a]">
           <NoiseOverlay />
-          <CustomCursor />
           <AudioController />
           <GlobalErrorBanner />
           <ConnectionStatusBanner />

@@ -164,7 +164,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
 
           {/* Navigation - V3 Grouped Layout */}
-          <nav className="flex-1 overflow-y-auto px-4 pb-8 space-y-10 scrollbar-thin scrollbar-thumb-white/5 hover:scrollbar-thumb-white/10 scrollbar-track-transparent">
+          <nav 
+            data-lenis-prevent
+            className="flex-1 overflow-y-auto px-4 pb-8 space-y-10 scrollbar-thin scrollbar-thumb-white/5 hover:scrollbar-thumb-white/10 scrollbar-track-transparent"
+          >
             {groupOrder.map(groupName => {
               const items = groups[groupName];
               if (!items || items.length === 0) return null;
@@ -292,7 +295,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         </header>
 
         {/* Content Wrapper */}
-        <div className="flex-1 overflow-y-auto relative z-10 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent">
+        <div 
+          data-lenis-prevent
+          className="flex-1 overflow-y-auto relative z-10 scrollbar-thin scrollbar-thumb-white/5 scrollbar-track-transparent"
+        >
           {/* V3 Desktop Header */}
           <div className="hidden lg:flex items-center justify-between px-10 py-8 pb-4">
             <div className="animate-in fade-in slide-in-from-left-4 duration-700">
