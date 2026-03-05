@@ -518,7 +518,7 @@ export const EventsManagement: React.FC = () => {
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
         current_registrations: 0,
-        registration_participant_types: eventForm.registration_participant_types || undefined,
+        registration_participant_types: eventForm.registration_participant_types?.filter(t => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.')) || undefined,
         registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
@@ -611,7 +611,7 @@ export const EventsManagement: React.FC = () => {
         registration_closes_at: eventForm.registration_closes_at ? new Date(eventForm.registration_closes_at).toISOString() : null,
         registration_photo_required: !!(eventForm as any).registration_photo_required,
         registration_photo_label: (eventForm as any).registration_photo_label || null,
-        registration_participant_types: (eventForm as any).registration_participant_types || null,
+        registration_participant_types: (eventForm as any).registration_participant_types?.filter((t: string) => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.')) || null,
         registration_participant_quotas: (eventForm as any).registration_participant_quotas && Object.keys((eventForm as any).registration_participant_quotas).length ? (eventForm as any).registration_participant_quotas : null,
         registration_default_mode: (eventForm as any).registration_default_mode || 'individual',
         registration_mode_locked: (eventForm as any).registration_mode_locked ?? false,
@@ -1796,8 +1796,9 @@ export const EventsManagement: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const list = (siteSettings as any).registration_participant_types as string[];
-                        setEventForm(prev => ({ ...prev, registration_participant_types: [...list] } as any));
+                        const list = ((siteSettings as any)?.registration_participant_types as string[] || [])
+                          .filter(t => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.'));
+                        setEventForm(prev => ({ ...prev, registration_participant_types: list } as any));
                       }}
                       className="text-[10px] font-bold text-purple-500 hover:text-purple-400 uppercase tracking-widest transition-colors"
                     >All</button>

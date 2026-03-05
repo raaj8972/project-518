@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
-  Sponsor, SponsorshipPackage, SponsorshipSettings, Registration
+  Sponsor, SponsorshipPackage, SponsorshipSettings, Registration,
+  Audition, Membership
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
@@ -12,6 +13,8 @@ interface ManagementContextType {
   sponsorshipPackages: SponsorshipPackage[];
   sponsorshipSettings: SponsorshipSettings | null;
   registrations: Registration[];
+  auditions: Audition[];
+  memberships: Membership[];
   adminUsers: any[];
   
   // Sponsors
@@ -23,6 +26,12 @@ interface ManagementContextType {
   addRegistration: (registration: Partial<Registration>) => Promise<void>;
   updateRegistrationStatus: (id: string, status: 'approved' | 'rejected' | 'pending') => Promise<void>;
   deleteRegistration: (id: string) => Promise<void>;
+
+  // Auditions & Memberships
+  updateAuditionStatus: (id: string, status: 'pending' | 'reviewed' | 'contacted') => Promise<void>;
+  deleteAudition: (id: string) => Promise<void>;
+  updateMembershipStatus: (id: string, status: 'pending' | 'reviewed' | 'accepted') => Promise<void>;
+  deleteMembership: (id: string) => Promise<void>;
 
   // Sponsorship Management
   updateSponsorshipSettings: (patch: Partial<SponsorshipSettings>) => Promise<void>;
@@ -48,15 +57,19 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  const [auditions, setAuditions] = useState<Audition[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
 
   const fetchManagementData = useCallback(async () => {
     try {
-      const [sponsorsRes, packagesRes, settingsRes, registrationsRes, adminRes] = await Promise.all([
+      const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes] = await Promise.all([
         fetchSupabaseBatch<Sponsor>('sponsors'),
         fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }),
         supabase.from('sponsorship_settings').select('*, contact_sections (*)').eq('id', 1).maybeSingle(),
         fetchAllRegistrations(),
+        supabase.from('auditions').select('*').order('created_at', { ascending: false }),
+        supabase.from('memberships').select('*').order('created_at', { ascending: false }),
         supabase.from('admin_users').select('*, admin_permissions(*)') 
       ]);
 
@@ -64,6 +77,8 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       if (!packagesRes.error) setSponsorshipPackages(packagesRes.data || []);
       if (!settingsRes.error) setSponsorshipSettings(settingsRes.data || null);
       if (!registrationsRes.error) setRegistrations(registrationsRes.data || []);
+      if (!auditionsRes.error) setAuditions(auditionsRes.data || []);
+      if (!membershipsRes.error) setMemberships(membershipsRes.data || []);
       if (!adminRes.error) {
         // Flatten permissions for easier consumption
         const flattenedAdmins = (adminRes.data || []).map((u: any) => ({
@@ -146,11 +161,37 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     await fetchManagementData();
   };
 
+  const updateAuditionStatus = async (id: string, status: 'pending' | 'reviewed' | 'contacted') => {
+    const { error } = await supabase.from('auditions').update({ status }).eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const deleteAudition = async (id: string) => {
+    const { error } = await supabase.from('auditions').delete().eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const updateMembershipStatus = async (id: string, status: 'pending' | 'reviewed' | 'accepted') => {
+    const { error } = await supabase.from('memberships').update({ status }).eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const deleteMembership = async (id: string) => {
+    const { error } = await supabase.from('memberships').delete().eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
   const value: ManagementContextType = {
     sponsors,
     sponsorshipPackages,
     sponsorshipSettings,
     registrations,
+    auditions,
+    memberships,
     adminUsers,
     addSponsor,
     updateSponsor,
@@ -158,6 +199,10 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     addRegistration,
     updateRegistrationStatus,
     deleteRegistration,
+    updateAuditionStatus,
+    deleteAudition,
+    updateMembershipStatus,
+    deleteMembership,
     updateSponsorshipSettings,
     addSponsorshipPackage,
     updateSponsorshipPackage,

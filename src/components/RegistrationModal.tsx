@@ -44,9 +44,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const isTeamAllowed = event?.registration_default_mode === 'team' || !event?.registration_mode_locked;
   const minTeamSize = event?.team_min_members || 2;
   const maxTeamSize = event?.team_max_members || 5;
-  const participantTypes = event?.registration_participant_types?.length > 0 
+  const rawParticipantTypes = event?.registration_participant_types?.length > 0 
     ? event.registration_participant_types 
     : settings?.registration_participant_types || ['Student', 'Faculty', 'Guest'];
+  const participantTypes = rawParticipantTypes.filter((t: string) => t && !t.toLowerCase().includes('select') && !t.trim().startsWith('.'));
   
   const showInstitution = settings?.registration_institution_visible !== false;
   const isInstitutionOptional = settings?.registration_institution_optional === true;
@@ -288,7 +289,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                  {/* Main Form Fields */}
                  <div className="space-y-4">
                     <div className="group">
-                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Full Name</label>
+                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Full Name<span className="text-red-500 ml-1">*</span></label>
                        <div className="relative">
                           <User className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
                           <input 
@@ -303,7 +304,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Email</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Email<span className="text-red-500 ml-1">*</span></label>
                           <div className="relative">
                               <Mail className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
                               <input 
@@ -316,7 +317,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                           </div>
                        </div>
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Phone</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Phone<span className="text-red-500 ml-1">*</span></label>
                           <div className="relative">
                               <Phone className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
                               <input 
@@ -337,6 +338,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                       <div className="group">
                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
                            Institution / College
+                           {!isInstitutionOptional && <span className="text-red-500 ml-1">*</span>}
                            {isInstitutionOptional && <span className="ml-2 text-gray-600 font-normal normal-case">(Optional)</span>}
                          </label>
                          <div className="relative">
@@ -353,7 +355,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                     )}
 
                     <div className="group">
-                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Participant Type</label>
+                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Participant Type<span className="text-red-500 ml-1">*</span></label>
                        <div className="relative">
                           <BookOpen className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
                           <select 
@@ -380,7 +382,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                        </h3>
                        
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Team Name</label>
+                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Team Name<span className="text-red-500 ml-1">*</span></label>
                           <input 
                             type="text" 
                             value={formData.team_name}
@@ -392,7 +394,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
                        <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Team Members</label>
+                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Team Members<span className="text-red-500 ml-1">*</span></label>
                              <span className="text-[10px] text-gray-400 uppercase tracking-wider">{formData.team_members.length + 1} / {maxTeamSize} Members</span>
                           </div>
                           
@@ -403,7 +405,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                       type="text"
                                       value={member.name}
                                       onChange={e => updateTeamMember(idx, 'name', e.target.value)}
-                                      placeholder={`Member ${idx + 2} Name`}
+                                      placeholder={`Member ${idx + 2} Name *`}
                                       className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
                                    />
                                 </div>

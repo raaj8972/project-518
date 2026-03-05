@@ -3,7 +3,8 @@ import { supabase, SUPABASE_HOST } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
-  HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone
+  HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone,
+  Audition, Membership, SponsorshipPackage
 } from '../types/data';
 
 interface CoreContextType {
@@ -47,6 +48,11 @@ interface CoreContextType {
   updateRoadmapMilestone: (id: number, m: Partial<RoadmapMilestone>) => Promise<void>;
   deleteRoadmapMilestone: (id: number) => Promise<void>;
   toggleRoadmapMilestoneEnabled: (id: number) => Promise<void>;
+
+  // Public Submissions
+  addAudition: (audition: Partial<Audition>) => Promise<void>;
+  addMembership: (membership: Partial<Membership>) => Promise<void>;
+  toggleSponsorshipPackageEnabled: (id: number) => Promise<void>;
 }
 
 const CoreContext = createContext<CoreContextType | undefined>(undefined);
@@ -73,7 +79,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [heroMedia, setHeroMedia] = useState<Partial<Record<PageKey, HeroMedia | null>>>({});
   const [aboutSettings, setAboutSettings] = useState<AboutSettings | null>(null);
-  const [homeboundSettings, setHomeboundSettings] = useState<HomeboundSettings | null>(null);
+  const [homeboundSettings, setHomeboundSettings] = useState<AboutSettings | any>(null);
   const [homepageSettings, setHomepageSettings] = useState<HomepageSettings | null>(null);
   const [formSettings, setFormSettings] = useState<FormSettings | null>(null);
   const [socialMediaSettings, setSocialMediaSettings] = useState<SocialMediaSettings | null>(null);
@@ -190,6 +196,27 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addAudition = async (audition: Partial<Audition>) => {
+    const { error } = await supabase.from('auditions').insert(audition);
+    if (error) throw error;
+    setRefreshTrigger(p => p + 1);
+  };
+
+  const addMembership = async (membership: Partial<Membership>) => {
+    const { error } = await supabase.from('memberships').insert(membership);
+    if (error) throw error;
+    setRefreshTrigger(p => p + 1);
+  };
+
+  const toggleSponsorshipPackageEnabled = async (id: number) => {
+    const { data: current } = await supabase.from('sponsorship_packages').select('enabled').eq('id', id).single();
+    if (current) {
+      const { error } = await supabase.from('sponsorship_packages').update({ enabled: !current.enabled }).eq('id', id);
+      if (error) throw error;
+      setRefreshTrigger(p => p + 1);
+    }
+  };
+
   const refreshAll = useCallback(async (silent: boolean = false) => {
     if (!silent) setLoading(true);
     try {
@@ -262,7 +289,10 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     addRoadmapMilestone,
     updateRoadmapMilestone,
     deleteRoadmapMilestone,
-    toggleRoadmapMilestoneEnabled
+    toggleRoadmapMilestoneEnabled,
+    addAudition,
+    addMembership,
+    toggleSponsorshipPackageEnabled
   };
 
   return <CoreContext.Provider value={value}>{children}</CoreContext.Provider>;
