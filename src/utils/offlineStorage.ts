@@ -4,7 +4,7 @@
  * High-level functions for managing offline pass validation
  */
 
-import { supabase } from '../lib/supabase';
+import { dualRead, dualInsert, dualUpdate } from '../lib/dualDb';
 import { registerBackgroundSync, isBackgroundSyncSupported } from './backgroundSync';
 import { evaluateRules } from './validationRules';
 import {
@@ -39,15 +39,18 @@ export async function syncPassesFromServer(): Promise<{ success: boolean; count:
     // Sync validation rules first
     await syncRulesFromServer();
     
-    // Fetch ALL passes from Supabase (not just active ones)
+    // Fetch ALL passes from Primary (Firestore)
     // This ensures we can validate inactive/used passes offline too
-    const { data: passes, error } = await supabase
-      .from('entry_passes')
-      .select('pass_token, participant_name, pass_type, is_active, is_used, created_at, valid_date');
+    const { data: passes } = await dualRead({
+      table: 'entry_passes',
+      select: 'pass_token, participant_name, pass_type, is_active, is_used, created_at, valid_date'
+    });
 
-    if (error) throw error;
+    if (!passes) {
+      return { success: false, count: 0, error: 'Failed to fetch passes from server' };
+    }
 
-    if (!passes || passes.length === 0) {
+    if (passes.length === 0) {
       console.warn('⚠️ No passes found in database');
       return {
         success: false,
@@ -63,7 +66,8 @@ export async function syncPassesFromServer(): Promise<{ success: boolean; count:
     // Update sync metadata
     await setLastSyncTime(Date.now());
 
-    console.log(`✅ Synced ${passes.length} passes from server (${passes.filter(p => p.is_active).length} active)`);
+    const activeCount = (passes as EntryPass[]).filter((p: EntryPass) => p.is_active).length;
+    console.log(`✅ Synced ${passes.length} passes from server (${activeCount} active)`);
     
     return {
       success: true,
@@ -311,33 +315,20 @@ export async function syncPendingScansToServer(
 
     for (const scan of pending) {
       try {
-        const { error } = await supabase
-          .from('pass_scans')
-          .insert({
-            pass_token: scan.pass_token,
-            participant_name: scan.participant_name,
-            scan_result: scan.result,
-            scanned_by_username: scan.security_username,
-            guard_name: scan.guard_name,
-            pass_type: scan.pass_type,
-            scanned_at: scan.timestamp
-          });
+        await dualInsert('pass_scans', {
+          pass_token: scan.pass_token,
+          participant_name: scan.participant_name,
+          scan_result: scan.result,
+          scanned_by_username: scan.security_username,
+          guard_name: scan.guard_name,
+          pass_type: scan.pass_type,
+          scanned_at: scan.timestamp
+        });
 
-        if (error) {
-          // Check if it's a duplicate (already scanned by another device)
-          if (error.code === '23505' || error.message.includes('duplicate')) {
-            console.log(`ℹ️ Scan already exists on server: ${scan.pass_token}`);
-            await markScanAsSynced(scan.id!);
-            synced++;
-          } else {
-            throw error;
-          }
-        } else {
-          // Success - mark as synced
-          await markScanAsSynced(scan.id!);
-          synced++;
-          console.log(`✅ Synced scan ${scan.id}: ${scan.participant_name}`);
-        }
+        // Success - mark as synced
+        await markScanAsSynced(scan.id!);
+        synced++;
+        console.log(`✅ Synced scan ${scan.id}: ${scan.participant_name}`);
       } catch (error: any) {
         console.error(`❌ Failed to sync scan ${scan.id}:`, error);
         await incrementSyncAttempts(scan.id!);
@@ -438,14 +429,12 @@ export async function validatePassHybrid(
   // ONLINE - Try server validation first
   if (isOnline) {
     try {
-      // 1. Fetch Pass Details (Read Only first)
-      const { data: passData, error: fetchError } = await supabase
-        .from('entry_passes')
-        .select('*')
-        .eq('pass_token', token)
-        .maybeSingle();
-
-      if (fetchError) throw fetchError;
+      // 1. Fetch Pass Details (Read Only first) - Use Primary
+      const { data: passData } = await dualRead({
+        table: 'entry_passes',
+        eq: ['pass_token', token],
+        maybeSingle: true
+      });
       
       if (!passData) {
         return {
@@ -511,41 +500,62 @@ export async function validatePassHybrid(
         };
       }
 
-      // 4. Everything Valid -> CONSUME (Call RPC to mark used)
-      const { data, error } = await supabase
-        .rpc('process_pass_scan_v3', { 
-          p_pass_token: token,
-          p_guard_name: guardName
-        });
+      // 4. Everything Valid -> CONSUME (Replaced RPC with Direct Dual Update)
+      // Check for usage on server (one last time)
+      const { data: usageLogs } = await dualRead({
+        table: 'pass_scans',
+        eq: ['pass_token', token]
+      });
 
-      if (error) throw error;
+      const today = new Date();
+      const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const alreadyUsedToday = (usageLogs || []).some((s: any) => s.scan_result === 'valid' && s.scanned_at.startsWith(todayStr));
 
-      if (data.success) {
-        // Double check rules didn't change in split second (unlikely but safe)
-        // ... (Skipping for perf, assumed safe via step 3)
-
-        // Sync rules from server to keep cache fresh
-        // Don't await to avoid UI delay
-        syncRulesFromServer().catch(console.error);
-
+      if (alreadyUsedToday) {
         return {
-          valid: true,
-          result: 'valid',
-          message: 'Valid entry',
-          name: data.participant_name,
-          pass_type: data.pass_type,
-          scanned_by: securityUsername
-        };
-      } else {
-        // Logic shouldn't reach here if Pre-Check passed, unless race condition or RPC specific logic
-        return {
-            valid: false,
-            result: data.message === 'Pass already used' ? 'already_used' : 'invalid',
-            message: data.message,
-            name: data.participant_name,
-            pass_type: data.pass_type
+          valid: false,
+          result: 'already_used',
+          message: 'Pass already used today',
+          name: passData.participant_name
         };
       }
+
+      if (passData.is_used && passData.pass_type !== 'vip') {
+        return {
+          valid: false,
+          result: 'already_used',
+          message: 'Pass already used',
+          name: passData.participant_name
+        };
+      }
+
+      // Record scan entry
+      await dualInsert('pass_scans', {
+        pass_token: token,
+        participant_name: passData.participant_name,
+        scan_result: 'valid',
+        scanned_by_username: securityUsername,
+        guard_name: guardName,
+        pass_type: passData.pass_type,
+        scanned_at: new Date().toISOString()
+      });
+
+      // Mark pass as used if not VIP
+      if (passData.pass_type !== 'vip') {
+        await dualUpdate('entry_passes', passData.id, { is_used: true });
+      }
+
+      // Sync rules back to cache
+      syncRulesFromServer().catch(console.error);
+
+      return {
+        valid: true,
+        result: 'valid',
+        message: 'Valid entry',
+        name: passData.participant_name,
+        pass_type: passData.pass_type,
+        scanned_by: securityUsername
+      };
     } catch (error: any) {
       console.warn('Online validation failed, falling back to offline:', error);
       // Fallthrough to offline validation below
@@ -576,16 +586,11 @@ export {
  */
 export async function syncRulesFromServer(): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('validation_rules')
-      .select('*')
-      .eq('is_active', true);
+    const { data } = await dualRead({
+      table: 'validation_rules',
+      eq: ['is_active', true]
+    });
       
-    if (error) {
-      console.warn('⚠️ Failed to fetch rules:', error.message);
-      return;
-    }
-    
     if (data) {
       await storeRules(data);
     }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Mail, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint, ChevronRight } from 'lucide-react';
+import { signInWithFirebase, ensureFirebaseUser, generateOTP, verifyOTP, updatePasswordDual } from '../lib/firebase';
+import { dualRead } from '../lib/dualDb';
+import { Mail, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint, ChevronRight, Trophy } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -18,6 +20,13 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMsg, setResetMsg] = useState('');
+  const [otpStep, setOtpStep] = useState<'email' | 'otp' | 'newpass'>('email');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -137,9 +146,22 @@ export const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password, totpCode || undefined);
+      const searchParams = new URLSearchParams(window.location.search);
+      const isMasterMode = searchParams.get('mode') === 'master';
+      const gatePass = sessionStorage.getItem('rico_master_gate_access');
+      const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
+
+      const result = await login(
+        email, 
+        password, 
+        totpCode || undefined, 
+        Boolean(isMasterMode && isGatePassValid)
+      );
       
       if (result.success) {
+        // Mirror credentials to Firebase for future fallback
+        ensureFirebaseUser(email, password).catch(() => {});
+
         // Post-login security check for Owner accounts
         const { data: userRoleData } = await (supabase as any)
           .from('admin_users')
@@ -148,10 +170,6 @@ export const Login: React.FC = () => {
           .maybeSingle();
 
         const isOwner = userRoleData?.role === 'owner';
-        const searchParams = new URLSearchParams(window.location.search);
-        const gatePass = sessionStorage.getItem('rico_master_gate_access');
-        const isMasterMode = searchParams.get('mode') === 'master';
-        const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
 
         if (isOwner && (!isMasterMode || !isGatePassValid)) {
            // Securely cache credentials for the automated return trip
@@ -199,12 +217,56 @@ export const Login: React.FC = () => {
            return;
         }
 
+        // If coming from MasterGate with valid token, bypass TOTP
+        if (isMasterMode && isGatePassValid) {
+          sessionStorage.setItem('rico_auth_source', 'supabase');
+          navigate('/admin');
+          return;
+        }
+
         setRequiresTOTP(true);
         setError('');
       } else {
-        setError(result.error || 'Authentication failed. Please try again.');
+        // ═══ FIREBASE AUTH FALLBACK ═══
+        // Supabase login failed — try Firebase Auth
+        console.warn('[DualAuth] Supabase login failed, trying Firebase Auth...');
+        const fbResult = await signInWithFirebase(email, password);
+        if (fbResult.success) {
+          // Check admin status from Firebase RTDB
+          const { data: adminData } = await dualRead({ table: 'admin_users' });
+          const isAdmin = Array.isArray(adminData) && adminData.some(
+            (a: any) => a.email === email
+          );
+          if (isAdmin) {
+            // Store a flag so the app knows we're in Firebase-auth mode
+            sessionStorage.setItem('rico_auth_source', 'firebase');
+            navigate('/admin');
+            return;
+          } else {
+            setError('Account not found in admin users.');
+          }
+        } else {
+          setError(result.error || 'Authentication failed. Please try again.');
+        }
+        // ═══════════════════════════════
       }
     } catch (error) {
+      // ═══ FIREBASE AUTH FALLBACK (on exception) ═══
+      console.warn('[DualAuth] Supabase auth exception, trying Firebase...');
+      try {
+        const fbResult = await signInWithFirebase(email, password);
+        if (fbResult.success) {
+          const { data: adminData } = await dualRead({ table: 'admin_users' });
+          const isAdmin = Array.isArray(adminData) && adminData.some(
+            (a: any) => a.email === email
+          );
+          if (isAdmin) {
+            sessionStorage.setItem('rico_auth_source', 'firebase');
+            navigate('/admin');
+            return;
+          }
+        }
+      } catch {}
       setError('Authentication failed. Please try again.');
       console.error('Login error:', error);
     }
@@ -383,6 +445,22 @@ export const Login: React.FC = () => {
                     </div>
                     <ChevronRight size={18} className="text-gray-600 group-hover:text-emerald-400 transition-colors" />
                   </button>
+
+                  <button
+                    onClick={() => navigate('/sports-admin')}
+                    className="mode-btn group from-rose-500/20 to-rose-800/10 hover:border-rose-400/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400 group-hover:scale-110 transition-transform">
+                        <Trophy size={20} />
+                      </div>
+                      <div className="text-left">
+                        <p className="font-bold text-sm text-white group-hover:text-rose-400 transition-colors">Sports Admin</p>
+                        <p className="text-[10px] text-gray-500">Tournament & Player management</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={18} className="text-gray-600 group-hover:text-rose-400 transition-colors" />
+                  </button>
                 </div>
 
                 {/* Form Content */}
@@ -433,6 +511,239 @@ export const Login: React.FC = () => {
                           </div>
                         </div>
                       </>
+                    ) : showForgotPassword ? (
+                      <div className="space-y-4">
+                        {/* Step Header */}
+                        <div className="text-center">
+                          <Shield className="w-10 h-10 text-cyan-400 mx-auto mb-3 opacity-60" />
+                          <p className="text-white text-sm font-bold">
+                            {otpStep === 'email' ? 'Reset Access Key' : otpStep === 'otp' ? 'Enter OTP' : 'Set New Password'}
+                          </p>
+                          <p className="text-gray-500 text-[10px] mt-1">
+                            {otpStep === 'email' ? 'Enter your admin email to receive a verification code' : 
+                             otpStep === 'otp' ? 'Enter the 6-digit code sent to your email (or check terminal)' : 
+                             'Choose a strong new password'}
+                          </p>
+                        </div>
+
+                        {/* Status Message */}
+                        {resetMsg && (
+                          <div className={`p-3 rounded-lg border flex items-center gap-3 text-xs font-medium ${
+                            resetMsg.includes('success') || resetMsg.includes('Generated') || resetMsg.includes('verified')
+                              ? 'bg-green-500/10 border-green-500/30 text-green-400' 
+                              : 'bg-red-500/10 border-red-500/30 text-red-400'
+                          }`}>
+                            {resetMsg.includes('success') || resetMsg.includes('Generated') || resetMsg.includes('verified')
+                              ? <Shield className="w-4 h-4 shrink-0" /> 
+                              : <AlertCircle className="w-4 h-4 shrink-0" />}
+                            {resetMsg}
+                          </div>
+                        )}
+
+                        {/* Step 1: Email */}
+                        {otpStep === 'email' && (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Admin Email</label>
+                              <div className="relative group">
+                                <input
+                                  type="email"
+                                  value={resetEmail}
+                                  onChange={(e) => setResetEmail(e.target.value)}
+                                  className="input-cyber"
+                                  placeholder="your@email.com"
+                                />
+                                <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={isLoading || !resetEmail}
+                              onClick={async () => {
+                                setIsLoading(true);
+                                setResetMsg('');
+                                const { data: adminList } = await dualRead({ table: 'admin_users' });
+                                const isAdmin = Array.isArray(adminList) && adminList.some(
+                                  (a: any) => a.email?.toLowerCase() === resetEmail.toLowerCase()
+                                );
+                                if (!isAdmin) {
+                                  setResetMsg('This email is not registered as an admin.');
+                                  setIsLoading(false);
+                                  return;
+                                }
+                                const result = await generateOTP(resetEmail);
+                                if (result.success) {
+                                  setResetMsg(`OTP Generated! Code sent to your email.`);
+                                  setOtpStep('otp');
+                                } else {
+                                  setResetMsg(result.error || 'Failed to generate OTP.');
+                                }
+                                setIsLoading(false);
+                              }}
+                              className="btn-primary-cyber w-full group overflow-hidden"
+                            >
+                              {isLoading ? (
+                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
+                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                                  Generating...
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold relative z-10 w-full cursor-pointer h-full py-2">
+                                  <Key size={18} />
+                                  Generate OTP
+                                </div>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setShowForgotPassword(false); setOtpStep('email'); setResetMsg(''); }}
+                              className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer"
+                            >
+                              Cancel Reset
+                            </button>
+                          </>
+                        )}
+
+                        {/* Step 2: Enter OTP */}
+                        {otpStep === 'otp' && (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">6-Digit OTP Code</label>
+                              <input
+                                type="text"
+                                value={otpCode}
+                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                className="w-full text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-cyan-500/30 rounded-lg py-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all"
+                                placeholder="000000"
+                                maxLength={6}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              disabled={isLoading || otpCode.length !== 6}
+                              onClick={async () => {
+                                setIsLoading(true);
+                                setResetMsg('');
+                                const result = await verifyOTP(resetEmail, otpCode);
+                                if (result.valid) {
+                                  setResetMsg('OTP verified! Set your new password.');
+                                  setOtpStep('newpass');
+                                } else {
+                                  setResetMsg(result.error || 'Invalid OTP.');
+                                }
+                                setIsLoading(false);
+                              }}
+                              className="btn-primary-cyber w-full group"
+                            >
+                              {isLoading ? (
+                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
+                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                                  Verifying...
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
+                                  <Shield size={18} />
+                                  Verify OTP
+                                </div>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setShowForgotPassword(false); setOtpStep('email'); setResetMsg(''); setOtpCode(''); }}
+                              className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer"
+                            >
+                              Cancel Reset
+                            </button>
+                          </>
+                        )}
+
+                        {/* Step 3: New Password */}
+                        {otpStep === 'newpass' && (
+                          <>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">New Password</label>
+                              <input
+                                type="password"
+                                value={newPassword}
+                                onChange={(e) => setNewPassword(e.target.value)}
+                                className="input-cyber"
+                                placeholder="Enter new password"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Confirm Password</label>
+                              <input
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                className="input-cyber"
+                                placeholder="Confirm new password"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              disabled={isLoading || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
+                              onClick={async () => {
+                                setIsLoading(true);
+                                setResetMsg('');
+                                if (newPassword.length < 6) {
+                                  setResetMsg('Password must be at least 6 characters.');
+                                  setIsLoading(false);
+                                  return;
+                                }
+                                const result = await updatePasswordDual(resetEmail, newPassword, supabase);
+                                if (result.success) {
+                                  setResetMsg('Password updated successfully! You can now login.');
+                                  setTimeout(() => {
+                                    setShowForgotPassword(false);
+                                    setOtpStep('email');
+                                    setOtpCode('');
+                                    setNewPassword('');
+                                    setConfirmPassword('');
+                                    setResetMsg('');
+                                    setEmail(resetEmail); // Pre-fill login email
+                                  }, 2000);
+                                } else {
+                                  setResetMsg(result.error || 'Failed to update password.');
+                                }
+                                setIsLoading(false);
+                              }}
+                              className="btn-primary-cyber w-full group"
+                            >
+                              {isLoading ? (
+                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
+                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                                  Updating...
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
+                                  <Key size={18} />
+                                  Update Password
+                                </div>
+                              )}
+                            </button>
+                            {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                              <p className="text-red-400 text-[10px] text-center">Passwords do not match</p>
+                            )}
+                          </>
+                        )}
+
+                        {/* Back Button */}
+                        <button
+                          type="button"
+                          onClick={() => { 
+                            setShowForgotPassword(false); 
+                            setResetMsg(''); 
+                            setOtpStep('email'); 
+                            setOtpCode(''); 
+                            setNewPassword(''); 
+                            setConfirmPassword(''); 
+                          }}
+                          className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
+                        >
+                          Back to Login
+                        </button>
+                      </div>
                     ) : (
                       <div className="space-y-4">
                         <div className="text-center">
@@ -465,7 +776,8 @@ export const Login: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="pt-3 sm:pt-4 space-y-3">
+                    <div className="pt-3 sm:pt-4 space-y-4">
+                      {/* Standard Login */}
                       <button
                         type="submit"
                         disabled={isLoading || (requiresTOTP && !totpCode)}
@@ -484,31 +796,59 @@ export const Login: React.FC = () => {
                         )}
                       </button>
 
-                      <div className="flex gap-2">
-                             <button
-                                type="button"
-                                onClick={handleBackToPassword}
-                                className="flex-1 px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center"
-                              >
-                                Back
-                              </button>
-                               {!requiresTOTP && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    setIsLoading(true);
-                                    setError('');
-                                    const res = await loginWithPasskey();
-                                    if (res.success) navigate('/admin');
-                                    else { setIsLoading(false); setError(res.error || 'Biometric login failed'); }
-                                  }}
-                                  className="flex-1 px-4 py-2.5 rounded-lg bg-cyan-400/10 border border-cyan-400/30 text-cyan-400 text-xs font-bold uppercase tracking-widest hover:bg-cyan-400/20 transition-all flex items-center justify-center gap-2"
-                                >
-                                  <Fingerprint size={16} />
-                                  Fast Access
-                                </button>
-                              )}
-                      </div>
+                      {/* Biometric Login (Only if not in 2FA mode) */}
+                      {!requiresTOTP && (
+                        <>
+                          <div className="flex items-center gap-3 opacity-30">
+                            <div className="flex-1 h-px bg-white"></div>
+                            <span className="text-[10px] font-bold tracking-widest uppercase">OR</span>
+                            <div className="flex-1 h-px bg-white"></div>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setIsLoading(true);
+                              setError('');
+                              const res = await loginWithPasskey();
+                              if (res.success) navigate('/admin');
+                              else { setIsLoading(false); setError(res.error || 'Biometric login failed'); }
+                            }}
+                            className="relative w-full overflow-hidden group rounded-lg p-[1px]"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 opacity-60 group-hover:opacity-100 transition-opacity animate-gradient-x"></div>
+                            <div className="relative w-full bg-black/80 backdrop-blur-md px-4 py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-black/60 transition-colors">
+                              <Fingerprint className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+                              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 text-xs font-bold uppercase tracking-widest">
+                                Biometric Bypass
+                              </span>
+                            </div>
+                          </button>
+                        </>
+                      )}
+
+                      {/* TOTP Back Button */}
+                      {requiresTOTP && (
+                         <button
+                           type="button"
+                           onClick={handleBackToPassword}
+                           className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center"
+                         >
+                           Back to Login
+                         </button>
+                      )}
+                      
+                      {/* Forgot Password Link */}
+                      {!requiresTOTP && !showForgotPassword && (
+                        <button
+                          type="button"
+                          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowForgotPassword(true); setResetEmail(email); setError(''); }}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowForgotPassword(true); setResetEmail(email); setError(''); }}
+                          className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer relative z-[100]"
+                        >
+                          Forgot Access Key?
+                        </button>
+                      )}
                     </div>
                   </form>
                 </div>

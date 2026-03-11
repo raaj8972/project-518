@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Calendar, Clock, MapPin, Users, Eye, EyeOff, Star, UserPlus, UserMinus, FileText, ArrowUp, ArrowDown, Loader2, Bell, Upload, FileImage } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import type { EventCoordinator } from '../../context/DataContext';
+import type { EventCoordinator } from '../../types/data';
 import { ImageUpload } from '../ImageUpload';
 import { VideoUpload } from '../VideoUpload';
 import { supabase } from '../../lib/supabase';
 import EventWinnersEditor from './EventWinnersEditor';
-import type { Event } from '../../context/DataContext';
+import type { Event } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { deleteFromStorageByPublicUrl } from '../../utils/uploadUtils';
+import { InlineDescriptionAI } from './InlineDescriptionAI';
+import { AIEventScanner } from './events/AIEventScanner';
 
 import { useToast } from '../../components/ToastProvider';
 
@@ -99,6 +101,7 @@ export const EventsManagement: React.FC = () => {
   const [manualNotifyMessage, setManualNotifyMessage] = useState('');
   const [manualNotifyHighlights, setManualNotifyHighlights] = useState<Set<string>>(new Set()); // Rule strings to highlight
   const [sendingManualNotify, setSendingManualNotify] = useState(false);
+  const [showEventScanner, setShowEventScanner] = useState(false);
 
   const handleManualNotify = (event: any) => {
     // Clone so we can modify rules for display without affecting store
@@ -293,11 +296,10 @@ export const EventsManagement: React.FC = () => {
     registration_mode_locked: false as boolean,
   team_max_members: undefined as number | undefined,
   team_min_members: undefined as number | undefined,
-  team_required_size: undefined as number | undefined,
+    team_required_size: undefined as number | undefined,
     max_participants: undefined as number | undefined,
     featured: false,
     visible: true,
-    artist_id: undefined as number | undefined,
     watch_live_url: '' as string | null,
     prefer_video: false as boolean,
     motion_poster_autoplay: false as boolean,
@@ -463,7 +465,6 @@ export const EventsManagement: React.FC = () => {
       max_participants: undefined,
       featured: false,
       visible: true,
-      artist_id: undefined,
       watch_live_url: '',
       prefer_video: false,
       rules_link: '',
@@ -476,16 +477,41 @@ export const EventsManagement: React.FC = () => {
     try {
       if (!rules || !Array.isArray(rules)) return false;
       if (isStructuredRules(rules)) {
-        // If structured but unpacking returns empty and input wasn't trivial, it might be corrupt
-        // But unpackStructured returns [] on error.
-        // We trust that if it passed packStructured, it's likely okay, but let's be sure.
         return true;
       }
-      // Simple rules: check for non-strings?
       return rules.every(r => typeof r === 'string');
     } catch {
       return false;
     }
+  };
+
+  const VALID_EVENT_COLUMNS = [
+    'title', 'category', 'description', 'image', 'date', 'time', 'venue',
+    'participants', 'highlights', 'registration_open', 'max_participants',
+    'current_registrations', 'featured', 'visible', 'rules',
+    'payment_gateway_config', 'payment_amount', 'display_order',
+    // Motion poster fields
+    'motion_poster_url', 'motion_poster_autoplay', 'owner_hover_reveal',
+    // Registration fields
+    'registration_timer_enabled', 'registration_opens_at', 'registration_closes_at',
+    'registration_photo_required', 'registration_photo_label',
+    'registration_participant_types', 'registration_participant_quotas',
+    'registration_default_mode', 'registration_mode_locked',
+    // Team fields
+    'team_max_members', 'team_min_members', 'team_required_size',
+    // Other fields
+    'rules_link', 'watch_live_url', 'whatsapp_group_link',
+    'artist_id'
+  ];
+
+  const sanitizeEventPayload = (payload: any) => {
+    const clean: any = {};
+    for (const key of VALID_EVENT_COLUMNS) {
+      if (payload[key] !== undefined) {
+        clean[key] = payload[key];
+      }
+    }
+    return clean;
   };
 
   const handleAddEvent = async () => {
@@ -503,12 +529,14 @@ export const EventsManagement: React.FC = () => {
         throw new Error('Invalid rules format. Please check your rules.');
       }
 
+      const { coordinator_name, coordinator_phone, coordinator_password, ...restEventForm } = eventForm;
+
       const eventData = {
-        ...eventForm,
-        // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
-        date: eventForm.date?.trim() || null,
-        time: eventForm.time?.trim() || null,
-        venue: eventForm.venue?.trim() || null,
+        ...restEventForm,
+        // Fallback to empty string for date/time/venue since remote DB still requires NOT NULL
+        date: eventForm.date?.trim() || '',
+        time: eventForm.time?.trim() || '',
+        venue: eventForm.venue?.trim() || '',
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
         category: eventForm.category || (eventCategories.length > 0 ? eventCategories[0].name : 'General'),
@@ -534,7 +562,8 @@ export const EventsManagement: React.FC = () => {
       
       if (needsApproval) {
         // Submit for owner approval
-        const result = await submitForApproval('event', 'create', eventData);
+        const safeDataForApproval = sanitizeEventPayload(eventData);
+        const result = await submitForApproval('event', 'create', safeDataForApproval);
         if (result.success) {
           alert('✓ Event submitted for owner approval!\n\nYour event will be published once the owner reviews and approves it.');
           setIsAddingEvent(false);
@@ -546,9 +575,8 @@ export const EventsManagement: React.FC = () => {
         }
       } else {
         // Direct save (no approval required)
-        // Extract coordinators before passing to addEventWithCoordinators
-        const { coordinators, ...eventDataWithoutCoordinators } = eventData;
-        await addEventWithCoordinators(eventDataWithoutCoordinators as any, coordinators);
+        const safeData = sanitizeEventPayload(eventData);
+        await addEventWithCoordinators(safeData, draftCoordinators);
         alert('✓ Event added successfully!');
         setIsAddingEvent(false);
         resetEventForm();
@@ -580,12 +608,14 @@ export const EventsManagement: React.FC = () => {
         throw new Error('Invalid rules format. Please check your rules.');
       }
 
+      const { coordinator_name, coordinator_phone, coordinator_password, ...restEventForm } = eventForm;
+
       const eventData = {
-        ...eventForm,
-        // Allow NULL for date/time/venue (migration removes NOT NULL constraint)
-        date: eventForm.date?.trim() || null,
-        time: eventForm.time?.trim() || null,
-        venue: eventForm.venue?.trim() || null,
+        ...restEventForm,
+        // Fallback to empty string for date/time/venue since remote DB still requires NOT NULL
+        date: eventForm.date?.trim() || '',
+        time: eventForm.time?.trim() || '',
+        venue: eventForm.venue?.trim() || '',
         rules_link: eventForm.rules_link || null,
         rules: finalRules,
         // Heuristic Logic for "Close Now":
@@ -624,9 +654,11 @@ export const EventsManagement: React.FC = () => {
       // Check if current admin requires approval
       const needsApproval = await checkRequiresApproval();
       
+      const safeData = sanitizeEventPayload(eventData);
+
       if (needsApproval) {
         // Submit for owner approval
-        const result = await submitForApproval('event', 'update', eventData, id);
+        const result = await submitForApproval('event', 'update', safeData, id);
         if (result.success) {
           push({ message: 'Event update submitted for owner approval!', type: 'success' });
           setEditingEvent(null);
@@ -662,10 +694,9 @@ export const EventsManagement: React.FC = () => {
         );
 
         // Detect Rule Changes
-        // Simple JSON stringify comparison to detect any change in the rules array structure or content
-        const rulesChanged = JSON.stringify(originalEvent?.rules || []) !== JSON.stringify(eventData.rules || []);
+        const rulesChanged = JSON.stringify(originalEvent?.rules || []) !== JSON.stringify(safeData.rules || []);
 
-        await updateEvent(id, eventData as any);
+        await updateEvent(id, safeData);
         steps.next('Finalizing');
 
         // Notification Logic
@@ -939,7 +970,6 @@ export const EventsManagement: React.FC = () => {
       max_participants: event.max_participants ?? undefined,
       featured: event.featured || false,
       visible: event.visible !== false,
-      artist_id: event.artist_id ?? undefined,
       watch_live_url: (event as any).watch_live_url || '',
       prefer_video: (event as any).prefer_video ?? false,
       rules_link: (event as any).rules_link || '',
@@ -1081,8 +1111,48 @@ export const EventsManagement: React.FC = () => {
   const updateItem = (idx: number, bIndex: number, pIndex: number, value: string) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).map((p, k) => k === pIndex ? value : p) } : b) } : s));
   const removeItem = (idx: number, bIndex: number, pIndex: number) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).filter((_, k) => k !== pIndex) } : b) } : s));
 
+  const handleEventScanComplete = async (scannedEvents: any[]) => {
+    setShowEventScanner(false);
+    const toastId = push({ message: 'Importing AI-extracted events...', type: 'info' });
+    
+    try {
+      let count = 0;
+      for (const evt of scannedEvents) {
+        await addEventWithCoordinators({
+          title: evt.title || 'Untitled Event',
+          category: evt.category || 'General',
+          description: evt.description || '',
+          image: '',
+          date: evt.date || new Date().toISOString().split('T')[0],
+          time: evt.time || '10:00',
+          venue: evt.venue || 'TBA',
+          participants: evt.participants || 'Open to all',
+          highlights: evt.highlights || [],
+          rules: evt.rules || [],
+          registration_open: evt.registration_open ?? true,
+          visible: true,
+          featured: false,
+        }, []);
+        count++;
+      }
+      push({ message: `Successfully imported ${count} events from AI scan!`, type: 'success' });
+    } catch (error: any) {
+      console.error('[EventsManagement] AI import failed:', error);
+      push({ message: `Import failed: ${error.message}`, type: 'error' });
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Event Scanner Modal */}
+      {showEventScanner && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <AIEventScanner
+            onScanComplete={handleEventScanComplete}
+            onCancel={() => setShowEventScanner(false)}
+          />
+        </div>
+      )}
       {/* Backend schema compatibility notice */}
       {events.length > 0 && !('registration_timer_enabled' in (events[0] as any)) && (
         <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3">
@@ -1125,6 +1195,13 @@ export const EventsManagement: React.FC = () => {
             />
             <span className="ml-2 font-bold uppercase tracking-widest text-[10px] group-hover:text-white transition-colors">Auto-open timer</span>
           </label>
+          <button
+            onClick={() => setShowEventScanner(true)}
+            className="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-5 py-2.5 rounded-xl hover:from-pink-400 hover:to-purple-400 transition-all flex items-center justify-center font-bold shadow-lg shadow-pink-500/20 hover:-translate-y-0.5"
+          >
+            <FileImage size={18} className="mr-2" />
+            AI Scan
+          </button>
           <button
             onClick={() => {
               setIsAddingEvent(true);
@@ -1198,14 +1275,17 @@ export const EventsManagement: React.FC = () => {
       {isAddingEvent && (
         <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-indigo-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(99,102,241,0.1)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
-              <Plus className="w-6 h-6 text-purple-400" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center border border-purple-500/20">
+                <Plus className="w-6 h-6 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white tracking-tight">Add New Festival Event</h3>
+                <p className="text-sm text-gray-400 mt-1">Configure all parameters for your new event</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-white tracking-tight">Add New Festival Event</h3>
-              <p className="text-sm text-gray-400 mt-1">Configure all parameters for your new event</p>
-            </div>
+            
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
@@ -1311,7 +1391,14 @@ export const EventsManagement: React.FC = () => {
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Event Description *</label>
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Event Description *</label>
+                    <InlineDescriptionAI
+                      contextName={eventForm.title}
+                      contextType="event"
+                      onDescriptionGenerated={(desc) => setEventForm(prev => ({ ...prev, description: desc }))}
+                    />
+                  </div>
                   <textarea
                     value={eventForm.description}
                     onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}

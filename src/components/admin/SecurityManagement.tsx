@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
+import { dualRead, dualInsert, dualUpdate, dualDelete } from '../../lib/dualDb';
 import { useToast } from '../../components/ToastProvider';
 import { Shield, Crown, Eye, Trash, Plus, Clock, CheckCircle2, FileUp, Download, RefreshCw, Lock, Calendar, AlertTriangle, UserPlus, CheckSquare, Square, XCircle, Search, Settings, History, Users, Palette, Loader2, Image as ImageIcon } from 'lucide-react';
 import { QRCodeGenerator } from './QRCodeGenerator';
@@ -160,14 +161,15 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
   const fetchPassUsage = async () => {
     if (vipPasses.length === 0) return;
     const ids = vipPasses.map(p => p.id);
-    const { data } = await supabase.from('pass_scans')
-       .select('pass_id, scanned_at')
-       .in('pass_id', ids)
-       .eq('scan_result', 'valid');
+    const { data } = await dualRead({
+      table: 'pass_scans',
+      in: ['pass_id', ids],
+      eq: ['scan_result', 'valid']
+    });
     
     if (data) {
        const usage: Record<string, number[]> = {};
-       data.forEach(scan => {
+       data.forEach((scan: any) => {
           // Robust Date Matching
            const scanDate = new Date(scan.scanned_at);
            
@@ -254,35 +256,32 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
   const loadData = async () => {
     if (activeTab === 'users') {
-      const { data: users } = await supabase.from('security_users').select('*').order('created_at', { ascending: false });
+      const { data: users } = await dualRead({
+        table: 'security_users',
+        order: ['created_at', { ascending: false }]
+      });
       if (users) setSecurityUsers(users);
     } else if (activeTab === 'passes') {
-      const { data: passes } = await supabase.from('pass_registrations').select('*').order('created_at', { ascending: false });
+      const { data: passes } = await dualRead({
+        table: 'pass_registrations',
+        order: ['created_at', { ascending: false }]
+      });
       if (passes) setPassRegistrations(passes);
     } else if (activeTab === 'vip') {
-      const { data: vip } = await supabase
-        .from('entry_passes')
-        .select('*')
-        .eq('pass_type', 'vip')
-        .order('created_at', { ascending: false });
+      const { data: vip } = await dualRead({
+        table: 'entry_passes',
+        eq: ['pass_type', 'vip'],
+        order: ['created_at', { ascending: false }]
+      });
       if (vip) setVipPasses(vip);
     } else if (activeTab === 'rules') {
       try {
-        const { data, error } = await supabase
-          .from('validation_rules')
-          .select('*')
-          .order('priority', { ascending: false });
+        const { data } = await dualRead({
+          table: 'validation_rules',
+          order: ['priority', { ascending: false }]
+        });
         
-        if (error) {
-          if (error.code === '42P01') { // undefined_table
-            setRulesTableReady(false);
-            setValidationRules(DEFAULT_RULES);
-            setRuleLoadError('Table "validation_rules" not found (42P01)');
-          } else {
-            setRuleLoadError(`${error.message} (Code: ${error.code})`);
-            throw error;
-          }
-        } else if (data && data.length > 0) {
+        if (data && data.length > 0) {
           setValidationRules(data);
           setRulesTableReady(true);
         } else {
@@ -293,14 +292,16 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       } catch (err: any) {
         console.error('Failed to load rules:', err);
         setRulesTableReady(false);
+        // Special case for Firestore "missing table" (collection) is handled by empty data normally
+        // but if there's a permission error or similar, we catch it here.
         if (!ruleLoadError) setRuleLoadError(err.message || 'Unknown failed to load');
       }
     } else if (activeTab === 'history') {
-      const { data: history } = await supabase
-        .from('pass_scans')
-        .select('*')
-        .order('scanned_at', { ascending: false })
-        .limit(200);
+      const { data: history } = await dualRead({
+        table: 'pass_scans',
+        order: ['scanned_at', { ascending: false }],
+        limit: 200
+      });
       if (history) setScanHistory(history);
     }
   };
@@ -338,12 +339,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     setValidationRules(prev => prev.map(r => r.id === rule.id ? updated : r));
     
     try {
-      const { error } = await supabase
-        .from('validation_rules')
-        .upsert(updated)
-        .select();
-        
-      if (error) throw error;
+      await dualUpdate('validation_rules', updated.id, updated);
       toast({ message: `Rule ${updated.is_active ? 'enabled' : 'disabled'}`, type: 'success' });
     } catch (err) {
       console.error(err);
@@ -362,11 +358,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       
       const updated = { ...rule, config: newConfig };
       
-      const { error } = await supabase
-        .from('validation_rules')
-        .upsert(updated);
-        
-      if (error) throw error;
+      await dualUpdate('validation_rules', updated.id, updated);
       
       setValidationRules(prev => prev.map(r => r.id === ruleId ? updated : r));
       toast({ message: 'Rule configuration updated', type: 'success' });
@@ -392,15 +384,11 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
         priority: 10
       };
 
-      const { data, error } = await supabase
-        .from('validation_rules')
-        .insert(newRule)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const newId = `rule_${Date.now()}`;
+      const inserted = { ...newRule, id: newId } as ValidationRule;
+      await dualInsert('validation_rules', inserted);
       
-      setValidationRules(prev => [data as ValidationRule, ...prev]);
+      setValidationRules(prev => [inserted, ...prev]);
       toast({ message: 'Rule created', type: 'success' });
     } catch (err: any) {
       console.error(err);
@@ -416,8 +404,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     
     try {
       setLoading(true);
-      const { error } = await supabase.from('validation_rules').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('validation_rules', id);
       
       setValidationRules(prev => prev.filter(r => r.id !== id));
       toast({ message: 'Rule deleted', type: 'success' });
@@ -488,12 +475,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
     const reason = prompt('Rejection reason (optional):');
     
     try {
-      const { error } = await supabase
-        .from('pass_registrations')
-        .update({ status: 'rejected', rejection_reason: reason })
-        .eq('id', passRegId);
-
-      if (error) throw error;
+      await dualUpdate('pass_registrations', passRegId, { status: 'rejected', rejection_reason: reason });
 
       toast({ message: 'Pass registration rejected', type: 'success' });
       loadData();

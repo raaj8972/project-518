@@ -1,10 +1,10 @@
 import React from 'react';
 import { useData } from '../../context/DataContext';
-import { supabase } from '../../lib/supabase';
+import { dualRead } from '../../lib/dualDb';
 import { 
-  Bell, Calendar, Clock, Trash2, Save, AlertTriangle, Info, 
-  CheckCircle, AlertOctagon, Zap, Link as LinkIcon, Eye, EyeOff, 
-  RefreshCw, X, Megaphone, Plus 
+  Bell, Calendar, Clock, Trash2, 
+  AlertOctagon, Zap, Link as LinkIcon, Eye, EyeOff, 
+  Megaphone 
 } from 'lucide-react';
 
 export const NotificationsManagement: React.FC = () => {
@@ -29,12 +29,14 @@ export const NotificationsManagement: React.FC = () => {
   // Load Notifications
   const loadAll = React.useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('notifications' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (!error) setRows(data || []);
-    } catch {}
+      const { data } = await dualRead({ 
+        table: 'notifications', 
+        order: ['created_at', { ascending: false }] 
+      });
+      setRows(data || []);
+    } catch (e) {
+      console.error('Failed to load notifications:', e);
+    }
   }, []);
 
   React.useEffect(() => { loadAll(); }, [loadAll]);
@@ -147,15 +149,7 @@ export const NotificationsManagement: React.FC = () => {
     } catch { return ''; }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch(type) {
-      case 'success': return <CheckCircle size={16} className="text-emerald-400" />;
-      case 'warning': return <AlertTriangle size={16} className="text-amber-400" />;
-      case 'error': return <AlertOctagon size={16} className="text-red-400" />;
-      case 'urgent': return <Zap size={16} className="text-purple-400" />;
-      default: return <Info size={16} className="text-blue-400" />;
-    }
-  };
+
 
   return (
     <div className="space-y-8">

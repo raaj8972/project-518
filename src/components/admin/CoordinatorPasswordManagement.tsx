@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Save, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Save, Eye, EyeOff, Wand2, Search, Filter, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useToast } from '../ToastProvider';
+import { AICoordinatorScanner } from './coordinator/AICoordinatorScanner';
+
+interface ExtractedPasswordData {
+  event_name: string;
+  coordinator_name: string;
+  password: string;
+}
 
 export const CoordinatorPasswordManagement: React.FC = () => {
   const { events, updateEvent, adminUsers } = useData() as any;
@@ -10,11 +17,16 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   const { push } = useToast();
   
   const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
-  const [passwords, setPasswords] = useState<{ [key: number]: string }>({});
-  const [savingId, setSavingId] = useState<number | null>(null);
+  const [stagedPasswords, setStagedPasswords] = useState<{ [key: number]: string }>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  
+  // Search and Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
 
   // Check if user is owner
-  const isOwner = React.useMemo(() => {
+  const isOwner = useMemo(() => {
     try {
       const uid = user?.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
@@ -24,33 +36,24 @@ export const CoordinatorPasswordManagement: React.FC = () => {
     }
   }, [user, adminUsers]);
 
+  const categories = useMemo(() => {
+    if (!events) return [];
+    const cats = new Set(events.map((e: any) => e.category).filter(Boolean));
+    return Array.from(cats) as string[];
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    if (!events) return [];
+    return events.filter((event: any) => {
+      const matchesSearch = event.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            event.coordinator_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = filterCategory === 'all' || event.category === filterCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [events, searchQuery, filterCategory]);
+
   const handlePasswordChange = (eventId: number, value: string) => {
-    setPasswords(prev => ({ ...prev, [eventId]: value }));
-  };
-
-  const handleSave = async (eventId: number) => {
-    const newPassword = passwords[eventId];
-    if (!newPassword || !newPassword.trim()) {
-      push({ message: 'Password cannot be empty', type: 'error' });
-      return;
-    }
-
-    try {
-      setSavingId(eventId);
-      await updateEvent(eventId, { coordinator_password: newPassword } as any);
-      push({ message: 'Password updated successfully!', type: 'success' });
-      // Clear the local edit
-      setPasswords(prev => {
-        const updated = { ...prev };
-        delete updated[eventId];
-        return updated;
-      });
-    } catch (error) {
-      console.error('Error updating password:', error);
-      push({ message: 'Failed to update password', type: 'error' });
-    } finally {
-      setSavingId(null);
-    }
+    setStagedPasswords(prev => ({ ...prev, [eventId]: value }));
   };
 
   const toggleShowPassword = (eventId: number) => {
@@ -58,21 +61,102 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   };
 
   const getCurrentPassword = (event: any) => {
-    return passwords[event.id] !== undefined ? passwords[event.id] : (event.coordinator_password || '');
+    return stagedPasswords[event.id] !== undefined ? stagedPasswords[event.id] : (event.coordinator_password || '');
   };
 
-  const hasUnsavedChanges = (event: any) => {
-    return passwords[event.id] !== undefined && passwords[event.id] !== (event.coordinator_password || '');
+  const hasUnsavedChanges = (eventId: number) => {
+    const original = events.find((e: any) => e.id === eventId)?.coordinator_password || '';
+    const staged = stagedPasswords[eventId];
+    return staged !== undefined && staged !== original;
+  };
+
+  const totalUnsavedChanges = Object.keys(stagedPasswords).filter(id => hasUnsavedChanges(Number(id))).length;
+
+  const handleBulkSave = async () => {
+    const changesToApply = Object.entries(stagedPasswords).filter(([id]) => hasUnsavedChanges(Number(id)));
+    
+    if (changesToApply.length === 0) return;
+
+    // Validation
+    const emptyPasswords = changesToApply.filter(([_, pwd]) => !pwd.trim());
+    if (emptyPasswords.length > 0) {
+      push({ message: 'Passwords cannot be empty', type: 'error' });
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      push({ message: `Saving ${changesToApply.length} passwords...`, type: 'info' });
+
+      // Ensure save sequentially to prevent race conditions or overloading the DB
+      for (const [eventIdStr, newPassword] of changesToApply) {
+        await updateEvent(Number(eventIdStr), { coordinator_password: newPassword } as any);
+      }
+
+      push({ message: `Successfully updated ${changesToApply.length} passwords!`, type: 'success' }); // replaced toastId logic with a simple push as the ToastProvider interface might be custom
+      
+      // Clear staged changes after successful save
+      setStagedPasswords({});
+    } catch (error) {
+      console.error('Error updating passwords:', error);
+      push({ message: 'Failed to update some passwords', type: 'error' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // --- AI Scanner Integration ---
+  
+  // Basic fuzzy string matcher for event names
+  const normalizeText = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  const handleAIScanComplete = (extractedData: ExtractedPasswordData[]) => {
+    if (!events) return;
+    
+    let matchedCount = 0;
+    const newStagedPasswords = { ...stagedPasswords };
+
+    extractedData.forEach((extracted) => {
+      if (!extracted.event_name || !extracted.password) return;
+      
+      const normalizedExtracted = normalizeText(extracted.event_name);
+      
+      // Find the best match in our database events
+      const match = events.find((e: any) => {
+        const normalizedDbTitle = normalizeText(e.title);
+        // Direct inclusion check: Does "Hackathon 2026" contain "Hackathon"?
+        return normalizedDbTitle.includes(normalizedExtracted) || normalizedExtracted.includes(normalizedDbTitle);
+      });
+
+      if (match) {
+        // Only stage if we're actually changing it
+        if ((match.coordinator_password || '') !== extracted.password) {
+          newStagedPasswords[match.id] = extracted.password;
+          matchedCount++;
+        }
+      }
+    });
+
+    setStagedPasswords(newStagedPasswords);
+    setShowScanner(false);
+
+    if (matchedCount > 0) {
+      push({ message: `AI successfully matched and staged ${matchedCount} passwords!`, type: 'success' });
+    } else {
+      push({ message: 'AI scan complete, but no new passwords were automatically matched.', type: 'info' });
+    }
   };
 
   if (!isOwner) {
     return (
-      <div className="p-8 bg-white rounded-lg shadow">
-        <div className="flex items-center gap-3 text-amber-600">
-          <AlertCircle size={24} />
+      <div className="p-8 bg-white/5 border border-red-500/20 rounded-2xl backdrop-blur-sm">
+        <div className="flex items-center gap-4 text-red-400">
+          <div className="p-3 bg-red-500/10 rounded-xl">
+            <ShieldCheck size={32} />
+          </div>
           <div>
-            <h3 className="font-semibold text-lg">Owner Access Required</h3>
-            <p className="text-sm text-gray-600">Only the owner can manage coordinator passwords.</p>
+            <h3 className="font-bold text-xl text-white tracking-wide">Owner Access Required</h3>
+            <p className="text-sm text-red-200/60 mt-1">Only the primary owner can manage and view coordinator passwords due to strict security policies.</p>
           </div>
         </div>
       </div>
@@ -80,106 +164,200 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <Lock className="w-6 h-6 text-purple-600" />
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Coordinator Password Management</h2>
-            <p className="text-sm text-gray-600">Manage login passwords for event coordinators</p>
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+      
+      {/* Header & Stats */}
+      <div className="bg-black/40 border border-white/10 rounded-2xl p-6 lg:p-8 relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-600/10 via-teal-900/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+              <Lock className="w-8 h-8 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold font-display text-white tracking-tight">Coordinator Access</h2>
+              <p className="text-sm text-emerald-200/60 mt-1.5 font-medium max-w-md">
+                Manage login credentials for all event coordinators. Changes must be saved explicitly.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowScanner(!showScanner)}
+              className="px-5 py-2.5 bg-black/50 border border-emerald-500/30 text-emerald-400 font-bold rounded-xl hover:bg-emerald-500/10 hover:border-emerald-400 transition-all flex items-center gap-2 group"
+            >
+              <Wand2 size={18} className="group-hover:scale-110 group-hover:rotate-12 transition-transform" />
+              {showScanner ? 'Close Scanner' : 'AI Bulk Scan'}
+            </button>
+            
+            <button
+              onClick={handleBulkSave}
+              disabled={totalUnsavedChanges === 0 || isSaving}
+              className={`
+                px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg
+                ${totalUnsavedChanges > 0 
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:-translate-y-0.5' 
+                  : 'bg-white/5 text-white/30 cursor-not-allowed border border-white/5'
+                }
+              `}
+            >
+              {isSaving ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Save size={18} />
+              )}
+              Save {totalUnsavedChanges > 0 ? `(${totalUnsavedChanges}) Changes` : 'Changes'}
+            </button>
           </div>
         </div>
+      </div>
 
-        <div className="space-y-4">
-          {events && events.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No events found</p>
-          ) : (
-            events.map((event: any) => (
-              <div 
-                key={event.id} 
-                className="border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors"
-              >
-                <div className="flex flex-col gap-4">
-                  {/* Event Info */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{event.title}</h3>
-                      <p className="text-sm text-gray-500">{event.category}</p>
-                      {event.coordinator_name && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Coordinator: {event.coordinator_name}
-                        </p>
-                      )}
-                    </div>
-                    {hasUnsavedChanges(event) && (
-                      <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded">
-                        Unsaved
+      {/* AI Scanner Integration */}
+      {showScanner && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <AICoordinatorScanner 
+            onScanComplete={handleAIScanComplete}
+            onCancel={() => setShowScanner(false)}
+          />
+        </div>
+      )}
+
+      {/* Controls Bar */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Search */}
+        <div className="relative flex-1 group">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" />
+          <input
+            type="text"
+            placeholder="Search by event or coordinator name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-black/40 border border-white/10 rounded-xl py-3 pl-11 pr-4 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all"
+          />
+        </div>
+
+        {/* Filter */}
+        <div className="relative min-w-[200px] group">
+          <Filter size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors pointer-events-none z-10" />
+          <select
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value)}
+            className="w-full appearance-none bg-black/40 border border-white/10 rounded-xl py-3 pl-11 pr-10 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-all cursor-pointer"
+          >
+            <option value="all">All Categories</option>
+            {categories.map((cat, i) => (
+              <option key={i} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Database Table View */}
+      <div className="bg-black/40 border border-white/10 rounded-2xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-emerald-500/20 bg-emerald-950/30">
+                <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Event Name</th>
+                <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Category</th>
+                <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Assigned Coordinator</th>
+                <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20 w-[350px]">Login Password</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {filteredEvents.map((event: any) => {
+                const isUnsaved = hasUnsavedChanges(event.id);
+                const passwordVal = getCurrentPassword(event);
+                const showPwd = showPasswords[event.id];
+
+                return (
+                  <tr 
+                    key={event.id} 
+                    className={`
+                      group hover:bg-white/5 transition-colors
+                      ${isUnsaved ? 'bg-emerald-900/10' : ''}
+                    `}
+                  >
+                    <td className="py-4 px-6">
+                      <div className="font-bold text-white mb-0.5">{event.title}</div>
+                      <div className="text-xs text-white/40 flex items-center gap-2">
+                        ID: {event.id}
+                        {isUnsaved && (
+                          <span className="bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-mono text-[10px] border border-emerald-500/30 animate-pulse">
+                            STAGED
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/70 border border-white/10 group-hover:border-white/20 transition-colors">
+                        {event.category}
                       </span>
-                    )}
-                  </div>
-
-                  {/* Password Field */}
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Login Password
-                      </label>
-                      <div className="relative">
+                    </td>
+                    
+                    <td className="py-4 px-6">
+                      {event.coordinator_name ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-indigo-300 text-xs font-bold uppercase">
+                            {event.coordinator_name.charAt(0)}
+                          </div>
+                          <span className="text-sm font-medium text-white/80">{event.coordinator_name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-white/30 italic">Unassigned</span>
+                      )}
+                    </td>
+                    
+                    <td className="py-4 px-6">
+                      <div className="relative group/input">
+                        <Lock size={14} className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${isUnsaved ? 'text-emerald-400' : 'text-white/30 group-focus-within/input:text-white/70'}`} />
                         <input
-                          type={showPasswords[event.id] ? 'text' : 'password'}
-                          value={getCurrentPassword(event)}
+                          type={showPwd ? 'text' : 'password'}
+                          value={passwordVal}
                           onChange={(e) => handlePasswordChange(event.id, e.target.value)}
-                          className="w-full px-3 py-2 pr-10 border border-purple-300 bg-purple-50 rounded-lg text-sm font-mono text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                          placeholder="123@Rajaevent"
+                          placeholder="e.g. 123@Rajaevent"
+                          className={`
+                            w-full pl-9 pr-10 py-2.5 rounded-xl text-sm font-mono transition-all focus:outline-none focus:ring-2 
+                            ${isUnsaved 
+                              ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-300 focus:ring-emerald-500/50 focus:border-emerald-400' 
+                              : 'bg-black/40 border-white/10 text-white placeholder-white/20 focus:ring-white/20 focus:border-white/30 hover:bg-white/5'
+                            }
+                          `}
                         />
                         <button
                           type="button"
                           onClick={() => toggleShowPassword(event.id)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          className={`absolute right-3 top-1/2 -translate-y-1/2 transition-colors
+                            ${showPwd ? 'text-emerald-400' : isUnsaved ? 'text-emerald-500/50 hover:text-emerald-400' : 'text-white/30 hover:text-white/70'}
+                          `}
                         >
-                          {showPasswords[event.id] ? <EyeOff size={16} /> : <Eye size={16} />}
+                          {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredEvents.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="py-12 text-center text-white/40">
+                    <div className="flex flex-col items-center gap-3">
+                      <Lock className="w-8 h-8 opacity-20" />
+                      <p>No events found for "{searchQuery}"</p>
                     </div>
-                    <button
-                      onClick={() => handleSave(event.id)}
-                      disabled={!hasUnsavedChanges(event) || savingId === event.id}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
-                        hasUnsavedChanges(event)
-                          ? 'bg-purple-600 text-white hover:bg-purple-700'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                      }`}
-                    >
-                      {savingId === event.id ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save size={16} />
-                          Save
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      {/* Help Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-2">💡 How It Works</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• Each event can have a unique password for its coordinator</li>
-          <li>• Coordinators use this password to log in at <code className="bg-blue-100 px-1 py-0.5 rounded">/coordinator</code></li>
-          <li>• Default password for new events: <code className="bg-blue-100 px-1 py-0.5 rounded">123@Rajaevent</code></li>
-          <li>• Only you (the owner) can change these passwords</li>
-        </ul>
-      </div>
+      
     </div>
   );
 };

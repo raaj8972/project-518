@@ -15,6 +15,9 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

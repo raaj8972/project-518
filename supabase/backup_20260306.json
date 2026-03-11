@@ -1,0 +1,1607 @@
+{
+  "timestamp": "2026-03-06T05:00:54.706Z",
+  "tables": {
+    "events": {
+      "count": 3,
+      "data": [
+        {
+          "id": 1,
+          "title": "Cultural Night",
+          "category": "Cultural",
+          "description": "An evening showcasing traditional and contemporary performances from various cultural backgrounds.",
+          "image": "https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&cs=tinysrgb&w=800",
+          "date": "2025-03-15",
+          "time": "7:00 PM - 10:00 PM",
+          "venue": "Main Auditorium",
+          "participants": "500+",
+          "highlights": [
+            "Traditional Dance",
+            "Music Performances",
+            "Drama",
+            "Fashion Show"
+          ],
+          "registration_open": true,
+          "max_participants": 500,
+          "current_registrations": 0,
+          "featured": true,
+          "created_at": "2026-03-05T12:41:40.210001+00:00",
+          "visible": true,
+          "rules": [],
+          "payment_gateway_config": {},
+          "payment_amount": 0,
+          "display_order": 1
+        },
+        {
+          "id": 2,
+          "title": "Tech Symposium",
+          "category": "Technical",
+          "description": "Innovation and technology showcase featuring industry experts and student innovations.",
+          "image": "https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=800",
+          "date": "2025-03-16",
+          "time": "10:00 AM - 5:00 PM",
+          "venue": "Engineering Building",
+          "participants": "300+",
+          "highlights": [
+            "AI Workshop",
+            "Robotics Demo",
+            "Startup Pitches",
+            "Tech Exhibition"
+          ],
+          "registration_open": true,
+          "max_participants": 300,
+          "current_registrations": 0,
+          "featured": true,
+          "created_at": "2026-03-05T12:41:40.210001+00:00",
+          "visible": true,
+          "rules": [],
+          "payment_gateway_config": {},
+          "payment_amount": 0,
+          "display_order": 2
+        },
+        {
+          "id": 3,
+          "title": "Sports Championship",
+          "category": "Sports",
+          "description": "Inter-college sports competition featuring multiple disciplines and categories.",
+          "image": "https://images.pexels.com/photos/209969/pexels-photo-209969.jpeg?auto=compress&cs=tinysrgb&w=800",
+          "date": "2025-03-17",
+          "time": "9:00 AM - 6:00 PM",
+          "venue": "Sports Complex",
+          "participants": "800+",
+          "highlights": [
+            "Football",
+            "Basketball",
+            "Cricket",
+            "Athletics",
+            "Badminton"
+          ],
+          "registration_open": true,
+          "max_participants": 800,
+          "current_registrations": 0,
+          "featured": true,
+          "created_at": "2026-03-05T12:41:40.210001+00:00",
+          "visible": true,
+          "rules": [],
+          "payment_gateway_config": {},
+          "payment_amount": 0,
+          "display_order": 3
+        }
+      ]
+    },
+    "event_categories": {
+      "count": 3,
+      "data": [
+        {
+          "id": 1,
+          "name": "Cultural",
+          "color": "#8B5CF6",
+          "description": "Traditional and contemporary cultural performances",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 2,
+          "name": "Technical",
+          "color": "#3B82F6",
+          "description": "Technology, innovation, and engineering competitions",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 3,
+          "name": "Sports",
+          "color": "#10B981",
+          "description": "Athletic competitions and physical activities",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        }
+      ]
+    },
+    "event_winners": {
+      "count": 0,
+      "data": []
+    },
+    "event_coordinators": {
+      "count": 0,
+      "data": []
+    },
+    "registrations": {
+      "count": 0,
+      "data": []
+    },
+    "sponsors": {
+      "count": 2,
+      "data": [
+        {
+          "id": 1,
+          "name": "TechCorp Industries",
+          "category": "Title Sponsor",
+          "logo": "https://images.pexels.com/photos/3183150/pexels-photo-3183150.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading technology solutions provider committed to innovation and excellence.",
+          "website": "https://techcorp.example.com",
+          "created_at": "2026-03-05T12:41:40.210001+00:00",
+          "featured": false,
+          "order_position": 1
+        },
+        {
+          "id": 2,
+          "name": "Global Bank",
+          "category": "Co Sponsor",
+          "logo": "https://images.pexels.com/photos/534216/pexels-photo-534216.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Premier banking services supporting education and community development.",
+          "website": "https://globalbank.example.com",
+          "created_at": "2026-03-05T12:41:40.210001+00:00",
+          "featured": false,
+          "order_position": 1
+        }
+      ]
+    },
+    "sponsorship_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "brochure_url": null,
+          "brochure_title": "Download Sponsorship Brochure",
+          "intro_text": "RICORRENZA 2025 is made possible by the generous support of our sponsors. We thank all our partners for their commitment to education, innovation, and community development.",
+          "call_to_action_text": "Interested in Sponsoring?",
+          "created_at": "2026-03-05T12:41:41.625515+00:00",
+          "updated_at": "2026-03-05T12:41:41.625515+00:00"
+        }
+      ]
+    },
+    "contact_sections": {
+      "count": 3,
+      "data": [
+        {
+          "id": 1,
+          "type": "email",
+          "title": "Email Us",
+          "content": "sponsors@ricorrenza2025.edu",
+          "icon": "Mail",
+          "enabled": true,
+          "order": 1,
+          "created_at": "2026-03-05T12:41:41.625515+00:00",
+          "updated_at": "2026-03-05T12:41:41.625515+00:00",
+          "sponsorship_settings_id": 1
+        },
+        {
+          "id": 2,
+          "type": "phone",
+          "title": "Call Us",
+          "content": "+1 (555) 123-4567",
+          "icon": "Phone",
+          "enabled": true,
+          "order": 2,
+          "created_at": "2026-03-05T12:41:41.625515+00:00",
+          "updated_at": "2026-03-05T12:41:41.625515+00:00",
+          "sponsorship_settings_id": 1
+        },
+        {
+          "id": 3,
+          "type": "address",
+          "title": "Visit Us",
+          "content": "College Campus, Event Office",
+          "icon": "MapPin",
+          "enabled": true,
+          "order": 3,
+          "created_at": "2026-03-05T12:41:41.625515+00:00",
+          "updated_at": "2026-03-05T12:41:41.625515+00:00",
+          "sponsorship_settings_id": 1
+        }
+      ]
+    },
+    "schedule_days": {
+      "count": 3,
+      "data": [
+        {
+          "id": 1,
+          "date": "2025-03-15",
+          "day": "Day 1",
+          "title": "Cultural Day",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 2,
+          "date": "2025-03-16",
+          "day": "Day 2",
+          "title": "Technical Day",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 3,
+          "date": "2025-03-17",
+          "day": "Day 3",
+          "title": "Sports & Finale",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        }
+      ]
+    },
+    "schedule_events": {
+      "count": 4,
+      "data": [
+        {
+          "id": 1,
+          "schedule_day_id": 1,
+          "time": "9:00 AM",
+          "title": "Registration Opens",
+          "venue": "Main Entrance",
+          "type": "General",
+          "duration": "30 min",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 2,
+          "schedule_day_id": 1,
+          "time": "7:00 PM",
+          "title": "Cultural Night - Main Event",
+          "venue": "Main Auditorium",
+          "type": "Cultural",
+          "duration": "3 hours",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 3,
+          "schedule_day_id": 2,
+          "time": "10:00 AM",
+          "title": "Tech Symposium",
+          "venue": "Engineering Building",
+          "type": "Technical",
+          "duration": "7 hours",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 4,
+          "schedule_day_id": 3,
+          "time": "9:00 AM",
+          "title": "Sports Championship",
+          "venue": "Sports Complex",
+          "type": "Sports",
+          "duration": "9 hours",
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        }
+      ]
+    },
+    "gallery_images": {
+      "count": 2,
+      "data": [
+        {
+          "id": 1,
+          "src": "https://images.pexels.com/photos/1763075/pexels-photo-1763075.jpeg?auto=compress&cs=tinysrgb&w=800",
+          "category": "Cultural",
+          "title": "Traditional Dance Performance",
+          "year": "2024",
+          "featured": true,
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        },
+        {
+          "id": 2,
+          "src": "https://images.pexels.com/photos/2747449/pexels-photo-2747449.jpeg?auto=compress&cs=tinysrgb&w=800",
+          "category": "Technical",
+          "title": "Tech Innovation Showcase",
+          "year": "2024",
+          "featured": true,
+          "created_at": "2026-03-05T12:41:40.210001+00:00"
+        }
+      ]
+    },
+    "gallery_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "scroll_per_item": 150,
+          "distance": 200,
+          "background_blur_px": 10,
+          "card_blur_max": 8,
+          "reveal_enabled": false,
+          "reveal_duration_ms": 3000,
+          "reveal_orientation": "horizontal",
+          "updated_at": "2026-03-05T16:18:45.428653+00:00"
+        }
+      ]
+    },
+    "faculty_heads": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "name": "Dr. Priya Sharma",
+          "title": "Festival Director & Department Head",
+          "image": "https://images.pexels.com/photos/5327585/pexels-photo-5327585.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading RICORRENZA 2025 with over 15 years of experience in medical education and innovation. Dr. Sharma has been instrumental in transforming medical college festivals into platforms for future healthcare leaders.",
+          "achievements": [
+            "Published 50+ research papers in medical education",
+            "Recipient of Excellence in Teaching Award 2023",
+            "Pioneer in integrating technology with medical training",
+            "Mentor to 200+ medical students and residents"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.504948+00:00",
+          "updated_at": "2026-03-05T12:41:43.504948+00:00"
+        }
+      ]
+    },
+    "guest_artists": {
+      "count": 0,
+      "data": []
+    },
+    "chief_guests": {
+      "count": 0,
+      "data": []
+    },
+    "core_team_members": {
+      "count": 42,
+      "data": [
+        {
+          "id": 1,
+          "committee_id": 1,
+          "name": "Alex Chen",
+          "role": "Lead Developer",
+          "image": "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Full-stack developer with expertise in React and Node.js",
+          "specialty": "Web Development",
+          "achievements": [
+            "Built 5+ production applications",
+            "Expert in React ecosystem",
+            "Database optimization specialist"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 2,
+          "committee_id": 1,
+          "name": "Sarah Kumar",
+          "role": "Mobile App Developer",
+          "image": "https://images.pexels.com/photos/1239291/pexels-photo-1239291.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Mobile development specialist focusing on cross-platform solutions",
+          "specialty": "Mobile Development",
+          "achievements": [
+            "Published 3 mobile apps",
+            "Flutter expert",
+            "UI/UX design skills"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 3,
+          "committee_id": 1,
+          "name": "David Rodriguez",
+          "role": "DevOps Engineer",
+          "image": "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Infrastructure and deployment specialist ensuring smooth operations",
+          "specialty": "DevOps & Infrastructure",
+          "achievements": [
+            "AWS certified",
+            "Docker containerization expert",
+            "CI/CD pipeline specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 101,
+          "committee_id": 1,
+          "name": "Alex Chen",
+          "role": "Technical Lead",
+          "image": "https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading the technical vision and architecture for RICORRENZA 2025. Expert in full-stack development and system design.",
+          "specialty": "Full-Stack Architecture",
+          "achievements": [
+            "Led development of 5+ major web applications",
+            "Expert in React, Node.js, and cloud technologies",
+            "Mentored 20+ junior developers"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 102,
+          "committee_id": 1,
+          "name": "Sarah Johnson",
+          "role": "Frontend Developer",
+          "image": "https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Creating stunning user interfaces and seamless user experiences for the festival platform.",
+          "specialty": "Frontend Development",
+          "achievements": [
+            "Specialized in React and modern CSS frameworks",
+            "Created award-winning UI designs",
+            "Performance optimization expert"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 103,
+          "committee_id": 1,
+          "name": "Michael Rodriguez",
+          "role": "Backend Developer",
+          "image": "https://images.pexels.com/photos/2182970/pexels-photo-2182970.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Building robust server-side solutions and database architectures for scalable festival management.",
+          "specialty": "Backend Systems",
+          "achievements": [
+            "Expert in Node.js and database design",
+            "Built high-performance APIs",
+            "Security and scalability specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 104,
+          "committee_id": 1,
+          "name": "Emily Wang",
+          "role": "Mobile Developer",
+          "image": "https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Developing cross-platform mobile applications for enhanced festival experience.",
+          "specialty": "Mobile Development",
+          "achievements": [
+            "React Native and Flutter expert",
+            "Published 3+ mobile apps",
+            "Mobile UX optimization specialist"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 105,
+          "committee_id": 1,
+          "name": "David Kim",
+          "role": "DevOps Engineer",
+          "image": "https://images.pexels.com/photos/2182975/pexels-photo-2182975.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing cloud infrastructure and deployment pipelines for reliable festival operations.",
+          "specialty": "Cloud Infrastructure",
+          "achievements": [
+            "AWS and Docker containerization expert",
+            "Automated CI/CD pipeline implementation",
+            "System monitoring and optimization"
+          ],
+          "order_position": 5,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 106,
+          "committee_id": 1,
+          "name": "Lisa Thompson",
+          "role": "UI/UX Designer",
+          "image": "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Designing intuitive and engaging user experiences for all festival digital touchpoints.",
+          "specialty": "User Experience Design",
+          "achievements": [
+            "Award-winning UI/UX designer",
+            "User research and testing expert",
+            "Accessibility and inclusive design advocate"
+          ],
+          "order_position": 6,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 201,
+          "committee_id": 2,
+          "name": "Maya Patel",
+          "role": "Creative Director",
+          "image": "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading the creative vision and artistic direction for RICORRENZA 2025 cyberpunk theme.",
+          "specialty": "Creative Direction",
+          "achievements": [
+            "Led creative campaigns for 10+ major events",
+            "Award-winning graphic design portfolio",
+            "Brand identity and visual storytelling expert"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 202,
+          "committee_id": 2,
+          "name": "James Wilson",
+          "role": "Graphic Designer",
+          "image": "https://images.pexels.com/photos/2182969/pexels-photo-2182969.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Creating stunning visual assets and cyberpunk-themed designs for all festival materials.",
+          "specialty": "Graphic Design",
+          "achievements": [
+            "Adobe Creative Suite master",
+            "Cyberpunk and futuristic design specialist",
+            "Created visual identity for 15+ brands"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 203,
+          "committee_id": 2,
+          "name": "Sophia Martinez",
+          "role": "Video Editor",
+          "image": "https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Producing dynamic video content and promotional materials for the festival.",
+          "specialty": "Video Production",
+          "achievements": [
+            "Professional video editing and motion graphics",
+            "Created viral promotional videos",
+            "Expert in After Effects and Premiere Pro"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 204,
+          "committee_id": 2,
+          "name": "Ryan O'Connor",
+          "role": "Content Writer",
+          "image": "https://images.pexels.com/photos/2182973/pexels-photo-2182973.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Crafting compelling content and cyberpunk narratives for all festival communications.",
+          "specialty": "Content Creation",
+          "achievements": [
+            "Published author and copywriter",
+            "SEO and digital content expert",
+            "Created content for 50+ campaigns"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 205,
+          "committee_id": 2,
+          "name": "Zoe Anderson",
+          "role": "Social Media Manager",
+          "image": "https://images.pexels.com/photos/3184317/pexels-photo-3184317.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing social media presence and digital engagement strategies for the festival.",
+          "specialty": "Social Media Strategy",
+          "achievements": [
+            "Grew social media following by 300%",
+            "Viral content creation specialist",
+            "Community management expert"
+          ],
+          "order_position": 5,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 301,
+          "committee_id": 3,
+          "name": "Kevin Zhang",
+          "role": "Event Manager",
+          "image": "https://images.pexels.com/photos/2182974/pexels-photo-2182974.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Overseeing all event planning and execution for a seamless festival experience.",
+          "specialty": "Event Planning",
+          "achievements": [
+            "Managed 25+ large-scale events",
+            "Expert in event logistics and coordination",
+            "Crisis management and problem-solving specialist"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 302,
+          "committee_id": 3,
+          "name": "Amanda Foster",
+          "role": "Event Coordinator",
+          "image": "https://images.pexels.com/photos/3184292/pexels-photo-3184292.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Coordinating between different teams and ensuring smooth event operations.",
+          "specialty": "Event Coordination",
+          "achievements": [
+            "Coordinated events for 1000+ participants",
+            "Multi-team collaboration expert",
+            "Timeline and resource management specialist"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 303,
+          "committee_id": 3,
+          "name": "Carlos Mendez",
+          "role": "Logistics Coordinator",
+          "image": "https://images.pexels.com/photos/2182971/pexels-photo-2182971.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing venue logistics, equipment, and operational requirements for all events.",
+          "specialty": "Logistics Management",
+          "achievements": [
+            "Streamlined logistics for major events",
+            "Vendor management and negotiation expert",
+            "Cost optimization and efficiency specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 304,
+          "committee_id": 3,
+          "name": "Rachel Green",
+          "role": "Volunteer Manager",
+          "image": "https://images.pexels.com/photos/3184340/pexels-photo-3184340.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Recruiting, training, and managing volunteers for the festival operations.",
+          "specialty": "Volunteer Management",
+          "achievements": [
+            "Managed teams of 100+ volunteers",
+            "Training and development specialist",
+            "Community engagement expert"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 401,
+          "committee_id": 4,
+          "name": "Jessica Liu",
+          "role": "Marketing Director",
+          "image": "https://images.pexels.com/photos/3184341/pexels-photo-3184341.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Developing comprehensive marketing strategies to promote RICORRENZA 2025 across all channels.",
+          "specialty": "Marketing Strategy",
+          "achievements": [
+            "Increased event attendance by 200%",
+            "Digital marketing campaign expert",
+            "Brand positioning and market research specialist"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 402,
+          "committee_id": 4,
+          "name": "Tom Bradley",
+          "role": "Digital Marketing Specialist",
+          "image": "https://images.pexels.com/photos/2182972/pexels-photo-2182972.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing online marketing campaigns and digital advertising for maximum reach.",
+          "specialty": "Digital Marketing",
+          "achievements": [
+            "Google Ads and Facebook Marketing certified",
+            "ROI optimization expert",
+            "Data-driven marketing specialist"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 403,
+          "committee_id": 4,
+          "name": "Nina Sharma",
+          "role": "PR Manager",
+          "image": "https://images.pexels.com/photos/3184343/pexels-photo-3184343.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Building relationships with media and managing public relations for the festival.",
+          "specialty": "Public Relations",
+          "achievements": [
+            "Secured coverage in 50+ media outlets",
+            "Crisis communication expert",
+            "Influencer partnership specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 404,
+          "committee_id": 4,
+          "name": "Chris Evans",
+          "role": "Brand Manager",
+          "image": "https://images.pexels.com/photos/2182976/pexels-photo-2182976.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Maintaining brand consistency and developing brand partnerships for the festival.",
+          "specialty": "Brand Management",
+          "achievements": [
+            "Developed brand guidelines for major events",
+            "Partnership negotiation expert",
+            "Brand identity and positioning specialist"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 501,
+          "committee_id": 5,
+          "name": "Robert Johnson",
+          "role": "Finance Director",
+          "image": "https://images.pexels.com/photos/2182977/pexels-photo-2182977.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing festival budget, financial planning, and ensuring fiscal responsibility.",
+          "specialty": "Financial Management",
+          "achievements": [
+            "CPA with 10+ years experience",
+            "Managed budgets exceeding $500K",
+            "Financial planning and analysis expert"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 502,
+          "committee_id": 5,
+          "name": "Grace Kim",
+          "role": "Treasurer",
+          "image": "https://images.pexels.com/photos/3184344/pexels-photo-3184344.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Handling day-to-day financial operations and expense tracking for the festival.",
+          "specialty": "Financial Operations",
+          "achievements": [
+            "Expert in financial software and systems",
+            "Expense management and reporting specialist",
+            "Audit and compliance expert"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 503,
+          "committee_id": 5,
+          "name": "Daniel Lee",
+          "role": "Financial Auditor",
+          "image": "https://images.pexels.com/photos/2182978/pexels-photo-2182978.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Ensuring financial transparency and conducting audits for festival operations.",
+          "specialty": "Financial Auditing",
+          "achievements": [
+            "Certified Internal Auditor",
+            "Risk assessment and mitigation expert",
+            "Compliance and regulatory specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 601,
+          "committee_id": 6,
+          "name": "Marcus Thompson",
+          "role": "Security Director",
+          "image": "https://images.pexels.com/photos/2182979/pexels-photo-2182979.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Overseeing all security aspects of the festival including cyber and physical security.",
+          "specialty": "Security Management",
+          "achievements": [
+            "15+ years in security management",
+            "Certified Security Professional",
+            "Emergency response and crisis management expert"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 602,
+          "committee_id": 6,
+          "name": "Elena Volkov",
+          "role": "Cyber Security Specialist",
+          "image": "https://images.pexels.com/photos/3184345/pexels-photo-3184345.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Protecting digital assets and ensuring cybersecurity for all festival systems.",
+          "specialty": "Cybersecurity",
+          "achievements": [
+            "Certified Ethical Hacker",
+            "Prevented 100+ security incidents",
+            "Penetration testing and vulnerability assessment expert"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 603,
+          "committee_id": 6,
+          "name": "Jake Morrison",
+          "role": "Physical Security Lead",
+          "image": "https://images.pexels.com/photos/2182980/pexels-photo-2182980.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing on-site security operations and ensuring participant safety.",
+          "specialty": "Physical Security",
+          "achievements": [
+            "Former law enforcement officer",
+            "Crowd control and event security expert",
+            "Emergency medical response certified"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 701,
+          "committee_id": 7,
+          "name": "Isabella Garcia",
+          "role": "Media Director",
+          "image": "https://images.pexels.com/photos/3184346/pexels-photo-3184346.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading media coverage and documentation of all festival events and activities.",
+          "specialty": "Media Production",
+          "achievements": [
+            "Award-winning documentary filmmaker",
+            "Covered 30+ major events",
+            "Media strategy and content planning expert"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 702,
+          "committee_id": 7,
+          "name": "Nathan Cooper",
+          "role": "Lead Photographer",
+          "image": "https://images.pexels.com/photos/2182981/pexels-photo-2182981.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Capturing the essence and energy of RICORRENZA through professional photography.",
+          "specialty": "Event Photography",
+          "achievements": [
+            "Professional photographer for 8+ years",
+            "Specialized in event and portrait photography",
+            "Published in major photography magazines"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 703,
+          "committee_id": 7,
+          "name": "Olivia Brown",
+          "role": "Videographer",
+          "image": "https://images.pexels.com/photos/3184347/pexels-photo-3184347.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Creating dynamic video content and live coverage of festival highlights.",
+          "specialty": "Video Production",
+          "achievements": [
+            "Produced videos with 1M+ views",
+            "Live streaming and broadcast expert",
+            "Drone photography and aerial videography certified"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 704,
+          "committee_id": 7,
+          "name": "Tyler Davis",
+          "role": "Live Streaming Coordinator",
+          "image": "https://images.pexels.com/photos/2182982/pexels-photo-2182982.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing live streaming operations and real-time broadcast of festival events.",
+          "specialty": "Live Broadcasting",
+          "achievements": [
+            "Managed live streams for 50+ events",
+            "Multi-platform streaming expert",
+            "Technical broadcast and AV specialist"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 801,
+          "committee_id": 8,
+          "name": "Hannah Wilson",
+          "role": "Hospitality Director",
+          "image": "https://images.pexels.com/photos/3184348/pexels-photo-3184348.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Ensuring exceptional guest experience and hospitality services throughout the festival.",
+          "specialty": "Hospitality Management",
+          "achievements": [
+            "Hospitality industry veteran with 12+ years",
+            "Guest satisfaction rating of 98%",
+            "Event hospitality and VIP services expert"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 802,
+          "committee_id": 8,
+          "name": "Andrew Miller",
+          "role": "Guest Relations Manager",
+          "image": "https://images.pexels.com/photos/2182983/pexels-photo-2182983.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing guest services and ensuring positive experiences for all festival attendees.",
+          "specialty": "Guest Services",
+          "achievements": [
+            "Customer service excellence award winner",
+            "Multilingual communication specialist",
+            "Conflict resolution and guest satisfaction expert"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 803,
+          "committee_id": 8,
+          "name": "Chloe Taylor",
+          "role": "Catering Coordinator",
+          "image": "https://images.pexels.com/photos/3184349/pexels-photo-3184349.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Coordinating food and beverage services for participants and guests.",
+          "specialty": "Catering Management",
+          "achievements": [
+            "Managed catering for events with 2000+ attendees",
+            "Dietary restrictions and nutrition expert",
+            "Vendor management and quality control specialist"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 901,
+          "committee_id": 9,
+          "name": "Brandon Clark",
+          "role": "Logistics Director",
+          "image": "https://images.pexels.com/photos/2182984/pexels-photo-2182984.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Overseeing all logistical operations and ensuring smooth execution of festival activities.",
+          "specialty": "Operations Management",
+          "achievements": [
+            "Supply chain and logistics expert",
+            "Reduced operational costs by 25%",
+            "Process optimization and efficiency specialist"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 902,
+          "committee_id": 9,
+          "name": "Samantha White",
+          "role": "Transport Coordinator",
+          "image": "https://images.pexels.com/photos/3184350/pexels-photo-3184350.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing transportation arrangements for participants, guests, and equipment.",
+          "specialty": "Transportation Logistics",
+          "achievements": [
+            "Coordinated transport for 5000+ participants",
+            "Route optimization and scheduling expert",
+            "Fleet management and safety specialist"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 903,
+          "committee_id": 9,
+          "name": "Jordan Martinez",
+          "role": "Equipment Manager",
+          "image": "https://images.pexels.com/photos/2182985/pexels-photo-2182985.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing technical equipment, audio-visual systems, and festival infrastructure.",
+          "specialty": "Equipment Management",
+          "achievements": [
+            "AV equipment and technical setup expert",
+            "Inventory management specialist",
+            "Equipment maintenance and troubleshooting expert"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 904,
+          "committee_id": 9,
+          "name": "Ashley Johnson",
+          "role": "Venue Manager",
+          "image": "https://images.pexels.com/photos/3184351/pexels-photo-3184351.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Coordinating venue arrangements and space management for all festival activities.",
+          "specialty": "Venue Coordination",
+          "achievements": [
+            "Managed 20+ venue setups",
+            "Space planning and layout optimization expert",
+            "Vendor coordination and facility management specialist"
+          ],
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 1001,
+          "committee_id": 10,
+          "name": "Victoria Chang",
+          "role": "Documentation Lead",
+          "image": "https://images.pexels.com/photos/3184352/pexels-photo-3184352.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Leading documentation efforts and maintaining comprehensive records of festival activities.",
+          "specialty": "Documentation Management",
+          "achievements": [
+            "Technical writing and documentation expert",
+            "Created comprehensive documentation systems",
+            "Information architecture and knowledge management specialist"
+          ],
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 1002,
+          "committee_id": 10,
+          "name": "Lucas Brown",
+          "role": "Content Manager",
+          "image": "https://images.pexels.com/photos/2182986/pexels-photo-2182986.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Managing content creation and maintaining festival knowledge base and archives.",
+          "specialty": "Content Management",
+          "achievements": [
+            "Content strategy and CMS expert",
+            "Digital asset management specialist",
+            "SEO and content optimization expert"
+          ],
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        },
+        {
+          "id": 1003,
+          "committee_id": 10,
+          "name": "Megan Davis",
+          "role": "Archive Manager",
+          "image": "https://images.pexels.com/photos/3184353/pexels-photo-3184353.jpeg?auto=compress&cs=tinysrgb&w=400",
+          "description": "Maintaining historical records and creating archives for future festival references.",
+          "specialty": "Archive Management",
+          "achievements": [
+            "Digital archiving and preservation expert",
+            "Database management and organization specialist",
+            "Historical research and documentation expert"
+          ],
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:44.195362+00:00",
+          "updated_at": "2026-03-05T12:41:44.195362+00:00",
+          "is_head": false,
+          "social_links": {}
+        }
+      ]
+    },
+    "core_committees": {
+      "count": 11,
+      "data": [
+        {
+          "id": 1,
+          "name": "Technical Team",
+          "description": "Responsible for all technical aspects including web development, app development, and technical infrastructure",
+          "color": "#3B82F6",
+          "is_core": true,
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 2,
+          "name": "Creative Team",
+          "description": "Handles all creative content including graphics, videos, and visual design",
+          "color": "#8B5CF6",
+          "is_core": true,
+          "order_position": 2,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 3,
+          "name": "Event Management",
+          "description": "Coordinates and manages all event logistics and operations",
+          "color": "#10B981",
+          "is_core": true,
+          "order_position": 3,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 4,
+          "name": "Marketing Team",
+          "description": "Manages promotional activities, social media, and outreach",
+          "color": "#F59E0B",
+          "is_core": true,
+          "order_position": 4,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 5,
+          "name": "Registration Team",
+          "description": "Handles participant registration and coordination",
+          "color": "#EF4444",
+          "is_core": false,
+          "order_position": 5,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 6,
+          "name": "Sponsorship Team",
+          "description": "Manages sponsor relationships and partnerships",
+          "color": "#06B6D4",
+          "is_core": false,
+          "order_position": 6,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 7,
+          "name": "Content Team",
+          "description": "Creates and manages written content and documentation",
+          "color": "#84CC16",
+          "is_core": false,
+          "order_position": 7,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 8,
+          "name": "Security Team",
+          "description": "Ensures event security and safety protocols",
+          "color": "#6B7280",
+          "is_core": false,
+          "order_position": 8,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 9,
+          "name": "Media Team",
+          "description": "Handles photography, videography, and media coverage",
+          "color": "#EC4899",
+          "is_core": false,
+          "order_position": 9,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 10,
+          "name": "Logistics Team",
+          "description": "Manages venue, equipment, and operational logistics",
+          "color": "#F97316",
+          "is_core": false,
+          "order_position": 10,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.725689+00:00",
+          "updated_at": "2026-03-05T12:41:43.725689+00:00"
+        },
+        {
+          "id": 11,
+          "name": "Full Team",
+          "description": "Complete team of organizers, coordinators, and contributors working together to make RICORRENZA 2025 a success",
+          "color": "#FF6B35",
+          "is_core": true,
+          "order_position": 1,
+          "enabled": true,
+          "created_at": "2026-03-05T12:41:43.964957+00:00",
+          "updated_at": "2026-03-05T12:41:43.964957+00:00"
+        }
+      ]
+    },
+    "notifications": {
+      "count": 0,
+      "data": []
+    },
+    "site_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "site_closed": false,
+          "coming_soon_enabled": false,
+          "coming_soon_until": null,
+          "coming_soon_title": null,
+          "coming_soon_message": null,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        }
+      ]
+    },
+    "homepage_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "hero_media_url": "https://images.pexels.com/photos/1190297/pexels-photo-1190297.jpeg?auto=compress&cs=tinysrgb&w=1920",
+          "hero_media_type": "image",
+          "hero_title": "RICORRENZA",
+          "hero_subtitle": "Experience the Future",
+          "hero_description": "Experience the future of Healthcare, Technology, and Creativity",
+          "created_at": "2026-03-05T12:41:47.334823+00:00",
+          "updated_at": "2026-03-05T12:41:49.244884+00:00",
+          "sponsor_logos": [],
+          "sponsor_section_enabled": false,
+          "sponsor_section_text": "Powered by",
+          "sponsors_belt_speed_px_per_sec": 140,
+          "committee_marquee_speed_px_per_sec": 75,
+          "sponsors_belt_direction": "left",
+          "committee_marquee_direction": "right",
+          "brand_logo_url": null,
+          "brand_year": null,
+          "brand_logo_size_px": null,
+          "brand_logo_glow_strength": null,
+          "brand_logo_glow_color": null,
+          "brand_logo_side": null,
+          "brand_logo_offset_x_px": null,
+          "brand_logo_offset_y_px": null,
+          "brand_logo_offset_x_sm_px": null,
+          "brand_logo_offset_y_sm_px": null,
+          "brand_logo_offset_x_md_px": null,
+          "brand_logo_offset_y_md_px": null,
+          "brand_logo_offset_x_lg_px": null,
+          "brand_logo_offset_y_lg_px": null,
+          "featured_partners_enabled": true,
+          "show_faculty_heads": true,
+          "show_committee_heads": true,
+          "leadership_carousel_speed_ms": 5000,
+          "instagram_trailer_url": null,
+          "instagram_trailer_enabled": false,
+          "instagram_trailer_title": null,
+          "instagram_trailer_subtitle": null,
+          "instagram_aftermovie_url": null,
+          "instagram_aftermovie_enabled": false,
+          "instagram_aftermovie_title": null,
+          "instagram_aftermovie_subtitle": null
+        }
+      ]
+    },
+    "about_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "enabled": true,
+          "hero_title": "ABOUT RICORRENZA",
+          "hero_heading": "THE FUTURE IS NOW",
+          "hero_paragraphs": [],
+          "tracks": [],
+          "zones": [],
+          "stats": [],
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        }
+      ]
+    },
+    "homebound_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "instagram_url": null,
+          "instagram_enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        }
+      ]
+    },
+    "security_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "entry_pass_button_enabled": true,
+          "event_dates": [],
+          "councils_enabled": false,
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        }
+      ]
+    },
+    "hero_media": {
+      "count": 7,
+      "data": [
+        {
+          "id": 1,
+          "page_key": "home",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 2,
+          "page_key": "events",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 3,
+          "page_key": "schedule",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 4,
+          "page_key": "gallery",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 5,
+          "page_key": "homebound",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 6,
+          "page_key": "ricofamily",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        },
+        {
+          "id": 7,
+          "page_key": "sponsors",
+          "background_type": "auto",
+          "image_url": null,
+          "video_url": null,
+          "poster_url": null,
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.35,
+          "enabled": true,
+          "created_at": "2026-03-05T15:21:41.765896+00:00",
+          "updated_at": "2026-03-05T15:21:41.765896+00:00"
+        }
+      ]
+    },
+    "admin_users": {
+      "count": 1,
+      "data": [
+        {
+          "user_id": "55e71eee-2425-406c-8dcb-c882dd18987b",
+          "email": "ricorrenza.theiqcityfestival@gmail.com",
+          "role": "owner",
+          "is_primary": true,
+          "created_at": "2026-03-06T04:57:56.275772+00:00"
+        }
+      ]
+    },
+    "admin_permissions": {
+      "count": 1,
+      "data": [
+        {
+          "user_id": "55e71eee-2425-406c-8dcb-c882dd18987b",
+          "can_events": true,
+          "can_schedule": true,
+          "can_gallery": true,
+          "can_sponsors": true,
+          "can_registrations": true,
+          "can_registration_photos": true,
+          "can_faculty": true,
+          "can_core_team": true,
+          "can_sports": true,
+          "can_guest_artists": true,
+          "can_chief_guests": true,
+          "can_homebound": true,
+          "can_security_passes": true,
+          "created_at": "2026-03-06T04:57:56.736595+00:00",
+          "updated_at": "2026-03-06T04:57:56.736595+00:00"
+        }
+      ]
+    },
+    "sports_committees": {
+      "count": 0,
+      "data": []
+    },
+    "sports_team_members": {
+      "count": 0,
+      "data": []
+    },
+    "roadmap_milestones": {
+      "count": 0,
+      "data": []
+    },
+    "validation_rules": {
+      "count": 0,
+      "data": []
+    },
+    "band_members": {
+      "count": 0,
+      "data": []
+    },
+    "auditions": {
+      "count": 0,
+      "data": []
+    },
+    "form_settings": {
+      "count": 1,
+      "data": [
+        {
+          "id": 1,
+          "audition_form_enabled": true,
+          "membership_form_enabled": true,
+          "audition_form_message": "Auditions are currently closed. Please check back later.",
+          "membership_form_message": "Membership applications are currently closed. Please check back later.",
+          "created_at": "2026-03-05T12:41:48.620811+00:00",
+          "updated_at": "2026-03-05T12:41:48.620811+00:00"
+        }
+      ]
+    },
+    "login_history": {
+      "count": 0,
+      "data": []
+    },
+    "memberships": {
+      "count": 0,
+      "data": []
+    }
+  }
+}

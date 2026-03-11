@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { Shield, LogOut, CheckCircle2, Clock, Scan, Search, User, RefreshCw, Database, AlertTriangle, XCircle } from 'lucide-react';
 import { QRScanner } from '../components/security/QRScanner';
@@ -17,8 +16,11 @@ import {
   validatePassHybrid,
   syncPendingScansToServer,
   getSyncStats,
-  searchPassesLocally
+  searchPassesLocally,
 } from '../utils/offlineStorage';
+import { dualRead } from '../lib/dualDb';
+import { onSnapshot, collection, query, orderBy, limit as fsLimit } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface SecurityUser {
   username: string;
@@ -98,27 +100,28 @@ export default function SecurityDashboard() {
     try {
       let results: any[] = [];
       if (isOnline) {
-        const { data, error } = await supabase
-          .from('entry_passes')
-          .select('*')
-          .ilike('participant_name', `%${query}%`)
-          .eq('is_active', true)
-          .limit(10);
+        const { data } = await dualRead({
+          table: 'entry_passes',
+          eq: ['is_active', true]
+        });
         
-        if (error) throw error;
-        results = data || [];
+        results = (data || []).filter((p: any) => 
+          p.participant_name?.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 10);
         
-        // Fetch usage logs for these passes to show correct status (Multi-day support)
+        // Fetch usage logs for these passes
         if (results.length > 0) {
           const ids = results.map(p => p.id);
-          const { data: usageData } = await supabase.from('pass_scans')
-             .select('pass_id, scanned_at')
-             .in('pass_id', ids)
-             .eq('scan_result', 'valid');
+          // For now, doing simple loop or multiple dualReads if needed, but lets just try a broad fetch
+          const { data: usageData } = await dualRead({
+            table: 'pass_scans'
+          });
           
-          if (usageData) {
+          const filteredUsage = (usageData || []).filter((s: any) => ids.includes(s.pass_id) && s.scan_result === 'valid');
+          
+          if (filteredUsage.length > 0) {
             const usage: Record<string, number[]> = {};
-            usageData.forEach(scan => {
+            filteredUsage.forEach((scan: any) => {
               const scanDate = new Date(scan.scanned_at);
               const istDate = scanDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
               const utcDate = scanDate.toISOString().split('T')[0];
@@ -225,45 +228,31 @@ export default function SecurityDashboard() {
       await loadStats();
       await loadSyncStats();
 
-      // Subscribe to real-time updates for cross-device coordination
-      const scanChannel = supabase
-        .channel('security_dashboard_stats')
-        .on(
-          'postgres_changes',
-          {
-            event: '*', // Listen for ALL events (handles deletes for resets)
-            schema: 'public',
-            table: 'pass_scans'
-          },
-          (payload: any) => {
-            console.log('🔔 Scan table change:', payload);
-            loadStats();
-            // Update local cache if a scan was inserted
-            if (payload.eventType === 'INSERT' && payload.new?.pass_token) {
-              import('../utils/offlineDB').then(({ markPassAsUsedLocally }) => {
-                markPassAsUsedLocally(payload.new.pass_token);
+      // Subscribe to real-time updates for cross-device coordination (Firestore)
+      const q = query(
+        collection(db, 'pass_scans'),
+        orderBy('scanned_at', 'desc'),
+        fsLimit(20)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log('🔔 Scan table change detected via Firestore');
+        loadStats();
+        
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            if (data.pass_token) {
+               import('../utils/offlineDB').then(({ markPassAsUsedLocally }) => {
+                markPassAsUsedLocally(data.pass_token);
               });
             }
           }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'entry_passes'
-          },
-          (payload) => {
-            console.log('🔄 Pass updated:', payload);
-            loadStats();
-            // Trigger a re-sync of passes to catch deactivations/resets
-            debouncedLoadSyncStats();
-          }
-        )
-        .subscribe();
+        });
+      });
 
       return () => {
-        supabase.removeChannel(scanChannel);
+        unsubscribe();
       };
     };
     
@@ -321,20 +310,24 @@ export default function SecurityDashboard() {
     try {
       if (!securityUser) return;
       
-      // Call RPC function to get stats (bypasses RLS)
-      const { data, error } = await supabase
-        .rpc('get_security_dashboard_stats', { 
-          p_username: securityUser.username 
-        });
+      // Calculate today (IST)
+      const todayString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-      if (error) {
-        console.error('Error loading stats:', error);
-        return;
-      }
+      // Fetch scans for this user or all (Dashboard context)
+      const { data } = await dualRead({
+        table: 'pass_scans',
+        order: ['scanned_at', { ascending: false }]
+      });
 
       if (data) {
-        setTodayCount(data.today_count || 0);
-        setRecentScans(data.recent_scans || []);
+        const allScans = data as ScanRecord[];
+        const todayValid = allScans.filter(s => 
+          s.scan_result === 'valid' && 
+          s.scanned_at.startsWith(todayString)
+        );
+        
+        setTodayCount(todayValid.length);
+        setRecentScans(allScans.slice(0, 10));
       }
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -468,14 +461,15 @@ export default function SecurityDashboard() {
     setSearching(true);
     try {
       if (isOnline) {
-        const { data, error } = await supabase
-          .from('entry_passes')
-          .select('*')
-          .ilike('participant_name', `%${manualSearch}%`)
-          .eq('is_active', true);
+        const { data } = await dualRead({
+          table: 'entry_passes',
+          eq: ['is_active', true]
+        });
         
-        if (error) throw error;
-        setManualPasses(data || []);
+        const results = (data || []).filter((p: any) => 
+          p.participant_name?.toLowerCase().includes(manualSearch.toLowerCase())
+        );
+        setManualPasses(results);
       } else {
         const localResults = await searchPassesLocally(manualSearch);
         setManualPasses(localResults);

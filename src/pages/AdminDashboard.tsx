@@ -20,6 +20,9 @@ import {
   Building,
   UserCheck,
   PartyPopper,
+  Trophy,
+  Flag,
+  Gavel,
 
   Activity,
   ArrowRight,
@@ -44,6 +47,15 @@ const BiometricLogin = React.lazy(() => import('../components/admin/BiometricLog
 const FacultyHeadsManagement = React.lazy(() => import('../components/admin/FacultyHeadsManagement').then(m => ({ default: m.FacultyHeadsManagement })));
 const CoreTeamManagement = React.lazy(() => import('../components/admin/CoreTeamManagement').then(m => ({ default: m.CoreTeamManagement })));
 const SportsTeamManagement = React.lazy(() => import('../components/admin/SportsTeamManagement').then(m => ({ default: m.SportsTeamManagement })));
+const SportsSeasonAdmin = React.lazy(() => import('../components/admin/SportsSeasonAdmin').then(m => ({ default: m.SportsSeasonAdmin })));
+const SportsTeamsAdmin = React.lazy(() => import('../components/admin/SportsTeamsAdmin').then(m => ({ default: m.SportsTeamsAdmin })));
+const SportsAuctionAdmin = React.lazy(() => import('../components/admin/SportsAuctionAdmin').then(m => ({ default: m.SportsAuctionAdmin })));
+const SportsRegistrationAdmin = React.lazy(() => import('../components/admin/SportsRegistrationAdmin').then(m => ({ default: m.SportsRegistrationAdmin })));
+const SportsRegistrationModalSettings = React.lazy(() => import('../components/admin/SportsRegistrationModalSettings').then(m => ({ default: m.SportsRegistrationModalSettings })));
+const AnnualEventsManagement = React.lazy(() => import('../components/admin/AnnualEventsManagement').then(m => ({ default: m.AnnualEventsManagement })));
+const AnnualSportsScheduleManagement = React.lazy(() => import('../components/admin/AnnualSportsScheduleManagement').then(m => ({ default: m.AnnualSportsScheduleManagement })));
+const AnnualRegistrationsManagement = React.lazy(() => import('../components/admin/AnnualRegistrationsManagement').then(m => ({ default: m.AnnualRegistrationsManagement })));
+const AnnualRegistrationModalSettings = React.lazy(() => import('../components/admin/AnnualRegistrationModalSettings').then(m => ({ default: m.AnnualRegistrationModalSettings })));
 const BandManagement = React.lazy(() => import('../components/admin/BandManagement').then(m => ({ default: m.BandManagement })));
 const GuestArtistManagement = React.lazy(() => import('../components/admin/GuestArtistManagement').then(m => ({ default: m.GuestArtistManagement })));
 const ChiefGuestManagement = React.lazy(() => import('../components/admin/ChiefGuestManagement').then(m => ({ default: m.ChiefGuestManagement })));
@@ -97,6 +109,7 @@ export const AdminDashboard: React.FC = () => {
     myPermissions,
     connectionStatus,
     adminUsers,
+    siteSettings,
   } = useData();
   const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
   const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
@@ -131,7 +144,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Admin presence tracking
   const { otherAdmins, updatePresence } = useAdminPresence();
-  const [hiddenCursors, setHiddenCursors] = useLocalStorage<string[]>('admin_hidden_cursors', []);
+  const [hiddenCursors, setHiddenCursors] = useLocalStorage<string[]>('admin_hidden_cursors', [] as string[]);
 
   const toggleCursorVisibility = (userId: string) => {
     setHiddenCursors(prev => 
@@ -198,6 +211,16 @@ export const AdminDashboard: React.FC = () => {
       'coordinator-passwords': 'Coordinator Passwords',
       'security-passes': 'Security Passes',
       'council-access': 'Council Access',
+      'sports-seasons': 'Sports Seasons',
+      'sports-teams': 'Sports Teams',
+      'sports-players': 'Sports Players',
+      'sports-auction': 'Sports Auction',
+      'sports-registrations': 'Sports Registrations',
+      'sports-registration-model': 'Registration Model',
+      'annual-events': 'Annual Events Management',
+      'annual-schedule': 'Annual Sports Schedule',
+      'annual-registrations': 'Annual Registrations Management',
+      'annual-registration-model': 'Annual Registration Model',
       'audit-logs': 'Audit Logs',
     };
     updatePresence({ page: pageNames[activeTab] || activeTab });
@@ -414,9 +437,22 @@ export const AdminDashboard: React.FC = () => {
     { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users, group: 'People' },
     { id: 'core-team' as TabType, name: 'Core Team', icon: Users, group: 'People' },
     { id: 'band' as TabType, name: 'Home Bound Band', icon: Users, group: 'People' },
-    { id: 'sports-team' as TabType, name: 'Sports Team', icon: Users, group: 'People' },
+    { id: 'sports-team' as TabType, name: 'Legacy Sports Team', icon: Users, group: 'People' },
     { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star, group: 'People' },
     { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star, group: 'People' },
+
+    // Sports Area
+    { id: 'sports-seasons' as TabType, name: 'Sports Seasons', icon: Trophy, group: 'Sports' },
+    { id: 'sports-teams' as TabType, name: 'Sports Teams', icon: Flag, group: 'Sports' },
+    { id: 'sports-auction' as TabType, name: 'Sports Auction', icon: Gavel, group: 'Sports' },
+    { id: 'sports-registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'Sports' },
+    { id: 'sports-registration-model' as TabType, name: 'Registration Model', icon: Settings, group: 'Sports' },
+
+    // Annual Sports Area
+    { id: 'annual-events' as TabType, name: 'Annual Events', icon: Trophy, group: 'Annual Sports' },
+    { id: 'annual-schedule' as TabType, name: 'Annual Schedule', icon: Calendar, group: 'Annual Sports' },
+    { id: 'annual-registrations' as TabType, name: 'Annual Registrations', icon: UserCheck, group: 'Annual Sports' },
+    { id: 'annual-registration-model' as TabType, name: 'Registration Model', icon: Settings, group: 'Annual Sports' },
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -425,13 +461,15 @@ export const AdminDashboard: React.FC = () => {
       if (isMasterBypassUser || user?.user_metadata?.is_super_admin) return true;
       const uid = user?.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+      return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.role === 'council' || a.is_primary));
     } catch {
       return false;
     }
   })();
 
   // Filter visible tabs based on permissions (owner sees all)
+  const isCouncil = !isOwner && adminUsers?.some((a: any) => a.user_id === user?.id && a.role === 'council');
+
   const visibleTabs = (() => {
   if (isOwner) return tabs;
     // Non-owners: do NOT show Overview or Security by default
@@ -457,17 +495,26 @@ export const AdminDashboard: React.FC = () => {
     if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
     if (myPermissions?.can_faculty) allowedIds.add('faculty');
     if (myPermissions?.can_core_team) allowedIds.add('core-team');
-    if (myPermissions?.can_sports) allowedIds.add('sports-team');
-    if (myPermissions?.can_guest_artists) allowedIds.add('guest-artists');
-    if (myPermissions?.can_chief_guests) allowedIds.add('chief-guests');
-    if (myPermissions?.can_homebound) {
-      allowedIds.add('homebound');
-      allowedIds.add('band');
+    if (myPermissions?.can_sports) {
+      allowedIds.add('sports-team');
+      allowedIds.add('sports-seasons');
+      allowedIds.add('sports-teams');
+      allowedIds.add('sports-auction');
+      allowedIds.add('sports-registrations');
+      allowedIds.add('sports-registration-model');
+      allowedIds.add('annual-events');
+      allowedIds.add('annual-schedule');
+      allowedIds.add('annual-registrations');
+      allowedIds.add('annual-registration-model');
     }
-    if (myPermissions?.can_security_passes) {
-      allowedIds.add('security-passes');
-      allowedIds.add('council-access');
+
+    if (isCouncil) {
+       const forbiddenForCouncil: TabType[] = [
+         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'faculty', 'core-team', 'homebound', 'band'
+       ];
+       forbiddenForCouncil.forEach(id => allowedIds.delete(id));
     }
+
     // Only show tabs explicitly allowed (others hidden for non-owners)
     return tabs.filter((t) => allowedIds.has(t.id));
   })();
@@ -872,6 +919,14 @@ export const AdminDashboard: React.FC = () => {
                 <SportsTeamManagement />
               </div>
             )}
+            {activeTab === 'sports-seasons' && <SportsSeasonAdmin />}
+            {activeTab === 'sports-teams' && !siteSettings?.annual_sports_mode_enabled && <SportsTeamsAdmin />}
+            {activeTab === 'sports-auction' && !siteSettings?.annual_sports_mode_enabled && <SportsAuctionAdmin />}
+            { activeTab === 'sports-registrations' && <SportsRegistrationAdmin /> }
+            { activeTab === 'sports-registration-model' && <SportsRegistrationModalSettings /> }
+            { activeTab === 'annual-events' && <AnnualEventsManagement /> }
+            { activeTab === 'annual-registrations' && <AnnualRegistrationsManagement /> }
+            { activeTab === 'annual-registration-model' && <AnnualRegistrationModalSettings /> }
             {activeTab === 'security-passes' && (
               <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Security Pass Management...</div>}>
                 <SecurityManagement />
@@ -926,7 +981,7 @@ export const AdminDashboard: React.FC = () => {
           admins={otherAdmins}
           isOpen={isPresencePanelOpen}
           onToggle={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
-          onNavigate={(page) => {
+          onNavigate={(page: any) => {
             setActiveTab(page as TabType);
             navigate('/admin');
           }}
@@ -939,7 +994,7 @@ export const AdminDashboard: React.FC = () => {
       {/* Message Toasts for all admins */}
       <AdminMessageToastContainer
         messages={unreadMessages}
-        onDismiss={markAsRead}
+        onDismiss={(id: any) => markAsRead(id)}
         getUserEmail={(userId: string) => {
           // Find user email from admin users list
           const admin = adminUsers?.find(a => a.user_id === userId);

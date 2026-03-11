@@ -452,6 +452,28 @@
   /* Firefox: thin + translucent color pairing */
   * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) rgba(0,0,0,0.06); }
 
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.05);
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(212, 175, 55, 0.25);
+  }
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.2) transparent;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
   /* Keep existing utilities that hide scrollbars intact */
   /* Runtime JS-assisted detection baseline: keep off until tapped */
   html.touch-enabled .sponsor-interactive { transform: translateY(0) scale(1); }
@@ -540,6 +562,15 @@
     animation: textGlowPulse 3.6s ease-in-out infinite;
     will-change: filter, text-shadow;
   }
+}
+
+/* Sports tab panel transition animation */
+@keyframes tabPanelIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-tab-panel {
+  animation: tabPanelIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* (Removed) 3D Glow Social Icons utilities */

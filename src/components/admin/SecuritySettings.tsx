@@ -6,7 +6,36 @@ import { supabase } from '../../lib/supabase';
 
 export const SecuritySettings: React.FC = () => {
   const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated, user } = useAuth();
-  const { adminUsers } = useData();
+  const { adminUsers, securitySettings, updateSecuritySettings } = useData();
+  
+  // Council Passcode State
+  const [councilPasscode, setCouncilPasscode] = useState('');
+  const [isUpdatingCouncil, setIsUpdatingCouncil] = useState(false);
+
+  React.useEffect(() => {
+    if (securitySettings?.council_passcode) {
+      setCouncilPasscode(securitySettings.council_passcode);
+    }
+  }, [securitySettings]);
+
+  const handleUpdateCouncilPasscode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (councilPasscode.length < 4) {
+      setMessage({ type: 'error', text: 'Council passcode must be at least 4 characters' });
+      return;
+    }
+    setIsUpdatingCouncil(true);
+    try {
+      if (updateSecuritySettings) {
+        await updateSecuritySettings({ council_passcode: councilPasscode });
+        setMessage({ type: 'success', text: 'Sports Council passcode updated successfully' });
+      }
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Failed to update passcode' });
+    }
+    setIsUpdatingCouncil(false);
+  };
+
   const [isSettingUpTOTP, setIsSettingUpTOTP] = useState(false);
   const [totpSecret, setTotpSecret] = useState('');
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -491,6 +520,39 @@ export const SecuritySettings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Sports Council Passcode Management (Owner Only) */}
+      {isOwner && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <Key className="w-6 h-6 text-emerald-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">Sports Council Login</h3>
+            </div>
+          </div>
+          <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-lg">
+            <p className="text-sm text-emerald-800 mb-4">
+              Set the passcode that Sports Council members will use to access the sports management panels at <strong>/sports-admin</strong>.
+            </p>
+            <form onSubmit={handleUpdateCouncilPasscode} className="flex gap-4 max-w-md">
+              <input
+                type="text"
+                value={councilPasscode}
+                onChange={(e) => setCouncilPasscode(e.target.value)}
+                placeholder="Enter new council passcode"
+                className="flex-1 px-4 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-900"
+              />
+              <button
+                type="submit"
+                disabled={isUpdatingCouncil || !councilPasscode}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 font-medium whitespace-nowrap"
+              >
+                {isUpdatingCouncil ? 'Saving...' : 'Save Passcode'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Session Management (Self) */}
       <div className="bg-white rounded-lg shadow-md p-6">

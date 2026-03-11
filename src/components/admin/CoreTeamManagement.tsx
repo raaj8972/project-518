@@ -11,9 +11,9 @@ import PreserveNewlines from '../PreserveNewlines';
 
 // Spotify icon component since it's not in lucide-react
 // Spotify icon component removed
-
-
 import { AdminModal } from './layout/AdminModal';
+import { AICoreTeamScanner, type ExtractedCoreTeamData } from './AICoreTeamScanner';
+import { toast } from 'react-hot-toast';
 
 export const CoreTeamManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -51,6 +51,122 @@ export const CoreTeamManagement: React.FC = () => {
   const [draggedMember, setDraggedMember] = useState<number | null>(null);
   const [dragOverCommittee, setDragOverCommittee] = useState<number | null>(null);
   const [dragOverMember, setDragOverMember] = useState<number | null>(null);
+
+  const [showAIScanner, setShowAIScanner] = useState(false);
+  const [showCommitteePicker, setShowCommitteePicker] = useState(false);
+  const [scannerTargetCommitteeId, setScannerTargetCommitteeId] = useState<number | null>(null);
+
+  const openMemberScanner = () => {
+    // For Team Members tab, show committee picker first
+    setShowCommitteePicker(true);
+  };
+
+  const confirmCommitteeAndScan = (committeeId: number) => {
+    setScannerTargetCommitteeId(committeeId);
+    setShowCommitteePicker(false);
+    setShowAIScanner(true);
+  };
+
+  const handleScanComplete = async (data: ExtractedCoreTeamData) => {
+    try {
+      setShowAIScanner(false);
+      savingProgress.withSteps(data.committees.length + data.members.length, 'Saving Team Structure...');
+
+      // If scanning for a specific committee (Team Members tab), skip committee creation
+      if (scannerTargetCommitteeId) {
+        // All members go to the selected committee
+        for (const member of data.members) {
+          try {
+            await addCoreTeamMember({
+              committee_id: scannerTargetCommitteeId,
+              name: member.name,
+              role: member.role,
+              is_head: member.is_head,
+              phone: member.phone,
+              specialty: member.specialty,
+              description: member.description,
+              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200',
+              achievements: [],
+              order_position: 99,
+              enabled: true,
+              social_links: { instagram: '', linkedin: '', twitter: '', youtube: '', facebook: '' }
+            });
+            savingProgress.advance('Added member...');
+          } catch (err) {
+            console.error('Failed to create member:', err);
+            savingProgress.advance('Skipped member...');
+          }
+        }
+        setScannerTargetCommitteeId(null);
+        toast.success(`Added ${data.members.length} members!`);
+        return;
+      }
+
+      // Full scan mode (Committees tab) — process both committees and members
+      const committeeMap = new Map<string, number>();
+      
+      for (const committee of data.committees) {
+        const existing = coreCommittees.find((c: any) => c.name.toLowerCase() === committee.name.toLowerCase());
+        
+        if (existing) {
+          committeeMap.set(committee.name.toLowerCase(), existing.id);
+          savingProgress.advance('Found existing committee...');
+        } else {
+          try {
+            const result = await addCoreCommittee({
+              name: committee.name,
+              description: committee.description,
+              is_core: committee.is_core,
+              color: '#' + Math.floor(Math.random()*16777215).toString(16),
+              order_position: coreCommittees.length + 1,
+              enabled: true
+            });
+            if (result && result.id) {
+              committeeMap.set(committee.name.toLowerCase(), result.id);
+            }
+            savingProgress.advance('Created new committee...');
+          } catch (err) {
+            console.error('Failed to create committee:', err);
+            savingProgress.advance('Skipped committee...');
+          }
+        }
+      }
+
+      for (const member of data.members) {
+        const committeeId = committeeMap.get(member.committee_name.toLowerCase());
+        
+        if (committeeId) {
+          try {
+            await addCoreTeamMember({
+              committee_id: committeeId,
+              name: member.name,
+              role: member.role,
+              is_head: member.is_head,
+              phone: member.phone,
+              specialty: member.specialty,
+              description: member.description,
+              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200',
+              achievements: [],
+              order_position: 99,
+              enabled: true,
+              social_links: { instagram: '', linkedin: '', twitter: '', youtube: '', facebook: '' }
+            });
+            savingProgress.advance('Added member...');
+          } catch (err) {
+            console.error('Failed to create member:', err);
+            savingProgress.advance('Skipped member...');
+          }
+        } else {
+           savingProgress.advance('Skipped member (no committee)...');
+        }
+      }
+
+      toast.success('Successfully imported team roster!');
+    } catch (error) {
+      console.error('Error saving scanned data:', error);
+      toast.error('Failed to save scanned team structure');
+    }
+  };
 
   const toggleCoreCommitteeIsCore = async (id: number, currentVal: boolean) => {
     try {
@@ -623,18 +739,39 @@ export const CoreTeamManagement: React.FC = () => {
               <Users size={20} className="text-purple-400" />
               Committees ({coreCommittees.length}/10)
             </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingCommittee(true);
-                resetCommitteeForm();
-              }}
-              className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-5 py-2.5 rounded-xl hover:from-amber-400 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
-            >
-              <Plus size={16} className="mr-2" />
-              Add Committee
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowAIScanner(true)}
+                className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 text-amber-500 border border-amber-500/20 hover:border-amber-500/40 px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center font-bold hover:-translate-y-0.5"
+                title="Scan Org Chart"
+              >
+                <Users size={16} className="mr-2" />
+                AI Scanner
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCommittee(true);
+                  resetCommitteeForm();
+                }}
+                className="bg-gradient-to-r from-amber-500 to-yellow-500 text-black px-5 py-2.5 rounded-xl hover:from-amber-400 hover:to-yellow-400 transition-all shadow-lg shadow-yellow-500/20 flex items-center font-bold hover:-translate-y-0.5"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Committee
+              </button>
+            </div>
           </div>
+
+          {/* Inline AI Scanner for Committees */}
+          {showAIScanner && activeSection === 'committees' && (
+            <div className="mb-6 animate-in slide-in-from-top duration-300">
+              <AICoreTeamScanner
+                onScanComplete={handleScanComplete}
+                onCancel={() => setShowAIScanner(false)}
+              />
+            </div>
+          )}
 
           {/* Add Committee Modal */}
           <AdminModal
@@ -1046,19 +1183,74 @@ export const CoreTeamManagement: React.FC = () => {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Team Members ({coreTeamMembers.length})</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingMember(true);
-                resetMemberForm();
-              }}
-              className="px-4 py-2 rounded-lg transition-colors flex items-center bg-yellow-400 text-black hover:bg-yellow-300"
-            >
-              <Plus size={16} className="mr-2" />
-              Add Team Member
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={openMemberScanner}
+                className="bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 text-amber-500 border border-amber-500/20 hover:border-amber-500/40 px-4 py-2 rounded-lg transition-all flex items-center font-bold"
+                title="Scan Team Members for a Committee"
+              >
+                <Users size={16} className="mr-2" />
+                AI Scanner
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingMember(true);
+                  resetMemberForm();
+                }}
+                className="px-4 py-2 rounded-lg transition-colors flex items-center bg-yellow-400 text-black hover:bg-yellow-300"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Team Member
+              </button>
+            </div>
           </div>
 
+          {/* Committee Picker for AI Scanner */}
+          {showCommitteePicker && (
+            <div className="mb-6 animate-in slide-in-from-top duration-300 bg-gradient-to-br from-amber-900/80 via-orange-900/60 to-[#181824] rounded-2xl border border-amber-500/30 p-6 shadow-2xl">
+              <div className="flex items-center gap-3 mb-4">
+                <Users className="w-5 h-5 text-amber-400" />
+                <h3 className="text-lg font-bold text-white">Select Committee for AI Scan</h3>
+              </div>
+              <p className="text-sm text-amber-200/60 mb-5">Choose which committee the scanned members should be added to:</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5">
+                {coreCommittees.map((committee: any) => (
+                  <button
+                    key={committee.id}
+                    type="button"
+                    onClick={() => confirmCommitteeAndScan(committee.id)}
+                    className="group flex items-center gap-3 p-4 bg-black/30 hover:bg-white/10 border border-white/10 hover:border-amber-500/50 rounded-xl transition-all text-left hover:scale-[1.02]"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full shrink-0 ring-2 ring-white/10 group-hover:ring-amber-500/50"
+                      style={{ backgroundColor: committee.color }}
+                    />
+                    <span className="text-sm font-semibold text-white truncate">{committee.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setShowCommitteePicker(false)}
+                  className="px-5 py-2 rounded-xl font-medium text-amber-200 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Inline AI Scanner for Team Members */}
+          {showAIScanner && activeSection === 'members' && (
+            <div className="mb-6 animate-in slide-in-from-top duration-300">
+              <AICoreTeamScanner
+                onScanComplete={handleScanComplete}
+                onCancel={() => { setShowAIScanner(false); setScannerTargetCommitteeId(null); }}
+              />
+            </div>
+          )}
 
           {/* Add/Edit Member Modal */}
           <AdminModal
@@ -1547,6 +1739,8 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+
     </div>
   );
 };

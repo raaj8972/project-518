@@ -1,5 +1,3 @@
-import { supabase } from '../lib/supabase';
-
 // Format bytes to human readable string
 export const humanSize = (bytes: number): string => {
   return bytes >= 1024 * 1024
@@ -40,57 +38,58 @@ export const mapUploadError = (error: any, bucket: string): Error => {
   const msgRaw = (error && (error as any).message) ? (error as any).message : String(error);
   const msg = msgRaw.toLowerCase();
   
-  // Handle generic/opaque network errors (status 0) with actionable hints
   if (status === 0 || msg.includes('http 0') || msg.includes('unknown error')) {
-    return new Error('Network/CORS error during upload (HTTP 0). Check your Supabase URL/key configuration, browser extensions (ad blockers), and retry. If this persists, try logging in to Admin and uploading from there.');
+    return new Error('Network/CORS error during upload. Check your Firebase configuration rules and retry.');
   }
   
   if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
     return new Error(
-      `Upload not permitted (HTTP ${status ?? '403'}). You must be logged in as admin. Please log in to the Admin dashboard and retry. If already logged in, ensure storage policies for bucket '${bucket}' allow authenticated inserts.`
+      `Upload not permitted. Ensure Firebase storage security rules for bucket '${bucket}' allow authenticated inserts.`
     );
   }
   
   if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
-    return new Error(`Storage bucket '${bucket}' not found. Please contact support or run the SQL setup script.`);
+    return new Error(`Storage bucket '${bucket}' might not exist in Firebase. Please check Firebase console.`);
   }
   
   if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {
-    return new Error('Network error during upload. Check your internet connection or try a smaller image.');
+    return new Error('Network error during upload. Check your internet connection or try a smaller file.');
   }
   
   return new Error(`Upload failed${status ? ` (HTTP ${status})` : ''}: ${msgRaw}`);
 };
 
-// Best-effort deletion of a storage object by its public URL
-export const deleteFromStorageByPublicUrl = async (urlStr: string, bucket: string) => {
+// Extract storage object path from a Firebase Storage public URL
+export const extractFirebasePathFromUrl = (urlStr: string): string | null => {
+  try {
+    // Basic heuristics to extract the path from a firebase storage URL
+    // Format: https://firebasestorage.googleapis.com/v0/b/BUCKET/o/PATH?alt=media...
+    const url = new URL(urlStr);
+    if (url.hostname.includes('firebasestorage.googleapis.com')) {
+      const pathParam = url.pathname.split('/o/')[1];
+      if (pathParam) {
+        return decodeURIComponent(pathParam);
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteFromStorageByPublicUrl = async (urlStr: string) => {
   if (!urlStr) return;
 
-  // Check if it's an R2 URL (heuristic: r2.dev or matching the configured custom domain if known, or just not supabase)
-  const isSupabaseUrl = urlStr.includes('/storage/v1/object/');
+  const objectPath = extractFirebasePathFromUrl(urlStr);
   
-  // Folders that are definitely R2 now
-  const r2Folders = ['gallery', 'events', 'sponsors', 'team', 'faculty', 'guests', 'videos', 'audio', 'band', 'hero', 'hero-video', 'documents', 'registrations', 'sports', 'pdf'];
-  const isR2Folder = r2Folders.some(f => urlStr.includes(`/${f}/`));
-
-  if (!isSupabaseUrl && (isR2Folder || urlStr.includes('r2.dev'))) {
+  if (objectPath) {
     try {
-      // Dynamic import to avoid circular dependencies if any, and keep bundle size low
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const { deleteFromR2 } = await import('./r2Utils');
-      await deleteFromR2(urlStr);
-      return;
+      const { firebaseDeleteFile } = await import('../lib/firebase');
+      await firebaseDeleteFile(objectPath);
     } catch (e) {
-      console.warn('Failed to route delete to R2:', e);
+      console.warn('Failed to delete from Firebase Storage:', e);
     }
-  }
-
-  if (!urlStr.includes(bucket)) return;
-  const objectPath = extractObjectPathFromPublicUrl(urlStr, bucket);
-  if (!objectPath) return;
-  try {
-    await supabase.storage.from(bucket).remove([objectPath]);
-  } catch (e) {
-    console.warn('Unable to delete storage object', objectPath, e);
+  } else {
+    console.warn('Could not extract valid Firebase path from URL for deletion:', urlStr);
   }
 };

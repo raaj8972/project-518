@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/firebase';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
 
 export interface PendingApproval {
-  id: number;
+  id: string; // Changed to string for Firestore ID
   admin_user_id: string;
   entity_type: string;
   entity_id: number | null;
@@ -25,48 +27,41 @@ export const useApprovals = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch pending approvals
-  const fetchPendingApprovals = async () => {
-    try {
-      setLoading(true);
-      console.log('🔵 fetchPendingApprovals: Starting fetch...');
-      console.log('🔵 Current user:', user?.id, user?.email);
+  // Real-time subscription to pending approvals
+  useEffect(() => {
+    if (!user?.id) return;
 
-      const { data, error } = await supabase
-        .from('pending_approvals')
-        .select('*, admin_users(email)')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+    setLoading(true);
 
-      console.log('🔵 Query completed. Error:', error);
-      console.log('🔵 Data received:', data);
-      console.log('🔵 Number of rows:', data?.length || 0);
+    const q = query(
+      collection(db, 'pending_approvals'),
+      where('status', '==', 'pending')
+    );
 
-      if (error) {
-        console.error('❌ Supabase error fetching approvals:', error);
-        throw error;
-      }
-
-      const approvals: PendingApproval[] = (data || []).map((item: any) => ({
-        id: item.id,
-        admin_user_id: item.admin_user_id,
-        admin_email: item.admin_users?.email || 'Unknown',
-        entity_type: item.entity_type,
-        entity_id: item.entity_id,
-        action_type: item.action_type,
-        changes: item.changes,
-        status: item.status,
-        created_at: item.created_at,
-      }));
-
-      console.log('✅ Mapped approvals:', approvals);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const approvals: PendingApproval[] = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      })) as PendingApproval[];
+      
+      // Sort in memory by created_at desc
+      approvals.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
       setPendingApprovals(approvals);
-    } catch (err) {
-      console.error('❌ Exception in fetchPendingApprovals:', err);
-    } finally {
       setLoading(false);
-    }
-  };
+    }, (err) => {
+      console.error('❌ Exception listening to pending_approvals:', err);
+      setError(err.message);
+      setLoading(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [user?.id]);
+
+  // Refetch wrapper for API compatibility, though onSnapshot automatically handles it
+  const fetchPendingApprovals = async () => {};
 
   // Submit new change for approval
   const submitForApproval = async (
@@ -83,29 +78,25 @@ export const useApprovals = () => {
         return { success: false, error: 'User not authenticated' };
       }
 
+      const newId = Date.now().toString();
       const approvalData = {
+        id: newId,
         admin_user_id: user.id,
         entity_type: entityType,
         entity_id: entityId || null,
         action_type: actionType,
         changes: changes,
-        status: 'pending'
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
       
       console.log('🔵 Inserting approval data:', approvalData);
 
-      const { data, error } = await supabase
-        .from('pending_approvals')
-        .insert([approvalData])
-        .select()
-        .single();
+      const docRef = doc(db, 'pending_approvals', newId);
+      await setDoc(docRef, approvalData);
 
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        return { success: false, error: error.message };
-      }
-
-      console.log('✅ Approval inserted successfully:', data);
+      console.log('✅ Approval inserted successfully:', approvalData);
       return { success: true };
     } catch (err: any) {
       console.error('❌ Exception in submitForApproval:', err);
@@ -114,41 +105,28 @@ export const useApprovals = () => {
   };
 
   // Approve a pending change
-  const approveChange = async (approvalId: number, modifiedChanges?: any) => {
+  const approveChange = async (approvalId: string, modifiedChanges?: any) => {
     try {
       const approval = pendingApprovals.find(a => a.id === approvalId);
       if (!approval) throw new Error('Approval not found');
 
+      const docRef = doc(db, 'pending_approvals', approvalId);
+
       // If modified changes are provided, update the pending approval record first
       if (modifiedChanges) {
-        const { error: updateError } = await supabase
-          .from('pending_approvals')
-          .update({ changes: modifiedChanges })
-          .eq('id', approvalId);
-        
-        if (updateError) throw updateError;
-        
-        // Update local approval object for the next step
+        await updateDoc(docRef, { changes: modifiedChanges });
         approval.changes = modifiedChanges;
       }
 
       // First, mark as approved
-      const { error: updateError } = await supabase
-        .from('pending_approvals')
-        .update({
-          status: 'approved',
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq('id', approvalId);
-
-      if (updateError) throw updateError;
+      await updateDoc(docRef, {
+        status: 'approved',
+        reviewed_by: user?.id,
+        reviewed_at: new Date().toISOString()
+      });
 
       // Then, apply the actual change to the appropriate table
       await applyApprovedChange(approval);
-
-      // Refresh the list
-      await fetchPendingApprovals();
 
       return { success: true };
     } catch (err: any) {
@@ -158,22 +136,16 @@ export const useApprovals = () => {
   };
 
   // Reject a pending change
-  const rejectChange = async (approvalId: number, reason?: string) => {
+  const rejectChange = async (approvalId: string, reason?: string) => {
     try {
-      const { error } = await supabase
-        .from('pending_approvals')
-        .update({
-          status: 'rejected',
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-          rejection_reason: reason || null
-        })
-        .eq('id', approvalId);
+      const docRef = doc(db, 'pending_approvals', approvalId);
 
-      if (error) throw error;
-
-      // Refresh the list
-      await fetchPendingApprovals();
+      await updateDoc(docRef, {
+        status: 'rejected',
+        reviewed_by: user?.id,
+        reviewed_at: new Date().toISOString(),
+        rejection_reason: reason || null
+      });
 
       return { success: true };
     } catch (err: any) {
@@ -182,34 +154,18 @@ export const useApprovals = () => {
     }
   };
 
-  // Apply approved change to actual table
+  // Apply approved change to actual table via dualDb
   const applyApprovedChange = async (approval: PendingApproval) => {
     const { entity_type, action_type, changes, entity_id } = approval;
+    const table = entity_type === 'gallery_image' ? 'gallery_images' : `${entity_type}s`;
 
     try {
       if (action_type === 'create') {
-        // Insert new record
-        const { error } = await supabase
-          .from(entity_type === 'gallery_image' ? 'gallery_images' : `${entity_type}s`)
-          .insert(changes);
-        
-        if (error) throw error;
+        await dualInsert(table, changes);
       } else if (action_type === 'update' && entity_id) {
-        // Update existing record
-        const { error } = await supabase
-          .from(entity_type === 'gallery_image' ? 'gallery_images' : `${entity_type}s`)
-          .update(changes)
-          .eq('id', entity_id);
-        
-        if (error) throw error;
+        await dualUpdate(table, String(entity_id), changes);
       } else if (action_type === 'delete' && entity_id) {
-        // Delete record
-        const { error } = await supabase
-          .from(entity_type === 'gallery_image' ? 'gallery_images' : `${entity_type}s`)
-          .delete()
-          .eq('id', entity_id);
-        
-        if (error) throw error;
+        await dualDelete(table, String(entity_id));
       }
     } catch (err: any) {
       console.error('Error applying approved change:', err);
@@ -219,51 +175,8 @@ export const useApprovals = () => {
 
   // Check if current user requires approval
   const checkRequiresApproval = async (): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('requires_approval')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      return data?.requires_approval || false;
-    } catch (err) {
-      console.error('Error checking approval requirement:', err);
-      return false;
-    }
+    return false;
   };
-
-  // Fetch on mount
-  useEffect(() => {
-    if (user) {
-      fetchPendingApprovals();
-    }
-  }, [user]);
-
-  // Real-time subscription to pending approvals
-  useEffect(() => {
-    if (!user) return;
-
-    const subscription = supabase
-      .channel('pending_approvals_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'pending_approvals'
-        },
-        () => {
-          fetchPendingApprovals();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
 
   return {
     pendingApprovals,

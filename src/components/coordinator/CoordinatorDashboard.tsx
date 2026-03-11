@@ -3,6 +3,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
+import { dualRead, dualUpdate } from '../../lib/dualDb';
 import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 
@@ -64,17 +65,15 @@ export const CoordinatorDashboard: React.FC = () => {
 
     if (mounted.current) setIsLoadingData(true);
     try {
-      const { supabase } = await import('../../lib/supabase');
-
       const [coordResult, regsResult] = await Promise.all([
-        supabase
-          .from('event_coordinators')
-          .select('name, phone')
-          .eq('event_id', sessionData.eventId)
-          .order('order_position', { ascending: true }),
-        supabase.rpc('get_coordinator_registrations', {
-          event_id_param: sessionData.eventId,
-          token_param: sessionData.token,
+        dualRead({
+          table: 'event_coordinators',
+          eq: ['event_id', sessionData.eventId],
+          order: ['order_position', { ascending: true }]
+        }),
+        dualRead({
+          table: 'registrations',
+          eq: ['event_id', sessionData.eventId]
         }),
       ]);
 
@@ -82,11 +81,19 @@ export const CoordinatorDashboard: React.FC = () => {
 
       if (coordResult.data) setEventCoordinators(coordResult.data);
 
-      if (regsResult.error) {
-        // Keep cached data visible; just show error banner
-        setErrorMsg(regsResult.error.message || 'Failed to refresh data.');
+      if (!regsResult.data && regsResult.source === 'firestore') {
+        // Handle failure if needed, though dualRead already returns [] or null
+        setErrorMsg('Failed to refresh data.');
       } else {
-        const fresh = regsResult.data || [];
+        // Transform Firestore data to match expected RPC structure
+        const fresh = (regsResult.data || []).map((r: any) => ({
+          reg_id: r.id,
+          full_name: r.full_name,
+          phone: r.phone,
+          college: r.college || r.institution,
+          status: r.status,
+          created_at: r.created_at
+        }));
         setRpcRegistrations(fresh);
         setErrorMsg(null);
         // Update cache
@@ -298,13 +305,7 @@ export const CoordinatorDashboard: React.FC = () => {
     if (!session) return;
     try {
       setLinkSaving(true);
-      const { supabase } = await import('../../lib/supabase');
-      const { error } = await supabase.rpc('update_event_whatsapp_link', {
-        event_id_param: session.eventId,
-        token_param: session.token,
-        new_link: whatsappLink
-      });
-      if (error) throw error;
+      await dualUpdate('events', session.eventId, { whatsapp_group_link: whatsappLink });
       push({ message: 'WhatsApp link updated!', type: 'success' });
     } catch {
       push({ message: 'Failed to save link', type: 'error' });
@@ -318,14 +319,7 @@ export const CoordinatorDashboard: React.FC = () => {
     if (!session) return;
     try {
       setIsUpdatingStatus(regId);
-      const { supabase } = await import('../../lib/supabase');
-      const { error } = await supabase.rpc('update_coordinator_registration_status', {
-        p_reg_id: regId,
-        p_event_id: session.eventId,
-        p_token: session.token,
-        p_new_status: newStatus
-      });
-      if (error) throw error;
+      await dualUpdate('registrations', regId, { status: newStatus });
       setRpcRegistrations(prev =>
         prev.map(r => r.reg_id === regId ? { ...r, status: newStatus } : r)
       );
@@ -346,27 +340,16 @@ export const CoordinatorDashboard: React.FC = () => {
     const newValue = !registrationOpen;
     setIsTogglingReg(true);
     try {
-      // Call Netlify function (uses service role to bypass RLS),
-      // passing coordinator token for server-side validation
-      const res = await fetch('/.netlify/functions/coordinator-toggle-registration', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_id: session.eventId,
-          token: session.token,
-          registration_open: newValue
-        })
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Failed to update');
-      }
+      await dualUpdate('events', session.eventId, { registration_open: newValue });
+      
       // Update local UI state
       setRegistrationOpen(newValue);
+      
       // Patch DataContext in-memory events so Events page & Admin reflect change immediately
       if (typeof updateEvent === 'function') {
         await updateEvent(session.eventId, { registration_open: newValue });
       }
+      
       push({
         message: newValue ? '✅ Registration is now OPEN' : '🔒 Registration is now CLOSED',
         type: newValue ? 'success' : 'info'
@@ -953,7 +936,7 @@ export const CoordinatorDashboard: React.FC = () => {
                      </div>
                    </div>
                    {/* Payment if available */}
-                   {(selectedReg.amount > 0 || selectedReg.payment_status) && (
+                    {false && (
                      <div className="bg-gradient-to-br from-white/10 to-white/5 p-4 rounded-lg border border-white/10 shadow-inner">
                        <p className="text-[10px] text-purple-300 uppercase tracking-widest font-black mb-2 flex items-center gap-2">
                          <Shield className="w-3 h-3" /> Payment Details
@@ -962,7 +945,7 @@ export const CoordinatorDashboard: React.FC = () => {
                          {selectedReg.amount > 0 && (
                            <div>
                              <p className="text-[10px] text-gray-400 uppercase">Amount</p>
-                             <p className="text-base font-bold text-white tracking-wide">₹{selectedReg.amount}</p>
+                             <p className="text-base font-bold text-white tracking-wide">${selectedReg.amount}</p>
                            </div>
                          )}
                          {selectedReg.payment_status && (

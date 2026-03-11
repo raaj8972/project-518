@@ -7,8 +7,8 @@ import {
   Loader2,
   Trash2,
   AlertTriangle,
-  X,
-  Sparkles,
+
+
   Zap,
   Fingerprint,
   Cpu,
@@ -18,7 +18,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useToast } from '../../components/ToastProvider';
-import { supabase } from '../../lib/supabase';
+import { dualRead, dualDelete, dualUpdate } from '../../lib/dualDb';
 
 export const GalleryFaceIndexer: React.FC = () => {
   const { galleryImages } = useData();
@@ -50,9 +50,10 @@ export const GalleryFaceIndexer: React.FC = () => {
       const processedCount = galleryImages.filter(img => (img as any).faces_indexed).length;
       
       // 2. Get total faces found
-      const { count: facesCount } = await supabase
-        .from('gallery_faces' as any)
-        .select('*', { count: 'exact', head: true });
+      const { data: facesData } = await dualRead({
+        table: 'gallery_faces'
+      });
+      const facesCount = facesData?.length || 0;
       
       setStats({
         total: galleryImages.length,
@@ -135,11 +136,20 @@ export const GalleryFaceIndexer: React.FC = () => {
     
     try {
       addActivity('Wiping neural database...', 'info');
-      const { error: deleteError } = await supabase.from('gallery_faces' as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (deleteError) throw deleteError;
+      // 1. Delete all faces
+      const { data: faces } = await dualRead({ table: 'gallery_faces' });
+      if (faces && faces.length > 0) {
+        for (const face of faces) {
+          await dualDelete('gallery_faces', face.id);
+        }
+      }
 
-      const { error: updateError } = await supabase.from('gallery_images').update({ faces_indexed: false } as any).neq('id', -1);
-      if (updateError) throw updateError;
+      // 2. Reset images scan status
+      for (const img of galleryImages) {
+        if ((img as any).faces_indexed) {
+          await dualUpdate('gallery_images', img.id, { faces_indexed: false });
+        }
+      }
 
       toast({ message: 'Face index cleared.', type: 'success' });
       addActivity('Neural database wiped successfully', 'success');

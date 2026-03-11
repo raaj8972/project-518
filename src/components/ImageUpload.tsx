@@ -18,12 +18,13 @@ import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
 import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 import { humanSize, getFileName } from '../utils/uploadUtils';
+import { deleteStorageFileByPublicUrl } from '../utils/storageUtils';
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
   currentImage?: string;
   className?: string;
-  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images';
+  bucket: 'event-images' | 'gallery-images' | 'sponsor-logos' | 'documents' | 'guest-artist-images' | 'guest-artist-videos' | 'guest-artist-audio' | 'band-images' | 'team-images' | 'faculty-images' | 'pdf' | 'hero-media' | 'hero-video' | 'registration-photos' | 'sports-images' | 'hero_v2' | 'team-branding';
   folder?: string;
   acceptedTypes?: string;
   fileTypeLabel?: string;
@@ -36,6 +37,8 @@ interface ImageUploadProps {
   optimizeVideoOptions?: VideoOptimizationOptions;
   allowMultiple?: boolean;
   onBatchComplete?: (results: { url: string; file: File }[]) => void;
+  onProcessingChange?: (busy: boolean) => void;
+  isDirty?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -54,7 +57,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   optimizeOptions,
   optimizeVideoOptions,
   allowMultiple = false,
-  onBatchComplete
+  onBatchComplete,
+  onProcessingChange,
+  isDirty = false
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -62,7 +67,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   // Local preview state
   const [localPreview, setLocalPreview] = useState<string>('');
   const [optimizedPreviewMeta, setOptimizedPreviewMeta] = useState<{ size: number; type: string } | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   // Batch state
@@ -92,7 +96,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     uploadHint,
     missingBucket,
     handleUploadProcess,
-    deleteFromStorageByPublicUrl,
     resetUploadState
   } = useMediaUpload({
     bucket,
@@ -100,6 +103,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     onImageSelect,
     maxImageBytes
   });
+
+  // Relay processing state to parent
+  useEffect(() => {
+    onProcessingChange?.(isProcessing || uploading);
+  }, [isProcessing, uploading, onProcessingChange]);
 
   // Check owner status
   useEffect(() => {
@@ -140,114 +148,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         : `PNG, JPG, WEBP up to ${humanSize(effectiveImageMaxBytes)}`);
 
   // --- Handlers ---
-
-  const handleFiles = async (files: FileList | File[]) => {
-    if (!files || files.length === 0) return;
-    
-    // Single file fallback
-    if (files.length === 1) {
-      handleFileSelect(files[0]);
-      return;
-    }
-
-    // Batch processing
-    if (!allowMultiple) {
-      handleFileSelect(files[0]);
-      return;
-    }
-
-    setIsProcessing(true);
-    setError('');
-    const results: { url: string; file: File }[] = [];
-    const fileArray = Array.from(files);
-    
-    setBatchProgress({ current: 0, total: fileArray.length });
-
-    for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
-        setBatchProgress({ current: i + 1, total: fileArray.length });
-        
-        // Validate
-        if (!validateFileType(file) || !validateFileSize(file)) {
-          continue; // Skip invalid
-        }
-
-        try {
-            // Optimize
-            let processed = file;
-             if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
-                processed = await handleImageOptimization(file);
-            }
-            
-            // Upload (Direct, no crop for batch)
-            // Note: We bypass cropping for batch uploads for speed
-            const url = await handleUploadProcess(processed, isVideoUpload, isPdfUpload, isAudioUpload, true, true); // Auto-save true to ensure we just get URL and don't hold state
-            results.push({ url, file: processed });
-        } catch (e) {
-            console.warn('Batch upload error for', file.name, e);
-            // Continue with others
-        }
-    }
-
-    setIsProcessing(false);
-    setBatchProgress(null);
-    if (onBatchComplete && results.length > 0) {
-        onBatchComplete(results);
-    }
-  };
-
-  const handleFileSelect = async (file: File) => {
-    setIsProcessing(true);
-    setError('');
-    
-    // 1. Validation
-    if (!validateFileType(file)) {
-      setIsProcessing(false);
-      return;
-    }
-    
-    if (!validateFileSize(file)) {
-      // Logic inside validateFileSize handles error setting but returns false
-      setIsProcessing(false);
-      return;
-    }
-
-    // 2. Optimization (Images/Videos)
-    let processedFile = file;
-    if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
-      processedFile = await handleImageOptimization(file);
-    } else if (isVideoUpload) {
-      processedFile = await handleVideoOptimization(file);
-    }
-
-    // 3. Cropper or Direct Upload
-    if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
-      openCropper(processedFile);
-    } else {
-      // Direct upload
-      // Local preview fallback
-      if (!isPdfUpload && !isVideoUpload) {
-         const r = new FileReader();
-         r.onload = () => setLocalPreview(r.result as string);
-         r.readAsDataURL(processedFile);
-      }
-      setIsProcessing(false);
-      try {
-        const uploadedUrl = await handleUploadProcess(processedFile, isVideoUpload, isPdfUpload, isAudioUpload, autoSave, hideControls, currentImage);
-        
-        // Ensure parent gets the URL even if autoSave is false (manual save mode)
-        if (!autoSave && !hideControls) {
-          onImageSelect(uploadedUrl);
-        }
-        
-        setHasUnsavedChanges(!autoSave && !hideControls);
-      } catch (e: any) {
-        console.error('Upload process failed:', e);
-        setError(e.message || 'Upload failed');
-        alert(`Upload Error: ${e.message}`);
-      }
-    }
-  };
 
   const validateFileType = (file: File) => {
     if (acceptedTypes === '*') return true;
@@ -295,6 +195,113 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       console.warn('Video optimization skipped', e);
     }
     return file;
+  };
+
+  const handleFileSelect = async (file: File) => {
+    setIsProcessing(true);
+    setError('');
+    
+    // 1. Validation
+    if (!validateFileType(file)) {
+      setIsProcessing(false);
+      return;
+    }
+    
+    if (!validateFileSize(file)) {
+      setIsProcessing(false);
+      return;
+    }
+
+    // 2. Optimization (Images/Videos)
+    let processedFile = file;
+    if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+      processedFile = await handleImageOptimization(file);
+    } else if (isVideoUpload) {
+      processedFile = await handleVideoOptimization(processedFile);
+    }
+
+    // 3. Cropper or Direct Upload
+    if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
+      openCropper(processedFile);
+    } else {
+      // Local preview fallback
+      if (!isPdfUpload) {
+        if (isVideoUpload) {
+          setLocalPreview(URL.createObjectURL(processedFile));
+        } else {
+          const reader = new FileReader();
+          reader.onload = () => setLocalPreview(reader.result as string);
+          reader.readAsDataURL(processedFile);
+        }
+      }
+      
+      try {
+        const uploadedUrl = await handleUploadProcess(processedFile, autoSave, hideControls, currentImage);
+        
+        // Ensure parent gets the URL even if autoSave is false (manual save mode)
+        if (!autoSave && !hideControls) {
+          onImageSelect(uploadedUrl);
+        }
+        
+      } catch (e: any) {
+        console.error('Upload process failed:', e);
+        setError(e.message || 'Upload failed');
+        alert(`Upload Error: ${e.message}`);
+      }
+    }
+  };
+
+  const handleFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
+    
+    // Single file fallback
+    if (files.length === 1) {
+      handleFileSelect(files[0]);
+      return;
+    }
+
+    // Batch processing
+    if (!allowMultiple) {
+      handleFileSelect(files[0]);
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+    const results: { url: string; file: File }[] = [];
+    const fileArray = Array.from(files);
+    
+    setBatchProgress({ current: 0, total: fileArray.length });
+
+    for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        setBatchProgress({ current: i + 1, total: fileArray.length });
+        
+        // Validate
+        if (!validateFileType(file) || !validateFileSize(file)) {
+          continue; // Skip invalid
+        }
+
+        try {
+            // Optimize
+            let processed = file;
+             if (!isVideoUpload && !isPdfUpload && !isAudioUpload) {
+                processed = await handleImageOptimization(file);
+            }
+            
+            // Upload (Direct, no crop for batch)
+            const url = await handleUploadProcess(processed, true, true);
+            results.push({ url, file: processed });
+        } catch (e) {
+            console.warn('Batch upload error for', file.name, e);
+        }
+    }
+
+    setIsProcessing(false);
+    setBatchProgress(null);
+    if (onBatchComplete && results.length > 0) {
+        onBatchComplete(results);
+    }
   };
 
   const openCropper = (file: File) => {
@@ -350,14 +357,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     try {
       const blob = await getCroppedImgBlob(croppedAreaPixels);
       const file = new File([blob], `cropped_${Date.now()}.jpg`, { type: originalImageMime || 'image/jpeg' });
-      const uploadedUrl = await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      const uploadedUrl = await handleUploadProcess(file, autoSave, hideControls, currentImage);
       
-      // Ensure parent gets URL even if not auto-saving
       if (!autoSave && !hideControls) {
         onImageSelect(uploadedUrl);
       }
       
-      setHasUnsavedChanges(!autoSave && !hideControls);
       setCropSrc(null);
     } catch (e: any) {
       console.error(e);
@@ -368,19 +373,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const onConfirmFull = async () => {
     try {
-      // Just fetch the blob from src and upload
       const res = await fetch(cropSrc!);
       const blob = await res.blob();
       const file = new File([blob], `original_${Date.now()}.jpg`, { type: blob.type });
       
-      const uploadedUrl = await handleUploadProcess(file, false, false, false, autoSave, hideControls, currentImage);
+      const uploadedUrl = await handleUploadProcess(file, autoSave, hideControls, currentImage);
       
-      // Ensure parent gets URL even if not auto-saving
       if (!autoSave && !hideControls) {
         onImageSelect(uploadedUrl);
       }
       
-      setHasUnsavedChanges(!autoSave && !hideControls);
       setCropSrc(null);
     } catch (e: any) {
       setError(e.message || 'Upload failed');
@@ -388,19 +390,15 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     }
   };
 
-  // --- Delete Actions ---
   const handleDelete = async () => {
     const target = pendingImage || currentImage;
-    if (target) await deleteFromStorageByPublicUrl(target);
+    if (target) await deleteStorageFileByPublicUrl(target);
     resetUploadState();
-    setHasUnsavedChanges(false);
     onImageSelect('');
     setLocalPreview('');
     setShowDeleteConfirm(false);
   };
   
-  // --- UI Renderers ---
-
   const displayImageRaw = localPreview || pendingImage || currentImage;
   const displayImage = (() => {
     const sanitized = sanitizeUrl?.(displayImageRaw) || displayImageRaw || '';
@@ -418,7 +416,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         className="hidden" 
       />
 
-      {/* Error / Warning Alert */}
       {(error || missingBucket) && (
         <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
           <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -430,7 +427,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
       )}
 
-      {/* Main Container */}
       <div 
         className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${
            displayImage 
@@ -450,7 +446,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         }}
       >
         
-        {/* Loading Overlay */}
         {(isProcessing || uploading) && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="relative w-16 h-16 mb-4">
@@ -473,10 +468,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         )}
 
-        {/* Content State */}
         {displayImage ? (
           <div className="relative min-h-[200px] w-full flex flex-col">
-            {/* Display Area */}
             <div className="relative flex-1 bg-black/50 flex items-center justify-center overflow-hidden min-h-[200px] max-h-[400px]">
               {isVideoUpload ? (
                 <video src={displayImage} className="max-h-full max-w-full w-auto h-auto object-contain" controls />
@@ -490,7 +483,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <img src={displayImage} alt="Preview" className="w-full h-full object-contain" />
               )}
               
-              {/* Overlay Actions (Desktop Hover) */}
               {!hideControls && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
                   <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
@@ -505,27 +497,27 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               )}
             </div>
             
-            {/* Mobile Actions Bar (Always Visible on Touch) */}
             {!hideControls && (
                <div className="lg:hidden flex items-center justify-between p-3 bg-white/5 border-t border-white/5">
-                  <button onClick={() => fileInputRef.current?.click()} typeof="button" className="text-xs font-bold text-gray-300 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
+                  <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-300 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
                     <RotateCcw size={14} /> Change
                   </button>
-                   {hasUnsavedChanges && (
-                      <span className="text-[10px] text-yellow-400 font-mono uppercase tracking-wider animate-pulse">Unsaved</span>
-                   )}
-                  <button onClick={() => setShowDeleteConfirm(true)} typeof="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10">
+                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10">
                     <Trash2 size={14} /> Remove
                   </button>
                </div>
             )}
             
-            {/* Unsaved & Optimization Info Badge */}
             <div className="absolute top-2 right-2 flex flex-col items-end gap-1 pointer-events-none">
-              {hasUnsavedChanges && !hideControls && (
-                 <div className="px-2 py-1 rounded-md bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider shadow-lg backdrop-blur-sm flex items-center gap-1">
-                   <AlertCircle size={10} /> Unsaved
-                 </div>
+              <div className="px-2 py-1 rounded-md bg-black/60 border border-white/10 text-white text-[10px] font-medium backdrop-blur-md">
+                <span className="font-medium truncate max-w-[150px]">{currentImage ? (isVideoUpload ? 'Video URL' : (isAudioUpload ? 'Audio URL' : 'Image URL')) : 'None'}</span>
+              </div>
+              
+              {isDirty && (
+                <div className="px-2 py-1 bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-md shadow-lg backdrop-blur-sm flex items-center gap-1">
+                  <AlertCircle size={10} />
+                  Unsaved
+                </div>
               )}
               {optimizedPreviewMeta && (
                 <div className="px-2 py-1 rounded-md bg-black/60 border border-white/10 text-gray-400 text-[9px] backdrop-blur-md">
@@ -533,10 +525,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 </div>
               )}
             </div>
-
           </div>
         ) : (
-          /* Empty State Dropzone */
           <div 
              onClick={() => fileInputRef.current?.click()}
              className="flex flex-col items-center justify-center py-10 px-4 cursor-pointer text-center min-h-[160px]"
@@ -554,7 +544,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         )}
       </div>
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
@@ -572,10 +561,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
       )}
 
-      {/* Mobile-First Cropper Modal */}
       {cropSrc && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black animate-in fade-in duration-300">
-           {/* Header */}
            <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur border-b border-white/10 z-10 shrink-0">
              <div className="flex items-center gap-2">
                 <CropIcon size={16} className="text-purple-400" />
@@ -586,7 +573,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
              </button>
            </div>
            
-           {/* Canvas */}
            <div className="relative flex-1 bg-[#1a1a1a] w-full overflow-hidden">
              <Cropper
                 image={cropSrc}
@@ -601,9 +587,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
              />
            </div>
 
-           {/* Controls Footer */}
            <div className="bg-gray-900 border-t border-white/10 p-4 md:p-6 shrink-0 safe-area-pb">
-              {/* Zoom Slider */}
               <div className="flex items-center gap-4 mb-6 max-w-lg mx-auto">
                  <ZoomIn size={16} className="text-gray-500" />
                  <input 
@@ -643,7 +627,6 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                  </button>
               </div>
 
-              {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
                  <button onClick={() => setCropSrc(null)} className="py-3 rounded-xl bg-white/5 text-white font-medium text-sm hover:bg-white/10 transition-colors">
                     Cancel

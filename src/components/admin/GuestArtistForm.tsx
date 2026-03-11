@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { ImageUpload } from '../ImageUpload';
 import { VideoUploader } from '../VideoUploader';
-import type { GuestArtist } from '../../context/DataContext';
+import { GenericAIGenerator } from './GenericAIGenerator';
+import type { GuestArtist } from '../../types/data';
 
 interface GuestArtistFormProps {
   initialData?: GuestArtist | null;
@@ -33,6 +34,8 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
   isSubmitting
 }) => {
   const [activeTab, setActiveTab] = useState<'basic' | 'media' | 'schedule' | 'social'>('basic');
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
+  
   
   // Form State
   const [formData, setFormData] = useState({
@@ -129,15 +132,36 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
     }
   }, [initialData]);
 
+  const validateForm = () => {
+    const missing: string[] = [];
+    if (!formData.name?.trim()) missing.push('name');
+    if (!formData.title?.trim()) missing.push('title');
+    if (!formData.specialty?.trim()) missing.push('specialty');
+    if (!formData.description?.trim()) missing.push('description');
+    if (!formData.image) missing.push('image');
+    return missing;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
-    if (!formData.name || !formData.title || !formData.image || !formData.description || !formData.specialty) {
-      alert('Please fill in all required fields (Basic Info tab).');
+    const missingFields = validateForm();
+    if (missingFields.length > 0) {
+      setShowValidationErrors(true);
+      
+      // Auto-switch to the tab with errors
+      if (missingFields.some(f => ['name', 'title', 'specialty', 'description'].includes(f))) {
+        setActiveTab('basic');
+      } else if (missingFields.includes('image')) {
+        setActiveTab('media');
+      }
+
+      alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
       return;
     }
-
+    
+    setShowValidationErrors(false);
+    
     // Reconstruct performance_at
     let performance_at: string | null = null;
     if (formData.performance_date && formData.performance_time) {
@@ -234,50 +258,95 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
           {/* BASIC INFO TAB */}
           {activeTab === 'basic' && (
             <div className="space-y-4 animate-fadeIn">
+              <GenericAIGenerator
+                uiTitle="Auto-Generate Artist Bio"
+                uiDescription="Enter the artist's name and genre to instantly generate a professional bio, title, specialty, and achievements."
+                placeholder="e.g. 'Arijit Singh, Bollywood playback singer'"
+                systemInstruction={'You are an expert event publicist. Generate a professional biography, title, specialty, and 3-4 notable achievements for the given guest artist. Return ONLY valid JSON in this format: { "name": "Title Case Name", "title": "Main Role (e.g. Lead Vocalist)", "specialty": "Genre/Style", "description": "A professional 2-3 paragraph biography", "achievements": ["Achievement 1", "Achievement 2"] }'}
+                onGenerated={(data) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    name: data.name || prev.name,
+                    title: data.title || prev.title,
+                    specialty: data.specialty || prev.specialty,
+                    description: data.description || prev.description,
+                    achievements: data.achievements?.length ? data.achievements : prev.achievements
+                  }));
+                }}
+                className="mb-6"
+              />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Artist Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Artist Name *
+                    {showValidationErrors && !formData.name && (
+                      <span className="text-red-500 ml-2">(Required)</span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900"
+                    className={`w-full p-2 border rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900 ${
+                      showValidationErrors && !formData.name ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title/Role *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Title/Role *
+                    {showValidationErrors && !formData.title && (
+                      <span className="text-red-500 ml-2">(Required)</span>
+                    )}
+                  </label>
                   <input
                     type="text"
                     required
                     placeholder="e.g. Singer, Performer"
                     value={formData.title}
                     onChange={e => setFormData(p => ({ ...p, title: e.target.value }))}
-                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900"
+                    className={`w-full p-2 border rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900 ${
+                      showValidationErrors && !formData.title ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                    }`}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Specialty *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Specialty *
+                  {showValidationErrors && !formData.specialty && (
+                    <span className="text-red-500 ml-2">(Required)</span>
+                  )}
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Pop Music, Classical"
                   value={formData.specialty}
                   onChange={e => setFormData(p => ({ ...p, specialty: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900"
+                  className={`w-full p-2 border rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900 ${
+                    showValidationErrors && !formData.specialty ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description *
+                  {showValidationErrors && !formData.description && (
+                    <span className="text-red-500 ml-2">(Required)</span>
+                  )}
+                </label>
                 <textarea
                   required
                   rows={4}
                   value={formData.description}
                   onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900"
+                  className={`w-full p-2 border rounded focus:ring-2 focus:ring-yellow-400 focus:outline-none text-gray-900 ${
+                    showValidationErrors && !formData.description ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                  }`}
                 />
               </div>
 
@@ -352,8 +421,15 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
             <div className="space-y-6 animate-fadeIn">
               {/* Profile Image */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Image *</label>
-                <div className="bg-gray-50 p-4 rounded border border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Profile Image *
+                  {showValidationErrors && !formData.image && (
+                    <span className="text-red-500 ml-2">(Required)</span>
+                  )}
+                </label>
+                <div className={`bg-gray-50 p-4 rounded border ${
+                    showValidationErrors && !formData.image ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                  }`}>
                   <ImageUpload
                     onImageSelect={url => setFormData(p => ({ ...p, image: url }))}
                     currentImage={formData.image}
@@ -363,9 +439,11 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
                   />
                   <p className="text-xs text-gray-500 mt-2">Recommended aspect ratio: 4:5</p>
                 </div>
+                {showValidationErrors && !formData.image && (
+                  <p className="text-red-500 text-xs mt-1">Please upload a profile image</p>
+                )}
               </div>
-
-              {/* Performance Video */}
+               {/* Performance Video */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Performance Video (Optional)</label>
                 <div className="bg-gray-50 p-4 rounded border border-gray-200">
@@ -644,7 +722,7 @@ export const GuestArtistForm: React.FC<GuestArtistFormProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50 rounded-b-lg">
+      <div className="sticky bottom-0 p-4 border-t border-gray-200 flex justify-end gap-3 bg-white rounded-b-lg z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <button
           type="button"
           onClick={onCancel}

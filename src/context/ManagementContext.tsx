@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 import { 
   Sponsor, SponsorshipPackage, SponsorshipSettings, Registration,
   Audition, Membership
@@ -66,21 +67,22 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes] = await Promise.all([
         fetchSupabaseBatch<Sponsor>('sponsors'),
         fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }),
-        supabase.from('sponsorship_settings').select('*, contact_sections (*)').eq('id', 1).maybeSingle(),
+        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }),
         fetchAllRegistrations(),
-        supabase.from('auditions').select('*').order('created_at', { ascending: false }),
-        supabase.from('memberships').select('*').order('created_at', { ascending: false }),
-        supabase.from('admin_users').select('*, admin_permissions(*)') 
+        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }),
+        dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }),
+        dualRead({ table: 'admin_users' }) // Needs permissions join logic eventually
       ]);
 
-      if (!sponsorsRes.error) setSponsors(sponsorsRes.data || []);
-      if (!packagesRes.error) setSponsorshipPackages(packagesRes.data || []);
-      if (!settingsRes.error) setSponsorshipSettings(settingsRes.data || null);
-      if (!registrationsRes.error) setRegistrations(registrationsRes.data || []);
-      if (!auditionsRes.error) setAuditions(auditionsRes.data || []);
-      if (!membershipsRes.error) setMemberships(membershipsRes.data || []);
-      if (!adminRes.error) {
+      if (sponsorsRes.data) setSponsors(sponsorsRes.data || []);
+      if (packagesRes.data) setSponsorshipPackages(packagesRes.data || []);
+      if (settingsRes.data) setSponsorshipSettings(settingsRes.data || null);
+      if (registrationsRes.data) setRegistrations(registrationsRes.data || []);
+      if (auditionsRes.data) setAuditions(auditionsRes.data || []);
+      if (membershipsRes.data) setMemberships(membershipsRes.data || []);
+      if (adminRes.data) {
         // Flatten permissions for easier consumption
+        // In Supabase they were nested in admin_permissions array. In Firestore, they are flat on the object.
         const flattenedAdmins = (adminRes.data || []).map((u: any) => ({
           ...u,
           ...(u.admin_permissions?.[0] || u.admin_permissions || {})
@@ -88,7 +90,7 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
         console.log('[ManagementContext] Fetched admin users:', flattenedAdmins);
         setAdminUsers(flattenedAdmins);
       } else {
-        console.error('[ManagementContext] Error fetching admin_users:', adminRes.error);
+        console.warn('[ManagementContext] Admin users data unavailable from primary source');
       }
 
     } catch (err) {
@@ -103,85 +105,72 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshTrigger, user?.id, fetchManagementData]);
 
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
-    const { error } = await supabase.from('sponsors').insert(sponsor);
-    if (error) throw error;
+    await dualInsert('sponsors', sponsor);
     await fetchManagementData();
   };
 
   const updateSponsor = async (id: number, sponsor: Partial<Sponsor>) => {
-    const { error } = await supabase.from('sponsors').update(sponsor).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('sponsors', id, sponsor);
     await fetchManagementData();
   };
 
   const deleteSponsor = async (id: number) => {
-    const { error } = await supabase.from('sponsors').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('sponsors', id);
     await fetchManagementData();
   };
 
   const addRegistration = async (registration: Partial<Registration>) => {
-    const { error } = await supabase.from('registrations').insert(registration);
-    if (error) throw error;
+    await dualUpsert('registrations', registration);
     await fetchManagementData();
   };
 
   const updateRegistrationStatus = async (id: string, status: 'approved' | 'rejected' | 'pending') => {
-    const { error } = await supabase.from('registrations').update({ status }).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('registrations', id, { status });
     await fetchManagementData();
   };
+
   const updateSponsorshipSettings = async (patch: Partial<SponsorshipSettings>) => {
-    const { error } = await supabase.from('sponsorship_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('sponsorship_settings', { id: 1, ...patch });
     await fetchManagementData();
   };
 
   const addSponsorshipPackage = async (pkg: Partial<SponsorshipPackage>) => {
-    const { error } = await supabase.from('sponsorship_packages').insert(pkg);
-    if (error) throw error;
+    await dualInsert('sponsorship_packages', pkg);
     await fetchManagementData();
   };
 
   const updateSponsorshipPackage = async (id: number, patch: Partial<SponsorshipPackage>) => {
-    const { error } = await supabase.from('sponsorship_packages').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('sponsorship_packages', id, patch);
     await fetchManagementData();
   };
 
   const deleteSponsorshipPackage = async (id: number) => {
-    const { error } = await supabase.from('sponsorship_packages').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('sponsorship_packages', id);
     await fetchManagementData();
   };
 
   const deleteRegistration = async (id: string) => {
-    const { error } = await supabase.from('registrations').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('registrations', id);
     await fetchManagementData();
   };
 
   const updateAuditionStatus = async (id: string, status: 'pending' | 'reviewed' | 'contacted') => {
-    const { error } = await supabase.from('auditions').update({ status }).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('auditions', id, { status });
     await fetchManagementData();
   };
 
   const deleteAudition = async (id: string) => {
-    const { error } = await supabase.from('auditions').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('auditions', id);
     await fetchManagementData();
   };
 
   const updateMembershipStatus = async (id: string, status: 'pending' | 'reviewed' | 'accepted') => {
-    const { error } = await supabase.from('memberships').update({ status }).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('memberships', id, { status });
     await fetchManagementData();
   };
 
   const deleteMembership = async (id: string) => {
-    const { error } = await supabase.from('memberships').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('memberships', id);
     await fetchManagementData();
   };
 

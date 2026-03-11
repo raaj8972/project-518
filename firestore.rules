@@ -1,0 +1,337 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Useful Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Check if user is an admin via custom claims OR by checking the admin_users collection
+    function isAdmin() {
+      // First check custom claim for speed
+      return (request.auth != null && request.auth.token.admin == true) || 
+      // Fallback to checking if they exist in the admin_users collection
+      (isSignedIn() && get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.role in ['admin', 'owner', 'council']);
+    }
+
+    // Check if user has can_sports permission explicitly
+    function isSportsAdmin() {
+      return isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/admin_permissions/$(request.auth.uid)).data.can_sports == true);
+    }
+
+    // ---------------------------------------------------------
+    // PUBLIC READ, ADMIN WRITE
+    // Collections that anyone can read but only admins can edit
+    // ---------------------------------------------------------
+    
+    match /events/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /event_categories/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /event_coordinators/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin(); // In some systems coordinators can edit themselves, keeping simple for now
+    }
+    
+    match /schedule_days/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /schedule_events/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /site_settings/{document=**} {
+      allow read: if true;
+      allow write: if isSportsAdmin();
+    }
+    
+    match /about_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /homebound_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /homepage_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /hero_media_v2/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /form_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /social_media_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sponsors/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /sponsorship_packages/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /roadmap_milestones/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /event_winners/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /gallery_images/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // PERSONNEL & HOME BOUND
+    // ---------------------------------------------------------
+
+    match /faculty_heads/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /core_committees/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /core_team_members/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_committees/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_team_members/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /band_members/{document=**} {
+      allow read: if true; // Public can see band members
+      allow write: if isAdmin();
+    }
+
+    match /guest_artists/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /chief_guests/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sponsorship_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // PUBLIC WRITE (Submissions)
+    // ---------------------------------------------------------
+
+    match /registrations/{document} {
+      // Anyone can create a registration
+      allow create: if true;
+      // Participants should only read their own if authenticated, but right now we confirm via email.
+      // For dualDb client searches (like checking duplicate email) we might need targeted reads.
+      // Easiest secure way for now: allow read if they know the exact document ID or are admin.
+      // Actually, allowing read if query filters by email is better, but Firestore doesn't support that easily without evaluating the doc.
+      // Let's allow read if the email matches their auth, or if creating.
+      allow read: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.email);
+      allow update, delete: if isAdmin();
+    }
+
+    match /memberships/{document} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+    
+    match /auditions/{document} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /contact_messages/{document} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // SECURITY & ACCESS PASSES (Dual DB sync)
+    // ---------------------------------------------------------
+
+    match /entry_passes/{document} {
+      // Offline scanners need to read these
+      allow read: if true; // Might want to restrict to authenticated scanners
+      allow write: if isAdmin(); 
+    }
+
+    // Pass IDs tracked globally
+    match /pass_scans/{document} {
+      // Scanners create these
+      allow create: if true; // Should restrict to scanners
+      allow read: if true;
+      allow update, delete: if isAdmin();
+    }
+    
+    // Notifications - read by all, created by admin
+    match /notifications/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin Users Table
+    match /admin_users/{document=**} {
+      // Only admins can read/write the admin list
+      allow read, write: if isAdmin(); 
+    }
+
+    // Admin Sessions Tracking
+    match /admin_sessions/{document=**} {
+      // Admin users can read/write sessions
+      allow read, write: if isSignedIn(); 
+    }
+
+    match /security_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /gallery_settings/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /admin_messages/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /pending_approvals/{document=**} {
+      allow read, write: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
+    match /hero_media/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /validation_rules/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /pass_registrations/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /email_logs/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /gallery_faces/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /security_users/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    match /admin_permissions/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // SPORTS PAGE
+    // ---------------------------------------------------------
+    
+    match /sports_seasons/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /sports_teams/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /sports_players/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /sports_registrations/{document=**} {
+      // Anyone can create a registration
+      allow create: if true;
+      // Allow read if admin, or if it matches their email (for single doc access)
+      // Note: listing will only work for admins
+      allow read: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.email);
+      allow update, delete: if isAdmin();
+    }
+    
+    match /sports_matches/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_auction/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /sports_auction_bids/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+
+    // ---------------------------------------------------------
+    // FALLBACK
+    // ---------------------------------------------------------
+    
+    match /{document=**} {
+      // Default deny all to prevent accidental exposure
+      allow read, write: if false; 
+    }
+  }
+}

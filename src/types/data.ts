@@ -17,6 +17,81 @@ export type AdminPermission = Database['public']['Tables']['admin_permissions'][
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
 export type SportsCommittee = Database['public']['Tables']['sports_committees']['Row'];
 export type SportsTeamMember = Database['public']['Tables']['sports_team_members']['Row'];
+export type SportsSeason = Database['public']['Tables']['sports_seasons']['Row'] & {
+  group_limits?: {
+    field_name: string;
+    limits: Record<string, number>;
+  } | null;
+};
+export type SportsTeam = Database['public']['Tables']['sports_teams']['Row'] & { annual_event_id?: string | null };
+export type SportsPlayer = Database['public']['Tables']['sports_players']['Row'] & { annual_event_id?: string | null };
+export type SportsRegistration = Database['public']['Tables']['sports_registrations']['Row'] & { metadata?: any };
+export type SportsMatch = Database['public']['Tables']['sports_matches']['Row'] & { annual_event_id?: string | null, annual_team_a_id?: string | null, annual_team_b_id?: string | null };
+export interface AnnualSportsEvent {
+  id: string;
+  name: string;
+  category?: string | null;
+  description?: string | null;
+  image_url?: string | null;
+  rules_url?: string | null;
+  registration_open?: boolean;
+  min_participants?: number;
+  max_participants?: number;
+  registration_limit?: number | null;
+  custom_fields?: Array<{
+    name: string;
+    label: string;
+    type: 'text' | 'tel' | 'email' | 'select' | 'number' | 'textarea';
+    required: boolean;
+    options?: string[];
+  }>;
+  group_limits?: {
+    field_name: string;
+    limits: Record<string, number>;
+  } | null;
+  registration_participant_types?: string[] | null;
+  registration_participant_quotas?: Record<string, number> | null;
+  registration_timer_enabled?: boolean;
+  registration_opens_at?: string | null;
+  registration_closes_at?: string | null;
+  registration_default_mode?: 'individual' | 'team';
+  registration_mode_locked?: boolean;
+  team_min_members?: number | null;
+  team_max_members?: number | null;
+  fee?: number;
+  visible?: boolean;
+  display_teams?: boolean;
+  display_schedule?: boolean;
+  require_leader_photo?: boolean;
+  require_team_photo?: boolean;
+  require_player_photo?: boolean;
+  require_team_individual_photos?: boolean;
+  auction_status?: 'draft' | 'live' | 'completed' | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface AnnualSportsRegistration {
+  id: string;
+  reg_id: string;
+  event_id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  department?: string | null;
+  year?: string | null;
+  roll_no?: string | null;
+  college?: string | null;
+  participant_type?: string | null;
+  is_team_registration?: boolean;
+  team_name?: string | null;
+  team_members?: Array<{ name: string; email?: string; photo_url?: string }> | null;
+  total_members?: number;
+  status?: 'pending' | 'approved' | 'rejected';
+  photo_url?: string | null;
+  metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
 export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
 export type ChiefGuest = Database['public']['Tables']['chief_guests']['Row'];
@@ -27,7 +102,42 @@ export type FormSettings = Database['public']['Tables']['form_settings']['Row'];
 export type SocialMediaSettings = Database['public']['Tables']['social_media_settings']['Row'];
 export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'];
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
-export type SiteSettings = Database['public']['Tables']['site_settings']['Row'];
+export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] & {
+  sports_registration_config?: {
+    registration_open: boolean;
+    participant_types: string[];
+    form_fields: Array<{
+      name: string;
+      label: string;
+      required: boolean;
+      type: 'text' | 'tel' | 'email' | 'textarea' | 'select' | 'number' | 'file';
+      options?: string[];
+    }>;
+  };
+  sports_owner_registration_config?: {
+    registration_open: boolean;
+    participant_types?: string[];
+    form_fields: Array<{
+      name: string;
+      label: string;
+      required: boolean;
+      type: 'text' | 'tel' | 'email' | 'textarea' | 'select' | 'number' | 'file';
+      options?: string[];
+    }>;
+  };
+  sports_player_registration_config?: {
+    registration_open: boolean;
+    participant_types?: string[];
+    form_fields: Array<{
+      name: string;
+      label: string;
+      required: boolean;
+      type: 'text' | 'tel' | 'email' | 'textarea' | 'select' | 'number' | 'file';
+      options?: string[];
+    }>;
+  };
+  annual_sports_mode_enabled?: boolean;
+};
 export type AboutSettings = {
   id: number;
   enabled: boolean;
@@ -55,7 +165,9 @@ export interface GallerySettings {
 export type RoadmapMilestone = Database['public']['Tables']['roadmap_milestones']['Row'];
 export type HeroMedia = Database['public']['Tables']['hero_media']['Row'];
 export type PageKey = HeroMedia['page_key'];
-export type SecuritySettings = Database['public']['Tables']['security_settings']['Row'];
+export type SecuritySettings = Database['public']['Tables']['security_settings']['Row'] & {
+  council_passcode?: string | null;
+};
 
 export interface DataContextType {
   events: Event[];
@@ -266,6 +378,7 @@ export interface DataContextType {
     can_chief_guests?: boolean;
     can_homebound?: boolean;
     can_security_passes?: boolean;
+    can_sports_registrations?: boolean;
   } | null;
   isAdmin: () => boolean;
   isOwner: () => boolean;

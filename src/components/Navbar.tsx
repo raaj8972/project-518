@@ -86,6 +86,7 @@ export const Navbar: React.FC = () => {
       { name: 'Gallery', path: '/gallery', icon: Image, onHover: prefetchGalleryImages },
       { name: 'Home Bound', path: '/home-bound', icon: Users },
       { name: 'Rico Family', path: '/rico-family', icon: Users },
+      { name: 'Sports', path: '/sports', icon: Users },
       { name: 'Sponsors', path: '/sponsors', icon: Users },
       { name: 'Login', path: '/login', icon: LogIn },
     ];

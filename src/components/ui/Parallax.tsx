@@ -1,22 +1,22 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
 interface ParallaxProps {
-  children: React.ReactNode;
+  children: ReactNode;
   speed?: number; // Positive moves faster/up, negative moves slower/down relative to scroll (default 1)
   className?: string;
   id?: string;
 }
 
-export const Parallax: React.FC<ParallaxProps> = ({ 
+export const Parallax = ({ 
   children, 
   speed = 1,
   className = '',
   id
-}) => {
+}: ParallaxProps) => {
   const triggerRef = useRef<HTMLDivElement>(null);
   const targetRef = useRef<HTMLDivElement>(null);
 

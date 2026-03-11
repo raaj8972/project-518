@@ -12,6 +12,7 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { dualRead, dualUpdate, dualInsert } from '../../lib/dualDb';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
@@ -672,13 +673,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       if (regIds.length === 0) return;
       
       // Fetch confirmation email logs for all registrations in current view
-      const { data, error } = await supabase
-        .from('email_logs')
-        .select('registration_id, status, template_type')
-        .in('registration_id', regIds)
-        .eq('template_type', 'confirmation');
-      
-      if (error) throw error;
+      const { data } = await dualRead({
+        table: 'email_logs',
+        in: ['registration_id', regIds],
+        eq: ['template_type', 'confirmation']
+      });
       
       // Build status map
       const statusMap: Record<string, { sent: boolean; count: number }> = {};
@@ -906,13 +905,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     setLogsLoading(true);
     setEmailLogs([]);
     try {
-        const { data, error } = await supabase
-            .from('email_logs')
-            .select('*')
-            .eq('registration_id', regId)
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
+        const { data } = await dualRead({
+            table: 'email_logs',
+            eq: ['registration_id', regId],
+            order: ['created_at', { ascending: false }]
+        });
         setEmailLogs(data || []);
     } catch (err) {
         console.error('Error fetching logs:', err);
@@ -2311,11 +2308,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                     if (success) {
                                         push({ message: `Email sent to ${registration.full_name}`, type: 'success' });
                                         // Refresh email status
-                                        const { data } = await supabase
-                                          .from('email_logs')
-                                          .select('registration_id, status, template_type')
-                                          .eq('registration_id', registration.id)
-                                          .eq('template_type', 'confirmation');
+                                        const { data } = await dualRead({
+                                          table: 'email_logs',
+                                          eq: ['registration_id', registration.id]
+                                        });
                                         if (data && data.length > 0) {
                                           setEmailStatusMap(prev => ({
                                             ...prev,
@@ -2406,8 +2402,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="Full Name" 
                                   value={registration.full_name} 
                                   onSave={async (val) => {
-                                    const { error } = await supabase.from('registrations').update({ full_name: val }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      await dualUpdate('registrations', registration.id, { full_name: val });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status); 
                                     push({ message: 'Name updated', type: 'success' });
                                     return true;
@@ -2422,8 +2422,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="College" 
                                   value={registration.college} 
                                   onSave={async (val) => {
-                                    const { error } = await supabase.from('registrations').update({ college: val }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      await dualUpdate('registrations', registration.id, { college: val });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'College updated', type: 'success' });
                                     return true;
@@ -2434,9 +2438,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="Email" 
                                   value={registration.email} 
                                   onSave={async (val) => {
-                                    const enc = encryptData(val);
-                                    const { error } = await supabase.from('registrations').update({ email: enc }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      const enc = encryptData(val);
+                                      await dualUpdate('registrations', registration.id, { email: enc });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Email updated', type: 'success' });
                                     return true;
@@ -2447,9 +2455,13 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="Phone" 
                                   value={registration.phone} 
                                   onSave={async (val) => {
-                                    const enc = encryptData(val);
-                                    const { error } = await supabase.from('registrations').update({ phone: enc }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      const enc = encryptData(val);
+                                      await dualUpdate('registrations', registration.id, { phone: enc });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Phone updated', type: 'success' });
                                     return true;
@@ -2460,8 +2472,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="Part. Type" 
                                   value={registration.participant_type} 
                                   onSave={async (val) => {
-                                    const { error } = await supabase.from('registrations').update({ participant_type: val }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      await dualUpdate('registrations', registration.id, { participant_type: val });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Participant type updated', type: 'success' });
                                     return true;
@@ -2517,8 +2533,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   label="Team Name" 
                                   value={registration.team_name} 
                                   onSave={async (val) => {
-                                    const { error } = await supabase.from('registrations').update({ team_name: val }).eq('id', registration.id);
-                                    if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                    try {
+                                      await dualUpdate('registrations', registration.id, { team_name: val });
+                                    } catch (err) {
+                                      push({ message: 'Update failed', type: 'error' });
+                                      return false;
+                                    }
                                     await updateRegistrationStatus(registration.id, registration.status);
                                     push({ message: 'Team name updated', type: 'success' });
                                     return true;
@@ -2536,10 +2556,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       label="Name" 
                                       value={member.name} 
                                       onSave={async (val) => {
-                                        const members = safeTeamMembers(registration);
-                                        members[index] = { ...members[index], name: val };
-                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
-                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        try {
+                                          const members = safeTeamMembers(registration);
+                                          members[index] = { ...members[index], name: val };
+                                          await dualUpdate('registrations', registration.id, { team_members: members });
+                                        } catch (err) {
+                                          push({ message: 'Update failed', type: 'error' });
+                                          return false;
+                                        }
                                         await updateRegistrationStatus(registration.id, registration.status);
                                         return true;
                                       }}
@@ -2550,10 +2574,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       label="Email" 
                                       value={member.email} 
                                       onSave={async (val) => {
-                                        const members = safeTeamMembers(registration);
-                                        members[index] = { ...members[index], email: val };
-                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
-                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        try {
+                                          const members = safeTeamMembers(registration);
+                                          members[index] = { ...members[index], email: val };
+                                          await dualUpdate('registrations', registration.id, { team_members: members });
+                                        } catch (err) {
+                                          push({ message: 'Update failed', type: 'error' });
+                                          return false;
+                                        }
                                         await updateRegistrationStatus(registration.id, registration.status);
                                         return true;
                                       }}
@@ -2564,10 +2592,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                       label="Phone" 
                                       value={member.phone} 
                                       onSave={async (val) => {
-                                        const members = safeTeamMembers(registration);
-                                        members[index] = { ...members[index], phone: val };
-                                        const { error } = await supabase.from('registrations').update({ team_members: members }).eq('id', registration.id);
-                                        if (error) { push({ message: 'Update failed', type: 'error' }); return false; }
+                                        try {
+                                          const members = safeTeamMembers(registration);
+                                          members[index] = { ...members[index], phone: val };
+                                          await dualUpdate('registrations', registration.id, { team_members: members });
+                                        } catch (err) {
+                                          push({ message: 'Update failed', type: 'error' });
+                                          return false;
+                                        }
                                         await updateRegistrationStatus(registration.id, registration.status);
                                         return true;
                                       }}

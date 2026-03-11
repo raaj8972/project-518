@@ -1,12 +1,17 @@
 import { supabase } from '../lib/supabase';
+import { dualRead } from '../lib/dualDb';
 import { GalleryImage, GallerySettings } from '../types/data';
 
 export const fetchAllGalleryImages = async (): Promise<{ data: GalleryImage[] | null, error: any }> => {
-  return fetchSupabaseBatch<GalleryImage>('gallery_images', { order: { column: 'created_at', ascending: false } });
+  const { data, error } = await supabase
+    .from('gallery_images')
+    .select('*')
+    .order('created_at', { ascending: false });
+  return { data: (data || []) as GalleryImage[], error };
 };
 
 /**
- * Generic Supabase batch fetching utility to bypass 1000 row limit
+ * generic fetching utility that prioritizes Firestore via DualDb
  */
 export async function fetchSupabaseBatch<T>(
   table: string, 
@@ -15,35 +20,17 @@ export async function fetchSupabaseBatch<T>(
     select?: string;
   } = {}
 ): Promise<{ data: T[] | null, error: any }> {
-  let allData: T[] = [];
-  let page = 0;
-  const PAGE_SIZE = 1000;
-  const select = options.select || '*';
-  
-  while (true) {
-    let query = supabase.from(table).select(select);
-    
-    if (options.order) {
-      query = query.order(options.order.column, { ascending: options.order.ascending ?? false });
-    }
-    
-    const { data, error } = await query.range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-    
-    if (error) {
-      console.error(`[fetchSupabaseBatch:${table}] Error fetching batch:`, error);
-      return { data: allData.length > 0 ? allData : null, error };
-    }
-    
-    if (!data || data.length === 0) break;
-    
-    allData = [...allData, ...(data as any as T[])];
-    
-    if (data.length < PAGE_SIZE) break;
-    page++;
-    if (page > 100) break; 
+  try {
+    const { data } = await dualRead({
+      table,
+      select: options.select,
+      order: options.order ? [options.order.column, { ascending: options.order.ascending }] : undefined
+    });
+    return { data: (data || []) as T[], error: null };
+  } catch (error) {
+    console.error(`[fetchData:${table}] Error:`, error);
+    return { data: null, error };
   }
-  
-  return { data: allData, error: null };
 }
 
 export const fetchAllRegistrations = async (): Promise<{ data: any[] | null, error: any }> => {
@@ -137,9 +124,14 @@ export const sanitizeUrl = (url?: string | null, options?: ImageOptions): string
 };
 
 /**
- * Generate a public URL for a Supabase storage object
+ * Generate a public URL for a storage object (supports both Supabase and Firebase buckets)
  */
 export const publicUrlFor = (bucket: string, path: string): string => {
+  // If bucket contains Firebase-like identifier or if we detected Firebase storage
+  if (bucket.includes('firebase') || bucket.includes('appspot.com')) {
+    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media`;
+  }
+  
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 };

@@ -4,6 +4,8 @@ import { EventsProvider } from './EventsContext';
 import { PersonnelProvider } from './PersonnelContext';
 import { GalleryProvider } from './GalleryContext';
 import { ManagementProvider } from './ManagementContext';
+import { SportsProvider } from './SportsContext';
+import { AnnualSportsProvider } from './AnnualSportsContext';
 
 export const CombinedDataProvider = ({ children }: { children: ReactNode }) => {
   return (
@@ -12,7 +14,11 @@ export const CombinedDataProvider = ({ children }: { children: ReactNode }) => {
         <PersonnelProvider>
           <GalleryProvider>
             <ManagementProvider>
-              {children}
+              <SportsProvider>
+                <AnnualSportsProvider>
+                  {children}
+                </AnnualSportsProvider>
+              </SportsProvider>
             </ManagementProvider>
           </GalleryProvider>
         </PersonnelProvider>

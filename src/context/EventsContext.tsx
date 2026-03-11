@@ -1,12 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 import { 
   Event, EventCoordinator, EventCategory, ScheduleDay, ScheduleEvent, 
   RoadmapMilestone
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
-import { fetchAllEvents, fetchSupabaseBatch } from '../utils/dataUtils';
+import { fetchAllEvents } from '../utils/dataUtils';
 
 interface EventsContextType {
   events: Event[];
@@ -18,9 +19,11 @@ interface EventsContextType {
   roadmapMilestones: RoadmapMilestone[];
   
   addEvent: (event: Partial<Event>) => Promise<void>;
+  addEventWithCoordinators: (event: Partial<Event>, coordinators: any[]) => Promise<void>;
   updateEvent: (id: number, event: Partial<Event>) => Promise<void>;
   deleteEvent: (id: number) => Promise<void>;
   reorderEvents: (orderedIds: number[]) => Promise<boolean>;
+  reorderEventCategories: (orderedIds: number[]) => Promise<boolean>;
   
   addEventWinner: (winner: any) => Promise<void>;
   updateEventWinner: (id: number, patch: Partial<any>) => Promise<void>;
@@ -38,7 +41,7 @@ interface EventsContextType {
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
   deleteEventCoordinator: (id: number) => Promise<void>;
   
-  addScheduleDay: (day: Partial<ScheduleDay>) => Promise<void>;
+  addScheduleDay: (day: Partial<ScheduleDay>) => Promise<any>;
   updateScheduleDay: (id: number, patch: Partial<ScheduleDay>) => Promise<void>;
   deleteScheduleDay: (id: number) => Promise<void>;
   
@@ -72,49 +75,54 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     try {
       const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes] = await Promise.all([
         fetchAllEvents(),
-        fetchSupabaseBatch<EventCoordinator>('event_coordinators', { order: { column: 'event_id', ascending: true } }),
-        fetchSupabaseBatch<EventCategory>('event_categories'),
-        supabase.from('schedule_days').select('*, schedule_events (*)').order('date', { ascending: true }),
-        fetchSupabaseBatch<RoadmapMilestone>('roadmap_milestones', { order: { column: 'order_position', ascending: true } })
+        dualRead({ table: 'event_coordinators' }),
+        dualRead({ table: 'event_categories', order: ['display_order', { ascending: true }] }),
+        dualRead({ table: 'schedule_days' }),
+        supabase.from('roadmap_milestones').select('*').order('order_position', { ascending: true })
       ]);
 
-      if (!eventsRes.error) setEvents(eventsRes.data || []);
-      if (!coordinatorsRes.error) setEventCoordinators(coordinatorsRes.data || []);
-      if (!categoriesRes.error) setEventCategories(categoriesRes.data || []);
-      if (!scheduleRes.error) {
-        const mappedSchedule = (scheduleRes.data || []).map((day: any) => ({
-          ...day,
-          events: day.schedule_events || []
-        }));
+      if (eventsRes.data) setEvents(eventsRes.data || []);
+      if (coordinatorsRes.data) setEventCoordinators(coordinatorsRes.data || []);
+      if (categoriesRes.data) setEventCategories(categoriesRes.data || []);
+      
+      if (scheduleRes.data) {
+        const days = scheduleRes.data || [];
+        const { data: allScheduleEvents } = await dualRead({ table: 'schedule_events' });
+        
+        const mappedSchedule = days.map((day: any) => {
+          const dayEvents = (allScheduleEvents || []).filter((e: any) => e.schedule_day_id === day.id);
+          
+          let scheduleType = 'prelims';
+          if (day.title?.includes('[MAINS]')) scheduleType = 'mains';
+          else if (day.title?.includes('[PRELIMS]')) scheduleType = 'prelims';
+          
+          return {
+            ...day,
+            events: dayEvents,
+            schedule_type: scheduleType
+          };
+        }).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
         setSchedule(mappedSchedule);
       }
-      if (!roadmapRes.error) setRoadmapMilestones(roadmapRes.data || []);
-
-      // Fetch winners separately (more complex logic)
-      const { data: winnersData, error: winnersError } = await supabase.rpc('get_public_event_winners');
-      if (!winnersError) {
-        setEventWinners(winnersData || []);
-      } else {
-        // Fallback
-        const { data: fallbackWinners } = await fetchSupabaseBatch('event_winners');
-        setEventWinners(fallbackWinners || []);
+      
+      if (roadmapRes.data) {
+        setRoadmapMilestones(roadmapRes.data || []);
+      }
+      // Fetch winners
+      const winnersRes = await dualRead({ table: 'event_winners' });
+      if (winnersRes.data) {
+        setEventWinners(winnersRes.data || []);
       }
 
-      // Notifications
       const nowIso = new Date().toISOString();
-      // Notifications are usually few, but let's use batch just in case someone makes 1000 notifications
-      const { data: notifyData } = await fetchSupabaseBatch('notifications', {
-         order: { column: 'priority', ascending: false },
-         // We can't easily batch with complex filters like .lte / .or in our simple utility yet
-         // so we'll just fetch all and filter in memory if needed, or keep it as is if it's safe.
-         // Actually, let's keep notifications as is because they are time-gated (few ACTIVE ones).
-      });
+      const { data: notifyData } = await dualRead({ table: 'notifications' });
       
       const filteredNotifications = (notifyData || []).filter((n: any) => 
         n.visible && 
         n.starts_at <= nowIso && 
         (!n.ends_at || n.ends_at > nowIso)
-      );
+      ).sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
       
       setNotifications(filteredNotifications);
 
@@ -130,20 +138,35 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshTrigger, user?.id, fetchEventsData]);
 
   const addEvent = async (event: Partial<Event>) => {
-    const { error } = await supabase.from('events').insert(event);
-    if (error) throw error;
+    await dualInsert('events', event);
+    await fetchEventsData();
+  };
+
+  const addEventWithCoordinators = async (event: Partial<Event>, coordinators: any[]) => {
+    // dualInsert returns an array or object. Let's assume array of results.
+    const result = await dualInsert('events', event);
+    const insertedEvent = Array.isArray(result) ? result[0] : result;
+    
+    if (insertedEvent && insertedEvent.id && coordinators && coordinators.length > 0) {
+      const coordsToInsert = coordinators.map(c => ({
+        event_id: insertedEvent.id,
+        name: c.name,
+        phone: c.phone || null,
+        password: c.password || null
+      }));
+      await dualInsert('event_coordinators', coordsToInsert);
+    }
+    
     await fetchEventsData();
   };
 
   const updateEvent = async (id: number, event: Partial<Event>) => {
-    const { error } = await supabase.from('events').update(event).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('events', id, event);
     await fetchEventsData();
   };
 
   const deleteEvent = async (id: number) => {
-    const { error } = await supabase.from('events').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('events', id);
     await fetchEventsData();
   };
 
@@ -153,8 +176,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
         id,
         display_order: index
       }));
-      const { error } = await supabase.from('events').upsert(updates);
-      if (error) throw error;
+      await dualUpsert('events', updates);
       await fetchEventsData();
       return true;
     } catch (err) {
@@ -163,111 +185,109 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const reorderEventCategories = async (orderedIds: number[]): Promise<boolean> => {
+    try {
+      const updates = orderedIds.map((id, index) => ({
+        id,
+        display_order: index
+      }));
+      await dualUpsert('event_categories', updates);
+      await fetchEventsData();
+      return true;
+    } catch (err) {
+      console.error('[EventsContext] reorderEventCategories failed', err);
+      return false;
+    }
+  };
+
   const addEventWinner = async (winner: any) => {
-    const { error } = await supabase.from('event_winners').insert(winner);
-    if (error) throw error;
+    await dualInsert('event_winners', winner);
     await fetchEventsData();
   };
 
   const updateEventWinner = async (id: number, patch: Partial<any>) => {
-    const { error } = await supabase.from('event_winners').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('event_winners', id, patch);
     await fetchEventsData();
   };
 
   const deleteEventWinner = async (id: number) => {
-    const { error } = await supabase.from('event_winners').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('event_winners', id);
     await fetchEventsData();
   };
 
   const addNotification = async (n: any) => {
-    const { error } = await supabase.from('notifications').insert(n);
-    if (error) throw error;
+    await dualInsert('notifications', n);
     await fetchEventsData();
   };
 
   const updateNotification = async (id: number, patch: Partial<any>) => {
-    const { error } = await supabase.from('notifications').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('notifications', id, patch);
     await fetchEventsData();
   };
 
   const deleteNotification = async (id: number) => {
-    const { error } = await supabase.from('notifications').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('notifications', id);
     await fetchEventsData();
   };
 
   const addEventCategory = async (cat: Partial<EventCategory>) => {
-    const { error } = await supabase.from('event_categories').insert(cat);
-    if (error) throw error;
+    await dualInsert('event_categories', cat);
     await fetchEventsData();
   };
 
   const updateEventCategory = async (id: number, patch: Partial<EventCategory>) => {
-    const { error } = await supabase.from('event_categories').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('event_categories', id, patch);
     await fetchEventsData();
   };
 
   const deleteEventCategory = async (id: number) => {
-    const { error } = await supabase.from('event_categories').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('event_categories', id);
     await fetchEventsData();
   };
 
   const addEventCoordinator = async (coord: Partial<EventCoordinator>) => {
-    const { error } = await supabase.from('event_coordinators').insert(coord);
-    if (error) throw error;
+    await dualInsert('event_coordinators', coord);
     await fetchEventsData();
   };
 
   const updateEventCoordinator = async (id: number, patch: Partial<EventCoordinator>) => {
-    const { error } = await supabase.from('event_coordinators').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('event_coordinators', id, patch);
     await fetchEventsData();
   };
 
   const deleteEventCoordinator = async (id: number) => {
-    const { error } = await supabase.from('event_coordinators').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('event_coordinators', id);
     await fetchEventsData();
   };
 
-  const addScheduleDay = async (day: Partial<ScheduleDay>) => {
-    const { error } = await supabase.from('schedule_days').insert(day);
-    if (error) throw error;
+  const addScheduleDay = async (day: Partial<ScheduleDay>): Promise<any> => {
+    const result = await dualInsert('schedule_days', day);
     await fetchEventsData();
+    return result;
   };
 
   const updateScheduleDay = async (id: number, patch: Partial<ScheduleDay>) => {
-    const { error } = await supabase.from('schedule_days').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('schedule_days', id, patch);
     await fetchEventsData();
   };
 
   const deleteScheduleDay = async (id: number) => {
-    const { error } = await supabase.from('schedule_days').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('schedule_days', id);
     await fetchEventsData();
   };
 
   const addScheduleEvent = async (dayId: number, evt: Partial<ScheduleEvent>) => {
-    const { error } = await supabase.from('schedule_events').insert({ ...evt, schedule_day_id: dayId });
-    if (error) throw error;
+    await dualInsert('schedule_events', { ...evt, schedule_day_id: dayId });
     await fetchEventsData();
   };
 
   const updateScheduleEvent = async (id: number, patch: Partial<ScheduleEvent>) => {
-    const { error } = await supabase.from('schedule_events').update(patch).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('schedule_events', id, patch);
     await fetchEventsData();
   };
 
   const deleteScheduleEvent = async (id: number) => {
-    const { error } = await supabase.from('schedule_events').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('schedule_events', id);
     await fetchEventsData();
   };
 
@@ -280,10 +300,11 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     notifications,
     roadmapMilestones,
     addEvent,
+    addEventWithCoordinators,
     updateEvent,
     deleteEvent,
     reorderEvents,
-    // Add placeholders for now to keep the interface valid
+    reorderEventCategories,
     addEventWinner,
     updateEventWinner,
     deleteEventWinner,

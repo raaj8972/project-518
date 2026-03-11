@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useData } from '../../context/DataContext';
-import { Download, X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { Download, X, ChevronLeft, ChevronRight, ExternalLink, Camera, Trash2, HardDrive, Image } from 'lucide-react';
 
 export const RegistrationPhotosPanel: React.FC = () => {
 	const { getRegistrationPhotos, computeRegistrationPhotosUsage, deleteRegistrationPhoto } = useData();
@@ -52,13 +52,9 @@ export const RegistrationPhotosPanel: React.FC = () => {
 	useEffect(() => {
 		if (viewerIndex == null) return;
 		const onKey = (e: KeyboardEvent) => {
-			if (e.key === 'Escape') {
-				closeViewer();
-			} else if (e.key === 'ArrowLeft') {
-				showPrev();
-			} else if (e.key === 'ArrowRight') {
-				showNext();
-			}
+			if (e.key === 'Escape') closeViewer();
+			else if (e.key === 'ArrowLeft') showPrev();
+			else if (e.key === 'ArrowRight') showNext();
 		};
 		document.addEventListener('keydown', onKey);
 		return () => document.removeEventListener('keydown', onKey);
@@ -69,6 +65,11 @@ export const RegistrationPhotosPanel: React.FC = () => {
 		try {
 			await deleteRegistrationPhoto(name);
 			await load(page);
+			// Refresh usage
+			if (computeRegistrationPhotosUsage) {
+				const u = await computeRegistrationPhotosUsage();
+				setUsage(u);
+			}
 		} catch (e) {
 			alert('Delete failed');
 		}
@@ -77,128 +78,199 @@ export const RegistrationPhotosPanel: React.FC = () => {
 	const totalPages = Math.max(1, Math.ceil(total / 25));
 
 	return (
-		<div className="space-y-4">
-			<div className="flex items-center justify-between">
-				<h2 className="text-xl font-semibold text-gray-900">Registration Photos</h2>
-				{usage && (
-					<div className="text-sm text-gray-600">
-						{usage.count} files · {(usage.totalBytes / (1024*1024)).toFixed(1)} MB
+		<div className="space-y-6">
+
+			{/* ═══ Hero Header ═══ */}
+			<div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-600/20 via-blue-600/10 to-transparent border border-white/10 p-8">
+				<div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none" />
+				<div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+				<div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+					<div>
+						<div className="flex items-center gap-2 mb-2">
+							<Camera size={14} className="text-cyan-400" />
+							<span className="text-[10px] font-black text-cyan-400/80 uppercase tracking-[0.2em]">Storage Browser</span>
+						</div>
+						<h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+							Registration Photos
+						</h2>
+						<p className="text-sm text-gray-400 mt-1 font-medium">
+							{total} photos in bucket
+							{usage && <> · <HardDrive size={12} className="inline -mt-0.5 mx-1 text-gray-500" />{(usage.totalBytes / (1024*1024)).toFixed(1)} MB</>}
+						</p>
+					</div>
+
+					{/* Stats Badges */}
+					{usage && (
+						<div className="flex items-center gap-4">
+							<div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-center">
+								<div className="text-2xl font-black text-white">{usage.count}</div>
+								<div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Files</div>
+							</div>
+							<div className="bg-white/[0.03] border border-white/5 rounded-xl px-4 py-3 text-center">
+								<div className="text-2xl font-black text-white">{(usage.totalBytes / (1024*1024)).toFixed(1)}</div>
+								<div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">MB Used</div>
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+
+			{/* ═══ Photo Grid / Table ═══ */}
+			<div className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
+				{/* Table Header */}
+				<div className="grid grid-cols-[auto_1fr_auto_auto] gap-4 px-6 py-3 border-b border-white/5 bg-white/[0.02]">
+					<span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Preview</span>
+					<span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Name</span>
+					<span className="text-[10px] font-black text-white/30 uppercase tracking-widest">Size</span>
+					<span className="text-[10px] font-black text-white/30 uppercase tracking-widest text-right">Actions</span>
+				</div>
+
+				{/* Rows */}
+				{items.map((it, idx) => (
+					<div
+						key={it.name}
+						className="grid grid-cols-[auto_1fr_auto_auto] gap-4 items-center px-6 py-3 border-b border-white/[0.03] hover:bg-white/[0.03] transition-colors group"
+					>
+						{/* Preview Thumbnail */}
+						<button
+							onClick={() => setViewerIndex(idx)}
+							className="focus:outline-none group/thumb"
+							title="View large"
+						>
+							<div className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 group-hover/thumb:border-cyan-500/30 transition-all">
+								<img
+									loading="lazy"
+									decoding="async"
+									src={`${it.publicUrl}?width=100&height=100`}
+									alt={it.name}
+									className="w-full h-full object-cover"
+								/>
+								<div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+									<Image size={14} className="text-white" />
+								</div>
+							</div>
+						</button>
+
+						{/* Name */}
+						<button
+							className="text-left text-sm text-gray-300 hover:text-cyan-400 truncate transition-colors font-medium"
+							onClick={() => setViewerIndex(idx)}
+							title={it.name}
+						>
+							{it.name}
+						</button>
+
+						{/* Size */}
+						<span className="text-xs text-gray-500 font-bold whitespace-nowrap">
+							{(it.size/1024).toFixed(0)} KB
+						</span>
+
+						{/* Actions */}
+						<div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+							<a
+								href={it.publicUrl}
+								download={it.name || `photo-${Date.now()}`}
+								className="p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:border-cyan-500/20 hover:bg-cyan-500/10 text-gray-500 hover:text-cyan-400 transition-all"
+								title="Download"
+								onClick={e => e.stopPropagation()}
+							>
+								<Download size={14} />
+							</a>
+							<a
+								href={it.publicUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/15 hover:bg-white/[0.06] text-gray-500 hover:text-white transition-all"
+								title="Open in new tab"
+							>
+								<ExternalLink size={14} />
+							</a>
+							<button
+								onClick={() => onDelete(it.name)}
+								className="p-2 rounded-xl bg-white/[0.03] border border-white/5 hover:border-rose-500/20 hover:bg-rose-500/10 text-gray-500 hover:text-rose-400 transition-all"
+								title="Delete"
+							>
+								<Trash2 size={14} />
+							</button>
+						</div>
+					</div>
+				))}
+
+				{/* Empty State */}
+				{items.length === 0 && (
+					<div className="px-6 py-16 text-center">
+						<Camera size={32} className="mx-auto text-gray-700 mb-3" />
+						<p className="text-sm text-gray-500 font-bold">{loading ? 'Loading photos…' : 'No photos found'}</p>
+						<p className="text-xs text-gray-600 mt-1">Registration photos uploaded during sign-up will appear here.</p>
 					</div>
 				)}
 			</div>
-			<div className="border rounded-lg overflow-hidden">
-				<table className="min-w-full divide-y divide-gray-200">
-					<thead className="bg-gray-50">
-						<tr>
-							<th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
-							<th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-							<th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
-							<th className="px-4 py-2"></th>
-						</tr>
-					</thead>
-					<tbody className="bg-white divide-y divide-gray-200">
-						{items.map(it => (
-							<tr key={it.name}>
-								<td className="px-4 py-2">
-									<button
-										onClick={() => setViewerIndex(items.findIndex(x => x.name === it.name))}
-										className="focus:outline-none"
-										title="View large"
-									>
-										<img loading="lazy" decoding="async" src={`${it.publicUrl}?width=100&height=100`} alt={it.name} width="40" height="40" className="w-10 h-10 object-cover rounded border border-gray-200 hover:opacity-90" />
-									</button>
-								</td>
-								<td className="px-4 py-2 text-sm break-all">
-									<button
-										className="text-blue-600 hover:text-blue-800"
-										onClick={() => setViewerIndex(items.findIndex(x => x.name === it.name))}
-										title="View large"
-									>
-										{it.name}
-									</button>
-								</td>
-								<td className="px-4 py-2 text-sm">{(it.size/1024).toFixed(0)} KB</td>
-								<td className="px-4 py-2 text-right">
-									<div className="flex items-center justify-end gap-3">
-										<a
-											href={it.publicUrl}
-											download={it.name || `photo-${Date.now()}`}
-											className="inline-flex items-center text-sm text-gray-700 hover:text-gray-900"
-											title="Download"
-										>
-											<Download size={16} className="mr-1" />
-											<span className="hidden sm:inline">Download</span>
-										</a>
-										<a
-											href={it.publicUrl}
-											className="inline-flex items-center text-sm text-gray-700 hover:text-gray-900"
-											target="_blank"
-											rel="noopener noreferrer"
-											title="Open in new tab"
-										>
-											<ExternalLink size={16} className="mr-1" />
-											<span className="hidden sm:inline">Open</span>
-										</a>
-										<button onClick={() => onDelete(it.name)} className="text-red-600 hover:text-red-700 text-sm">Delete</button>
-									</div>
-								</td>
-							</tr>
-						))}
-						{items.length === 0 && (
-							<tr><td className="px-4 py-6 text-center text-gray-500" colSpan={4}>{loading ? 'Loading…' : 'No photos found'}</td></tr>
-						)}
-					</tbody>
-				</table>
-			</div>
+
+			{/* ═══ Pagination ═══ */}
 			<div className="flex items-center justify-between">
-				<button disabled={page<=1} onClick={() => setPage(p => Math.max(1, p-1))} className="px-3 py-1 rounded border disabled:opacity-50 text-gray-900">Prev</button>
-				<div className="text-sm text-gray-900">Page {page} / {totalPages}</div>
-				<button disabled={page>=totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))} className="px-3 py-1 rounded border disabled:opacity-50 text-gray-900">Next</button>
+				<button
+					disabled={page<=1}
+					onClick={() => setPage(p => Math.max(1, p-1))}
+					className="px-4 py-2 rounded-xl text-sm font-bold bg-white/[0.03] border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 transition-all"
+				>
+					<ChevronLeft size={14} className="inline -mt-0.5 mr-1" /> Prev
+				</button>
+				<div className="text-xs font-bold text-gray-500">
+					Page {page} / {totalPages}
+				</div>
+				<button
+					disabled={page>=totalPages}
+					onClick={() => setPage(p => Math.min(totalPages, p+1))}
+					className="px-4 py-2 rounded-xl text-sm font-bold bg-white/[0.03] border border-white/10 text-gray-400 hover:text-white hover:border-white/20 disabled:opacity-30 transition-all"
+				>
+					Next <ChevronRight size={14} className="inline -mt-0.5 ml-1" />
+				</button>
 			</div>
 
-			{/* Lightbox Viewer */}
+			{/* ═══ Lightbox Viewer ═══ */}
 			{viewerIndex != null && items[viewerIndex] && createPortal(
-				<div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={closeViewer}>
+				<div className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" role="dialog" aria-modal="true" onClick={closeViewer}>
 					{/* Sticky top-right controls */}
-					<div className="absolute top-3 right-3 flex items-center gap-2">
+					<div className="absolute top-4 right-4 flex items-center gap-2 z-10">
 						<a
-							className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white text-sm flex items-center"
+							className="px-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white text-sm font-bold flex items-center gap-2 transition-all"
 							href={items[viewerIndex].publicUrl}
 							download={items[viewerIndex].name || `photo-${Date.now()}`}
-							onClick={(e)=> e.stopPropagation()}
+							onClick={(e)=>e.stopPropagation()}
 							title="Download photo"
 						>
-							<Download size={16} className="mr-1" /> Download
+							<Download size={14} /> Download
 						</a>
 						<button
-							className="p-2 rounded bg-white/10 hover:bg-white/20 text-white"
+							className="p-2.5 rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white transition-all"
 							onClick={(e)=>{ e.stopPropagation(); closeViewer(); }}
 							aria-label="Close"
 						>
-							<X size={18} />
+							<X size={16} />
 						</button>
 					</div>
 
 					{/* Prev/Next */}
 					{viewerIndex > 0 && (
-						<button className="absolute left-3 md:left-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white" aria-label="Previous" onClick={(e)=>{ e.stopPropagation(); showPrev(); }}>
-							<ChevronLeft size={24} />
+						<button className="absolute left-4 md:left-8 p-3 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white transition-all" aria-label="Previous" onClick={(e)=>{ e.stopPropagation(); showPrev(); }}>
+							<ChevronLeft size={20} />
 						</button>
 					)}
 					{viewerIndex < items.length - 1 && (
-						<button className="absolute right-3 md:right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white" aria-label="Next" onClick={(e)=>{ e.stopPropagation(); showNext(); }}>
-							<ChevronRight size={24} />
+						<button className="absolute right-4 md:right-8 p-3 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-white transition-all" aria-label="Next" onClick={(e)=>{ e.stopPropagation(); showNext(); }}>
+							<ChevronRight size={20} />
 						</button>
 					)}
 
 					{/* Image */}
-					<div className="max-w-full max-h-full" onClick={(e)=> e.stopPropagation()}>
+					<div className="max-w-full max-h-full" onClick={(e)=>e.stopPropagation()}>
 						<img
 							src={items[viewerIndex].publicUrl}
 							alt={items[viewerIndex].name}
-							className="object-contain max-w-[90vw] max-h-[85vh] rounded shadow-lg"
+							className="object-contain max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl"
 						/>
-						<div className="mt-3 text-center text-sm text-white/80 break-all">{items[viewerIndex].name}</div>
+						<div className="mt-3 text-center text-sm text-white/60 break-all font-medium">{items[viewerIndex].name}</div>
 					</div>
 				</div>
 			, document.body)}
@@ -207,4 +279,3 @@ export const RegistrationPhotosPanel: React.FC = () => {
 };
 
 export default RegistrationPhotosPanel;
-

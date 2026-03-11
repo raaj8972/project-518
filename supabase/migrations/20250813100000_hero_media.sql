@@ -48,10 +48,9 @@ on conflict (page_key) do nothing;
 
 -- STORAGE: create a public bucket for hero media
 -- Requires postgres function storage.create_bucket
-select
-  case when not exists (select 1 from storage.buckets where id = 'hero-media')
-    then storage.create_bucket('hero-media', public := true)
-  end;
+insert into storage.buckets (id, name, public)
+select 'hero-media', 'hero-media', true
+where not exists (select 1 from storage.buckets where id = 'hero-media');
 
 -- Storage RLS policies
 -- Public read

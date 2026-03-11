@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Play, Upload, Trash2, AlertCircle, Scissors } from 'lucide-react';
 import { VideoTrimmer } from './VideoTrimmer';
 import { useMediaUpload } from '../hooks/useMediaUpload';
@@ -26,6 +26,13 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
   
   // Local preview state
   const [localPreview, setLocalPreview] = useState<string>(currentVideo || '');
+
+  // Sync local preview when currentVideo prop changes (e.g. when editing loads async)
+  useEffect(() => {
+    if (currentVideo && currentVideo !== localPreview) {
+      setLocalPreview(currentVideo);
+    }
+  }, [currentVideo]);
 
   // Use the hook for R2 routing
   const {
@@ -61,8 +68,8 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
     }
 
     try {
-      // Use handleUploadProcess from hook which routes to R2 if configured
-      await handleUploadProcess(file, true, false, false, true, true, currentVideo);
+      // Use handleUploadProcess from hook which routes to Firebase
+      await handleUploadProcess(file, true, false, currentVideo);
     } catch (err: any) {
       console.error('Upload error:', err);
       // Error handling is managed by the hook mostly, but we log here just in case

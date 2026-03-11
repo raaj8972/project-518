@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
 import { 
   FacultyHead, CoreCommittee, CoreTeamMember, SportsCommittee, 
   SportsTeamMember, BandMember, GuestArtist
@@ -109,20 +109,17 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
 
   // Faculty
   const addFacultyHead = async (head: Partial<FacultyHead>) => {
-    const { error } = await supabase.from('faculty_heads').insert(head);
-    if (error) throw error;
+    await dualInsert('faculty_heads', head);
     await fetchPersonnelData();
   };
 
   const updateFacultyHead = async (id: number, head: Partial<FacultyHead>) => {
-    const { error } = await supabase.from('faculty_heads').update(head).eq('id', id);
-    if (error) throw error;
+    await dualUpdate('faculty_heads', id, head);
     await fetchPersonnelData();
   };
 
   const deleteFacultyHead = async (id: number) => {
-    const { error } = await supabase.from('faculty_heads').delete().eq('id', id);
-    if (error) throw error;
+    await dualDelete('faculty_heads', id);
     await fetchPersonnelData();
   };
 
@@ -139,93 +136,75 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
     updateFacultyHead,
     deleteFacultyHead,
     addCoreCommittee: async (committee) => {
-      const { error } = await supabase.from('core_committees').insert(committee);
-      if (error) throw error;
+      await dualInsert('core_committees', committee);
       await fetchPersonnelData();
     },
     updateCoreCommittee: async (id, committee) => {
-      const { error } = await supabase.from('core_committees').update(committee).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('core_committees', id, committee);
       await fetchPersonnelData();
     },
     deleteCoreCommittee: async (id) => {
-      const { error } = await supabase.from('core_committees').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('core_committees', id);
       await fetchPersonnelData();
     },
     addCoreTeamMember: async (member) => {
-      const { error } = await supabase.from('core_team_members').insert(member);
-      if (error) throw error;
+      await dualInsert('core_team_members', member);
       await fetchPersonnelData();
     },
     updateCoreTeamMember: async (id, member) => {
-      const { error } = await supabase.from('core_team_members').update(member).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('core_team_members', id, member);
       await fetchPersonnelData();
     },
     deleteCoreTeamMember: async (id) => {
-      const { error } = await supabase.from('core_team_members').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('core_team_members', id);
       await fetchPersonnelData();
     },
     addSportsCommittee: async (committee) => {
-      const { error } = await supabase.from('sports_committees').insert(committee);
-      if (error) throw error;
+      await dualInsert('sports_committees', committee);
       await fetchPersonnelData();
     },
     updateSportsCommittee: async (id, committee) => {
-      const { error } = await supabase.from('sports_committees').update(committee).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('sports_committees', id, committee);
       await fetchPersonnelData();
     },
     deleteSportsCommittee: async (id) => {
-      const { error } = await supabase.from('sports_committees').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('sports_committees', id);
       await fetchPersonnelData();
     },
     addSportsTeamMember: async (member) => {
-      const { error } = await supabase.from('sports_team_members').insert(member);
-      if (error) throw error;
+      await dualInsert('sports_team_members', member);
       await fetchPersonnelData();
     },
     updateSportsTeamMember: async (id, member) => {
-      const { error } = await supabase.from('sports_team_members').update(member).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('sports_team_members', id, member);
       await fetchPersonnelData();
     },
     deleteSportsTeamMember: async (id) => {
-      const { error } = await supabase.from('sports_team_members').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('sports_team_members', id);
       await fetchPersonnelData();
     },
     addBandMember: async (member) => {
-      const { error } = await supabase.from('band_members').insert(member);
-      if (error) throw error;
+      await dualInsert('band_members', member);
       await fetchPersonnelData();
     },
     updateBandMember: async (id, member) => {
-      const { error } = await supabase.from('band_members').update(member).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('band_members', id, member);
       await fetchPersonnelData();
     },
     deleteBandMember: async (id) => {
-      const { error } = await supabase.from('band_members').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('band_members', id);
       await fetchPersonnelData();
     },
     addChiefGuest: async (guest) => {
-      const { error } = await supabase.from('chief_guests').insert(guest);
-      if (error) throw error;
+      await dualInsert('chief_guests', guest);
       await fetchPersonnelData();
     },
     updateChiefGuest: async (id, guest) => {
-      const { error } = await supabase.from('chief_guests').update(guest).eq('id', id);
-      if (error) throw error;
+      await dualUpdate('chief_guests', id, guest);
       await fetchPersonnelData();
     },
     deleteChiefGuest: async (id) => {
-      const { error } = await supabase.from('chief_guests').delete().eq('id', id);
-      if (error) throw error;
+      await dualDelete('chief_guests', id);
       await fetchPersonnelData();
     }
   };

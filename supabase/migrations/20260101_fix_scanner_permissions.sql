@@ -22,7 +22,8 @@ CREATE POLICY "Scanners can insert scans" ON pass_scans
   WITH CHECK (true);
 
 -- Allow Scanners to read their own scans (Optional: for history)
--- CREATE POLICY IF NOT EXISTS "Scanners can read own scans" ON pass_scans
+-- drop policy if exists "Scanners can read own scans" on pass_scans;
+create policy "Scanners can read own scans" on pass_scans
 --  FOR SELECT TO authenticated
 --  USING (true); -- Simplified to allow reading history (or restrict to auth.uid())
 

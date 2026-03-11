@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
+import { dualRead, dualUpsert } from '../lib/dualDb';
 import { useAuth } from './AuthContext';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
   HomepageSettings, FormSettings, SocialMediaSettings, SecuritySettings, PageKey, RoadmapMilestone,
-  Audition, Membership, SponsorshipPackage
+  Audition, Membership
 } from '../types/data';
 
 interface CoreContextType {
@@ -88,8 +89,8 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   const pingNow = useCallback(async () => {
     const start = Date.now();
     try {
-      const { error } = await supabase.from('site_settings').select('id').limit(1);
-      if (error) throw error;
+      // Ping Firestore
+      await dualRead({ table: 'site_settings', limit: 1, maybeSingle: true });
       setLatencyMs(Date.now() - start);
       setConnectionStatus('ok');
     } catch (err: any) {
@@ -99,13 +100,13 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const fetchHeroMedia = useCallback(async (pageKey: PageKey): Promise<HeroMedia | null> => {
-    const { data, error } = await supabase
-      .from('hero_media')
-      .select('*')
-      .eq('page_key', pageKey)
-      .maybeSingle();
+    const { data } = await dualRead({
+      table: 'hero_media',
+      eq: ['page_key', pageKey],
+      maybeSingle: true
+    });
 
-    if (!error && data) {
+    if (data) {
       setHeroMedia(prev => ({ ...prev, [pageKey]: data }));
       return data;
     }
@@ -113,11 +114,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateHeroMedia = async (pageKey: PageKey, patch: Partial<HeroMedia>) => {
-    const { error } = await supabase
-      .from('hero_media')
-      .upsert({ page_key: pageKey, ...patch }, { onConflict: 'page_key' });
-
-    if (error) throw error;
+    await dualUpsert('hero_media', { page_key: pageKey, ...patch });
     await fetchHeroMedia(pageKey);
   };
 
@@ -127,92 +124,81 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const updateAboutSettings = async (patch: Partial<AboutSettings>) => {
-    const { error } = await supabase.from('about_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('about_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
   
   const updateHomeboundSettings = async (patch: Partial<HomeboundSettings>) => {
-    const { error } = await supabase.from('homebound_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('homebound_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const updateHomepageSettings = async (patch: Partial<HomepageSettings>) => {
-    const { error } = await supabase.from('homepage_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('homepage_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const updateSiteSettings = async (patch: Partial<SiteSettings>) => {
-    const { error } = await supabase.from('site_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('site_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const updateFormSettings = async (patch: Partial<FormSettings>) => {
-    const { error } = await supabase.from('form_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('form_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const updateSocialMediaSettings = async (patch: Partial<SocialMediaSettings>) => {
-    const { error } = await supabase.from('social_media_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('social_media_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const updateSecuritySettings = async (patch: Partial<SecuritySettings>) => {
-    const { error } = await supabase.from('security_settings').upsert({ id: 1, ...patch });
-    if (error) throw error;
+    await dualUpsert('security_settings', { id: 1, ...patch });
     await refreshAll(true);
   };
 
   const addRoadmapMilestone = async (m: Partial<RoadmapMilestone>) => {
     const { error } = await supabase.from('roadmap_milestones').insert(m);
-    if (error) throw error;
+    if (error) throw new Error(`[Roadmap] insert failed: ${error.message}`);
     setRefreshTrigger(p => p + 1);
   };
 
   const updateRoadmapMilestone = async (id: number, patch: Partial<RoadmapMilestone>) => {
     const { error } = await supabase.from('roadmap_milestones').update(patch).eq('id', id);
-    if (error) throw error;
+    if (error) throw new Error(`[Roadmap] update failed: ${error.message}`);
     setRefreshTrigger(p => p + 1);
   };
 
   const deleteRoadmapMilestone = async (id: number) => {
     const { error } = await supabase.from('roadmap_milestones').delete().eq('id', id);
-    if (error) throw error;
+    if (error) throw new Error(`[Roadmap] delete failed: ${error.message}`);
     setRefreshTrigger(p => p + 1);
   };
 
   const toggleRoadmapMilestoneEnabled = async (id: number) => {
-    // We need to fetch current state first or just use RPC if available
-    const { data: current } = await supabase.from('roadmap_milestones').select('enabled').eq('id', id).single();
+    const { data: current } = await supabase.from('roadmap_milestones').select('enabled').eq('id', id).maybeSingle();
     if (current) {
       const { error } = await supabase.from('roadmap_milestones').update({ enabled: !current.enabled }).eq('id', id);
-      if (error) throw error;
+      if (error) throw new Error(`[Roadmap] toggle failed: ${error.message}`);
       setRefreshTrigger(p => p + 1);
     }
   };
 
   const addAudition = async (audition: Partial<Audition>) => {
-    const { error } = await supabase.from('auditions').insert(audition);
-    if (error) throw error;
+    await dualUpsert('auditions', audition);
     setRefreshTrigger(p => p + 1);
   };
 
   const addMembership = async (membership: Partial<Membership>) => {
-    const { error } = await supabase.from('memberships').insert(membership);
-    if (error) throw error;
+    await dualUpsert('memberships', membership);
     setRefreshTrigger(p => p + 1);
   };
 
   const toggleSponsorshipPackageEnabled = async (id: number) => {
-    const { data: current } = await supabase.from('sponsorship_packages').select('enabled').eq('id', id).single();
+    const { data: current } = await dualRead({ table: 'sponsorship_packages', eq: ['id', id], maybeSingle: true });
     if (current) {
-      const { error } = await supabase.from('sponsorship_packages').update({ enabled: !current.enabled }).eq('id', id);
-      if (error) throw error;
+      await dualUpsert('sponsorship_packages', { id, enabled: !current.enabled });
       setRefreshTrigger(p => p + 1);
     }
   };
@@ -223,27 +209,24 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
       // Increment trigger to signal all sub-contexts to re-fetch
       setRefreshTrigger(prev => prev + 1);
       
-      // Fetch core-specific data
+      // Fetch core-specific data using dualRead for Firestore prioritization
       const [siteRes, aboutRes, homeboundRes, homepageRes, formRes, socialRes, securityRes] = await Promise.all([
-        supabase.from('site_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('about_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('homebound_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('homepage_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('form_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('social_media_settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('security_settings').select('*').eq('id', 1).maybeSingle()
+        dualRead({ table: 'site_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'about_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'homebound_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'homepage_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'form_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'social_media_settings', eq: ['id', 1], maybeSingle: true }),
+        dualRead({ table: 'security_settings', eq: ['id', 1], maybeSingle: true })
       ]);
 
-      if (!siteRes.error) setSiteSettings(siteRes.data);
-      if (!aboutRes.error) setAboutSettings(aboutRes.data);
-      if (!homeboundRes.error) setHomeboundSettings(homeboundRes.data);
-      if (!homepageRes.error) setHomepageSettings(homepageRes.data);
-      if (!formRes.error) setFormSettings(formRes.data);
-      if (!socialRes.error) {
-        // Normalize social media settings if needed
-        setSocialMediaSettings(socialRes.data as any);
-      }
-      if (!securityRes.error) setSecuritySettings(securityRes.data);
+      setSiteSettings(siteRes.data);
+      setAboutSettings(aboutRes.data);
+      setHomeboundSettings(homeboundRes.data);
+      setHomepageSettings(homepageRes.data);
+      setFormSettings(formRes.data);
+      setSocialMediaSettings(socialRes.data as any);
+      setSecuritySettings(securityRes.data);
 
     } catch (err: any) {
       setLastError(err.message);

@@ -6,15 +6,11 @@ import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { ArtistScrollSection } from '../components/HomeBound/ArtistScrollSection';
 
+import { HeroBackgroundV2 } from '../components/HeroBackgroundV2';
+
 export const HomeBound: React.FC = () => {
-  const { bandMembers, formSettings, homeboundSettings, heroMedia, fetchHeroMedia } = useData();
+  const { bandMembers, formSettings, homeboundSettings } = useData();
   const [auditionModal, setAuditionModal] = useState(false);
-
-  React.useEffect(() => {
-    fetchHeroMedia('homebound').catch(err => console.warn('[HomeBound] failed to fetch hero media', err));
-  }, [fetchHeroMedia]);
-
-  const hero = heroMedia['homebound'];
 
   // Filter enabled band members and sort by order
   const enabledBandMembers = (bandMembers || [])
@@ -67,22 +63,7 @@ export const HomeBound: React.FC = () => {
              className="absolute inset-0 z-0"
              style={{ animation: 'heroFadeIn 1.5s ease-out forwards' }}
            >
-             <video 
-               autoPlay 
-               loop 
-               muted 
-               playsInline 
-               preload="auto"
-               key={hero?.video_url}
-               src={hero?.mobile_video_url || hero?.video_url || "https://assets.mixkit.co/videos/preview/mixkit-concert-crowd-with-lights-2292-large.mp4"}
-               poster={hero?.mobile_poster_url || hero?.mobile_image_url || undefined}
-               className="absolute inset-0 w-full h-full object-cover filter grayscale contrast-125 brightness-50 mix-blend-luminosity z-10"
-               ref={(el) => {
-                 if (el) {
-                   el.play().catch(e => console.log("Autoplay prevented:", e));
-                 }
-               }}
-             />
+             <HeroBackgroundV2 pageKey="homebound" className="filter grayscale contrast-125 brightness-50 mix-blend-luminosity z-10" />
              <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-[#030712]/60 to-[#030712] z-20 transition-colors duration-1000"></div>
            </div>
         </div>

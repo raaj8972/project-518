@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, AlignJustify as Spotify } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, AlignJustify as Spotify, Music2, Award, Users } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { BandMember } from '../../context/DataContext';
+import type { BandMember } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
+import { InlineDescriptionAI } from './InlineDescriptionAI';
+
+// ─── Style tokens ─────────────────────────────
+const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 focus:bg-white/[0.06] transition-all';
+const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2';
+const selectCls = `${inputCls} appearance-none cursor-pointer [&>option]:bg-[#0a0a12] [&>option]:text-white`;
 
 export const BandManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -30,6 +36,7 @@ export const BandManagement: React.FC = () => {
 
   const [isAdding, setIsAdding] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
 
   const [form, setForm] = useLocalStorage('admin_band_member_form_draft', {
     name: '',
@@ -42,738 +49,395 @@ export const BandManagement: React.FC = () => {
     order_position: 1,
     enabled: true,
     is_featured: false,
-    social_links: {
-      instagram: '',
-      youtube: '',
-      spotify: ''
-    }
+    social_links: { instagram: '', youtube: '', spotify: '' }
   });
 
   const resetForm = () => {
     setForm({
-      name: '',
-      role: '',
-      image: '',
-      description: '',
-      specialty: '',
-      category: '',
-      achievements: [],
-      order_position: bandMembers.length + 1,
-      enabled: true,
-      is_featured: false,
-      social_links: {
-        instagram: '',
-        youtube: '',
-        spotify: ''
-      }
+      name: '', role: '', image: '', description: '', specialty: '', category: '',
+      achievements: [], order_position: bandMembers.length + 1, enabled: true, is_featured: false,
+      social_links: { instagram: '', youtube: '', spotify: '' }
     });
   };
 
+  const validateForm = () => {
+    const missing = [];
+    if (!form.name?.trim()) missing.push('name');
+    if (!form.role?.trim()) missing.push('role');
+    if (!form.image) missing.push('image');
+    if (!form.description?.trim()) missing.push('description');
+    if (!form.specialty?.trim()) missing.push('specialty');
+    if (!form.category) missing.push('category');
+    return missing;
+  };
+
   const handleAdd = async () => {
-    if (!form.name || !form.role || !form.image || !form.description || !form.specialty || !form.category) {
-      alert('Please fill in all required fields (name, role, image, description, specialty, and category)');
-      return;
-    }
-    
+    const missingFields = validateForm();
+    if (missingFields.length > 0) { setShowValidationErrors(true); alert(`Please fill in all required fields: ${missingFields.join(', ')}`); return; }
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       steps.next('Saving to database');
       if (requiresApproval) {
-        await submitForApproval(
-          'band_member',
-          'create',
-          {
-            name: form.name,
-            role: form.role,
-            image: form.image,
-            description: form.description,
-            specialty: form.specialty,
-            category: form.category,
-            achievements: form.achievements,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            is_featured: form.is_featured,
-            social_links: form.social_links
-          }
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await addBandMember(form);
-      }
-      setIsAdding(false);
-      resetForm();
+        await submitForApproval('band_member', 'create', { name: form.name, role: form.role, image: form.image, description: form.description, specialty: form.specialty, category: form.category, achievements: form.achievements, order_position: form.order_position, enabled: form.enabled, is_featured: form.is_featured, social_links: form.social_links });
+        alert('Request submitted for approval.');
+      } else { await addBandMember(form); }
+      setIsAdding(false); resetForm();
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
-      console.error('Error adding band member:', error);
-      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
+      const msg = error instanceof Error ? error.message : 'Unknown error';
       alert(`Failed to add band member. ${msg}`);
-    } finally {
-      savingProgress.done();
-    }
+    } finally { savingProgress.done(); }
   };
 
   const handleUpdate = async (id: number) => {
-    if (!form.name || !form.role || !form.image || !form.description || !form.specialty || !form.category) {
-      alert('Please fill in all required fields (name, role, image, description, specialty, and category)');
-      return;
-    }
-    
+    const missingFields = validateForm();
+    if (missingFields.length > 0) { setShowValidationErrors(true); alert(`Please fill in all required fields: ${missingFields.join(', ')}`); return; }
     try {
       const steps = savingProgress.withSteps(3, 'Preparing…');
       steps.next('Validating');
       steps.next('Saving to database');
       if (requiresApproval) {
-        await submitForApproval(
-          'band_member',
-          'update',
-          {
-            name: form.name,
-            role: form.role,
-            image: form.image,
-            description: form.description,
-            specialty: form.specialty,
-            category: form.category,
-            achievements: form.achievements,
-            order_position: form.order_position,
-            enabled: form.enabled,
-            is_featured: form.is_featured,
-            social_links: form.social_links
-          },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await updateBandMember(id, form);
-      }
-      setEditing(null);
-      resetForm();
+        await submitForApproval('band_member', 'update', { name: form.name, role: form.role, image: form.image, description: form.description, specialty: form.specialty, category: form.category, achievements: form.achievements, order_position: form.order_position, enabled: form.enabled, is_featured: form.is_featured, social_links: form.social_links }, id);
+        alert('Request submitted for approval.');
+      } else { await updateBandMember(id, form); }
+      setEditing(null); resetForm();
       try { localStorage.removeItem('admin_band_member_form_draft'); } catch {}
     } catch (error) {
-      console.error('Error updating band member:', error);
-      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Unknown error');
+      const msg = error instanceof Error ? error.message : 'Unknown error';
       alert(`Failed to update band member. ${msg}`);
-    } finally {
-      savingProgress.done();
-    }
+    } finally { savingProgress.done(); }
   };
 
   const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this band member? This action cannot be undone.')) {
-      try {
-        const steps = savingProgress.withSteps(2, 'Preparing…');
-        steps.next('Deleting');
-        if (requiresApproval) {
-          await submitForApproval(
-            'band_member',
-            'delete',
-            {},
-            id
-          );
-          alert('Request submitted for approval. An owner will review your changes.');
-        } else {
-          await deleteBandMember(id);
-        }
-      } catch (error) {
-        console.error('Error deleting band member:', error);
-        alert('Failed to delete band member. Please try again.');
-      } finally {
-        savingProgress.done();
-      }
-    }
+    if (!confirm('Delete this band member? This cannot be undone.')) return;
+    try {
+      const steps = savingProgress.withSteps(2, 'Preparing…');
+      steps.next('Deleting');
+      if (requiresApproval) { await submitForApproval('band_member', 'delete', {}, id); alert('Request submitted for approval.'); }
+      else { await deleteBandMember(id); }
+    } catch { alert('Failed to delete band member.'); }
+    finally { savingProgress.done(); }
   };
 
   const handleToggleEnabled = async (id: number) => {
     try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Updating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'band_member',
-          'update',
-          { enabled: !bandMembers.find((m: any) => m.id === id)?.enabled },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await toggleBandMemberEnabled(id);
-      }
-    } catch (error) {
-      console.error('Error toggling band member status:', error);
-      alert('Failed to update band member status. Please try again.');
-    } finally {
-      savingProgress.done();
-    }
+      const steps = savingProgress.withSteps(2, 'Preparing…'); steps.next('Updating');
+      if (requiresApproval) { await submitForApproval('band_member', 'update', { enabled: !bandMembers.find((m: any) => m.id === id)?.enabled }, id); alert('Request submitted for approval.'); }
+      else { await toggleBandMemberEnabled(id); }
+    } catch { alert('Failed to update status.'); }
+    finally { savingProgress.done(); }
   };
 
   const handleToggleFeatured = async (id: number) => {
     try {
-      const steps = savingProgress.withSteps(2, 'Preparing…');
-      steps.next('Updating');
-      if (requiresApproval) {
-        await submitForApproval(
-          'band_member',
-          'update',
-          { is_featured: !bandMembers.find((m: any) => m.id === id)?.is_featured },
-          id
-        );
-        alert('Request submitted for approval. An owner will review your changes.');
-      } else {
-        await toggleBandMemberFeatured(id);
-      }
-    } catch (error) {
-      console.error('Error toggling featured status:', error);
-      alert('Failed to update featured status. Please try again.');
-    } finally {
-      savingProgress.done();
-    }
+      const steps = savingProgress.withSteps(2, 'Preparing…'); steps.next('Updating');
+      if (requiresApproval) { await submitForApproval('band_member', 'update', { is_featured: !bandMembers.find((m: any) => m.id === id)?.is_featured }, id); alert('Request submitted for approval.'); }
+      else { await toggleBandMemberFeatured(id); }
+    } catch { alert('Failed to update featured status.'); }
+    finally { savingProgress.done(); }
   };
 
   const startEditing = (member: BandMember) => {
-    setForm({
-      name: member.name,
-      role: member.role,
-      image: member.image,
-      description: member.description,
-      specialty: member.specialty,
-      category: member.category,
-      achievements: member.achievements,
-      order_position: member.order_position,
-      enabled: member.enabled,
-      is_featured: member.is_featured,
-      social_links: member.social_links || { instagram: '', youtube: '', spotify: '' }
-    });
-    setEditing(member.id);
+    setForm({ name: member.name, role: member.role, image: member.image, description: member.description, specialty: member.specialty, category: member.category, achievements: member.achievements, order_position: member.order_position, enabled: member.enabled, is_featured: member.is_featured, social_links: member.social_links || { instagram: '', youtube: '', spotify: '' } });
+    setEditing(member.id); setShowValidationErrors(false);
   };
 
-  const addAchievement = () => {
-    setForm(prev => ({
-      ...prev,
-      achievements: [...prev.achievements, '']
-    }));
-  };
+  const addAchievement = () => setForm(prev => ({ ...prev, achievements: [...prev.achievements, ''] }));
+  const updateAchievement = (index: number, value: string) => setForm(prev => ({ ...prev, achievements: prev.achievements.map((a, i) => i === index ? value : a) }));
+  const removeAchievement = (index: number) => setForm(prev => ({ ...prev, achievements: prev.achievements.filter((_, i) => i !== index) }));
 
-  const updateAchievement = (index: number, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.map((a, i) => i === index ? value : a)
-    }));
-  };
+  const sortedBandMembers = [...bandMembers].sort((a: any, b: any) => a.order_position - b.order_position);
 
-  const removeAchievement = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter((_, i) => i !== index)
-    }));
-  };
+  // ─── Form panel (shared between Add and inline Edit) ───
+  const renderForm = (mode: 'add' | 'edit', memberId?: number) => (
+    <div className="space-y-5">
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Left column */}
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Full Name <span className="text-rose-400">*</span></label>
+            <input type="text" value={form.name} onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Artist Name" className={`${inputCls} ${showValidationErrors && !form.name ? '!border-rose-500/50' : ''}`} />
+            {showValidationErrors && !form.name && <p className="text-rose-400 text-[10px] mt-1 font-bold">Required</p>}
+          </div>
+          <div>
+            <label className={labelCls}>Role / Position <span className="text-rose-400">*</span></label>
+            <input type="text" value={form.role} onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))} placeholder="Lead Singer, Guitarist, etc." className={`${inputCls} ${showValidationErrors && !form.role ? '!border-rose-500/50' : ''}`} />
+            {showValidationErrors && !form.role && <p className="text-rose-400 text-[10px] mt-1 font-bold">Required</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Specialty <span className="text-rose-400">*</span></label>
+              <input type="text" value={form.specialty} onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))} placeholder="Vocals, Guitar, etc." className={`${inputCls} ${showValidationErrors && !form.specialty ? '!border-rose-500/50' : ''}`} />
+            </div>
+            <div>
+              <label className={labelCls}>Category <span className="text-rose-400">*</span></label>
+              <select value={form.category} onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))} className={`${selectCls} ${showValidationErrors && !form.category ? '!border-rose-500/50' : ''}`}>
+                <option value="">Select…</option>
+                <option value="Vocals">Vocals</option>
+                <option value="Guitar">Guitar</option>
+                <option value="Bass">Bass</option>
+                <option value="Drums">Drums</option>
+                <option value="Keyboard">Keyboard</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className={labelCls + ' mb-0'}>Description <span className="text-rose-400">*</span></label>
+              <InlineDescriptionAI contextName={form.name} contextType="band member" onDescriptionGenerated={(desc) => setForm(prev => ({ ...prev, description: desc }))} />
+            </div>
+            <textarea value={form.description} onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))} rows={4} placeholder="Brief description…" className={`${inputCls} resize-none ${showValidationErrors && !form.description ? '!border-rose-500/50' : ''}`} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Display Order</label>
+              <input type="number" value={form.order_position} onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))} min="1" className={inputCls} />
+            </div>
+            <div className="flex items-end gap-4 pb-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input type="checkbox" checked={form.enabled} onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))} className="sr-only peer" />
+                  <div className="w-8 h-5 bg-white/[0.06] border border-white/10 rounded-full peer-checked:bg-emerald-500/30 peer-checked:border-emerald-500/30 transition-all" />
+                  <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-gray-400 rounded-full peer-checked:translate-x-3 peer-checked:bg-emerald-400 transition-all" />
+                </div>
+                <span className="text-xs text-gray-400 font-bold">Visible</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <div className="relative">
+                  <input type="checkbox" checked={form.is_featured} onChange={(e) => setForm(prev => ({ ...prev, is_featured: e.target.checked }))} className="sr-only peer" />
+                  <div className="w-8 h-5 bg-white/[0.06] border border-white/10 rounded-full peer-checked:bg-amber-500/30 peer-checked:border-amber-500/30 transition-all" />
+                  <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-gray-400 rounded-full peer-checked:translate-x-3 peer-checked:bg-amber-400 transition-all" />
+                </div>
+                <span className="text-xs text-gray-400 font-bold">Featured</span>
+              </label>
+            </div>
+          </div>
 
-  // Sort band members by order position
-  const sortedBandMembers = [...bandMembers].sort((a, b) => a.order_position - b.order_position);
+          {/* Social Links */}
+          <div>
+            <label className={labelCls}>Social Media <span className="text-white/15 font-medium normal-case tracking-normal">(Optional)</span></label>
+            <div className="space-y-2">
+              {[
+                { icon: <Instagram size={14} className="text-pink-400" />, key: 'instagram' as const, ph: 'Instagram URL' },
+                { icon: <Youtube size={14} className="text-red-400" />, key: 'youtube' as const, ph: 'YouTube URL' },
+                { icon: <Spotify size={14} className="text-emerald-400" />, key: 'spotify' as const, ph: 'Spotify URL' },
+              ].map(({ icon, key, ph }) => (
+                <div key={key} className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center shrink-0">{icon}</div>
+                  <input type="url" value={form.social_links[key]} onChange={(e) => setForm(prev => ({ ...prev, social_links: { ...prev.social_links, [key]: e.target.value } }))} placeholder={ph} className={`${inputCls} text-xs`} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Achievements */}
+          <div>
+            <label className={labelCls}>Achievements</label>
+            <div className="space-y-2">
+              {form.achievements.map((achievement, index) => (
+                <div key={index} className="flex gap-2 animate-in fade-in duration-200">
+                  <input type="text" value={achievement} onChange={(e) => updateAchievement(index, e.target.value)} placeholder="Achievement or accomplishment" className={`${inputCls} text-xs flex-1`} />
+                  <button type="button" onClick={() => removeAchievement(index)} className="p-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-rose-500/20 hover:bg-rose-500/10 text-gray-500 hover:text-rose-400 transition-all">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" onClick={addAchievement} className="w-full py-2 border border-dashed border-white/[0.06] rounded-xl text-[10px] font-black text-white/20 uppercase tracking-widest hover:text-white/40 hover:border-white/15 transition-all">
+                + Add Achievement
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right column — Photo */}
+        <div>
+          <label className={labelCls}>Profile Photo <span className="text-rose-400">*</span></label>
+          <div className={`rounded-xl overflow-hidden ${showValidationErrors && !form.image ? 'ring-2 ring-rose-500/50 ring-offset-2 ring-offset-[#0a0a12]' : ''}`}>
+            <ImageUpload
+              onImageSelect={(url: string) => setForm(prev => ({ ...prev, image: url }))}
+              currentImage={form.image}
+              bucket="band-images"
+              folder="band"
+              cropAspect={4/5}
+              autoSave
+            />
+          </div>
+          {showValidationErrors && !form.image && <p className="text-rose-400 text-[10px] mt-2 text-center font-bold">Photo required</p>}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
+        <button type="button" onClick={() => { mode === 'add' ? setIsAdding(false) : setEditing(null); resetForm(); }} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-white bg-white/[0.03] border border-white/10 hover:border-white/20 transition-all flex items-center gap-2">
+          <X size={14} /> Cancel
+        </button>
+        <button type="button" onClick={() => mode === 'add' ? handleAdd() : handleUpdate(memberId!)} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02] transition-all flex items-center gap-2">
+          <Save size={14} /> {mode === 'add' ? 'Add Band Member' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
+
       {!isAuthenticated && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded" role="alert">
-          <p className="text-sm font-medium">You are not logged in. Uploads and adding band members require an admin session due to RLS policies. Please log in via the Admin header.</p>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-300 font-medium">
+          You are not logged in. Uploads require an admin session. Please log in.
         </div>
       )}
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Home Bound Band Management</h2>
-          <p className="text-gray-600">Manage band members, singers, and musical talent</p>
+
+      {/* ═══ Hero Header ═══ */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-600/20 via-orange-600/10 to-transparent border border-white/10 p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 blur-[80px] rounded-full pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Music2 size={14} className="text-amber-400" />
+              <span className="text-[10px] font-black text-amber-400/80 uppercase tracking-[0.2em]">People Management</span>
+            </div>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Home Bound Band</h2>
+            <p className="text-sm text-gray-400 mt-1 font-medium">Manage band members, singers, and musical talent</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { setIsAdding(true); setShowValidationErrors(false); resetForm(); }}
+            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02] transition-all flex items-center gap-2"
+          >
+            <Plus size={14} /> Add Band Member
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setIsAdding(true);
-            resetForm();
-          }}
-          className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
-        >
-          <Plus size={16} className="mr-2" />
-          Add Band Member
-        </button>
       </div>
 
-      {/* Add Band Member Form */}
+      {/* ═══ Stats Bar ═══ */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { value: bandMembers.length, label: 'Total', icon: <Users size={14} />, color: 'purple' },
+          { value: bandMembers.filter((m: any) => m.is_featured).length, label: 'Featured', icon: <Star size={14} />, color: 'amber' },
+          { value: bandMembers.filter((m: any) => m.enabled).length, label: 'Visible', icon: <Eye size={14} />, color: 'emerald' },
+          { value: bandMembers.reduce((t: number, m: any) => t + m.achievements.length, 0), label: 'Achievements', icon: <Award size={14} />, color: 'blue' },
+        ].map(({ value, label, icon, color }) => (
+          <div key={label} className="rounded-xl bg-white/[0.02] border border-white/5 p-4 text-center">
+            <div className={`text-2xl font-black text-${color}-400 mb-0.5`}>{value}</div>
+            <div className="flex items-center justify-center gap-1.5 text-[10px] font-black text-white/25 uppercase tracking-widest">
+              {icon} {label}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ═══ Add Form ═══ */}
       {isAdding && (
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-400">
-          <h3 className="text-lg font-semibold mb-6">Add New Band Member</h3>
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Artist Name"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Role/Position</label>
-                <input
-                  type="text"
-                  value={form.role}
-                  onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="Lead Singer, Guitarist, Drummer, etc."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Specialty</label>
-                <input
-                  type="text"
-                  value={form.specialty}
-                  onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
-                  placeholder="e.g., Vocals, Guitar, Electronic Music"
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                >
-                  <option value="">Select a category</option>
-                  <option value="Vocals">Vocals</option>
-                  <option value="Guitar">Guitar</option>
-                  <option value="Bass">Bass</option>
-                  <option value="Drums">Drums</option>
-                  <option value="Keyboard">Keyboard</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description about the band member..."
-                  rows={4}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
-                  <input
-                    type="number"
-                    value={form.order_position}
-                    onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                    min="1"
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                </div>
-                <div className="flex items-end space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={form.enabled}
-                      onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Visible</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={form.is_featured}
-                      onChange={(e) => setForm(prev => ({ ...prev, is_featured: e.target.checked }))}
-                      className="mr-2"
-                    />
-                    <span className="text-sm font-medium text-gray-700">Featured</span>
-                  </label>
-                </div>
-              </div>
-              
-              {/* Social Links */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Social Media Links (Optional)</label>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Instagram className="w-5 h-5 text-pink-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.instagram}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, instagram: e.target.value }
-                      }))}
-                      placeholder="Instagram profile URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Youtube className="w-5 h-5 text-red-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.youtube}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, youtube: e.target.value }
-                      }))}
-                      placeholder="YouTube channel URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Spotify className="w-5 h-5 text-green-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.spotify}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, spotify: e.target.value }
-                      }))}
-                      placeholder="Spotify artist URL"
-                      className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Achievements</label>
-                <div className="space-y-2">
-                  {form.achievements.map((achievement, index) => (
-                    <div key={index} className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        value={achievement}
-                        onChange={(e) => updateAchievement(index, e.target.value)}
-                        placeholder="Achievement or accomplishment"
-                        className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAchievement(index)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={addAchievement}
-                    className="text-yellow-600 hover:text-yellow-700 text-sm flex items-center"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Add Achievement
-                  </button>
-                </div>
-              </div>
+        <div className="rounded-2xl bg-white/[0.02] border border-amber-500/20 overflow-hidden animate-in slide-in-from-top-4 duration-300">
+          <div className="px-6 py-4 border-b border-white/5 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+              <Plus size={14} className="text-amber-400" />
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
-                  currentImage={form.image}
-                  bucket="band-images"
-                  folder="band"
-                  cropAspect={4/5}
-                  autoSave
-                />
-              </div>
-            </div>
+            <h3 className="text-sm font-black text-white tracking-tight">Add New Band Member</h3>
           </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAdding(false);
-                resetForm();
-              }}
-              className="w-full sm:w-auto px-6 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
-            >
-              <X size={16} className="mr-1" />
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleAdd}
-              className="w-full sm:w-auto px-6 py-2 bg-yellow-400 text-black rounded-lg hover:bg-yellow-300 flex items-center justify-center"
-            >
-              <Save size={16} className="mr-1" />
-              Add Band Member
-            </button>
-          </div>
+          <div className="p-6">{renderForm('add')}</div>
         </div>
       )}
 
-      {/* Band Members List */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {sortedBandMembers.map((member) => (
-          <div key={member.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+      {/* ═══ Members Grid ═══ */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {sortedBandMembers.map((member: any) => (
+          <div key={member.id} className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden hover:border-white/10 transition-all group">
             {editing === member.id ? (
-              <div className="p-6 space-y-4">
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Full name"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="text"
-                  value={form.role}
-                  onChange={(e) => setForm(prev => ({ ...prev, role: e.target.value }))}
-                  placeholder="Role/Position"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <input
-                  type="text"
-                  value={form.specialty}
-                  onChange={(e) => setForm(prev => ({ ...prev, specialty: e.target.value }))}
-                  placeholder="Specialty"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <select
-                  value={form.category}
-                  onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                >
-                  <option value="">Select category</option>
-                  <option value="Vocals">Vocals</option>
-                  <option value="Guitar">Guitar</option>
-                  <option value="Bass">Bass</option>
-                  <option value="Drums">Drums</option>
-                  <option value="Keyboard">Keyboard</option>
-                  <option value="Other">Other</option>
-                </select>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  placeholder="Description"
-                  className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <input
-                    type="number"
-                    value={form.order_position}
-                    onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                    min="1"
-                    placeholder="Display order"
-                    className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                  />
-                  <div className="flex items-center space-x-2">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={form.enabled}
-                        onChange={(e) => setForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Enabled</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={form.is_featured}
-                        onChange={(e) => setForm(prev => ({ ...prev, is_featured: e.target.checked }))}
-                        className="mr-1"
-                      />
-                      <span className="text-xs">Featured</span>
-                    </label>
-                  </div>
-                </div>
-                
-                {/* Social Links editing */}
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Instagram className="w-4 h-4 text-pink-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.instagram}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, instagram: e.target.value }
-                      }))}
-                      placeholder="Instagram URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Youtube className="w-4 h-4 text-red-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.youtube}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, youtube: e.target.value }
-                      }))}
-                      placeholder="YouTube URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Spotify className="w-4 h-4 text-green-500" />
-                    <input
-                      type="url"
-                      value={form.social_links.spotify}
-                      onChange={(e) => setForm(prev => ({ 
-                        ...prev, 
-                        social_links: { ...prev.social_links, spotify: e.target.value }
-                      }))}
-                      placeholder="Spotify URL"
-                      className="flex-1 p-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-yellow-400 text-gray-900"
-                    />
-                  </div>
-                </div>
-
-                <ImageUpload
-                  onImageSelect={(url) => setForm(prev => ({ ...prev, image: url }))}
-                  currentImage={form.image}
-                  bucket="band-images"
-                  folder="band"
-                  className="h-32"
-                  cropAspect={4/5}
-                  autoSave
-                />
-                <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditing(null);
-                      resetForm();
-                    }}
-                    className="w-full sm:w-auto px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
-                  >
-                    <X size={14} className="mr-1" />
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleUpdate(member.id)}
-                    className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
-                  >
-                    <Save size={14} className="mr-1" />
-                    Save
-                  </button>
-                </div>
-              </div>
+              <div className="p-5">{renderForm('edit', member.id)}</div>
             ) : (
               <>
-                <div className="relative h-48">
+                {/* Image banner */}
+                <div className="relative h-52 overflow-hidden">
                   <img
-                    src={(() => {
-                      const sanitized = sanitizeUrl?.(member.image) || member.image;
-                      return sanitized;
-                    })()}
+                    src={sanitizeUrl?.(member.image) || member.image}
                     alt={member.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <div className="absolute top-2 left-2 flex space-x-1">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute top-3 left-3 flex gap-1.5">
                     {member.is_featured && (
-                      <Star className="w-6 h-6 text-pink-400 fill-current" />
+                      <span className="px-2 py-1 rounded-lg bg-amber-500/30 border border-amber-500/40 backdrop-blur-sm">
+                        <Star size={12} className="text-amber-300 fill-current" />
+                      </span>
                     )}
                     {!member.enabled && (
-                      <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="px-2.5 py-1 rounded-lg bg-rose-500/30 border border-rose-500/40 backdrop-blur-sm text-[10px] font-bold text-rose-200 uppercase tracking-wider">
                         Hidden
                       </span>
                     )}
                   </div>
-                  <div className="absolute top-2 right-2">
-                    <span className="bg-black/70 text-white px-2 py-1 rounded text-xs">
-                      Order: {member.order_position}
+                  <div className="absolute top-3 right-3">
+                    <span className="px-2 py-1 rounded-lg bg-black/50 border border-white/10 backdrop-blur-sm text-[10px] font-bold text-white/60">
+                      #{member.order_position}
                     </span>
+                  </div>
+                  {/* Hover action overlay */}
+                  <div className="absolute bottom-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <button type="button" onClick={() => startEditing(member)} className="p-2 rounded-lg bg-black/50 border border-white/10 backdrop-blur-sm text-white hover:bg-indigo-500/40 transition-all" title="Edit">
+                      <Edit size={13} />
+                    </button>
+                    <button type="button" onClick={() => handleDelete(member.id)} className="p-2 rounded-lg bg-black/50 border border-white/10 backdrop-blur-sm text-white hover:bg-rose-500/40 transition-all" title="Delete">
+                      <Trash2 size={13} />
+                    </button>
                   </div>
                 </div>
                 
-                <div className="p-4">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1">{member.name}</h3>
-                  <p className="text-purple-600 font-semibold text-sm mb-2">{member.role}</p>
-                  <div className="mb-3">
-                    <span className="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium mr-2">
+                {/* Card body */}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h3 className="font-black text-white text-lg tracking-tight">{member.name}</h3>
+                    <p className="text-amber-400/80 font-bold text-sm">{member.role}</p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    <span className="px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/15 text-[10px] font-bold text-indigo-300 uppercase tracking-wider">
                       {member.category}
                     </span>
-                    <span className="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-medium">
+                    <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/15 text-[10px] font-bold text-purple-300 uppercase tracking-wider">
                       {member.specialty}
                     </span>
                   </div>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">{member.description}</p>
+
+                  <p className="text-gray-500 text-sm line-clamp-2 leading-relaxed">{member.description}</p>
                   
-                  {/* Social Links Display */}
-                  {member.social_links && Object.values(member.social_links).some(link => link) && (
-                    <div className="flex space-x-2 mb-4">
-                      {member.social_links.instagram && (
-                        <Instagram className="w-4 h-4 text-pink-500" />
-                      )}
-                      {member.social_links.youtube && (
-                        <Youtube className="w-4 h-4 text-red-500" />
-                      )}
-                      {member.social_links.spotify && (
-                        <Spotify className="w-4 h-4 text-green-500" />
-                      )}
+                  {/* Social icons */}
+                  {member.social_links && Object.values(member.social_links).some((link: any) => link) && (
+                    <div className="flex gap-2">
+                      {member.social_links.instagram && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Instagram size={12} className="text-pink-400" /></div>}
+                      {member.social_links.youtube && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Youtube size={12} className="text-red-400" /></div>}
+                      {member.social_links.spotify && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Spotify size={12} className="text-emerald-400" /></div>}
                     </div>
                   )}
                   
                   {member.achievements.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-medium text-gray-700 mb-2">
-                        {member.achievements.length} Achievement{member.achievements.length !== 1 ? 's' : ''}
-                      </p>
-                      <div className="text-xs text-gray-500">
-                        {member.achievements.slice(0, 2).map((achievement: any, index: number) => (
-                          <div key={index} className="truncate">• {achievement}</div>
-                        ))}
-                        {member.achievements.length > 2 && (
-                          <div>... and {member.achievements.length - 2} more</div>
-                        )}
-                      </div>
+                    <div className="text-[10px] font-bold text-white/20 uppercase tracking-wider">
+                      <Award size={10} className="inline -mt-0.5 mr-1" />
+                      {member.achievements.length} achievement{member.achievements.length !== 1 ? 's' : ''}
                     </div>
                   )}
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleEnabled(member.id)}
-                        className={`p-1 rounded transition-colors ${
-                          member.enabled 
-                            ? 'bg-green-100 text-green-600' 
-                            : 'bg-red-100 text-red-600'
-                        } hover:bg-green-200`}
-                        title={member.enabled ? 'Hide from public' : 'Show to public'}
-                      >
-                        {member.enabled ? <Eye size={14} /> : <EyeOff size={14} />}
+
+                  {/* Bottom action bar */}
+                  <div className="flex justify-between items-center pt-2 border-t border-white/[0.04]">
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={() => handleToggleEnabled(member.id)} className={`p-1.5 rounded-lg transition-all ${member.enabled ? 'bg-emerald-500/15 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/15 border border-rose-500/20 text-rose-400'}`} title={member.enabled ? 'Hide' : 'Show'}>
+                        {member.enabled ? <Eye size={13} /> : <EyeOff size={13} />}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleFeatured(member.id)}
-                        className={`p-1 rounded transition-colors ${
-                          member.is_featured 
-                            ? 'bg-pink-100 text-pink-600' 
-                            : 'bg-gray-100 text-gray-600'
-                        } hover:bg-pink-200`}
-                        title={member.is_featured ? 'Remove from featured' : 'Mark as featured'}
-                      >
-                        <Star size={14} className={member.is_featured ? 'fill-current' : ''} />
+                      <button type="button" onClick={() => handleToggleFeatured(member.id)} className={`p-1.5 rounded-lg transition-all ${member.is_featured ? 'bg-amber-500/15 border border-amber-500/20 text-amber-400' : 'bg-white/[0.03] border border-white/5 text-gray-600 hover:text-amber-400'}`} title={member.is_featured ? 'Unfeature' : 'Feature'}>
+                        <Star size={13} className={member.is_featured ? 'fill-current' : ''} />
                       </button>
                     </div>
-                    <div className="flex space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => startEditing(member)}
-                        className="bg-blue-600 text-white p-1 rounded hover:bg-blue-500 transition-colors"
-                        title="Edit band member"
-                      >
-                        <Edit size={14} />
+                    <div className="flex gap-1.5">
+                      <button type="button" onClick={() => startEditing(member)} className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5 hover:border-indigo-500/20 hover:bg-indigo-500/10 text-gray-500 hover:text-indigo-400 transition-all" title="Edit">
+                        <Edit size={13} />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(member.id)}
-                        className="bg-red-600 text-white p-1 rounded hover:bg-red-500 transition-colors"
-                        title="Delete band member"
-                      >
-                        <Trash2 size={14} />
+                      <button type="button" onClick={() => handleDelete(member.id)} className="p-1.5 rounded-lg bg-white/[0.03] border border-white/5 hover:border-rose-500/20 hover:bg-rose-500/10 text-gray-500 hover:text-rose-400 transition-all" title="Delete">
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -784,52 +448,17 @@ export const BandManagement: React.FC = () => {
         ))}
       </div>
 
-      {/* No Band Members Message */}
+      {/* Empty State */}
       {bandMembers.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow-md">
-          <Music size={64} className="mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-600 mb-2">No Band Members Yet</h3>
-          <p className="text-gray-500 mb-4">Start by adding your first band member</p>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAdding(true);
-              resetForm();
-            }}
-            className="bg-yellow-400 text-black px-6 py-2 rounded-lg hover:bg-yellow-300 transition-colors"
-          >
+        <div className="text-center py-16 rounded-2xl bg-white/[0.02] border border-white/5">
+          <Music size={40} className="mx-auto mb-4 text-gray-700" />
+          <h3 className="text-lg font-black text-white mb-2">No Band Members Yet</h3>
+          <p className="text-sm text-gray-500 mb-6 font-medium">Start by adding your first band member</p>
+          <button type="button" onClick={() => { setIsAdding(true); resetForm(); }} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all">
             Add First Band Member
           </button>
         </div>
       )}
-
-      {/* Stats */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-4 gap-6 text-center">
-          <div>
-            <div className="text-2xl font-bold text-purple-500 mb-1">{bandMembers.length}</div>
-            <div className="text-gray-600 text-sm">Total Members</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-pink-500 mb-1">
-              {bandMembers.filter((m: any) => m.is_featured).length}
-            </div>
-            <div className="text-gray-600 text-sm">Featured Artists</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-blue-500 mb-1">
-              {bandMembers.filter((m: any) => m.enabled).length}
-            </div>
-            <div className="text-gray-600 text-sm">Visible Members</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-green-500 mb-1">
-              {bandMembers.reduce((total: number, m: any) => total + m.achievements.length, 0)}
-            </div>
-            <div className="text-gray-600 text-sm">Total Achievements</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

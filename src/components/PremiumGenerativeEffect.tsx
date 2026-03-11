@@ -134,7 +134,7 @@ const PremiumGenerativeEffect: React.FC<PremiumGenerativeEffectProps> = ({ type,
         ctx.strokeRect(-size, -size/2, size*2, size);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
         ctx.font = `bold ${size/1.8}px monospace`;
-        const symbol = currency === 'USD' ? '$' : '₹';
+        const symbol = currency === 'USD' ? '$' : '$';
         ctx.fillText(`${symbol}${val}`, -size + 8, 4);
         ctx.restore();
     };

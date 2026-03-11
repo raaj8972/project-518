@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 
@@ -6,7 +6,7 @@ import { ShieldAlert } from 'lucide-react';
  * MasterGate: A hidden "entry point" for the Owner.
  * Visiting this URL sets a secure session key that allows Owner-level login.
  */
-export const MasterGate: React.FC = () => {
+export const MasterGate = () => {
   const navigate = useNavigate();
 
   useEffect(() => {

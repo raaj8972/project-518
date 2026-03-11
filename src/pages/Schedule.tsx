@@ -256,7 +256,32 @@ export const Schedule = () => {
                                     
                                     // Check if registration is closed for linked events
                                     const linkedEvent = event.event_id ? events.find((e: any) => e.id === event.event_id) : null;
-                                    const isRegistrationClosed = linkedEvent ? !linkedEvent.registration_open : false;
+                                    
+                                    const isRegistrationClosed = (() => {
+                                      if (!linkedEvent) return false;
+                                      
+                                      // 1. Manual open flag takes absolute priority
+                                      if (linkedEvent.registration_open) return false;
+                                      
+                                      // 2. Timer-based check
+                                      const le = linkedEvent as any;
+                                      if (le.registration_timer_enabled && le.registration_opens_at) {
+                                        const openAt = new Date(le.registration_opens_at).getTime();
+                                        const now = Date.now();
+                                        
+                                        // If timer is enabled and past open time, it's open unless closed by closure timer
+                                        if (!isNaN(openAt) && now >= openAt) {
+                                          if (le.registration_closes_at) {
+                                            const closesAt = new Date(le.registration_closes_at).getTime();
+                                            if (!isNaN(closesAt) && now >= closesAt) return true;
+                                          }
+                                          return false; // Open by timer
+                                        }
+                                      }
+                                      
+                                      // 3. Default for manual "Closed" and no active timer
+                                      return true;
+                                    })();
                                     
                                     const handleEventClick = (e: React.MouseEvent) => {
                                       if (event.event_id && isRegistrationClosed) {

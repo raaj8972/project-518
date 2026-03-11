@@ -29,6 +29,7 @@ const Gallery = React.lazy(() => import('./pages/Gallery').then(m => ({ default:
 const HomeBound = React.lazy(() => import('./pages/HomeBound').then(m => ({ default: (m as any).HomeBound }))) as unknown as React.ComponentType<any>;
 const RicoFamily = React.lazy(() => import('./pages/RicoFamily').then(m => ({ default: (m as any).RicoFamily }))) as unknown as React.ComponentType<any>;
 const Sponsors = React.lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
+const Sports = React.lazy(() => import('./pages/Sports').then(m => ({ default: (m as any).Sports }))) as unknown as React.ComponentType<any>;
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
 const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
 const CoordinatorLogin = React.lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
@@ -46,6 +47,7 @@ const PassDownload = React.lazy(() => import('./pages/PassDownload').then(m => (
 const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
 const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
 const MasterGate = React.lazy(() => import('./pages/MasterGate').then(m => ({ default: (m as any).MasterGate }))) as unknown as React.ComponentType<any>;
+const SportsLogin = React.lazy(() => import('./pages/SportsLogin').then(m => ({ default: (m as any).SportsLogin }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
 class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
@@ -128,6 +130,7 @@ const GlobalErrorBanner: React.FC = () => {
         await import('./pages/Schedule');
         await import('./pages/Gallery');
         await import('./pages/Sponsors');
+        await import('./pages/Sports');
 
         // PREFETCH ALL LOGIN PAGES
         await import('./pages/Login');
@@ -245,153 +248,155 @@ const GlobalErrorBanner: React.FC = () => {
   );
 };
 
-function App() {
-  // Inner shell to use routing hooks (must be inside <Router>)
-  const AppShell: React.FC = () => {
-    const location = useLocation();
-    const isAdminRoute = location.pathname.startsWith('/admin');
-    const isLoginRoute = location.pathname === '/login';
-    const isSecurityRoute = location.pathname.startsWith('/security-');
-    const isHealthRoute = location.pathname === '/health';
-    const { user } = useAuth();
-    const { siteSettings, loading, adminUsers, homepageSettings } = useData();
+// Inner shell to use routing hooks (must be inside <Router>)
+const AppShell: React.FC = () => {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isLoginRoute = location.pathname === '/login';
+  const isSecurityRoute = location.pathname.startsWith('/security-');
+  const isHealthRoute = location.pathname === '/health';
+  const { user } = useAuth();
+  const { siteSettings, loading, adminUsers, homepageSettings } = useData();
 
-    // Seed logo URL from localStorage cache immediately (zero latency),
-    // then update once homepageSettings arrives from Supabase.
-    const [logoUrl, setLogoUrl] = React.useState<string | undefined>(
-      getCachedLogoUrl() ?? undefined
-    );
-    React.useEffect(() => {
-      const fresh = (homepageSettings as any)?.brand_logo_url;
-      if (fresh) setLogoUrl(fresh);
-    }, [homepageSettings]);
+  // Seed logo URL from localStorage cache immediately (zero latency),
+  // then update once homepageSettings arrives from Supabase.
+  const [logoUrl, setLogoUrl] = React.useState<string | undefined>(
+    getCachedLogoUrl() ?? undefined
+  );
+  React.useEffect(() => {
+    const fresh = (homepageSettings as any)?.brand_logo_url;
+    if (fresh) setLogoUrl(fresh);
+  }, [homepageSettings]);
 
-    // Cleanup index.html skeleton once React is mounted and ready
-    React.useEffect(() => {
-      // Small delay to ensure the first paint of the shell is finished
-      const timer = setTimeout(() => {
-        const skeleton = document.getElementById('app-skeleton');
-        if (skeleton) {
-          skeleton.style.opacity = '0';
-          skeleton.style.transition = 'opacity 0.4s ease-out';
-          setTimeout(() => skeleton.remove(), 400);
-        }
-      }, 100);
-      return () => clearTimeout(timer);
-    }, []);
-    
-    // Determine if current user is an admin/owner to bypass maintenance
-    const isAdminOrOwner = React.useMemo(() => {
-      try {
-        const uid = user?.id;
-        if (!uid || !Array.isArray(adminUsers)) return false;
-        // Check for super admin metadata or admin table entry
-        if (user?.user_metadata?.is_super_admin) return true;
-        return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
-      } catch {
-        return false;
+  // Cleanup index.html skeleton once React is mounted and ready
+  React.useEffect(() => {
+    // Small delay to ensure the first paint of the shell is finished
+    const timer = setTimeout(() => {
+      const skeleton = document.getElementById('app-skeleton');
+      if (skeleton) {
+        skeleton.style.opacity = '0';
+        skeleton.style.transition = 'opacity 0.4s ease-out';
+        setTimeout(() => skeleton.remove(), 400);
       }
-    }, [user, adminUsers]);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Determine if current user is an admin/owner to bypass maintenance
+  const isAdminOrOwner = React.useMemo(() => {
+    try {
+      const uid = user?.id;
+      if (!uid || !Array.isArray(adminUsers)) return false;
+      // Check for super admin metadata or admin table entry
+      if (user?.user_metadata?.is_super_admin) return true;
+      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
+    } catch {
+      return false;
+    }
+  }, [user, adminUsers]);
 
-    const [splashVisible, setSplashVisible] = React.useState<boolean>(true);
+  const [splashVisible, setSplashVisible] = React.useState<boolean>(true);
 
-    // Render the app shell normally but render the splash as a fixed overlay on top
-    // so site chrome (navbar) remains visible above it. We intentionally avoid SVGs
-    // and use CSS + simple HTML for the animated neon spinner and text.
-    // Tick so time-based Coming Soon auto-lifts when time passes
-    const [now, setNow] = React.useState<number>(Date.now());
-    React.useEffect(() => {
-      const hasTimer = !!siteSettings?.coming_soon_enabled && !!siteSettings?.coming_soon_until;
-      if (!hasTimer) return;
-      const id = setInterval(() => setNow(Date.now()), 30_000);
-      return () => clearInterval(id);
-    }, [siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until]);
-    const gateActive = React.useMemo(() => {
-      const closed = !!siteSettings?.site_closed;
-      if (closed) return true;
-      if (!siteSettings?.coming_soon_enabled) return false;
-      const untilStr = siteSettings?.coming_soon_until as any;
-      if (!untilStr) return true; // enabled with no end time => gate stays on
-      const untilMs = new Date(untilStr).getTime();
-      if (Number.isNaN(untilMs)) return true; // malformed date => be safe and gate
-      return now < untilMs;
-    }, [siteSettings?.site_closed, siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until, now]);
+  // Render the app shell normally but render the splash as a fixed overlay on top
+  // so site chrome (navbar) remains visible above it. We intentionally avoid SVGs
+  // and use CSS + simple HTML for the animated neon spinner and text.
+  // Tick so time-based Coming Soon auto-lifts when time passes
+  const [now, setNow] = React.useState<number>(Date.now());
+  React.useEffect(() => {
+    const hasTimer = !!siteSettings?.coming_soon_enabled && !!siteSettings?.coming_soon_until;
+    if (!hasTimer) return;
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until]);
+  const gateActive = React.useMemo(() => {
+    const closed = !!siteSettings?.site_closed;
+    if (closed) return true;
+    if (!siteSettings?.coming_soon_enabled) return false;
+    const untilStr = siteSettings?.coming_soon_until as any;
+    if (!untilStr) return true; // enabled with no end time => gate stays on
+    const untilMs = new Date(untilStr).getTime();
+    if (Number.isNaN(untilMs)) return true; // malformed date => be safe and gate
+    return now < untilMs;
+  }, [siteSettings?.site_closed, siteSettings?.coming_soon_enabled, siteSettings?.coming_soon_until, now]);
 
-    return (
-      <RouteErrorBoundary>
-        <div className="min-h-screen bg-[#0a0a0a]">
-          <NoiseOverlay />
-          <AudioController />
-          <GlobalErrorBanner />
-          <ConnectionStatusBanner />
-          {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
-          {/* Admin Bypass: If user is admin/owner, they can access site even if gated */}
-          {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute && !isAdminOrOwner ? (
-            <ComingSoon />
-          ) : (
-            <>
-              {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
-              {!isAdminRoute && !isSecurityRoute && <NotificationsPanel />}
-              {/* Hide public site chrome on admin and security pages to avoid overlap */}
-              {!isAdminRoute && !isSecurityRoute && !location.pathname.startsWith('/coordinator/dashboard') && <div className="relative z-50"><Navbar /></div>}
-                  <Outlet />
-              {!isAdminRoute && !isSecurityRoute && <Footer />}
-              {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
-                  We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
-              {splashVisible && <Preloader loading={loading} onComplete={() => setSplashVisible(false)} logoUrl={logoUrl} />}
-            </>
-          )}
-        </div>
-      </RouteErrorBoundary>
-    );
-  };
+  return (
+    <RouteErrorBoundary>
+      <div className="min-h-screen bg-[#0a0a0a]">
+        <NoiseOverlay />
+        <AudioController />
+        <GlobalErrorBanner />
+        <ConnectionStatusBanner />
+        {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
+        {/* Admin Bypass: If user is admin/owner, they can access site even if gated */}
+        {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute && !isAdminOrOwner ? (
+          <ComingSoon />
+        ) : (
+          <>
+            {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
+            {!isAdminRoute && !isSecurityRoute && <NotificationsPanel />}
+            {/* Hide public site chrome on admin and security pages to avoid overlap */}
+            {!isAdminRoute && !isSecurityRoute && !location.pathname.startsWith('/coordinator/dashboard') && <Navbar />}
+                <Outlet />
+            {!isAdminRoute && !isSecurityRoute && <Footer />}
+            {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
+                We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
+            {splashVisible && <Preloader loading={loading} onComplete={() => setSplashVisible(false)} logoUrl={logoUrl} />}
+          </>
+        )}
+      </div>
+    </RouteErrorBoundary>
+  );
+};
 
-  // Router is created inside an inner component so route elements are instantiated
-  // after providers (DataProvider) are mounted. This avoids calling hooks like
-  // useData() while rendering outside of the provider tree.
-  const InnerRouter: React.FC = () => {
-    const router = React.useMemo(() => createBrowserRouter(
-      [
-        {
-          path: '/',
-          element: <AppShell />,
-          children: [
-            { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
-            { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Events /></React.Suspense> },
-            { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Schedule /></React.Suspense> },
-            { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Gallery /></React.Suspense> },
-            { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><HomeBound /></React.Suspense> },
-            { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><RicoFamily /></React.Suspense> },
-            { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sponsors /></React.Suspense> },
-            { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
-            { path: 'coordinator', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorLogin /></React.Suspense> },
-            { path: 'coordinator/dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorDashboard /></React.Suspense> },
-            { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
-            { path: 'security-login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityLogin /></React.Suspense> },
-            { path: 'security-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityDashboard /></React.Suspense> },
-            { path: 'pass-registration', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassRegistration /></React.Suspense> },
-            { path: 'pass-download', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassDownload /></React.Suspense> },
-            { path: 'health', element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
-            { path: 'master-node-access', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><MasterGate /></React.Suspense> },
-            { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
-          ]
-        },
-        // Council Dashboard - Standalone (No AppShell/Navbar)
-        { path: 'council', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilLogin /></React.Suspense> },
-        { path: 'council-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilDashboard /></React.Suspense> }
-      ],
-      ({
-        future: {
-          v7_startTransition: true,
-          // keep other v7 future flags if desired
-          v7_relativeSplatPath: true
-        }
-      } as any)
-    ), []);
+// Router is created inside an inner component so route elements are instantiated
+// after providers (DataProvider) are mounted. This avoids calling hooks like
+// useData() while rendering outside of the provider tree.
+const InnerRouter: React.FC = () => {
+  const router = React.useMemo(() => createBrowserRouter(
+    [
+      {
+        path: '/',
+        element: <AppShell />,
+        children: [
+          { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
+          { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Events /></React.Suspense> },
+          { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Schedule /></React.Suspense> },
+          { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Gallery /></React.Suspense> },
+          { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><HomeBound /></React.Suspense> },
+          { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><RicoFamily /></React.Suspense> },
+          { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sponsors /></React.Suspense> },
+          { path: 'sports', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sports /></React.Suspense> },
+          { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
+          { path: 'coordinator', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorLogin /></React.Suspense> },
+          { path: 'coordinator/dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CoordinatorDashboard /></React.Suspense> },
+          { path: 'admin', element: <React.Suspense fallback={<div className="p-8">Loading admin…</div>}><AdminDashboard /></React.Suspense> },
+          { path: 'sports-admin', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SportsLogin /></React.Suspense> },
+          { path: 'security-login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityLogin /></React.Suspense> },
+          { path: 'security-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><SecurityDashboard /></React.Suspense> },
+          { path: 'pass-registration', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassRegistration /></React.Suspense> },
+          { path: 'pass-download', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><PassDownload /></React.Suspense> },
+          { path: 'health', element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
+          { path: 'master-node-access', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><MasterGate /></React.Suspense> },
+          { path: '*', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><NotFound /></React.Suspense> }
+        ]
+      },
+      // Council Dashboard - Standalone (No AppShell/Navbar)
+      { path: 'council', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilLogin /></React.Suspense> },
+      { path: 'council-dashboard', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><CouncilDashboard /></React.Suspense> }
+    ],
+    ({
+      future: {
+        v7_startTransition: true,
+        // keep other v7 future flags if desired
+        v7_relativeSplatPath: true
+      }
+    } as any)
+  ), []);
 
-    return <RouterProvider router={router} />;
-  };
+  return <RouterProvider router={router} />;
+};
 
+function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>

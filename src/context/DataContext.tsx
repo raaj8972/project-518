@@ -8,6 +8,7 @@ import { useGalleryData } from './GalleryContext';
 import { useManagementData } from './ManagementContext';
 import { useAuth } from './AuthContext';
 import { sanitizeUrl, publicUrlFor } from '../utils/dataUtils';
+import { supabase } from '../lib/supabase';
 import { urlsEqual, normalizeStorageUrl, deleteStorageFileByPublicUrl, isUrlReferencedSomewhere } from '../utils/storageUtils';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -69,6 +70,7 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     notifications: events.notifications,
     roadmapMilestones: events.roadmapMilestones,
     addEvent: events.addEvent,
+    addEventWithCoordinators: events.addEventWithCoordinators,
     updateEvent: events.updateEvent,
     deleteEvent: events.deleteEvent,
     reorderEvents: events.reorderEvents,
@@ -229,8 +231,7 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     auditions: management.auditions,
     memberships: management.memberships,
     storageQuotaBytes: null,
-    reorderEventCategories: async () => true,
-    addEventWithCoordinators: async () => {},
+    reorderEventCategories: events.reorderEventCategories,
     toggleEventFeatured: async () => {},
     toggleEventVisibility: async () => {},
     toggleEventRegistration: async () => {},
@@ -266,9 +267,43 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     addMembership: core.addMembership,
     updateMembershipStatus: management.updateMembershipStatus,
     deleteMembership: management.deleteMembership,
-    getRegistrationPhotos: async () => ({ items: [], total: 0 }),
-    computeRegistrationPhotosUsage: async () => ({ totalBytes: 0, count: 0 }),
-    deleteRegistrationPhoto: async () => ({ ok: true, clearedRefs: 0 }),
+    getRegistrationPhotos: async (page = 1, limit = 25) => {
+      const offset = (page - 1) * limit;
+      const { data, error } = await supabase.storage.from('registration-photos').list('', {
+        limit,
+        offset,
+        sortBy: { column: 'created_at', order: 'desc' }
+      });
+      if (error) { console.error('[RegPhotos] list error:', error.message); return { items: [], total: 0 }; }
+      const items = (data || []).filter(f => f.name && !f.name.startsWith('.')).map(f => {
+        const { data: urlData } = supabase.storage.from('registration-photos').getPublicUrl(f.name);
+        return { name: f.name, publicUrl: urlData.publicUrl, size: (f.metadata as any)?.size ?? 0, created_at: f.created_at ?? null };
+      });
+      // Supabase storage list doesn't return total count easily; approximate with large-ish call
+      const { data: countData } = await supabase.storage.from('registration-photos').list('', { limit: 10000 });
+      const total = countData?.filter(f => f.name && !f.name.startsWith('.')).length ?? items.length;
+      return { items, total };
+    },
+    computeRegistrationPhotosUsage: async () => {
+      const { data, error } = await supabase.storage.from('registration-photos').list('', { limit: 10000 });
+      if (error) return { totalBytes: 0, count: 0 };
+      const files = (data || []).filter(f => f.name && !f.name.startsWith('.'));
+      const totalBytes = files.reduce((sum, f) => sum + ((f.metadata as any)?.size ?? 0), 0);
+      return { totalBytes, count: files.length };
+    },
+    deleteRegistrationPhoto: async (name: string) => {
+      const { error } = await supabase.storage.from('registration-photos').remove([name]);
+      if (error) { console.error('[RegPhotos] delete error:', error.message); return { ok: false, clearedRefs: 0 }; }
+      // Clear photo_url refs from registrations table
+      const { data: urlData } = supabase.storage.from('registration-photos').getPublicUrl(name);
+      const photoUrl = urlData?.publicUrl;
+      let clearedRefs = 0;
+      if (photoUrl) {
+        const { data: updated } = await supabase.from('registrations').update({ photo_url: null }).eq('photo_url', photoUrl).select('id');
+        clearedRefs = updated?.length ?? 0;
+      }
+      return { ok: true, clearedRefs };
+    },
     getBucketObjects: async () => ({ items: [], total: 0 }),
     computeBucketUsage: async () => ({ totalBytes: 0, count: 0 }),
     deleteBucketObject: async () => ({ ok: true, clearedRefs: 0 }),

@@ -39,7 +39,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     })
 
     if (validationError) {
-      return { statusCode: 403, body: 'Invalid or expired coordinator token' }
+      return { statusCode: 403, body: 'TRAPPED_LEGACY_CALL' }
     }
 
     // Token valid — update registration_open using service role (bypasses RLS)

@@ -666,17 +666,8 @@ export const Events: React.FC = () => {
     return Date.now() < openAt;
   };
   const canRegisterNow = (e: any): boolean => {
-    // Allow registration if either:
     // 1) Admin has opened registration (registration_open true) — overrides timer immediately, OR
-    // 2) The timer has reached/passed the open time (immediate open at boundary even if flag hasn't toggled yet)
     if (e?.registration_open) {
-      // Even if registration_open is true, check if timer has closed it
-      if (e?.registration_timer_enabled && e?.registration_closes_at) {
-        const closeTime = new Date(e.registration_closes_at).getTime();
-        if (!isNaN(closeTime) && Date.now() >= closeTime) {
-          return false; // Closed by timer
-        }
-      }
       return true;
     }
     const openAt = getOpenAtMs(e);
@@ -927,12 +918,12 @@ export const Events: React.FC = () => {
                           id={`hero-video-${ev.id}-${idx}`}
                           className={`w-full h-full object-cover shadow-2xl transition-all duration-1000 ${isItemZoomed ? 'rounded-none border-0' : 'rounded-xl border-2 border-white/40'}`}
                           src={ev.motion_poster_url}
-                          // Remove global autoPlay. Controlled by Side Effect below.
+                          autoPlay
                           muted
                           loop
                           playsInline
                           preload="auto"
-                          {...({ fetchpriority: "high" } as any)} // Hint browser to prioritize this hero content
+                          {...({ fetchpriority: "high" } as any)}
                           poster={ev.image} 
                         />
                         
@@ -1089,26 +1080,8 @@ export const Events: React.FC = () => {
                         toggleFlip(event.id);
                       }}
                       aria-label={`Open details for ${event.title}`}
-                      onMouseEnter={() => {
-                        try {
-                          // play on hover only when video url exists and autoplay isn't forced
-                          if (event.motion_poster_url && !(event as any).motion_poster_autoplay) {
-                            const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
-                            if (v) import('../utils/safePlay').then(({ default: safePlay }) => safePlay(v)).catch(() => { const p = v.play(); if (p) p.catch(() => {}); });
-                          }
-                        } catch (e) {}
-                      }}
-                      onMouseLeave={() => {
-                        try {
-                          if (event.motion_poster_url && !(event as any).motion_poster_autoplay) {
-                            const v = document.getElementById(`event-video-${event.id}`) as HTMLVideoElement | null;
-                            if (v) {
-                              v.pause();
-                              try { v.currentTime = 0; } catch { /* ignore */ }
-                            }
-                          }
-                        } catch (e) {}
-                      }}
+                      onMouseEnter={() => {}}
+                      onMouseLeave={() => {}}
                       /* Touch behavior for owner-hover preview: on phones, allow owners who enabled owner_hover_reveal to
                          trigger the motion-poster on touchstart (play) and stop on touchend/move. We keep this gated so
                          regular users won't get touch-to-play behavior. */
@@ -1175,10 +1148,9 @@ export const Events: React.FC = () => {
                       {event.motion_poster_url ? (
                         <video
                           id={`event-video-${event.id}`}
-                          className={`smart-video absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block ${ ((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? 'opacity-90' : 'opacity-0 group-hover:opacity-90' }`}
+                          className={`smart-video absolute inset-0 w-full h-full ${posterFit === 'cover' ? 'object-cover' : 'object-contain'} bg-black transition-opacity duration-300 front-video block opacity-90`}
                           src={event.motion_poster_url}
-                          // Remove autoPlay, use data-autoplay for our observer to know intent
-                          {...(((event as any).motion_poster_autoplay || (isOwner && (event as any).owner_hover_reveal)) ? { 'data-autoplay': 'true' } as any : {})}
+                          autoPlay
                           muted
                           playsInline
                           loop

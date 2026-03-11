@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
-import type { Registration } from '../context/DataContext';
+import { dualRead } from '../lib/dualDb';
+import type { Registration } from '../types/data';
 
 export interface UseRegistrationsOptions {
   page: number;
@@ -55,29 +55,21 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
 
   const fetchStats = useCallback(async () => {
     try {
-      // Parallel requests for counts
-      // Note: We are NOT applying filters to these 'global' stats typically shown in cards
-      // unless the user EXPECTS the stats cards to filter. 
-      // Usually "Total Registrations" on the dashboard implies "All time" or at least "All active".
-      // Let's stick to "Active" (non-deleted) for now.
+      // For now, we fetch all and count in memory or do multiple dualReads
+      // Ideally dualRead should support count, but we'll approximate for now
+      const { data } = await dualRead({ table: 'registrations' });
+      if (!data) return;
 
-      const base = supabase.from('registrations').select('*', { count: 'exact', head: true });
-      
-      const p1 = base.is('deleted_at', null);
-      const p2 = base.is('deleted_at', null).eq('status', 'pending');
-      const p3 = base.is('deleted_at', null).eq('status', 'approved');
-      const p4 = base.is('deleted_at', null).eq('status', 'rejected');
+      const all = data as Registration[];
+      const active = all.filter(r => !r.deleted_at);
+      const trash = all.filter(r => !!r.deleted_at);
 
-      const p5 = supabase.from('registrations').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null);
-
-      const [r1, r2, r3, r4, r5] = await Promise.all([p1, p2, p3, p4, p5]);
-      
       setStats({
-        total: r1.count || 0,
-        pending: r2.count || 0,
-        approved: r3.count || 0,
-        rejected: r4.count || 0,
-        trash: r5.count || 0
+        total: active.length,
+        pending: active.filter(r => r.status === 'pending').length,
+        approved: active.filter(r => r.status === 'approved').length,
+        rejected: active.filter(r => r.status === 'rejected').length,
+        trash: trash.length
       });
     } catch (e) {
       console.warn('Failed to fetch stats', e);
@@ -92,78 +84,53 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
     setError(null);
 
     try {
-      let query = supabase
-        .from('registrations')
-        .select('*', { count: 'exact' });
+      // Use dualRead for primary fetch
+      // Note: Full-text search and complex OR queries will fallback to Supabase inside dualRead if we structure correctly
+      // For now, doing a basic fetch and filtering in memory if primary is Firestore
+      const { data, source } = await dualRead({ 
+        table: 'registrations',
+        order: [filters?.viewMode === 'trash' ? 'deleted_at' : 'created_at', { ascending: false }]
+      });
 
-      // 1. Handling View Mode (Active vs Trash)
-      if (filters?.viewMode === 'trash') {
-        query = query.not('deleted_at', 'is', null);
-      } else {
-        query = query.is('deleted_at', null);
-      }
+      let filtered = (data || []) as Registration[];
 
-      // 2. Event Filter
-      if (filters?.event && filters.event !== 'all') {
-        query = query.eq('event_title', filters.event);
-      }
+      // Apply filters in-memory if we got a large batch or if firestore is primary
+      if (source === 'firestore') {
+        if (filters?.viewMode === 'trash') {
+          filtered = filtered.filter(r => !!r.deleted_at);
+        } else {
+          filtered = filtered.filter(r => !r.deleted_at);
+        }
 
-      // 3. Status Filter
-      if (filters?.status && filters.status !== 'all') {
-        query = query.eq('status', filters.status);
-      }
-
-      // 4. Participant Type Filter
-      if (filters?.type && filters.type !== 'all') {
-        query = query.eq('participant_type', filters.type);
-      }
-
-      // 5. Category Filter
-      // Note: Category is often joined or on the event. 
-      // If 'category' column exists on 'registrations' view/table, we use it. 
-      // Based on previous code: uniqueCategories comes from registrations.map(r => r.category)
-      // so it likely exists on the specific row or view.
-      if (filters?.category && filters.category !== 'all') {
-        query = query.eq('category', filters.category);
-      }
-
-      // 6. Search
-      if (filters?.search && filters.search.trim()) {
-        const term = filters.search.trim();
-        // naive search across columns
-        query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,college.ilike.%${term}%`);
+        if (filters?.event && filters.event !== 'all') {
+          filtered = filtered.filter(r => r.event_title === filters.event);
+        }
+        if (filters?.status && filters.status !== 'all') {
+          filtered = filtered.filter(r => r.status === filters.status);
+        }
+        if (filters?.type && filters.type !== 'all') {
+          filtered = filtered.filter(r => r.participant_type === filters.type);
+        }
+        if (filters?.category && filters.category !== 'all') {
+          filtered = filtered.filter(r => (r as any).category === filters.category);
+        }
+        if (filters?.search && filters.search.trim()) {
+          const s = filters.search.toLowerCase();
+          filtered = filtered.filter(r => 
+            r.full_name?.toLowerCase().includes(s) || 
+            r.email?.toLowerCase().includes(s) || 
+            r.phone?.toLowerCase().includes(s)
+          );
+        }
       }
 
-      // 7. Date Range
-      if (filters?.dateFrom) {
-        query = query.gte('created_at', filters.dateFrom);
-      }
-      if (filters?.dateTo) {
-        // Includes the whole day
-        query = query.lte('created_at', `${filters.dateTo}T23:59:59`);
-      }
+      setCount(filtered.length);
       
-      // 8. Sorting
-      // Default newest first
-      // If viewing trash, maybe sort by deleted_at?
-      if (filters?.viewMode === 'trash') {
-        query = query.order('deleted_at', { ascending: false });
-      } else {
-        query = query.order('created_at', { ascending: false });
-      }
-
-      // 9. Pagination
+      // Pagination
       const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
-
-      // Execute
-      const { data, error, count } = await query;
-
-      if (error) throw error;
+      const paginated = filtered.slice(from, from + pageSize);
       
-      setRegistrations(data as Registration[] || []);
-      setCount(count || 0);
+      setRegistrations(paginated);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error('Fetch registrations failed', err);

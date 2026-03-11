@@ -14,7 +14,6 @@ import { SEO } from '../components/SEO';
 import CommitteeBackgroundEffect from '../components/CommitteeBackgroundEffect';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
-const SportsProfileModal = React.lazy(() => import('../components/SportsProfileModal'));
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel'));
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
@@ -22,7 +21,7 @@ const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfil
 
 
 export const RicoFamily: React.FC = () => {
-  const { facultyHeads, coreCommittees, coreTeamMembers, sportsCommittees, sportsTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
+  const { facultyHeads, coreCommittees, coreTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
   // Refined developer role detection: only show cyan styling for lead developer tier
   const isLeadWebDevRole = (role?: string | null, committeeName?: string) => {
     const rl = String(role || '').toLowerCase();
@@ -40,17 +39,12 @@ export const RicoFamily: React.FC = () => {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-  
-  // Sports profile modal state (RESTORED)
-  const [sportsModalOpen, setSportsModalOpen] = useState(false);
-  const [selectedSportsPerson, setSelectedSportsPerson] = useState<any | null>(null);
 
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
   const committeeHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
-  const sportsHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
 
   // Filter enabled faculty heads and sort by order
   const enabledFacultyHeads = (facultyHeads || [])
@@ -61,39 +55,6 @@ export const RicoFamily: React.FC = () => {
   const enabledCommittees = (coreCommittees || [])
     .filter(committee => committee.enabled)
     .sort((a, b) => a.order_position - b.order_position);
-
-  // Sports committees section data
-  const enabledSportsCommittees = (sportsCommittees || [])
-    .filter(c => c.enabled)
-    .sort((a, b) => a.order_position - b.order_position);
-
-  // Detect the Organising/Organizing Committee with flexible matching
-  // Note: This runs only on sports committees, so we don't require the word "sports" in the name.
-  const isOrganisingName = (name?: string | null) => {
-    const s = String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
-    if (!s) return false;
-    // Common variants and misspellings
-    const organKeywords = [
-      'organising',
-      'organizing',
-      'organisation',
-      'organization',
-      'organiser',
-      'organizer',
-      'organisers',
-      'organizers',
-      'org team',
-      'org. team',
-      'org committee',
-      'org. committee',
-    ];
-    // If it contains any of the above, consider it the organising committee
-    if (organKeywords.some(k => s.includes(k))) return true;
-    // Fallback: broad match on "organ" + (committee|team)
-    if (s.includes('organ') && (s.includes('committee') || s.includes('team'))) return true;
-    return false;
-  };
-  const organisingCommittee = enabledSportsCommittees.find(c => isOrganisingName(c.name)) || null;
 
   // Track expanded member cards (non-head)
   const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
@@ -134,18 +95,6 @@ export const RicoFamily: React.FC = () => {
   // Sort members within each committee by order position
   Object.keys(membersByCommittee).forEach(committee_id => {
     membersByCommittee[committee_id].sort((a, b) => a.order_position - b.order_position);
-  });
-
-  // Sports members grouped by sports committee
-  const sportsMembersByCommittee = (sportsTeamMembers || []).reduce((acc, m) => {
-    if (m.enabled && m.committee_id) {
-      if (!acc[m.committee_id]) acc[m.committee_id] = [];
-      acc[m.committee_id].push(m);
-    }
-    return acc;
-  }, {} as Record<string, typeof sportsTeamMembers>);
-  Object.keys(sportsMembersByCommittee).forEach(cid => {
-    sportsMembersByCommittee[cid].sort((a, b) => a.order_position - b.order_position);
   });
 
   // Committee heads across all committees (for marquee)
@@ -203,7 +152,7 @@ export const RicoFamily: React.FC = () => {
     animatedElements.forEach((el) => observer.observe(el));
 
     return () => observer.disconnect();
-  }, [enabledFacultyHeads, enabledCommittees, coreTeamMembers, enabledSportsCommittees, sportsTeamMembers, bandMembers]);
+  }, [enabledFacultyHeads, enabledCommittees, coreTeamMembers, bandMembers]);
 
   // Parallax effect
   // Parallax effect (Optimized with requestAnimationFrame)
@@ -845,246 +794,7 @@ export const RicoFamily: React.FC = () => {
         </section>
       )}
 
-      {/* Sports Committees Section */}
-      {enabledSportsCommittees.length > 0 && (
-        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
-          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-green-900/10 rounded-full blur-[150px] pointer-events-none translate-y-[-50%]"></div>
-          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-teal-900/10 rounded-full blur-[150px] pointer-events-none"></div>
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
-              <div className="text-center mb-16 md:mb-24">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                   <Zap className="w-4 h-4 text-green-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-green-50">Athletics</span>
-                </div>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 tracking-tighter text-white">
-                  SPORT <span className="text-white/50 font-light">COMMITTEE</span>
-                </h2>
-                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto font-light">
-                  Fast-paced teams, electric energy — game on.
-                </p>
-              </div>
-            </div>
-
-            {/* Sports Organising Committee — always at the top if present */}
-            {organisingCommittee && (
-              <div className="relative overflow-hidden rounded-3xl scroll-animate opacity-0 transform translate-y-20 mb-24 pb-8">
-                <CommitteeBackgroundEffect committeeName={organisingCommittee.name || 'Logistics'} mode="background" />
-                <div className="text-center mb-12 relative z-10">
-                  <div className="inline-flex items-center bg-white/5 border border-white/10 text-white/70 px-4 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-semibold mb-6 backdrop-blur-md font-mono">
-                    <Shield className="w-3.5 h-3.5 mr-2 text-green-400" /> SPORT ORGANISING COMMITTEE
-                  </div>
-                  <h3 className="text-2xl md:text-4xl font-bold mb-4 tracking-tighter" style={{ color: organisingCommittee.color }}>
-                    {String(organisingCommittee.name || '').toUpperCase()}
-                  </h3>
-                  {organisingCommittee.description && (
-                    <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">{organisingCommittee.description}</p>
-                  )}
-                </div>
-
-                {/* Heads marquee for Organising Committee */}
-                {(() => {
-                  const heads = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => m.is_head);
-                  return heads.length > 0 ? (
-                    <div className="mb-12 relative z-10">
-                      <h4 className="text-sm tracking-widest uppercase font-semibold text-white/50 mb-6 text-center">
-                        <Crown className="w-4 h-4 text-green-400 inline mr-2" /> Heads
-                      </h4>
-                      <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none border-y border-white/5 bg-white/[0.01]">
-                        <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-[#030712] via-transparent to-[#030712] z-10 opacity-50"></div>
-                        <InfiniteMarquee
-                          items={heads}
-                          direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                          speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
-                          pauseOnHover={true}
-                          pauseOnTouch={true}
-                          instantPause={true}
-                          sideGutterPx={8}
-                          glowOnPause={true}
-                          adaptiveGlowOnPause={false}
-                          itemWrapperClassName="px-3"
-                          className="py-2"
-                          renderItem={(head: any) => (
-                            <div className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
-                              <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10 group">
-                                <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
-                              </div>
-                              <div className="font-bold text-white flex items-center mb-1"><Crown className="w-3.5 h-3.5 text-green-400 mr-2" /> {head.name}</div>
-                              <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{head.role}</div>
-                              <div className="mt-4">
-                                <button
-                                  className="w-full inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-white/70 transition-all uppercase tracking-widest"
-                                  onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
-                                >
-                                  Dossier
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        />
-                        {/* gradient fades */}
-                        <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-32 bg-gradient-to-r from-[#030712] to-transparent z-20" />
-                        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-32 bg-gradient-to-l from-[#030712] to-transparent z-20" />
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-
-                {/* Regular members grid for Organising Committee */}
-                {(() => {
-                  const regularMembers = (sportsMembersByCommittee[organisingCommittee.id] || []).filter(m => !m.is_head);
-                  return regularMembers.length > 0 ? (
-                    <div className="relative z-10">
-                      <h4 className="text-xs sm:text-sm uppercase tracking-widest font-semibold text-white/50 mb-6 text-center mt-12">Team Members</h4>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 md:gap-6 px-1 sm:px-0">
-                        {regularMembers.map((member, idx) => (
-                          <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} group transition-all duration-500 hover:-translate-y-1 hover:z-10`} style={{ animationDelay: `${idx * 0.12}s` }}>
-                            <div className="bg-white/[0.02] border border-white/5 backdrop-blur-xl h-full overflow-hidden p-2 rounded-2xl transition-all duration-500 group-hover:border-green-500/30 group-hover:bg-white/[0.04] group-hover:shadow-2xl group-hover:shadow-green-900/20">
-                              <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden rounded-xl bg-black/50">
-                                <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
-                                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
-                                <div className="absolute top-2 right-2">
-                                  <div className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
-                                    <Zap className="w-3 h-3 text-green-400" />
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="p-3 sm:p-4 text-center">
-                                <div className="text-sm sm:text-base font-bold text-white mb-1 tracking-tight">{member.name}</div>
-                                <div className="text-green-400/80 font-semibold text-[9px] uppercase tracking-widest sm:text-[10px] mb-3">{member.role}</div>
-                                <button
-                                  className="w-full inline-flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
-                                  onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
-                                  aria-label={`Dossier for ${member.name}`}
-                                >
-                                  Dossier
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-                <CommitteeBackgroundEffect committeeName={organisingCommittee.name || 'Logistics'} mode="foreground" />
-              </div>
-            )}
-
-            {/* Committees */}
-            <div className="space-y-16">
-              {enabledSportsCommittees
-                .filter(c => !organisingCommittee || c.id !== organisingCommittee.id)
-                .map((committee, committeeIndex) => {
-                const allCommitteeMembers = sportsMembersByCommittee[committee.id] || [];
-                const regularMembers = allCommitteeMembers.filter(member => !member.is_head);
-                if (allCommitteeMembers.length === 0) return null;
-
-                return (
-                  <div key={committee.id} className="relative overflow-hidden rounded-3xl scroll-animate opacity-0 transform translate-y-20 pb-8" style={{ animationDelay: `${committeeIndex * 0.25}s` }}>
-                    <CommitteeBackgroundEffect committeeName={committee.name} mode="background" />
-                    <div className="text-center mb-16 md:mb-20 relative z-10">
-                      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                         <Shield className="w-4 h-4 text-green-400" />
-                         <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-green-50">Sport Committee</span>
-                      </div>
-                      <h3 className="text-4xl md:text-6xl font-bold mb-4 tracking-tighter" style={{ color: committee.color }}>
-                        {committee.name.toUpperCase()}
-                      </h3>
-                      <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">{committee.description}</p>
-                    </div>
-
-                    {/* Heads (marquee-like row) */}
-                    {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
-                      <div className="mb-12 relative z-10">
-                        <h4 className="text-sm tracking-widest uppercase font-semibold text-white/50 mb-6 text-center">
-                          <Crown className="w-4 h-4 text-green-400 inline mr-2" /> Heads
-                        </h4>
-                        <div ref={sportsHeadsMarqueeRef} className="overflow-hidden relative w-screen left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] rounded-none border-y border-white/5 bg-white/[0.01]">
-                          <div className="pointer-events-none absolute inset-0 rounded-none bg-gradient-to-b from-[#030712] via-transparent to-[#030712] z-10 opacity-50"></div>
-                          <InfiniteMarquee
-                            items={allCommitteeMembers.filter(m => m.is_head)}
-                            direction={homepageSettings?.committee_marquee_direction ?? 'right'}
-                            speedPxPerSec={homepageSettings?.committee_marquee_speed_px_per_sec ?? 90}
-                            pauseOnHover={true}
-                            pauseOnTouch={true}
-                            instantPause={true}
-                            sideGutterPx={8}
-                            glowOnPause={true}
-                            adaptiveGlowOnPause={false}
-                            itemWrapperClassName="px-3"
-                            className="py-2"
-                            renderItem={(head: any) => (
-                              <div key={head.id} className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
-                                <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10 group">
-                                  <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
-                                </div>
-                                <div className="font-bold text-white flex items-center mb-1"><Crown className="w-3.5 h-3.5 text-green-400 mr-2" /> {head.name}</div>
-                                <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{head.role}</div>
-                                <div className="mt-4">
-                                  <button
-                                    className="w-full inline-flex items-center justify-center px-4 py-2 text-xs font-semibold rounded-full bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white text-white/70 transition-all uppercase tracking-widest"
-                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(head); setSportsModalOpen(true); }); }}
-                                  >
-                                    Dossier
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          />
-                          {/* gradient fades */}
-                          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 sm:w-32 bg-gradient-to-r from-[#030712] to-transparent z-20" />
-                          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 sm:w-32 bg-gradient-to-l from-[#030712] to-transparent z-20" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Team grid */}
-                    {regularMembers.length > 0 && (
-                      <div className="relative z-10">
-                        <h4 className="text-xs sm:text-sm uppercase tracking-widest font-semibold text-white/50 mb-6 text-center mt-12">Team Members</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4 md:gap-6 px-1 sm:px-0">
-                          {regularMembers.map((member, idx) => (
-                            <div key={member.id} className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} group transition-all duration-500 hover:-translate-y-1 hover:z-10`} style={{ animationDelay: `${(committeeIndex * 0.25) + (idx * 0.12)}s` }}>
-                              <div className="bg-white/[0.02] border border-white/5 backdrop-blur-xl h-full overflow-hidden p-2 rounded-2xl transition-all duration-500 group-hover:border-green-500/30 group-hover:bg-white/[0.04] group-hover:shadow-2xl group-hover:shadow-green-900/20">
-                                <div className="relative h-40 sm:h-44 md:h-48 overflow-hidden rounded-xl bg-black/50">
-                                  <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
-                                  <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90" />
-                                  <div className="absolute top-2 right-2">
-                                    <div className="w-6 h-6 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center">
-                                      <Zap className="w-3 h-3 text-green-400" />
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="p-3 sm:p-4 text-center">
-                                  <div className="text-sm sm:text-base font-bold text-white mb-1 tracking-tight">{member.name}</div>
-                                  <div className="text-green-400/80 font-semibold text-[9px] uppercase tracking-widest sm:text-[10px] mb-3">{member.role}</div>
-                                  <button
-                                    className="w-full inline-flex items-center justify-center px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold rounded-full bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all"
-                                    onClick={() => { startTransition(() => { setSelectedSportsPerson(member); setSportsModalOpen(true); }); }}
-                                    aria-label={`Dossier for ${member.name}`}
-                                  >
-                                    Dossier
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                           ))}
-                         </div>
-                       </div>
-                     )}
-                     <CommitteeBackgroundEffect committeeName={committee.name} mode="foreground" />
-                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
       {/* Legacy Core Team Section (fallback if no committees) */}
-  {/* Sports profile modal */}
-  <SportsProfileModal open={sportsModalOpen} onClose={() => startTransition(() => setSportsModalOpen(false))} person={selectedSportsPerson} />
       {enabledCommittees.length === 0 && (
         <section className="py-20 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>

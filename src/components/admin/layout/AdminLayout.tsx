@@ -15,7 +15,7 @@ import { HealthBadge } from '../HealthBadge';
 import { BRAND_NAME_WITH_YEAR } from '../../../constants/brand';
 import { CommandPalette } from './CommandPalette';
 
-export type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
+export type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
 
 interface AdminLayoutProps {
   user: any;
@@ -79,7 +79,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
      if (!groups[g]) groups[g] = [];
      groups[g].push(tab);
   });
-  const groupOrder = ['Dashboard', 'Content', 'Events & Schedule', 'Registrations', 'People', 'Security & System', 'Other'];
+  const groupOrder = ['Dashboard', 'Content', 'Events & Schedule', 'Registrations', 'People', 'Sports', 'Annual Sports', 'Security & System', 'Other'];
 
   return (
     <div className="h-screen bg-[#050508] text-gray-200 flex font-sans selection:bg-indigo-500/30 overflow-hidden superia-mesh-glow">

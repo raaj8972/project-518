@@ -627,7 +627,7 @@ export const exportRegistrationsToPDF = (
       (registrations.indexOf(reg) + 1).toString(), // S.No
       reg.id.substring(0, 8).toUpperCase(), // Registration No (using ID short hash as placeholder if no reg_no)
       reg.full_name,
-      reg.participant_type,
+      reg.participant_type || 'N/A',
       reg.event_title,
       teamInfo,
       reg.email,
@@ -915,7 +915,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[], waterm
     // Table data
     const tableData = eventRegs.map(reg => [
       reg.full_name,
-      reg.participant_type,
+      reg.participant_type || 'N/A',
       reg.is_team_registration ? `${reg.team_name} (${reg.total_members})` : 'Individual',
       reg.email,
       reg.phone,
@@ -1042,7 +1042,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
     // Table data
     const tableData = statusRegs.map(reg => [
       reg.full_name,
-      reg.participant_type,
+      reg.participant_type || 'N/A',
       reg.event_title,
       reg.is_team_registration ? `${reg.team_name} (${reg.total_members})` : 'Individual',
       reg.email,
@@ -1186,7 +1186,7 @@ export const generateRegistrationReceiptPDF = async (
     { label: 'Name', value: registration.full_name },
     { label: 'Email', value: registration.email },
     { label: 'Phone', value: registration.phone },
-    { label: 'Participant Type', value: registration.participant_type },
+    { label: 'Participant Type', value: registration.participant_type || 'N/A' },
     { label: 'Registration Date', value: new Date(registration.registration_date).toLocaleString('en-IN', {
       dateStyle: 'long',
       timeStyle: 'short',

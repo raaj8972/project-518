@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
-import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, Mail, Loader2, BarChart2 } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, Calendar, Clock, MapPin, Link as LinkIcon, Mail, Loader2, BarChart2, ScanText } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { AIScheduleScanner } from './schedule/AIScheduleScanner';
 
 export const ScheduleManagement = () => {
   const { schedule, addScheduleDay, deleteScheduleDay, addScheduleEvent, updateScheduleEvent, deleteScheduleEvent, events, siteSettings, updateSiteSettings } = useData();
@@ -10,6 +11,8 @@ export const ScheduleManagement = () => {
   // Schedule Type State
   const [activeTab, setActiveTab] = useState<'prelims' | 'mains'>(siteSettings?.default_schedule_type || 'prelims');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
   const [emailStats, setEmailStats] = useState({ sent: 0, pending: 0, total: 0 });
 
   // Fetch email statistics
@@ -319,6 +322,67 @@ export const ScheduleManagement = () => {
     return schedule.filter((day: any) => (day.schedule_type || 'prelims') === activeTab);
   }, [schedule, activeTab]);
 
+  const handleScanComplete = async (scannedSchedule: any[], scannedType: 'prelims' | 'mains') => {
+    setShowScanner(false);
+    setIsProcessingImport(true);
+    const toastId = toast.loading(`Importing ${scannedType.toUpperCase()} schedule into database...`);
+    
+    try {
+      let daysCount = 0;
+      let eventsCount = 0;
+      
+      for (const day of scannedSchedule) {
+        // Find existing day or create a new one
+        const existingDay = schedule.find((d: any) => 
+            d.date === day.date && d.day === day.day
+        );
+        
+        let targetDayId = existingDay?.id;
+        
+        if (!targetDayId) {
+            // Tag the title with schedule type for filtering
+            const dayTitle = day.title 
+              ? `[${scannedType.toUpperCase()}] ${day.title}` 
+              : `[${scannedType.toUpperCase()}]`;
+              
+            const addedDays: any = await addScheduleDay({
+              date: day.date || new Date().toISOString().split('T')[0],
+              day: day.day || 'Day 1',
+              title: dayTitle
+            });
+            targetDayId = addedDays?.[0]?.id;
+            daysCount++;
+        }
+        
+        if (!targetDayId) {
+            console.error('Could not determine Day ID for', day);
+            continue;
+        }
+        
+        // Add events
+        if (Array.isArray(day.events)) {
+           for (const evt of day.events) {
+              await addScheduleEvent(targetDayId, {
+                  title: evt.title || 'Untitled Event',
+                  time: evt.time || 'TBA',
+                  venue: evt.venue || '',
+                  type: evt.type || '',
+                  duration: evt.duration || ''
+              });
+              eventsCount++;
+           }
+        }
+      }
+      
+      toast.success(`${scannedType.toUpperCase()} schedule imported! Created ${daysCount} days and ${eventsCount} events.`, { id: toastId });
+    } catch (error: any) {
+      console.error('[ScheduleManagement] Scan import failed:', error);
+      toast.error(`Import failed: ${error.message}`, { id: toastId });
+    } finally {
+      setIsProcessingImport(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -362,7 +426,12 @@ export const ScheduleManagement = () => {
             <button
               onClick={async () => {
                   try {
-                      await updateSiteSettings({ default_schedule_type: activeTab });
+                      // Try DB first, fallback to localStorage
+                      try {
+                        await updateSiteSettings({ default_schedule_type: activeTab });
+                      } catch {
+                        localStorage.setItem('default_schedule_type', activeTab);
+                      }
                       toast.success(`${activeTab.toUpperCase()} is now the default view`);
                   } catch (error) {
                       toast.error('Failed to update default view');
@@ -382,6 +451,12 @@ export const ScheduleManagement = () => {
 
           {/* Action Buttons */}
           <div className="flex gap-3">
+             <button
+              onClick={() => setShowScanner(true)}
+              className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-5 py-2.5 rounded-xl hover:bg-indigo-500/30 transition-all flex items-center justify-center gap-2 font-bold shadow-lg text-sm uppercase tracking-widest"
+            >
+              <ScanText size={16} /> <span className="hidden sm:inline">AI Scan</span>
+            </button>
              <button
               onClick={() => setIsAddingDay(true)}
               className="bg-[#181824]/60 backdrop-blur-md border border-white/5 text-white px-5 py-2.5 rounded-xl hover:bg-white/5 transition-all flex items-center justify-center gap-2 font-bold shadow-lg text-sm uppercase tracking-widest"
@@ -432,6 +507,15 @@ export const ScheduleManagement = () => {
           </div>
         </div>
       </div>
+
+      {showScanner && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+             <AIScheduleScanner 
+                onScanComplete={handleScanComplete} 
+                onCancel={() => setShowScanner(false)} 
+             />
+         </div>
+      )}
 
       {isAddingDay && (
         <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 md:p-8 animate-in slide-in-from-top-4 duration-300 mb-8 border-l-4 border-l-cyan-500">

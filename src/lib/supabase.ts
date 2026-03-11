@@ -1682,6 +1682,310 @@ export interface Database {
           updated_at?: string
         }
       }
+      sports_seasons: {
+        Row: {
+          id: number
+          name: string
+          season: string
+          description: string
+          image: string
+          icon: string
+          max_teams: number
+          registration_open: boolean
+          owner_registration_open: boolean
+          player_registration_open: boolean
+          max_owners: number
+          max_players: number
+          owner_fee: number
+          player_fee: number
+          auction_status: 'draft' | 'live' | 'completed'
+          auction_starts_at: string | null
+          auction_days: number
+          enabled: boolean
+          order_position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          season?: string
+          description?: string
+          image?: string
+          icon?: string
+          max_teams?: number
+          registration_open?: boolean
+          owner_registration_open?: boolean
+          player_registration_open?: boolean
+          max_owners?: number
+          max_players?: number
+          owner_fee?: number
+          player_fee?: number
+          auction_status?: 'draft' | 'live' | 'completed'
+          auction_starts_at?: string | null
+          auction_days?: number
+          enabled?: boolean
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          season?: string
+          description?: string
+          image?: string
+          icon?: string
+          max_teams?: number
+          registration_open?: boolean
+          owner_registration_open?: boolean
+          player_registration_open?: boolean
+          max_owners?: number
+          max_players?: number
+          owner_fee?: number
+          player_fee?: number
+          auction_status?: 'draft' | 'live' | 'completed'
+          auction_starts_at?: string | null
+          auction_days?: number
+          enabled?: boolean
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_teams: {
+        Row: {
+          id: number
+          sport_id: number
+          name: string
+          short_name: string
+          color: string
+          logo: string
+          owner_name: string
+          owner_image: string
+          captain_name: string
+          enabled: boolean
+          order_position: number
+          played: number
+          wins: number
+          losses: number
+          draws: number
+          points: number
+          nrr: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          sport_id: number
+          name: string
+          short_name?: string
+          color?: string
+          logo?: string
+          owner_name?: string
+          owner_image?: string
+          captain_name?: string
+          enabled?: boolean
+          order_position?: number
+          played?: number
+          wins?: number
+          losses?: number
+          draws?: number
+          points?: number
+          nrr?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          sport_id?: number
+          name?: string
+          short_name?: string
+          color?: string
+          logo?: string
+          owner_name?: string
+          owner_image?: string
+          captain_name?: string
+          enabled?: boolean
+          order_position?: number
+          played?: number
+          wins?: number
+          losses?: number
+          draws?: number
+          points?: number
+          nrr?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_players: {
+        Row: {
+          id: number
+          sport_id: number
+          team_id: number | null
+          name: string
+          image: string
+          role: 'player' | 'captain' | 'vice_captain' | 'owner'
+          position: string
+          base_price: number
+          sold_price: number | null
+          sold_day: number | null
+          category: 'gold' | 'silver' | 'bronze' | 'emerging'
+          stats: any
+          status: 'available' | 'sold' | 'unsold' | 'retained'
+          is_motm_count: number
+          enabled: boolean
+          order_position: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          sport_id: number
+          team_id?: number | null
+          name: string
+          image?: string
+          role?: 'player' | 'captain' | 'vice_captain' | 'owner'
+          position?: string
+          base_price?: number
+          sold_price?: number | null
+          sold_day?: number | null
+          category?: 'gold' | 'silver' | 'bronze' | 'emerging'
+          stats?: any
+          status?: 'available' | 'sold' | 'unsold' | 'retained'
+          is_motm_count?: number
+          enabled?: boolean
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          sport_id?: number
+          team_id?: number | null
+          name?: string
+          image?: string
+          role?: 'player' | 'captain' | 'vice_captain' | 'owner'
+          position?: string
+          base_price?: number
+          sold_price?: number | null
+          sold_day?: number | null
+          category?: 'gold' | 'silver' | 'bronze' | 'emerging'
+          stats?: any
+          status?: 'available' | 'sold' | 'unsold' | 'retained'
+          is_motm_count?: number
+          enabled?: boolean
+          order_position?: number
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_registrations: {
+        Row: {
+          id: number
+          sport_id: number
+          name: string
+          email: string
+          phone: string
+          year_or_class: string
+          institution: string
+          position_preference: string
+          experience: string
+          status: 'pending' | 'approved' | 'rejected'
+          photo_url: string | null
+          metadata: any | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          sport_id: number
+          name: string
+          email?: string
+          phone?: string
+          year_or_class?: string
+          institution?: string
+          position_preference?: string
+          experience?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          photo_url?: string | null
+          metadata?: any | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          sport_id?: number
+          name?: string
+          email?: string
+          phone?: string
+          year_or_class?: string
+          institution?: string
+          position_preference?: string
+          experience?: string
+          status?: 'pending' | 'approved' | 'rejected'
+          photo_url?: string | null
+          metadata?: any | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      sports_matches: {
+        Row: {
+          id: number
+          sport_id: number
+          team_a_id: number | null
+          team_b_id: number | null
+          match_date: string | null
+          match_time: string | null
+          venue: string
+          round: string
+          score_a: string
+          score_b: string
+          winner_team_id: number | null
+          motm_player_id: number | null
+          highlights: string
+          status: 'upcoming' | 'completed' | 'cancelled'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          sport_id: number
+          team_a_id?: number | null
+          team_b_id?: number | null
+          match_date?: string | null
+          match_time?: string | null
+          venue?: string
+          round?: string
+          score_a?: string
+          score_b?: string
+          winner_team_id?: number | null
+          motm_player_id?: number | null
+          highlights?: string
+          status?: 'upcoming' | 'completed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          sport_id?: number
+          team_a_id?: number | null
+          team_b_id?: number | null
+          match_date?: string | null
+          match_time?: string | null
+          venue?: string
+          round?: string
+          score_a?: string
+          score_b?: string
+          winner_team_id?: number | null
+          motm_player_id?: number | null
+          highlights?: string
+          status?: 'upcoming' | 'completed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+        }
+      }
       }
     }
   }

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Building, Star, Eye, EyeOff, ExternalLink, Download, Mail, Award, Link as LinkIcon, FileText, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, X, Pencil, Trash2, Search, Filter, Loader2, Sparkles, Wand2, Medal, Crown, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { Sponsor, SponsorshipPackage, ContactSection } from '../../context/DataContext';
+import { InlineDescriptionAI } from './InlineDescriptionAI';
+import { AISponsorScanner } from './sponsors/AISponsorScanner';
+import { AITierScanner } from './sponsors/AITierScanner';
+import type { Sponsor, SponsorshipPackage, ContactSection } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
@@ -25,6 +28,9 @@ export const SponsorsManagement: React.FC = () => {
     deleteSponsorshipPackage,
     toggleSponsorshipPackageEnabled,
     updateSponsorshipSettings,
+    updateSponsorsOrder,
+    updatePackagesOrder,
+    contactSections,
     addContactSection,
     updateContactSection,
     deleteContactSection,
@@ -49,6 +55,8 @@ export const SponsorsManagement: React.FC = () => {
   const [isAddingContact, setIsAddingContact] = useState(false);
   const [editingContact, setEditingContact] = useState<number | null>(null);
   const [brochureMode, setBrochureMode] = useState<'upload' | 'url'>('upload');
+  const [showSponsorScanner, setShowSponsorScanner] = useState(false);
+  const [showTierScanner, setShowTierScanner] = useState(false);
 
   const [form, setForm] = useLocalStorage('admin_sponsor_form_draft', {
     name: '',
@@ -135,7 +143,7 @@ export const SponsorsManagement: React.FC = () => {
 
   const getIconComponent = (iconName: string) => {
     const IconComponent = (LucideIcons as any)[iconName];
-    return IconComponent || Award;
+    return IconComponent || Medal;
   };
 
   const resetForm = () => {
@@ -155,7 +163,7 @@ export const SponsorsManagement: React.FC = () => {
       tier: '',
       price: '',
       color: 'from-gray-500 to-gray-600',
-      icon: 'Award',
+      icon: 'Medal',
       benefits: [],
       order_position: sponsorshipPackages.length + 1,
       enabled: true
@@ -656,7 +664,7 @@ export const SponsorsManagement: React.FC = () => {
 
   // Expanded icon options to cover more package/partner names
   const iconOptions = [
-    'Award',
+    'Medal',
     'Crown',
     'Star',
     'Gem',
@@ -680,7 +688,7 @@ export const SponsorsManagement: React.FC = () => {
   const defaultIconForTier = (tier: string): string => {
     const t = (tier || '').toLowerCase();
     if (/title/.test(t)) return 'Crown';
-    if (/co\s*-?\s*sponsor/.test(t)) return 'Award';
+    if (/co\s*-?\s*sponsor/.test(t)) return 'Medal';
     if (/diamond|platinum/.test(t)) return 'Gem';
     if (/gold/.test(t)) return 'Trophy';
     if (/silver|bronze/.test(t)) return 'Medal';
@@ -690,7 +698,7 @@ export const SponsorsManagement: React.FC = () => {
     if (/hospitality|food|catering/.test(t)) return 'Utensils';
     if (/associate|partner/.test(t)) return 'Handshake';
     if (/patron|protector|guardian|safety|security/.test(t)) return 'ShieldCheck';
-    return 'Award';
+    return 'Medal';
   };
 
   const contactTypes = [
@@ -729,8 +737,195 @@ export const SponsorsManagement: React.FC = () => {
     }
   };
 
+  const handleSponsorScanComplete = async (scannedSponsors: any[]) => {
+    setShowSponsorScanner(false);
+    try {
+      let count = 0;
+      for (const sp of scannedSponsors) {
+        await addSponsor({
+          name: sp.name || 'Unknown Sponsor',
+          category: sp.category || 'Associate Sponsor',
+          logo: '',
+          description: sp.description || '',
+          website: sp.website || '',
+          order_position: sponsors.length + count + 1,
+        });
+        count++;
+      }
+      alert(`Successfully imported ${count} sponsors from AI scan!`);
+    } catch (error: any) {
+      console.error('[SponsorsManagement] AI import failed:', error);
+      alert(`Import failed: ${error.message}`);
+    }
+  };
+
+  const handleTierScanComplete = async (scannedTiers: any[]) => {
+    setShowTierScanner(false);
+    try {
+      let count = 0;
+      for (const tier of scannedTiers) {
+        await addSponsorshipPackage({
+          tier: tier.tier || `Tier ${count + 1}`,
+          price: tier.price || 'Contact Us',
+          color: tier.color || 'from-gray-500 to-gray-600',
+          icon: tier.icon || 'Medal',
+          benefits: tier.benefits || [],
+          order_position: tier.order_position || sponsorshipPackages.length + count + 1,
+          enabled: true,
+        });
+        count++;
+      }
+      alert(`Successfully created ${count} sponsorship tiers from brochure!`);
+    } catch (error: any) {
+      console.error('[SponsorsManagement] AI tier import failed:', error);
+      alert(`Import failed: ${error.message}`);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Sponsor Scanner Modal */}
+      {showSponsorScanner && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <AISponsorScanner
+            onScanComplete={handleSponsorScanComplete}
+            onCancel={() => setShowSponsorScanner(false)}
+          />
+        </div>
+      )}
+
+      {/* AI Tier/Brochure Scanner Modal */}
+      {showTierScanner && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <AITierScanner
+            onScanComplete={handleTierScanComplete}
+            onCancel={() => setShowTierScanner(false)}
+          />
+        </div>
+      )}
+
+      {/* Edit Sponsor Modal */}
+      {editing !== null && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-[#12121e] border border-amber-500/20 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl shadow-amber-900/30">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-[#12121e] border-b border-white/5 p-6 flex items-center justify-between rounded-t-3xl">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                  <Pencil size={20} className="text-amber-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Edit Sponsor</h2>
+                  <p className="text-gray-500 text-xs tracking-widest uppercase font-bold">Modify partner details</p>
+                </div>
+              </div>
+              <button onClick={() => { setEditing(null); resetForm(); }} className="p-2.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-xl transition-all">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Sponsor Name *</label>
+                    <input type="text" value={form.name}
+                      onChange={(e) => setForm((prev: any) => ({ ...prev, name: e.target.value }))}
+                      placeholder="Company or organization name"
+                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Category *</label>
+                    <select value={form.category}
+                      onChange={(e) => setForm((prev: any) => ({ ...prev, category: e.target.value }))}
+                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all">
+                      <option value="">Select category</option>
+                      {allCategories.map((cat: string) => (<option key={cat} value={cat}>{cat}</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest">Description</label>
+                      <InlineDescriptionAI
+                        contextName={form.name}
+                        contextType="sponsor"
+                        onDescriptionGenerated={(desc) => setForm((prev: any) => ({ ...prev, description: desc }))}
+                      />
+                    </div>
+                    <textarea value={form.description}
+                      onChange={(e) => setForm((prev: any) => ({ ...prev, description: e.target.value }))}
+                      rows={4} placeholder="Brief description about the sponsor"
+                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all resize-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Website URL</label>
+                    <input type="url" value={form.website}
+                      onChange={(e) => setForm((prev: any) => ({ ...prev, website: e.target.value }))}
+                      placeholder="https://sponsor-website.com"
+                      className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Display Order</label>
+                      <input type="number" value={form.order_position}
+                        onChange={(e) => setForm((prev: any) => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
+                        min="1"
+                        className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/50 transition-all" />
+                    </div>
+                    <div className="flex items-end pb-1">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <div className={`w-10 h-6 rounded-full transition-all flex items-center ${form.featured ? 'bg-amber-500 justify-end' : 'bg-white/10 justify-start'}`}>
+                          <div className={`w-5 h-5 rounded-full mx-0.5 transition-all ${form.featured ? 'bg-white shadow-lg' : 'bg-gray-500'}`}></div>
+                        </div>
+                        <span className="text-sm font-bold text-gray-300 group-hover:text-white">Featured</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-amber-400/80 uppercase tracking-widest mb-2">Sponsor Logo *</label>
+                    <ImageUpload
+                      onImageSelect={(url: string) => setForm((prev: any) => ({ ...prev, logo: url }))}
+                      currentImage={form.logo} bucket="sponsor-logos" folder="sponsors"
+                    />
+                  </div>
+                  {form.logo && (
+                    <div className="border border-white/5 rounded-xl p-4 bg-black/20">
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Preview</label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-black rounded-lg flex items-center justify-center overflow-hidden border border-white/10">
+                          <img src={form.logo} alt="Preview" className="max-w-full max-h-full object-contain p-1" />
+                        </div>
+                        <div>
+                          <p className="text-white font-bold">{form.name || 'Sponsor Name'}</p>
+                          <p className="text-gray-500 text-xs">{form.category || 'No category'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-[#12121e] border-t border-white/5 p-6 flex justify-end gap-3 rounded-b-3xl">
+              <button type="button" onClick={() => { setEditing(null); resetForm(); }}
+                className="px-6 py-2.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold text-sm flex items-center gap-2">
+                <X size={16} /> Cancel
+              </button>
+              <button type="button" onClick={() => handleUpdate(editing)}
+                className="px-8 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-amber-500/20 transition-all font-bold text-sm flex items-center gap-2">
+                <Save size={16} /> Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
@@ -740,7 +935,7 @@ export const SponsorsManagement: React.FC = () => {
             <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[10px] font-black text-amber-400 tracking-widest uppercase ml-2">v3.0</div>
           </h2>
           <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
-            <Award size={14} className="text-amber-400" />
+            <Medal size={14} className="text-amber-400" />
             Cultivating global ecosystem synergy
           </p>
         </div>
@@ -807,6 +1002,15 @@ export const SponsorsManagement: React.FC = () => {
             </div>
             <button
               type="button"
+              onClick={() => setShowSponsorScanner(true)}
+              className="superia-premium-button-amber group/btn relative overflow-hidden px-6 py-3 rounded-2xl flex items-center transition-all active:scale-95 mr-3"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-amber-500 group-hover/btn:opacity-90 transition-opacity"></div>
+              <Sparkles size={18} className="mr-2 relative z-10 text-white" />
+              <span className="font-black text-[11px] uppercase tracking-widest relative z-10 text-white">AI Scan</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setIsAdding(true);
                 resetForm();
@@ -854,6 +1058,7 @@ export const SponsorsManagement: React.FC = () => {
             <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-amber-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative overflow-hidden mb-8">
               <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
               <h3 className="text-2xl font-black text-white tracking-tight mb-8">Onboard New Partner</h3>
+
               <div className="grid lg:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <div>
@@ -887,7 +1092,14 @@ export const SponsorsManagement: React.FC = () => {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Description</label>
+                      <InlineDescriptionAI
+                        contextName={form.name}
+                        contextType="sponsor"
+                        onDescriptionGenerated={(desc) => setForm(prev => ({ ...prev, description: desc }))}
+                      />
+                    </div>
                     <textarea
                       value={form.description}
                       onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
@@ -990,86 +1202,15 @@ export const SponsorsManagement: React.FC = () => {
                     <div key={sponsor.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
                       <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                       {editing === sponsor.id ? (
-                        <div className="p-6 space-y-4">
-                          <input
-                            type="text"
-                            value={form.name}
-                            onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Sponsor name"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <select
-                            value={form.category}
-                            onChange={(e) => setForm(prev => ({ ...prev, category: e.target.value }))}
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          >
-                            <option value="">Select category</option>
-                            {/* Allow selecting both package-derived and existing sponsor-only categories to avoid losing current values */}
-                            {allCategories.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
-                            ))}
-                          </select>
-                          <textarea
-                            value={form.description}
-                            onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                            rows={3}
-                            placeholder="Description"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <input
-                            type="url"
-                            value={form.website}
-                            onChange={(e) => setForm(prev => ({ ...prev, website: e.target.value }))}
-                            placeholder="Website URL"
-                            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                          />
-                          <div className="grid grid-cols-2 gap-4">
-                            <input
-                              type="number"
-                              value={form.order_position}
-                              onChange={(e) => setForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))}
-                              min="1"
-                              placeholder="Display order"
-                              className="p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
-                            />
-                            <label className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={form.featured}
-                                onChange={(e) => setForm(prev => ({ ...prev, featured: e.target.checked }))}
-                                className="mr-2"
-                              />
-                              <span className="text-sm">Featured</span>
-                            </label>
+                        /* Edit handled by modal below */
+                        <div className="p-6 text-center">
+                          <div className="w-12 h-12 mx-auto rounded-full bg-amber-500/20 flex items-center justify-center mb-3">
+                            <Edit size={20} className="text-amber-400" />
                           </div>
-                          <ImageUpload
-                            onImageSelect={(url) => setForm(prev => ({ ...prev, logo: url }))}
-                            currentImage={form.logo}
-                            bucket="sponsor-logos"
-                            folder="sponsors"
-                            className="h-32"
-                          />
-                          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4 border-t border-gray-200 mt-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditing(null);
-                                resetForm();
-                              }}
-                              className="w-full sm:w-auto px-4 py-2 text-gray-600 hover:text-gray-800 flex items-center justify-center"
-                            >
-                              <X size={14} className="mr-1" />
-                              Cancel
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleUpdate(sponsor.id)}
-                              className="w-full sm:w-auto px-4 py-2 bg-yellow-400 text-black rounded hover:bg-yellow-300 flex items-center justify-center"
-                            >
-                              <Save size={14} className="mr-1" />
-                              Save
-                            </button>
-                          </div>
+                          <p className="text-white font-bold">Editing in modal…</p>
+                          <button onClick={() => { setEditing(null); resetForm(); }} className="mt-3 text-sm text-gray-400 hover:text-white transition-colors">
+                            Close Editor
+                          </button>
                         </div>
                       ) : (
                         <>
@@ -1256,17 +1397,27 @@ export const SponsorsManagement: React.FC = () => {
               <h3 className="text-xl font-semibold text-gray-900">Sponsorship Packages ({sponsorshipPackages.length})</h3>
               <p className="text-gray-600">Manage sponsorship tiers and pricing</p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddingPackage(true);
-                resetPackageForm();
-              }}
-              className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
-            >
-              <Plus size={16} className="mr-2" />
-              Add Package
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowTierScanner(true)}
+                className="bg-gradient-to-r from-pink-500 to-yellow-500 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all flex items-center font-bold text-sm"
+              >
+                <FileImage size={16} className="mr-2" />
+                AI Brochure Scan
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingPackage(true);
+                  resetPackageForm();
+                }}
+                className="bg-yellow-400 text-black px-4 py-2 rounded-lg hover:bg-yellow-300 transition-colors flex items-center"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Package
+              </button>
+            </div>
           </div>
 
           {/* Add Package Form */}
@@ -1301,7 +1452,7 @@ export const SponsorsManagement: React.FC = () => {
                       type="text"
                       value={packageForm.price}
                       onChange={(e) => setPackageForm(prev => ({ ...prev, price: e.target.value }))}
-                      placeholder="e.g., ₹50,000, Contact Us"
+                      placeholder="e.g., $50,000, Contact Us"
                       className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-gray-900"
                     />
                   </div>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2 } from 'lucide-react';
+import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+import { dualRead } from '../lib/dualDb';
 import confetti from 'canvas-confetti';
-import 'canvas-confetti'; // Ensure side-effects if needed, though mostly used as default import
+import 'canvas-confetti'; 
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -14,6 +14,11 @@ interface RegistrationModalProps {
   eventTitle: string;
   previewOverrides?: any;
 }
+
+// ─── Styling tokens ─────────────────────────────
+const inputCls = 'w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-3.5 pl-11 pr-4 text-[15px] text-white placeholder-white/20 focus:outline-none focus:bg-white/[0.07] focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/30 focus:shadow-[0_0_20px_rgba(99,102,241,0.08)] transition-all duration-300';
+const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2 ml-1';
+const iconCls = 'absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors duration-300';
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose, eventId, eventTitle, previewOverrides }) => {
   const { events, siteSettings, addRegistration, user: dbUser } = useData() as any;
@@ -25,7 +30,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string>('');
 
-  // Form State
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -36,11 +40,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     team_members: [] as { name: string; email?: string }[]
   });
 
-  // Get Event & Settings (or use overrides for preview)
   const event = previewOverrides?.events?.find((e: any) => e.id === eventId) || events.find((e: any) => e.id === eventId);
   const settings = previewOverrides?.siteSettings || siteSettings;
 
-  // Derive Configuration
   const isTeamAllowed = event?.registration_default_mode === 'team' || !event?.registration_mode_locked;
   const minTeamSize = event?.team_min_members || 2;
   const maxTeamSize = event?.team_max_members || 5;
@@ -52,21 +54,17 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const showInstitution = settings?.registration_institution_visible !== false;
   const isInstitutionOptional = settings?.registration_institution_optional === true;
 
-  // Pre-fill user data if logged in
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setStep('form');
       setLoading(false);
       setError(null);
-      // Only set mode if not already set or force default if needed
       if (event?.registration_default_mode) {
            setMode(event.registration_default_mode === 'team' ? 'team' : 'individual');
       }
     }
-  }, [isOpen]); // Only runs when open state changes
+  }, [isOpen]); 
 
-  // Pre-fill user data if logged in
   useEffect(() => {
     if (isOpen && user) {
       setFormData(prev => ({
@@ -76,21 +74,19 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         institution: (dbUser as any)?.institution || prev.institution, 
       }));
     }
-  }, [isOpen, user, dbUser]); // Runs when user data loads
+  }, [isOpen, user, dbUser]); 
 
-  // Auto-close on success
   useEffect(() => {
     if (step === 'success') {
       const timer = setTimeout(() => {
         onClose();
-      }, 60000); // 1 minute
+      }, 60000); 
       return () => clearTimeout(timer);
     }
   }, [step, onClose]);
 
-  // Team Member Management
   const addTeamMember = () => {
-    if (formData.team_members.length < maxTeamSize - 1) { // -1 because captain counts as 1
+    if (formData.team_members.length < maxTeamSize - 1) { 
       setFormData(prev => ({
         ...prev,
         team_members: [...prev.team_members, { name: '', email: '' }]
@@ -115,7 +111,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     e.preventDefault();
     setError(null);
 
-    // Validation
     if (!formData.name.trim()) return setError('Name is required.');
     if (!formData.email.trim()) return setError('Email is required.');
     if (!formData.phone.trim() || formData.phone.length < 10) return setError('Valid phone number is required.');
@@ -126,23 +121,20 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       if (!formData.team_name.trim()) return setError('Team Name is required.');
       const currentSize = 1 + formData.team_members.filter(m => m.name.trim()).length;
       if (currentSize < minTeamSize) return setError(`Team must have at least ${minTeamSize} members.`);
-      
-      // Check for empty member names
       if (formData.team_members.some(m => !m.name.trim())) return setError('All team member names are required.');
     }
 
       setLoading(true);
       
-      // Generate sequential ID
       let newId = 'RICO1';
       try {
-        const { data: lastReg } = await supabase
-          .from('registrations')
-          .select('id')
-          .like('id', 'RICO%')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+        const { data } = await dualRead({
+          table: 'registrations',
+          order: ['created_at', { ascending: false }],
+          limit: 1
+        });
+        
+        const lastReg = Array.isArray(data) ? data[0] : null;
 
         if (lastReg && lastReg.id) {
            const match = lastReg.id.match(/^RICO(\d+)$/);
@@ -159,20 +151,21 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       }
 
       try {
-      // Prepare payload
-      const payload = {
+      const payload: any = {
         event_id: eventId,
         event_title: eventTitle,
         is_team_registration: mode === 'team',
-        team_name: mode === 'team' ? formData.team_name : undefined,
+        team_name: mode === 'team' ? formData.team_name : null,
         full_name: formData.name,
         email: formData.email,
         phone: formData.phone,
         college: formData.institution,
         participant_type: formData.participant_type,
-        team_members: mode === 'team' ? formData.team_members : undefined,
+        team_members: mode === 'team' ? formData.team_members : null,
         total_members: mode === 'team' ? (formData.team_members.length + 1) : 1,
         registration_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        status: 'pending',
         id: newId,
       };
 
@@ -182,33 +175,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         await addRegistration(payload);
       }
       
-      // Success!
       setStep('success');
-      // Store ID in state for display if needed, but for now we can rely on it being the last action? 
-      // Better to pass it to success view. We'll use a temp state or just component state.
-      // Let's use a ref or state for the success ID.
       setSuccessId(newId);
 
       confetti({
         particleCount: 150,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] // Purple, Indigo, Pink, White
+        colors: ['#a855f7', '#6366f1', '#ec4899', '#ffffff'] 
       });
 
     } catch (err: any) {
       console.error(err);
       const msg = err?.message || '';
       if (msg.includes('duplicate key value') || msg.includes('unique constraint')) {
-        // Try to find existing ID from database
         let existingId = null;
         try {
-          const { data: existingReg } = await supabase
-            .from('registrations')
-            .select('id')
-            .eq('email', formData.email)
-            .eq('event_id', eventId)
-            .maybeSingle();
+          const { data } = await dualRead({
+            table: 'registrations',
+            eq: ['email', formData.email],
+            maybeSingle: false
+          });
+          const existingReg = (data || []).find((r: any) => r.event_id === eventId);
           if (existingReg) existingId = existingReg.id;
         } catch (e) { /* ignore */ }
 
@@ -230,96 +218,108 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
   return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true">
-      {/* Backdrop */}
+      {/* Overlay */}
       <div 
-        className="absolute inset-0 bg-[#0f0f1a]/80 backdrop-blur-xl animate-in fade-in duration-300"
+        className="absolute inset-0 bg-black/70 backdrop-blur-2xl animate-in fade-in duration-300"
         onClick={onClose}
       />
 
-      {/* Modal Container */}
-      <div className="relative w-full max-w-2xl bg-[#13131f] border border-white/10 rounded-3xl shadow-2xl shadow-purple-900/20 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      {/* Modal */}
+      <div className="relative w-full max-w-2xl bg-[#0a0a12]/95 backdrop-blur-3xl border border-white/[0.06] rounded-[28px] shadow-[0_32px_100px_-20px_rgba(99,102,241,0.25)] overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-6 duration-500">
         
-        {/* Glow Effects */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500" />
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Top gradient bar */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/60 to-transparent" />
+        
+        {/* Ambient glow orbs */}
+        <div className="absolute -top-32 -right-32 w-64 h-64 bg-indigo-600/15 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Close Button */}
+        {/* Close button */}
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 rounded-full transition-all z-10"
+          className="absolute top-5 right-5 p-2.5 text-white/20 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/10 rounded-xl transition-all duration-300 z-10"
         >
-          <X size={20} />
+          <X size={16} />
         </button>
 
-        {/* Content */}
         {step === 'form' ? (
            <div className="flex flex-col h-full overflow-hidden">
-              <div className="p-6 pb-2 shrink-0">
-                 <h2 className="text-2xl font-bold text-white tracking-tight pr-8">{eventTitle}</h2>
-                 <p className="text-gray-400 text-sm mt-1">Complete your registration below.</p>
+              {/* Header */}
+              <div className="p-7 pb-4 shrink-0">
+                 <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                       <Sparkles size={12} className="text-white" />
+                    </div>
+                    <span className="text-[10px] font-black text-indigo-400/60 uppercase tracking-[0.2em]">Event Registration</span>
+                 </div>
+                 <h2 className="text-2xl font-black text-white tracking-tight pr-10 leading-tight">{eventTitle}</h2>
+                 <p className="text-white/30 text-sm mt-1.5 font-medium">Complete the form below to secure your spot.</p>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 pt-2 custom-scrollbar space-y-6">
+              {/* Scrollable form body */}
+              <div className="flex-1 overflow-y-auto px-7 pb-4 custom-scrollbar space-y-6">
                  
-                 {/* Mode Switcher */}
+                 {/* Mode toggle */}
                  {isTeamAllowed && (
-                   <div className="flex p-1 bg-black/20 rounded-xl border border-white/5 relative">
+                   <div className="flex p-1.5 bg-white/[0.02] rounded-2xl border border-white/[0.05] relative">
                       <div 
-                        className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white/10 rounded-lg border border-white/10 shadow-sm transition-all duration-300 ease-out"
-                        style={{ left: mode === 'team' ? 'calc(50% + 2px)' : '2px' }}
+                        className="absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] bg-gradient-to-r from-indigo-500/15 to-purple-500/15 rounded-xl border border-indigo-500/20 shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all duration-500 ease-out"
+                        style={{ left: mode === 'team' ? 'calc(50% + 3px)' : '6px' }}
                       />
                       <button 
                         type="button"
                         onClick={() => setMode('individual')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider relative z-10 transition-colors ${mode === 'individual' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-xl text-sm font-black uppercase tracking-wider relative z-10 transition-all duration-300 ${mode === 'individual' ? 'text-white' : 'text-white/25 hover:text-white/40'}`}
                       >
-                         <User size={16} /> Individual
+                         <User size={15} /> Individual
                       </button>
                       <button 
                         type="button"
                         onClick={() => setMode('team')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider relative z-10 transition-colors ${mode === 'team' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`flex-1 flex items-center justify-center gap-2.5 py-3 rounded-xl text-sm font-black uppercase tracking-wider relative z-10 transition-all duration-300 ${mode === 'team' ? 'text-white' : 'text-white/25 hover:text-white/40'}`}
                       >
-                         <Users size={16} /> Team
+                         <Users size={15} /> Team
                       </button>
                    </div>
                  )}
 
-                 {/* Main Form Fields */}
-                 <div className="space-y-4">
+                 {/* Form Fields */}
+                 <div className="space-y-5">
+                    {/* Name */}
                     <div className="group">
-                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Full Name<span className="text-red-500 ml-1">*</span></label>
+                       <label className={labelCls}>Full Name <span className="text-rose-400">*</span></label>
                        <div className="relative">
-                          <User className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
+                          <User className={iconCls} size={16} />
                           <input 
                             type="text" 
                             value={formData.name}
                             onChange={e => setFormData(p => ({...p, name: e.target.value}))}
-                            placeholder="John Doe"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
+                            placeholder="Enter your full name"
+                            className={inputCls}
                           />
                        </div>
                     </div>
 
+                    {/* Email + Phone row */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Email<span className="text-red-500 ml-1">*</span></label>
+                          <label className={labelCls}>Email <span className="text-rose-400">*</span></label>
                           <div className="relative">
-                              <Mail className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
+                              <Mail className={iconCls} size={16} />
                               <input 
                                 type="email" 
                                 value={formData.email}
                                 onChange={e => setFormData(p => ({...p, email: e.target.value}))}
-                                placeholder="john@example.com"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
+                                placeholder="you@example.com"
+                                className={inputCls}
                               />
                           </div>
                        </div>
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Phone<span className="text-red-500 ml-1">*</span></label>
+                          <label className={labelCls}>Phone <span className="text-rose-400">*</span></label>
                           <div className="relative">
-                              <Phone className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
+                              <Phone className={iconCls} size={16} />
                               <input 
                                 type="tel" 
                                 value={formData.phone}
@@ -328,93 +328,99 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                                   setFormData(p => ({...p, phone: val}));
                                 }}
                                 placeholder="9876543210"
-                                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
+                                className={inputCls}
                               />
                           </div>
                        </div>
                     </div>
 
+                    {/* Institution */}
                     {showInstitution && (
                       <div className="group">
-                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">
+                         <label className={labelCls}>
                            Institution / College
-                           {!isInstitutionOptional && <span className="text-red-500 ml-1">*</span>}
-                           {isInstitutionOptional && <span className="ml-2 text-gray-600 font-normal normal-case">(Optional)</span>}
+                           {!isInstitutionOptional && <span className="text-rose-400 ml-1">*</span>}
+                           {isInstitutionOptional && <span className="ml-2 text-white/15 font-medium normal-case tracking-normal">(Optional)</span>}
                          </label>
                          <div className="relative">
-                            <Building2 className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
+                            <Building2 className={iconCls} size={16} />
                             <input 
                               type="text" 
                               value={formData.institution}
                               onChange={e => setFormData(p => ({...p, institution: e.target.value}))}
-                              placeholder="Your University / College Name"
-                              className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
+                              placeholder="Your university or college"
+                              className={inputCls}
                             />
                          </div>
                       </div>
                     )}
 
+                    {/* Participant Type */}
                     <div className="group">
-                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Participant Type<span className="text-red-500 ml-1">*</span></label>
+                       <label className={labelCls}>Participant Type <span className="text-rose-400">*</span></label>
                        <div className="relative">
-                          <BookOpen className="absolute left-3.5 top-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" size={18} />
+                          <BookOpen className={iconCls} size={16} />
                           <select 
                             value={formData.participant_type}
                             onChange={e => setFormData(p => ({...p, participant_type: e.target.value}))}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-10 pr-10 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all appearance-none [&>option]:bg-[#13131f]"
+                            className={`${inputCls} appearance-none cursor-pointer [&>option]:bg-[#0a0a12] [&>option]:text-white`}
                           >
-                             <option value="">Select Option...</option>
+                             <option value="">Select option...</option>
                              {participantTypes.map((t: string) => (
                                <option key={t} value={t}>{t}</option>
                              ))}
                           </select>
-                          <ChevronRight className="absolute right-3.5 top-3.5 text-gray-600 rotate-90 pointer-events-none" size={16} />
+                          <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-white/15 rotate-90 pointer-events-none" size={14} />
                        </div>
                     </div>
                  </div>
 
                  {/* Team Section */}
                  {mode === 'team' && (
-                    <div className="space-y-4 pt-4 border-t border-white/5 animate-in slide-in-from-top-4">
-                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                          <Users className="text-purple-400" size={16} />
-                          Team Details
-                       </h3>
+                    <div className="space-y-5 pt-5 border-t border-white/[0.04] animate-in slide-in-from-top-4 duration-500">
+                       <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-purple-500/15 border border-purple-500/20 flex items-center justify-center">
+                             <Users className="text-purple-400" size={13} />
+                          </div>
+                          <h3 className="text-sm font-black text-white tracking-tight">Team Details</h3>
+                       </div>
                        
                        <div className="group">
-                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-1.5 ml-1">Team Name<span className="text-red-500 ml-1">*</span></label>
+                          <label className={labelCls}>Team Name <span className="text-rose-400">*</span></label>
                           <input 
                             type="text" 
                             value={formData.team_name}
                             onChange={e => setFormData(p => ({...p, team_name: e.target.value}))}
-                            placeholder="Radical Racers"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder-gray-600 focus:outline-none focus:bg-white/10 focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 transition-all"
+                            placeholder="Enter your team name"
+                            className="w-full bg-white/[0.04] border border-white/[0.08] rounded-2xl py-3.5 px-4 text-[15px] text-white placeholder-white/20 focus:outline-none focus:bg-white/[0.07] focus:border-purple-500/40 focus:ring-1 focus:ring-purple-500/30 transition-all duration-300"
                           />
                        </div>
 
                        <div className="space-y-3">
                           <div className="flex justify-between items-center">
-                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Team Members<span className="text-red-500 ml-1">*</span></label>
-                             <span className="text-[10px] text-gray-400 uppercase tracking-wider">{formData.team_members.length + 1} / {maxTeamSize} Members</span>
+                             <label className={labelCls + ' mb-0'}>Team Members <span className="text-rose-400">*</span></label>
+                             <span className="text-[10px] font-bold text-white/20 uppercase tracking-wider bg-white/[0.03] px-2.5 py-1 rounded-lg">
+                               {formData.team_members.length + 1} / {maxTeamSize}
+                             </span>
                           </div>
                           
                           {formData.team_members.map((member, idx) => (
-                             <div key={idx} className="flex gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                                <div className="flex-1 space-y-2">
+                             <div key={idx} className="flex gap-2 animate-in fade-in slide-in-from-left-3 duration-300">
+                                <div className="flex-1">
                                    <input 
                                       type="text"
                                       value={member.name}
                                       onChange={e => updateTeamMember(idx, 'name', e.target.value)}
-                                      placeholder={`Member ${idx + 2} Name *`}
-                                      className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-sm text-white focus:outline-none focus:border-purple-500/50"
+                                      placeholder={`Member ${idx + 2} name`}
+                                      className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl py-2.5 px-4 text-sm text-white placeholder-white/20 focus:outline-none focus:border-purple-500/40 transition-all duration-300"
                                    />
                                 </div>
                                 <button 
                                   type="button"
                                   onClick={() => removeTeamMember(idx)}
-                                  className="px-3 rounded-lg border border-white/5 hover:bg-white/5 text-gray-500 hover:text-red-400 transition-colors"
+                                  className="px-3 rounded-xl border border-white/[0.05] bg-white/[0.02] hover:bg-rose-500/10 hover:border-rose-500/20 text-white/20 hover:text-rose-400 transition-all duration-300"
                                 >
-                                  <X size={16} />
+                                  <X size={14} />
                                 </button>
                              </div>
                           ))}
@@ -423,58 +429,76 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                              <button 
                                type="button"
                                onClick={addTeamMember}
-                               className="w-full py-2 border border-dashed border-white/10 rounded-lg text-xs font-bold text-gray-500 uppercase tracking-widest hover:text-white hover:border-white/20 transition-all"
+                               className="w-full py-3 border border-dashed border-white/[0.06] rounded-2xl text-[10px] font-black text-white/20 uppercase tracking-[0.15em] hover:text-white/40 hover:border-white/15 hover:bg-white/[0.02] transition-all duration-300"
                              >
-                               + Add Member
+                               + Add Team Member
                              </button>
                           )}
                        </div>
                     </div>
                  )}
 
-                 {/* Error Message */}
+                 {/* Error Alert */}
                  {error && (
-                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-start gap-3 animate-in shake">
-                       <AlertCircle className="text-red-400 shrink-0 mt-0.5" size={18} />
-                       <div className="text-sm text-red-200">{error}</div>
+                    <div className="bg-rose-500/10 border border-rose-500/15 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                       <AlertCircle className="text-rose-400 shrink-0 mt-0.5" size={16} />
+                       <div className="text-sm text-rose-200/80 font-medium leading-relaxed">{error}</div>
                     </div>
                  )}
               </div>
               
-              {/* Footer */}
-              <div className="p-6 border-t border-white/5 bg-[#0f0f1a]/50 backdrop-blur-md shrink-0">
+              {/* Submit footer */}
+              <div className="p-7 pt-5 border-t border-white/[0.04] bg-black/20 backdrop-blur-md shrink-0">
                  <button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl font-bold text-sm uppercase tracking-widest shadow-lg shadow-purple-900/20 hover:shadow-purple-900/40 transform active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                    className="w-full py-4 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:via-indigo-400 hover:to-purple-500 text-white rounded-2xl font-black text-sm uppercase tracking-[0.15em] shadow-[0_8px_32px_-4px_rgba(99,102,241,0.4)] hover:shadow-[0_8px_40px_-4px_rgba(99,102,241,0.55)] transform active:scale-[0.98] transition-all duration-300 flex items-center justify-center gap-2.5 disabled:opacity-40 disabled:pointer-events-none"
                  >
-                    {loading ? <Loader2 className="animate-spin" size={20} /> : <div className="flex items-center gap-2">Confirm Registration <ChevronRight size={18} /></div>}
+                    {loading ? <Loader2 className="animate-spin" size={18} /> : <div className="flex items-center gap-2.5">Confirm Registration <ChevronRight size={16} /></div>}
                  </button>
               </div>
            </div>
         ) : (
-           /* Success Step */
-           <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-in zoom-in-50 duration-500">
-              <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center shadow-2xl shadow-emerald-500/30 mb-6">
-                 <Check size={48} className="text-white" strokeWidth={4} />
+           /* ═══ Success Screen ═══ */
+           <div className="flex flex-col items-center justify-center h-full p-10 text-center animate-in zoom-in-50 duration-700">
+              {/* Animated success ring */}
+              <div className="relative mb-8">
+                 <div className="absolute inset-0 w-28 h-28 rounded-full bg-emerald-500/20 animate-ping" style={{ animationDuration: '2s' }} />
+                 <div className="relative w-28 h-28 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.3)]">
+                    <Check size={48} className="text-white" strokeWidth={3.5} />
+                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">You're In!</h2>
-              <p className="text-gray-400 max-w-sm mb-8 leading-relaxed">
-                 Your registration for <span className="text-purple-400 font-bold">{eventTitle}</span> was successful!
-                 <br/><br/>
-                 <span className="text-white bg-white/10 px-3 py-1 rounded-lg border border-white/10">ID: <span className="font-mono font-bold text-purple-300">{successId}</span></span>
-                 <br/><br/>
-                 We have sent the ticket and further details to your email.
+
+              <div className="flex items-center gap-2 mb-3">
+                 <PartyPopper size={18} className="text-yellow-400" />
+                 <span className="text-[10px] font-black text-emerald-400/60 uppercase tracking-[0.2em]">Registration Complete</span>
+                 <PartyPopper size={18} className="text-yellow-400 scale-x-[-1]" />
+              </div>
+
+              <h2 className="text-3xl font-black text-white mb-3 tracking-tight">You're In!</h2>
+              
+              <p className="text-white/30 max-w-sm mb-8 leading-relaxed text-sm font-medium">
+                 Your registration for <span className="text-indigo-400 font-bold">{eventTitle}</span> was successful!
+              </p>
+
+              {/* Registration ID badge */}
+              <div className="mb-8 bg-white/[0.03] border border-white/[0.06] rounded-2xl px-6 py-4 inline-flex flex-col items-center gap-1">
+                 <span className="text-[10px] font-black text-white/20 uppercase tracking-[0.15em]">Registration ID</span>
+                 <span className="font-mono font-black text-2xl text-indigo-400 tracking-wider">{successId}</span>
+              </div>
+
+              <p className="text-white/20 text-xs mb-8 max-w-xs font-medium leading-relaxed">
+                 We've sent the ticket and further details to your email address.
               </p>
               
               <div className="space-y-3 w-full max-w-xs">
                  <button
                     onClick={onClose}
-                    className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 text-white rounded-xl font-bold text-sm uppercase tracking-widest transition-all"
+                    className="w-full py-3.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/10 text-white rounded-2xl font-black text-sm uppercase tracking-[0.1em] transition-all duration-300"
                  >
-                    Close Now
+                    Close
                  </button>
-                 <p className="text-[10px] text-gray-500 animate-pulse">Closing automatically in 1 minute...</p>
+                 <p className="text-[10px] text-white/15 font-bold animate-pulse">Auto-closing in 1 minute…</p>
               </div>
            </div>
         )}

@@ -68,23 +68,22 @@ export const CoordinatorLogin: React.FC = () => {
       const event = enabledEvents.find((ev: any) => String(ev.id) === selectedEventId);
       if (!event) throw new Error('Event not found');
 
-      const { supabase } = await import('../lib/supabase');
+      // Firestore-based password check
+      // We already have the event details in 'enabledEvents' via DataContext/Firestore
+      const storedPass = event.coordinator_password ? String(event.coordinator_password).trim() : null;
       
-      const { data: loginResult, error } = await supabase.rpc('login_coordinator', {
-        event_id_param: event.id,
-        password_param: password.trim()
-      });
-
-      if (error) throw error;
-      if (!loginResult || !loginResult.token) {
-        throw new Error('Login failed: Invalid credentials');
+      if (!storedPass || storedPass !== password.trim()) {
+        throw new Error('Invalid access code');
       }
+
+      // Generate a temporary session token (client-side since we are fully client-side now)
+      const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
       const session = {
         eventId: event.id,
         eventTitle: event.title,
-        token: loginResult.token,
-        expiresAt: loginResult.expires_at,
+        token: sessionToken,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24h
         timestamp: Date.now()
       };
       
@@ -95,7 +94,7 @@ export const CoordinatorLogin: React.FC = () => {
     } catch (error: any) {
       console.error('Login error:', error);
       push({ 
-        message: error.message === 'Invalid access code' ? 'Invalid access code' : (error.message || 'Login failed'), 
+        message: error.message || 'Login failed', 
         type: 'error' 
       });
     } finally {

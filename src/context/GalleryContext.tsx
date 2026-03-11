@@ -5,7 +5,7 @@ import {
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
-import { fetchAllGalleryImages, DEFAULT_GALLERY_SETTINGS } from '../utils/dataUtils';
+import { DEFAULT_GALLERY_SETTINGS } from '../utils/dataUtils';
 
 interface GalleryContextType {
   galleryImages: GalleryImage[];
@@ -39,12 +39,28 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const fetchGalleryData = useCallback(async () => {
     try {
       const [imagesRes, settingsRes] = await Promise.all([
-        fetchAllGalleryImages(),
-        supabase.from('gallery_settings').select('*').eq('id', 1).maybeSingle()
+        supabase
+          .from('gallery_images')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('gallery_settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle()
       ]);
 
-      if (!imagesRes.error) setGalleryImages(imagesRes.data || []);
-      if (!settingsRes.error) setGallerySettings(settingsRes.data || DEFAULT_GALLERY_SETTINGS);
+      if (imagesRes.error) {
+        console.error('[GalleryContext] Supabase gallery_images error:', imagesRes.error.message);
+      } else {
+        setGalleryImages(imagesRes.data || []);
+      }
+
+      if (settingsRes.error) {
+        console.error('[GalleryContext] Supabase gallery_settings error:', settingsRes.error.message);
+      } else {
+        setGallerySettings(settingsRes.data || DEFAULT_GALLERY_SETTINGS);
+      }
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
@@ -58,38 +74,50 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshTrigger, user?.id, fetchGalleryData]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
-    const { error } = await supabase.from('gallery_images').insert(image);
-    if (error) throw error;
+    const { error } = await supabase
+      .from('gallery_images')
+      .insert(image);
+    if (error) throw new Error(`[GalleryContext] insert failed: ${error.message}`);
     await fetchGalleryData();
   };
 
   const updateGalleryImage = async (id: number, image: Partial<GalleryImage>) => {
-    const { error } = await supabase.from('gallery_images').update(image).eq('id', id);
-    if (error) throw error;
+    const { error } = await supabase
+      .from('gallery_images')
+      .update(image)
+      .eq('id', id);
+    if (error) throw new Error(`[GalleryContext] update failed: ${error.message}`);
     await fetchGalleryData();
   };
 
   const deleteGalleryImage = async (id: number) => {
-    const { error } = await supabase.from('gallery_images').delete().eq('id', id);
-    if (error) throw error;
+    const { error } = await supabase
+      .from('gallery_images')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(`[GalleryContext] delete failed: ${error.message}`);
     await fetchGalleryData();
   };
 
   const bulkDeleteGalleryImages = async (ids: number[]) => {
-    const { error } = await supabase.from('gallery_images').delete().in('id', ids);
-    if (error) throw error;
+    const { error } = await supabase
+      .from('gallery_images')
+      .delete()
+      .in('id', ids);
+    if (error) throw new Error(`[GalleryContext] bulk delete failed: ${error.message}`);
     await fetchGalleryData();
   };
 
   const syncGoogleDrive = async (folderId: string) => {
-    // Sync logic (placeholder for now)
     console.log('[GalleryContext] Syncing Google Drive folder:', folderId);
     await fetchGalleryData();
   };
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
-    const { error } = await supabase.from('gallery_settings').upsert({ id: 1, ...settings });
-    if (error) throw error;
+    const { error } = await supabase
+      .from('gallery_settings')
+      .upsert({ id: 1, ...settings });
+    if (error) throw new Error(`[GalleryContext] settings upsert failed: ${error.message}`);
     await fetchGalleryData();
   };
 

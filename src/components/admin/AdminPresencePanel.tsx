@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Users, X, ChevronRight, Pen, Send, Eye, EyeOff } from 'lucide-react';
 import { AdminPresence } from '../../hooks/useAdminPresence';
 
@@ -36,7 +36,7 @@ const getInitials = (email: string): string => {
 };
 
 // Format time ago
-const timeAgo = (timestamp: string): string => {
+const timeAgo = (timestamp: string | number): string => {
   const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
   
   if (seconds < 10) return 'just now';
@@ -45,7 +45,7 @@ const timeAgo = (timestamp: string): string => {
   return `${Math.floor(seconds / 3600)}h ago`;
 };
 
-export const AdminPresencePanel: React.FC<AdminPresencePanelProps> = ({
+export const AdminPresencePanel = ({
   admins,
   isOpen,
   onToggle,
@@ -53,7 +53,7 @@ export const AdminPresencePanel: React.FC<AdminPresencePanelProps> = ({
   onSendMessage,
   hiddenCursors = [],
   onToggleCursor
-}) => {
+}: AdminPresencePanelProps) => {
   const [messageInputs, setMessageInputs] = useState<Record<string, string>>({});
   const [sendingTo, setSendingTo] = useState<string | null>(null);
   const activeAdmins = admins.filter(admin => {

@@ -20,7 +20,7 @@ const safeTeamMembers = (r: any): any[] => {
 export type RegistrationColumnKey =
   | 'id' | 'event_title' | 'is_team_registration' | 'team_name' | 'total_members'
   | 'full_name' | 'participant_type' | 'email' | 'phone' | 'college'
-  | 'registration_date' | 'status' | 'team_members' | 'team_phones' | 'photo_url';
+  | 'registration_date' | 'status' | 'team_members' | 'team_phones' | 'photo_url' | 'team_logo_url';
 
 export interface ColumnDefinition {
   key: RegistrationColumnKey;
@@ -40,7 +40,8 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
   { key: 'participant_type', header: 'Leader/Participant Type' },
   { key: 'email', header: 'Leader/Participant Email' },
   { key: 'phone', header: 'Leader/Participant Phone' },
-  { key: 'photo_url', header: 'Photo URL', accessor: r => (r as any).photo_url || '—' },
+  { key: 'photo_url', header: 'Leader Photo', accessor: r => (r as any).photo_url || '—' },
+  { key: 'team_logo_url', header: 'Team Logo', accessor: r => (r as any).metadata?.team_logo_url || '—' },
   { key: 'college', header: 'College/Institution' },
   { key: 'registration_date', header: 'Registration Date', accessor: r => new Date(r.registration_date).toLocaleString() },
   { key: 'status', header: 'Status', accessor: r => r.status.toUpperCase() },
@@ -66,7 +67,7 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
 export const EXPORT_PRESETS: Record<string, RegistrationColumnKey[]> = {
   minimal: ['full_name','email','phone','event_title','status'],
   full: REGISTRATION_COLUMNS.map(c => c.key),
-  'team-only': ['team_name','total_members','team_members','team_phones','event_title','status']
+  'team-only': ['team_name','total_members','team_members','team_phones','team_logo_url','event_title','status']
 };
 
 export interface BuildMatrixOptions {
@@ -157,16 +158,19 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   })();
 
   const { headers, body } = buildMatrix({ rows, columns: pdfColumns });
-  const photoKeyIncluded = pdfColumns.includes('photo_url');
   const selectedDefs = pdfColumns.map(k => REGISTRATION_COLUMNS.find(c => c.key === k)!).filter(Boolean);
-  const photoColIndex = photoKeyIncluded ? selectedDefs.findIndex(d => d.key === 'photo_url') : -1;
+  const photoCols = selectedDefs
+    .map((d, idx) => ({ key: d.key, idx, pdfIdx: idx + EXTRA_COLS }))
+    .filter(c => c.key === 'photo_url' || c.key === 'team_logo_url');
+  
   const teamMembersColIndex = selectedDefs.findIndex(d => d.key === 'team_members');
   // Additional columns placeholders (kept for future tuning of widths)
   // If a photo column is included, we render a thumbnail, not the raw URL
-  if (photoKeyIncluded && photoColIndex >= 0) {
-    headers[photoColIndex] = 'Photo';
-    for (const row of body) row[photoColIndex] = ' ';
-  }
+  // If photo columns are included, we render thumbnails, not raw URLs
+  photoCols.forEach(c => {
+    headers[c.idx] = c.key === 'team_logo_url' ? 'Logo' : 'Photo';
+    for (const row of body) row[c.idx] = ' ';
+  });
   // Use shorter headers when many columns are selected to avoid vertical wrapping
   const printableHeaders = headers.slice();
   const manyCols = selectedDefs.length > 10;
@@ -224,6 +228,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   const fontSize = opts.fontSize || autoFont;
   const base = opts.baseFileName || 'registrations';
   const thumbPx = Math.max(10, Math.min(opts.photoThumbSize || 16, 64));
+  const hasPhotos = photoCols.length > 0;
 
   // Helper: fetch an image URL and return data URL + format compatible with jsPDF
   const fetchImageDataUrl = async (url: string): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> => {
@@ -289,23 +294,26 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
 
   const saveDoc = async (sliceBody: any[][], sliceRows: Registration[], index: number, total: number) => {
     const doc = new jsPDF({ orientation: landscape ? 'landscape' : 'portrait' });
-    // Preload photos for this slice to keep hooks synchronous
-  const preloaded: Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> = [];
-    if (photoKeyIncluded && photoColIndex >= 0) {
-      // Limit concurrency to avoid blocking UI
+    // Preload photos for this slice
+    const preloadedImages = new Map<number, Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null>>();
+
+    if (hasPhotos) {
       const CONC = 6;
-      const tasks = sliceRows.map((r) => async () => {
-        const url = (r as any).photo_url as string | undefined;
-        if (!url) return null;
-        return await fetchImageDataUrl(url);
-      });
-      for (let i = 0; i < tasks.length; i += CONC) {
-        const chunk = tasks.slice(i, i + CONC).map((fn) => fn());
-        const results = await Promise.all(chunk);
-        preloaded.push(...results);
+      for (const col of photoCols) {
+        const colPreloaded: Array<{ dataUrl: string; format: 'PNG' | 'JPEG'; w: number; h: number } | null> = [];
+        const tasks = sliceRows.map((r) => async () => {
+          const url = col.key === 'team_logo_url' ? (r as any).metadata?.team_logo_url : (r as any).photo_url;
+          if (!url || typeof url !== 'string') return null;
+          return await fetchImageDataUrl(url);
+        });
+        
+        for (let i = 0; i < tasks.length; i += CONC) {
+          const results = await Promise.all(tasks.slice(i, i + CONC).map(fn => fn()));
+          colPreloaded.push(...results);
+        }
+        while (colPreloaded.length < sliceRows.length) colPreloaded.push(null);
+        preloadedImages.set(col.pdfIdx, colPreloaded);
       }
-      // In case tasks < preloaded due to chunking boundaries, pad
-      while (preloaded.length < sliceRows.length) preloaded.push(null);
     }
     // Compute sensible column widths based on importance with min/max clamps
   const pageWidth = (doc as any).internal.pageSize.getWidth();
@@ -325,6 +333,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       email: 1.6,
       phone: 1.0,
       photo_url: 0.7,
+      team_logo_url: 0.7,
       college: 1.5,
       registration_date: 1.1,
       status: 0.8,
@@ -342,6 +351,7 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
       email: 30,
       phone: 24,
       photo_url: Math.max(thumbPx * 0.35, 16),
+      team_logo_url: Math.max(thumbPx * 0.35, 16),
       college: 28,
       registration_date: 28,
       status: 18,
@@ -406,15 +416,15 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
     columnStyles[0] = { cellWidth: 12, halign: 'center' }; // S.No
     columnStyles[1] = { cellWidth: 22, fontStyle: 'bold' }; // Reg No
 
-    // Ensure minimum for photo column tied to thumb size
-    if (photoKeyIncluded && photoColIndex >= 0) {
-      columnStyles[photoColIndex + EXTRA_COLS] = { cellWidth: Math.max(columnStyles[photoColIndex + EXTRA_COLS]?.cellWidth || 0, Math.max(thumbPx * 0.4, 18)) };
-    }
+    // Ensure minimum for photo columns tied to thumb size
+    photoCols.forEach(c => {
+      columnStyles[c.pdfIdx] = { cellWidth: Math.max(columnStyles[c.pdfIdx]?.cellWidth || 0, Math.max(thumbPx * 0.4, 18)) };
+    });
 
     autoTable(doc as any, {
       head: [printableHeaders],
       body: sliceBody,
-  styles: { fontSize, overflow: 'linebreak', minCellHeight: Math.max(10, photoKeyIncluded ? Math.ceil(thumbPx * 0.75) : 10), cellPadding: 1.1, valign: 'middle' },
+  styles: { fontSize, overflow: 'linebreak', minCellHeight: Math.max(10, hasPhotos ? Math.ceil(thumbPx * 0.75) : 10), cellPadding: 1.1, valign: 'middle' },
     headStyles: { fillColor: [20,20,20], textColor: [255,255,255], halign: 'center', valign: 'middle', fontSize: Math.max(8, fontSize) },
       columnStyles,
   // Reduce side margins to utilize page width better; let autotable wrap to fit
@@ -422,32 +432,32 @@ export const exportPdf = async (rows: Registration[], columns: RegistrationColum
   tableWidth: 'wrap',
     pageBreak: 'auto',
       didDrawCell: (data: any) => {
-        if (!photoKeyIncluded || photoColIndex < 0) return;
+        if (!hasPhotos) return;
         if (data.section !== 'body') return;
-        if (data.column.index !== (photoColIndex + EXTRA_COLS)) return;
+        const colPreloaded = preloadedImages.get(data.column.index);
+        if (!colPreloaded) return;
+        
         const rowIdx = data.row.index;
-        const img = preloaded[rowIdx] || null;
+        const img = colPreloaded[rowIdx] || null;
         if (!img) return;
         const padding = 1.5;
         const maxW = Math.max(8, Math.min(thumbPx, data.cell.width - padding * 2));
         const maxH = Math.max(8, Math.min(thumbPx, data.cell.height - padding * 2));
-        // Draw centered thumbnail; rely on uniform thumb sizing
+        // Draw centered thumbnail
         let w = maxW;
         let h = maxH;
         if (img.w && img.h) {
           const r = img.w / img.h;
           const boxR = maxW / maxH;
           if (r > boxR) {
-            // image is wider than box
             w = maxW; h = Math.min(maxH, w / r);
           } else {
-            // image is taller
             h = maxH; w = Math.min(maxW, h * r);
           }
         }
         const x = data.cell.x + (data.cell.width - w) / 2;
         const y = data.cell.y + (data.cell.height - h) / 2;
-        try { (doc as any).addImage(img.dataUrl, img.format, x, y, w, h); } catch { /* ignore draw errors */ }
+        try { (doc as any).addImage(img.dataUrl, img.format, x, y, w, h); } catch { /* ignore */ }
       },
       didDrawPage: () => {
         // Add watermark if provided
