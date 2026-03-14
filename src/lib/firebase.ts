@@ -9,7 +9,7 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 const FIREBASE_CONFIG = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (import.meta.env.DEV ? 'AIzaSyB8MM48e7Rd2v2ywJpq6vKf-ryv4oCxpLI' : ''),
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'rico-backend.firebaseapp.com',
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://rico-backend-default-rtdb.firebaseio.com',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'rico-backend',
