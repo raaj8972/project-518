@@ -35,7 +35,7 @@ export const useGalleryData = () => {
 
 export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
-  const { user } = useAuth();
+  const { user, getValidToken } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
   const [loading, setLoading] = useState(false);
@@ -116,8 +116,13 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchDriveFolders = async (folderId: string) => {
+    const token = await getValidToken();
     const response = await fetch('/.netlify/functions/sync-drive-folders', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ folderId }),
     });
     if (!response.ok) {
@@ -128,8 +133,13 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const syncGoogleDriveBatch = async (folderId: string, subfolderId: string, year?: string, category?: string) => {
+    const token = await getValidToken();
     const response = await fetch('/.netlify/functions/sync-google-drive', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ folderId, subfolderId, year, category }),
     });
     if (!response.ok) {
@@ -143,8 +153,13 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
 
   const syncGoogleDrive = async (folderId: string, year?: string, category?: string) => {
     console.log('[GalleryContext] Syncing Google Drive folder:', folderId);
+    const token = await getValidToken();
     const response = await fetch('/.netlify/functions/sync-google-drive', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
       body: JSON.stringify({ folderId, year, category }),
     });
     if (!response.ok) {

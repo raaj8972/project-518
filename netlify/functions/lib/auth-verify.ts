@@ -105,6 +105,7 @@ export async function verifyAdmin(authHeader: string | undefined, supabase: any)
   let adminUser: any = null;
   const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(user.id);
   
+  // 1. Try Supabase (Default)
   if (isUUID) {
     const { data: idMatch } = await supabase
       .from('admin_users')
@@ -123,6 +124,38 @@ export async function verifyAdmin(authHeader: string | undefined, supabase: any)
     
     if (emailMatch) {
       adminUser = emailMatch;
+    }
+  }
+
+  // 2. Fallback to Firestore (for Master Bypass users and legacy sync)
+  if (!adminUser && isFirebaseAdminPrivileged) {
+    try {
+      const db = admin.firestore();
+      const doc = await db.collection('admin_users').doc(user.id).get();
+      if (doc.exists) {
+        const data = doc.data();
+        adminUser = {
+          role: data?.role || 'admin',
+          is_primary: data?.role === 'owner',
+          email: data?.email,
+          user_id: user.id
+        };
+        console.log('[Auth Verify] Admin verified via Firestore:', user.email);
+      } else if (user.email) {
+        const query = await db.collection('admin_users').where('email', '==', user.email.toLowerCase().trim()).limit(1).get();
+        if (!query.empty) {
+          const data = query.docs[0].data();
+          adminUser = {
+            role: data?.role || 'admin',
+            is_primary: data?.role === 'owner',
+            email: data?.email,
+            user_id: user.id
+          };
+          console.log('[Auth Verify] Admin (email) verified via Firestore:', user.email);
+        }
+      }
+    } catch (err) {
+      console.error('[Auth Verify] Firestore admin lookup error:', err);
     }
   }
 

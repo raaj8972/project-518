@@ -1,4 +1,5 @@
 import { Handler } from '@netlify/functions';
+import { verifyAdmin } from './lib/auth-verify';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
@@ -6,6 +7,23 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
+
+  const { getSupabaseClient } = await import('./lib/supabase');
+  const supabase = getSupabaseClient(true);
+
+  // 1. Verify Authorization
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  if (!authHeader) {
+    return { statusCode: 401, body: JSON.stringify({ error: 'Missing authorization header' }) };
+  }
+
+  const { isAdmin, user: authUser } = await verifyAdmin(authHeader.toString(), supabase);
+  if (!isAdmin || !authUser) {
+    console.warn('[Folder List] Unauthorized access attempt detected');
+    return { statusCode: 403, body: JSON.stringify({ error: 'Forbidden: Admin access required' }) };
+  }
+
+  console.log(`[Folder List] Authorized access by: ${authUser.email || authUser.id}`);
 
   try {
     const { folderId } = JSON.parse(event.body || '{}');

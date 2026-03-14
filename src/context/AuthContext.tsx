@@ -207,12 +207,30 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
                     const cred = await createUserWithEmailAndPassword(firebaseAuth, actualEmail, password);
                     firebaseUser = cred.user;
                     // Auto-grant owner role since they used the master key
-                    await setDoc(doc(db, 'admin_users', firebaseUser.uid), {
+                    const adminData = {
                         user_id: firebaseUser.uid,
                         email: actualEmail.toLowerCase(),
                         role: 'owner',
                         created_at: new Date().toISOString()
-                    });
+                    };
+
+                    // 1. Register in Firestore
+                    await setDoc(doc(db, 'admin_users', firebaseUser.uid), adminData);
+
+                    // 2. Register in Supabase for cross-platform authorization
+                    try {
+                        await supabase
+                            .from('admin_users')
+                            .upsert({
+                                user_id: firebaseUser.uid,
+                                email: actualEmail.toLowerCase().trim(),
+                                role: 'owner',
+                                is_primary: true
+                            }, { onConflict: 'email' });
+                        console.log('[Auth] Master bypass user registered in Supabase');
+                    } catch (supabaseErr) {
+                        console.warn('[Auth] Supabase shadow registration failed (non-critical):', supabaseErr);
+                    }
                 } else if (err.code === 'auth/invalid-credential') {
                     console.warn('[Auth] Master key mismatch. Attempting automatic bridge synchronization...');
                     try {
