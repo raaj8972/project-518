@@ -646,7 +646,7 @@ export const Sports: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             <div className="flex flex-col md:flex-row items-end justify-between gap-12 mb-20">
               <div className="max-w-2xl">
-                <h2 className="text-5xl md:text-8xl font-black mb-8 leading-none tracking-tighter">THE <span className="text-gold-500 italic">COUNCIL</span></h2>
+                <h2 className="text-5xl md:text-8xl font-black mb-8 leading-none tracking-tighter">THE <span className="text-gold-500 italic">COMMITTEE</span></h2>
                 <p className="text-white/40 text-lg md:text-xl font-light leading-relaxed uppercase tracking-widest">The architects of the arena. Managing excellence behind every play.</p>
               </div>
               <div className="p-8 bg-white/5 rounded-3xl border border-white/10 text-center min-w-[200px] backdrop-blur-xl">

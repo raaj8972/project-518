@@ -1,8 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Sparkles, Calendar, Ticket } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Parallax } from './ui/Parallax';
-import { ScrollReveal } from './ui/ScrollReveal';
 import { KineticText } from './ui/KineticText';
 import ScrollHint from './ScrollHint';
 import { FluidBackground } from './ui/FluidBackground';
@@ -10,12 +8,19 @@ import { BRAND_YEAR } from '../constants/brand';
 import { heroMediaService, HeroMediaV2 } from '../services/heroMediaService';
 import { useData } from '../context/DataContext';
 
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 const Canvas3D = React.lazy(() => import('./ui/Canvas3D').then(m => ({ default: m.Canvas3D })));
 
 export const HomeHero: React.FC = () => {
   const { homepageSettings, securitySettings } = useData();
   const [media, setMedia] = useState<HeroMediaV2 | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  const containerRef = useRef<HTMLElement>(null);
+  const textContainerRef = useRef<HTMLDivElement>(null);
+  const scrollHintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -27,8 +32,92 @@ export const HomeHero: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    heroMediaService.getHeroMedia('home').then(setMedia).catch(console.error);
+    const unsubscribe = heroMediaService.subscribeHeroMedia('home', (data) => {
+      setMedia(data);
+    });
+    return () => unsubscribe();
   }, []);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Safari iOS Workaround: force video load to enable GSAP scrubbing
+  useEffect(() => {
+    const vid = videoRef.current;
+    if (!vid) return;
+
+    // A tiny play/pause triggers Safari to fetch the frames
+    const forceLoad = async () => {
+      try {
+        await vid.play();
+        vid.pause();
+      } catch (e) {
+        // Fallback if play is completely blocked
+        vid.load();
+      }
+    };
+    
+    forceLoad();
+  }, [media, isMobile]);
+
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
+    
+    // Hide navbar initially on mount
+    gsap.set('.cyberpunk-navbar', { yPercent: -100, opacity: 0 });
+
+    const ctx = gsap.context(() => {
+      if (!containerRef.current || !textContainerRef.current) return;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: "top top",
+          end: "+=150%", // Pins for 1.5x screen height
+          scrub: 1,
+          pin: true,
+          onUpdate: (self) => {
+            const vid = videoRef.current;
+            // Ensure video has loaded metadata and duration is valid
+            if (vid && vid.readyState >= 1 && isFinite(vid.duration)) {
+              vid.currentTime = vid.duration * self.progress;
+            }
+          }
+        }
+      });
+
+      // Text appears (scrubbed with scroll)
+      tl.to(textContainerRef.current, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        ease: "power2.out",
+        duration: 1
+      }, 0);
+
+      // Navbar slides down alongside the text
+      tl.to('.cyberpunk-navbar', {
+        yPercent: 0,
+        opacity: 1,
+        ease: "power2.out",
+        duration: 0.5
+      }, 0.5); // Starts halfway through the text animation
+
+      // ScrollHint fades out
+      if (scrollHintRef.current) {
+        tl.to(scrollHintRef.current, {
+          opacity: 0,
+          y: 20,
+          duration: 0.5
+        }, 0);
+      }
+    });
+
+    return () => {
+      ctx.revert();
+      // Ensure navbar is visible when unmounting (e.g., navigating to another page)
+      gsap.set('.cyberpunk-navbar', { clearProps: 'all' });
+    };
+  }, [media, isMobile]);
 
   const renderBackground = () => {
     if (!media || !media.enabled) {
@@ -46,6 +135,8 @@ export const HomeHero: React.FC = () => {
       mobile_video_url,
       image_url,
       mobile_image_url,
+      poster_url,
+      mobile_poster_url,
       overlay_color,
       overlay_opacity,
       desktop_zoom,
@@ -61,24 +152,28 @@ export const HomeHero: React.FC = () => {
     const offsetY = isMobile ? mobile_offset_y : desktop_offset_y;
 
     const transformStyle = {
-      transform: `translate(${offsetX * 100}%, ${offsetY * 100}%) scale(${zoom})`,
+      transform: `translate3d(${offsetX * 100}%, ${offsetY * 100}%, 0) scale(${zoom})`,
       transformOrigin: 'center center',
-      transition: 'transform 0.5s ease-out'
+      transition: 'transform 0.5s ease-out',
+      willChange: 'transform'
     };
 
     let mediaElement = null;
 
     const activeVideo = isMobile && mobile_video_url ? mobile_video_url : video_url;
     const activeImage = isMobile && mobile_image_url ? mobile_image_url : image_url;
+    const activePoster = isMobile && mobile_poster_url ? mobile_poster_url : poster_url;
 
     if (background_type === 'video' || (background_type === 'auto' && activeVideo)) {
       mediaElement = (
         <video 
+          ref={videoRef}
           src={activeVideo} 
-          autoPlay 
           loop 
           muted 
-          playsInline 
+          playsInline
+          preload="auto"
+          poster={activePoster || undefined}
           className="absolute inset-0 w-full h-full object-cover" 
           style={transformStyle}
         />
@@ -105,7 +200,7 @@ export const HomeHero: React.FC = () => {
   };
 
   return (
-    <section className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section ref={containerRef} className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden bg-[#030712]">
       {renderBackground()}
 
       {/* Interactive 3D WebGL Shape overlay for extra flair when no media is playing, or as a subtle overlay */}
@@ -116,50 +211,51 @@ export const HomeHero: React.FC = () => {
       )}
 
       {/* Hero Content */}
-      <div className="relative z-10 text-center text-white max-w-6xl mx-auto px-4 mt-16 md:mt-0">
-        <Parallax speed={0.4}>
-          <ScrollReveal animation="fadeUp" className="flex flex-col items-center justify-center space-y-6 md:space-y-8 w-full">
-            <div className="inline-flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-2 md:py-3 rounded-full text-xs md:text-sm font-black uppercase tracking-[0.25em] text-indigo-300/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/10 transition-colors duration-300">
-              <Sparkles className="w-4 h-4 mr-2 md:mr-3 text-indigo-400 animate-pulse" />
-              ANNUAL FESTIVAL {BRAND_YEAR}
-            </div>
+      <div 
+        ref={textContainerRef}
+        className="relative z-10 text-center text-white max-w-6xl mx-auto px-4 mt-16 md:mt-0 opacity-0 translate-y-12 scale-95"
+      >
+        <div className="flex flex-col items-center justify-center space-y-6 md:space-y-8 w-full">
+          <div className="inline-flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-3 md:py-3 rounded-full text-[3.5vw] sm:text-sm font-black uppercase tracking-[0.25em] text-indigo-300/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/10 transition-colors duration-300">
+            <Sparkles className="w-5 h-5 mr-3 text-indigo-400 animate-pulse" />
+            ANNUAL FESTIVAL {BRAND_YEAR}
+          </div>
+          
+          <KineticText as="h1" className="text-[14vw] leading-[0.85] sm:text-8xl md:text-9xl lg:text-[10rem] font-black superia-title-gradient tracking-tighter drop-shadow-2xl">
+            {homepageSettings?.hero_title || 'RICORRENZA'}
+          </KineticText>
+          
+          <p className="text-[6vw] sm:text-4xl md:text-5xl font-bold max-w-4xl mx-auto leading-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 drop-shadow-md">
+            {homepageSettings?.hero_subtitle || 'Experience the Future'}
+          </p>
+          
+          <p className="text-[4.5vw] sm:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium px-4">
+            {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
+          </p>
+          
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-8">
+              <a
+                href="/events"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-[0_8px_32px_rgba(79,70,229,0.4)] hover:shadow-[0_16px_48px_rgba(79,70,229,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 border border-white/10"
+              >
+                <Calendar className="w-5 h-5" />
+                Explore Events
+              </a>
             
-            <KineticText as="h1" className="text-6xl sm:text-7xl md:text-8xl lg:text-[10rem] font-black superia-title-gradient tracking-tighter leading-none drop-shadow-2xl">
-              {homepageSettings?.hero_title || 'RICORRENZA'}
-            </KineticText>
-            
-            <p className="text-2xl sm:text-3xl md:text-4xl font-bold max-w-4xl mx-auto leading-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 drop-shadow-md">
-              {homepageSettings?.hero_subtitle || 'Experience the Future'}
-            </p>
-            
-            <p className="text-lg sm:text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium">
-              {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
-            </p>
-            
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-8">
-                <a
-                  href="/events"
-                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-[0_8px_32px_rgba(79,70,229,0.4)] hover:shadow-[0_16px_48px_rgba(79,70,229,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 border border-white/10"
+            {securitySettings?.entry_pass_button_enabled && (
+                <Link
+                  to="/pass-registration"
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.1] border border-white/10 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 hover:border-white/20"
                 >
-                  <Calendar className="w-5 h-5" />
-                  Explore Events
-                </a>
-              
-              {securitySettings?.entry_pass_button_enabled && (
-                  <Link
-                    to="/pass-registration"
-                    className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.1] border border-white/10 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 hover:border-white/20"
-                  >
-                    <Ticket className="w-5 h-5" />
-                    Entry Pass
-                  </Link>
-              )}
-            </div>
-          </ScrollReveal>
-        </Parallax>
+                  <Ticket className="w-5 h-5" />
+                  Entry Pass
+                </Link>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center pointer-events-none drop-shadow-2xl">
+      <div ref={scrollHintRef} className="absolute bottom-12 left-0 right-0 z-20 flex justify-center pointer-events-none drop-shadow-2xl">
         <ScrollHint />
       </div>
 

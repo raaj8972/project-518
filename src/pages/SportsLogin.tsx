@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, ArrowRight, Shield, ShieldCheck } from 'lucide-react';
+import { Lock, ArrowRight, ArrowLeft, Shield, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const SportsLogin: React.FC = () => {
@@ -69,6 +69,14 @@ export const SportsLogin: React.FC = () => {
 
       <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
         <div className="bg-neutral-900 border border-neutral-800 rounded-3xl p-8 shadow-2xl backdrop-blur-xl">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate('/login')}
+            className="flex items-center gap-1.5 text-neutral-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors mb-6 group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            Back to Login
+          </button>
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
               <ShieldCheck className="w-8 h-8 text-white" />

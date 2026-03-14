@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export type BackgroundType = 'image' | 'video' | 'auto';
@@ -62,6 +62,22 @@ export const heroMediaService = {
       console.error(`Error fetching hero media for page ${pageKey}:`, error);
       return DEFAULT_HERO_MEDIA;
     }
+  },
+
+  /**
+   * Subscribes to real-time updates for hero media configuration.
+   */
+  subscribeHeroMedia(pageKey: string, callback: (data: HeroMediaV2) => void): () => void {
+    const docRef = doc(db, COLLECTION_NAME, pageKey);
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        callback({ ...DEFAULT_HERO_MEDIA, ...snapshot.data() } as HeroMediaV2);
+      } else {
+        callback(DEFAULT_HERO_MEDIA);
+      }
+    }, (error) => {
+      console.error(`Error subscribing to hero media for page ${pageKey}:`, error);
+    });
   },
 
   /**

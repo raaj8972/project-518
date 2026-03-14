@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { signInWithFirebase, ensureFirebaseUser, generateOTP, verifyOTP, updatePasswordDual } from '../lib/firebase';
+import { signInWithFirebase, ensureFirebaseUser } from '../lib/firebase';
 import { dualRead } from '../lib/dualDb';
-import { Mail, AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Smartphone, Fingerprint, ChevronRight, Trophy } from 'lucide-react';
+import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Fingerprint, ChevronRight, Trophy, Lock, ArrowLeft } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
+import { AdminService, AdminUser } from '../lib/adminService';
 import { gsap } from 'gsap';
 
 export const Login: React.FC = () => {
@@ -20,49 +21,76 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetMsg, setResetMsg] = useState('');
-  const [otpStep, setOtpStep] = useState<'email' | 'otp' | 'newpass'>('email');
-  const [otpCode, setOtpCode] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
-  const buttonsRef = useRef<HTMLDivElement>(null);
+  const leftPanelRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
-  
-  const { login, loginWithPasskey } = useAuth();
+  const buttonsRef = useRef<HTMLDivElement>(null);
+
+  const { login, loginWithPasskey, loginWithGoogle, isAuthenticated, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { homepageSettings } = useData();
+  const { homepageSettings, isAdmin, isOwner, loading: dataLoading } = useData();
   const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
   const SHOW_SUPABASE = ((import.meta as any)?.env?.VITE_DEBUG_SHOW_SUPABASE_HOST === '1');
+
+  // Mouse parallax
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
 
   // GSAP Animations
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Entrance animation
-      gsap.from(containerRef.current, {
+      // Left panel entrance
+      gsap.from(leftPanelRef.current, {
         opacity: 0,
-        y: 30,
-        duration: 1,
+        x: -60,
+        duration: 1.2,
         ease: 'power3.out'
       });
 
+      // Card entrance
+      gsap.from(cardRef.current, {
+        opacity: 0,
+        x: 60,
+        duration: 1.2,
+        ease: 'power3.out',
+        delay: 0.1
+      });
+
+      // Stagger items
       gsap.from('.stagger-item', {
         opacity: 0,
         y: 20,
-        stagger: 0.1,
-        duration: 0.8,
+        stagger: 0.08,
+        duration: 0.7,
         ease: 'power2.out',
-        delay: 0.3
+        delay: 0.5
       });
 
-      // Floating animation for the card
+      // Floating card
       gsap.to(cardRef.current, {
-        y: '+=10',
-        duration: 3,
+        y: '+=8',
+        duration: 3.5,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true
+      });
+
+      // Left panel subtle float
+      gsap.to(leftPanelRef.current, {
+        y: '+=5',
+        duration: 4.5,
         ease: 'sine.inOut',
         repeat: -1,
         yoyo: true
@@ -78,39 +106,74 @@ export const Login: React.FC = () => {
       gsap.to(buttonsRef.current, {
         opacity: 0,
         x: -20,
-        duration: 0.4,
-        display: 'none',
-        ease: 'power2.in'
+        duration: 0.35,
+        ease: 'power2.in',
+        onComplete: () => {
+          if (buttonsRef.current) buttonsRef.current.style.display = 'none';
+        }
       });
-      gsap.fromTo(formRef.current, 
-        { opacity: 0, x: 20, display: 'none' },
-        { opacity: 1, x: 0, duration: 0.6, display: 'block', ease: 'power2.out', delay: 0.4 }
-      );
+      setTimeout(() => {
+        if (formRef.current) formRef.current.style.display = 'block';
+        gsap.fromTo(formRef.current,
+          { opacity: 0, x: 20 },
+          { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' }
+        );
+      }, 350);
     }
   }, [isFormOpen]);
 
-  // Video auto-restart optimization
+  // Video auto-restart
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
-    const playVideo = () => {
-      video.play().catch(() => {});
-    };
-
+    const playVideo = () => { video.play().catch(() => {}); };
     const handleVisibilityChange = () => {
-      if (!document.hidden && video.paused) {
-        playVideo();
-      }
+      if (!document.hidden && video.paused) playVideo();
     };
-
     video.addEventListener('loadeddata', playVideo);
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       video.removeEventListener('loadeddata', playVideo);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  }, []);
+
+  // Fetch Admin Users for dropdown
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      try {
+        const fetchedAdmins = await AdminService.getAllAdmins();
+        
+        // Always ensure system owners are present even if DB read fails (RLS)
+        const systemOwners: AdminUser[] = [
+          { user_id: 'hardcoded-raja', email: 'RAJA@rico.fun', role: 'owner', created_at: '' },
+          { user_id: 'hardcoded-raaj', email: 'raaj@rico.fun', role: 'owner', created_at: '' }
+        ];
+
+        // Merge and deduplicate by email
+        const merged = [...fetchedAdmins];
+        systemOwners.forEach(owner => {
+          if (!merged.find(a => a.email.toLowerCase() === owner.email.toLowerCase())) {
+            merged.push(owner);
+          }
+        });
+
+        // merged list logic remains for pre-selection
+        
+        // Pre-select RAJA if available
+        const raja = merged.find(a => a.email.toLowerCase() === 'raja@rico.fun');
+        if (raja) setEmail(raja.email);
+        else if (merged.length > 0) setEmail(merged[0].email);
+      } catch (err) {
+        console.error('Failed to pre-fetch admin users:', err);
+        // Minimum safety fallback
+        // Minimum safety fallback
+        setEmail('RAJA@rico.fun');
+      } finally {
+        // isLoading handled
+      }
+    };
+    fetchAdmins();
   }, []);
 
   // Fast-Track Auto-Login for Owners
@@ -126,8 +189,6 @@ export const Login: React.FC = () => {
         setEmail(e);
         setPassword(p);
         sessionStorage.removeItem('rico_fast_track_creds');
-        
-        // Short delay to ensure UI is ready before auto-submitting
         const timer = setTimeout(() => {
           const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
           handleSubmit(fakeEvent);
@@ -139,6 +200,19 @@ export const Login: React.FC = () => {
       }
     }
   }, []);
+
+  // Auto-redirect if already authenticated as Admin
+  useEffect(() => {
+    if (!authLoading && !dataLoading && isAuthenticated) {
+      if (isAdmin() || isOwner()) {
+        console.log('[Login] User already authenticated as Admin/Owner, redirecting to Dashboard...');
+        const timer = setTimeout(() => {
+          navigate('/admin', { replace: true });
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [authLoading, dataLoading, isAuthenticated, isAdmin, isOwner, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,17 +226,14 @@ export const Login: React.FC = () => {
       const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
 
       const result = await login(
-        email, 
-        password, 
-        totpCode || undefined, 
+        email,
+        password,
+        totpCode || undefined,
         Boolean(isMasterMode && isGatePassValid)
       );
-      
-      if (result.success) {
-        // Mirror credentials to Firebase for future fallback
-        ensureFirebaseUser(email, password).catch(() => {});
 
-        // Post-login security check for Owner accounts
+      if (result.success) {
+        ensureFirebaseUser(email, password).catch(() => {});
         const { data: userRoleData } = await (supabase as any)
           .from('admin_users')
           .select('role')
@@ -170,34 +241,24 @@ export const Login: React.FC = () => {
           .maybeSingle();
 
         const isOwner = userRoleData?.role === 'owner';
-
         if (isOwner && (!isMasterMode || !isGatePassValid)) {
-           // Securely cache credentials for the automated return trip
-           sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
-
-           // Log the security violation before signing out
-           await (supabase as any).from('audit_logs').insert({
-             user_id: (await (supabase as any).auth.getUser()).data.user?.id,
-             action: 'UNAUTHORIZED_OWNER_ACCESS_REDIRECTED',
-             table_name: 'admin_users',
-             new_data: { 
-               reason: 'Attempted owner login without passing through Master Gateway. Fast-track initiated.',
-               mode: searchParams.get('mode'),
-               has_session_pass: !!gatePass
-             }
-           });
-
-           // Sign out and redirect
-           await (supabase as any).auth.signOut();
-           setError('Security Handshake Required. Initiating Fast-Track...');
-           setIsLoading(true);
-           
-           setTimeout(() => {
-             navigate('/master-node-access');
-           }, 800);
-           return;
+          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
+          await (supabase as any).from('audit_logs').insert({
+            user_id: (await (supabase as any).auth.getUser()).data.user?.id,
+            action: 'UNAUTHORIZED_OWNER_ACCESS_REDIRECTED',
+            table_name: 'admin_users',
+            new_data: {
+              reason: 'Attempted owner login without passing through Master Gateway. Fast-track initiated.',
+              mode: searchParams.get('mode'),
+              has_session_pass: !!gatePass
+            }
+          });
+          await (supabase as any).auth.signOut();
+          setError('Security Handshake Required. Initiating Fast-Track...');
+          setIsLoading(true);
+          setTimeout(() => { navigate('/master-node-access'); }, 800);
+          return;
         }
-
         navigate('/admin');
       } else if (result.requiresTOTP) {
         const searchParams = new URLSearchParams(window.location.search);
@@ -206,71 +267,57 @@ export const Login: React.FC = () => {
         const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
 
         if (result.role === 'owner' && (!isMasterMode || !isGatePassValid)) {
-           // Securely cache credentials for the automated return trip
-           sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
-           
-           setError('Security Handshake Required. Initiating Fast-Track...');
-           setIsLoading(true);
-           setTimeout(() => {
-             navigate('/master-node-access');
-           }, 800);
-           return;
+          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
+          setError('Security Handshake Required. Initiating Fast-Track...');
+          setIsLoading(true);
+          setTimeout(() => { navigate('/master-node-access'); }, 800);
+          return;
         }
-
-        // If coming from MasterGate with valid token, bypass TOTP
         if (isMasterMode && isGatePassValid) {
           sessionStorage.setItem('rico_auth_source', 'supabase');
           navigate('/admin');
           return;
         }
-
         setRequiresTOTP(true);
         setError('');
       } else {
-        // ═══ FIREBASE AUTH FALLBACK ═══
-        // Supabase login failed — try Firebase Auth
         console.warn('[DualAuth] Supabase login failed, trying Firebase Auth...');
-        const fbResult = await signInWithFirebase(email, password);
-        if (fbResult.success) {
-          // Check admin status from Firebase RTDB
-          const { data: adminData } = await dualRead({ table: 'admin_users' });
-          const isAdmin = Array.isArray(adminData) && adminData.some(
-            (a: any) => a.email === email
-          );
-          if (isAdmin) {
-            // Store a flag so the app knows we're in Firebase-auth mode
-            sessionStorage.setItem('rico_auth_source', 'firebase');
-            navigate('/admin');
-            return;
+        try {
+          const fbResult = await signInWithFirebase(email, password);
+          if (fbResult.success) {
+            const { data: adminData } = await dualRead({ table: 'admin_users' });
+            const isAdmin = Array.isArray(adminData) && adminData.some((a: any) => a.email === email);
+            if (isAdmin) {
+              sessionStorage.setItem('rico_auth_source', 'firebase');
+              navigate('/admin');
+              return;
+            } else {
+              setError('Account not found in admin users.');
+            }
           } else {
-            setError('Account not found in admin users.');
+            if (fbResult.error?.includes('network-request-failed')) {
+                setError('Network Error: Using local bypass might be required. Try the Master Key.');
+            } else {
+                setError(result.error || fbResult.error || 'Authentication failed. Please try again.');
+            }
           }
-        } else {
-          setError(result.error || 'Authentication failed. Please try again.');
+        } catch (fbErr: any) {
+           if (fbErr.message?.includes('network-request-failed')) {
+                setError('Firebase Network Error. Please use Master Key for local development.');
+           } else {
+                setError('Secure connection failed. Check your network.');
+           }
         }
-        // ═══════════════════════════════
       }
-    } catch (error) {
-      // ═══ FIREBASE AUTH FALLBACK (on exception) ═══
-      console.warn('[DualAuth] Supabase auth exception, trying Firebase...');
-      try {
-        const fbResult = await signInWithFirebase(email, password);
-        if (fbResult.success) {
-          const { data: adminData } = await dualRead({ table: 'admin_users' });
-          const isAdmin = Array.isArray(adminData) && adminData.some(
-            (a: any) => a.email === email
-          );
-          if (isAdmin) {
-            sessionStorage.setItem('rico_auth_source', 'firebase');
-            navigate('/admin');
-            return;
-          }
-        }
-      } catch {}
-      setError('Authentication failed. Please try again.');
-      console.error('Login error:', error);
+    } catch (error: any) {
+      console.warn('[DualAuth] Login exception:', error);
+      if (error.message?.includes('Master Key')) {
+          setError(error.message);
+      } else {
+          setError('Authentication failed. Check your connection.');
+      }
     }
-    
+
     setIsLoading(false);
   };
 
@@ -279,719 +326,612 @@ export const Login: React.FC = () => {
     setTotpCode('');
     setError('');
     setIsFormOpen(false);
-    
-    // Animation to go back
+
     gsap.to(formRef.current, {
-      opacity: 0,
-      x: 20,
-      duration: 0.4,
-      display: 'none',
-      ease: 'power2.in'
+      opacity: 0, x: 20, duration: 0.35, ease: 'power2.in',
+      onComplete: () => {
+        if (formRef.current) formRef.current.style.display = 'none';
+        if (buttonsRef.current) buttonsRef.current.style.display = 'flex';
+        gsap.fromTo(buttonsRef.current,
+          { opacity: 0, x: -20 },
+          { opacity: 1, x: 0, duration: 0.5, ease: 'power2.out' }
+        );
+      }
     });
-    gsap.fromTo(buttonsRef.current, 
-      { opacity: 0, x: -20, display: 'none' },
-      { opacity: 1, x: 0, duration: 0.6, display: 'flex', ease: 'power2.out', delay: 0.4 }
-    );
   };
 
+  const isMasterActive = (() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get('mode') === 'master' &&
+      sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
+  })();
+
+  const roles = [
+    { label: 'Admin Panel', sub: 'High-level orchestration', icon: Zap, color: 'cyan', action: () => setIsFormOpen(true) },
+    { label: 'Security Node', sub: 'Scan & Entry verification', icon: Shield, color: 'purple', action: () => navigate('/security-login') },
+    { label: 'Coordinators', sub: 'Event management', icon: Users, color: 'blue', action: () => navigate('/coordinator') },
+    { label: 'Council', sub: 'Analytics dashboard', icon: BarChart3, color: 'emerald', action: () => navigate('/council') },
+    { label: 'Sports Admin', sub: 'Tournament & Player management', icon: Trophy, color: 'rose', action: () => navigate('/sports-admin') },
+  ];
+
+  const colorMap: Record<string, { border: string; bg: string; text: string; glow: string; ring: string }> = {
+    cyan:    { border: 'border-cyan-500/40',    bg: 'bg-cyan-400/10',    text: 'text-cyan-400',    glow: 'shadow-cyan-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(34,211,238,0.25)]' },
+    purple:  { border: 'border-purple-500/40',  bg: 'bg-purple-400/10',  text: 'text-purple-400',  glow: 'shadow-purple-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(167,139,250,0.25)]' },
+    blue:    { border: 'border-blue-500/40',    bg: 'bg-blue-400/10',    text: 'text-blue-400',    glow: 'shadow-blue-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(96,165,250,0.25)]' },
+    emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-400/10', text: 'text-emerald-400', glow: 'shadow-emerald-500/20',ring: 'group-hover:shadow-[0_0_22px_rgba(52,211,153,0.25)]' },
+    rose:    { border: 'border-rose-500/40',    bg: 'bg-rose-400/10',    text: 'text-rose-400',    glow: 'shadow-rose-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(251,113,133,0.25)]' },
+  };
 
   return (
-    <div className="cyberpunk-theme min-h-screen bg-black overflow-hidden font-rajdhani">
-      <SEO 
-        title="Login" 
-        description={`Admin login for ${BRAND_NAME} ${BRAND_YEAR} management dashboard.`} 
-        canonical="https://ricorrenza.fun/login" 
+    <div className="cyberpunk-theme min-h-screen bg-[#050508] overflow-hidden font-rajdhani">
+      <SEO
+        title="Login"
+        description={`Admin login for ${BRAND_NAME} ${BRAND_YEAR} management dashboard.`}
+        canonical="https://ricorrenza.fun/login"
       />
 
       {/* Video Background */}
       <div className="fixed inset-0 z-0">
         <video
           ref={videoRef}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="metadata"
-          className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105 blur-[2px]"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none';
-          }}
+          autoPlay loop muted playsInline preload="metadata"
+          className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
         >
           <source src="/login_page_video.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_black_100%)]"></div>
-        {/* Scanning Line Effect */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-          <div className="w-full h-[1px] bg-cyan-500/50 animate-scan"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-[#050510] to-black opacity-80" />
+        {/* Scanning line */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-15">
+          <div className="w-full h-[1px] bg-cyan-400/60 animate-scan" />
         </div>
       </div>
 
-      <div ref={containerRef} className="relative z-10 min-h-screen flex items-center justify-center p-3 sm:p-4">
-        <div ref={cardRef} className="w-full max-w-md mx-auto">
-          {/* Glassmorphic Card */}
-          <div className="glass-card overflow-hidden">
-            {/* Top accent bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500"></div>
-            
-            <div className="p-5 sm:p-6 md:p-8">
-              {/* Header */}
-              <div className="text-center mb-6 stagger-item">
-                <div className="flex justify-center mb-4">
-                   <div className="relative p-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl">
-                     {(() => {
+      {/* Main Layout */}
+      <div ref={containerRef} className="relative z-10 min-h-screen flex items-stretch">
+
+        {/* ─── LEFT PANEL ─── */}
+        <div
+          ref={leftPanelRef}
+          className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden p-16"
+          style={{
+            transform: `translate(${mousePos.x * -8}px, ${mousePos.y * -5}px)`,
+            transition: 'transform 0.15s ease-out',
+          }}
+        >
+          {/* Grid background */}
+          <div className="absolute inset-0 left-panel-grid opacity-20" />
+          {/* Radial glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(34,211,238,0.07),transparent)]" />
+
+          {/* Corner brackets */}
+          <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-cyan-400/40" />
+          <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-cyan-400/40" />
+          <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-cyan-400/40" />
+          <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-cyan-400/40" />
+
+          {/* Content */}
+          <div className="relative z-10 text-center max-w-sm">
+            {/* Logo */}
+            <div className="mb-10 flex justify-center">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-cyan-400/10 blur-3xl scale-150" />
+                {(() => {
+                  const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
+                  const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
+                  if (!raw) return (
+                    <div className="relative w-28 h-28 flex items-center justify-center rounded-full bg-cyan-400/5 border border-cyan-400/20">
+                      <Shield className="w-16 h-16 text-cyan-400 opacity-80" />
+                    </div>
+                  );
+                  let u = String(raw).trim();
+                  if (u.startsWith('//')) u = 'https:' + u;
+                  const src = u.includes('?') ? `${u}&v=${Date.now()}` : `${u}?v=${Date.now()}`;
+                  return <BrandLogo3D src={src} size={110} glowStrength={2.5} glowColor={accent} />;
+                })()}
+              </div>
+            </div>
+
+            {/* Title */}
+            <p className="left-panel-eyebrow text-[10px] font-bold tracking-[0.5em] text-cyan-400/60 uppercase mb-3">
+              Authentication Gateway
+            </p>
+            <h2 className="text-5xl font-extrabold text-white tracking-tighter uppercase leading-none mb-2">
+              {BRAND_NAME}
+            </h2>
+            <p className="text-gray-500 text-sm font-medium tracking-widest uppercase mb-10">
+              Admin Control System
+            </p>
+
+            {/* Status chips */}
+            <div className="flex flex-col gap-2.5">
+              {[
+                { icon: Shield, label: 'SSL Encrypted Tunnel', color: 'emerald' },
+                { icon: Lock, label: 'Multi-Factor Auth Ready', color: 'cyan' },
+              ].map(({ icon: Icon, label, color }) => (
+                <div key={label} className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full border ${
+                  color === 'emerald' ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400' : 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400'
+                }`}>
+                  <Icon className="w-3.5 h-3.5" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Version */}
+            <p className="mt-10 text-[10px] font-mono text-gray-700 tracking-[0.3em] uppercase">
+              OS v2.6 · {BRAND_YEAR}
+            </p>
+          </div>
+        </div>
+
+        {/* ─── DIVIDER ─── */}
+        <div className="hidden lg:block w-px bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent" />
+
+        {/* ─── RIGHT PANEL (Login Card) ─── */}
+        <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[520px] flex items-center justify-center p-4 sm:p-8">
+          <div ref={cardRef} className="w-full max-w-md lg:max-w-none">
+            {/* Card */}
+            <div className="login-card overflow-hidden">
+              {/* Top accent bar */}
+              <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
+
+              <div className="p-6 sm:p-8">
+
+                {/* ── Header ── */}
+                <div className="mb-8 stagger-item">
+                  {/* Brand logo (mobile only) */}
+                  <div className="lg:hidden flex justify-center mb-5">
+                    <div className="relative p-3 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md">
+                      {(() => {
                         const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
                         const accent = (homepageSettings as any)?.brand_logo_glow_color as string | undefined;
-                        if (!raw) return <div className="h-14 w-14 flex items-center justify-center text-cyan-400"><Shield className="w-8 h-8" /></div>;
+                        if (!raw) return <div className="h-12 w-12 flex items-center justify-center text-cyan-400"><Shield className="w-7 h-7" /></div>;
                         let u = String(raw).trim();
                         if (u.startsWith('//')) u = 'https:' + u;
                         const src = u.includes('?') ? `${u}&v=${Date.now()}` : `${u}?v=${Date.now()}`;
-                        return <BrandLogo3D src={src} size={60} glowStrength={1.5} glowColor={accent} />;
-                     })()}
-                   </div>
-                </div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-white uppercase italic">
-                  {requiresTOTP ? '2FA-Verification' : 'Admin Control'}
-                </h1>
-                <p className="text-cyan-400 font-mono text-[10px] tracking-[0.2em] mt-2 uppercase opacity-80 decoration-cyan-500/30">
-                  {requiresTOTP ? 'Encryption Key Required' : 'Authentication Gateway OS 2.6'}
-                </p>
-                
-                {/* Secure Gateway Indicator */}
-                {(() => {
-                  const searchParams = new URLSearchParams(window.location.search);
-                  const isMaster = searchParams.get('mode') === 'master';
-                  const hasPass = sessionStorage.getItem('rico_master_gate_access')?.startsWith('vault_v2_');
-                  
-                  if (isMaster && hasPass) {
-                    return (
-                      <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 animate-pulse">
+                        return <BrandLogo3D src={src} size={52} glowStrength={1.5} glowColor={accent} />;
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] font-bold tracking-[0.4em] text-cyan-400/50 uppercase mb-1">
+                        {requiresTOTP ? 'Two-Factor Verification' : 'Access Portal'}
+                      </p>
+                      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-white uppercase">
+                        {requiresTOTP ? '2FA Required' : isFormOpen ? 'Admin Login' : 'Select Role'}
+                      </h1>
+                    </div>
+
+                    {/* Master node badge */}
+                    {isMasterActive && (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 animate-pulse">
                         <Shield className="w-3 h-3 text-cyan-400" />
-                        <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">Secure Master Node Active</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-
-              {/* Login Modes Container */}
-              <div className="relative min-h-[300px]">
-                
-                {/* Mode Selection Grid */}
-                <div ref={buttonsRef} className="flex flex-col gap-2 sm:gap-2.5 stagger-item">
-                  <p className="text-gray-500 text-[9px] font-bold mb-1.5 ml-1 uppercase tracking-[0.3em]">Access Role</p>
-                  
-                  <button
-                    onClick={() => setIsFormOpen(true)}
-                    className="mode-btn group from-cyan-500/20 to-cyan-800/10 hover:border-cyan-400/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-cyan-400/10 text-cyan-400 group-hover:scale-110 transition-transform">
-                        <Zap size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm text-white group-hover:text-cyan-400 transition-colors">Admin Panel</p>
-                        <p className="text-[10px] text-gray-500">High-level orchestration</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
-                  </button>
-
-                  <button
-                    onClick={() => navigate('/security-login')}
-                    className="mode-btn group from-purple-500/20 to-purple-800/10 hover:border-purple-400/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-purple-400/10 text-purple-400 group-hover:scale-110 transition-transform">
-                        <Shield size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm text-white group-hover:text-purple-400 transition-colors">Security Node</p>
-                        <p className="text-[10px] text-gray-500">Scan & Entry verification</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-600 group-hover:text-purple-400 transition-colors" />
-                  </button>
-
-                  <button
-                    onClick={() => navigate('/coordinator')}
-                    className="mode-btn group from-blue-500/20 to-blue-800/10 hover:border-blue-400/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-blue-400/10 text-blue-400 group-hover:scale-110 transition-transform">
-                        <Users size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm text-white group-hover:text-blue-400 transition-colors">Coordinators</p>
-                        <p className="text-[10px] text-gray-500">Event management</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-600 group-hover:text-blue-400 transition-colors" />
-                  </button>
-
-                  <button
-                    onClick={() => navigate('/council')}
-                    className="mode-btn group from-emerald-500/20 to-emerald-800/10 hover:border-emerald-400/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-emerald-400/10 text-emerald-400 group-hover:scale-110 transition-transform">
-                        <BarChart3 size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm text-white group-hover:text-emerald-400 transition-colors">Council</p>
-                        <p className="text-[10px] text-gray-500">Analytics dashboard</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-600 group-hover:text-emerald-400 transition-colors" />
-                  </button>
-
-                  <button
-                    onClick={() => navigate('/sports-admin')}
-                    className="mode-btn group from-rose-500/20 to-rose-800/10 hover:border-rose-400/50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2.5 rounded-lg bg-rose-400/10 text-rose-400 group-hover:scale-110 transition-transform">
-                        <Trophy size={20} />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-sm text-white group-hover:text-rose-400 transition-colors">Sports Admin</p>
-                        <p className="text-[10px] text-gray-500">Tournament & Player management</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={18} className="text-gray-600 group-hover:text-rose-400 transition-colors" />
-                  </button>
-                </div>
-
-                {/* Form Content */}
-                <div ref={formRef} className={`${isFormOpen ? 'block' : 'hidden'}`}>
-                  <form onSubmit={handleSubmit} className="space-y-5">
-                    {error && (
-                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-3 animate-shake">
-                        <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-                        <span className="text-red-400 text-xs font-medium">{error}</span>
+                        <span className="text-[9px] text-cyan-400 font-bold uppercase tracking-widest">Master</span>
                       </div>
                     )}
+                  </div>
 
-                    {!requiresTOTP ? (
-                      <>
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Identity (Email)</label>
+                  {/* Divider */}
+                  <div className="mt-4 h-px bg-gradient-to-r from-white/10 via-cyan-400/20 to-transparent" />
+                </div>
+
+                {/* ── Content Area ── */}
+                <div className="relative">
+
+                  {/* ── Role Selection Buttons ── */}
+                  <div ref={buttonsRef} className="flex flex-col gap-2.5 stagger-item">
+                    <p className="text-[9px] font-bold tracking-[0.3em] text-gray-600 uppercase mb-1.5">
+                      Select Access Role
+                    </p>
+
+                    {roles.map(({ label, sub, icon: Icon, color, action }) => {
+                      const c = colorMap[color];
+                      return (
+                        <button
+                          key={label}
+                          onClick={action}
+                          className={`role-btn group relative overflow-hidden border ${c.border} ${c.ring}`}
+                        >
+                          {/* Left color bar */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${c.bg} opacity-0 group-hover:opacity-100 transition-all duration-300`}
+                            style={{ background: `var(--${color}-bar)` }}
+                          />
+                          <div className={`absolute left-0 top-0 bottom-0 w-[3px] role-bar-${color}`} />
+
+                          <div className="flex items-center gap-3.5">
+                            <div className={`p-2.5 rounded-xl ${c.bg} ${c.text} group-hover:scale-110 transition-transform duration-200`}>
+                              <Icon size={18} />
+                            </div>
+                            <div className="text-left">
+                              <p className={`font-bold text-sm text-white group-hover:${c.text} transition-colors duration-200`}>{label}</p>
+                              <p className="text-[10px] text-gray-600 mt-0.5">{sub}</p>
+                            </div>
+                          </div>
+
+                          <ChevronRight size={16} className={`text-gray-700 group-hover:${c.text} group-hover:translate-x-1 transition-all duration-200`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Login Form ── */}
+                  <div ref={formRef} style={{ display: 'none' }}>
+                    <div className="space-y-5">
+
+                      {/* Back button */}
+                      <button
+                        type="button"
+                        onClick={handleBackToPassword}
+                        className="inline-flex items-center gap-1.5 text-[10px] text-gray-500 hover:text-cyan-400 uppercase tracking-widest font-bold transition-colors mb-1"
+                      >
+                        <ArrowLeft size={12} />
+                        Back to roles
+                      </button>
+
+                      {/* Error */}
+                      {error && (
+                        <div className="p-3 rounded-xl bg-red-500/8 border border-red-500/25 flex items-center gap-3 animate-shake">
+                          <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                          <span className="text-red-400 text-xs font-medium">{error}</span>
+                        </div>
+                      )}
+
+                      {/* ═══ OWNER LOGIN: Dropdown + Password ═══ */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-yellow-500/5 to-amber-500/5 border border-yellow-500/15 space-y-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Shield className="w-4 h-4 text-yellow-400" />
+                          <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Owner Access</span>
+                        </div>
+
+                        <form 
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            setIsLoading(true);
+                            setError('');
+                            const res = await login(email, password);
+                            if (res.success) {
+                              navigate('/admin');
+                            } else if (res.requiresTOTP) {
+                              setRequiresTOTP(true);
+                              setIsLoading(false);
+                            } else {
+                              setIsLoading(false);
+                              setError(res.error || 'Invalid credentials');
+                            }
+                          }}
+                          className="space-y-3"
+                        >
+
+                        {/* Owner Dropdown */}
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] uppercase tracking-[0.25em] text-yellow-400/60 font-bold">Select Owner</label>
                           <div className="relative group">
-                            <input
-                              type="email"
+                            <select
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
-                              className="input-cyber"
-                              placeholder="cyber@ricorrenza.fun"
-                              required
-                            />
-                            <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
+                              className="input-cyber appearance-none pr-10 cursor-pointer hover:border-yellow-400/40 transition-all"
+                            >
+                              <option value="" disabled className="bg-[#0a0a15] text-gray-500">Select Owner</option>
+                              <option value="RAJA@rico.fun" className="bg-[#0a0a15] text-white">RAJA — System Owner</option>
+                              <option value="raaj@rico.fun" className="bg-[#0a0a15] text-white">RAAJ — System Owner</option>
+                            </select>
+                            <input type="hidden" name="username" value={email} autoComplete="username" />
+                            <Users className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-yellow-400 pointer-events-none transition-colors" />
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Access Key (Password)</label>
+                        {/* Password */}
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] uppercase tracking-[0.25em] text-yellow-400/60 font-bold">Access Key</label>
                           <div className="relative group">
                             <input
-                              type={showPassword ? 'text' : 'password'}
+                              type={showPassword ? "text" : "password"}
+                              name="password"
+                              autoComplete="current-password"
                               value={password}
                               onChange={(e) => setPassword(e.target.value)}
-                              className="input-cyber"
-                              placeholder="••••••••"
-                              required
+                              placeholder="Access Key"
+                              className="input-cyber pr-12"
                             />
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 hover:text-cyan-400"
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-yellow-400 transition-colors"
                             >
-                              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                             </button>
                           </div>
                         </div>
-                      </>
-                    ) : showForgotPassword ? (
-                      <div className="space-y-4">
-                        {/* Step Header */}
-                        <div className="text-center">
-                          <Shield className="w-10 h-10 text-cyan-400 mx-auto mb-3 opacity-60" />
-                          <p className="text-white text-sm font-bold">
-                            {otpStep === 'email' ? 'Reset Access Key' : otpStep === 'otp' ? 'Enter OTP' : 'Set New Password'}
-                          </p>
-                          <p className="text-gray-500 text-[10px] mt-1">
-                            {otpStep === 'email' ? 'Enter your admin email to receive a verification code' : 
-                             otpStep === 'otp' ? 'Enter the 6-digit code sent to your email (or check terminal)' : 
-                             'Choose a strong new password'}
-                          </p>
-                        </div>
 
-                        {/* Status Message */}
-                        {resetMsg && (
-                          <div className={`p-3 rounded-lg border flex items-center gap-3 text-xs font-medium ${
-                            resetMsg.includes('success') || resetMsg.includes('Generated') || resetMsg.includes('verified')
-                              ? 'bg-green-500/10 border-green-500/30 text-green-400' 
-                              : 'bg-red-500/10 border-red-500/30 text-red-400'
-                          }`}>
-                            {resetMsg.includes('success') || resetMsg.includes('Generated') || resetMsg.includes('verified')
-                              ? <Shield className="w-4 h-4 shrink-0" /> 
-                              : <AlertCircle className="w-4 h-4 shrink-0" />}
-                            {resetMsg}
-                          </div>
-                        )}
-
-                        {/* Step 1: Email */}
-                        {otpStep === 'email' && (
-                          <>
-                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Admin Email</label>
-                              <div className="relative group">
-                                <input
-                                  type="email"
-                                  value={resetEmail}
-                                  onChange={(e) => setResetEmail(e.target.value)}
-                                  className="input-cyber"
-                                  placeholder="your@email.com"
-                                />
-                                <Mail className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 transition-colors" />
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              disabled={isLoading || !resetEmail}
-                              onClick={async () => {
-                                setIsLoading(true);
-                                setResetMsg('');
-                                const { data: adminList } = await dualRead({ table: 'admin_users' });
-                                const isAdmin = Array.isArray(adminList) && adminList.some(
-                                  (a: any) => a.email?.toLowerCase() === resetEmail.toLowerCase()
-                                );
-                                if (!isAdmin) {
-                                  setResetMsg('This email is not registered as an admin.');
-                                  setIsLoading(false);
-                                  return;
-                                }
-                                const result = await generateOTP(resetEmail);
-                                if (result.success) {
-                                  setResetMsg(`OTP Generated! Code sent to your email.`);
-                                  setOtpStep('otp');
-                                } else {
-                                  setResetMsg(result.error || 'Failed to generate OTP.');
-                                }
-                                setIsLoading(false);
-                              }}
-                              className="btn-primary-cyber w-full group overflow-hidden"
-                            >
-                              {isLoading ? (
-                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
-                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                                  Generating...
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold relative z-10 w-full cursor-pointer h-full py-2">
-                                  <Key size={18} />
-                                  Generate OTP
-                                </div>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setShowForgotPassword(false); setOtpStep('email'); setResetMsg(''); }}
-                              className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer"
-                            >
-                              Cancel Reset
-                            </button>
-                          </>
-                        )}
-
-                        {/* Step 2: Enter OTP */}
-                        {otpStep === 'otp' && (
-                          <>
-                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">6-Digit OTP Code</label>
-                              <input
-                                type="text"
-                                value={otpCode}
-                                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                className="w-full text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-cyan-500/30 rounded-lg py-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                                placeholder="000000"
-                                maxLength={6}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              disabled={isLoading || otpCode.length !== 6}
-                              onClick={async () => {
-                                setIsLoading(true);
-                                setResetMsg('');
-                                const result = await verifyOTP(resetEmail, otpCode);
-                                if (result.valid) {
-                                  setResetMsg('OTP verified! Set your new password.');
-                                  setOtpStep('newpass');
-                                } else {
-                                  setResetMsg(result.error || 'Invalid OTP.');
-                                }
-                                setIsLoading(false);
-                              }}
-                              className="btn-primary-cyber w-full group"
-                            >
-                              {isLoading ? (
-                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
-                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                                  Verifying...
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
-                                  <Shield size={18} />
-                                  Verify OTP
-                                </div>
-                              )}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setShowForgotPassword(false); setOtpStep('email'); setResetMsg(''); setOtpCode(''); }}
-                              className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer"
-                            >
-                              Cancel Reset
-                            </button>
-                          </>
-                        )}
-
-                        {/* Step 3: New Password */}
-                        {otpStep === 'newpass' && (
-                          <>
-                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">New Password</label>
-                              <input
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) => setNewPassword(e.target.value)}
-                                className="input-cyber"
-                                placeholder="Enter new password"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-[10px] uppercase tracking-[0.2em] text-cyan-400/70 font-bold ml-1">Confirm Password</label>
-                              <input
-                                type="password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="input-cyber"
-                                placeholder="Confirm new password"
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              disabled={isLoading || !newPassword || newPassword !== confirmPassword || newPassword.length < 6}
-                              onClick={async () => {
-                                setIsLoading(true);
-                                setResetMsg('');
-                                if (newPassword.length < 6) {
-                                  setResetMsg('Password must be at least 6 characters.');
-                                  setIsLoading(false);
-                                  return;
-                                }
-                                const result = await updatePasswordDual(resetEmail, newPassword, supabase);
-                                if (result.success) {
-                                  setResetMsg('Password updated successfully! You can now login.');
-                                  setTimeout(() => {
-                                    setShowForgotPassword(false);
-                                    setOtpStep('email');
-                                    setOtpCode('');
-                                    setNewPassword('');
-                                    setConfirmPassword('');
-                                    setResetMsg('');
-                                    setEmail(resetEmail); // Pre-fill login email
-                                  }, 2000);
-                                } else {
-                                  setResetMsg(result.error || 'Failed to update password.');
-                                }
-                                setIsLoading(false);
-                              }}
-                              className="btn-primary-cyber w-full group"
-                            >
-                              {isLoading ? (
-                                <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
-                                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                                  Updating...
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
-                                  <Key size={18} />
-                                  Update Password
-                                </div>
-                              )}
-                            </button>
-                            {newPassword && confirmPassword && newPassword !== confirmPassword && (
-                              <p className="text-red-400 text-[10px] text-center">Passwords do not match</p>
-                            )}
-                          </>
-                        )}
-
-                        {/* Back Button */}
+                        {/* Owner Login Button */}
                         <button
                           type="button"
-                          onClick={() => { 
-                            setShowForgotPassword(false); 
-                            setResetMsg(''); 
-                            setOtpStep('email'); 
-                            setOtpCode(''); 
-                            setNewPassword(''); 
-                            setConfirmPassword(''); 
+                          disabled={isLoading || !email || !password}
+                          onClick={async () => {
+                            setIsLoading(true);
+                            setError('');
+                            const res = await login(email, password);
+                            if (res.success) {
+                              navigate('/admin');
+                            } else if (res.requiresTOTP) {
+                              setRequiresTOTP(true);
+                              setIsLoading(false);
+                            } else {
+                              setIsLoading(false);
+                              setError(res.error || 'Invalid credentials');
+                            }
                           }}
-                          className="w-full px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all"
+                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-yellow-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Back to Login
+                          {isLoading ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Authenticating...
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              <Key size={14} />
+                              Owner Login
+                            </span>
+                          )}
                         </button>
+                        </form>
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="text-center">
-                          <label className="text-xs uppercase tracking-[0.2em] text-cyan-400 font-bold">Six-Digit TOTP Token</label>
-                          <div className="mt-4 flex justify-center">
-                            <input
-                              type="text"
-                              value={totpCode}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                // Allow alphanumeric codes (for master bypass) or standard 6-digit numeric codes
-                                if (/[a-zA-Z@]/.test(val)) {
-                                  // For alphanumeric/special characters, allow longer input (max 12)
-                                  setTotpCode(val.slice(0, 12));
-                                } else {
-                                  setTotpCode(val.replace(/\D/g, '').slice(0, 6));
-                                }
-                              }}
-                              className="w-full text-center text-3xl font-mono tracking-[0.5em] bg-white/5 border-2 border-cyan-500/30 rounded-lg py-3 text-white focus:border-cyan-400 focus:outline-none focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-[inset_0_0_20px_rgba(34,211,238,0.1)]"
-                              placeholder="000000"
-                              maxLength={10}
-                              required
-                            />
-                          </div>
-                          <p className="mt-4 text-xs text-gray-500 flex items-center justify-center gap-2">
-                            <Smartphone size={14} className="text-cyan-400" />
-                            Synchronize via Authenticator App
-                          </p>
-                        </div>
-                      </div>
-                    )}
 
-                    <div className="pt-3 sm:pt-4 space-y-4">
-                      {/* Standard Login */}
+                      {/* Divider */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-white/10" />
+                        <span className="text-[9px] font-bold tracking-widest uppercase text-gray-600">Admin Sign-In</span>
+                        <div className="flex-1 h-px bg-white/10" />
+                      </div>
+
+                      {/* ═══ ADMIN LOGIN: Google Sign-In ═══ */}
                       <button
-                        type="submit"
-                        disabled={isLoading || (requiresTOTP && !totpCode)}
-                        className="btn-primary-cyber w-full group"
+                        type="button"
+                        disabled={isLoading}
+                        onClick={async () => {
+                          setIsLoading(true);
+                          setError('');
+                          const res = await loginWithGoogle();
+                          if (res.success) {
+                            navigate('/admin');
+                          } else {
+                            setIsLoading(false);
+                            setError(res.error || 'Google Sign-In failed');
+                          }
+                        }}
+                        className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-xl bg-white hover:bg-gray-100 text-gray-800 font-bold text-sm uppercase tracking-widest transition-all duration-300 shadow-lg shadow-white/10 hover:shadow-white/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isLoading ? (
-                           <div className="flex items-center justify-center gap-3 uppercase tracking-widest text-sm font-bold">
-                             <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                             Authorizing...
-                           </div>
+                          <>
+                            <span className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                            Authenticating...
+                          </>
                         ) : (
-                          <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
-                            <Key size={18} className="group-hover:rotate-12 transition-transform" />
-                            {requiresTOTP ? 'Verify Pulse' : 'Initiate Session'}
-                          </div>
+                          <>
+                            <svg width="18" height="18" viewBox="0 0 48 48">
+                              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            </svg>
+                            Sign in with Google
+                          </>
                         )}
                       </button>
+                      <p className="text-[9px] text-gray-600 text-center">Only owner-approved Gmail accounts can sign in.</p>
 
-                      {/* Biometric Login (Only if not in 2FA mode) */}
-                      {!requiresTOTP && (
-                        <>
-                          <div className="flex items-center gap-3 opacity-30">
-                            <div className="flex-1 h-px bg-white"></div>
-                            <span className="text-[10px] font-bold tracking-widest uppercase">OR</span>
-                            <div className="flex-1 h-px bg-white"></div>
-                          </div>
-                          
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              setIsLoading(true);
-                              setError('');
-                              const res = await loginWithPasskey();
-                              if (res.success) navigate('/admin');
-                              else { setIsLoading(false); setError(res.error || 'Biometric login failed'); }
-                            }}
-                            className="relative w-full overflow-hidden group rounded-lg p-[1px]"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 opacity-60 group-hover:opacity-100 transition-opacity animate-gradient-x"></div>
-                            <div className="relative w-full bg-black/80 backdrop-blur-md px-4 py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-black/60 transition-colors">
-                              <Fingerprint className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
-                              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 text-xs font-bold uppercase tracking-widest">
-                                Biometric Bypass
-                              </span>
-                            </div>
-                          </button>
-                        </>
-                      )}
+                      {/* ═══ BIOMETRIC LOGIN ═══ */}
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={async () => {
+                          setIsLoading(true);
+                          setError('');
+                          try {
+                            const res = await loginWithPasskey();
+                            if (res.success) {
+                              navigate('/admin');
+                            } else {
+                              setIsLoading(false);
+                              if (res.error) setError(res.error);
+                            }
+                          } catch (err: any) {
+                            setIsLoading(false);
+                            setError(err.message || 'Biometric authentication failed');
+                          }
+                        }}
+                        className="biometric-btn w-full stagger-item"
+                      >
+                        <Fingerprint className="w-5 h-5 text-cyan-400" />
+                        <span className="text-xs font-bold text-white uppercase tracking-widest">Login with Biometrics</span>
+                      </button>
 
-                      {/* TOTP Back Button */}
-                      {requiresTOTP && (
-                         <button
-                           type="button"
-                           onClick={handleBackToPassword}
-                           className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-all flex items-center justify-center"
-                         >
-                           Back to Login
-                         </button>
-                      )}
-                      
-                      {/* Forgot Password Link */}
-                      {!requiresTOTP && !showForgotPassword && (
-                        <button
-                          type="button"
-                          onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); setShowForgotPassword(true); setResetEmail(email); setError(''); }}
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowForgotPassword(true); setResetEmail(email); setError(''); }}
-                          className="w-full text-center text-[10px] text-cyan-400/60 hover:text-cyan-400 uppercase tracking-[0.2em] font-bold transition-colors py-1 cursor-pointer relative z-[100]"
-                        >
-                          Forgot Access Key?
-                        </button>
-                      )}
+
                     </div>
-                  </form>
+                  </div>
+
                 </div>
 
+                {/* ── Footer ── */}
+                <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between stagger-item">
+                  <div className="flex items-center gap-2 text-gray-700 text-[9px] uppercase font-bold tracking-widest">
+                    <Shield size={11} className="text-emerald-500/50" />
+                    SSL Active
+                  </div>
+                  <div className="text-gray-700 text-[9px] font-mono">
+                    {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 12)}...` : `${BRAND_NAME} · ${BRAND_YEAR}`}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Bottom Footer Info */}
-            <div className="px-4 sm:px-8 py-3 sm:py-4 border-t border-white/5 bg-black/40 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0 stagger-item">
-              <div className="flex items-center gap-2 text-gray-500 text-[9px] sm:text-[10px] uppercase font-bold tracking-widest">
-                <Shield size={12} className="text-green-500/50" />
-                SSL: Encrypted Tunnel Active
-              </div>
-              <div className="text-gray-600 text-[9px] sm:text-[10px] font-mono">
-                {SHOW_SUPABASE && supabaseHost ? `NODE: ${supabaseHost.slice(0, 15)}...` : `${BRAND_NAME} OS ${BRAND_YEAR}`}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 sm:mt-8 text-center stagger-item">
-            <p className="text-gray-500 text-[10px] sm:text-xs uppercase tracking-[0.3em] sm:tracking-[0.4em] font-medium opacity-50">
-               © {BRAND_YEAR} {BRAND_NAME} Fest Committee
+            {/* Copyright */}
+            <p className="mt-5 text-center text-gray-700 text-[10px] uppercase tracking-[0.4em] font-medium stagger-item">
+              © {BRAND_YEAR} {BRAND_NAME} Fest Committee
             </p>
           </div>
         </div>
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
         .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
 
-        .glass-card {
-          background: rgba(15, 15, 20, 0.7);
-          backdrop-filter: blur(25px) saturate(180%);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 1.25rem;
-          box-shadow: 
-            0 25px 50px -12px rgba(0, 0, 0, 0.5),
-            0 0 40px rgba(34, 211, 238, 0.05),
-            inset 0 0 2px rgba(255, 255, 255, 0.1);
+        /* ── Left panel grid ── */
+        .left-panel-grid {
+          background-image:
+            linear-gradient(rgba(34,211,238,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(34,211,238,0.06) 1px, transparent 1px);
+          background-size: 48px 48px;
+          background-position: center center;
         }
 
-        .input-cyber {
-          width: 100%;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1.5px solid rgba(255, 255, 255, 0.1);
-          border-radius: 0.75rem;
-          padding: 0.75rem 1rem;
-          color: white;
-          font-weight: 500;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* ── Login Card ── */
+        .login-card {
+          background: rgba(10, 10, 18, 0.85);
+          backdrop-filter: blur(30px) saturate(180%);
+          border: 1px solid rgba(34, 211, 238, 0.12);
+          border-radius: 1.5rem;
+          box-shadow:
+            0 32px 64px -12px rgba(0,0,0,0.7),
+            0 0 0 1px rgba(255,255,255,0.04),
+            0 0 60px rgba(34,211,238,0.04),
+            inset 0 0 1px rgba(255,255,255,0.08);
+          position: relative;
         }
 
-        .input-cyber:focus {
-          outline: none;
-          background: rgba(34, 211, 238, 0.03);
-          border-color: rgba(34, 211, 238, 0.5);
-          box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
+        /* Corner brackets on card */
+        .login-card::before,
+        .login-card::after {
+          content: '';
+          position: absolute;
+          width: 14px;
+          height: 14px;
+          border-color: rgba(34,211,238,0.35);
+          border-style: solid;
+        }
+        .login-card::before {
+          top: 12px; left: 12px;
+          border-width: 1.5px 0 0 1.5px;
+          border-radius: 2px 0 0 0;
+        }
+        .login-card::after {
+          bottom: 12px; right: 12px;
+          border-width: 0 1.5px 1.5px 0;
+          border-radius: 0 0 2px 0;
         }
 
-        .mode-btn {
+        /* ── Role buttons ── */
+        .role-btn {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          padding: 0.75rem 1rem;
+          border-radius: 1rem;
+          background: rgba(255,255,255,0.025);
+          transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+        }
+        .role-btn:hover {
+          background: rgba(255,255,255,0.05);
+          transform: translateX(3px);
+        }
+
+        /* Color bars for each role */
+        .role-bar-cyan    { background: linear-gradient(to bottom, #22d3ee, #0891b2); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
+        .role-bar-purple  { background: linear-gradient(to bottom, #a78bfa, #7c3aed); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
+        .role-bar-blue    { background: linear-gradient(to bottom, #60a5fa, #2563eb); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
+        .role-bar-emerald { background: linear-gradient(to bottom, #34d399, #059669); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
+        .role-bar-rose    { background: linear-gradient(to bottom, #fb7185, #e11d48); width: 3px; position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px 0 0 4px; opacity: 0; transition: opacity 0.25s; }
+        .role-btn:hover .role-bar-cyan,
+        .role-btn:hover .role-bar-purple,
+        .role-btn:hover .role-bar-blue,
+        .role-btn:hover .role-bar-emerald,
+        .role-btn:hover .role-bar-rose { opacity: 1; }
+
+        /* ── Inputs ── */
+        .input-cyber {
+          width: 100%;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 0.875rem;
+          padding: 0.7rem 2.5rem 0.7rem 1rem;
+          color: white;
+          font-weight: 500;
+          font-size: 0.9rem;
+          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+        .input-cyber:focus {
+          outline: none;
+          background: rgba(34,211,238,0.03);
+          border-color: rgba(34,211,238,0.4);
+          box-shadow: 0 0 0 3px rgba(34,211,238,0.06);
+        }
+        .input-cyber::placeholder { color: rgba(255,255,255,0.2); }
+
+        /* ── Primary button ── */
+        .btn-primary-cyber {
+          background: linear-gradient(135deg, #22d3ee, #0891b2);
+          color: #000;
           padding: 0.75rem;
           border-radius: 0.875rem;
-          border: 1.5px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          font-weight: 700;
+          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+          box-shadow: 0 4px 20px rgba(34,211,238,0.25), 0 0 0 1px rgba(34,211,238,0.2);
         }
-
-        .mode-btn:hover {
-          transform: translateX(4px);
-          background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
+        .btn-primary-cyber:hover:not(:disabled) {
+          background: linear-gradient(135deg, #67e8f9, #22d3ee);
+          box-shadow: 0 8px 30px rgba(34,211,238,0.4), 0 0 0 1px rgba(34,211,238,0.3);
+          transform: translateY(-1px);
         }
+        .btn-primary-cyber:active:not(:disabled) { transform: scale(0.98); }
+        .btn-primary-cyber:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        .mode-btn-compact {
+        /* ── Biometric button ── */
+        .biometric-btn {
           display: flex;
-          flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 0.75rem;
+          gap: 0.625rem;
+          padding: 0.7rem;
           border-radius: 0.875rem;
-          border: 1.5px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          border: 1px solid rgba(34,211,238,0.2);
+          background: rgba(34,211,238,0.04);
+          transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+          cursor: pointer;
+        }
+        .biometric-btn:hover {
+          background: rgba(34,211,238,0.08);
+          border-color: rgba(34,211,238,0.35);
+          box-shadow: 0 0 20px rgba(34,211,238,0.1);
         }
 
-        .mode-btn-compact:hover {
-           transform: translateY(-4px);
-           background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
-        }
-
-        .btn-primary-cyber {
-          background: #22d3ee;
-          color: black;
-          padding: 0.75rem;
-          border-radius: 0.75rem;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 15px rgba(34, 211, 238, 0.3);
-        }
-
-        .btn-primary-cyber:hover {
-          background: #ffffff;
-          box-shadow: 0 8px 25px rgba(34, 211, 238, 0.5);
-          transform: translateY(-2px);
-        }
-
-        .btn-primary-cyber:active { transform: scale(0.98); }
-
+        /* ── Animations ── */
         @keyframes scan {
           0% { transform: translateY(-100vh); }
           100% { transform: translateY(100vh); }
         }
-
-        .animate-scan { animation: scan 8s linear infinite; }
+        .animate-scan { animation: scan 10s linear infinite; }
 
         @keyframes shake {
-          0%, 100% { transform: translateX(0); }
+          0%,100% { transform: translateX(0); }
           25% { transform: translateX(-4px); }
           75% { transform: translateX(4px); }
         }
         .animate-shake { animation: shake 0.3s ease-in-out; }
 
-        /* Mobile optimizations */
+        /* ── Mobile ── */
         @media (max-width: 640px) {
-          .mode-btn, .mode-btn-compact {
-            min-height: 44px; /* iOS touch target minimum */
-          }
-          .btn-primary-cyber {
-            min-height: 48px;
-          }
-          .glass-card {
-            border-radius: 1rem;
-          }
-        }
-
-        /* Prevent zoom on input focus (iOS) */
-        @media (max-width: 640px) {
-          input, select, textarea {
-            font-size: 16px !important;
-          }
+          .role-btn { min-height: 52px; }
+          .btn-primary-cyber { min-height: 48px; }
+          input, select, textarea { font-size: 16px !important; }
         }
       `}</style>
     </div>

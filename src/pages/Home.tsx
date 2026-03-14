@@ -155,6 +155,43 @@ export const Home: React.FC = () => {
 
   const detailAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  useEffect(() => {
+    import('gsap').then(({ default: gsap }) => {
+      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+        gsap.registerPlugin(ScrollTrigger);
+        setTimeout(() => {
+          const fadeUpElements = gsap.utils.toArray('.gsap-fade-up') as HTMLElement[];
+          if (fadeUpElements.length > 0) {
+            ScrollTrigger.batch(fadeUpElements, {
+              start: "top 85%",
+              onEnter: (elements) => {
+                gsap.to(elements, {
+                  y: 0,
+                  opacity: 1,
+                  stagger: 0.15,
+                  duration: 0.8,
+                  ease: "power3.out",
+                  overwrite: "auto"
+                });
+              },
+              once: true
+            });
+            gsap.set(fadeUpElements, { y: 50, opacity: 0 });
+          }
+        }, 500);
+      });
+    });
+    return () => {
+      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
+        ScrollTrigger.getAll().forEach(t => {
+          if (t.vars.trigger && (t.vars.trigger as HTMLElement).classList?.contains('gsap-fade-up')) {
+            t.kill();
+          }
+        });
+      });
+    };
+  }, [showInteractive, loading]);
+
   const stopDetailAudio = useCallback(() => {
     const player = detailAudioRef.current;
     if (!player) return;
@@ -456,7 +493,7 @@ export const Home: React.FC = () => {
       {/* Featured Guest Artists */}
 
       {featuredGuestArtists.length > 0 && (
-      <section className="pt-28 pb-14 md:pt-36 md:pb-20 relative overflow-hidden">
+      <section className="pt-28 pb-14 md:pt-36 md:pb-20 relative overflow-hidden gsap-fade-up">
           <div className="container mx-auto px-0 sm:px-4 relative z-10">
             <ScrollReveal animation="fadeUp">
               <div className="text-center mb-10 md:mb-16">
@@ -519,7 +556,7 @@ export const Home: React.FC = () => {
         const enabledChiefs = chiefGuests.filter((c: any)=>c.enabled);
         const multi = enabledChiefs.length > 1;
         return (
-          <section className="py-16 relative overflow-hidden">
+          <section className="py-16 relative overflow-hidden gsap-fade-up">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-indigo-900/30 to-purple-900/20"></div>
             <div className="container mx-auto px-0 relative z-10">
               <ScrollReveal animation="fadeUp">
@@ -682,7 +719,7 @@ export const Home: React.FC = () => {
 
     {/* Featured Events */}
       {featuredEvents.length > 0 && (
-  <section className="py-12 relative overflow-hidden">
+  <section className="py-12 relative overflow-hidden gsap-fade-up">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
       <div className="container mx-auto px-0 relative z-10">
             <div className="scroll-animate-3d">
@@ -775,7 +812,7 @@ export const Home: React.FC = () => {
 
       {/* Featured Gallery */}
       {featuredImages.length > 0 && (
-  <section className="pt-20 pb-16 relative overflow-hidden">
+  <section className="pt-20 pb-16 relative overflow-hidden gsap-fade-up">
           <div className="container mx-auto px-0 md:px-4 relative z-10">
             <div className="scroll-animate-3d">
               <div className="text-center mb-16">
@@ -936,7 +973,7 @@ export const Home: React.FC = () => {
 
       {/* Leadership (Faculty + Committee Heads) — placed directly below Partners */}
   {(enabledFacultyHeads.length > 0 || committeeHeads.length > 0) && ((homepageSettings?.show_faculty_heads) || (homepageSettings?.show_committee_heads)) && (
-        <section className="py-24 relative overflow-hidden">
+        <section className="py-24 relative overflow-hidden gsap-fade-up">
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate-3d">
               <div className="text-center mb-16">
@@ -1130,7 +1167,7 @@ export const Home: React.FC = () => {
 
   {/* About Section */}
     {aboutSettings?.enabled === true && (
-    <section className="py-24 relative overflow-hidden">
+    <section className="py-24 relative overflow-hidden gsap-fade-up">
         <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate-3d">
             <div className="text-center mb-16">
@@ -1239,7 +1276,7 @@ export const Home: React.FC = () => {
     )}
 
       {/* Call to Action */}
-      <section className="py-32 relative overflow-hidden">
+      <section className="py-32 relative overflow-hidden gsap-fade-up">
         <div className="container mx-auto px-4 text-center relative z-10">
           <Parallax speed={0.3}>
             <div className="scroll-animate-3d">

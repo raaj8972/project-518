@@ -39,17 +39,17 @@ export const mapUploadError = (error: any, bucket: string): Error => {
   const msg = msgRaw.toLowerCase();
   
   if (status === 0 || msg.includes('http 0') || msg.includes('unknown error')) {
-    return new Error('Network/CORS error during upload. Check your Firebase configuration rules and retry.');
+    return new Error('Network/CORS error during upload. Check your Supabase configuration rules and retry.');
   }
   
   if (status === 401 || status === 403 || msg.includes('unauthorized') || msg.includes('permission') || msg.includes('not allowed')) {
     return new Error(
-      `Upload not permitted. Ensure Firebase storage security rules for bucket '${bucket}' allow authenticated inserts.`
+      `Upload not permitted. Ensure Supabase storage security rules for bucket '${bucket}' allow authenticated inserts.`
     );
   }
   
   if (msg.includes('bucket not found') || msg.includes('not found') || msg.includes('no such file or directory')) {
-    return new Error(`Storage bucket '${bucket}' might not exist in Firebase. Please check Firebase console.`);
+    return new Error(`Storage bucket '${bucket}' might not exist in Supabase. Please check Supabase dashboard.`);
   }
   
   if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('timeout')) {

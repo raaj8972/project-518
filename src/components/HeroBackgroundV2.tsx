@@ -19,7 +19,10 @@ export const HeroBackgroundV2: React.FC<HeroBackgroundV2Props> = ({ pageKey, cla
   }, []);
 
   useEffect(() => {
-    heroMediaService.getHeroMedia(pageKey).then(setMedia).catch(console.error);
+    const unsubscribe = heroMediaService.subscribeHeroMedia(pageKey, (data) => {
+      setMedia(data);
+    });
+    return () => unsubscribe();
   }, [pageKey]);
 
   if (!media || !media.enabled) {
@@ -39,7 +42,9 @@ export const HeroBackgroundV2: React.FC<HeroBackgroundV2Props> = ({ pageKey, cla
     desktop_offset_y,
     mobile_zoom,
     mobile_offset_x,
-    mobile_offset_y
+    mobile_offset_y,
+    poster_url,
+    mobile_poster_url
   } = media;
 
   const zoom = isMobile ? mobile_zoom : desktop_zoom;
@@ -47,13 +52,15 @@ export const HeroBackgroundV2: React.FC<HeroBackgroundV2Props> = ({ pageKey, cla
   const offsetY = isMobile ? mobile_offset_y : desktop_offset_y;
 
   const transformStyle = {
-    transform: `translate(${offsetX * 100}%, ${offsetY * 100}%) scale(${zoom})`,
+    transform: `translate3d(${offsetX * 100}%, ${offsetY * 100}%, 0) scale(${zoom})`,
     transformOrigin: 'center center',
-    transition: 'transform 0.5s ease-out'
+    transition: 'transform 0.5s ease-out',
+    willChange: 'transform'
   };
 
   const activeVideo = isMobile && mobile_video_url ? mobile_video_url : video_url;
   const activeImage = isMobile && mobile_image_url ? mobile_image_url : image_url;
+  const activePoster = isMobile && mobile_poster_url ? mobile_poster_url : poster_url;
 
   return (
     <div className={`absolute inset-0 overflow-hidden ${className}`}>
@@ -64,7 +71,9 @@ export const HeroBackgroundV2: React.FC<HeroBackgroundV2Props> = ({ pageKey, cla
           autoPlay 
           loop 
           muted 
-          playsInline 
+          playsInline
+          preload="auto"
+          poster={activePoster || undefined}
           className="absolute inset-0 w-full h-full object-cover" 
           style={transformStyle}
         />

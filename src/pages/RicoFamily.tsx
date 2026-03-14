@@ -13,12 +13,103 @@ import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
 import CommitteeBackgroundEffect from '../components/CommitteeBackgroundEffect';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
+import { KineticText } from '../components/ui/KineticText';
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel'));
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
+  const FounderCard: React.FC<{ founder: any; compact: boolean; isActive: boolean }> = ({ founder, compact, isActive }) => {
+    const isRaaj = founder.name.toLowerCase().includes('raaj');
+    
+    return (
+      <div 
+        className={`w-full ${compact ? 'max-w-[420px]' : 'max-w-6xl'} grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center transition-all duration-700 ${!isActive ? 'opacity-40 grayscale blur-[2px] scale-90' : 'opacity-100 grayscale-0 blur-0 scale-100'}`}
+      >
+        {/* Portrait Frame */}
+        <div className="lg:col-span-5 flex justify-center lg:justify-end order-1">
+          <div className="relative group w-full max-w-[320px] md:max-w-[380px]">
+            <div className="absolute -inset-4 border border-cyan-500/10 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+            
+            <div className="relative overflow-hidden rounded-[2rem] bg-black/40 border-2 border-white/10 shadow-[0_0_40px_-10px_rgba(6,182,212,0.2)] group-hover:border-cyan-500/30 transition-all duration-700">
+              <div className="hologram-scanline opacity-20"></div>
+              <img 
+                loading="lazy" 
+                src={founder.image} 
+                alt={founder.name} 
+                className="w-full aspect-[4/5] object-cover object-top transition-transform duration-[2s] group-hover:scale-110 grayscale-[0.1] group-hover:grayscale-0" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-transparent to-transparent opacity-50"></div>
+              
+              <div className="absolute top-4 right-4 hidden md:flex items-center justify-center">
+                 <div className="w-10 h-10 rounded-xl bg-black/60 border border-cyan-500/40 backdrop-blur-2xl flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                    <Crown className="w-5 h-5 text-cyan-400" />
+                 </div>
+              </div>
+            </div>
 
+            <div className="absolute -bottom-4 -right-4 md:-right-6 px-4 py-2.5 rounded-2xl bg-[#0a0f1d] border border-cyan-500/30 backdrop-blur-3xl shadow-xl z-20 hidden md:block">
+               <p className="text-xs font-bold text-white flex items-center gap-2">
+                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                 Lead Architect
+               </p>
+            </div>
+          </div>
+        </div>
 
+        {/* Content Section */}
+        <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left order-2">
+           <div className="mb-0 overflow-hidden">
+              {isRaaj ? (
+                <KineticText as="h3" className="text-5xl sm:text-6xl md:text-8xl font-black text-white tracking-tighter mb-1">
+                  RAAJ
+                </KineticText>
+              ) : (
+                <h3 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter mb-1">
+                  {founder.name}
+                </h3>
+              )}
+           </div>
+           
+           <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6 mb-6">
+             <div className="inline-flex items-center gap-2 text-cyan-400 font-bold text-[10px] md:text-xs uppercase tracking-[0.3em] py-1 border-b border-cyan-500/20">
+                Founder of Website
+             </div>
+             <div className="text-white/40 text-[9px] md:text-[10px] font-mono uppercase tracking-widest flex items-center justify-center lg:justify-start gap-2">
+                <Shield className="w-3 h-3 text-white/20" />
+                System Sovereign
+             </div>
+           </div>
+
+           <p className="text-sm md:text-base text-white/70 max-w-md leading-relaxed font-light mb-8 italic">
+             "Building the digital infrastructure for excellence. The architect behind the platform, ensuring every byte serves the vision."
+           </p>
+
+           <div className="flex flex-wrap justify-center lg:justify-start gap-3">
+              {founder.social_links?.instagram && (
+                 <a href={founder.social_links.instagram} target="_blank" rel="noopener noreferrer" className="group/social relative flex items-center gap-3 pl-3 pr-5 py-2.5 rounded-xl bg-pink-500/5 border border-pink-500/20 hover:border-pink-500/40 transition-all duration-300 overflow-hidden">
+                   <Instagram className="w-4 h-4 text-pink-400" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-pink-50/80">Instagram</span>
+                 </a>
+              )}
+              {founder.social_links?.youtube && (
+                 <a href={founder.social_links.youtube} target="_blank" rel="noopener noreferrer" className="group/social relative flex items-center gap-3 pl-3 pr-5 py-2.5 rounded-xl bg-red-500/5 border border-red-500/20 hover:border-red-500/40 transition-all duration-300 overflow-hidden">
+                   <Youtube className="w-4 h-4 text-red-100" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-red-50/80">YouTube</span>
+                 </a>
+              )}
+              <div className="flex gap-2">
+                 {founder.social_links?.facebook && (
+                    <a href={founder.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-500/5 border border-blue-500/20 text-blue-400 hover:border-blue-500/40 transition-all duration-300"><Facebook size={16} /></a>
+                 )}
+                 {founder.social_links?.spotify && (
+                    <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-500/5 border border-green-500/20 text-green-400 hover:border-green-500/40 transition-all duration-300"><Spotify size={16} /></a>
+                 )}
+              </div>
+           </div>
+        </div>
+      </div>
+    );
+  };
 
 export const RicoFamily: React.FC = () => {
   const { facultyHeads, coreCommittees, coreTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
@@ -193,72 +284,49 @@ export const RicoFamily: React.FC = () => {
     <ScrollHint />
 
 
-      {/* Founder Section — Dedicated spotlight ABOVE Faculty */}
+      {/* Founder Section — Compact Spotlight / Slider */}
       {founders.length > 0 && (
-        <section className="pt-32 pb-20 md:pt-48 md:pb-32 relative overflow-hidden bg-[#030712]">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[120px] pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+        <section className="pt-20 pb-16 md:pt-32 md:pb-24 relative overflow-hidden bg-[#030712] border-b border-white/5">
+          {/* Cyberpunk Background Ambience */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[140px] animate-pulse"></div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]"></div>
+          </div>
+
           <div className="container mx-auto px-4 relative z-10">
-            <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
-              <div className="text-center mb-16 md:mb-24">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                   <Crown className="w-4 h-4 text-cyan-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-cyan-50">Platform Architects</span>
-                </div>
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter">
-                  FOUNDER OF <span className="text-white/50 font-light">WEBSITE</span>
-                </h2>
+            {/* Section Header */}
+            <div className="scroll-animate opacity-0 transform translate-y-10 flex flex-col items-center mb-12 md:mb-16">
+              <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-cyan-500/5 border border-cyan-500/20 backdrop-blur-xl mb-6 md:mb-8 group hover:border-cyan-500/40 transition-all duration-500 focus-within:border-cyan-500/40">
+                <Crown className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] md:text-xs font-black tracking-[0.3em] uppercase text-cyan-50/90 whitespace-nowrap">The Visionary Backend</span>
               </div>
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black mb-2 tracking-tighter text-center leading-none">
+                FOUNDER OF <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/20">WEBSITE</span>
+              </h2>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto px-4 sm:px-6">
-              {founders.map((founder, idx) => (
-                <div key={founder.id} className="scroll-animate opacity-0 transform translate-y-20 w-full max-w-[360px] sm:max-w-[400px]" style={{ animationDelay: `${idx * 0.2}s` }}>
-                  <div className="group overflow-hidden rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-2xl shadow-[0_0_40px_-15px_rgba(0,0,0,0.5)] transition-all duration-500 hover:border-cyan-500/30 hover:bg-white/[0.04]">
-                    <div className="flex flex-col h-full">
-                      {/* Founder Photo */}
-                      <div className="relative aspect-[4/5] sm:aspect-square w-full overflow-hidden bg-black/40">
-                        <img loading="lazy" src={founder.image} alt={founder.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
-                        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#030712] via-[#030712]/60 to-transparent"></div>
-                        <div className="absolute top-4 right-4">
-                           <div className="w-8 h-8 rounded-full bg-cyan-950/40 border border-cyan-500/20 flex items-center justify-center backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                              <Crown className="w-3.5 h-3.5 text-cyan-400" />
-                           </div>
-                        </div>
-                      </div>
-                      {/* Founder Info */}
-                      <div className="px-5 sm:px-8 pb-6 sm:pb-8 pt-2 flex flex-col items-center text-center relative z-10 -mt-8 sm:-mt-10">
-                        <div className="mb-5 sm:mb-6">
-                           <h3 className="text-2xl sm:text-3xl font-bold text-white mb-1 tracking-tight group-hover:text-cyan-50 transition-colors">
-                             {founder.name.toLowerCase().includes('raaj') ? 'RAAJ' : founder.name}
-                           </h3>
-                           <p className="text-cyan-400/80 font-bold text-[9px] sm:text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-2">
-                             Founder of Website
-                           </p>
-                        </div>
-                        
-                        <div className="flex flex-wrap justify-center gap-3">
-                          {founder.social_links?.instagram && (
-                             <a href={founder.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(236,72,153,0.3)] transition-all duration-300">
-                               <Instagram size={18} />
-                             </a>
-                          )}
-                          {founder.social_links?.youtube && (
-                             <a href={founder.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all duration-300">
-                               <Youtube size={18} />
-                             </a>
-                          )}
-                          {founder.social_links?.spotify && (
-                             <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-11 h-11 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 hover:scale-105 hover:shadow-[0_0_20px_rgba(34,197,94,0.3)] transition-all duration-300">
-                               <Spotify size={18} />
-                             </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+            {/* Conditional Layout: Slider if > 1, Centered if 1 */}
+            <div className="max-w-7xl mx-auto">
+              {founders.length > 1 ? (
+                <div className="scroll-animate opacity-0 transform translate-y-10">
+                  <React.Suspense fallback={<div className="h-[500px] flex items-center justify-center text-cyan-500/50 uppercase tracking-widest text-xs font-black animate-pulse">Initializing Platform...</div>}>
+                    <CoverflowCarousel 
+                      items={founders}
+                      stageHeight={isMobile ? 500 : 540}
+                      visibleRange={isMobile ? 1 : 2}
+                      stepPx={isMobile ? 280 : 400}
+                      scaleStep={0.15}
+                      renderItem={(founder, _, isActive) => (
+                        <FounderCard founder={founder} compact={true} isActive={isActive} />
+                      )}
+                    />
+                  </React.Suspense>
                 </div>
-              ))}
+              ) : (
+                <div className="scroll-animate opacity-0 transform translate-y-10 flex justify-center">
+                   <FounderCard founder={founders[0]} compact={false} isActive={true} />
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -338,9 +406,9 @@ export const RicoFamily: React.FC = () => {
             <div className="grid md:grid-cols-2 gap-10">
               {councilMembers.map((member, idx) => { const lead = isLeadWebDevRole(member.role); return (
                 <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${idx * 0.15}s` }}>
-                  <div className={`group overflow-hidden border bg-white/[0.02] backdrop-blur-2xl rounded-[2rem] shadow-2xl relative flex flex-col md:grid md:grid-cols-5 gap-0 h-full ${lead ? 'border-cyan-500/20' : 'border-white/5'}`}> 
+                  <div className={`group overflow-hidden border bg-white/[0.02] backdrop-blur-2xl rounded-[2rem] shadow-2xl relative flex flex-col md:grid md:grid-cols-12 gap-0 h-full ${lead ? 'border-cyan-500/20' : 'border-white/5'}`}> 
                     {/* Image */}
-                    <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:col-span-2 md:h-full overflow-hidden">
+                    <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:col-span-4 md:h-full overflow-hidden">
                       <img decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
                       <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#030712] md:from-transparent to-transparent opacity-90"></div>
                       <div className="absolute top-4 right-4 md:right-auto md:left-4">
@@ -353,7 +421,7 @@ export const RicoFamily: React.FC = () => {
                       </div>
                     </div>
                     {/* Content */}
-                    <div className="px-6 pb-8 pt-4 md:p-8 flex flex-col justify-center relative md:col-span-3">
+                    <div className="px-6 pb-8 pt-4 md:p-8 flex flex-col justify-center relative md:col-span-8">
                       <h3 className={`text-2xl sm:text-3xl font-bold mb-1 tracking-tight ${lead ? 'text-cyan-50' : 'text-white'}`}>{member.name}</h3>
                       <p className={`text-[11px] font-bold uppercase tracking-widest mb-6 ${lead ? 'text-cyan-400/80' : 'text-red-400/80'}`}>{lead ? 'Founder of Website' : (member.role || 'Member')}</p>
                               {member.description && (

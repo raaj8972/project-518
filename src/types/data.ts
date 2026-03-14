@@ -13,7 +13,11 @@ export type ContactSection = Database['public']['Tables']['contact_sections']['R
 export type EventCategory = Database['public']['Tables']['event_categories']['Row'];
 export type FacultyHead = Database['public']['Tables']['faculty_heads']['Row'];
 export type CoreCommittee = Database['public']['Tables']['core_committees']['Row'];
-export type AdminPermission = Database['public']['Tables']['admin_permissions']['Row'];
+export type AdminPermission = Database['public']['Tables']['admin_permissions']['Row'] & {
+  can_sports?: boolean;
+  can_security_passes?: boolean;
+  can_sports_registrations?: boolean;
+};
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
 export type SportsCommittee = Database['public']['Tables']['sports_committees']['Row'];
 export type SportsTeamMember = Database['public']['Tables']['sports_team_members']['Row'];
@@ -89,6 +93,23 @@ export interface AnnualSportsRegistration {
   status?: 'pending' | 'approved' | 'rejected';
   photo_url?: string | null;
   metadata?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+export interface AnnualSportsMatch {
+  id: number;
+  event_id: string;
+  team_a_registration_id: string | null;
+  team_b_registration_id: string | null;
+  match_date: string | null;
+  match_time: string | null;
+  venue: string | null;
+  round: string | null;
+  score_a: string | null;
+  score_b: string | null;
+  winner_registration_id: string | null;
+  highlights: string | null;
+  status: 'upcoming' | 'completed' | 'cancelled';
   created_at: string;
   updated_at: string;
 }
@@ -355,15 +376,23 @@ export interface DataContextType {
   deleteStorageFileByPublicUrl?: (url: string) => Promise<void>;
   isUrlReferencedSomewhere?: (target: string, options?: any) => boolean;
   indexGalleryImageFaces?: (imageId: number, url: string) => Promise<void>;
-  adminUsers?: Array<{ user_id: string; email: string; created_at: string; role?: 'owner' | 'admin'; is_primary?: boolean }>;
+  adminUsers?: Array<{ 
+    user_id: string; 
+    email: string; 
+    created_at: string; 
+    role?: 'owner' | 'admin'; 
+    is_primary?: boolean;
+    permissions?: AdminPermission;
+  }>;
   refreshAdminUsers?: () => Promise<void>;
-  addAdminUser?: (userId: string, email: string) => Promise<void>;
+  addAdminUser?: (userId: string, email: string, role?: 'owner' | 'admin') => Promise<void>;
   removeAdminUser?: (userId: string) => Promise<void>;
   addAdminByEmail?: (email: string) => Promise<void>;
-  createAdminAccount?: (email: string, password: string) => Promise<{ user_id: string; email: string } | null>;
+  createAdminAccount?: (email: string, password: string, role?: 'owner' | 'admin') => Promise<{ user_id: string; email: string } | null>;
   updateAdminEmail?: (userId: string, newEmail: string) => Promise<void>;
   listAdminPermissions?: () => Promise<any[]>;
   setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
+  updateAdminRole?: (userId: string, role: 'owner' | 'admin') => Promise<void>;
   myPermissions?: {
     can_events?: boolean;
     can_schedule?: boolean;

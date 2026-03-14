@@ -57,11 +57,22 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://apis.google.com https://*.firebaseapp.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.r2.dev https://*.supabase.co https://lh3.googleusercontent.com https://*.googleusercontent.com https://api.qrserver.com https://raw.githack.com https://www.google.com https://www.gstatic.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' blob: https://*.supabase.co; connect-src 'self' blob: data: https://*.supabase.co https://*.r2.dev https://api.resend.com https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://www.cloudflare.com https://api.ipify.org https://raw.githack.com https://cdn.jsdelivr.net https://*.firebase.com; frame-src 'self' https://*.supabase.co https://*.firebaseapp.com; worker-src 'self' blob:;"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(self), microphone=(), geolocation=(), interest-cohort=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+[[headers]]
   for = "/api/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
+    X-Content-Type-Options = "nosniff"
 
 [[headers]]
   for = "/.netlify/functions/get-r2-upload-url"
@@ -83,6 +94,7 @@
   VITE_SUPABASE_URL = "Your Supabase Project URL"
   VITE_SUPABASE_ANON_KEY = "Your Supabase Anonymous Key"
   SUPABASE_SERVICE_ROLE_KEY = "Your Supabase Service Role Key (Keep Secret!)"
+  GOOGLE_API_KEY = "Your Google Gemini API Key"
   
   # Optional / Advanced Defaults can be pre-filled
   VITE_FETCH_MAX_RETRIES = "3"

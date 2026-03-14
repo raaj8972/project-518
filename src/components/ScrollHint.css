@@ -1,66 +1,119 @@
 .rc-scroll-hint {
-  position: fixed;
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: 18px;
-  z-index: 9999;
-  pointer-events: none; /* don't block touches */
+  bottom: 0px;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  animation: rc-fade-in 1s ease-out 1s forwards;
 }
 
 .rc-scroll-hint--fadeout {
-  animation: rc-scroll-hint-fadeout 300ms ease-out forwards;
+  animation: rc-scroll-hint-fadeout 500ms ease-out forwards;
 }
 
-.rc-scroll-hint__card {
+.rc-scroll-mouse {
+  width: 26px;
+  height: 42px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  position: relative;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.rc-scroll-wheel {
+  width: 4px;
+  height: 8px;
+  background-color: #fff;
+  border-radius: 2px;
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: rc-scroll-wheel-drop 2s cubic-bezier(0.15, 0.41, 0.69, 0.94) infinite;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+.rc-scroll-arrows {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
-  color: #fff;
-  padding: 10px 14px;
-  border-radius: 999px;
-  backdrop-filter: blur(6px) saturate(1.2);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.45);
-  transform-origin: center bottom;
-  animation: rc-scroll-hint-pop 900ms cubic-bezier(.2,.9,.3,1) forwards;
+  gap: -4px;
+  margin-top: -4px;
 }
 
-.rc-scroll-hint__icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #00ffd5;
-  filter: drop-shadow(0 6px 18px rgba(0,255,213,0.12));
-  animation: rc-scroll-hint-bob 1500ms ease-in-out infinite;
+.rc-scroll-arrow {
+  width: 14px;
+  height: 14px;
+  border-right: 2px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.8);
+  transform: rotate(45deg);
+  animation: rc-scroll-arrow-fade 2s infinite;
 }
 
-.rc-scroll-hint__text {
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.2px;
+.rc-scroll-arrow:nth-child(1) {
+  animation-delay: 0s;
 }
 
-@keyframes rc-scroll-hint-pop {
-  0% { transform: translateY(30px) scale(0.98); opacity: 0 }
-  60% { transform: translateY(-6px) scale(1.02); opacity: 1 }
-  100% { transform: translateY(0) scale(1); opacity: 1 }
+.rc-scroll-arrow:nth-child(2) {
+  animation-delay: 0.2s;
+  margin-top: -6px;
 }
 
-@keyframes rc-scroll-hint-bob {
-  0% { transform: translateY(0) }
-  50% { transform: translateY(-6px) }
-  100% { transform: translateY(0) }
+.rc-scroll-arrow:nth-child(3) {
+  animation-delay: 0.4s;
+  margin-top: -6px;
+}
+
+.rc-scroll-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  margin-top: 4px;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes rc-fade-in {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes rc-scroll-wheel-drop {
+  0% { transform: translate(-50%, 0); opacity: 1; }
+  100% { transform: translate(-50%, 15px); opacity: 0; }
+}
+
+@keyframes rc-scroll-arrow-fade {
+  0% { opacity: 0; transform: rotate(45deg) translate(-5px, -5px); }
+  50% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(45deg) translate(5px, 5px); }
 }
 
 @keyframes rc-scroll-hint-fadeout {
-  0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.95); }
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, 20px); }
 }
 
-/* mobile only */
-@media (min-width: 769px) {
-  .rc-scroll-hint { display: none; }
+@media (max-width: 768px) {
+  .rc-scroll-mouse {
+    width: 22px;
+    height: 36px;
+  }
+  .rc-scroll-wheel {
+    height: 6px;
+    top: 5px;
+  }
+  .rc-scroll-text {
+    font-size: 9px;
+  }
 }
 

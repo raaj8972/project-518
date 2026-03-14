@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, lazy, startTransition } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Calendar, Image, Clock, Users, LogIn } from 'lucide-react';
+import { Menu, X, Calendar, Image, Clock, LogIn, Music, Heart, Trophy, HeartHandshake, Home, ShieldCheck } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import BrandLogo3D from './BrandLogo3D';
@@ -15,6 +15,8 @@ export const Navbar: React.FC = () => {
   const { homepageSettings, prefetchEvents, prefetchGalleryImages, adminUsers } = useData() as any;
   const { user } = useAuth();
   const currentUserId = user?.id || null;
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
 
   // Compute responsive offsets with fallback to base values
   const [vw, setVw] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -51,51 +53,66 @@ export const Navbar: React.FC = () => {
   })();
 
   // Defensive URL normalization for logo (avoid mixed-content / protocol-relative issues)
-  const logoSrc = React.useMemo(() => {
-    const raw = (homepageSettings as any)?.brand_logo_url as string | undefined;
+  const logoSrc = useMemo(() => {
+    const hs = homepageSettings as Record<string, any>;
+    const raw = hs?.brand_logo_url;
     if (!raw) return '';
     let u = String(raw).trim();
     if (!u) return '';
-    if (u.startsWith('//')) u = 'https:' + u; // protocol-relative -> https
-    if (u.startsWith('http://')) u = 'https://' + u.slice(7); // force https
-    // Cache-bust when branding updates so the newest logo shows up immediately
-    const ver = (homepageSettings as any)?.updated_at || (homepageSettings as any)?.brand_logo_size_px || '1';
+    if (u.startsWith('//')) u = 'https:' + u; 
+    if (u.startsWith('http://')) u = 'https://' + u.slice(7);
+    
+    // Cache-bust when branding updates
+    const ver = hs?.updated_at || hs?.brand_logo_size_px || '1';
     const sep = u.includes('?') ? '&' : '?';
     return ver ? `${u}${sep}v=${encodeURIComponent(String(ver))}` : u;
   }, [homepageSettings?.brand_logo_url, (homepageSettings as any)?.updated_at]);
 
   // Safe defaults for size and glow
-  const logoSize = Math.max(8, Number((homepageSettings as any)?.brand_logo_size_px) || 36);
-  const glowStrength = Math.max(0, Number((homepageSettings as any)?.brand_logo_glow_strength) || 1);
+  const hs = homepageSettings as Record<string, any>;
+  const logoSize = Math.max(8, Number(hs?.brand_logo_size_px) || 36);
+  const glowStrength = Math.max(0, Number(hs?.brand_logo_glow_strength) || 1);
 
   // Handle navigation clicks immediately for snappy response
   const handleNavClick = (e: React.MouseEvent, path: string) => {
     // Allow standard browser behaviors: new tab/window, etc.
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
-    e.preventDefault();
-    // Close menu immediately for snappy UI, then navigate synchronously
+    
+    // Snappy UI: Close menu first
     setIsOpen(false);
-    try { React.startTransition(() => { navigate(path); }); } catch {}
+    
+    // If we're already on this path, just close the menu and do nothing else
+    if (location.pathname === path) {
+      e.preventDefault();
+      return;
+    }
+
+    // Let React handle the state transitions smoothly
+    startTransition(() => {
+      navigate(path);
+    });
+    
+    e.preventDefault();
   };
 
-  const navItems = React.useMemo(() => {
+  const navItems = useMemo(() => {
     const base = [
-      { name: 'Home', path: '/', icon: null },
-      { name: 'Events', path: '/events', icon: Calendar, onHover: prefetchEvents },
-      { name: 'Schedule', path: '/schedule', icon: Clock },
-      { name: 'Gallery', path: '/gallery', icon: Image, onHover: prefetchGalleryImages },
-      { name: 'Home Bound', path: '/home-bound', icon: Users },
-      { name: 'Rico Family', path: '/rico-family', icon: Users },
-      { name: 'Sports', path: '/sports', icon: Users },
-      { name: 'Sponsors', path: '/sponsors', icon: Users },
-      { name: 'Login', path: '/login', icon: LogIn },
+      { name: 'Home', path: '/', icon: Home, color: 'text-blue-400' },
+      { name: 'Events', path: '/events', icon: Calendar, color: 'text-purple-400', onHover: prefetchEvents },
+      { name: 'Schedule', path: '/schedule', icon: Clock, color: 'text-teal-400' },
+      { name: 'Gallery', path: '/gallery', icon: Image, color: 'text-amber-400', onHover: prefetchGalleryImages },
+      { name: 'Home Bound', path: '/home-bound', icon: Music, color: 'text-rose-400' },
+      { name: 'Rico Family', path: '/rico-family', icon: Heart, color: 'text-pink-400' },
+      { name: 'Sports', path: '/sports', icon: Trophy, color: 'text-emerald-400' },
+      { name: 'Sponsors', path: '/sponsors', icon: HeartHandshake, color: 'text-indigo-400' },
+      { name: 'Login', path: '/login', icon: LogIn, color: 'text-gray-400' },
     ];
 
     // If current user appears in adminUsers, add Admin link that prefetches admin chunk on hover
     try {
       const uid = currentUserId;
       const isAdmin = uid && Array.isArray(adminUsers) && !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
-      if (isAdmin) base.splice(base.length - 1, 0, { name: 'Admin', path: '/admin', icon: Users, onHover: () => import('../pages/AdminDashboard').catch(() => {}) });
+      if (isAdmin) base.splice(base.length - 1, 0, { name: 'Admin', path: '/admin', icon: ShieldCheck, color: 'text-rose-500', onHover: () => import('../pages/AdminDashboard').catch(() => {}) });
     } catch {}
 
     return base;
@@ -105,7 +122,7 @@ export const Navbar: React.FC = () => {
 
   // Detect touch-capable devices so we can call hover-prefetch on touch
   const [isTouchDevice, setIsTouchDevice] = useState(false);
-  React.useEffect(() => {
+  useEffect(() => {
     try {
       const mq = window.matchMedia('(hover: none), (pointer: coarse)');
       const update = () => setIsTouchDevice(mq.matches || ('ontouchstart' in window));
@@ -131,13 +148,32 @@ export const Navbar: React.FC = () => {
     }
   };
 
-  // Handle scroll effect with rAF-throttle to avoid many re-renders during scroll
+  // Handle scroll effect with rAF-throttle for both background and auto-hide visibility
   useEffect(() => {
     let raf = 0 as number | null;
     const handleScroll = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
-        setScrolled(window.scrollY > 50);
+        const currentScrollY = window.scrollY;
+        
+        // Background blur threshold
+        setScrolled(currentScrollY > 50);
+
+        // Auto-hide visibility logic
+        // Always show at top of page
+        if (currentScrollY < 80) {
+          setIsVisible(true);
+        } else {
+          // If scrolling down, hide; If scrolling up, show
+          if (currentScrollY > lastScrollY && currentScrollY > 200) {
+            setIsVisible(false);
+            setIsOpen(false); // Close mobile menu if scrolling down
+          } else if (currentScrollY < lastScrollY) {
+            setIsVisible(true);
+          }
+        }
+        
+        setLastScrollY(currentScrollY);
         raf = 0;
       });
     };
@@ -146,94 +182,120 @@ export const Navbar: React.FC = () => {
       window.removeEventListener('scroll', handleScroll);
       if (raf) cancelAnimationFrame(raf as number);
     };
+  }, [lastScrollY]);
+
+  // Handle mouse movement to top of screen to restore navbar
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.clientY < 60) setIsVisible(true);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
+  // Stable Shell: Return null internally for non-public routes so the component 
+  // remains mounted as a sibling in AppShell but doesn't render visual content.
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isSecurityRoute = location.pathname.startsWith('/security-');
+  const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
+
   return (
-    <nav className={`cyberpunk-navbar fixed top-0 w-full z-50 transition-all duration-300 ${
-      scrolled ? 'backdrop-blur-md bg-black/80 border-b border-pink-500/30' : 'bg-transparent'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-  <div className="flex justify-between items-center h-16 md:h-20">
-          {/* Logo + Title */}
-          <Link to="/" onClick={(e)=>handleNavClick(e, '/')} className="cyberpunk-logo group">
-            <div className="flex items-center space-x-3 relative">
-              {/* Left side logo */}
-              {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'left' && (
-                <div
-                  className="relative"
-                  style={{
-                    transform: `translate(${offX}px, ${offY}px)`
-                  }}
-                >
-                  <BrandLogo3D
-                    src={logoSrc}
-                    size={logoSize}
-                    glowStrength={glowStrength}
-                    glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
-                  />
-                </div>
-              )}
-
-              {/* Title - Responsive */}
-              <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none cyberpunk-text">
-                RICORRENZA {homepageSettings?.brand_year ?? BRAND_YEAR}
-              </span>
-
-              {/* Right side logo */}
-              {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'right' && (
-                <div
-                  className="relative"
-                  style={{
-                    transform: `translate(${offX}px, ${offY}px)`
-                  }}
-                >
-                  <BrandLogo3D
-                    src={logoSrc}
-                    size={logoSize}
-                    glowStrength={glowStrength}
-                    glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined}
-                  />
-                </div>
-              )}
-
-              {/* No fallback icon when logo is missing to avoid flashing during initial load */}
-            </div>
+    <div className={`fixed inset-x-0 z-50 transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 ${
+      isVisible ? 'top-0' : '-top-20 opacity-0'
+    } ${scrolled ? '' : 'sm:top-2'} `}>
+      <div className={`w-full max-w-[1600px] flex items-center justify-between gap-2 md:gap-4 px-2 sm:px-4 transition-transform duration-500 ${
+        isVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}>
+        
+        {/* Left: Brand Pill */}
+        <div className={`glass-pill pointer-events-auto transition-all duration-300 flex items-center h-10 md:h-14 px-3 md:px-4 ${
+          scrolled ? 'bg-black/90' : 'bg-black/60'
+        } ${!isVisible ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} shadow-xl border border-white/10`}>
+          <Link to="/" onClick={(e)=>handleNavClick(e, '/')} className="flex items-center space-x-2 md:space-x-3 group">
+            {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'left' && (
+              <div className="relative scale-75 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
+                <BrandLogo3D src={logoSrc} size={logoSize} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
+              </div>
+            )}
+            <span className="text-xs sm:text-base md:text-xl font-black tracking-wider leading-none cyberpunk-text whitespace-nowrap">
+              RICORRENZA {homepageSettings?.brand_year ?? BRAND_YEAR}
+            </span>
+            {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'right' && (
+              <div className="relative scale-75 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
+                <BrandLogo3D src={logoSrc} size={logoSize} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
+              </div>
+            )}
           </Link>
+        </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-1">
-            {navItems.map((item) => {
+        {/* Center: Nav Pill (Desktop Only) */}
+        <nav className={`hidden lg:flex glass-pill pointer-events-auto items-center h-12 md:h-14 px-2 gap-0.5 xl:gap-1 overflow-visible ${
+          scrolled ? 'bg-black/80 shadow-[0_8px_32px_rgba(0,0,0,0.6)]' : 'bg-black/40'
+        }`}>
+          {navItems.filter(i => i.name !== 'Login' && i.name !== 'Admin').map((item) => {
+            const Icon = item.icon;
+            // Adaptive visibility for smaller desktop screens
+            const isPriority = ['Home', 'Events', 'Schedule', 'Sports'].includes(item.name);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onMouseEnter={() => schedulePrefetch(item.onHover)}
+                onTouchStart={() => { if (isTouchDevice) schedulePrefetch(item.onHover); }}
+                onClick={(e)=>handleNavClick(e, item.path)}
+                className={`group relative px-3 py-2 rounded-full transition-all duration-300 whitespace-nowrap ${
+                  !isPriority ? 'hidden xl:flex' : 'flex'
+                }`}
+              >
+                <div className={`flex items-center space-x-1.5 text-xs xl:text-sm font-bold tracking-wide transition-colors ${isActive(item.path) ? 'text-white' : 'text-white/60 group-hover:text-white'}`}>
+                  {Icon && <Icon size={14} className={`group-hover:scale-110 transition-transform ${item.color || ''}`} />}
+                  <span>{item.name}</span>
+                </div>
+                {isActive(item.path) && (
+                  <span className="absolute inset-x-2 -bottom-1 h-[2px] bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full blur-[1px] shadow-[0_0_10px_rgba(236,72,153,0.8)]"></span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Right: Actions Pill */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Action links */}
+          <div className={`hidden lg:flex glass-pill items-center h-12 md:h-14 px-2 gap-2 ${
+            scrolled ? 'bg-black/80' : 'bg-black/40'
+          }`}>
+            {navItems.filter(i => i.name === 'Login' || i.name === 'Admin').map((item) => {
               const Icon = item.icon;
+              const isAdmin = item.name === 'Admin';
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   onMouseEnter={() => schedulePrefetch(item.onHover)}
-                  onTouchStart={() => { if (isTouchDevice) schedulePrefetch(item.onHover); }}
                   onClick={(e)=>handleNavClick(e, item.path)}
-                  className={`cyberpunk-nav-item group ${
-                    isActive(item.path) ? 'active' : ''
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-full font-bold text-xs xl:text-sm transition-all hover:scale-105 active:scale-95 ${
+                    isAdmin 
+                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                      : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  <div className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200">
-                    {Icon && <Icon size={16} className="group-hover:scale-110 transition-transform" />}
-                    <span className="font-medium">{item.name}</span>
-                  </div>
+                  {Icon && <Icon size={14} />}
+                  <span>{item.name}</span>
                 </Link>
               );
             })}
           </div>
 
-          {/* Mobile menu button - Enhanced */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="cyberpunk-menu-btn p-2.5 rounded-lg transition-all duration-200 active:scale-95"
-              aria-label="Toggle menu"
-            >
-              {isOpen ? <X size={28} strokeWidth={2.5} /> : <Menu size={28} strokeWidth={2.5} />}
-            </button>
-          </div>
+          {/* Mobile Menu Trigger */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="lg:hidden glass-pill flex items-center justify-center w-10 h-10 md:w-14 md:h-14 bg-black/60 text-white active:scale-95 transition-transform"
+            aria-label="Toggle menu"
+          >
+            {isOpen ? <X size={20} className="md:w-6 md:h-6" /> : <Menu size={20} className="md:w-6 md:h-6" />}
+          </button>
         </div>
       </div>
 
@@ -264,21 +326,24 @@ export const Navbar: React.FC = () => {
       )}
 
       <style>{`
-        .cyberpunk-navbar {
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-        }
-
-        .cyberpunk-logo {
-          position: relative;
+        .glass-pill {
+          background: rgba(0, 0, 0, 0.4);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 9999px;
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .cyberpunk-text {
+          font-family: 'Orbitron', sans-serif;
           background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
           background-size: 200% 200%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
+          animation: gradientShift 4s ease-in-out infinite;
         }
 
         @keyframes gradientShift {
@@ -286,138 +351,40 @@ export const Navbar: React.FC = () => {
           50% { background-position: 100% 50%; }
         }
 
-        .cyberpunk-nav-item {
-          position: relative;
-          color: #ffffff;
-          text-decoration: none;
-          overflow: hidden;
-        }
-
-        .cyberpunk-nav-item::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 0;
-          height: 100%;
-          background: linear-gradient(90deg, rgba(255, 0, 255, 0.2), rgba(0, 255, 255, 0.2));
-          transition: width 0.3s ease;
-          border-radius: 8px;
-        }
-
-        .cyberpunk-nav-item:hover::before,
-        .cyberpunk-nav-item.active::before {
-          width: 100%;
-        }
-
-        .cyberpunk-nav-item:hover {
-          color: #ff00ff;
-          text-shadow: 0 0 2px rgba(255, 0, 255, 0.28);
-        }
-
-        .cyberpunk-nav-item.active {
-          color: #00ffff;
-          text-shadow: 0 0 2px rgba(0, 255, 255, 0.28);
-        }
-
-        .cyberpunk-menu-btn {
-          color: #ffffff;
-          border: 1px solid rgba(255, 0, 255, 0.3);
-          background: rgba(255, 0, 255, 0.1);
-        }
-
-        .cyberpunk-menu-btn:hover {
-          border-color: rgba(255, 0, 255, 0.6);
-          background: rgba(255, 0, 255, 0.2);
-          color: #ff00ff;
-          box-shadow: 0 0 10px rgba(255, 0, 255, 0.2);
-        }
-
         .cyberpunk-mobile-menu {
-          animation: slideDown 0.3s ease-out;
+          position: fixed;
+          top: 80px;
+          left: 16px;
+          right: 16px;
+          background: rgba(0, 0, 0, 0.9);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 0, 255, 0.2);
+          border-radius: 24px;
+          overflow: hidden;
+          animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 1000;
+          pointer-events: auto;
         }
 
-        @keyframes slideDown {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .cyberpunk-mobile-nav-item {
           display: block;
-          color: #ffffff;
-          text-decoration: none;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .cyberpunk-mobile-nav-item::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 0;
-          height: 100%;
-          background: linear-gradient(90deg, rgba(255, 0, 255, 0.2), rgba(0, 255, 255, 0.2));
-          transition: width 0.3s ease;
-          border-radius: 8px;
-        }
-
-        .cyberpunk-mobile-nav-item:hover::before,
-        .cyberpunk-mobile-nav-item.active::before {
-          width: 100%;
-        }
-
-        .cyberpunk-mobile-nav-item:hover {
-          color: #ff00ff;
-          text-shadow: 0 0 2px rgba(255, 0, 255, 0.28);
+          color: rgba(255, 255, 255, 0.7);
+          transition: all 0.2s ease;
         }
 
         .cyberpunk-mobile-nav-item.active {
-          color: #80449eff;
-          text-shadow: 0 0 2px rgba(0, 255, 255, 0.28);
+          color: #fff;
+          background: rgba(255, 255, 255, 0.05);
         }
 
-        /* Smooth page transitions */
-        .cyberpunk-nav-item,
-        .cyberpunk-mobile-nav-item {
-          transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          .cyberpunk-text {
-            font-size: 1.1rem;
-          }
-          
-          .cyberpunk-nav-item,
-          .cyberpunk-mobile-nav-item {
-            font-size: 0.9rem;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .cyberpunk-text {
-            font-size: 1rem;
-          }
-          
-          .cyberpunk-nav-item,
-          .cyberpunk-mobile-nav-item {
-            font-size: 0.8rem;
-          }
-          
-          .cyberpunk-navbar .max-w-7xl {
-            padding-left: 1rem;
-            padding-right: 1rem;
-          }
-        }
-        /* Dev-only helper outline handled inline next to BrandLogo3D */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-    </nav>
+    </div>
   );
 };
