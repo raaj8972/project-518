@@ -80,7 +80,11 @@ export const GoogleDriveImporter: React.FC = () => {
     try {
       const data = await syncGoogleDrive(folderId, year, category.trim() || undefined);
       setResult(data);
-      toast.success('Gallery indexed successfully from Google Drive!');
+      if (data.imagesCount > 0) {
+        toast.success(`Successfully synced ${data.imagesCount} images!`);
+      } else {
+        toast.error(data.message || 'No new images found in this folder.');
+      }
       // Clear URL on success if it was a one-off
       // setDriveUrl(''); 
     } catch (err: any) {

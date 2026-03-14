@@ -19,8 +19,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     
     // Bypass for Master Admin (using same keys as add-admin-user.ts)
     const MASTER_KEY_ENV = process.env.MASTER_BYPASS_KEY;
-    const isMasterBypass = (masterKey === 'Raja@76023') || 
-                           (masterKey === '9693') || 
+    const isMasterBypass = (masterKey === process.env.MASTER_BYPASS_KEY) || 
+                           (masterKey === process.env.MASTER_BYPASS_KEY) || 
                            (MASTER_KEY_ENV && masterKey === MASTER_KEY_ENV);
 
     if (isMasterBypass) {

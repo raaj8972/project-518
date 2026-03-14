@@ -19,8 +19,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
 
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-    const isAuthorized = (masterKey === 'Raja@76023') || 
-                         (masterKey === '9693') || 
+    const isAuthorized = (masterKey === process.env.MASTER_BYPASS_KEY) || 
+                         (masterKey === process.env.MASTER_BYPASS_KEY) || 
                          (MASTER_KEY && masterKey === MASTER_KEY);
 
     if (!isAuthorized) {

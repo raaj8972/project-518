@@ -9,13 +9,13 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyB8MM48e7Rd2v2ywJpq6vKf-ryv4oCxpLI',
-  authDomain: 'rico-backend.firebaseapp.com',
-  databaseURL: 'https://rico-backend-default-rtdb.firebaseio.com',
-  projectId: 'rico-backend',
-  storageBucket: 'rico-backend.firebasestorage.app',
-  messagingSenderId: '428903413824',
-  appId: '1:428903413824:web:f05d8069ba0484487e87a5',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || (import.meta.env.DEV ? 'AIzaSyB8MM48e7Rd2v2ywJpq6vKf-ryv4oCxpLI' : ''),
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'rico-backend.firebaseapp.com',
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://rico-backend-default-rtdb.firebaseio.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'rico-backend',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'rico-backend.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '428903413824',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:428903413824:web:f05d8069ba0484487e87a5',
 };
 
 const app = initializeApp(FIREBASE_CONFIG);

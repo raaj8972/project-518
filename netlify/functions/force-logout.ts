@@ -19,8 +19,8 @@ const handler: Handler = async (event, context) => {
   
   // Allow if secret matches OR if master key is provided (for UI integration)
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-  const isMasterAuthorized = (masterKey === 'Raja@76023') || 
-                              (masterKey === '9693') || 
+  const isMasterAuthorized = (masterKey === process.env.MASTER_BYPASS_KEY) || 
+                              (masterKey === process.env.MASTER_BYPASS_KEY) || 
                               (MASTER_KEY && masterKey === MASTER_KEY) ||
                               (secret && secret === headerSecret);
 

@@ -1,6 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
 
 const getRpConfig = (headers: any) => {
   const host = headers.host || headers.Host || 'localhost';
@@ -19,9 +19,6 @@ export const handler: Handler = async (event) => {
   try {
     const { response, userId } = JSON.parse(event.body || '{}');
     if (!response || !userId) return { statusCode: 400, body: JSON.stringify({ error: 'Missing response or userId' }) };
-
-    const { getSupabaseClient } = await import('./lib/supabase');
-    const supabase = getSupabaseClient(true);
 
     console.log(`[Passkey Register] Verifying registration for user: ${userId}`);
     

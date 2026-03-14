@@ -205,7 +205,13 @@ export const handler: Handler = async (event) => {
             }
         }
     } catch (e: any) {
-        if (e.message === 'TimeLimit') isPartial = true;
+        if (e.message === 'TimeLimit') {
+            isPartial = true;
+        } else {
+            console.error('[DriveSync] Final phase error:', e);
+            // Don't swallow if we have 0 images, otherwise we might return "Sync complete" for a fail
+            if (allImages.length === 0) throw e;
+        }
     }
 
     return {

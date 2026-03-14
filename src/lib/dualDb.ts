@@ -9,7 +9,7 @@ import { db } from './firebase';
 import { supabase } from './supabase';
 import { 
   collection, doc, getDocs, setDoc, deleteDoc, 
-  query, where 
+  query, where, orderBy, limit as firestoreLimit 
 } from 'firebase/firestore';
 
 // Helper for UUID generation that doesn't depend on external modules
@@ -62,31 +62,23 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 
     if (eq) q = query(q, where(eq[0], '==', eq[1]));
     if (inOpts) q = query(q, where(inOpts[0], 'in', inOpts[1]));
     
-    // Note: Firestore excludes documents that are missing the field used in orderBy.
-    // To be resilient, we fetch the filtered set and then sort in memory.
-    const snapshot = await getDocs(q);
-    let data = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-
+    // Apply server-side ordering if specified
     if (order) {
       const [col, config] = order;
-      const desc = config?.ascending === false;
-      data.sort((a, b) => {
-        const valA = a[col];
-        const valB = b[col];
-        if (valA === valB) return 0;
-        if (valA === undefined || valA === null) return 1;
-        if (valB === undefined || valB === null) return -1;
-        
-        // Handle string vs number comparison
-        if (typeof valA === 'string' && typeof valB === 'number') return String(valA).localeCompare(String(valB));
-        if (typeof valA === 'number' && typeof valB === 'string') return String(valA).localeCompare(String(valB));
-        
-        const res = valA < valB ? -1 : 1;
-        return desc ? -res : res;
-      });
+      q = query(q, orderBy(col, config?.ascending === false ? 'desc' : 'asc'));
     }
 
-    if (limit) data = data.slice(0, limit);
+    // Apply server-side limit
+    let effectiveLimit = limit;
+    if ((single || maybeSingle) && !effectiveLimit) {
+      effectiveLimit = 1;
+    }
+    if (effectiveLimit) {
+      q = query(q, firestoreLimit(effectiveLimit));
+    }
+
+    const snapshot = await getDocs(q);
+    const data = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
 
     if (single || maybeSingle) {
       const result = data[0] || null;

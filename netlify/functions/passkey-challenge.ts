@@ -1,9 +1,6 @@
 import { Handler } from '@netlify/functions';
 import { generateRegistrationOptions, generateAuthenticationOptions } from '@simplewebauthn/server';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+import { supabase } from './lib/supabase';
 const RP_NAME = 'RICORRENZA';
 
 // Use ricorrenza.fun for production, localhost only for local dev
@@ -26,12 +23,6 @@ export const handler: Handler = async (event) => {
     console.log('Passkey Challenge Request Received');
     const { action, userId, email } = JSON.parse(event.body || '{}');
     console.log('Request Body:', { action, userId, email });
-
-    // Debugging Supabase environment variables
-    console.log('Supabase URL exists:', !!SUPABASE_URL);
-    console.log('Service Role exists:', !!SERVICE_ROLE);
-
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
     // 1. REGISTRATION CHALLENGE
     if (action === 'register') {

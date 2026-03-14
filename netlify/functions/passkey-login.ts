@@ -1,9 +1,7 @@
 import { Handler } from '@netlify/functions';
 import { verifyAuthenticationResponse } from '@simplewebauthn/server';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabase';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 // Dynamic configuration based on request host handles both Vercel and Custom Domain
 const getRpConfig = (headers: any) => {
   const host = headers.host || headers.Host || 'localhost';
@@ -21,7 +19,6 @@ export const handler: Handler = async (event) => {
 
   // Declare at function scope for error handling
   let passkey: any = null;
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   try {
     const { response } = JSON.parse(event.body || '{}');

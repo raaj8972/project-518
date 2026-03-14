@@ -17,7 +17,9 @@ interface GalleryContextType {
   deleteGalleryImage: (id: number) => Promise<void>;
   bulkDeleteGalleryImages: (ids: number[]) => Promise<void>;
   
-  syncGoogleDrive: (folderId: string) => Promise<any>;
+  syncGoogleDrive: (folderId: string, year?: string, category?: string) => Promise<any>;
+  fetchDriveFolders: (folderId: string) => Promise<any>;
+  syncGoogleDriveBatch: (folderId: string, subfolderId: string, year?: string, category?: string) => Promise<any>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
 }
 
@@ -113,9 +115,45 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     await fetchGalleryData();
   };
 
-  const syncGoogleDrive = async (folderId: string) => {
-    console.log('[GalleryContext] Syncing Google Drive folder:', folderId);
+  const fetchDriveFolders = async (folderId: string) => {
+    const response = await fetch('/.netlify/functions/sync-drive-folders', {
+      method: 'POST',
+      body: JSON.stringify({ folderId }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch folder structure');
+    }
+    return response.json();
+  };
+
+  const syncGoogleDriveBatch = async (folderId: string, subfolderId: string, year?: string, category?: string) => {
+    const response = await fetch('/.netlify/functions/sync-google-drive', {
+      method: 'POST',
+      body: JSON.stringify({ folderId, subfolderId, year, category }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to sync folder');
+    }
+    const data = await response.json();
     await fetchGalleryData();
+    return data;
+  };
+
+  const syncGoogleDrive = async (folderId: string, year?: string, category?: string) => {
+    console.log('[GalleryContext] Syncing Google Drive folder:', folderId);
+    const response = await fetch('/.netlify/functions/sync-google-drive', {
+      method: 'POST',
+      body: JSON.stringify({ folderId, year, category }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to sync Google Drive');
+    }
+    const data = await response.json();
+    await fetchGalleryData();
+    return data;
   };
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
@@ -135,6 +173,8 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     deleteGalleryImage,
     bulkDeleteGalleryImages,
     syncGoogleDrive,
+    fetchDriveFolders,
+    syncGoogleDriveBatch,
     updateGallerySettings
   };
 

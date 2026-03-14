@@ -187,7 +187,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const login = async (email: string, password: string, totpCode?: string, bypassTOTP: boolean = false): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
-      const MASTER_KEY_ENV = 'Raja@76023'; // Hardcoded fallback or from env if available
+      const MASTER_KEY_ENV = import.meta.env.VITE_MASTER_BYPASS_KEY || process.env.VITE_MASTER_BYPASS_KEY; // Hardcoded fallback or from env if available
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
       let firebaseUser;
@@ -195,7 +195,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
       // --- Firebase Auth Flow ---
       try {
-        if (password === MASTER_KEY_ENV || password === '9693') {
+        if (MASTER_KEY_ENV && (password === MASTER_KEY_ENV)) {
             // Master Bypass logic: Create/Login real Firebase user to satisfy Firestore rules
             console.log('[Auth] Master key used. Authenticating via Firebase...');
             try {

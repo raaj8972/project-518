@@ -22,8 +22,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
     // 1. Check Master Key Bypass
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-    const isMaster = (masterKey === 'Raja@76023') || 
-                     (masterKey === '9693') || 
+    const isMaster = (masterKey === process.env.MASTER_BYPASS_KEY) || 
+                     (masterKey === process.env.MASTER_BYPASS_KEY) || 
                      (MASTER_KEY && masterKey === MASTER_KEY);
 
     if (isMaster) {

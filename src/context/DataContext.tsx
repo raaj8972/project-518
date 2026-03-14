@@ -117,6 +117,8 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     deleteGalleryImage: gallery.deleteGalleryImage,
     bulkDeleteGalleryImages: gallery.bulkDeleteGalleryImages,
     syncGoogleDrive: gallery.syncGoogleDrive,
+    fetchDriveFolders: (gallery as any).fetchDriveFolders,
+    syncGoogleDriveBatch: (gallery as any).syncGoogleDriveBatch,
 
     // Management Domain
     sponsors: management.sponsors,

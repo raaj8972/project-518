@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 
 // This function lists all admin users if the caller provides the Master Key.
 // Endpoint: GET /.netlify/functions/list-admin-users
-// Headers: x-master-key: 9693
+// Headers: x-master-key: your-master-key
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -25,9 +25,7 @@ export const handler: Handler = async (event) => {
     const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key'];
     
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-    const isMasterAuthorized = (masterKey === 'Raja@76023') || 
-                                (masterKey === '9693') || 
-                                (MASTER_KEY && masterKey === MASTER_KEY);
+    const isMasterAuthorized = MASTER_KEY && masterKey === MASTER_KEY;
 
     const { getSupabaseClient } = await import('./lib/supabase');
     const supabaseAdmin = getSupabaseClient(true);

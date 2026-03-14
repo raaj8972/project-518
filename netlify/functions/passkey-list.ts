@@ -1,8 +1,5 @@
 import { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
-
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+import { supabase } from './lib/supabase';
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
@@ -13,10 +10,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, body: JSON.stringify({ error: 'Missing authorization header' }) };
     }
 
-    const { getSupabaseClient } = await import('./lib/supabase');
     const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
-    
-    const supabase = getSupabaseClient(true);
 
     const { isAdmin, isOwner, user: authUser } = await verifyAdminHelper(authHeader.toString(), supabase);
     if (!isAdmin || !authUser) {

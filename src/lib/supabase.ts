@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 // Prefer Vite env vars, but provide safe project defaults as a fallback so the app never "disconnects" if env is missing.
 // Note: The anon key is safe to expose on the client; RLS still protects your data.
 const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MDAxNDEsImV4cCI6MjA3MzA3NjE0MX0.0akCpqYDlGgEenU4fPzDQorsvygcviBpfk4iluSm9Vs';
+const DEFAULT_SUPABASE_ANON_KEY = ''; // Removed for security. Add to .env/Netlify dashboard.
 
 const { VITE_SUPABASE_URL: VITE_URL_RAW, VITE_SUPABASE_ANON_KEY: VITE_KEY_RAW } = import.meta.env as any;
 const rawUrl = (VITE_URL_RAW || '').trim();

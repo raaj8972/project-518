@@ -226,7 +226,7 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 
-        'X-Master-Key': '9693',
+        'X-Master-Key': import.meta.env.VITE_MASTER_BYPASS_KEY || process.env.VITE_MASTER_BYPASS_KEY,
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({ userId, newEmail })
