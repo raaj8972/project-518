@@ -13,8 +13,10 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, body: JSON.stringify({ error: 'Missing authorization header' }) };
     }
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const { getSupabaseClient } = await import('./lib/supabase');
     const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    
+    const supabase = getSupabaseClient(true);
 
     const { isAdmin, isOwner, user: authUser } = await verifyAdminHelper(authHeader.toString(), supabase);
     if (!isAdmin || !authUser) {

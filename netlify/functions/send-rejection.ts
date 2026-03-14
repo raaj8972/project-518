@@ -3,15 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from './lib/email';
 
 // Initialize Supabase Admin client
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+const { getSupabaseClient } = await import('./lib/supabase');
+const supabaseAdmin = getSupabaseClient(true);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -142,7 +135,6 @@ export default async (req: Request) => {
         const defaultStampUrl = await findFileUrl('stamp');
         const stampUrl = emailStampUrl || defaultStampUrl;
 
-         // Fetch registration details
         const { data: reg, error: regError } = await supabaseAdmin
             .from('registrations')
             .select('email, full_name, event_title, event_id')
@@ -155,7 +147,13 @@ export default async (req: Request) => {
 
         console.log(`Sending rejection email to ${reg.email} via ${provider}`);
 
-        const emailHtml = getEmailTemplate(reg.event_title, reg.full_name, reason, stampUrl, siteUrl);
+        const emailHtml = getEmailTemplate(
+            reg.event_title || 'Event', 
+            reg.full_name || 'Member', 
+            reason, 
+            stampUrl || null, 
+            siteUrl
+        );
 
         const result = await sendEmail({
             to: reg.email,

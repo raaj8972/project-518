@@ -14,15 +14,11 @@ export default async (req: Request) => {
   }
 
   try {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !supabaseServiceKey) return new Response(JSON.stringify({ error: 'Config Error' }),{status:500,headers});
-
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return new Response(JSON.stringify({ error: 'Missing Auth' }), { status: 401, headers });
-    
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const supabaseAdmin = getSupabaseClient(true);
     const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.replace('Bearer ', ''));
     if (!user) return new Response(JSON.stringify({ error: 'Invalid Token' }), { status: 401, headers });
 

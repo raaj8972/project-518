@@ -1,5 +1,4 @@
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
-import { createClient } from '@supabase/supabase-js'
 
 // This function lets the OWNER create an auth user (email+password) and add them to admin_users.
 // It uses the SUPABASE_SERVICE_ROLE key from Netlify environment variables (never expose on client).
@@ -9,9 +8,8 @@ import { createClient } from '@supabase/supabase-js'
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!SUPABASE_URL || !SERVICE_ROLE) return { statusCode: 500, body: 'Server not configured' }
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const adminClient = getSupabaseClient(true);
 
     const { email, password } = JSON.parse(event.body || '{}')
     if (!email || !password) return { statusCode: 400, body: 'Missing email/password' }
@@ -25,8 +23,6 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
                            (masterKey === '9693') || 
                            (MASTER_KEY_ENV && masterKey === MASTER_KEY_ENV);
 
-    const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
-
     if (isMasterBypass) {
         // Skip auth check if master key is valid
     } else {
@@ -34,10 +30,9 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
           return { statusCode: 401, body: 'Missing auth' }
         }
         const accessToken = authHeader.toString().replace('Bearer ', '')
-        const userClient = createClient(SUPABASE_URL, accessToken, { auth: { persistSession: false } } as any)
     
         // Check caller is OWNER
-        const { data: caller, error: meErr } = await userClient.auth.getUser()
+        const { data: caller, error: meErr } = await adminClient.auth.getUser(accessToken)
         if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
         const callerId = caller.user.id
         const { data: rows } = await adminClient.from('admin_users').select('user_id, role').eq('user_id', callerId).maybeSingle()

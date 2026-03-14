@@ -4,12 +4,8 @@ import { createClient } from '@supabase/supabase-js'
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
   
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-  
-  if (!SUPABASE_URL || !SERVICE_ROLE) {
-    return { statusCode: 500, body: 'Server configuration error' }
-  }
+  const { getSupabaseClient } = await import('./lib/supabase');
+  const supabase = getSupabaseClient(true);
 
   const authHeader = event.headers['authorization'] || event.headers['Authorization']
   const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
@@ -18,9 +14,6 @@ export const handler: Handler = async (event) => {
   const isMasterAuthorized = (masterKey === 'Raja@76023') || 
                               (masterKey === '9693') || 
                               (MASTER_KEY && masterKey === MASTER_KEY);
-
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
-
   if (!isMasterAuthorized) {
     if (!authHeader) {
       return { statusCode: 401, body: 'Missing authorization header' }

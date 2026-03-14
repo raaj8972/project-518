@@ -24,10 +24,9 @@ type Flags = Partial<{
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-  const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!SUPABASE_URL || !SERVICE_ROLE) return { statusCode: 500, body: 'Server not configured' }
-
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const adminClient = getSupabaseClient(true);
+    
     const { email, all, flags } = JSON.parse(event.body || '{}') as { email?: string; all?: boolean; flags?: Flags }
     if (!email) return { statusCode: 400, body: 'Missing email' }
 
@@ -36,8 +35,6 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       return { statusCode: 401, body: 'Missing authorization header' }
     }
 
-    const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
-    
     const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
     const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), adminClient);
 

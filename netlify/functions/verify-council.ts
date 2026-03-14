@@ -44,26 +44,20 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     // 2. Try Supabase (Fallback)
     if (!correctPasscode) {
       try {
-        const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-        const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const { getSupabaseClient } = await import('./lib/supabase');
+        const adminClient = getSupabaseClient(true);
         
-        if (SUPABASE_URL && SERVICE_ROLE) {
-          const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { 
-            auth: { persistSession: false }
-          });
-          
-          const { data: settings, error: sbError } = await adminClient
-            .from('security_settings')
-            .select('council_passcode')
-            .eq('id', 1)
-            .single();
-          
-          if (sbError) throw sbError;
-          
-          if (settings?.council_passcode) {
-            correctPasscode = settings.council_passcode;
-            console.log('[Verify] Fetched passcode from Supabase fallback');
-          }
+        const { data: settings, error: sbError } = await adminClient
+          .from('security_settings')
+          .select('council_passcode')
+          .eq('id', 1)
+          .single();
+        
+        if (sbError) throw sbError;
+        
+        if (settings?.council_passcode) {
+          correctPasscode = settings.council_passcode;
+          console.log('[Verify] Fetched passcode from Supabase fallback');
         }
       } catch (sbErr: any) {
         console.warn('[Verify] Supabase fallback error:', sbErr.message);

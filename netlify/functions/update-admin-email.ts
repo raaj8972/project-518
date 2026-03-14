@@ -9,29 +9,14 @@ import { createClient } from '@supabase/supabase-js'
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-    // Hardcoded defaults to match admin-security-controls.ts
-    const DEFAULT_SUPABASE_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
-    const DEFAULT_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9zZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
-
-    let supabaseUrl = (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
-    if (!supabaseUrl) supabaseUrl = DEFAULT_SUPABASE_URL;
-
-    let serviceRole = (process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
-    serviceRole = serviceRole.replace(/^["']|["']$/g, '').trim();
-
-    if (!serviceRole && supabaseUrl === DEFAULT_SUPABASE_URL) {
-      serviceRole = DEFAULT_SERVICE_ROLE_KEY;
-    }
-
-    if (!supabaseUrl || !serviceRole) return { statusCode: 500, body: 'Server not configured' }
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const adminClient = getSupabaseClient(true);
 
     const { userId, newEmail } = JSON.parse(event.body || '{}')
     if (!userId || !newEmail) return { statusCode: 400, body: 'Missing userId/newEmail' }
 
     const authHeader = event.headers['authorization'] || event.headers['Authorization']
     const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
-    
-    const adminClient = createClient(supabaseUrl, serviceRole, { auth: { persistSession: false } })
 
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
     const isAuthorized = (masterKey === 'Raja@76023') || 

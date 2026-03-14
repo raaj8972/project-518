@@ -10,12 +10,11 @@ export const handler = async (event: any) => {
 
   try {
     const authHeader = event.headers.authorization || event.headers.Authorization;
-    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
-
+    const { getSupabaseClient } = await import('./lib/supabase');
     const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
-    const { isAdmin, user: authUser } = await verifyAdminHelper(authHeader, supabase);
+    
+    const supabase = getSupabaseClient(true);
+    const { isAdmin, user: authUser } = await verifyAdminHelper(authHeader?.toString(), supabase);
 
     if (!authUser || !isAdmin) {
        return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) };

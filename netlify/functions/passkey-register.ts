@@ -2,9 +2,6 @@ import { Handler } from '@netlify/functions';
 import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-// Dynamic configuration based on request host handles both Vercel and Custom Domain
 const getRpConfig = (headers: any) => {
   const host = headers.host || headers.Host || 'localhost';
   // Remove port if present for RP_ID (unless localhost)
@@ -23,7 +20,8 @@ export const handler: Handler = async (event) => {
     const { response, userId } = JSON.parse(event.body || '{}');
     if (!response || !userId) return { statusCode: 400, body: JSON.stringify({ error: 'Missing response or userId' }) };
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const supabase = getSupabaseClient(true);
 
     console.log(`[Passkey Register] Verifying registration for user: ${userId}`);
     

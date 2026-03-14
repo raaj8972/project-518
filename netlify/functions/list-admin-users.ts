@@ -29,14 +29,8 @@ export const handler: Handler = async (event) => {
                                 (masterKey === '9693') || 
                                 (MASTER_KEY && masterKey === MASTER_KEY);
 
-    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-    const SERVICE_ROLE = (process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/^["']|["']$/g, '').trim();
-
-    if (!SUPABASE_URL || !SERVICE_ROLE) {
-      return { statusCode: 500, headers, body: 'Server config missing' }
-    }
-
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE)
+    const { getSupabaseClient } = await import('./lib/supabase');
+    const supabaseAdmin = getSupabaseClient(true);
 
     if (!isMasterAuthorized) {
       if (!authHeader) {

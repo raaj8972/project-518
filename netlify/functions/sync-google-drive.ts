@@ -1,19 +1,11 @@
 import { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
-const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
-
-const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
-
-console.log('[DriveSync] Supabase configured:', { 
-    hasUrl: !!SUPABASE_URL, 
-    hasRole: !!SERVICE_ROLE,
-    roleLen: SERVICE_ROLE?.length 
-});
-
 export const handler: Handler = async (event) => {
+  const { getSupabaseClient } = await import('./lib/supabase');
+  const supabase = getSupabaseClient(true);
+  const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
+  
   const START_TIME = Date.now();
   const TIMEOUT_MS = 25000; // 25 seconds for Netlify (default is 10s, can be increased)
 
