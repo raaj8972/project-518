@@ -168,7 +168,8 @@ export const AdminService = {
   isHardcodedOwner(email: string): boolean {
     if (!email) return false;
     const lower = email.toLowerCase().trim();
-    return lower === 'raja@rico.fun' || lower === 'raaj@rico.fun';
+    const ownerEmails = (import.meta.env.VITE_OWNER_EMAILS || '').toLowerCase().split(',').map((e: string) => e.trim());
+    return ownerEmails.includes(lower);
   },
 
   // ═══════════════════════════════════════════

@@ -15,7 +15,8 @@ VITE_SUPABASE_ANON_KEY=same_as_SUPABASE_ANON_KEY
 # ------------------------------------------------------------------
 # CRITICAL: ADMIN SECURITY
 # ------------------------------------------------------------------
-MASTER_BYPASS_KEY=Raja@76023 (Or your preferred master password)
+MASTER_BYPASS_KEY=YOUR_ADMIN_MASTER_PASSWORD (Or your preferred master password)
+VITE_OWNER_EMAILS=raja@rico.fun,raaj@rico.fun (Comma-separated list of owner emails)
 
 # ------------------------------------------------------------------
 # EMAIL SETTINGS (Hostinger SMTP)

@@ -4,6 +4,8 @@ logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+output_log.txt
+error_log.txt
 pnpm-debug.log*
 lerna-debug.log*
 

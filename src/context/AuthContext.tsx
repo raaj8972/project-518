@@ -187,7 +187,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const login = async (email: string, password: string, totpCode?: string, bypassTOTP: boolean = false): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
-      const MASTER_KEY_ENV = import.meta.env.VITE_MASTER_BYPASS_KEY || process.env.VITE_MASTER_BYPASS_KEY; // Hardcoded fallback or from env if available
+      const MASTER_KEY_ENV = import.meta.env.VITE_MASTER_BYPASS_KEY;
       const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
       let firebaseUser;

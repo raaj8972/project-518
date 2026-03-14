@@ -6,7 +6,7 @@ This checklist gets the site connected to your Supabase project and fixes admin 
 
 Set these both locally (for dev) and on Netlify (for prod builds):
 
-- VITE_SUPABASE_URL = https://isfqhascrdzaoebhuohs.supabase.co
+- VITE_SUPABASE_URL = [YOUR_SUPABASE_URL]
 - VITE_SUPABASE_ANON_KEY = [YOUR_ANON_KEY]
 
 Local:
