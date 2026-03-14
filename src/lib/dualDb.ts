@@ -52,6 +52,12 @@ interface ReadOptions {
 export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 'firestore' | 'supabase' }> {
   const { table, eq, in: inOpts, order, limit, single, maybeSingle } = opts;
 
+  // Fallback to Supabase if Firestore is not initialized
+  if (!db) {
+    console.warn(`[Db] Firestore not initialized, falling back to Supabase for ${table}`);
+    return await fallbackToSupabase(opts);
+  }
+
   let colRef = collection(db, table);
   try {
     // Bypass Firestore for specific tables
@@ -89,30 +95,34 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 
     return { data, source: 'firestore' };
   } catch (err: any) {
     console.warn(`[Db] Firestore read failed for ${table}, falling back to Supabase:`, err.message);
+    return await fallbackToSupabase(opts);
+  }
+}
+
+/** Internal helper for Supabase fallback to avoid repetition */
+async function fallbackToSupabase(opts: ReadOptions): Promise<{ data: any; source: 'firestore' | 'supabase' }> {
+  const { table, eq, in: inOpts, order, limit, single, maybeSingle } = opts;
+  try {
+    let query = supabase.from(table).select('*');
     
-    // Fallback to Supabase
-    try {
-      let query = supabase.from(table).select('*');
-      
-      if (eq) query = query.eq(eq[0], eq[1]);
-      if (inOpts) query = query.in(inOpts[0], inOpts[1]);
-      if (order) query = query.order(order[0], { ascending: order[1]?.ascending !== false });
-      if (limit) query = query.limit(limit);
-      
-      if (single || maybeSingle) {
-        const { data, error } = await query.maybeSingle();
-        if (error) throw error;
-        if (single && !data) throw new Error('NOT_FOUND');
-        return { data, source: 'supabase' };
-      } else {
-        const { data, error } = await query;
-        if (error) throw error;
-        return { data: data || [], source: 'supabase' };
-      }
-    } catch (supaErr: any) {
-      console.error(`[Db] Supabase fallback also failed for ${table}:`, supaErr.message);
-      return { data: single || maybeSingle ? null : [], source: 'supabase' };
+    if (eq) query = query.eq(eq[0], eq[1]);
+    if (inOpts) query = query.in(inOpts[0], inOpts[1]);
+    if (order) query = query.order(order[0], { ascending: order[1]?.ascending !== false });
+    if (limit) query = query.limit(limit);
+    
+    if (single || maybeSingle) {
+      const { data, error } = await query.maybeSingle();
+      if (error) throw error;
+      if (single && !data) throw new Error('NOT_FOUND');
+      return { data, source: 'supabase' };
+    } else {
+      const { data, error } = await query;
+      if (error) throw error;
+      return { data: data || [], source: 'supabase' };
     }
+  } catch (supaErr: any) {
+    console.error(`[Db] Supabase fallback failed for ${table}:`, supaErr.message);
+    return { data: single || maybeSingle ? null : [], source: 'supabase' };
   }
 }
 
@@ -145,6 +155,14 @@ export async function dualInsert(table: string, data: any) {
       created_at: data.created_at || now,
       updated_at: now 
     };
+
+    // If Firestore is not initialized, only write to Supabase
+    if (!db) {
+      console.warn(`[Db] Firestore not initialized, skipping Firestore insert for ${table}`);
+      const { data: supaData, error } = await supabase.from(table).insert(record).select();
+      if (error) throw new Error(error.message);
+      return [record];
+    }
 
     const docRef = doc(db, table, String(id));
 
@@ -179,6 +197,14 @@ export async function dualUpdate(table: string, id: number | string, patch: any)
       const { data, error } = await supabase.from(table).update(record).eq('id', id).select();
       if (error) throw new Error(error.message);
       return data;
+    }
+
+    // If Firestore is not initialized, only write to Supabase
+    if (!db) {
+      console.warn(`[Db] Firestore not initialized, skipping Firestore update for ${table}`);
+      const { error } = await supabase.from(table).update(record).eq('id', id);
+      if (error) throw new Error(error.message);
+      return [{ id }];
     }
 
     const docRef = doc(db, table, String(id));
@@ -228,6 +254,14 @@ export async function dualUpsert(table: string, data: any | any[]) {
         return supaData ? supaData[0] : record;
       }
       
+      // If Firestore is not initialized
+      if (!db) {
+        console.warn(`[DualDb] Firestore not initialized, skipping Firestore upsert for ${table}/${id}`);
+        const { error } = await supabase.from(table).upsert(record);
+        if (error) throw new Error(error.message);
+        return record;
+      }
+
       const docRef = doc(db, table, String(id));
       
       // Write to Firestore
@@ -259,6 +293,14 @@ export async function dualUpsert(table: string, data: any | any[]) {
 export async function dualDelete(table: string, id: number | string) {
   try {
     if (SUPABASE_ONLY_TABLES.includes(table)) {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      return;
+    }
+
+    // If Firestore is not initialized
+    if (!db) {
+      console.warn(`[Db] Firestore not initialized, skipping Firestore delete for ${table}/${id}`);
       const { error } = await supabase.from(table).delete().eq('id', id);
       if (error) throw new Error(error.message);
       return;

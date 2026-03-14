@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'util', 'vm'],
+      include: ['buffer', 'crypto', 'stream', 'util', 'vm', 'process'],
       globals: {
         Buffer: true,
         global: true,
@@ -15,25 +15,24 @@ export default defineConfig({
       },
     }),
   ],
+  define: {
+    'process.env': {},
+  },
+  cacheDir: 'node_modules/.vite_cache',
   resolve: {
     dedupe: ['react', 'react-dom'],
   },
   optimizeDeps: {
+    include: ['react', 'react-dom', '@supabase/supabase-js', 'buffer', 'process'],
     exclude: ['lucide-react'],
   },
-  // Local dev/preview ergonomics
   server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8888/.netlify/functions',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/.netlify/functions': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-        secure: false,
-      },
+    host: 'localhost',
+    port: 5173,
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+      clientPort: 8888,
     },
   },
   preview: {

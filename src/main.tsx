@@ -1,6 +1,7 @@
+console.log('[main.tsx] FIRST LINE OF MAIN');
 import './shims/envShims';
-import './utils/preloadBrand'; // Auto-preload uploaded brand logos
 import { StrictMode } from 'react';
+console.log('[main.tsx] Module execution started, React available:', !!StrictMode);
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import { registerServiceWorker } from './utils/serviceWorkerRegistration';
@@ -46,8 +47,17 @@ async function retryImport<T>(fn: () => Promise<T>, retries = 3, delay = 1000): 
   try {
     console.log('[Main] Starting application bootstrap...');
     
+    // Auto-preload brand logos in background
+    import('./utils/preloadBrand').catch(e => console.warn('[Main] PreloadBrand failed to load:', e));
+    
     // Attempt to load the main App module with retries
     const AppModule = await retryImport(() => import('./App.tsx'));
+    
+    // Check if the module has a default export before accessing it
+    if (!AppModule || !AppModule.default) {
+      throw new Error('The application failed to load: default export missing in App.tsx. This usually indicates a circular dependency or initialization failure.');
+    }
+    
     const App = AppModule.default;
     
     console.log('[Main] App module loaded, rendering root...');
@@ -62,8 +72,10 @@ async function retryImport<T>(fn: () => Promise<T>, retries = 3, delay = 1000): 
     window.__APP_READY__ = true;
     removeSkeleton();
     
-    // Register service worker for offline support
-    registerServiceWorker();
+    // Register service worker for offline support in production only
+    if (import.meta.env.PROD) {
+      registerServiceWorker();
+    }
 
     // Handle PWA installation
     window.addEventListener('beforeinstallprompt', (e) => {

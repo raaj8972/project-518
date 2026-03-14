@@ -226,6 +226,29 @@
   <body>
     <title>RICORRENZA</title>
     <script>
+      // Shim process.env for third-party scripts that expect it
+      window.global = window;
+      var _process = {
+        env: { NODE_ENV: 'production' },
+        version: 'v16.0.0',
+        nextTick: function(fn) { setTimeout(fn, 0); },
+        browser: true
+      };
+      window.process = window.process || _process;
+      window.process.env = window.process.env || _process.env;
+      window.process.version = window.process.version || _process.version;
+      window.process.nextTick = window.process.nextTick || _process.nextTick;
+
+      // Minimal Buffer shim to prevent readable-stream from crashing during module evaluation
+      if (typeof window.Buffer === 'undefined') {
+        window.Buffer = {
+          isBuffer: function() { return false; },
+          from: function() { return new Uint8Array(); },
+          alloc: function() { return new Uint8Array(); },
+          prototype: {}
+        };
+      }
+
       // Emergency Service Worker Reset + CDN Cache Bust for the Framer Motion v12 Regression
       // Only run once per session to avoid infinite reload loops
       var _emergencyRan = sessionStorage.getItem('_emergency_ran');

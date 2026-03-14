@@ -1,5 +1,6 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { createContext, useContext, ReactNode, FC, useState, useEffect } from 'react';
+console.log('[AuthContext.tsx] Module execution started, useState available:', !!useState);
 import { supabase } from '../lib/supabase';
 import { firebaseAuth, db, signInWithGoogle, getGoogleRedirectResult } from '../lib/firebase';
 import { AdminService } from '../lib/adminService';
@@ -56,10 +57,23 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     authenticator.options = { window: [1, 1] } as any;
 
     // Firebase Auth State Listener
+    if (!firebaseAuth) {
+      console.warn('[Auth] Firebase Auth not initialized. Auth state listener skipped.');
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch additional user data (roles, etc.) from Firestore
         try {
+          if (!db) {
+            console.warn('[Auth] Firestore not initialized. Skipping data fetch.');
+            setUser(firebaseUser as any);
+            setIsAuthenticated(true);
+            setLoading(false);
+            return;
+          }
           const userDoc = await getDoc(doc(db, 'admin_users', firebaseUser.uid));
           const userData = userDoc.exists() ? userDoc.data() : {};
           
@@ -93,8 +107,14 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   // Handle Google redirect result (when returning from redirect sign-in)
   useEffect(() => {
+    if (!firebaseAuth) return;
+    
     getGoogleRedirectResult().then(async (result) => {
       if (result?.user) {
+        if (!db) {
+           console.error('[Auth] Firestore not initialized. Cannot complete Google sign-in sync.');
+           return;
+        }
         const googleUser = result.user;
         if (!googleUser.email) return;
         const { allowed, role, display_name } = await AdminService.isEmailAllowed(googleUser.email);
@@ -136,6 +156,10 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
         // Create channel with explicit transport preference if needed, 
         // but primarily we just guard the creation and subscription.
+        if (!supabase) {
+           console.warn('[Auth] Supabase client not initialized. Realtime disabled.');
+           return;
+        }
         channel = supabase.channel('admin_security', {
           config: {
             broadcast: { self: false },

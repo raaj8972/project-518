@@ -49,6 +49,10 @@ export const heroMediaService = {
    * If no configuration exists, it returns a default configuration.
    */
   async getHeroMedia(pageKey: string): Promise<HeroMediaV2> {
+    if (!db) {
+      console.warn(`[HeroMedia] Firestore not initialized, returning default media for ${pageKey}`);
+      return DEFAULT_HERO_MEDIA;
+    }
     try {
       const docRef = doc(db, COLLECTION_NAME, pageKey);
       const snapshot = await getDoc(docRef);
@@ -68,6 +72,11 @@ export const heroMediaService = {
    * Subscribes to real-time updates for hero media configuration.
    */
   subscribeHeroMedia(pageKey: string, callback: (data: HeroMediaV2) => void): () => void {
+    if (!db) {
+      console.warn(`[HeroMedia] Firestore not initialized, subscriptions disabled for ${pageKey}`);
+      callback(DEFAULT_HERO_MEDIA);
+      return () => {};
+    }
     const docRef = doc(db, COLLECTION_NAME, pageKey);
     return onSnapshot(docRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -84,6 +93,10 @@ export const heroMediaService = {
    * Saves the hero media configuration for a specific page.
    */
   async saveHeroMedia(pageKey: string, data: Partial<HeroMediaV2>): Promise<void> {
+    if (!db) {
+      console.error(`[HeroMedia] Firestore not initialized, cannot save media for ${pageKey}`);
+      throw new Error('Database not initialized');
+    }
     try {
       const docRef = doc(db, COLLECTION_NAME, pageKey);
       await setDoc(docRef, data, { merge: true });

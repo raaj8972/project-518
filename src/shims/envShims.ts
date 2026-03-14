@@ -3,6 +3,35 @@
 // the app entry so it runs before any libraries that may synchronously call
 // Navigator.locks or check for GestureEvent.
 
+// Global polyfills for legacy Node modules
+if (typeof (globalThis as any).process === 'undefined') {
+  (globalThis as any).process = { 
+    env: { NODE_ENV: 'production' },
+    version: 'v16.0.0',
+    nextTick: (fn: any) => setTimeout(fn, 0),
+    browser: true
+  };
+} else {
+  const p = (globalThis as any).process;
+  p.env = p.env || { NODE_ENV: 'production' };
+  p.version = p.version || 'v16.0.0';
+  p.nextTick = p.nextTick || ((fn: any) => setTimeout(fn, 0));
+}
+
+if (typeof (globalThis as any).Buffer === 'undefined') {
+  try {
+    // Try to catch the Buffer from the Vite polyfill plugin if it's available
+    (globalThis as any).Buffer = (window as any).Buffer || require('buffer').Buffer;
+  } catch (e) {
+    (globalThis as any).Buffer = {
+      isBuffer: () => false,
+      from: () => new Uint8Array(),
+      alloc: () => new Uint8Array(),
+      prototype: {}
+    };
+  }
+}
+
 // Wrap navigator.locks.request to avoid throwing NavigatorLockAcquireTimeoutError
 // during quick-acquire/ifAvailable checks in some browsers/dev envs.
 if (typeof navigator !== 'undefined' && (navigator as any).locks && typeof (navigator as any).locks.request === 'function') {

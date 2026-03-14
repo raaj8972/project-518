@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, Suspense, lazy, Component, PropsWithChildren, ReactElement, startTransition } from 'react';
+console.log('[App.tsx] Module execution started, React available:', !!React, 'useState available:', !!useState);
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';

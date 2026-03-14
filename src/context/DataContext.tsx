@@ -35,12 +35,13 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
   const personnel = usePersonnelData();
   const gallery = useGalleryData();
   const management = useManagementData();
-  const { user } = useAuth();
+  const auth = useAuth();
+  const { user } = auth;
 
   // Combine everything into the legacy interface for backward compatibility
   const value: DataContextType = {
     // Core Domain
-    loading: core.loading || events.loading || personnel.loading || gallery.loading || management.loading || useAuth().loading,
+    loading: core.loading || events.loading || personnel.loading || gallery.loading || management.loading || auth.loading,
     connectionStatus: core.connectionStatus,
     lastError: core.lastError,
     latencyMs: core.latencyMs,

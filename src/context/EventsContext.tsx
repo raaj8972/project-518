@@ -79,7 +79,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes] = await Promise.all([
         fetchAllEvents(),
         dualRead({ table: 'event_coordinators' }),
-        dualRead({ table: 'event_categories', order: ['display_order', { ascending: true }] }),
+        dualRead({ table: 'event_categories' }),
         dualRead({ table: 'schedule_days' }),
         supabase.from('roadmap_milestones').select('*').order('order_position', { ascending: true })
       ]);

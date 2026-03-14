@@ -98,6 +98,10 @@ function injectPreloadLink(url: string, type: 'image' | 'video') {
     else if (ext === 'webp') link.type = 'image/webp';
   }
 
+  if (!document.head) {
+    console.warn('[Preload] document.head not found, skipping injection for:', url);
+    return;
+  }
   document.head.appendChild(link);
 }
 
@@ -114,7 +118,10 @@ export function getCachedLogoUrl(): string | null {
 // ── Run immediately ──
 // Step 1 is synchronous (no await) — cached URL preloaded in <1ms
 preloadLogoFromCache();
-// Step 2 runs in background — updates cache for next visit
-fetchAndCacheAssets();
+// Step 2 runs in background — updates cache for next visit. 
+// Use a small delay to ensure application modules are initialized first (avoids race conditions).
+setTimeout(() => {
+  fetchAndCacheAssets();
+}, 200);
 
 export { fetchAndCacheAssets as preloadBrandAssets };
