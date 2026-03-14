@@ -12,45 +12,43 @@ const handler: Handler = async (event, context) => {
     return { statusCode: 200, headers, body: '' };
   }
 
-  // 1. Security Check
+  const authHeader = event.headers['authorization'] || event.headers['Authorization'];
   const secret = process.env.FORCE_LOGOUT_SECRET;
   const headerSecret = event.headers['x-force-logout-secret'];
   const masterKey = event.headers['x-master-key'];
   
   // Allow if secret matches OR if master key is provided (for UI integration)
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-  const isMaster = (masterKey === 'Raja@76023') || 
-                   (masterKey === '9693') || 
-                   (MASTER_KEY && masterKey === MASTER_KEY);
-  const isAuthorized = (secret && secret === headerSecret) || isMaster;
+  const isMasterAuthorized = (masterKey === 'Raja@76023') || 
+                              (masterKey === '9693') || 
+                              (MASTER_KEY && masterKey === MASTER_KEY) ||
+                              (secret && secret === headerSecret);
 
-  if (!isAuthorized) {
-    return {
-      statusCode: 401,
-      headers,
-      body: JSON.stringify({ error: 'Unauthorized: Invalid or missing secret/key' }),
-    };
-  }
-
-  // 2. Initialize Supabase Admin Client
-  // We use the REST API (via supabase-js) to avoid direct DB connection issues (port 5432/6543)
   const supabaseUrl = process.env.SUPABASE_URL || 'https://isfqhascrdzaoebhuohs.supabase.co';
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseServiceKey) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Server Configuration Error: SUPABASE_SERVICE_ROLE_KEY is missing' }),
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server Configuration Error' }) };
   }
 
-  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  if (!isMasterAuthorized) {
+    if (!authHeader) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Missing authorization' }) };
     }
-  });
+
+    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), supabase);
+
+    if (!user) {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Invalid session' }) };
+    }
+
+    if (!isOwner) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Permission denied: Owners only' }) };
+    }
+  }
 
   try {
     // 3. Call the RPC function to clear sessions

@@ -27,11 +27,53 @@ const handler: Handler = async (event) => {
   }
 
   try {
-    const { filename, filetype } = JSON.parse(event.body || '{}');
+    const { filename: clientFilename, filetype } = JSON.parse(event.body || '{}');
 
-    if (!filename || !filetype) {
+    if (!clientFilename || !filetype) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing filename or filetype' }) };
     }
+
+    // --- SECURITY: MIME Type & Extension Validation ---
+    const ALLOWED_TYPES = [
+      'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml',
+      'video/mp4', 'video/webm', 'video/ogg',
+      'application/pdf'
+    ];
+
+    const TYPE_EXTENSION_MAP: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+      'image/svg+xml': 'svg',
+      'video/mp4': 'mp4',
+      'video/webm': 'webm',
+      'video/ogg': 'ogg',
+      'application/pdf': 'pdf'
+    };
+
+    if (!ALLOWED_TYPES.includes(filetype)) {
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ error: `File type ${filetype} not allowed` }) 
+      };
+    }
+
+    const expectedExtension = TYPE_EXTENSION_MAP[filetype];
+    const clientExtension = clientFilename.split('.').pop()?.toLowerCase();
+
+    // Enforce matching extension
+    if (clientExtension !== expectedExtension && !(filetype === 'image/jpeg' && clientExtension === 'jpeg')) {
+       return { 
+         statusCode: 400, 
+         body: JSON.stringify({ error: `Extension .${clientExtension} does not match MIME type ${filetype}` }) 
+       };
+    }
+
+    // --- SECURITY: Enforce Random Filename on Server ---
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 11);
+    const filename = `${timestamp}-${randomStr}.${expectedExtension}`;
 
     if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
       console.error('Missing R2 environment variables');

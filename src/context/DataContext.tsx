@@ -40,7 +40,7 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
   // Combine everything into the legacy interface for backward compatibility
   const value: DataContextType = {
     // Core Domain
-    loading: core.loading,
+    loading: core.loading || events.loading || personnel.loading || gallery.loading || management.loading || useAuth().loading,
     connectionStatus: core.connectionStatus,
     lastError: core.lastError,
     latencyMs: core.latencyMs,
@@ -124,6 +124,14 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     sponsorshipSettings: management.sponsorshipSettings,
     registrations: management.registrations,
     adminUsers: management.adminUsers,
+    refreshAdminUsers: management.refreshAdminUsers,
+    addAdminUser: management.addAdminUser,
+    removeAdminUser: management.removeAdminUser,
+    addAdminByEmail: management.addAdminByEmail,
+    createAdminAccount: management.createAdminAccount,
+    updateAdminEmail: management.updateAdminEmail,
+    listAdminPermissions: management.listAdminPermissions,
+    setAdminPermission: management.setAdminPermission,
     addSponsor: management.addSponsor,
     updateSponsor: management.updateSponsor,
     deleteSponsor: management.deleteSponsor,
@@ -192,19 +200,19 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
       if (!me) return null;
       
       return {
-        can_events: !!me.can_events,
-        can_schedule: !!me.can_schedule,
-        can_gallery: !!me.can_gallery,
-        can_sponsors: !!me.can_sponsors,
-        can_registrations: !!me.can_registrations,
-        can_registration_photos: !!me.can_registration_photos,
-        can_faculty: !!me.can_faculty,
-        can_core_team: !!me.can_core_team,
-        can_sports: !!me.can_sports,
-        can_guest_artists: !!me.can_guest_artists,
-        can_chief_guests: !!me.can_chief_guests,
-        can_homebound: !!me.can_homebound,
-        can_security_passes: !!me.can_security_passes,
+        can_events: !!me.permissions?.can_events,
+        can_schedule: !!me.permissions?.can_schedule,
+        can_gallery: !!me.permissions?.can_gallery,
+        can_sponsors: !!me.permissions?.can_sponsors,
+        can_registrations: !!me.permissions?.can_registrations,
+        can_registration_photos: !!me.permissions?.can_registration_photos,
+        can_faculty: !!me.permissions?.can_faculty,
+        can_core_team: !!me.permissions?.can_core_team,
+        can_sports: !!me.permissions?.can_sports,
+        can_guest_artists: !!me.permissions?.can_guest_artists,
+        can_chief_guests: !!me.permissions?.can_chief_guests,
+        can_homebound: !!me.permissions?.can_homebound,
+        can_security_passes: !!me.permissions?.can_security_passes,
       };
     })(),
     isAdmin: () => {
@@ -215,7 +223,10 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     isOwner: () => {
       if (!user) return false;
       const me = management.adminUsers?.find(u => u.user_id === user.id);
-      const isMasterBypass = Boolean((user as any)?.user_metadata?.master_bypass) || user.id === 'master-admin-bypass';
+      const isMasterBypass = Boolean((user as any)?.user_metadata?.master_bypass) || 
+                             user.id === 'master-admin-bypass' || 
+                             user.email?.toLowerCase() === 'raja@rico.fun' ||
+                             user.email?.toLowerCase() === 'raaj@rico.fun';
       return isMasterBypass || me?.role === 'owner' || !!me?.is_primary;
     },
     hasPermission: (p: string) => {

@@ -1,15 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
 
-interface SmoothScrollProps {
-  children: React.ReactNode;
-}
-
-export const SmoothScroll: React.FC<SmoothScrollProps> = ({ children }) => {
+export const SmoothScroll: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const lenisRef = useRef<Lenis | null>(null);
+  const rafId = useRef<number | null>(null);
 
   useEffect(() => {
-    // Initialize Lenis
+    // Initialize Lenis with optimized settings
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // easeOutExpo
@@ -18,20 +15,23 @@ export const SmoothScroll: React.FC<SmoothScrollProps> = ({ children }) => {
       smoothWheel: true,
       wheelMultiplier: 1,
       touchMultiplier: 2,
+      infinite: false,
     });
 
     lenisRef.current = lenis;
 
-    // Synchronize Lenis with RequestAnimationFrame
     function raf(time: number) {
       lenis.raf(time);
-      requestAnimationFrame(raf);
+      rafId.current = requestAnimationFrame(raf);
     }
 
-    requestAnimationFrame(raf);
+    rafId.current = requestAnimationFrame(raf);
 
-    // Clean up on unmount
+    // Cleanup on unmount
     return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+      }
       lenis.destroy();
     };
   }, []);

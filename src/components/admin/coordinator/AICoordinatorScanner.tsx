@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Loader2, FileImage, ImagePlus, CheckCircle2, ChevronDown, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
 
 const AI_MODELS = [
   { id: 'gemini-2.5-flash', label: 'Flash 2.5', desc: 'Fastest, newest' },
@@ -25,6 +26,7 @@ export const AICoordinatorScanner: React.FC<AICoordinatorScannerProps> = ({
   onScanComplete, 
   onCancel 
 }) => {
+  const { getValidToken } = useAuth();
   const [images, setImages] = useState<{ file: File; base64: string }[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -36,7 +38,12 @@ export const AICoordinatorScanner: React.FC<AICoordinatorScannerProps> = ({
   useEffect(() => {
     const fetchModelStatuses = async () => {
       try {
-        const response = await fetch('/api/ai-check-models');
+        const token = await getValidToken();
+        const response = await fetch('/api/ai-check-models', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.models) {
@@ -161,10 +168,12 @@ export const AICoordinatorScanner: React.FC<AICoordinatorScannerProps> = ({
     try {
       const base64Images = images.map(img => img.base64).filter(Boolean);
       
+      const token = await getValidToken();
       const response = await fetch('/api/ai-extract-passwords', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ images: base64Images, model: selectedModel }),
       });

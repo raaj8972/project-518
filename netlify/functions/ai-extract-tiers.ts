@@ -45,12 +45,27 @@ function inferColorAndIcon(tierName: string) {
   return { color, icon };
 }
 
-export const handler = async (event: any) => {
+import { type Handler } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
+
+export const handler: Handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
   try {
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    const { isAdmin, user: authUser } = await verifyAdminHelper(authHeader, supabase);
+
+    if (!authUser || !isAdmin) {
+       return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) };
+    }
+
     const { images, model } = JSON.parse(event.body || '{}');
     const selectedModel = ALLOWED_MODELS.includes(model) ? model : DEFAULT_MODEL;
 

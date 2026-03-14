@@ -10,6 +10,7 @@ import { DEFAULT_GALLERY_SETTINGS } from '../utils/dataUtils';
 interface GalleryContextType {
   galleryImages: GalleryImage[];
   gallerySettings: GallerySettings | null;
+  loading: boolean;
   
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
@@ -35,8 +36,10 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
+  const [loading, setLoading] = useState(false);
 
   const fetchGalleryData = useCallback(async () => {
+    setLoading(true);
     try {
       const [imagesRes, settingsRes] = await Promise.all([
         supabase
@@ -64,6 +67,8 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -124,6 +129,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const value: GalleryContextType = {
     galleryImages,
     gallerySettings,
+    loading,
     addGalleryImage,
     updateGalleryImage,
     deleteGalleryImage,

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Loader2, FileImage, ImagePlus, CheckCircle2, ChevronDown, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
 
 const AI_MODELS = [
   { id: 'gemini-2.5-flash', label: 'Flash 2.5', desc: 'Fastest, newest' },
@@ -33,9 +34,10 @@ interface AICoreTeamScannerProps {
 }
 
 export const AICoreTeamScanner: React.FC<AICoreTeamScannerProps> = ({ 
-  onScanComplete, 
+  onScanComplete,
   onCancel 
 }) => {
+  const { getValidToken } = useAuth();
   const [images, setImages] = useState<{ file: File; base64: string }[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -47,7 +49,12 @@ export const AICoreTeamScanner: React.FC<AICoreTeamScannerProps> = ({
   useEffect(() => {
     const fetchModelStatuses = async () => {
       try {
-        const response = await fetch('/api/ai-check-models');
+        const token = await getValidToken();
+        const response = await fetch('/api/ai-check-models', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.models) {
@@ -166,16 +173,17 @@ export const AICoreTeamScanner: React.FC<AICoreTeamScannerProps> = ({
     if (images.length === 0) return;
 
     setIsScanning(true);
-    const modelLabel = AI_MODELS.find(m => m.id === selectedModel)?.label || selectedModel;
-    const toastId = toast.loading(`Extracting team roster using \${modelLabel}...`);
+    const toastId = toast.loading(`Scanning with ${selectedModel}...`);
 
     try {
       const base64Images = images.map(img => img.base64).filter(Boolean);
       
+      const token = await getValidToken();
       const response = await fetch('/api/ai-extract-core-team', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ images: base64Images, model: selectedModel }),
       });

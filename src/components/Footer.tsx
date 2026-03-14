@@ -9,6 +9,13 @@ export const Footer: React.FC = () => {
   const location = useLocation();
   const isHomeBound = location.pathname === '/home-bound' || location.pathname.startsWith('/home-bound');
 
+  // Stable Shell: Return null internally for non-public routes so the component 
+  // remains mounted as a sibling in AppShell but doesn't render visual content.
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isSecurityRoute = location.pathname.startsWith('/security-');
+  const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
+
   // Check if social media links should be shown
   const showInstagram = socialMediaSettings?.instagram_enabled && socialMediaSettings?.instagram_url;
   const showYoutube = socialMediaSettings?.youtube_enabled && socialMediaSettings?.youtube_url;

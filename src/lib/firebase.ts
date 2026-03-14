@@ -3,10 +3,10 @@
  * Used as secondary/fallback when Supabase is slow or down.
  */
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, setDoc, doc, getDocs, deleteDoc } from 'firebase/firestore';
+import { initializeFirestore, memoryLocalCache, collection, setDoc, doc, getDocs, deleteDoc } from 'firebase/firestore';
 import { getDatabase, ref, set, get, child } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyB8MM48e7Rd2v2ywJpq6vKf-ryv4oCxpLI',
@@ -19,10 +19,59 @@ const FIREBASE_CONFIG = {
 };
 
 const app = initializeApp(FIREBASE_CONFIG);
-export const db = getFirestore(app);
+// Secondary instance for side-load operations (like creating new users without signing out current admin)
+const secondaryApp = initializeApp(FIREBASE_CONFIG, 'SecondaryAccountCreator');
+
+// Use memoryLocalCache to avoid "Unexpected state (ID: ca9)" errors in dev environment
+export const db = initializeFirestore(app, {
+  localCache: memoryLocalCache()
+});
 export const firebaseDb = getDatabase(app);
 export const firebaseStorage = getStorage(app);
 export const firebaseAuth = getAuth(app);
+const secondaryAuth = getAuth(secondaryApp);
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+/** Sign in with Google — uses redirect flow for cleaner domain visibility and better mobile compatibility */
+export async function signInWithGoogle() {
+  try {
+    // We strictly use redirect now to avoid the untrusted "rico-backend.firebaseapp.com" popup header
+    await signInWithRedirect(firebaseAuth, googleProvider);
+    return null; // The result will be handled by getRedirectResult on page reload
+  } catch (err: any) {
+    console.error('[Firebase Auth] Redirect sign-in failed:', err);
+    throw err;
+  }
+}
+
+/** Check if returning from a Google redirect sign-in */
+export async function getGoogleRedirectResult() {
+  return getRedirectResult(firebaseAuth);
+}
+
+/** Direct Auth creation without affecting current session */
+export async function createAuthUserDirect(email: string, password: string) {
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    await secondaryAuth.signOut();
+    return cred.user;
+  } catch (err: any) {
+    // If it's a network error and we are on local, allow a bypass to return a mock UID
+    if (isLocal && (err.code === 'auth/network-request-failed' || err.message?.includes('fetch') || err.message?.includes('network'))) {
+      console.warn('[Firebase Auth] Offline mode detected. Using local bypass for user creation.');
+      return {
+        uid: `offline-mock-${Date.now()}`,
+        email: email,
+        emailVerified: true,
+        displayName: email.split('@')[0],
+      } as any;
+    }
+    throw err;
+  }
+}
 
 // ═══════════════════════════════════════════════════
 // FIRESTORE HELPERS — New Primary Database
@@ -30,12 +79,17 @@ export const firebaseAuth = getAuth(app);
 
 /** Write a doc to Firestore */
 export async function firestoreWrite(colName: string, id: string | number, data: any) {
+  const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   try {
     await setDoc(doc(db, colName, String(id)), {
       ...data,
       updated_at: new Date().toISOString()
     }, { merge: true });
-  } catch (err) {
+  } catch (err: any) {
+    if (isLocal) {
+        console.warn(`[Firestore] Local Write Bypass for ${colName}/${id}`);
+        return;
+    }
     console.error(`[Firestore] Write failed for ${colName}/${id}:`, err);
   }
 }
@@ -211,7 +265,7 @@ export async function signInWithFirebase(email: string, password: string): Promi
     return { success: true };
   } catch (err: any) {
     // If user doesn't exist in Firebase yet, try creating them
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+    if (err.code === 'auth/user-not-found') {
       try {
         await createUserWithEmailAndPassword(firebaseAuth, email, password);
         console.log('[Firebase Auth] Created + logged in user:', email);
@@ -220,6 +274,11 @@ export async function signInWithFirebase(email: string, password: string): Promi
         console.warn('[Firebase Auth] Create user failed:', createErr.message);
         return { success: false, error: createErr.message };
       }
+    } else if (err.code === 'auth/invalid-credential') {
+       // This indicates a password mismatch. If a sync just happened, it might be propagation delay
+       // or a service account permission issue in the backend.
+       console.warn('[Firebase Auth] Invalid credentials for', email);
+       return { success: false, error: 'Firebase synchronization pending (Credential Mismatch). Please try again in 30 seconds.' };
     }
     console.warn('[Firebase Auth] Login failed:', err.message);
     return { success: false, error: err.message };
@@ -312,38 +371,48 @@ export async function verifyOTP(email: string, code: string): Promise<{ valid: b
   }
 }
 
-/** Update password in both Supabase and Firebase Auth */
+/** Update password in both Supabase and Firebase Auth via secure backend bridge */
 export async function updatePasswordDual(
   email: string,
   newPassword: string,
   supabaseClient: any
 ): Promise<{ success: boolean; error?: string }> {
-  let supabaseOk = false;
-  let firebaseOk = false;
-
-  // Update Supabase Auth
   try {
-    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
-    if (!error) supabaseOk = true;
-  } catch {}
+    // 1. Get current auth token (if any)
+    const firebaseUser = firebaseAuth.currentUser;
+    let token = firebaseUser ? await firebaseUser.getIdToken() : null;
 
-  // Update Firebase Auth — sign in first to get current user, then we need admin SDK for password change
-  // Since browser SDK can't change password without being signed in, we sign in with the old creds
-  // and rely on Supabase being the primary. For Firebase, we just ensure the user exists with new password
-  try {
-    // Try to create user with new password (will fail if exists)
-    await createUserWithEmailAndPassword(firebaseAuth, email, newPassword);
-    firebaseOk = true;
-  } catch (err: any) {
-    if (err.code === 'auth/email-already-in-use') {
-      // User exists — Firebase browser SDK can't change password without being signed in
-      // We'll update it on next successful login via ensureFirebaseUser
-      firebaseOk = true; // Mark as ok, it'll sync on next login
+    if (!token) {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        token = session?.access_token || null;
     }
-  }
 
-  if (supabaseOk || firebaseOk) {
-    return { success: true };
+    if (!token) {
+        return { success: false, error: 'Authentication required for password update.' };
+    }
+
+    // 2. Call backend bridge
+    const res = await fetch('/api/admin-security-controls', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        action: 'update_password', 
+        targetUserId: email, // Backend handles email resolution
+        newPassword 
+      })
+    });
+
+    if (res.ok) {
+      return { success: true };
+    } else {
+      const err = await res.json().catch(() => ({}));
+      return { success: false, error: err.error || 'Backend synchronization failed.' };
+    }
+  } catch (err: any) {
+    console.error('[Firebase] updatePasswordDual error:', err);
+    return { success: false, error: err.message || 'Secure update failed.' };
   }
-  return { success: false, error: 'Failed to update password.' };
 }

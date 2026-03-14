@@ -1,8 +1,9 @@
-// removed handler import to fix local dev syntax error
+import { type Handler } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-export const handler = async (event: any) => {
+export const handler: Handler = async (event) => {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -12,6 +13,18 @@ export const handler = async (event: any) => {
   }
 
   try {
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
+    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    const { isAdmin, user: authUser } = await verifyAdminHelper(authHeader?.toString(), supabase);
+
+    if (!authUser || !isAdmin) {
+       return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) };
+    }
+
     const { prompt } = JSON.parse(event.body || '{}');
 
     if (!prompt) {
@@ -24,7 +37,6 @@ export const handler = async (event: any) => {
     const API_KEY = process.env.GOOGLE_API_KEY;
 
     if (!API_KEY) {
-      console.error('GOOGLE_API_KEY is not defined in environment variables.');
       return {
         statusCode: 500,
         body: JSON.stringify({ error: 'AI configuration error (missing API key)' }),
@@ -68,8 +80,8 @@ The required JSON structure:
         },
       ],
       generationConfig: {
-        temperature: 0.7, // A bit of creativity for the descriptions
-        responseMimeType: 'application/json', // Force JSON structure!
+        temperature: 0.7,
+        responseMimeType: 'application/json',
       },
     };
 
@@ -83,25 +95,18 @@ The required JSON structure:
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Gemini API Error:', errorData);
         throw new Error(errorData.error?.message || 'Failed to communicate with Gemini API');
     }
 
     const data = await response.json();
-    
-    // Extract the text from the Gemini response structure
     const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    if (!generatedText) {
-        throw new Error('Gemini API returned an empty response');
-    }
+    if (!generatedText) throw new Error('Gemini API returned an empty response');
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ 
-        success: true, 
-        text: generatedText 
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: true, text: generatedText }),
     };
   } catch (error: any) {
     console.error('AI Generation Error:', error);

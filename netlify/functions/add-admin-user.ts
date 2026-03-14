@@ -11,20 +11,34 @@ export const handler: Handler = async (event) => {
     return { statusCode: 500, body: 'Server configuration error' }
   }
 
+  const authHeader = event.headers['authorization'] || event.headers['Authorization']
   const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
 
-  const isAuthorized = (masterKey === 'Raja@76023') || 
-                       (masterKey === '9693') || 
-                       (MASTER_KEY && masterKey === MASTER_KEY);
+  const isMasterAuthorized = (masterKey === 'Raja@76023') || 
+                              (masterKey === '9693') || 
+                              (MASTER_KEY && masterKey === MASTER_KEY);
 
-  if (!isAuthorized) {
-    console.warn('[SECURITY] Unauthorized attempt to add admin user');
-    return { statusCode: 401, body: 'Unauthorized' }
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
+
+  if (!isMasterAuthorized) {
+    if (!authHeader) {
+      return { statusCode: 401, body: 'Missing authorization header' }
+    }
+
+    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    const { isAdmin, user } = await verifyAdminHelper(authHeader.toString(), supabase);
+
+    if (!user) {
+      return { statusCode: 401, body: 'Invalid or expired session' }
+    }
+
+    if (!isAdmin) {
+      return { statusCode: 403, body: 'Insufficient permissions to add admin users' }
+    }
   }
 
   const { email, user_id } = JSON.parse(event.body || '{}')
-  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE)
 
   try {
     if (user_id) {

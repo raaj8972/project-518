@@ -25,8 +25,10 @@ export const handler: Handler = async (event) => {
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
 
+    console.log(`[Passkey Register] Verifying registration for user: ${userId}`);
+    
     // 1. Fetch the most recent challenge for this user
-    const { data: challengeData } = await supabase
+    const { data: challengeData, error: fetchError } = await supabase
       .from('passkey_challenges')
       .select('*')
       .eq('user_id', userId)
@@ -34,7 +36,24 @@ export const handler: Handler = async (event) => {
       .limit(1)
       .single();
 
-    if (!challengeData) return { statusCode: 400, body: JSON.stringify({ error: 'Challenge not found or expired' }) };
+    if (fetchError) {
+      console.error('[Passkey Register] Challenge fetch error:', fetchError);
+      return { 
+        statusCode: 400, 
+        body: JSON.stringify({ 
+          error: 'Challenge not found or expired', 
+          details: `Query for user ${userId} failed: ${fetchError.message}`,
+          code: fetchError.code
+        }) 
+      };
+    }
+
+    if (!challengeData) {
+      console.warn('[Passkey Register] No challenge data found for user:', userId);
+      return { statusCode: 400, body: JSON.stringify({ error: 'Challenge not found or expired' }) };
+    }
+    
+    console.log('[Passkey Register] Found matching challenge record');
 
     // 1.5. Validate challenge hasn't expired (5 minute window)
     const expiresAt = new Date(challengeData.expires_at);
@@ -69,16 +88,17 @@ export const handler: Handler = async (event) => {
       console.log('Credential ID to save:', credentialID);
       console.log('User ID:', userId);
 
-      // 3. Save to DB
-      const { error } = await supabase.from('passkeys').insert({
+      // 3. Store the passkey
+      const { error: storeError } = await supabase.from('passkeys').insert({
         user_id: userId,
-        credential_id: credentialID, // Already base64url from response.id
-        public_key: Buffer.from(credentialPublicKey).toString('base64url'),
-        counter,
-        transports: response.response.transports || [],
+        email: challengeData.email, // Store email for easier login later
+        credential_id: credential.id,
+        public_key: Buffer.from(credential.publicKey).toString('base64url'),
+        counter: credential.counter,
+        transports: credential.transports,
       });
 
-      if (error) throw error;
+      if (storeError) throw storeError;
 
 
 

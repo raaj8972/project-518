@@ -41,7 +41,9 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
         if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
         const callerId = caller.user.id
         const { data: rows } = await adminClient.from('admin_users').select('user_id, role').eq('user_id', callerId).maybeSingle()
-        if (!rows || rows.role !== 'owner') return { statusCode: 403, body: 'Only owner can create admins' }
+        if (!rows || !['owner', 'admin'].includes(rows.role)) {
+          return { statusCode: 403, body: 'Insufficient permissions to create admins' }
+        }
     }
 
     // Create auth user

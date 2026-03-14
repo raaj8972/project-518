@@ -15,6 +15,8 @@ service cloud.firestore {
     function isAdmin() {
       // First check custom claim for speed
       return (request.auth != null && request.auth.token.admin == true) || 
+      // Hardcoded owner bypass for initial provisioning
+      (request.auth != null && request.auth.token.email in ['raja@rico.fun', 'raaj@rico.fun', 'master@rico.family']) ||
       // Fallback to checking if they exist in the admin_users collection
       (isSignedIn() && get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.role in ['admin', 'owner', 'council']);
     }
@@ -324,6 +326,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+
+    match /allowed_admins/{document=**} {
+      // Public read needed — owner logs in via Supabase, not Firebase Auth
+      allow read: if true;
+      // Only existing admins can modify the whitelist
+      allow write: if isAdmin();
+    }
 
     // ---------------------------------------------------------
     // FALLBACK

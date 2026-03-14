@@ -14,6 +14,11 @@ export const handler = async (event: any, context: any) => {
   }
 
   try {
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (!authHeader) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'Missing authorization header' }) };
+    }
+
     const { eventId } = JSON.parse(event.body || '{}');
 
     if (!eventId) {
@@ -21,7 +26,18 @@ export const handler = async (event: any, context: any) => {
     }
 
     // Initialize Supabase with Service Role Key to bypass RLS
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl || '', supabaseServiceKey || '');
+
+    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+    const { isAdmin, user } = await verifyAdminHelper(authHeader.toString(), supabase);
+
+    if (!user) {
+      return { statusCode: 401, body: JSON.stringify({ error: 'Invalid or expired session' }) };
+    }
+
+    if (!isAdmin) {
+      return { statusCode: 403, body: JSON.stringify({ error: 'Forbidden: Admin access required' }) };
+    }
 
     console.log(`[get-event-candidates] Fetching for EventID: ${eventId} (Type: ${typeof eventId})`);
 

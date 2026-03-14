@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Image as ImageIcon, Save, Monitor, Smartphone, Video, RefreshCw, Layers } from 'lucide-react';
+import { Image as ImageIcon, Save, Monitor, Smartphone, Video, RefreshCw, Layers, AlertCircle } from 'lucide-react';
 import { ImageUpload } from '../ImageUpload';
 import { heroMediaService, HeroMediaV2 } from '../../services/heroMediaService';
 
@@ -17,6 +17,7 @@ export const HeroMediaManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'desktop' | 'mobile'>('desktop');
+  const [previewVideoError, setPreviewVideoError] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,7 +33,8 @@ export const HeroMediaManagement: React.FC = () => {
       }
     };
     fetchData();
-  }, [selectedPage]);
+    setPreviewVideoError(false);
+  }, [selectedPage, activeTab]);
 
   const handleSave = async () => {
     if (!form) return;
@@ -312,7 +314,29 @@ export const HeroMediaManagement: React.FC = () => {
                   if (!mediaUrl) return <div className="w-full h-full flex flex-col items-center justify-center text-gray-600"><ImageIcon className="w-12 h-12 mb-4 opacity-20" /><span className="text-xs uppercase font-bold tracking-widest">No Media Selected</span></div>;
 
                   if (mediaUrl.match(/\.(mp4|webm|mov)$/i) || form.background_type === 'video') {
-                    return <video src={mediaUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />;
+                    if (previewVideoError) {
+                      return (
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-red-950/20 text-red-400 p-8 text-center">
+                          <AlertCircle className="w-12 h-12 mb-4 opacity-50" />
+                          <span className="text-xs uppercase font-black tracking-widest mb-2">Resource Failed to Load</span>
+                          <p className="text-[10px] text-red-300/60 max-w-[200px]">The video file could not be retrieved from storage. Please re-upload or check your Supabase settings.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <video 
+                        src={mediaUrl} 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline 
+                        className="w-full h-full object-cover" 
+                        onError={(e) => {
+                          console.error('Preview video failed to load:', mediaUrl, e);
+                          setPreviewVideoError(true);
+                        }}
+                      />
+                    );
                   }
 
                   return <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />;

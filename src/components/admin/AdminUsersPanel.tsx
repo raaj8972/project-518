@@ -4,14 +4,15 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ToastProvider';
 import { supabase } from '../../lib/supabase';
-import { Shield, UserPlus, Trash2, Copy, CheckCircle2, Search, Lock, Edit, X, Mail, Key, UserCheck, Settings, AlertCircle, Check, Loader2, Fingerprint } from 'lucide-react';
+import { Shield, UserPlus, Trash2, CheckCircle2, Search, Lock, Edit, X, Mail, Key, UserCheck, AlertCircle, Check, Loader2, Fingerprint, Globe } from 'lucide-react';
+import { AdminService } from '../../lib/adminService';
 
 interface AdminUsersPanelProps {
   onManage2FA?: () => void;
 }
 
 export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA }) => {
-  const { adminUsers, refreshAdminUsers, removeAdminUser, updateAdminEmail, listAdminPermissions, setAdminPermission } = useData();
+  const { adminUsers, refreshAdminUsers, removeAdminUser, updateAdminEmail, setAdminPermission, updateAdminRole } = useData();
   const { user } = useAuth();
   const { push: toast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -19,112 +20,38 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
   const [copied, setCopied] = useState(false);
   const [q, setQ] = useState('');
 
-  const [perm, setPerm] = useState<Record<string, {
-    can_events?: boolean;
-    can_schedule?: boolean;
-    can_gallery?: boolean;
-    can_sponsors?: boolean;
-    can_registrations?: boolean;
-    can_registration_photos?: boolean;
-    can_faculty?: boolean;
-    can_core_team?: boolean;
-    can_guest_artists?: boolean;
-    can_chief_guests?: boolean;
-    can_homebound?: boolean;
-    can_sports?: boolean;
-    can_security_passes?: boolean;
-  }>>({});
-  
+  // Gmail whitelist state
+  const [allowedAdmins, setAllowedAdmins] = useState<{ email: string; role: string; display_name?: string }[]>([]);
+  const [newGmail, setNewGmail] = useState('');
+  const [newGmailRole, setNewGmailRole] = useState<'owner' | 'admin'>('admin');
+  const [whitelistBusy, setWhitelistBusy] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState<Record<string, boolean>>({});
 
   const currentUserAdmin = useMemo(() => adminUsers?.find(u => u.user_id === user?.id), [adminUsers, user]);
-  const isMasterBypass = user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
-  const isOwner = currentUserAdmin?.role === 'owner' || currentUserAdmin?.is_primary || isMasterBypass;
+
+  const isMasterBypass = user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass' || user?.email?.toLowerCase() === 'raja@rico.fun';
+  const role = currentUserAdmin?.role || user?.user_metadata?.role;
+  const isOwner = role === 'owner' || currentUserAdmin?.is_primary || isMasterBypass;
+  const canCreateAdmins = isOwner || role === 'admin';
 
   useEffect(() => { refreshAdminUsers && refreshAdminUsers(); }, [refreshAdminUsers]);
-  
+
+  // Load allowed Gmail whitelist
   useEffect(() => {
-    (async () => {
+    const loadWhitelist = async () => {
       try {
-        if (!listAdminPermissions) return;
-        const rows = await listAdminPermissions();
-        const map: Record<string, any> = {};
-        for (const r of rows as any[]) {
-          map[r.user_id] = {
-            can_events: !!r.can_events,
-            can_schedule: !!r.can_schedule,
-            can_gallery: !!r.can_gallery,
-            can_sponsors: !!r.can_sponsors,
-            can_registrations: !!r.can_registrations,
-            can_registration_photos: !!r.can_registration_photos,
-            can_faculty: !!r.can_faculty,
-            can_core_team: !!r.can_core_team,
-            can_guest_artists: !!r.can_guest_artists,
-            can_chief_guests: !!r.can_chief_guests,
-            can_homebound: !!r.can_homebound,
-            can_sports: !!(r as any).can_sports,
-            can_security_passes: !!(r as any).can_security_passes,
-          };
-        }
-        setPerm(map);
-        
-        const { data: admins } = await supabase
-          .from('admin_users')
-          .select('user_id, requires_approval');
-        
-        const approvalMap: Record<string, boolean> = {};
-        admins?.forEach(a => {
-          approvalMap[a.user_id] = !!a.requires_approval;
-        });
-        setRequiresApproval(approvalMap);
-      } catch {}
-    })();
-  }, [listAdminPermissions]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('admin-users-panel-permissions')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'admin_permissions'
-      }, (payload: any) => {
-        const row = payload.new || payload.old;
-        if (!row?.user_id) return;
-        
-        if (payload.eventType === 'DELETE') {
-          setPerm(p => {
-            const next = { ...p };
-            delete next[row.user_id];
-            return next;
-          });
-        } else if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          setPerm(p => ({
-            ...p,
-            [row.user_id]: {
-              can_events: !!row.can_events,
-              can_schedule: !!row.can_schedule,
-              can_gallery: !!row.can_gallery,
-              can_sponsors: !!row.can_sponsors,
-              can_registrations: !!row.can_registrations,
-              can_registration_photos: !!row.can_registration_photos,
-              can_faculty: !!row.can_faculty,
-              can_core_team: !!row.can_core_team,
-              can_guest_artists: !!row.can_guest_artists,
-              can_chief_guests: !!row.can_chief_guests,
-              can_homebound: !!row.can_homebound,
-              can_sports: !!row.can_sports,
-              can_security_passes: !!row.can_security_passes,
-            }
-          }));
-        }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+        const list = await AdminService.getAllowedAdmins();
+        setAllowedAdmins(list);
+      } catch (e) {
+        console.error('Failed to load allowed admins:', e);
+      }
     };
+    loadWhitelist();
   }, []);
+  
+
+
+
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -216,13 +143,15 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="group relative inline-flex items-center justify-center gap-3 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl px-8 py-4 text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 overflow-hidden"
-        >
-          <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-700" />
-          <UserPlus className="w-5 h-5 relative z-10"/> <span className="relative z-10">Authorize New Admin</span>
-        </button>
+        {canCreateAdmins && (
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="group relative inline-flex items-center justify-center gap-3 bg-gradient-to-br from-indigo-600 to-indigo-800 text-white rounded-2xl px-8 py-4 text-xs font-black uppercase tracking-widest shadow-2xl shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover:translate-x-0 transition-transform duration-700" />
+            <UserPlus className="w-5 h-5 relative z-10"/> <span className="relative z-10">Authorize New Admin</span>
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4 mb-10">
@@ -254,6 +183,105 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         </div>
       )}
 
+      {/* ── Gmail Whitelist Management (Owner Only) ── */}
+      {isOwner && (
+        <div className="mb-10 p-6 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 border border-emerald-500/20 rounded-[1.5rem] shadow-xl">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+              <Globe className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-widest italic">Google Sign-In Whitelist</h4>
+              <p className="text-[10px] text-gray-500 font-bold mt-0.5">Only these Gmail accounts can access the admin panel via Google Sign-In.</p>
+            </div>
+          </div>
+
+          {/* Add Gmail Input */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-5">
+            <input
+              type="email"
+              value={newGmail}
+              onChange={(e) => setNewGmail(e.target.value)}
+              placeholder="user@gmail.com"
+              className="flex-1 bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/10 transition-all"
+            />
+            <select
+              value={newGmailRole}
+              onChange={(e) => setNewGmailRole(e.target.value as 'owner' | 'admin')}
+              className="bg-white/[0.03] border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-emerald-500/50 transition-all cursor-pointer"
+            >
+              <option value="admin" className="bg-[#0a0a15]">Admin</option>
+              <option value="owner" className="bg-[#0a0a15]">Owner</option>
+            </select>
+            <button
+              disabled={whitelistBusy || !newGmail.includes('@')}
+              onClick={async () => {
+                setWhitelistBusy(true);
+                try {
+                  await AdminService.addAllowedAdmin(newGmail, newGmailRole);
+                  const list = await AdminService.getAllowedAdmins();
+                  setAllowedAdmins(list);
+                  setNewGmail('');
+                  toast({ message: `${newGmail} added to whitelist as ${newGmailRole}`, type: 'success' });
+                } catch (e: any) {
+                  toast({ message: e?.message || 'Failed to add', type: 'error' });
+                } finally {
+                  setWhitelistBusy(false);
+                }
+              }}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-emerald-600/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {whitelistBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+              Add
+            </button>
+          </div>
+
+          {/* Allowed List */}
+          <div className="space-y-2">
+            {allowedAdmins.length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-4">No Gmail accounts whitelisted yet. Add one above.</p>
+            ) : (
+              allowedAdmins.map((a) => (
+                <div key={a.email} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-xl hover:border-emerald-500/20 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 text-xs font-black">
+                      {(a.display_name || a.email)[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-sm text-white font-bold">{a.display_name || a.email.split('@')[0]}</p>
+                      <p className="text-[10px] text-gray-500">{a.email}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                      a.role === 'owner' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    }`}>{a.role}</span>
+                  </div>
+                  <button
+                    disabled={whitelistBusy}
+                    onClick={async () => {
+                      if (!confirm(`Remove ${a.email} from the whitelist?`)) return;
+                      setWhitelistBusy(true);
+                      try {
+                        await AdminService.removeAllowedAdmin(a.email);
+                        const list = await AdminService.getAllowedAdmins();
+                        setAllowedAdmins(list);
+                        toast({ message: `${a.email} removed from whitelist`, type: 'success' });
+                      } catch (e: any) {
+                        toast({ message: e?.message || 'Failed to remove', type: 'error' });
+                      } finally {
+                        setWhitelistBusy(false);
+                      }
+                    }}
+                    className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
         <div className="relative flex-1 group w-full">
           <Search className="w-4 h-4 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-indigo-400 transition-colors" />
@@ -274,7 +302,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
         <AddAdminModal 
           isOpen={showAddModal} 
           onClose={() => setShowAddModal(false)}
-          isOwner={!!isOwner}
+          canCreatePrime={canCreateAdmins}
         />
       )}
 
@@ -300,18 +328,41 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                       <span className="text-white font-black italic">{u.email}</span>
                     </div>
                     <span className="text-[10px] text-gray-500 font-mono mt-1 group-hover:text-indigo-400 transition-colors uppercase tracking-widest">UID: {u.user_id}</span>
-                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Added: {new Date(u.created_at).toLocaleDateString()}</span>
+                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">Added: {u.created_at ? new Date(u.created_at).toLocaleDateString() : 'Active'}</span>
                   </div>
                 </td>
                 <td className="px-8 py-8 align-top">
-                  {u.role === 'owner' || u.is_primary ? (
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/5">
-                      <Shield size={10} fill="currentColor" /> Owner
-                    </span>
+                  {isOwner && u.user_id !== user?.id && u.email.toLowerCase() !== 'raja@rico.fun' ? (
+                    <select
+                      value={u.role || (u.is_primary ? 'owner' : 'admin')}
+                      onChange={async (e) => {
+                        const nextRole = e.target.value as 'owner' | 'admin';
+                        if (!updateAdminRole) return;
+                        setBusy(true);
+                        try {
+                          await updateAdminRole(u.user_id, nextRole);
+                          toast({ message: `Level changed to ${nextRole.toUpperCase()}`, type: 'success' });
+                        } catch (err: any) {
+                          toast({ message: err.message || 'Promotion failed', type: 'error' });
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all cursor-pointer appearance-none hover:bg-indigo-500/20"
+                    >
+                      <option value="admin" className="bg-slate-900 text-indigo-400">Admin</option>
+                      <option value="owner" className="bg-slate-900 text-yellow-400">Owner</option>
+                    </select>
                   ) : (
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/5">
-                      <UserCheck size={10} fill="currentColor" /> Admin
-                    </span>
+                    u.role === 'owner' || u.is_primary || u.email.toLowerCase() === 'raja@rico.fun' ? (
+                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-yellow-500/5">
+                        <Shield size={10} fill="currentColor" /> Owner
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-black uppercase tracking-widest shadow-lg shadow-indigo-500/5">
+                        <UserCheck size={10} fill="currentColor" /> Admin
+                      </span>
+                    )
                   )}
                 </td>
                 <td className="px-8 py-8 max-w-md">
@@ -319,7 +370,7 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                     <span className="text-xs text-gray-500 italic opacity-60">Master bypass active - unrestricted clearance</span>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {([
+                      {[
                         ['can_events', 'Events'],
                         ['can_schedule', 'Schedule'],
                         ['can_gallery', 'Gallery'],
@@ -333,33 +384,35 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                         ['can_homebound', 'Homebound'],
                         ['can_sports', 'Sports'],
                         ['can_security_passes', 'Security'],
-                      ] as Array<[keyof typeof perm[string], string]>).map(([key, label]) => (
+                      ].map(([key, label]) => (
                         <button
                           key={String(key)}
                           onClick={async () => {
                             if (!setAdminPermission) return;
-                            const next = !perm[u.user_id]?.[key];
-                            setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: next } }));
+                            const perms = u.permissions as any;
+                            const current = !!perms?.[key];
+                            const next = !current;
                             try {
                               await setAdminPermission(u.user_id, { [key]: next } as any);
+                              toast({ message: `Access ${next ? 'granted' : 'revoked'} for ${label}`, type: 'success' });
                             } catch (e: any) {
-                              setPerm(p => ({ ...p, [u.user_id]: { ...p[u.user_id], [key]: !next } }));
                               toast({ message: e?.message || 'Update failed', type: 'error' });
                             }
                           }}
                           className={`
                             inline-flex items-center gap-2 text-[9px] uppercase font-black tracking-widest rounded-lg px-2.5 py-1.5 transition-all
-                            ${perm[u.user_id]?.[key] 
+                            ${(u.permissions as any)?.[key] 
                               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 active:scale-95' 
                               : 'bg-white/5 text-gray-600 border border-transparent hover:border-white/10 hover:text-gray-400'
                             }
                           `}
                         >
-                          <div className={`w-1.5 h-1.5 rounded-full ${perm[u.user_id]?.[key] ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-gray-700'}`} />
+                          <div className={`w-1.5 h-1.5 rounded-full ${(u.permissions as any)?.[key] ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]' : 'bg-gray-700'}`} />
                           {label}
                         </button>
                       ))}
                     </div>
+
                   )}
                 </td>
                 {isOwner && (
@@ -392,8 +445,9 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
                   </td>
                 )}
                 <td className="px-8 py-8 text-right align-top">
-                  {u.role === 'owner' || u.is_primary ? (
+                  { (u.role === 'owner' || u.is_primary || u.email.toLowerCase() === 'raja@rico.fun') ? (
                     <span className="text-gray-600 text-[10px] uppercase font-black tracking-widest italic opacity-40">System Protected</span>
+
                   ) : (
                     <div className="flex flex-col gap-3 items-end">
                       <button disabled={busy} onClick={() => onEditEmail(u.user_id, u.email)} className="text-[10px] font-black uppercase tracking-widest text-indigo-400/60 hover:text-indigo-400 transition-colors flex items-center gap-2 group/edit">
@@ -421,10 +475,10 @@ export const AdminUsersPanel: React.FC<AdminUsersPanelProps> = ({ onManage2FA })
 interface AddAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  isOwner: boolean;
+  canCreatePrime: boolean;
 }
 
-const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner }) => {
+const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, canCreatePrime }) => {
   const { addAdminByEmail, addAdminUser, createAdminAccount, setAdminPermission, refreshAdminUsers } = useData();
   const { push: toast } = useToast();
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
@@ -449,6 +503,7 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
     can_sports: false,
     can_security_passes: false,
   });
+  const [role, setRole] = useState<'owner' | 'admin'>('admin');
 
   const togglePermission = (key: keyof typeof permissions) => {
     setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
@@ -462,36 +517,47 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
     setBusy(true);
     setError(null);
     try {
+      console.log(`[AddAdminModal] Starting authorization flow (${mode}) for:`, email);
       let resultUserId = userId;
       
       if (mode === 'new') {
+        // Orchestrated creation: Auth + DB records
         if (!createAdminAccount) throw new Error('Account creation not available');
-        const res = await createAdminAccount(email.trim(), password);
+        const res = await createAdminAccount(email.trim(), password, role);
         if (res && res.user_id) {
           resultUserId = res.user_id;
         } else {
-          throw new Error('Response from server was invalid');
+          throw new Error('Failed to initialize prime account');
         }
       } else {
+        // Linking existing identity
         if (userId) {
-          if (!addAdminUser) throw new Error('Add user not available');
-          await addAdminUser(userId.trim(), email.trim());
+          if (!addAdminUser) throw new Error('Authorization system not available');
+          await addAdminUser(userId.trim(), email.trim(), role);
           resultUserId = userId.trim();
         } else {
-          if (!addAdminByEmail) throw new Error('Add by email not available');
+          if (!addAdminByEmail) throw new Error('Email authorization not available');
           await addAdminByEmail(email.trim());
+          // Note: resultUserId might be empty here if addAdminByEmail doesn't return it
+          // In that case, permissions will need to be set manually later or we fetch again
         }
       }
 
+      // Apply initial permissions if we have a UID
       if (resultUserId && setAdminPermission) {
+        console.log('[AddAdminModal] Applying initial permissions for:', resultUserId);
         await setAdminPermission(resultUserId, permissions);
       }
 
       await refreshAdminUsers?.();
-      toast({ message: mode === 'new' ? 'Account created and authorized' : 'Admin access granted', type: 'success' });
+      toast({ 
+        message: mode === 'new' ? 'Admin Prime account initialized successfully' : 'Identity authorized and linked', 
+        type: 'success' 
+      });
       onClose();
     } catch (err: any) {
-      setError(err?.message || 'Action failed');
+      console.error('[AddAdminModal] Process failed:', err);
+      setError(err?.message || 'Authorization sequence interrupted');
     } finally {
       setBusy(false);
     }
@@ -530,9 +596,9 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
             </button>
             <button
               type="button"
-              disabled={!isOwner}
-              onClick={() => { if(isOwner) { setMode('new'); setError(null); } }}
-              className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest transition-all ${mode === 'new' ? 'bg-indigo-600 text-white shadow-2xl' : 'text-gray-500 hover:text-gray-400'} ${!isOwner ? 'opacity-30 cursor-not-allowed' : ''}`}
+              disabled={!canCreatePrime}
+              onClick={() => { if(canCreatePrime) { setMode('new'); setError(null); } }}
+              className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-3 text-xs font-black uppercase tracking-widest transition-all ${mode === 'new' ? 'bg-indigo-600 text-white shadow-2xl' : 'text-gray-500 hover:text-gray-400'} ${!canCreatePrime ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
               <Key size={16} /> Create Prime
             </button>
@@ -621,6 +687,32 @@ const AddAdminModal: React.FC<AddAdminModalProps> = ({ isOpen, onClose, isOwner 
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Role Selection */}
+              <div className="mt-8 space-y-4">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] ml-2">Clearance Level (Role)</label>
+                <div className="flex gap-4 p-1.5 bg-black/40 rounded-2xl border border-white/10 shadow-inner">
+                  {(['admin', 'owner'] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRole(r)}
+                      className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                        role === r 
+                          ? 'bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.15)] shadow-inner' 
+                          : 'text-gray-600 hover:text-gray-400 bg-white/[0.02]'
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-gray-600 font-bold px-4 uppercase tracking-tighter">
+                  {role === 'owner' 
+                    ? 'Granting Owner clearance results in absolute system control and administrative override.' 
+                    : 'Standard administrative access for managing specific domain resources.'}
+                </p>
               </div>
             </div>
           </div>

@@ -17,6 +17,7 @@ interface PersonnelContextType {
   bandMembers: BandMember[];
   guestArtists: GuestArtist[];
   chiefGuests: any[];
+  loading: boolean;
   
   // Faculty
   addFacultyHead: (head: Partial<FacultyHead>) => Promise<void>;
@@ -73,8 +74,10 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
   const [bandMembers, setBandMembers] = useState<BandMember[]>([]);
   const [guestArtists, setGuestArtists] = useState<GuestArtist[]>([]);
   const [chiefGuests, setChiefGuests] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchPersonnelData = useCallback(async () => {
+    setLoading(true);
     try {
       const [facultyRes, coreCommitteesRes, coreTeamRes, sportsCommitteesRes, sportsTeamRes, bandRes, guestRes, chiefRes] = await Promise.all([
         fetchSupabaseBatch<FacultyHead>('faculty_heads'),
@@ -98,6 +101,8 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (err) {
       console.error('[PersonnelContext] Failed to fetch personnel data', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -132,6 +137,7 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
     bandMembers,
     guestArtists,
     chiefGuests,
+    loading,
     addFacultyHead,
     updateFacultyHead,
     deleteFacultyHead,

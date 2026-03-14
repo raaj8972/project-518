@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2, AlertCircle, RefreshCw, Wand2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../components/ToastProvider';
 
 interface InlineDescriptionAIProps {
@@ -17,6 +18,7 @@ export const InlineDescriptionAI: React.FC<InlineDescriptionAIProps> = ({
   className = "",
   disabled = false
 }) => {
+  const { getValidToken } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const { push } = useToast();
 
@@ -35,9 +37,13 @@ export const InlineDescriptionAI: React.FC<InlineDescriptionAIProps> = ({
       Return ONLY valid JSON in this exact format, with no extra text or markdown wrappers: 
       { "description": "The generated description text goes here" }`;
 
+      const token = await getValidToken();
       const response = await fetch('/api/ai-generate-content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           prompt: `Generate a short description for the ${contextType} named "${contextName}".`,
           systemInstruction

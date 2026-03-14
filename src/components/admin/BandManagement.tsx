@@ -8,6 +8,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { InlineDescriptionAI } from './InlineDescriptionAI';
+import { AIHomeBoundImport } from './homebound/AIHomeBoundImport';
+import { Wand2 } from 'lucide-react';
 
 // ─── Style tokens ─────────────────────────────
 const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 focus:bg-white/[0.06] transition-all';
@@ -35,6 +37,7 @@ export const BandManagement: React.FC = () => {
   } = useData() as any;
 
   const [isAdding, setIsAdding] = useState(false);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [showValidationErrors, setShowValidationErrors] = useState(false);
 
@@ -304,15 +307,39 @@ export const BandManagement: React.FC = () => {
             <p className="text-sm text-gray-400 mt-1 font-medium">Manage band members, singers, and musical talent</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => { setIsAdding(true); setShowValidationErrors(false); resetForm(); }}
-            className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02] transition-all flex items-center gap-2"
-          >
-            <Plus size={14} /> Add Band Member
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setIsBulkImporting(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-white/[0.03] border border-white/10 rounded-2xl text-sm font-bold text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/20 hover:scale-[1.02] transition-all"
+            >
+              <Wand2 size={16} />
+              AI Bulk Import
+            </button>
+            <button
+              onClick={() => { resetForm(); setIsAdding(true); }}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-black rounded-2xl text-sm font-bold shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all"
+            >
+              <Plus size={16} />
+              Add Member
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* AI Bulk Import Modal */}
+      {isBulkImporting && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-6xl animate-in zoom-in-95 duration-300">
+            <AIHomeBoundImport 
+              onCancel={() => setIsBulkImporting(false)} 
+              onSaved={() => {
+                setIsBulkImporting(false);
+                window.location.reload(); // Refresh to show new members
+              }} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* ═══ Stats Bar ═══ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

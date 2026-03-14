@@ -70,11 +70,28 @@ export const handler: Handler = async (event) => {
         supportedAlgorithmIDs: [-7, -257], // ES256 and RS256 for broad compatibility
       });
 
+      console.log(`[Passkey Challenge] Creating registration challenge for user: ${userId}`);
+      
       // Store challenge
-      await supabase.from('passkey_challenges').insert({
+      const { error: insertError } = await supabase.from('passkey_challenges').insert({
         challenge: options.challenge,
         user_id: userId,
+        email: email, // Save email for registration flow
       });
+
+      if (insertError) {
+        console.error('[Passkey Challenge] Storage error:', insertError);
+        return { 
+          statusCode: 500, 
+          body: JSON.stringify({ 
+            error: 'Failed to store registration challenge', 
+            details: insertError.message,
+            code: insertError.code
+          }) 
+        };
+      }
+      
+      console.log('[Passkey Challenge] Registration challenge stored successfully');
 
       return {
         statusCode: 200,

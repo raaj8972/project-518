@@ -80,9 +80,9 @@ export const handler: Handler = async (event, context) => {
   console.log(`[Admin Security] Initialized with URL: ${supabaseUrl}`);
 
   try {
-    // 1. Authentication
-    // We require a privileged admin (owner OR admin) to perform these actions.
     let isAdmin = false;
+    let isOwner = false;
+    let authUser: any = null;
     const masterKey = event.headers['x-master-key'];
 
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
@@ -92,30 +92,25 @@ export const handler: Handler = async (event, context) => {
 
     if (isMaster) {
       isAdmin = true;
+      isOwner = true; // Master key is effectively owner
     } else {
-      const authHeader = event.headers.authorization;
+      const authHeader = event.headers.authorization || event.headers.Authorization;
       if (!authHeader) {
         console.log('401: Missing authorization header');
         return { statusCode: 401, headers, body: JSON.stringify({ error: 'Missing authorization header' }) };
       }
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error } = await supabase.auth.getUser(token);
+
+      const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+      const verification = await verifyAdminHelper(authHeader as string, supabase);
       
-      if (error || !user) {
-        console.log('401: Invalid token or user not found', error);
-        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Invalid token: ' + (error?.message || 'No user') }) };
+      if (!verification.user) {
+        console.log('401: Invalid token or user not found');
+        return { statusCode: 401, headers, body: JSON.stringify({ error: 'Invalid token: User session expired or unauthorized.' }) };
       }
 
-      // Check if user is an admin (owner or admin) in admin_users
-      const { data: adminUser } = await supabase
-        .from('admin_users')
-        .select('role, is_primary')
-        .eq('user_id', user.id)
-        .single();
-        
-      if (adminUser?.role === 'owner' || adminUser?.role === 'admin' || adminUser?.is_primary || user.user_metadata?.is_super_admin) {
-        isAdmin = true;
-      }
+      isAdmin = verification.isAdmin;
+      isOwner = verification.isOwner;
+      authUser = verification.user;
     }
 
     if (!isAdmin) {
@@ -130,71 +125,131 @@ export const handler: Handler = async (event, context) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing action' }) };
     }
 
+    // Helper to resolve a targetId (which could be a Firebase UID or email) to a Supabase Auth UUID
+    const resolveSupabaseUuid = async (id: string, options: { createIfMissing?: boolean, email?: string } = {}): Promise<string | null> => {
+      console.log(`[resolveSupabaseUuid] Resolving ID: ${id}`);
+      
+      // 1. Check if it's already a valid UUID
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(id)) return id;
+
+      // 2. Identify target email
+      let email = options.email || (id.includes('@') ? id : null);
+      if (!email) {
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('email')
+          .eq('user_id', id)
+          .maybeSingle();
+        if (adminUser) email = adminUser.email;
+      }
+
+      if (!email) {
+        console.log(`[resolveSupabaseUuid] Could not determine email for ID: ${id}`);
+        return null;
+      }
+
+      console.log(`[resolveSupabaseUuid] Resolved email: ${email}`);
+
+      // 3. Find user in Supabase Auth by email (checking multiple pages if needed)
+      let matchedUser: any = null;
+      let page = 1;
+      let hasMore = true;
+
+      while (hasMore && !matchedUser) {
+        const { data: { users }, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error || !users || users.length === 0) {
+          hasMore = false;
+          break;
+        }
+        matchedUser = users.find(u => u.email?.toLowerCase() === email?.toLowerCase());
+        if (users.length < 1000) hasMore = false;
+        page++;
+      }
+
+      if (matchedUser) {
+        console.log(`[resolveSupabaseUuid] Found existing user: ${matchedUser.id}`);
+        return matchedUser.id;
+      }
+
+      // 4. Create user if requested (bridge from Firebase/Google to Supabase Auth)
+      if (options.createIfMissing) {
+        console.log(`[resolveSupabaseUuid] Creating new Supabase Auth user for: ${email}`);
+        const { data: { user: newUser }, error: createError } = await supabase.auth.admin.createUser({
+          email: email,
+          password: Math.random().toString(36).slice(-16), // Temporary random password
+          email_confirm: true
+        });
+
+        if (createError) {
+          console.error(`[resolveSupabaseUuid] Failed to create user:`, createError);
+          return null;
+        }
+
+        console.log(`[resolveSupabaseUuid] Created new user: ${newUser?.id}`);
+        return newUser?.id || null;
+      }
+
+      console.log(`[resolveSupabaseUuid] No user found for: ${email}`);
+      return null;
+    };
+
     // 3. Handle Actions
     if (action === 'list_users') {
       console.log('Listing users...');
       console.log('Has Service Key:', hasServiceKey);
 
-      // Fetch all users
-      let users: any[] = [];
-      let usersError: any = null;
+      // Fetch ALL users (handling pagination)
+      let allUsers: any[] = [];
+      let page = 1;
+      let hasMore = true;
 
-      if (hasServiceKey) {
-        const { data, error } = await supabase.auth.admin.listUsers();
+      while (hasMore) {
+        const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
         if (error) {
-            usersError = error;
-        } else {
-            users = data.users || [];
+          console.error('Error listing users page:', page, error);
+          hasMore = false;
+          break;
         }
-      } else {
-        usersError = { message: 'No service key available' };
+        if (!data.users || data.users.length === 0) {
+          hasMore = false;
+          break;
+        }
+        allUsers = [...allUsers, ...data.users];
+        if (data.users.length < 1000) hasMore = false;
+        page++;
       }
       
-      if (usersError) {
-        console.error('Error listing users via Auth Admin:', usersError);
-        // Fallback: Try to fetch from public.admin_users
-        console.log('Attempting fallback to public.admin_users...');
-        
+      if (allUsers.length === 0) {
+        console.warn('No users found in Supabase Auth, trying fallback...');
         const { data: adminUsers, error: adminError } = await supabase
           .from('admin_users')
           .select('user_id, email, role');
           
-        if (adminError) {
-           console.error('Fallback failed:', adminError);
-           return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to list users: ' + (usersError.message || 'Unknown error') + ' AND Fallback failed: ' + adminError.message }) };
+        if (!adminError && adminUsers) {
+          allUsers = adminUsers.map(u => ({
+            id: u.user_id,
+            email: u.email,
+            user_metadata: { role: u.role }
+          }));
         }
-        
-        // Map fallback data to expected format
-        users = adminUsers.map(u => ({
-          id: u.user_id,
-          email: u.email,
-          last_sign_in_at: new Date().toISOString(), // Fake
-          user_metadata: { role: u.role }
-        }));
       }
       
-      console.log(`Found ${users.length} users.`);
-
-      // Fetch active sessions (last seen within 5 minutes)
+      // Fetch active sessions
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       let sessions: any[] = [];
       try {
-        const { data: s, error: sessionsError } = await supabase
+        const { data: s } = await supabase
           .from('admin_sessions')
           .select('user_id, last_seen_at, ip_address, user_agent')
           .gt('last_seen_at', fiveMinutesAgo);
-        
-        if (sessionsError) {
-          console.warn('Error fetching sessions (table might be missing):', sessionsError);
-        } else {
-          sessions = s || [];
-        }
+        sessions = s || [];
       } catch (e) {
         console.warn('Exception fetching sessions:', e);
       }
 
       // Map users to status
-      const result = users.map(u => {
+      const result = allUsers.map(u => {
         const activeSession = sessions.find(s => s.user_id === u.id);
         return {
           id: u.id,
@@ -208,44 +263,31 @@ export const handler: Handler = async (event, context) => {
         };
       });
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(result)
-      };
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
     }
 
     if (action === 'toggle_2fa') {
-      if (!hasServiceKey) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error: Missing Service Role Key. Cannot modify user settings.' }) };
-      }
+      if (!hasServiceKey) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Missing Service Key' }) };
       if (!targetUserId) return { statusCode: 400, headers, body: 'Missing targetUserId' };
       
-      const updates: any = {
-        user_metadata: { totp_enabled: enable }
-      };
+      const uuid = await resolveSupabaseUuid(targetUserId);
+      if (!uuid) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Target user does not have a Supabase Auth account.' }) };
+      }
 
+      const updates: any = { user_metadata: { totp_enabled: enable } };
       let secret = null;
       let qrCodeUrl = null;
 
       if (enable) {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        secret = '';
-        for (let i = 0; i < 20; i++) {
-          secret += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        
+        secret = Array.from({ length: 20 }, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'[Math.floor(Math.random() * 32)]).join('');
         updates.user_metadata.totp_secret = secret;
-        
-        const label = encodeURIComponent('RICO Admin:' + targetUserId.substring(0, 8));
-        const issuer = encodeURIComponent('RICO');
-        qrCodeUrl = 'otpauth://totp/' + label + '?secret=' + secret + '&issuer=' + issuer;
+        qrCodeUrl = `otpauth://totp/${encodeURIComponent('RICO Admin:' + uuid.substring(0, 8))}?secret=${secret}&issuer=${encodeURIComponent('RICO')}`;
       } else {
         updates.user_metadata.totp_secret = null;
       }
 
-      const { error } = await supabase.auth.admin.updateUserById(targetUserId, updates);
-
+      const { error } = await supabase.auth.admin.updateUserById(uuid, updates);
       if (error) throw error;
 
       return {
@@ -253,117 +295,134 @@ export const handler: Handler = async (event, context) => {
         headers,
         body: JSON.stringify({ 
           success: true, 
-          message: '2FA ' + (enable ? 'enabled' : 'disabled') + ' for user',
-          secret: secret,
-          qrCodeUrl: qrCodeUrl
+          message: `2FA ${enable ? 'enabled' : 'disabled'}`,
+          secret,
+          qrCodeUrl
         })
       };
     }
 
     if (action === 'force_logout') {
-      // Owner can force logout anyone. Users can force logout themselves.
-      let isOwner = false;
-      let requestingUserId = '';
+      const isSelf = authUser && (authUser.id === targetUserId || authUser.email?.toLowerCase() === targetUserId.toLowerCase());
+      if (!isMaster && !isOwner && !isSelf) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized' }) };
 
-      try {
-        const authHeader = event.headers.authorization;
-        if (authHeader) {
-          const token = authHeader.replace('Bearer ', '');
-          const { data: { user } } = await supabase.auth.getUser(token);
-          if (user) {
-            requestingUserId = user.id;
-            const { data: adminUser } = await supabase
-              .from('admin_users')
-              .select('role, is_primary')
-              .eq('user_id', user.id)
-              .single();
-            if (adminUser?.role === 'owner' || adminUser?.is_primary || user.user_metadata?.is_super_admin) {
-              isOwner = true;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Error determining owner for force_logout check', e);
+      const uuid = await resolveSupabaseUuid(targetUserId);
+      if (!uuid) {
+         await supabase.from('admin_sessions').delete().eq('user_id', targetUserId);
+         return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'Sessions cleared' }) };
       }
 
-      if (!targetUserId) return { statusCode: 400, headers, body: 'Missing targetUserId' };
+      await supabase.auth.admin.signOut(uuid);
+      await supabase.from('admin_sessions').delete().eq('user_id', targetUserId);
 
-      // Allow if Admin (Master Key), Owner, or if user is targeting themselves
-      if (!isAdmin && !isOwner && targetUserId !== requestingUserId) {
-        return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: Owner access required for force logout of other users' }) };
-      }
-
-      if (!hasServiceKey) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error: Missing Service Role Key. Cannot force logout.' }) };
-      }
-
-      // Sign out from Supabase Auth (invalidates refresh tokens)
-      const { error } = await supabase.auth.admin.signOut(targetUserId);
-      if (error) {
-        console.error('Supabase signOut error:', error);
-        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Supabase Auth Error: ' + error.message }) };
-      }
-
-      // Remove from active sessions table
-      await supabase
-        .from('admin_sessions')
-        .delete()
-        .eq('user_id', targetUserId);
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, message: 'User logged out successfully' })
-      };
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'Logged out' }) };
     }
 
-      if (action === 'update_password') {
-      // Owner can update anyone. Users can update themselves.
-      let isOwner = false;
-      let requestingUserId = '';
-      
-      try {
-        const authHeader = event.headers.authorization;
-        if (authHeader) {
-          const token = authHeader.replace('Bearer ', '');
-          const { data: { user } } = await supabase.auth.getUser(token);
-          if (user) {
-            requestingUserId = user.id;
-            const { data: adminUser } = await supabase
-              .from('admin_users')
-              .select('role, is_primary')
-              .eq('user_id', user.id)
-              .single();
-            if (adminUser?.role === 'owner' || adminUser?.is_primary || user.user_metadata?.is_super_admin) {
-              isOwner = true;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Error determining permissions for update_password', e);
-      }
-
+    if (action === 'update_password') {
       const { newPassword } = body;
       if (!targetUserId || !newPassword) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing targetUserId or newPassword' }) };
       }
 
-      // Permission Check
-      if (!isOwner && targetUserId !== requestingUserId) {
+      // Robust Self Check
+      let isSelf = false;
+      let targetEmail = null;
+
+      if (authUser) {
+        if (authUser.id === targetUserId || authUser.email?.toLowerCase() === targetUserId.toLowerCase()) {
+          isSelf = true;
+          targetEmail = authUser.email;
+        } else {
+          const { data: targetUser } = await supabase
+            .from('admin_users')
+            .select('email')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+          
+          if (targetUser && targetUser.email.toLowerCase() === authUser.email?.toLowerCase()) {
+            isSelf = true;
+            targetEmail = targetUser.email;
+          }
+        }
+      }
+      
+      if (!isMaster && !isOwner && !isSelf) {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Unauthorized: You can only update your own password.' }) };
       }
 
-      if (!hasServiceKey) {
-        return { statusCode: 500, headers, body: JSON.stringify({ error: 'Server configuration error: Missing Service Role Key. Cannot update password.' }) };
+      // Ensure targetEmail is populated for Firebase sync (especially if owner is updating someone else)
+      if (!targetEmail && targetUserId) {
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('email')
+          .eq('user_id', targetUserId)
+          .maybeSingle();
+        if (adminUser) targetEmail = adminUser.email;
+        // If still no email, maybe targetUserId is an email
+        if (!targetEmail && targetUserId.includes('@')) targetEmail = targetUserId;
       }
 
-      const { error } = await supabase.auth.admin.updateUserById(targetUserId, { password: newPassword });
-      if (error) throw error;
+      // Resolve UUID with automatic account creation if missing
+      const uuid = await resolveSupabaseUuid(targetUserId, { createIfMissing: true, email: targetEmail });
+      if (!uuid) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'Internal Error: Could not resolve or create Supabase account for this user.' }) };
+      }
+
+      console.log(`[update_password] Updating password for UUID: ${uuid}`);
+      const { error } = await supabase.auth.admin.updateUserById(uuid, { password: newPassword });
+      
+      if (error) {
+        console.error('Supabase password update error:', error);
+        return { statusCode: 400, headers, body: JSON.stringify({ error: error.message }) };
+      }
+
+      // --- Firebase Password Synchronization ---
+      let firebaseSyncStatus = 'Not attempted';
+      try {
+        const { firebaseAdmin, isFirebaseAdminPrivileged } = await import('./lib/auth-verify');
+        
+        if (!isFirebaseAdminPrivileged) {
+          firebaseSyncStatus = 'Disabled: FIREBASE_SERVICE_ACCOUNT not configured in environment';
+          console.warn('[update_password] Skipping Firebase sync: Missing privileged credentials');
+        } else if (targetEmail) {
+          try {
+            const firebaseUser = await firebaseAdmin.auth().getUserByEmail(targetEmail);
+            if (firebaseUser) {
+              console.log(`[update_password] Synchronizing password for Firebase user: ${firebaseUser.uid}`);
+              await firebaseAdmin.auth().updateUser(firebaseUser.uid, {
+                password: newPassword
+              });
+              firebaseSyncStatus = 'Synchronized successfully';
+              console.log(`[update_password] Firebase password synchronized successfully`);
+            } else {
+              firebaseSyncStatus = 'No Firebase account matched';
+            }
+          } catch (fError: any) {
+            console.error(`[update_password] Firebase sync error:`, fError);
+            if (fError.code === 'auth/user-not-found') {
+              firebaseSyncStatus = 'User not found in Firebase';
+            } else if (fError.code === 'auth/insufficient-permission' || fError.message?.includes('permission') || fError.message?.includes('credentials')) {
+              firebaseSyncStatus = 'Insufficient permissions (check FIREBASE_SERVICE_ACCOUNT)';
+            } else {
+              firebaseSyncStatus = `Sync failed: ${fError.message || fError.code}`;
+            }
+          }
+        } else {
+          firebaseSyncStatus = 'No email resolved for synchronization';
+        }
+      } catch (importError: any) {
+        console.error('[update_password] Failed to import firebaseAdmin for sync:', importError);
+        firebaseSyncStatus = `Import error: ${importError.message}`;
+      }
 
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, message: 'Password updated successfully' })
+        body: JSON.stringify({ 
+          success: true, 
+          message: `Password updated in Supabase. Firebase sync: ${firebaseSyncStatus}`,
+          firebase_sync: firebaseSyncStatus
+        })
       };
     }
 

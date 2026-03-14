@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Loader2, ImagePlus, Building2, ChevronDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../../../context/AuthContext';
 
 const AI_MODELS = [
   { id: 'gemini-2.5-flash', label: 'Flash 2.5', desc: 'Fastest, newest' },
@@ -23,6 +24,7 @@ interface ImageFile {
 }
 
 export const AISponsorScanner: React.FC<AISponsorScannerProps> = ({ onScanComplete, onCancel }) => {
+  const { getValidToken } = useAuth();
   const [images, setImages] = useState<ImageFile[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -34,7 +36,12 @@ export const AISponsorScanner: React.FC<AISponsorScannerProps> = ({ onScanComple
   useEffect(() => {
     const fetchModelStatuses = async () => {
       try {
-        const response = await fetch('/api/ai-check-models');
+        const token = await getValidToken();
+        const response = await fetch('/api/ai-check-models', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.models) {
@@ -109,9 +116,13 @@ export const AISponsorScanner: React.FC<AISponsorScannerProps> = ({ onScanComple
 
     try {
       const base64Images = images.map(img => img.base64).filter(Boolean);
+      const token = await getValidToken();
       const response = await fetch('/api/ai-extract-sponsors', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ images: base64Images, model: selectedModel }),
       });
 

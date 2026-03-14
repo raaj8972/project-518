@@ -160,19 +160,48 @@ export const handler: Handler = async (event) => {
       // Or `admin.signOut`?
       
       
-      // We need the user's email first
-      const { data: userData } = await supabase.auth.admin.getUserById(passkey.user_id);
-      if (!userData || !userData.user) throw new Error('User not found');
+      // Get the user's email for session creation
+      let userEmail = passkey.email;
       
-      // Validate user account status
-      if (!userData.user.email_confirmed_at && !userData.user.phone_confirmed_at) {
-        throw new Error('Account not verified');
+      if (!userEmail) {
+        console.log('[Passkey Login] Email not in passkey record, checking admin_users for:', passkey.user_id);
+        // Fallback 1: Try admin_users table (for Firebase users who already have mapping)
+        const { data: adminUser } = await supabase
+          .from('admin_users')
+          .select('email')
+          .eq('user_id', passkey.user_id)
+          .maybeSingle();
+        
+        if (adminUser?.email) {
+          userEmail = adminUser.email;
+          console.log('[Passkey Login] Email found in admin_users:', userEmail);
+        } else {
+          console.log('[Passkey Login] Email not in admin_users, falling back to Supabase Auth');
+          // Fallback 2: Try Supabase Auth (for native Supabase users)
+          try {
+            const { data: userData } = await supabase.auth.admin.getUserById(passkey.user_id);
+            userEmail = userData?.user?.email;
+            if (userEmail) console.log('[Passkey Login] Email found in Supabase Auth:', userEmail);
+          } catch (e) {
+            console.warn('[Passkey Login] Supabase Auth lookup failed:', e);
+          }
+        }
       }
+      
+      if (!userEmail) {
+        console.error('[Passkey Login] Could not resolve email for user_id:', passkey.user_id);
+        throw new Error('User email not found for session creation');
+      }
+
+      // Use the resolved email for the rest of the function
+      const emailForSession = userEmail;
+      
+      console.log(`[Passkey Login] Proceeding to create session for: ${emailForSession}`);
       
       // Generate a magic link for the user to establish a session
       const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
         type: 'magiclink',
-        email: userData.user.email!,
+        email: emailForSession,
         options: {
           redirectTo: origin, // Use the detected origin
         },

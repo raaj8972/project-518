@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Shield, Smartphone, Key, CheckCircle, AlertCircle, Copy, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
+import { Shield, Smartphone, Key, AlertCircle, CheckCircle, LogOut, Eye, EyeOff, Copy, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
-import { supabase } from '../../lib/supabase';
 
 export const SecuritySettings: React.FC = () => {
-  const { setupTOTP, verifyTOTP, enableTOTP, disableTOTP, isTOTPEnabled, isAuthenticated, user } = useAuth();
-  const { adminUsers, securitySettings, updateSecuritySettings } = useData();
+  const { logout, user, isAuthenticated, isTOTPEnabled, setupTOTP, verifyTOTP, enableTOTP, disableTOTP, getValidToken, updatePassword } = useAuth();
+  const { adminUsers, securitySettings, updateSecuritySettings, isOwner: checkIsOwner } = useData();
   
   // Council Passcode State
   const [councilPasscode, setCouncilPasscode] = useState('');
@@ -41,7 +40,7 @@ export const SecuritySettings: React.FC = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [showSecret, setShowSecret] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Admin user management state
@@ -60,12 +59,7 @@ export const SecuritySettings: React.FC = () => {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
-  const isOwner = React.useMemo(() => {
-    if (!user) return false;
-    if (user.user_metadata?.is_super_admin) return true;
-    if (!adminUsers) return false;
-    return !!adminUsers.find(a => a.user_id === user.id && (a.role === 'owner' || a.is_primary));
-  }, [user, adminUsers]);
+  const isOwner = React.useMemo(() => checkIsOwner(), [checkIsOwner]);
 
   React.useEffect(() => {
     if (user && !selectedUserId) {
@@ -86,31 +80,48 @@ export const SecuritySettings: React.FC = () => {
 
     setIsUpdatingPassword(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/admin-security-controls', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ 
-          action: 'update_password', 
-          targetUserId: selectedUserId, 
-          newPassword 
-        })
-      });
-
-      if (res.ok) {
-        setMessage({ type: 'success', text: 'Password updated successfully' });
-        setNewPassword('');
-        setConfirmPassword('');
+      // If updating own password, use the unified hook for extra safety/provider sync
+      if (selectedUserId === user?.id) {
+        const result = await updatePassword(newPassword);
+        if (result.success) {
+          if (result.error) {
+            setMessage({ type: 'warning', text: `Primary password updated, but: ${result.error}` });
+          } else {
+            setMessage({ type: 'success', text: 'Your password has been updated successfully' });
+          }
+          setNewPassword('');
+          setConfirmPassword('');
+        } else {
+          setMessage({ type: 'error', text: result.error || 'Failed to update password' });
+        }
       } else {
-        const err = await res.json().catch(() => ({}));
-        setMessage({ type: 'error', text: err.error || 'Failed to update password' });
+        // Administrative update for another user
+        const token = await getValidToken();
+        const res = await fetch('/api/admin-security-controls', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            action: 'update_password', 
+            targetUserId: selectedUserId, 
+            newPassword 
+          })
+        });
+
+        if (res.ok) {
+          setMessage({ type: 'success', text: 'Admin password updated successfully' });
+          setNewPassword('');
+          setConfirmPassword('');
+          fetchUsersStatus(); // Refresh list to reflect changes
+        } else {
+          const err = await res.json().catch(() => ({}));
+          setMessage({ type: 'error', text: err.error || 'Failed to update user password' });
+        }
       }
-    } catch (e) {
-      setMessage({ type: 'error', text: 'Error updating password' });
+    } catch (e: any) {
+      setMessage({ type: 'error', text: `Error updating password: ${e.message}` });
     }
     setIsUpdatingPassword(false);
   };
@@ -129,16 +140,14 @@ export const SecuritySettings: React.FC = () => {
   const fetchUsersStatus = async () => {
     setIsLoadingUsers(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (isPinVerified) {
-      }
-
+      const token = await getValidToken();
+      
       const res = await fetch('/api/admin-security-controls', {
         method: 'POST',
-        headers,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ action: 'list_users' })
       });
 
@@ -159,13 +168,11 @@ export const SecuritySettings: React.FC = () => {
     if (!confirm(`Are you sure you want to ${enable ? 'enable' : 'disable'} 2FA for this user?`)) return;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      if (isPinVerified) {
-        // headers['x-master-key'] = '9693'; // Removed insecure key
-      }
+      const token = await getValidToken();
+      const headers: Record<string, string> = { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
 
       const res = await fetch('/api/admin-security-controls', {
         method: 'POST',
@@ -197,51 +204,33 @@ export const SecuritySettings: React.FC = () => {
     try {
       setMessage({ type: 'success', text: 'Logging out...' });
       
-      // Get current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token && !isSelf) {
-        setMessage({ type: 'error', text: 'Not authenticated' });
-        return;
-      }
-
-      // Call the working Netlify function instead of edge function
-      if (token) {
-        const headers: Record<string, string> = { 
+      const token = await getValidToken();
+      
+      const res = await fetch('/api/admin-security-controls', {
+        method: 'POST',
+        headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        };
+        },
+        body: JSON.stringify({ 
+          action: 'force_logout',
+          targetUserId: userId 
+        })
+      });
 
-        const res = await fetch('/api/admin-security-controls', {
-          method: 'POST',
-          headers,
-          body:JSON.stringify({ 
-            action: 'force_logout',
-            targetUserId: userId 
-          })
-        });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Failed to logout user');
-        }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to logout user');
       }
 
       // For self-logout, clear local session and redirect
       if (isSelf) {
         // Clear client-side auth
         try {
-          await supabase.auth.signOut();
+          await logout();
         } catch (e) {
           console.warn('SignOut error ignored:', e);
         }
-        
-        // Clear all Supabase auth data from localStorage
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('sb-')) localStorage.removeItem(key);
-        });
-        localStorage.removeItem('supabase.auth.token');
         
         // Redirect to login
         window.location.href = '/';
@@ -389,14 +378,24 @@ export const SecuritySettings: React.FC = () => {
         <div className={`rounded-lg p-4 flex items-center ${
           message.type === 'success' 
             ? 'bg-green-50 border border-green-200' 
+            : message.type === 'warning'
+            ? 'bg-yellow-50 border border-yellow-200'
             : 'bg-red-50 border border-red-200'
         }`}>
           {message.type === 'success' ? (
             <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
+          ) : message.type === 'warning' ? (
+            <AlertCircle className="w-5 h-5 text-yellow-500 mr-3" />
           ) : (
             <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
           )}
-          <span className={message.type === 'success' ? 'text-green-700' : 'text-red-700'}>
+          <span className={
+            message.type === 'success' 
+              ? 'text-green-700' 
+              : message.type === 'warning'
+              ? 'text-yellow-700'
+              : 'text-red-700'
+          }>
             {message.text}
           </span>
         </div>
@@ -452,7 +451,7 @@ export const SecuritySettings: React.FC = () => {
                         onChange={(e) => setSelectedUserId(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-gray-900"
                       >
-                        {adminUsers?.map(u => (
+                        {adminUsers?.map((u: any) => (
                           <option key={u.user_id} value={u.user_id}>
                             {u.email} ({u.role}) {u.user_id === user?.id ? '(You)' : ''}
                           </option>
@@ -466,6 +465,8 @@ export const SecuritySettings: React.FC = () => {
                     <div className="relative">
                       <input
                         type="password"
+                        name="new-password"
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Enter new password"
@@ -478,6 +479,8 @@ export const SecuritySettings: React.FC = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
                     <input
                       type="password"
+                      name="confirm-password"
+                      autoComplete="new-password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Confirm new password"
@@ -749,7 +752,7 @@ export const SecuritySettings: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {usersStatus.map((u) => (
+                {usersStatus.map((u: any) => (
                   <tr key={u.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{u.email}</div>

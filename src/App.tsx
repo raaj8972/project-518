@@ -1,10 +1,10 @@
+import React, { useMemo, useState, useEffect, Suspense, lazy, Component, PropsWithChildren, ReactElement, startTransition } from 'react';
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
-import React from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 // lazy load Home for fast first paint
-const Home = React.lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
+const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { useData } from './context/DataContext';
@@ -23,35 +23,35 @@ import { getCachedLogoUrl } from './utils/preloadBrand';
 
 
 // Convert heavy/non-critical routes to lazy-loaded to keep the initial bundle small
-const Events = React.lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
-const Schedule = React.lazy(() => import('./pages/Schedule').then(m => ({ default: (m as any).Schedule }))) as unknown as React.ComponentType<any>;
-const Gallery = React.lazy(() => import('./pages/Gallery').then(m => ({ default: (m as any).Gallery }))) as unknown as React.ComponentType<any>;
-const HomeBound = React.lazy(() => import('./pages/HomeBound').then(m => ({ default: (m as any).HomeBound }))) as unknown as React.ComponentType<any>;
-const RicoFamily = React.lazy(() => import('./pages/RicoFamily').then(m => ({ default: (m as any).RicoFamily }))) as unknown as React.ComponentType<any>;
-const Sponsors = React.lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
-const Sports = React.lazy(() => import('./pages/Sports').then(m => ({ default: (m as any).Sports }))) as unknown as React.ComponentType<any>;
-const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
-const AdminDashboard = React.lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
-const CoordinatorLogin = React.lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
-const CoordinatorDashboard = React.lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
-const CouncilLogin = React.lazy(() => import('./pages/CouncilLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
-const CouncilDashboard = React.lazy(() => import('./pages/CouncilDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const Events = lazy(() => import('./pages/Events').then(m => ({ default: (m as any).Events }))) as unknown as React.ComponentType<any>;
+const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: (m as any).Schedule }))) as unknown as React.ComponentType<any>;
+const Gallery = lazy(() => import('./pages/Gallery').then(m => ({ default: (m as any).Gallery }))) as unknown as React.ComponentType<any>;
+const HomeBound = lazy(() => import('./pages/HomeBound').then(m => ({ default: (m as any).HomeBound }))) as unknown as React.ComponentType<any>;
+const RicoFamily = lazy(() => import('./pages/RicoFamily').then(m => ({ default: (m as any).RicoFamily }))) as unknown as React.ComponentType<any>;
+const Sponsors = lazy(() => import('./pages/Sponsors').then(m => ({ default: (m as any).Sponsors }))) as unknown as React.ComponentType<any>;
+const Sports = lazy(() => import('./pages/Sports').then(m => ({ default: (m as any).Sports }))) as unknown as React.ComponentType<any>;
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: (m as any).Login }))) as unknown as React.ComponentType<any>;
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: (m as any).AdminDashboard }))) as unknown as React.ComponentType<any>;
+const CoordinatorLogin = lazy(() => import('./pages/CoordinatorLogin').then(m => ({ default: (m as any).CoordinatorLogin }))) as unknown as React.ComponentType<any>;
+const CoordinatorDashboard = lazy(() => import('./components/coordinator/CoordinatorDashboard').then(m => ({ default: (m as any).CoordinatorDashboard }))) as unknown as React.ComponentType<any>;
+const CouncilLogin = lazy(() => import('./pages/CouncilLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const CouncilDashboard = lazy(() => import('./pages/CouncilDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
 
 
 // Security System Pages
-const SecurityLogin = React.lazy(() => import('./pages/SecurityLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
-const SecurityDashboard = React.lazy(() => import('./pages/SecurityDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
-const PassRegistration = React.lazy(() => import('./pages/PassRegistration').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
-const PassDownload = React.lazy(() => import('./pages/PassDownload').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const SecurityLogin = lazy(() => import('./pages/SecurityLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const SecurityDashboard = lazy(() => import('./pages/SecurityDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const PassRegistration = lazy(() => import('./pages/PassRegistration').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
+const PassDownload = lazy(() => import('./pages/PassDownload').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
 
-const ComingSoon = React.lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
-const NotFound = React.lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
-const MasterGate = React.lazy(() => import('./pages/MasterGate').then(m => ({ default: (m as any).MasterGate }))) as unknown as React.ComponentType<any>;
-const SportsLogin = React.lazy(() => import('./pages/SportsLogin').then(m => ({ default: (m as any).SportsLogin }))) as unknown as React.ComponentType<any>;
+const ComingSoon = lazy(() => import('./pages/ComingSoon').then(m => ({ default: (m as any).ComingSoon }))) as unknown as React.ComponentType<any>;
+const NotFound = lazy(() => import('./pages/NotFound').then(m => ({ default: (m as any).NotFound }))) as unknown as React.ComponentType<any>;
+const MasterGate = lazy(() => import('./pages/MasterGate').then(m => ({ default: (m as any).MasterGate }))) as unknown as React.ComponentType<any>;
+const SportsLogin = lazy(() => import('./pages/SportsLogin').then(m => ({ default: (m as any).SportsLogin }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary to prevent a blank screen if a lazy route fails
-class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
-  constructor(props: React.PropsWithChildren<{}>) {
+class RouteErrorBoundary extends Component<PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
+  constructor(props: PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false };
   }
@@ -93,18 +93,18 @@ class RouteErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { 
       }
       return <div className="flex items-center justify-center py-24 text-red-600">{this.state.message}</div>;
     }
-    return this.props.children as React.ReactElement;
+    return this.props.children as ReactElement;
   }
 }
 
 // Capture non-React errors (e.g., unhandled rejections) to avoid silent blank screen
 const GlobalErrorBanner: React.FC = () => {
-  const [msg, setMsg] = React.useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const { adminUsers } = useData() as any;
   const { user } = useAuth();
 
   // Only show global runtime error banner to admin/owner users
-  const isAdminOrOwner = React.useMemo(() => {
+  const isAdminOrOwner = useMemo(() => {
     try {
       const uid = user?.id;
       if (!uid || !Array.isArray(adminUsers)) return false;
@@ -165,7 +165,7 @@ const GlobalErrorBanner: React.FC = () => {
     return () => clearTimeout(t);
   }, [isAdminOrOwner]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const onErr = (e: ErrorEvent) => {
       setMsg(e.message || 'A runtime error occurred. Check console.');
       console.error('Global error:', e);
@@ -210,30 +210,28 @@ const GlobalErrorBanner: React.FC = () => {
         }
       } catch {}
     };
-    window.addEventListener('error', onErr);
-    window.addEventListener('unhandledrejection', onRej);
-    // Capture resource load failures (images/fonts/scripts/styles) which
-    // often don't surface as ErrorEvent with a message. We use capture phase
-    // so we can inspect the target element which failed to load.
+
     const onResourceError = (ev: Event) => {
       try {
         const t = ev.target as any;
         if (!t) return;
-        // image, script, link, video, audio
         const url = t?.src || t?.href;
         if (!url) return;
-        // Log a friendly, discoverable message; only show to admins via banner
         console.warn('Resource failed to load:', url, t);
         if (isAdminOrOwner) setMsg(`Resource failed to load: ${url}`);
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
     };
+
+    window.addEventListener('error', onErr);
+    window.addEventListener('unhandledrejection', onRej);
     window.addEventListener('error', onResourceError, true);
+
     return () => {
       window.removeEventListener('error', onErr);
       window.removeEventListener('unhandledrejection', onRej);
       window.removeEventListener('error', onResourceError, true);
     };
-  }, []);
+  }, [user]);
 
   if (!msg) return null;
   if (!isAdminOrOwner) return null;
@@ -251,9 +249,15 @@ const GlobalErrorBanner: React.FC = () => {
 // Inner shell to use routing hooks (must be inside <Router>)
 const AppShell: React.FC = () => {
   const location = useLocation();
+  // Ensure scroll is not locked when navigating between major sections
+  React.useEffect(() => {
+    document.body.style.overflow = '';
+    // Also clear any common scroll lock classes if they exist
+    document.body.classList.remove('dg-scroll-lock');
+  }, [location.pathname]);
+
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
-  const isSecurityRoute = location.pathname.startsWith('/security-');
   const isHealthRoute = location.pathname === '/health';
   const { user } = useAuth();
   const { siteSettings, loading, adminUsers, homepageSettings } = useData();
@@ -326,22 +330,31 @@ const AppShell: React.FC = () => {
         <AudioController />
         <GlobalErrorBanner />
         <ConnectionStatusBanner />
-        {/* If site is gated for maintenance/coming soon and not an allowed route, show the Coming Soon page */}
-        {/* Admin Bypass: If user is admin/owner, they can access site even if gated */}
-        {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute && !isAdminOrOwner ? (
-          <ComingSoon />
-        ) : (
-          <>
-            {/* Public notifications panel (viewer-facing). DataContext will filter admin_only rows for non-admins. */}
-            {!isAdminRoute && !isSecurityRoute && <NotificationsPanel />}
-            {/* Hide public site chrome on admin and security pages to avoid overlap */}
-            {!isAdminRoute && !isSecurityRoute && !location.pathname.startsWith('/coordinator/dashboard') && <Navbar />}
-                <Outlet />
-            {!isAdminRoute && !isSecurityRoute && <Footer />}
-            {/* Splash overlay (non-SVG cyberpunk style). It sits behind the Navbar (Navbar wrapped with z-50 above).
-                We use inline styles for the conic gradient spinner mask so we avoid SVG altogether. */}
-            {splashVisible && <Preloader loading={loading} onComplete={() => setSplashVisible(false)} logoUrl={logoUrl} />}
-          </>
+        
+        {/* Stable Shell Structure: Always rendered to prevent reconciliation errors */}
+        <NotificationsPanel />
+        <Navbar />
+        
+        <main id="main-content" className="relative">
+          {/* Gate check happens here, inside the stable shell, replacing only the page content */}
+          {gateActive && !isAdminRoute && !isLoginRoute && !isHealthRoute && !isAdminOrOwner ? (
+            <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}>
+              <ComingSoon />
+            </React.Suspense>
+          ) : (
+            <Outlet />
+          )}
+        </main>
+        
+        <Footer />
+        
+        {/* Preloader sits independently at the bottom of the tree */}
+        {splashVisible && (
+          <Preloader 
+            loading={loading} 
+            onComplete={() => setSplashVisible(false)} 
+            logoUrl={logoUrl} 
+          />
         )}
       </div>
     </RouteErrorBoundary>

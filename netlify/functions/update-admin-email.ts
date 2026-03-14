@@ -38,24 +38,21 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
                          (masterKey === '9693') || 
                          (MASTER_KEY && masterKey === MASTER_KEY);
 
-    if (isAuthorized) {
-      // Bypass mode
-    } else {
-      if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
-        return { statusCode: 401, body: 'Missing auth' }
+    if (!isAuthorized) {
+      if (!authHeader) {
+        return { statusCode: 401, body: 'Missing authorization header' }
       }
-      const accessToken = authHeader.toString().replace('Bearer ', '')
       
-      // Verify the user using the admin client (Service Role)
-      const { data: caller, error: meErr } = await adminClient.auth.getUser(accessToken)
-      
-      if (meErr || !caller?.user) {
-        console.error('Update Email Auth Error:', meErr);
-        return { statusCode: 401, body: 'Invalid session: ' + (meErr?.message || 'User not found') }
+      const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+      const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), adminClient);
+
+      if (!user) {
+        return { statusCode: 401, body: 'Invalid or expired session' }
       }
-      const callerId = caller.user.id
-      const { data: rows } = await adminClient.from('admin_users').select('user_id, role').eq('user_id', callerId).maybeSingle()
-      if (!rows || rows.role !== 'owner') return { statusCode: 403, body: 'Only owner can update admins' }
+
+      if (!isOwner) {
+        return { statusCode: 403, body: 'Only owners can update admin accounts' }
+      }
     }
 
     // Update auth user

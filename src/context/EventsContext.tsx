@@ -17,6 +17,7 @@ interface EventsContextType {
   eventWinners: any[];
   notifications: any[];
   roadmapMilestones: RoadmapMilestone[];
+  loading: boolean;
   
   addEvent: (event: Partial<Event>) => Promise<void>;
   addEventWithCoordinators: (event: Partial<Event>, coordinators: any[]) => Promise<void>;
@@ -70,8 +71,10 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   const [eventWinners, setEventWinners] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchEventsData = useCallback(async () => {
+    setLoading(true);
     try {
       const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes] = await Promise.all([
         fetchAllEvents(),
@@ -128,6 +131,8 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
 
     } catch (err) {
       console.error('[EventsContext] Failed to fetch events data', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -299,6 +304,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     eventWinners,
     notifications,
     roadmapMilestones,
+    loading,
     addEvent,
     addEventWithCoordinators,
     updateEvent,

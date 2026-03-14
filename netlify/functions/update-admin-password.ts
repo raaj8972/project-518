@@ -31,24 +31,20 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     if (isMaster) {
       isAuthorized = true;
     } else {
-      // 2. Check Standard Auth
-      if (!authHeader || !authHeader.toString().startsWith('Bearer ')) {
+      if (!authHeader) {
         return { statusCode: 401, body: 'Missing auth' }
       }
-      const accessToken = authHeader.toString().replace('Bearer ', '')
 
       const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
-      const userClient = createClient(SUPABASE_URL, accessToken, { auth: { persistSession: false } } as any)
+      
+      const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+      const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), adminClient);
 
-      // Check caller is OWNER
-      const { data: caller, error: meErr } = await userClient.auth.getUser()
-      if (meErr || !caller?.user) return { statusCode: 401, body: 'Invalid session' }
-      
-      const callerId = caller.user.id
-      const { data: rows } = await adminClient.from('admin_users').select('user_id, role, is_primary').eq('user_id', callerId).maybeSingle()
-      
-      // Only owner or primary admin can change other users' passwords
-      if (rows && (rows.role === 'owner' || rows.is_primary)) {
+      if (!user) {
+        return { statusCode: 401, body: 'Invalid session' }
+      }
+
+      if (isOwner) {
         isAuthorized = true;
       }
     }
@@ -59,16 +55,40 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
     const adminClient = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } })
 
-    // Update the user's password
     const { error: updateErr } = await adminClient.auth.admin.updateUserById(userId, {
       password: password
     })
 
     if (updateErr) return { statusCode: 400, body: updateErr.message }
 
+    // --- Firebase Synchronization ---
+    try {
+      // Get the user's email from Supabase to find them in Firebase
+      const { data: sbUser } = await adminClient.auth.admin.getUserById(userId);
+      const email = sbUser?.user?.email;
+
+      if (email) {
+        const { firebaseAdmin } = await import('./lib/auth-verify');
+        try {
+          const fUser = await firebaseAdmin.auth().getUserByEmail(email);
+          if (fUser) {
+            console.log(`[update-admin-password] Syncing Firebase password for: ${email}`);
+            await firebaseAdmin.auth().updateUser(fUser.uid, { password: password });
+          }
+        } catch (fError: any) {
+          if (fError.code !== 'auth/user-not-found') {
+            console.error('[update-admin-password] Firebase sync error:', fError);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('[update-admin-password] Sync logic error:', err);
+    }
+
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ success: true, message: 'Password updated across systems' })
     }
   } catch (err: any) {
     console.error('Error updating password:', err)

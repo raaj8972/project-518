@@ -6,26 +6,54 @@ import { createClient } from '@supabase/supabase-js'
 // Headers: x-master-key: 9693
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod !== 'GET') return { statusCode: 405, body: 'Method Not Allowed' }
-  
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-master-key',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  if (event.httpMethod !== 'GET') {
+    return { statusCode: 405, headers, body: 'Method Not Allowed' };
+  }
+
   try {
+    const authHeader = event.headers['authorization'] || event.headers['Authorization']
     const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key'];
     
     const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
-    const isAuthorized = (masterKey === 'Raja@76023') || 
-                         (masterKey === '9693') || 
-                         (MASTER_KEY && masterKey === MASTER_KEY);
-
-    if (!isAuthorized) {
-      return { statusCode: 401, body: 'Invalid master key' }
-    }
+    const isMasterAuthorized = (masterKey === 'Raja@76023') || 
+                                (masterKey === '9693') || 
+                                (MASTER_KEY && masterKey === MASTER_KEY);
 
     const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL
-    const SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY
+    const SERVICE_ROLE = (process.env.SUPABASE_SERVICE_ROLE || process.env.SUPABASE_SERVICE_ROLE_KEY || '').replace(/^["']|["']$/g, '').trim();
 
-    if (!SUPABASE_URL || !SERVICE_ROLE) return { statusCode: 500, body: 'Server config missing' }
+    if (!SUPABASE_URL || !SERVICE_ROLE) {
+      return { statusCode: 500, headers, body: 'Server config missing' }
+    }
 
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE)
+
+    if (!isMasterAuthorized) {
+      if (!authHeader) {
+        return { statusCode: 401, headers, body: 'Missing authorization header' }
+      }
+
+      const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
+      const { isAdmin, user } = await verifyAdminHelper(authHeader.toString(), supabaseAdmin);
+
+      if (!user) {
+        return { statusCode: 401, headers, body: 'Invalid or expired session' }
+      }
+
+      if (!isAdmin) {
+        return { statusCode: 403, headers, body: 'Forbidden: Admin access required' }
+      }
+    }
 
     // Fetch admin_users table
     const { data: adminUsers, error } = await supabaseAdmin
@@ -37,10 +65,11 @@ export const handler: Handler = async (event) => {
 
     return {
       statusCode: 200,
+      headers,
       body: JSON.stringify(adminUsers)
     }
   } catch (err: any) {
     console.error('List admin users error:', err)
-    return { statusCode: 500, body: err.message || 'Internal Server Error' }
+    return { statusCode: 500, headers, body: err.message || 'Internal Server Error' }
   }
 }

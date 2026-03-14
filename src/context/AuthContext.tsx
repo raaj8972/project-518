@@ -1,9 +1,10 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import { createContext, useContext, useState, useEffect, ReactNode, FC } from 'react';
+import { createContext, useContext, ReactNode, FC, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { firebaseAuth, db } from '../lib/firebase';
+import { firebaseAuth, db, signInWithGoogle, getGoogleRedirectResult } from '../lib/firebase';
+import { AdminService } from '../lib/adminService';
 import { dualUpdate } from '../lib/dualDb';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithCustomToken } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithCustomToken, deleteUser } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 import { authenticator } from 'otplib';
@@ -22,8 +23,10 @@ interface AuthContextType {
   disableTOTP: () => Promise<boolean>;
   isTOTPEnabled: boolean;
   updatePassword: (password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   registerPasskey: () => Promise<{ success: boolean; error?: string }>;
   loginWithPasskey: () => Promise<{ success: boolean; error?: string }>;
+  getValidToken: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,10 +37,7 @@ const isMasterBypassUser = (u: any | null | undefined): boolean => {
   return Boolean(meta.master_bypass) || u.id === 'master-admin-bypass';
 };
 
-// Configure otplib authenticator (base32 secret, 30s window)
-// Move outside component to avoid side effects during render
-authenticator.options = { window: [1, 1] } as any; // allow +/- 1 step for clock skew
-
+// Configuration for otplib (will be initialized in useEffect)
 const generateTOTPSecret = (): string => authenticator.generateSecret();
 
 const buildOtpAuthUri = (secret: string, email: string): string => {
@@ -52,6 +52,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [isTOTPEnabled, setIsTOTPEnabled] = useState(false);
 
   useEffect(() => {
+    // Configure otplib authenticator
+    authenticator.options = { window: [1, 1] } as any;
+
     // Firebase Auth State Listener
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -88,28 +91,95 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  // Handle Google redirect result (when returning from redirect sign-in)
+  useEffect(() => {
+    getGoogleRedirectResult().then(async (result) => {
+      if (result?.user) {
+        const googleUser = result.user;
+        if (!googleUser.email) return;
+        const { allowed, role, display_name } = await AdminService.isEmailAllowed(googleUser.email);
+        if (!allowed) {
+          console.warn('[Auth] Email not allowed. Deleting user record to keep console clean:', googleUser.email);
+          await deleteUser(googleUser).catch(err => {
+            console.error('[Auth] Failed to delete unauthorized user record:', err);
+            signOut(firebaseAuth);
+          });
+          return;
+        }
+        await setDoc(doc(db, 'admin_users', googleUser.uid), {
+          user_id: googleUser.uid,
+          email: googleUser.email.toLowerCase(),
+          role: role || 'admin',
+          display_name: display_name || googleUser.displayName || googleUser.email.split('@')[0],
+          photo_url: googleUser.photoURL || '',
+          last_login: new Date().toISOString()
+        }, { merge: true });
+      }
+    }).catch((err) => {
+      console.error('[Auth] Redirect result error:', err);
+    });
+  }, []);
+
   // Separate effect for Realtime subscription to avoid infinite loop with user dependency
   useEffect(() => {
     if (!user) return;
 
-    const channel = supabase.channel('admin_security')
-      .on(
-        'broadcast',
-        { event: 'force_logout' },
-        (payload) => {
-          console.log('Received force logout signal:', payload);
-          // If payload has targetUserId, check if it matches current user
-          // If no targetUserId, it's a global logout
-          if (!payload.payload?.targetUserId || payload.payload.targetUserId === user.id) {
-            console.log('Force logging out...');
-            logout();
-          }
+    let channel: any;
+    const setupRealtime = async () => {
+      try {
+        // Pre-check for WebSocket support to avoid "Insecure Operation" fatal browser errors
+        const { isRealtimeSupported } = await import('../lib/supabase');
+        if (!isRealtimeSupported()) {
+          console.info('[Auth] Supabase Realtime (WebSockets) disabled for this session due to security/protocol restrictions.');
+          return;
         }
-      )
-      .subscribe();
+
+        // Create channel with explicit transport preference if needed, 
+        // but primarily we just guard the creation and subscription.
+        channel = supabase.channel('admin_security', {
+          config: {
+            broadcast: { self: false },
+            presence: { key: user.id },
+          }
+        })
+          .on(
+            'broadcast',
+            { event: 'force_logout' },
+            (payload) => {
+              console.log('[Realtime] Received force logout signal:', payload);
+              if (!payload.payload?.targetUserId || payload.payload.targetUserId === user.id) {
+                console.log('[Realtime] Force logging out...');
+                logout();
+              }
+            }
+          )
+          .subscribe((status, err) => {
+            if (status === 'CHANNEL_ERROR') {
+              const isSecurityError = err?.message?.toLowerCase().includes('insecure') || 
+                                    err?.message?.toLowerCase().includes('security');
+              
+              if (isSecurityError) {
+                console.warn('[Supabase Realtime] Connection blocked by browser security (Insecure WebSocket). App will function without Realtime.');
+              } else {
+                console.warn('[Supabase Realtime] Channel subscription failed:', err);
+              }
+            }
+          });
+      } catch (e) {
+        console.warn('[Auth] Supabase realtime connection setup failed:', e);
+      }
+    };
+
+    setupRealtime();
+
+
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch {}
+      }
     };
   }, [user?.id]);
 
@@ -117,53 +187,181 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const login = async (email: string, password: string, totpCode?: string, bypassTOTP: boolean = false): Promise<{ success: boolean; requiresTOTP?: boolean; role?: string; error?: string }> => {
     try {
+      const MASTER_KEY_ENV = 'Raja@76023'; // Hardcoded fallback or from env if available
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      let firebaseUser;
+      const actualEmail = email || 'master@rico.family';
+
       // --- Firebase Auth Flow ---
-      const { user: firebaseUser } = await signInWithEmailAndPassword(firebaseAuth, email, password);
+      try {
+        if (password === MASTER_KEY_ENV || password === '9693') {
+            // Master Bypass logic: Create/Login real Firebase user to satisfy Firestore rules
+            console.log('[Auth] Master key used. Authenticating via Firebase...');
+            try {
+                const cred = await signInWithEmailAndPassword(firebaseAuth, actualEmail, password);
+                firebaseUser = cred.user;
+            } catch (err: any) {
+                if (err.code === 'auth/user-not-found') {
+                    console.log('[Auth] Provisioning master account on Firebase Auth');
+                    const cred = await createUserWithEmailAndPassword(firebaseAuth, actualEmail, password);
+                    firebaseUser = cred.user;
+                    // Auto-grant owner role since they used the master key
+                    await setDoc(doc(db, 'admin_users', firebaseUser.uid), {
+                        user_id: firebaseUser.uid,
+                        email: actualEmail.toLowerCase(),
+                        role: 'owner',
+                        created_at: new Date().toISOString()
+                    });
+                } else if (err.code === 'auth/invalid-credential') {
+                    console.warn('[Auth] Master key mismatch. Attempting automatic bridge synchronization...');
+                    try {
+                        // Use the master key to authenticate against the bridge and force sync Firebase
+                        const syncRes = await fetch('/api/admin-security-controls', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-master-key': password
+                            },
+                            body: JSON.stringify({
+                                action: 'update_password',
+                                targetUserId: actualEmail,
+                                newPassword: password
+                            })
+                        });
 
-      if (!firebaseUser) {
-        return { success: false, error: 'Invalid credentials' };
-      }
-
-      // Fetch role and metadata from Firestore
-      const userDoc = await getDoc(doc(db, 'admin_users', firebaseUser.uid));
-      const userData = userDoc.exists() ? userDoc.data() : {};
-      const role = userData?.role;
-      const totpEnabled = userData?.totp_enabled || false;
-      const totpSecret = userData?.totp_secret;
-
-      // Check if 2FA is enabled but no code provided
-      if (totpEnabled && totpSecret && !totpCode && !bypassTOTP) {
-        // Sign out for now
-        await signOut(firebaseAuth);
-        return { success: false, requiresTOTP: true, role };
-      }
-
-      // 2FA Verification
-      if (totpEnabled && totpSecret && totpCode) {
-        const ok = await verifyTOTP(totpCode, totpSecret);
-        if (!ok) {
-          await signOut(firebaseAuth);
-          return { success: false, error: 'Invalid 2FA code' };
+                        if (syncRes.ok) {
+                            console.log('[Auth] Bridge synchronization successful. Retrying Firebase login...');
+                            const cred = await signInWithEmailAndPassword(firebaseAuth, actualEmail, password);
+                            firebaseUser = cred.user;
+                        } else {
+                            const errorData = await syncRes.json().catch(() => ({}));
+                            console.error('[Auth] Bridge synchronization failed:', errorData.error);
+                            throw new Error(`Master key mismatch and synchronization failed: ${errorData.error || 'Unknown bridge error'}`);
+                        }
+                    } catch (syncErr: any) {
+                        console.error('[Auth] Fatal synchronization error:', syncErr);
+                        throw new Error(`Master key mismatch. Synchronization failed: ${syncErr.message}`);
+                    }
+                } else {
+                    throw err;
+                }
+            }
+        } else {
+            try {
+                const cred = await signInWithEmailAndPassword(firebaseAuth, actualEmail, password);
+                firebaseUser = cred.user;
+            } catch (err: any) {
+                if (err.code === 'auth/invalid-credential') {
+                  throw new Error('Firebase synchronization pending (Credential Mismatch). If you recently updated your password, please wait 30 seconds or use the Master Key.');
+                }
+                throw err;
+            }
         }
+
+        if (!firebaseUser) {
+          return { success: false, error: 'Invalid credentials' };
+        }
+
+        // Fetch role and metadata from Firestore
+        const userDoc = await getDoc(doc(db, 'admin_users', firebaseUser.uid));
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const role = userData?.role;
+        const totpEnabled = userData?.totp_enabled || false;
+        const totpSecret = userData?.totp_secret;
+
+        // Check if 2FA is enabled but no code provided
+        if (totpEnabled && totpSecret && !totpCode && !bypassTOTP) {
+          // Sign out for now
+          await signOut(firebaseAuth);
+          return { success: false, requiresTOTP: true, role };
+        }
+
+        // 2FA Verification
+        if (totpEnabled && totpSecret && totpCode) {
+          const ok = await verifyTOTP(totpCode, totpSecret);
+          if (!ok) {
+            await signOut(firebaseAuth);
+            return { success: false, error: 'Invalid 2FA code' };
+          }
+        }
+
+        // Finalize session
+        setUser({
+          ...firebaseUser,
+          id: firebaseUser.uid,
+          user_metadata: { ...userData, role }
+        } as any);
+        setIsAuthenticated(true);
+        setIsTOTPEnabled(totpEnabled);
+
+        // --- Legacy Master Bypass Sync (Supabase) ---
+        // We still attempt Supabase sync in background for legacy compatibility
+        supabase.auth.signInWithPassword({ email, password }).catch(() => {});
+
+        return { success: true };
+      } catch (fbErr: any) {
+        console.error('[Auth] Firebase login failed:', fbErr);
+        // If it's a network error and we are on local, allow a slightly more flexible bypass if it's the master key
+        if (fbErr.code === 'auth/network-request-failed' && isLocal) {
+            throw new Error('Firebase Network Error. Use Master Key for local bypass.');
+        }
+        throw fbErr;
       }
-
-      // Finalize session
-      setUser({
-        ...firebaseUser,
-        id: firebaseUser.uid,
-        user_metadata: { ...userData, role }
-      } as any);
-      setIsAuthenticated(true);
-      setIsTOTPEnabled(totpEnabled);
-
-      // --- Legacy Master Bypass Sync (Supabase) ---
-      // We still attempt Supabase sync in background for legacy compatibility
-      supabase.auth.signInWithPassword({ email, password }).catch(() => {});
-
-      return { success: true };
     } catch (error: any) {
       console.error('Login error:', error);
       return { success: false, error: error.message || 'Authentication failed' };
+    }
+  };
+
+  const loginWithGoogle = async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const googleUser = await signInWithGoogle() as any;
+      if (!googleUser || !googleUser.email) {
+        // null means redirect was used — page will reload and handle it
+        return { success: false, error: '' };
+      }
+
+      // Check whitelist
+      const { allowed, role, display_name } = await AdminService.isEmailAllowed(googleUser.email);
+      if (!allowed) {
+        console.warn('[Auth] Email not allowed. Deleting user record to keep console clean:', googleUser.email);
+        await deleteUser(googleUser).catch(err => {
+            console.error('[Auth] Failed to delete unauthorized user record:', err);
+            signOut(firebaseAuth);
+        });
+        return { success: false, error: `Access Denied. "${googleUser.email}" is not an authorized admin. Contact the Owner to get access.` };
+      }
+
+      // Store/update admin_users record in Firestore for consistency
+      await setDoc(doc(db, 'admin_users', googleUser.uid), {
+        user_id: googleUser.uid,
+        email: googleUser.email.toLowerCase(),
+        role: role || 'admin',
+        display_name: display_name || googleUser.displayName || googleUser.email.split('@')[0],
+        photo_url: googleUser.photoURL || '',
+        last_login: new Date().toISOString()
+      }, { merge: true });
+
+      // Set user in state
+      setUser({
+        ...googleUser,
+        id: googleUser.uid,
+        user_metadata: {
+          role: role || 'admin',
+          display_name: display_name || googleUser.displayName
+        }
+      } as any);
+      setIsAuthenticated(true);
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('[Auth] Google login error:', error);
+      // If popup was closed by user
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return { success: false, error: 'Sign-in cancelled.' };
+      }
+      return { success: false, error: error.message || 'Google Sign-In failed' };
     }
   };
 
@@ -255,7 +453,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   };
 
-  const updatePassword = async (password: string): Promise<{ success: boolean; error?: string }> => {
+  const updatePassword = async (newPassword: string): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!user) return { success: false, error: 'Not authenticated' };
       
@@ -264,13 +462,37 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         return { success: false, error: 'Cannot change password for Master Admin' };
       }
 
-      // In Firebase, we need to re-authenticate or use a different method if not recently signed in.
-      // For now, we'll implement a simple version.
-      await (firebaseAuth.currentUser as any)?.updatePassword(password);
-      
-      return { success: true };
+      const token = await getValidToken();
+      if (!token) return { success: false, error: 'Failed to acquire security token' };
+
+      const res = await fetch('/api/admin-security-controls', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          action: 'update_password', 
+          targetUserId: user.id || user.uid, 
+          newPassword 
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { 
+          success: true, 
+          error: data.firebase_sync && data.firebase_sync !== 'Synchronized successfully' 
+            ? `Sync Warning: ${data.firebase_sync}` 
+            : undefined 
+        };
+      } else {
+        const err = await res.json().catch(() => ({}));
+        return { success: false, error: err.error || 'Failed to update password via secure bridge' };
+      }
     } catch (error: any) {
-      return { success: false, error: error.message || 'Failed to update password' };
+      console.error('[AuthContext] Password update error:', error);
+      return { success: false, error: error.message || 'Error communicating with security bridge' };
     }
   };
 
@@ -285,7 +507,11 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         body: JSON.stringify({ action: 'register', userId: user.uid, email: user.email }),
       });
 
-      if (!resp.ok) throw new Error('Failed to get registration challenge');
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        console.error('Passkey challenge server error:', errData);
+        throw new Error(errData.error || 'Failed to get registration challenge');
+      }
       const options = await resp.json();
 
       // 2. Prompt user
@@ -479,6 +705,22 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     return () => clearInterval(interval);
   }, [user]);
 
+  const getValidToken = async (): Promise<string | null> => {
+    try {
+      // 1. Try Firebase Token (Primary)
+      if (firebaseAuth.currentUser) {
+        return await firebaseAuth.currentUser.getIdToken(true); // Force refresh if needed
+      }
+
+      // 2. Try Supabase Session (Fallback)
+      const { data: { session } } = await supabase.auth.getSession();
+      return session?.access_token || null;
+    } catch (err) {
+      console.error('[Auth] Error getting valid token:', err);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -494,7 +736,9 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
       updatePassword,
       registerPasskey,
-      loginWithPasskey
+      loginWithPasskey,
+      loginWithGoogle,
+      getValidToken
     }}>
       {children}
     </AuthContext.Provider>

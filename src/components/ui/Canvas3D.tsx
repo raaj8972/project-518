@@ -42,6 +42,14 @@ const AbstractShape = () => {
   );
 };
 
+// Local Error Boundary to prevent Environment map fetch failures from crashing the app
+class SceneErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error) { console.warn("3D Environment Map failed to load:", error.message); }
+  render() { return this.state.hasError ? null : this.props.children; }
+}
+
 export const Canvas3D: React.FC = () => {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none" style={{ mixBlendMode: 'screen' }}>
@@ -50,13 +58,19 @@ export const Canvas3D: React.FC = () => {
         dpr={[1, 1.5]} // cap pixel ratio for performance
         gl={{ antialias: true, alpha: true }}
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} color="#4f46e5" />
-        <directionalLight position={[-10, -10, -5]} intensity={0.5} color="#e86cff" />
+        <ambientLight intensity={0.6} />
+        <directionalLight position={[10, 10, 5]} intensity={1.5} color="#4f46e5" />
+        <directionalLight position={[-10, -10, -5]} intensity={0.8} color="#e86cff" />
         
         <AbstractShape />
         
-        <Environment preset="city" />
+        {/* Environment map removed to prevent remote asset fetch failures (potsdamer_platz_1k.hdr) */}
+        {/* We use enhanced directional and point lights to simulate environment reflections */}
+        
+        {/* Fallback lights always active or active when offline to ensure visibility */}
+        <pointLight position={[5, 5, 5]} intensity={2} color="#818cf8" />
+        <pointLight position={[-5, -5, -5]} intensity={1.5} color="#e86cff" />
+        <ambientLight intensity={0.5} />
       </Canvas>
     </div>
   );

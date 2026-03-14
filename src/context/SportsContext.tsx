@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
 import { 
-  SportsSeason, SportsTeam, SportsPlayer, SportsRegistration, SportsMatch 
+  SportsSeason, SportsTeam, SportsPlayer, SportsRegistration, SportsMatch,
+  AnnualSportsEvent, AnnualSportsRegistration, AnnualSportsMatch 
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
@@ -14,30 +15,40 @@ interface SportsContextType {
   sportsRegistrations: SportsRegistration[];
   sportsMatches: SportsMatch[];
   
+  // Annual Sports
+  annualSportsEvents: AnnualSportsEvent[];
+  annualSportsRegistrations: AnnualSportsRegistration[];
+  annualSportsMatches: AnnualSportsMatch[];
+  
   // Seasons
-  addSportsSeason: (season: Partial<SportsSeason>) => Promise<void>;
-  updateSportsSeason: (id: number, season: Partial<SportsSeason>) => Promise<void>;
+  addSportsSeason: (season: Partial<SportsSeason>) => Promise<any>;
+  updateSportsSeason: (id: number, season: Partial<SportsSeason>) => Promise<any>;
   deleteSportsSeason: (id: number) => Promise<void>;
   
   // Teams
-  addSportsTeam: (team: Partial<SportsTeam>) => Promise<void>;
-  updateSportsTeam: (id: number, team: Partial<SportsTeam>) => Promise<void>;
+  addSportsTeam: (team: Partial<SportsTeam>) => Promise<any>;
+  updateSportsTeam: (id: number, team: Partial<SportsTeam>) => Promise<any>;
   deleteSportsTeam: (id: number) => Promise<void>;
   
   // Players
-  addSportsPlayer: (player: Partial<SportsPlayer>) => Promise<void>;
-  updateSportsPlayer: (id: number, player: Partial<SportsPlayer>) => Promise<void>;
+  addSportsPlayer: (player: Partial<SportsPlayer>) => Promise<any>;
+  updateSportsPlayer: (id: number, player: Partial<SportsPlayer>) => Promise<any>;
   deleteSportsPlayer: (id: number) => Promise<void>;
   
   // Registrations
-  addSportsRegistration: (reg: Partial<SportsRegistration>) => Promise<void>;
-  updateSportsRegistration: (id: number, reg: Partial<SportsRegistration>) => Promise<void>;
+  addSportsRegistration: (reg: Partial<SportsRegistration>) => Promise<any>;
+  updateSportsRegistration: (id: number, reg: Partial<SportsRegistration>) => Promise<any>;
   deleteSportsRegistration: (id: number) => Promise<void>;
   
   // Matches
-  addSportsMatch: (match: Partial<SportsMatch>) => Promise<void>;
-  updateSportsMatch: (id: number, match: Partial<SportsMatch>) => Promise<void>;
+  addSportsMatch: (match: Partial<SportsMatch>) => Promise<any>;
+  updateSportsMatch: (id: number, match: Partial<SportsMatch>) => Promise<any>;
   deleteSportsMatch: (id: number) => Promise<void>;
+
+  // Annual Matches
+  addAnnualSportsMatch: (match: Partial<AnnualSportsMatch>) => Promise<any>;
+  updateAnnualSportsMatch: (id: number, match: Partial<AnnualSportsMatch>) => Promise<any>;
+  deleteAnnualSportsMatch: (id: number) => Promise<void>;
 }
 
 const SportsContext = createContext<SportsContextType | undefined>(undefined);
@@ -59,22 +70,35 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
   const [sportsPlayers, setSportsPlayers] = useState<SportsPlayer[]>([]);
   const [sportsRegistrations, setSportsRegistrations] = useState<SportsRegistration[]>([]);
   const [sportsMatches, setSportsMatches] = useState<SportsMatch[]>([]);
+  
+  const [annualSportsEvents, setAnnualSportsEvents] = useState<AnnualSportsEvent[]>([]);
+  const [annualSportsRegistrations, setAnnualSportsRegistrations] = useState<AnnualSportsRegistration[]>([]);
+  const [annualSportsMatches, setAnnualSportsMatches] = useState<AnnualSportsMatch[]>([]);
 
   const fetchSportsData = useCallback(async () => {
     try {
-      const [seasonsRes, teamsRes, playersRes, regsRes, matchesRes] = await Promise.all([
+      const results = await Promise.all([
         fetchSupabaseBatch<SportsSeason>('sports_seasons', { order: { column: 'created_at', ascending: true } }),
         fetchSupabaseBatch<SportsTeam>('sports_teams', { order: { column: 'created_at', ascending: true } }),
         fetchSupabaseBatch<SportsPlayer>('sports_players', { order: { column: 'created_at', ascending: true } }),
         fetchSupabaseBatch<SportsRegistration>('sports_registrations', { order: { column: 'created_at', ascending: false } }),
-        fetchSupabaseBatch<SportsMatch>('sports_matches', { order: { column: 'match_date', ascending: false } })
+        fetchSupabaseBatch<SportsMatch>('sports_matches', { order: { column: 'match_date', ascending: false } }),
+        fetchSupabaseBatch<AnnualSportsEvent>('annual_sports_events', { order: { column: 'created_at', ascending: true } }),
+        fetchSupabaseBatch<AnnualSportsRegistration>('annual_sports_registrations', { order: { column: 'created_at', ascending: false } }),
+        fetchSupabaseBatch<AnnualSportsMatch>('annual_sports_matches', { order: { column: 'match_date', ascending: false } })
       ]);
+
+      const [seasonsRes, teamsRes, playersRes, regsRes, matchesRes, eventsRes, annualRegsRes, annualMatchesRes] = results;
 
       if (!seasonsRes.error) setSportsSeasons(seasonsRes.data || []);
       if (!teamsRes.error) setSportsTeams(teamsRes.data || []);
       if (!playersRes.error) setSportsPlayers(playersRes.data || []);
       if (!regsRes.error) setSportsRegistrations(regsRes.data || []);
       if (!matchesRes.error) setSportsMatches(matchesRes.data || []);
+      
+      if (!eventsRes.error) setAnnualSportsEvents(eventsRes.data || []);
+      if (!annualRegsRes.error) setAnnualSportsRegistrations(annualRegsRes.data || []);
+      if (!annualMatchesRes.error) setAnnualSportsMatches(annualMatchesRes.data || []);
 
     } catch (err) {
       console.error('[SportsContext] Failed to fetch sports data', err);
@@ -93,14 +117,19 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     sportsPlayers,
     sportsRegistrations,
     sportsMatches,
+    annualSportsEvents,
+    annualSportsRegistrations,
+    annualSportsMatches,
     
     addSportsSeason: async (season) => {
-      await dualInsert('sports_seasons', season);
+      const res = await dualInsert('sports_seasons', season);
       await fetchSportsData();
+      return res?.[0];
     },
     updateSportsSeason: async (id, season) => {
-      await dualUpdate('sports_seasons', id, season);
+      const res = await dualUpdate('sports_seasons', id, season);
       await fetchSportsData();
+      return res?.[0];
     },
     deleteSportsSeason: async (id) => {
       await dualDelete('sports_seasons', id);
@@ -108,12 +137,14 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     },
     
     addSportsTeam: async (team) => {
-      await dualInsert('sports_teams', team);
+      const res = await dualInsert('sports_teams', team);
       await fetchSportsData();
+      return res?.[0];
     },
     updateSportsTeam: async (id, team) => {
-      await dualUpdate('sports_teams', id, team);
+      const res = await dualUpdate('sports_teams', id, team);
       await fetchSportsData();
+      return res?.[0];
     },
     deleteSportsTeam: async (id) => {
       await dualDelete('sports_teams', id);
@@ -121,12 +152,14 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     },
     
     addSportsPlayer: async (player) => {
-      await dualInsert('sports_players', player);
+      const res = await dualInsert('sports_players', player);
       await fetchSportsData();
+      return res?.[0];
     },
     updateSportsPlayer: async (id, player) => {
-      await dualUpdate('sports_players', id, player);
+      const res = await dualUpdate('sports_players', id, player);
       await fetchSportsData();
+      return res?.[0];
     },
     deleteSportsPlayer: async (id) => {
       await dualDelete('sports_players', id);
@@ -134,12 +167,14 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     },
     
     addSportsRegistration: async (reg) => {
-      await dualInsert('sports_registrations', reg);
+      const res = await dualInsert('sports_registrations', reg);
       await fetchSportsData();
+      return res?.[0];
     },
     updateSportsRegistration: async (id, reg) => {
-      await dualUpdate('sports_registrations', id, reg);
+      const res = await dualUpdate('sports_registrations', id, reg);
       await fetchSportsData();
+      return res?.[0];
     },
     deleteSportsRegistration: async (id) => {
       await dualDelete('sports_registrations', id);
@@ -147,15 +182,32 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     },
     
     addSportsMatch: async (match) => {
-      await dualInsert('sports_matches', match);
+      const res = await dualInsert('sports_matches', match);
       await fetchSportsData();
+      return res?.[0];
     },
     updateSportsMatch: async (id, match) => {
-      await dualUpdate('sports_matches', id, match);
+      const res = await dualUpdate('sports_matches', id, match);
       await fetchSportsData();
+      return res?.[0];
     },
     deleteSportsMatch: async (id) => {
       await dualDelete('sports_matches', id);
+      await fetchSportsData();
+    },
+
+    addAnnualSportsMatch: async (match) => {
+      const res = await dualInsert('annual_sports_matches', match);
+      await fetchSportsData();
+      return res?.[0];
+    },
+    updateAnnualSportsMatch: async (id, match) => {
+      const res = await dualUpdate('annual_sports_matches', id, match);
+      await fetchSportsData();
+      return res?.[0];
+    },
+    deleteAnnualSportsMatch: async (id) => {
+      await dualDelete('annual_sports_matches', id);
       await fetchSportsData();
     }
   };

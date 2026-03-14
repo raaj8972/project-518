@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2, AlertCircle, RefreshCw, Wand2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface GenericAIGeneratorProps {
   uiTitle: string;
@@ -18,6 +19,7 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
   onGenerated,
   className = ""
 }) => {
+  const { getValidToken } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +31,12 @@ export const GenericAIGenerator: React.FC<GenericAIGeneratorProps> = ({
     setError(null);
 
     try {
+      const token = await getValidToken();
       const response = await fetch('/api/ai-generate-content', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           prompt,

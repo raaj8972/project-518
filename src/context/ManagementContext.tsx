@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
 import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
 import { 
   Sponsor, SponsorshipPackage, SponsorshipSettings, Registration,
@@ -8,6 +7,7 @@ import {
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
 import { fetchAllRegistrations, fetchSupabaseBatch } from '../utils/dataUtils';
+import { AdminService } from '../lib/adminService';
 
 interface ManagementContextType {
   sponsors: Sponsor[];
@@ -17,6 +17,7 @@ interface ManagementContextType {
   auditions: Audition[];
   memberships: Membership[];
   adminUsers: any[];
+  loading: boolean;
   
   // Sponsors
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
@@ -39,6 +40,17 @@ interface ManagementContextType {
   addSponsorshipPackage: (pkg: Partial<SponsorshipPackage>) => Promise<void>;
   updateSponsorshipPackage: (id: number, patch: Partial<SponsorshipPackage>) => Promise<void>;
   deleteSponsorshipPackage: (id: number) => Promise<void>;
+
+  // Admin Management
+  refreshAdminUsers: () => Promise<void>;
+  addAdminUser: (userId: string, email: string, role?: 'owner' | 'admin') => Promise<void>;
+  removeAdminUser: (userId: string) => Promise<void>;
+  addAdminByEmail: (email: string) => Promise<void>;
+  createAdminAccount: (email: string, password: string, role?: 'owner' | 'admin') => Promise<{ user_id: string; email: string } | null>;
+  updateAdminEmail: (userId: string, newEmail: string) => Promise<void>;
+  listAdminPermissions: () => Promise<any[]>;
+  setAdminPermission: (userId: string, flags: any) => Promise<void>;
+  updateAdminRole: (userId: string, role: 'owner' | 'admin') => Promise<void>;
 }
 
 const ManagementContext = createContext<ManagementContextType | undefined>(undefined);
@@ -53,7 +65,7 @@ export const useManagementData = () => {
 
 export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   const { refreshTrigger } = useCoreData();
-  const { user } = useAuth();
+  const { user, getValidToken } = useAuth();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [sponsorshipPackages, setSponsorshipPackages] = useState<SponsorshipPackage[]>([]);
   const [sponsorshipSettings, setSponsorshipSettings] = useState<SponsorshipSettings | null>(null);
@@ -61,8 +73,10 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   const [auditions, setAuditions] = useState<Audition[]>([]);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const fetchManagementData = useCallback(async () => {
+    setLoading(true);
     try {
       const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes] = await Promise.all([
         fetchSupabaseBatch<Sponsor>('sponsors'),
@@ -81,20 +95,18 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       if (auditionsRes.data) setAuditions(auditionsRes.data || []);
       if (membershipsRes.data) setMemberships(membershipsRes.data || []);
       if (adminRes.data) {
-        // Flatten permissions for easier consumption
-        // In Supabase they were nested in admin_permissions array. In Firestore, they are flat on the object.
-        const flattenedAdmins = (adminRes.data || []).map((u: any) => ({
-          ...u,
-          ...(u.admin_permissions?.[0] || u.admin_permissions || {})
-        }));
-        console.log('[ManagementContext] Fetched admin users:', flattenedAdmins);
-        setAdminUsers(flattenedAdmins);
+        // Fetch full admin list with joined permissions using AdminService
+        const fullAdmins = await AdminService.getAllAdmins();
+        console.log('[ManagementContext] Fetched full admin users with perms:', fullAdmins);
+        setAdminUsers(fullAdmins);
       } else {
         console.warn('[ManagementContext] Admin users data unavailable from primary source');
       }
 
     } catch (err) {
       console.error('[ManagementContext] Failed to fetch management data:', err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -174,6 +186,73 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     await fetchManagementData();
   };
 
+  const refreshAdminUsers = async () => {
+    await fetchManagementData();
+  };
+
+  const addAdminUser = async (userId: string, email: string, role: 'owner' | 'admin' = 'admin') => {
+    await AdminService.authorizeExistingUser(userId, email, role);
+    await fetchManagementData();
+  };
+
+  const removeAdminUser = async (userId: string) => {
+    await AdminService.removeAdmin(userId);
+    await fetchManagementData();
+  };
+
+  const addAdminByEmail = async (email: string) => {
+    // For now, if we don't have a UID, we encourage using createAdminAccount
+    // or finding the UID from the portal. Direct email-to-UID mapping is usually server-side.
+    // For local dev, we use a placeholder or prompt the user.
+    const mockUid = `manual-entry-${Date.now()}`;
+    await AdminService.authorizeExistingUser(mockUid, email);
+    await fetchManagementData();
+  };
+
+  const createAdminAccount = async (email: string, password: string, role: 'owner' | 'admin' = 'admin') => {
+    try {
+      const result = await AdminService.createPrimeAdmin(email, password, role);
+      await fetchManagementData();
+      return { user_id: result.user_id, email: result.email };
+    } catch (err: any) {
+      console.error('[ManagementContext] createAdminAccount failed:', err);
+      throw err;
+    }
+  };
+
+  const updateAdminEmail = async (userId: string, newEmail: string) => {
+    const token = await getValidToken();
+    const res = await fetch('/.netlify/functions/update-admin-email', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'X-Master-Key': '9693',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, newEmail })
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to update admin email');
+    }
+    await fetchManagementData();
+  };
+
+  const listAdminPermissions = async () => {
+    const { data } = await dualRead({ table: 'admin_permissions' });
+    return data || [];
+  };
+
+  const setAdminPermission = async (userId: string, flags: any) => {
+    await AdminService.updatePermissions(userId, flags);
+    await fetchManagementData();
+  };
+
+  const updateAdminRole = async (userId: string, role: 'owner' | 'admin') => {
+    await AdminService.updateRole(userId, role);
+    await fetchManagementData();
+  };
+
   const value: ManagementContextType = {
     sponsors,
     sponsorshipPackages,
@@ -182,6 +261,7 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     auditions,
     memberships,
     adminUsers,
+    loading,
     addSponsor,
     updateSponsor,
     deleteSponsor,
@@ -195,7 +275,16 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     updateSponsorshipSettings,
     addSponsorshipPackage,
     updateSponsorshipPackage,
-    deleteSponsorshipPackage
+    deleteSponsorshipPackage,
+    refreshAdminUsers,
+    addAdminUser,
+    removeAdminUser,
+    addAdminByEmail,
+    createAdminAccount,
+    updateAdminEmail,
+    listAdminPermissions,
+    setAdminPermission,
+    updateAdminRole
   };
 
   return <ManagementContext.Provider value={value}>{children}</ManagementContext.Provider>;

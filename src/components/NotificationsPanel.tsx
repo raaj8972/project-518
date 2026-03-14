@@ -75,6 +75,13 @@ export const NotificationsPanel: React.FC = () => {
   }, [active, dismissed, suppressPublicNotifications]);
 
   // Now it's safe to early-return without skipping hooks called above
+  // Stable Shell: Return null internally for non-public routes so the component 
+  // remains mounted as a sibling in AppShell but doesn't render visual content.
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isSecurityRoute = location.pathname.startsWith('/security-');
+  const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
+
   if (suppressPublicNotifications) return null;
   if (list.length === 0) return null;
   if (active.length === 0) return null;

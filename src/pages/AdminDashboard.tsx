@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, startTransition } from 'react';
+import React, { useEffect, useRef, useState, startTransition, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
 import { 
@@ -52,6 +52,7 @@ const SportsTeamsAdmin = React.lazy(() => import('../components/admin/SportsTeam
 const SportsAuctionAdmin = React.lazy(() => import('../components/admin/SportsAuctionAdmin').then(m => ({ default: m.SportsAuctionAdmin })));
 const SportsRegistrationAdmin = React.lazy(() => import('../components/admin/SportsRegistrationAdmin').then(m => ({ default: m.SportsRegistrationAdmin })));
 const SportsRegistrationModalSettings = React.lazy(() => import('../components/admin/SportsRegistrationModalSettings').then(m => ({ default: m.SportsRegistrationModalSettings })));
+const SportsMatchesAdmin = React.lazy(() => import('../components/admin/SportsMatchesAdmin').then(m => ({ default: m.SportsMatchesAdmin })));
 const AnnualEventsManagement = React.lazy(() => import('../components/admin/AnnualEventsManagement').then(m => ({ default: m.AnnualEventsManagement })));
 const AnnualSportsScheduleManagement = React.lazy(() => import('../components/admin/AnnualSportsScheduleManagement').then(m => ({ default: m.AnnualSportsScheduleManagement })));
 const AnnualRegistrationsManagement = React.lazy(() => import('../components/admin/AnnualRegistrationsManagement').then(m => ({ default: m.AnnualRegistrationsManagement })));
@@ -79,16 +80,14 @@ const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/Reg
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
 const AdminUsersPanel = React.lazy(() => import('../components/admin/AdminUsersPanel').then(m => ({ default: m.AdminUsersPanel })));
 const ConnectionOverview = React.lazy(() => import('../components/admin/ConnectionOverview').then(m => ({ default: m.ConnectionOverview })));
-const AdminPresencePanel = React.lazy(() => import('../components/admin/AdminPresencePanel').then(m => ({ default: m.AdminPresencePanel })));
-import { useAdminPresence } from '../hooks/useAdminPresence';
-import { AdminMessageToastContainer } from '../components/admin/AdminMessageToast';
-import { useAdminMessages } from '../hooks/useAdminMessages';
-import { AdminCursorsOverlay } from '../components/admin/AdminCursorsOverlay';
+const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
-const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
 const GalleryFaceIndexer = React.lazy(() => import('../components/admin/GalleryFaceIndexer').then(m => ({ default: m.GalleryFaceIndexer })));
+const ProtectionCenter = React.lazy(() => import('../components/admin/ProtectionCenter').then(m => ({ default: m.ProtectionCenter })));
+
+
 
 
 
@@ -116,7 +115,6 @@ export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isPresencePanelOpen, setIsPresencePanelOpen] = useLocalStorage<boolean>('admin_presence_panel_open', false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSplash, setShowSplash] = useState(true);
 
@@ -142,20 +140,8 @@ export const AdminDashboard: React.FC = () => {
     return 'Good Evening';
   };
 
-  // Admin presence tracking
-  const { otherAdmins, updatePresence } = useAdminPresence();
-  const [hiddenCursors, setHiddenCursors] = useLocalStorage<string[]>('admin_hidden_cursors', [] as string[]);
+  // Determine if current user is the OWNER
 
-  const toggleCursorVisibility = (userId: string) => {
-    setHiddenCursors(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
-
-  // Admin messaging
-  const { unreadMessages, sendMessage, markAsRead } = useAdminMessages();
 
   // Fetch registration stats for badges
   // Fetch registration stats for badges
@@ -169,69 +155,17 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-  // Track page changes for presence
-  useEffect(() => {
-    const pageNames: Record<TabType, string> = {
-      overview: 'Overview',
-      homepage: 'Homepage',
-      'hero-media': 'Hero Media',
-      homebound: 'Home Bound Settings',
-      about: 'About',
-      events: 'Events Management',
-      schedule: 'Schedule',
-      gallery: 'Gallery',
-      sponsors: 'Sponsors',
-      registrations: 'Registrations',
-      'reg-photos': 'Registration Photos',
-      categories: 'Categories',
-      social: 'Social Media',
-      faculty: 'Faculty Heads',
-      'core-team': 'Core Team',
-      'sports-team': 'Sports Team',
-      band: 'Home Bound Band',
-      'guest-artists': 'Guest Artists',
-      'chief-guests': 'Chief Guests',
-      auditions: 'Auditions',
-      memberships: 'Memberships',
-      'form-settings': 'Form Settings',
-      'registration-modal': 'Registration Modal',
-      roadmap: 'Roadmap',
-      security: 'Security',
-      'biometric-login': 'Biometric Login',
-      'site-settings': 'Site Settings',
-      'admin-users': 'Admin Users',
-      notifications: 'Notifications',
-      'face-indexing': 'Face Indexing',
-      'registration-photos': 'Registration Photos',
-      sports: 'Sports',
-      artist: 'Artist',
-      'chief-guest': 'Chief Guest',
-      'sponsorship-packages': 'Sponsorship Packages',
-      'owner-approvals': 'Owner Approvals',
-      'coordinator-passwords': 'Coordinator Passwords',
-      'security-passes': 'Security Passes',
-      'council-access': 'Council Access',
-      'sports-seasons': 'Sports Seasons',
-      'sports-teams': 'Sports Teams',
-      'sports-players': 'Sports Players',
-      'sports-auction': 'Sports Auction',
-      'sports-registrations': 'Sports Registrations',
-      'sports-registration-model': 'Registration Model',
-      'annual-events': 'Annual Events Management',
-      'annual-schedule': 'Annual Sports Schedule',
-      'annual-registrations': 'Annual Registrations Management',
-      'annual-registration-model': 'Annual Registration Model',
-      'audit-logs': 'Audit Logs',
-    };
-    updatePresence({ page: pageNames[activeTab] || activeTab });
-  }, [activeTab, updatePresence]);
   const isMasterBypassUser = !!user?.user_metadata?.master_bypass || user?.id === 'master-admin-bypass';
 
   // Determine if current user is the OWNER
-  const isOwner = (() => {
+  const isOwner = useMemo(() => {
+
     try {
-      // Check for master admin bypass
-      if (isMasterBypassUser || user?.user_metadata?.is_super_admin) {
+      // Check for master admin bypass and hardcoded owners
+      const email = user?.email?.toLowerCase().trim();
+      const isHardcoded = email === 'raja@rico.fun' || email === 'raaj@rico.fun';
+
+      if (isMasterBypassUser || user?.user_metadata?.is_super_admin || isHardcoded) {
         return true;
       }
       const uid = user?.id;
@@ -240,7 +174,8 @@ export const AdminDashboard: React.FC = () => {
     } catch {
       return false;
     }
-  })();
+  }, [user, isMasterBypassUser, adminUsers]);
+
 
   // Debounce redirect to handle transient auth events on tab focus
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -397,6 +332,7 @@ export const AdminDashboard: React.FC = () => {
   const tabs = [
     // Dashboard
     { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'Dashboard' },
+    { id: 'protection-center' as TabType, name: 'Protection Center', icon: Shield, group: 'Dashboard' },
     ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'Dashboard' }] : []),
 
     // Security & System (High priority for admins)
@@ -444,6 +380,7 @@ export const AdminDashboard: React.FC = () => {
     // Sports Area
     { id: 'sports-seasons' as TabType, name: 'Sports Seasons', icon: Trophy, group: 'Sports' },
     { id: 'sports-teams' as TabType, name: 'Sports Teams', icon: Flag, group: 'Sports' },
+    { id: 'sports-matches' as TabType, name: 'Match Schedule', icon: Calendar, group: 'Sports' },
     { id: 'sports-auction' as TabType, name: 'Sports Auction', icon: Gavel, group: 'Sports' },
     { id: 'sports-registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'Sports' },
     { id: 'sports-registration-model' as TabType, name: 'Registration Model', icon: Settings, group: 'Sports' },
@@ -499,6 +436,7 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('sports-team');
       allowedIds.add('sports-seasons');
       allowedIds.add('sports-teams');
+      allowedIds.add('sports-matches');
       allowedIds.add('sports-auction');
       allowedIds.add('sports-registrations');
       allowedIds.add('sports-registration-model');
@@ -576,15 +514,12 @@ export const AdminDashboard: React.FC = () => {
       isSidebarOpen={isSidebarOpen}
       setIsSidebarOpen={setIsSidebarOpen}
       onLogout={handleLogout}
-      onNavigateHome={() => startTransition(() => navigate('/'))}
+      onNavigateHome={() => navigate('/')}
       badges={badges}
       autoLogoutEnabled={autoLogoutEnabled}
       setAutoLogoutEnabled={setAutoLogoutEnabled}
       isTOTPEnabled={isTOTPEnabled}
     >
-      {/* Real-time Cursors Overlay - Only visible to Owner */}
-      {isOwner && <AdminCursorsOverlay admins={otherAdmins} hiddenCursors={hiddenCursors} />}
-
       <React.Suspense fallback={
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
                <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -922,11 +857,13 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'sports-seasons' && <SportsSeasonAdmin />}
             {activeTab === 'sports-teams' && !siteSettings?.annual_sports_mode_enabled && <SportsTeamsAdmin />}
             {activeTab === 'sports-auction' && !siteSettings?.annual_sports_mode_enabled && <SportsAuctionAdmin />}
-            { activeTab === 'sports-registrations' && <SportsRegistrationAdmin /> }
-            { activeTab === 'sports-registration-model' && <SportsRegistrationModalSettings /> }
-            { activeTab === 'annual-events' && <AnnualEventsManagement /> }
-            { activeTab === 'annual-registrations' && <AnnualRegistrationsManagement /> }
-            { activeTab === 'annual-registration-model' && <AnnualRegistrationModalSettings /> }
+            {activeTab === 'sports-matches' && <SportsMatchesAdmin />}
+            {activeTab === 'sports-registrations' && <SportsRegistrationAdmin />}
+            {activeTab === 'sports-registration-model' && <SportsRegistrationModalSettings />}
+            {activeTab === 'annual-events' && <AnnualEventsManagement />}
+            {activeTab === 'annual-schedule' && <AnnualSportsScheduleManagement />}
+            {activeTab === 'annual-registrations' && <AnnualRegistrationsManagement />}
+            {activeTab === 'annual-registration-model' && <AnnualRegistrationModalSettings />}
             {activeTab === 'security-passes' && (
               <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Security Pass Management...</div>}>
                 <SecurityManagement />
@@ -944,6 +881,11 @@ export const AdminDashboard: React.FC = () => {
               <AdminUsersPanel onManage2FA={() => setActiveTab('security')} />
             )}
 
+            {activeTab === 'protection-center' && (
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Protection Center...</div>}>
+                <ProtectionCenter />
+              </React.Suspense>
+            )}
             {activeTab === 'homepage' && <HomepageManagement />}
             {activeTab === 'notifications' && isOwner && <NotificationsManagement />}
             {activeTab === 'events' && <EventsManagement />}
@@ -974,33 +916,6 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'hero-media' && <HeroMediaManagement />}
   {activeTab === 'about' && <AboutSettings />}
             </React.Suspense>
-      
-      {/* Admin Presence Panel */}
-      {isOwner && (
-        <AdminPresencePanel 
-          admins={otherAdmins}
-          isOpen={isPresencePanelOpen}
-          onToggle={() => setIsPresencePanelOpen(!isPresencePanelOpen)}
-          onNavigate={(page: any) => {
-            setActiveTab(page as TabType);
-            navigate('/admin');
-          }}
-          onSendMessage={sendMessage}
-          hiddenCursors={hiddenCursors}
-          onToggleCursor={toggleCursorVisibility}
-        />
-      )}
-
-      {/* Message Toasts for all admins */}
-      <AdminMessageToastContainer
-        messages={unreadMessages}
-        onDismiss={(id: any) => markAsRead(id)}
-        getUserEmail={(userId: string) => {
-          // Find user email from admin users list
-          const admin = adminUsers?.find(a => a.user_id === userId);
-          return admin?.email || null;
-        }}
-      />
     </AdminLayout>
   );
 };

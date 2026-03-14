@@ -17,6 +17,7 @@ export const HomeHero: React.FC = () => {
   const { homepageSettings, securitySettings } = useData();
   const [media, setMedia] = useState<HeroMediaV2 | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const containerRef = useRef<HTMLElement>(null);
   const textContainerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,9 @@ export const HomeHero: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = heroMediaService.subscribeHeroMedia('home', (data) => {
+      console.log('HomeHero received media data:', data);
       setMedia(data);
+      setVideoError(false); // Reset error on new media
     });
     return () => unsubscribe();
   }, []);
@@ -62,28 +65,36 @@ export const HomeHero: React.FC = () => {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
     
-    // Hide navbar initially on mount
-    gsap.set('.cyberpunk-navbar', { yPercent: -100, opacity: 0 });
-
     const ctx = gsap.context(() => {
-      if (!containerRef.current || !textContainerRef.current) return;
+      // Hide navbar initially on mount within the context so revert() cleans it up
+      gsap.set('.cyberpunk-navbar', { yPercent: -100, opacity: 0 });
+      
+      const hero = containerRef.current;
+      const content = textContainerRef.current;
+      if (!hero || !content) return;
 
+      // PINNING STRATEGY: We pin the inner contents or a wrapper, NOT the root section.
+      // This prevents GSAP from moving the root 'section' (which React owns) into a .pin-spacer.
+      // If we pin the root, React's unmount logic fails because it can't find the section in its parent.
       const tl = gsap.timeline({
         scrollTrigger: {
-          trigger: containerRef.current,
+          trigger: hero,
           start: "top top",
-          end: "+=150%", // Pins for 1.5x screen height
+          end: "+=150%",
           scrub: 1,
           pin: true,
+          pinSpacing: true,
+          anticipatePin: 1, // Helps avoid layout jump on start
           onUpdate: (self) => {
             const vid = videoRef.current;
-            // Ensure video has loaded metadata and duration is valid
             if (vid && vid.readyState >= 1 && isFinite(vid.duration)) {
               vid.currentTime = vid.duration * self.progress;
             }
           }
         }
       });
+      
+      // ... same timeline code ...
 
       // Text appears (scrubbed with scroll)
       tl.to(textContainerRef.current, {
@@ -114,6 +125,13 @@ export const HomeHero: React.FC = () => {
 
     return () => {
       ctx.revert();
+      // Force refresh and kill all associated triggers to ensure no DOM mess is left
+      ScrollTrigger.getAll().forEach(st => {
+        if (st.vars.trigger === containerRef.current || st.vars.id?.includes('hero')) {
+          st.kill();
+        }
+      });
+      ScrollTrigger.refresh();
       // Ensure navbar is visible when unmounting (e.g., navigating to another page)
       gsap.set('.cyberpunk-navbar', { clearProps: 'all' });
     };
@@ -163,29 +181,57 @@ export const HomeHero: React.FC = () => {
     const activeVideo = isMobile && mobile_video_url ? mobile_video_url : video_url;
     const activeImage = isMobile && mobile_image_url ? mobile_image_url : image_url;
     const activePoster = isMobile && mobile_poster_url ? mobile_poster_url : poster_url;
+    
+    const hasValidVideo = activeVideo && !videoError;
 
-    if (background_type === 'video' || (background_type === 'auto' && activeVideo)) {
+    const videoToRender = (background_type === 'video' || background_type === 'auto') && activeVideo && !videoError;
+    const imageToRender = !videoToRender && activeImage;
+
+    if (videoToRender) {
       mediaElement = (
         <video 
+          key={activeVideo}
           ref={videoRef}
-          src={activeVideo} 
+          src={activeVideo} /* Set src directly for better compatibility */
           loop 
           muted 
           playsInline
+          autoPlay 
           preload="auto"
           poster={activePoster || undefined}
+          onLoadedData={() => {
+            console.log('Hero video loaded data successfully');
+            if (videoRef.current) videoRef.current.currentTime = 0;
+          }}
+          onError={(e) => {
+            console.error('Hero video failed to load on home page:', activeVideo, e);
+            setVideoError(true);
+          }}
           className="absolute inset-0 w-full h-full object-cover" 
           style={transformStyle}
-        />
+        >
+          {/* Fallback sources */}
+          <source src={activeVideo} type={activeVideo.toLowerCase().endsWith('.mov') ? 'video/quicktime' : 'video/mp4'} />
+          <source src={activeVideo} />
+        </video>
       );
-    } else if (background_type === 'image' || activeImage) {
+    } else if (imageToRender) {
       mediaElement = (
         <img 
           src={activeImage} 
-          alt="Hero" 
+          alt="Hero background" 
           className="absolute inset-0 w-full h-full object-cover" 
           style={transformStyle}
+          onError={() => console.warn('Hero image failed to load:', activeImage)}
         />
+      );
+    } else {
+      // If neither video nor image is available, we show a premium gradient fallback 
+      // or the Canvas3D will take over if enabled
+      mediaElement = (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#030712] via-[#111827] to-[#030712]">
+          <FluidBackground />
+        </div>
       );
     }
 
@@ -200,66 +246,68 @@ export const HomeHero: React.FC = () => {
   };
 
   return (
-    <section ref={containerRef} className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden bg-[#030712]">
-      {renderBackground()}
+    <div className="hero-root-container w-full">
+      <section ref={containerRef} className="hero-section relative min-h-screen flex items-center justify-center overflow-hidden bg-[#030712]">
+        {renderBackground()}
 
-      {/* Interactive 3D WebGL Shape overlay for extra flair when no media is playing, or as a subtle overlay */}
-      {(!media || !media.enabled) && (
-        <React.Suspense fallback={null}>
-          <Canvas3D />
-        </React.Suspense>
-      )}
+        {/* Interactive 3D WebGL Shape overlay for extra flair when no media is playing, or as a subtle overlay */}
+        {(!media || !media.enabled) && (
+          <React.Suspense fallback={null}>
+            <Canvas3D />
+          </React.Suspense>
+        )}
 
-      {/* Hero Content */}
-      <div 
-        ref={textContainerRef}
-        className="relative z-10 text-center text-white max-w-6xl mx-auto px-4 mt-16 md:mt-0 opacity-0 translate-y-12 scale-95"
-      >
-        <div className="flex flex-col items-center justify-center space-y-6 md:space-y-8 w-full">
-          <div className="inline-flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-3 md:py-3 rounded-full text-[3.5vw] sm:text-sm font-black uppercase tracking-[0.25em] text-indigo-300/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/10 transition-colors duration-300">
-            <Sparkles className="w-5 h-5 mr-3 text-indigo-400 animate-pulse" />
-            ANNUAL FESTIVAL {BRAND_YEAR}
-          </div>
-          
-          <KineticText as="h1" className="text-[14vw] leading-[0.85] sm:text-8xl md:text-9xl lg:text-[10rem] font-black superia-title-gradient tracking-tighter drop-shadow-2xl">
-            {homepageSettings?.hero_title || 'RICORRENZA'}
-          </KineticText>
-          
-          <p className="text-[6vw] sm:text-4xl md:text-5xl font-bold max-w-4xl mx-auto leading-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 drop-shadow-md">
-            {homepageSettings?.hero_subtitle || 'Experience the Future'}
-          </p>
-          
-          <p className="text-[4.5vw] sm:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium px-4">
-            {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
-          </p>
-          
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-8">
-              <a
-                href="/events"
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-[0_8px_32px_rgba(79,70,229,0.4)] hover:shadow-[0_16px_48px_rgba(79,70,229,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 border border-white/10"
-              >
-                <Calendar className="w-5 h-5" />
-                Explore Events
-              </a>
+        {/* Hero Content */}
+        <div 
+          ref={textContainerRef}
+          className="relative z-10 text-center text-white max-w-6xl mx-auto px-4 mt-16 md:mt-0 opacity-0 translate-y-12 scale-95"
+        >
+          <div className="flex flex-col items-center justify-center space-y-6 md:space-y-8 w-full">
+            <div className="inline-flex items-center justify-center bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-3 md:py-3 rounded-full text-[3.5vw] sm:text-sm font-black uppercase tracking-[0.25em] text-indigo-300/90 shadow-[0_8px_32px_rgba(0,0,0,0.3)] hover:bg-white/10 transition-colors duration-300">
+              <Sparkles className="w-5 h-5 mr-3 text-indigo-400 animate-pulse" />
+              ANNUAL FESTIVAL {BRAND_YEAR}
+            </div>
             
-            {securitySettings?.entry_pass_button_enabled && (
-                <Link
-                  to="/pass-registration"
-                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.1] border border-white/10 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 hover:border-white/20"
+            <KineticText as="h1" className="text-[14vw] leading-[0.85] sm:text-8xl md:text-9xl lg:text-[10rem] font-black superia-title-gradient tracking-tighter drop-shadow-2xl">
+              {homepageSettings?.hero_title || 'RICORRENZA'}
+            </KineticText>
+            
+            <p className="text-[6vw] sm:text-4xl md:text-5xl font-bold max-w-4xl mx-auto leading-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-400 drop-shadow-md">
+              {homepageSettings?.hero_subtitle || 'Experience the Future'}
+            </p>
+            
+            <p className="text-[4.5vw] sm:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed font-medium px-4">
+              {homepageSettings?.hero_description || 'Where Healthcare meets Technology and Creativity'}
+            </p>
+            
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6 pt-8">
+                <a
+                  href="/events"
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-[0_8px_32px_rgba(79,70,229,0.4)] hover:shadow-[0_16px_48px_rgba(79,70,229,0.6)] hover:-translate-y-1 flex items-center justify-center gap-3 border border-white/10"
                 >
-                  <Ticket className="w-5 h-5" />
-                  Entry Pass
-                </Link>
-            )}
+                  <Calendar className="w-5 h-5" />
+                  Explore Events
+                </a>
+              
+              {securitySettings?.entry_pass_button_enabled && (
+                  <Link
+                    to="/pass-registration"
+                    className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-white/[0.05] backdrop-blur-xl hover:bg-white/[0.1] border border-white/10 text-white font-bold tracking-widest uppercase text-sm transition-all duration-300 shadow-xl hover:-translate-y-1 flex items-center justify-center gap-3 hover:border-white/20"
+                  >
+                    <Ticket className="w-5 h-5" />
+                    Entry Pass
+                  </Link>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div ref={scrollHintRef} className="absolute bottom-12 left-0 right-0 z-20 flex justify-center pointer-events-none drop-shadow-2xl">
-        <ScrollHint />
-      </div>
+        <div ref={scrollHintRef} className="absolute bottom-12 left-0 right-0 z-20 flex justify-center pointer-events-none drop-shadow-2xl">
+          <ScrollHint />
+        </div>
 
-    </section>
+      </section>
+    </div>
   );
 };
 

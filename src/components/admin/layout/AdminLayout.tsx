@@ -15,7 +15,7 @@ import { HealthBadge } from '../HealthBadge';
 import { BRAND_NAME_WITH_YEAR } from '../../../constants/brand';
 import { CommandPalette } from './CommandPalette';
 
-export type TabType = 'overview' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
+export type TabType = 'overview' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
 
 interface AdminLayoutProps {
   user: any;
@@ -240,6 +240,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           <div className="p-6 border-t border-white/5 bg-white/[0.01] space-y-4">
              <div className="flex items-center gap-3">
                 <button 
+                  onMouseEnter={() => { try { import('../../../pages/Home'); } catch {} }}
                   onClick={onNavigateHome}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-white/10 transition-all duration-300 text-xs font-black text-gray-400 hover:text-white group shadow-sm"
                 >

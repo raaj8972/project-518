@@ -24,8 +24,16 @@ const generateId = () => {
 };
 
 // Tables that should bypass Firestore (Primary & Only on Supabase)
-const SUPABASE_ONLY_TABLES = ['annual_sports_events', 'annual_sports_registrations'];
-
+const SUPABASE_ONLY_TABLES = [
+  'annual_sports_events', 
+  'annual_sports_registrations',
+  'sports_seasons',
+  'sports_teams',
+  'sports_players',
+  'sports_registrations',
+  'sports_matches',
+  'annual_sports_matches'
+];
 // ═══════════════════════════════════════════════════
 // READ — Firestore only
 // ═══════════════════════════════════════════════════
@@ -122,8 +130,22 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 
 
 export async function dualInsert(table: string, data: any) {
   try {
-    const id = data.id || generateId();
     const now = new Date().toISOString();
+    
+    if (SUPABASE_ONLY_TABLES.includes(table)) {
+      // Let Supabase handle ID generation if not provided
+      const record = {
+        ...data,
+        updated_at: now,
+        created_at: data.created_at || now
+      };
+      
+      const { data: supaData, error } = await supabase.from(table).insert(record).select();
+      if (error) throw new Error(error.message);
+      return supaData;
+    }
+
+    const id = data.id || generateId();
     
     const record = { 
       ...data, 
@@ -131,12 +153,6 @@ export async function dualInsert(table: string, data: any) {
       created_at: data.created_at || now,
       updated_at: now 
     };
-
-    if (SUPABASE_ONLY_TABLES.includes(table)) {
-      const { data: supaData, error } = await supabase.from(table).insert(record).select();
-      if (error) throw new Error(error.message);
-      return supaData;
-    }
 
     const docRef = doc(db, table, String(id));
 
@@ -152,6 +168,11 @@ export async function dualInsert(table: string, data: any) {
     await Promise.all([firestorePromise, supabasePromise]);
     return [record];
   } catch (err: any) {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal) {
+        console.warn(`[Db] dualInsert: Swallowing error for local offline testing:`, err.message);
+        return [data]; 
+    }
     console.error(`[Db] dualInsert FAILED for ${table}:`, err.message, { data });
     throw err;
   }
@@ -182,6 +203,11 @@ export async function dualUpdate(table: string, id: number | string, patch: any)
     await Promise.all([firestorePromise, supabasePromise]);
     return [{ id }];
   } catch (err: any) {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal) {
+        console.warn(`[Db] dualUpdate: Swallowing error for local offline testing:`, err.message);
+        return [{ id }];
+    }
     console.error(`[Db] dualUpdate FAILED for ${table}/${id}:`, err.message, { patch });
     throw err;
   }
@@ -253,6 +279,11 @@ export async function dualDelete(table: string, id: number | string) {
     });
     await Promise.all([firestorePromise, supabasePromise]);
   } catch (err: any) {
+    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocal) {
+        console.warn(`[Db] dualDelete: Swallowing error for local offline testing:`, err.message);
+        return;
+    }
     console.error(`[Db] dualDelete FAILED for ${table}/${id}:`, err.message);
     throw err;
   }

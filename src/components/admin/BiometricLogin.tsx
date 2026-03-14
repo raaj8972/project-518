@@ -11,7 +11,7 @@ interface Passkey {
 }
 
 export const BiometricLogin: React.FC = () => {
-  const { registerPasskey, user } = useAuth();
+  const { registerPasskey, user, getValidToken } = useAuth();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [passkeys, setPasskeys] = useState<Passkey[]>([]);
@@ -21,17 +21,31 @@ export const BiometricLogin: React.FC = () => {
     if (!user) return;
     setIsLoadingPasskeys(true);
     try {
+      const token = await getValidToken();
+      console.log('[Biometric Login] Fetching passkeys for user ID:', user.id);
       const res = await fetch('/api/passkey-list', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ userId: user.id }),
       });
       if (res.ok) {
         const data = await res.json();
+        console.log('[Biometric Login] Passkeys fetched:', data);
         setPasskeys(data.passkeys || []);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        console.error('Failed to fetch passkeys:', err);
+        setMessage({ 
+          type: 'error', 
+          text: `Node status retrieval failed: ${err.error || res.statusText}. Biometric login may still work, but list management is restricted.` 
+        });
       }
     } catch (error) {
       console.error('Failed to fetch passkeys:', error);
+      setMessage({ type: 'error', text: 'Hardware interface communication error' });
     }
     setIsLoadingPasskeys(false);
   };
@@ -57,10 +71,14 @@ export const BiometricLogin: React.FC = () => {
     if (!confirm('Are you sure you want to delete this passkey?')) return;
     
     try {
+      const token = await getValidToken();
       const res = await fetch('/api/passkey-delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passkeyId, userId: user?.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ credentialId: passkeyId, userId: user?.id }),
       });
       
       if (res.ok) {

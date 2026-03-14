@@ -96,6 +96,32 @@ export const SUPABASE_HOST = (() => {
   try { return new URL(supabaseUrl).host } catch { return 'invalid-url' }
 })()
 
+/**
+ * Checks if the current environment and configuration likely support Supabase Realtime (WebSockets).
+ * This helps avoid "Insecure Operation" errors in browsers when a secure page tries to connect to an insecure WS.
+ */
+export const isRealtimeSupported = () => {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    const pageProtocol = window.location.protocol; // https: or http:
+    const supabaseProtocol = new URL(supabaseUrl).protocol; // https: or http:
+    
+    // If page is HTTPS, Supabase must be HTTPS to avoid "Insecure Operation" (Mixed Content)
+    if (pageProtocol === 'https:' && supabaseProtocol !== 'https:') {
+      return false;
+    }
+    
+    // Check if WebSocket is globally available
+    if (typeof WebSocket === 'undefined') return false;
+    
+    return realtimeEnabled;
+  } catch {
+    return false;
+  }
+};
+
+
 // Database types
 export interface Database {
   public: {
