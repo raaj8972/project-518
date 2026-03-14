@@ -21,29 +21,18 @@ if (!admin.apps.length) {
       }
     }
 
-    // Fallback: Check for local file if env var is missing or invalid
-    if (!serviceAccount) {
-      try {
-        const localFilePath = path.join(process.cwd(), 'firebase-service-account.json');
-        if (fs.existsSync(localFilePath)) {
-          serviceAccount = JSON.parse(fs.readFileSync(localFilePath, 'utf8'));
-          console.log('[Auth Verify] Loaded service account from local file');
-        }
-      } catch (e) {
-        // Silent fail for file fallback
-      }
-    }
+    // Fallback logic for local file removed to satisfy security scanners
 
     if (serviceAccount) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID || serviceAccount.project_id || 'rico-backend'
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID || serviceAccount.project_id
       });
       isFirebaseAdminPrivileged = true;
       console.log('[Auth Verify] Firebase Admin initialized with full privileges');
     } else {
       admin.initializeApp({
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'rico-backend'
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID
       });
       console.log('[Auth Verify] Firebase Admin initialized with limited privileges (No service account)');
     }
@@ -137,9 +126,8 @@ export async function verifyAdmin(authHeader: string | undefined, supabase: any)
     }
   }
 
-  const isHardcoded = user.email?.toLowerCase() === 'raja@rico.fun' || user.email?.toLowerCase() === 'raaj@rico.fun';
-  const isAdmin = isHardcoded || adminUser?.role === 'owner' || adminUser?.role === 'admin' || adminUser?.is_primary;
-  const isOwner = isHardcoded || adminUser?.role === 'owner' || adminUser?.is_primary;
+  const isAdmin = adminUser?.role === 'owner' || adminUser?.role === 'admin' || adminUser?.is_primary;
+  const isOwner = adminUser?.role === 'owner' || adminUser?.is_primary;
 
   return { isAdmin, isOwner, user };
 }

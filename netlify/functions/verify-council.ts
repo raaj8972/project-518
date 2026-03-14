@@ -1,8 +1,8 @@
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded Firebase Project ID
-const FIREBASE_PROJECT_ID = 'rico-backend';
+// Firebase project ID should be provided via environment variables
+const FIREBASE_PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID;
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
@@ -78,7 +78,12 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     }
 
     const email = 'sports.council@rico.family';
-    const password = process.env.COUNCIL_SECRET_PASSWORD || 'R1c0_Sp0rt5_C0unc1l_H1dd3n_P@ssw0rd!';
+    const password = process.env.COUNCIL_SECRET_PASSWORD;
+    
+    if (!password) {
+      console.error('[Verify] ❌ Error: COUNCIL_SECRET_PASSWORD is not set in environment');
+      return { statusCode: 500, body: JSON.stringify({ error: 'System configuration error' }) };
+    }
     
     console.log(`[Verify] Success. Returning credentials for: ${email}`);
     

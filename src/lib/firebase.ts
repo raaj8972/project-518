@@ -10,12 +10,12 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, se
 
 const FIREBASE_CONFIG = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'rico-backend.firebaseapp.com',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://rico-backend-default-rtdb.firebaseio.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'rico-backend',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'rico-backend.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '428903413824',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:428903413824:web:f05d8069ba0484487e87a5',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
 const app = initializeApp(FIREBASE_CONFIG);
@@ -36,7 +36,7 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 /** Sign in with Google — uses redirect flow for cleaner domain visibility and better mobile compatibility */
 export async function signInWithGoogle() {
   try {
-    // We strictly use redirect now to avoid the untrusted "rico-backend.firebaseapp.com" popup header
+    // We strictly use redirect now to avoid untrusted firebaseapp.com popup headers
     await signInWithRedirect(firebaseAuth, googleProvider);
     return null; // The result will be handled by getRedirectResult on page reload
   } catch (err: any) {
