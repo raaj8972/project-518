@@ -53,8 +53,16 @@ interface SportsContextType {
 
 const SportsContext = createContext<SportsContextType | undefined>(undefined);
 
+// [DEDUPE] Use window bridge for singleton Context
+if (typeof window !== 'undefined') {
+  if (!(window as any).__SPORTS_CONTEXT__) {
+    (window as any).__SPORTS_CONTEXT__ = SportsContext;
+  }
+}
+
 export const useSportsData = () => {
-  const context = useContext(SportsContext);
+  const primaryContext = (typeof window !== 'undefined' ? (window as any).__SPORTS_CONTEXT__ : null) as React.Context<SportsContextType | undefined> || SportsContext;
+  const context = useContext(primaryContext);
   if (context === undefined) {
     throw new Error('useSportsData must be used within a SportsProvider');
   }

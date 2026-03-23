@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useData } from '../../context/DataContext';
-import { useAuth } from '../../context/AuthContext';
+import { useEventsData } from '../../context/EventsContext';
 import { Lock, Save, Eye, EyeOff, Wand2, Search, Filter, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useToast } from '../ToastProvider';
 import { AICoordinatorScanner } from './coordinator/AICoordinatorScanner';
@@ -12,11 +12,12 @@ interface ExtractedPasswordData {
 }
 
 export const CoordinatorPasswordManagement: React.FC = () => {
-  const { events, updateEvent, adminUsers } = useData() as any;
-  const { user } = useAuth();
+  const { events, updateEvent, isOwner: checkIsOwner } = useData() as any;
+  const { eventCoordinators } = useEventsData();
   const { push } = useToast();
   
-  const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
+  const isOwner = checkIsOwner();
+
   const [stagedPasswords, setStagedPasswords] = useState<{ [key: number]: string }>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
@@ -25,16 +26,7 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  // Check if user is owner
-  const isOwner = useMemo(() => {
-    try {
-      const uid = user?.id;
-      if (!uid || !Array.isArray(adminUsers)) return false;
-      return !!adminUsers.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.is_primary));
-    } catch {
-      return false;
-    }
-  }, [user, adminUsers]);
+  const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
 
   const categories = useMemo(() => {
     if (!events) return [];
@@ -42,15 +34,24 @@ export const CoordinatorPasswordManagement: React.FC = () => {
     return Array.from(cats) as string[];
   }, [events]);
 
+  // Get coordinators for a specific event from the normalized table
+  const getCoordinatorsForEvent = (eventId: number) =>
+    eventCoordinators.filter((c: any) => c.event_id === eventId);
+
   const filteredEvents = useMemo(() => {
     if (!events) return [];
     return events.filter((event: any) => {
-      const matchesSearch = event.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            event.coordinator_name?.toLowerCase().includes(searchQuery.toLowerCase());
+      const coordNames = eventCoordinators
+        .filter((c: any) => c.event_id === event.id)
+        .map((c: any) => c.name?.toLowerCase())
+        .join(' ');
+      const matchesSearch =
+        event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        coordNames.includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategory === 'all' || event.category === filterCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [events, searchQuery, filterCategory]);
+  }, [events, eventCoordinators, searchQuery, filterCategory]);
 
   const handlePasswordChange = (eventId: number, value: string) => {
     setStagedPasswords(prev => ({ ...prev, [eventId]: value }));
@@ -231,6 +232,8 @@ export const CoordinatorPasswordManagement: React.FC = () => {
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500/50 group-focus-within:text-emerald-400 transition-colors" />
           <input
             type="text"
+            name="coordinator-event-search"
+            autoComplete="new-password"
             placeholder="Search by event or coordinator name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -300,16 +303,29 @@ export const CoordinatorPasswordManagement: React.FC = () => {
                     </td>
                     
                     <td className="py-4 px-6">
-                      {event.coordinator_name ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-indigo-300 text-xs font-bold uppercase">
-                            {event.coordinator_name.charAt(0)}
+                      {(() => {
+                        const coords = getCoordinatorsForEvent(event.id);
+                        if (coords.length === 0) {
+                          return <span className="text-sm text-white/30 italic">Unassigned</span>;
+                        }
+                        return (
+                          <div className="flex flex-col gap-1.5">
+                            {coords.map((c: any) => (
+                              <div key={c.id} className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center text-indigo-300 text-xs font-bold uppercase shrink-0">
+                                  {c.name?.charAt(0) ?? '?'}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-sm font-medium text-white/80 block truncate">{c.name}</span>
+                                  {c.phone && (
+                                    <span className="text-xs text-white/30 font-mono">{c.phone}</span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <span className="text-sm font-medium text-white/80">{event.coordinator_name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-white/30 italic">Unassigned</span>
-                      )}
+                        );
+                      })()}
                     </td>
                     
                     <td className="py-4 px-6">

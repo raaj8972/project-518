@@ -46,7 +46,7 @@ interface ManagementContextType {
   addAdminUser: (userId: string, email: string, role?: 'owner' | 'admin') => Promise<void>;
   removeAdminUser: (userId: string) => Promise<void>;
   addAdminByEmail: (email: string) => Promise<void>;
-  createAdminAccount: (email: string, password: string, role?: 'owner' | 'admin') => Promise<{ user_id: string; email: string } | null>;
+  createAdminAccount: (email: string, password: string, role?: 'owner' | 'admin', displayName?: string) => Promise<{ user_id: string; email: string } | null>;
   updateAdminEmail: (userId: string, newEmail: string) => Promise<void>;
   listAdminPermissions: () => Promise<any[]>;
   setAdminPermission: (userId: string, flags: any) => Promise<void>;
@@ -55,8 +55,13 @@ interface ManagementContextType {
 
 const ManagementContext = createContext<ManagementContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryManagementContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__MANAGEMENT_CONTEXT__ || ((window as any).__MANAGEMENT_CONTEXT__ = ManagementContext))
+  : ManagementContext) as React.Context<ManagementContextType | undefined>;
+
 export const useManagementData = () => {
-  const context = useContext(ManagementContext);
+  const context = useContext(PrimaryManagementContext);
   if (context === undefined) {
     throw new Error('useManagementData must be used within a ManagementProvider');
   }
@@ -77,16 +82,22 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchManagementData = useCallback(async () => {
     setLoading(true);
+    console.log('[ManagementContext] fetchManagementData started');
+    const start = Date.now();
+
     try {
-      const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes] = await Promise.all([
-        fetchSupabaseBatch<Sponsor>('sponsors'),
-        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }),
-        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }),
-        fetchAllRegistrations(),
-        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }),
-        dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }),
-        dualRead({ table: 'admin_users' }) // Needs permissions join logic eventually
+      const results = await Promise.all([
+        fetchSupabaseBatch<Sponsor>('sponsors').then(r => { console.log('✔ sponsors'); return r; }),
+        fetchSupabaseBatch<SponsorshipPackage>('sponsorship_packages', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ sponsorship_packages'); return r; }),
+        dualRead({ table: 'sponsorship_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ sponsorship_settings'); return r; }),
+        fetchAllRegistrations().then(r => { console.log('✔ registrations'); return r; }),
+        dualRead({ table: 'auditions', order: ['created_at', { ascending: false }] }).then(r => { console.log('✔ auditions'); return r; }),
+        dualRead({ table: 'memberships', order: ['created_at', { ascending: false }] }).then(r => { console.log('✔ memberships'); return r; }),
+        dualRead({ table: 'admin_users' }).then(r => { console.log('✔ admin_users'); return r; }),
+        AdminService.getAllAdmins().then(r => { console.log('✔ full_admins'); return r; })
       ]);
+
+      const [sponsorsRes, packagesRes, settingsRes, registrationsRes, auditionsRes, membershipsRes, adminRes, fullAdmins] = results;
 
       if (sponsorsRes.data) setSponsors(sponsorsRes.data || []);
       if (packagesRes.data) setSponsorshipPackages(packagesRes.data || []);
@@ -94,15 +105,14 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       if (registrationsRes.data) setRegistrations(registrationsRes.data || []);
       if (auditionsRes.data) setAuditions(auditionsRes.data || []);
       if (membershipsRes.data) setMemberships(membershipsRes.data || []);
-      if (adminRes.data) {
-        // Fetch full admin list with joined permissions using AdminService
-        const fullAdmins = await AdminService.getAllAdmins();
-        console.log('[ManagementContext] Fetched full admin users with perms:', fullAdmins);
+      
+      if (fullAdmins && Array.isArray(fullAdmins)) {
         setAdminUsers(fullAdmins);
-      } else {
-        console.warn('[ManagementContext] Admin users data unavailable from primary source');
+      } else if (adminRes.data) {
+        setAdminUsers(adminRes.data);
       }
 
+      console.log(`[ManagementContext] Data fetched in ${Date.now() - start}ms`);
     } catch (err) {
       console.error('[ManagementContext] Failed to fetch management data:', err);
     } finally {
@@ -196,7 +206,8 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const removeAdminUser = async (userId: string) => {
-    await AdminService.removeAdmin(userId);
+    const token = await getValidToken();
+    await AdminService.removeAdmin(userId, token || undefined);
     await fetchManagementData();
   };
 
@@ -209,9 +220,16 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     await fetchManagementData();
   };
 
-  const createAdminAccount = async (email: string, password: string, role: 'owner' | 'admin' = 'admin') => {
+  const createAdminAccount = async (email: string, password: string, role: 'owner' | 'admin' = 'admin', displayName?: string) => {
     try {
-      const result = await AdminService.createPrimeAdmin(email, password, role);
+      const token = await getValidToken();
+      const isMasterBypass = user?.id === 'master-admin-bypass' || (user as any)?.master_bypass;
+      
+      if (!token && !isMasterBypass) {
+        throw new Error('Authentication required to create admin accounts');
+      }
+      
+      const result = await AdminService.createPrimeAdmin(email, password, role, {}, token || '', displayName);
       await fetchManagementData();
       return { user_id: result.user_id, email: result.email };
     } catch (err: any) {
@@ -249,9 +267,11 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateAdminRole = async (userId: string, role: 'owner' | 'admin') => {
-    await AdminService.updateRole(userId, role);
+    const token = await getValidToken();
+    await AdminService.updateRole(userId, role, token || '');
     await fetchManagementData();
   };
+
 
   const value: ManagementContextType = {
     sponsors,
@@ -287,5 +307,5 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     updateAdminRole
   };
 
-  return <ManagementContext.Provider value={value}>{children}</ManagementContext.Provider>;
+  return <PrimaryManagementContext.Provider value={value}>{children}</PrimaryManagementContext.Provider>;
 };

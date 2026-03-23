@@ -1,5 +1,5 @@
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
+import { dualRead, dualUpsert } from '../lib/dualDb';
 
 export type BackgroundType = 'image' | 'video' | 'auto';
 
@@ -49,16 +49,15 @@ export const heroMediaService = {
    * If no configuration exists, it returns a default configuration.
    */
   async getHeroMedia(pageKey: string): Promise<HeroMediaV2> {
-    if (!db) {
-      console.warn(`[HeroMedia] Firestore not initialized, returning default media for ${pageKey}`);
-      return DEFAULT_HERO_MEDIA;
-    }
     try {
-      const docRef = doc(db, COLLECTION_NAME, pageKey);
-      const snapshot = await getDoc(docRef);
+      const { data } = await dualRead({ 
+        table: COLLECTION_NAME, 
+        eq: ['id', pageKey], 
+        maybeSingle: true 
+      });
       
-      if (snapshot.exists()) {
-        return { ...DEFAULT_HERO_MEDIA, ...snapshot.data() } as HeroMediaV2;
+      if (data) {
+        return { ...DEFAULT_HERO_MEDIA, ...data } as HeroMediaV2;
       }
       
       return DEFAULT_HERO_MEDIA;
@@ -72,34 +71,46 @@ export const heroMediaService = {
    * Subscribes to real-time updates for hero media configuration.
    */
   subscribeHeroMedia(pageKey: string, callback: (data: HeroMediaV2) => void): () => void {
-    if (!db) {
-      console.warn(`[HeroMedia] Firestore not initialized, subscriptions disabled for ${pageKey}`);
-      callback(DEFAULT_HERO_MEDIA);
-      return () => {};
-    }
-    const docRef = doc(db, COLLECTION_NAME, pageKey);
-    return onSnapshot(docRef, (snapshot) => {
-      if (snapshot.exists()) {
-        callback({ ...DEFAULT_HERO_MEDIA, ...snapshot.data() } as HeroMediaV2);
-      } else {
-        callback(DEFAULT_HERO_MEDIA);
-      }
-    }, (error) => {
-      console.error(`Error subscribing to hero media for page ${pageKey}:`, error);
-    });
+    const channelName = `hero_media:${pageKey}`;
+    
+    // Initial fetch to ensure up-to-date data
+    this.getHeroMedia(pageKey).then(callback);
+
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: COLLECTION_NAME,
+          filter: `id=eq.${pageKey}`
+        },
+        async (payload) => {
+          if (payload.new) {
+            callback({ ...DEFAULT_HERO_MEDIA, ...(payload.new as any) } as HeroMediaV2);
+          } else if (payload.eventType === 'DELETE') {
+            callback(DEFAULT_HERO_MEDIA);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   },
 
   /**
    * Saves the hero media configuration for a specific page.
    */
   async saveHeroMedia(pageKey: string, data: Partial<HeroMediaV2>): Promise<void> {
-    if (!db) {
-      console.error(`[HeroMedia] Firestore not initialized, cannot save media for ${pageKey}`);
-      throw new Error('Database not initialized');
-    }
     try {
-      const docRef = doc(db, COLLECTION_NAME, pageKey);
-      await setDoc(docRef, data, { merge: true });
+      await dualUpsert(COLLECTION_NAME, {
+        ...data,
+        id: pageKey,
+        updated_at: new Date().toISOString()
+      });
     } catch (error) {
       console.error(`Error saving hero media for page ${pageKey}:`, error);
       throw new Error('Failed to save hero media configuration.');

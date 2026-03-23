@@ -16,6 +16,13 @@ type SavingProgressContextType = {
 
 const SavingProgressContext = createContext<SavingProgressContextType | null>(null);
 
+// [DEDUPE] Use window bridge for singleton Context
+if (typeof window !== 'undefined') {
+  if (!(window as any).__SAVING_PROGRESS_CONTEXT__) {
+    (window as any).__SAVING_PROGRESS_CONTEXT__ = SavingProgressContext;
+  }
+}
+
 export const SavingProgressProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
   const [isActive, setIsActive] = useState(false);
   const [percent, setPercent] = useState(0);
@@ -82,7 +89,8 @@ export const SavingProgressProvider: React.FC<React.PropsWithChildren<{}>> = ({ 
 };
 
 export const useSavingProgress = () => {
-  const ctx = useContext(SavingProgressContext);
+  const primaryContext = (typeof window !== 'undefined' ? (window as any).__SAVING_PROGRESS_CONTEXT__ : null) as React.Context<SavingProgressContextType | null> || SavingProgressContext;
+  const ctx = useContext(primaryContext);
   if (!ctx) throw new Error('useSavingProgress must be used within SavingProgressProvider');
   return ctx;
 };

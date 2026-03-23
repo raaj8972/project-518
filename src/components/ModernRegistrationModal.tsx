@@ -15,7 +15,7 @@ import {
   Users
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useStudentAuth } from '../context/StudentAuthContext';
 import { useAnnualSports } from '../context/AnnualSportsContext';
 import { useSportsData } from '../context/SportsContext';
 import { useData } from '../context/DataContext';
@@ -81,7 +81,7 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
   targetData,
   config
 }) => {
-  const { user } = useAuth();
+  const { user, profile } = useStudentAuth();
   const { addAnnualRegistration } = useAnnualSports();
   const { addSportsRegistration } = useSportsData();
   const { siteSettings } = useData() as any;
@@ -93,20 +93,23 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
   
   // Form State
   const [formData, setFormData] = useState({
-    fullName: user?.user_metadata?.full_name || '',
+    fullName: profile?.full_name || '',
     email: user?.email || '',
-    phone: '',
+    phone: profile?.phone || '',
     whatsapp: '',
-    college: '',
+    college: profile?.college || '',
     department: '',
-    year: '',
+    year: profile?.batch || '',
     rollNo: '',
     participantType: 'Student',
     role: 'Player',
-    photoUrl: user?.user_metadata?.avatar_url || '',
+    photoUrl: profile?.avatar_url || '',
     customFields: {} as Record<string, string>,
     isTeam: false,
+    isJoinTeam: false,
     teamName: '',
+    teamCode: '',
+    teamId: '' as string | null,
     teamMembers: [] as string[]
   });
 
@@ -119,14 +122,19 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
       gsap.fromTo(modalRef.current, 
         { opacity: 0, scale: 0.95, backdropFilter: 'blur(0px)' },
         { opacity: 1, scale: 1, backdropFilter: 'blur(24px)', duration: 0.4, ease: 'power2.out' }
       );
     } else {
       document.body.style.overflow = 'unset';
+      document.body.classList.remove('modal-open');
     }
-    return () => { document.body.style.overflow = 'unset'; };
+    return () => { 
+      document.body.style.overflow = 'unset';
+      document.body.classList.remove('modal-open');
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -148,10 +156,10 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
       const response = await fetch(compressed);
       const blob = await response.blob();
       
-      const fileName = `${Date.now()}-${user?.id || 'anon-' + Math.random().toString(36).substring(2, 9)}.webp`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('registration-photos')
-        .upload(fileName, blob, { contentType: 'image/webp', upsert: false });
+    const fileName = `${Date.now()}-${user?.id || 'anon-' + Math.random().toString(36).substring(2, 9)}.webp`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('registration-photos')
+      .upload(fileName, blob, { contentType: 'image/webp', upsert: false });
 
       if (uploadError) throw uploadError;
 
@@ -189,8 +197,11 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
           newErrors[field.name] = `${field.label} is required`;
         }
       });
-      if (formData.isTeam && !formData.teamName.trim()) {
+      if (formData.isTeam && !formData.isJoinTeam && !formData.teamName.trim()) {
         newErrors.teamName = 'Team Name is required';
+      }
+      if (formData.isTeam && formData.isJoinTeam && !formData.teamCode.trim()) {
+        newErrors.teamCode = 'Team Code is required';
       }
     }
     setErrors(newErrors);
@@ -222,6 +233,39 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
 
     setIsSubmitting(true);
     try {
+      let finalTeamId = formData.teamId;
+
+      if (formData.isTeam && !formData.isJoinTeam) {
+        // Create New Team
+        const teamCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const { data: teamData, error: teamError } = await supabase
+          .from('teams')
+          .insert({
+            name: formData.teamName,
+            code: teamCode,
+            event_id: targetId,
+            created_by: user?.id
+          })
+          .select()
+          .single();
+
+        if (teamError) throw teamError;
+        finalTeamId = teamData.id;
+        toast.success(`Team created! Code: ${teamCode}`);
+      } else if (formData.isTeam && formData.isJoinTeam) {
+        // Join Existing Team
+        const { data: teamData, error: teamError } = await supabase
+          .from('teams')
+          .select('id')
+          .eq('code', formData.teamCode.trim().toUpperCase())
+          .eq('event_id', targetId)
+          .single();
+
+        if (teamError || !teamData) {
+          throw new Error('Invalid Team Code or Team does not exist for this event');
+        }
+        finalTeamId = teamData.id;
+      }
       if (type === 'annual') {
         const registrationData: Partial<AnnualSportsRegistration> = {
           event_id: targetId,
@@ -234,13 +278,17 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
           roll_no: formData.rollNo,
           participant_type: formData.participantType,
           photo_url: formData.photoUrl,
+          team_id: finalTeamId,
           metadata: {
             ...formData.customFields,
             whatsapp: formData.whatsapp,
             is_team: formData.isTeam,
             team_name: formData.teamName,
+            team_code: formData.teamCode,
             team_members: formData.teamMembers
           },
+          registration_date: new Date().toISOString(),
+          user_id: user?.id,
           status: 'pending' as const
         };
         await addAnnualRegistration(registrationData as AnnualSportsRegistration);
@@ -260,6 +308,7 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
             department: formData.department,
             roll_no: formData.rollNo
           },
+          user_id: user?.id,
           status: 'pending' as const
         };
         await addSportsRegistration(legacyData); 
@@ -596,15 +645,43 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
                       </div>
                       
                       {formData.isTeam && (
-                        <div className="space-y-3 pt-2">
-                          <input 
-                            type="text" 
-                            placeholder="Team Name"
-                            value={formData.teamName}
-                            onChange={(ev) => setFormData(prev => ({ ...prev, teamName: ev.target.value }))}
-                            className={`w-full bg-white/5 border rounded-xl py-2 px-4 text-white text-sm focus:outline-none focus:border-gold-500/50 ${errors.teamName ? 'border-rose-500/50' : 'border-white/10'}`}
-                          />
+                        <div className="space-y-4 pt-2">
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setFormData(p => ({ ...p, isJoinTeam: false }))}
+                              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-xl border transition-all ${!formData.isJoinTeam ? 'bg-gold-500 border-gold-500 text-black' : 'bg-white/5 border-white/10 text-white/40'}`}
+                            >
+                              Create Team
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData(p => ({ ...p, isJoinTeam: true }))}
+                              className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-xl border transition-all ${formData.isJoinTeam ? 'bg-gold-500 border-gold-500 text-black' : 'bg-white/5 border-white/10 text-white/40'}`}
+                            >
+                              Join Team
+                            </button>
+                          </div>
+                          
+                          {formData.isJoinTeam ? (
+                            <input 
+                              type="text" 
+                              placeholder="Enter Team Code"
+                              value={formData.teamCode}
+                              onChange={(ev) => setFormData(prev => ({ ...prev, teamCode: ev.target.value.toUpperCase() }))}
+                              className={`w-full bg-white/5 border rounded-xl py-2 px-4 text-white text-sm focus:outline-none focus:border-gold-500/50 ${errors.teamCode ? 'border-rose-500/50' : 'border-white/10'}`}
+                            />
+                          ) : (
+                            <input 
+                              type="text" 
+                              placeholder="Team Name"
+                              value={formData.teamName}
+                              onChange={(ev) => setFormData(prev => ({ ...prev, teamName: ev.target.value }))}
+                              className={`w-full bg-white/5 border rounded-xl py-2 px-4 text-white text-sm focus:outline-none focus:border-gold-500/50 ${errors.teamName ? 'border-rose-500/50' : 'border-white/10'}`}
+                            />
+                          )}
                           {errors.teamName && <p className="text-[10px] text-rose-500/80 ml-1 font-medium">{errors.teamName}</p>}
+                          {errors.teamCode && <p className="text-[10px] text-rose-500/80 ml-1 font-medium">{errors.teamCode}</p>}
                         </div>
                       )}
                     </div>
@@ -631,28 +708,28 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
 
                   <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-sm">
                     <div>
-                      <span className="text-white/30 text-[10px] uppercase block mb-1">Activity</span>
+                      <span className="text-white/60 text-[10px] uppercase block mb-1">Activity</span>
                       <span className="text-white">{targetTitle}</span>
                     </div>
                     <div>
-                      <span className="text-white/30 text-[10px] uppercase block mb-1">Roll No</span>
+                      <span className="text-white/60 text-[10px] uppercase block mb-1">Roll No</span>
                       <span className="text-white">{formData.rollNo || 'N/A'}</span>
                     </div>
                     <div>
-                      <span className="text-white/30 text-[10px] uppercase block mb-1">Dept / Year</span>
+                      <span className="text-white/60 text-[10px] uppercase block mb-1">Dept / Year</span>
                       <span className="text-white">{formData.department} ({formData.year})</span>
                     </div>
                     <div>
-                      <span className="text-white/30 text-[10px] uppercase block mb-1">Phone</span>
+                      <span className="text-white/60 text-[10px] uppercase block mb-1">Phone</span>
                       <span className="text-white">{formData.phone || 'N/A'}</span>
                     </div>
                     <div className="col-span-2">
-                      <span className="text-white/30 text-[10px] uppercase block mb-1">College</span>
+                      <span className="text-white/60 text-[10px] uppercase block mb-1">College</span>
                       <span className="text-white truncate block">{formData.college || 'N/A'}</span>
                     </div>
                     {formData.isTeam && (
                       <div className="col-span-2">
-                        <span className="text-white/30 text-[10px] uppercase block mb-1">Team Details</span>
+                        <span className="text-white/60 text-[10px] uppercase block mb-1">Team Details</span>
                         <span className="text-gold-400 font-medium">Team: {formData.teamName}</span>
                       </div>
                     )}

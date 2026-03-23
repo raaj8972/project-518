@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, AlignJustify as Spotify, Music2, Award, Users } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Plus, Edit, Trash2, Save, X, Music, Star, Eye, EyeOff, Instagram, Youtube, AlignJustify as Spotify, Music2, Award, Users, Wand2 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { BandMember } from '../../types/data';
@@ -9,7 +10,6 @@ import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { InlineDescriptionAI } from './InlineDescriptionAI';
 import { AIHomeBoundImport } from './homebound/AIHomeBoundImport';
-import { Wand2 } from 'lucide-react';
 
 // ─── Style tokens ─────────────────────────────
 const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.5 px-3.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 focus:bg-white/[0.06] transition-all';
@@ -328,17 +328,13 @@ export const BandManagement: React.FC = () => {
 
       {/* AI Bulk Import Modal */}
       {isBulkImporting && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="w-full max-w-6xl animate-in zoom-in-95 duration-300">
-            <AIHomeBoundImport 
-              onCancel={() => setIsBulkImporting(false)} 
-              onSaved={() => {
-                setIsBulkImporting(false);
-                window.location.reload(); // Refresh to show new members
-              }} 
-            />
-          </div>
-        </div>
+        <AIHomeBoundImport 
+          onCancel={() => setIsBulkImporting(false)} 
+          onSaved={() => {
+            setIsBulkImporting(false);
+            window.location.reload(); // Refresh to show new members
+          }} 
+        />
       )}
 
       {/* ═══ Stats Bar ═══ */}
@@ -436,9 +432,39 @@ export const BandManagement: React.FC = () => {
                   {/* Social icons */}
                   {member.social_links && Object.values(member.social_links).some((link: any) => link) && (
                     <div className="flex gap-2">
-                      {member.social_links.instagram && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Instagram size={12} className="text-pink-400" /></div>}
-                      {member.social_links.youtube && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Youtube size={12} className="text-red-400" /></div>}
-                      {member.social_links.spotify && <div className="w-7 h-7 rounded-lg bg-white/[0.03] border border-white/5 flex items-center justify-center"><Spotify size={12} className="text-emerald-400" /></div>}
+                      {member.social_links.instagram && (
+                        <a 
+                          href={member.social_links.instagram.startsWith('http') ? member.social_links.instagram : `https://instagram.com/${member.social_links.instagram.replace('@', '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center hover:bg-pink-500/20 hover:scale-110 active:scale-95 transition-all"
+                          title="View Instagram Profile"
+                        >
+                          <Instagram size={12} className="text-pink-400" />
+                        </a>
+                      )}
+                      {member.social_links.youtube && (
+                        <a 
+                          href={member.social_links.youtube.startsWith('http') ? member.social_links.youtube : `https://youtube.com/${member.social_links.youtube}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 hover:scale-110 active:scale-95 transition-all"
+                          title="View YouTube Channel"
+                        >
+                          <Youtube size={12} className="text-red-400" />
+                        </a>
+                      )}
+                      {member.social_links.spotify && (
+                        <a 
+                          href={member.social_links.spotify.startsWith('http') ? member.social_links.spotify : `https://open.spotify.com/artist/${member.social_links.spotify}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center hover:bg-emerald-500/20 hover:scale-110 active:scale-95 transition-all"
+                          title="View Spotify Profile"
+                        >
+                          <Spotify size={12} className="text-emerald-400" />
+                        </a>
+                      )}
                     </div>
                   )}
                   

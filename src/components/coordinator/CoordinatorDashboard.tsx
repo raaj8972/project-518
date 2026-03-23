@@ -4,8 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
+import { AnnouncementsPanel } from '../shared/AnnouncementsPanel';
+import { ChatPanel } from '../shared/ChatPanel';
+import { sanitizeUrl } from '../../utils/dataUtils';
 
 // WhatsApp Logo SVG Component
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -47,6 +50,8 @@ export const CoordinatorDashboard: React.FC = () => {
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [isTogglingReg, setIsTogglingReg] = useState(false);
+  const [activeSection, setActiveSection] = useState<'participants' | 'chat' | 'announcements' | 'settings'>('participants');
+  const [selectedBatch, setSelectedBatch] = useState<string>('all');
 
   // Load session and fetch data (with offline-first caching)
   const fetchData = useCallback(async (sessionData: any, mounted: { current: boolean }) => {
@@ -69,11 +74,18 @@ export const CoordinatorDashboard: React.FC = () => {
         dualRead({
           table: 'event_coordinators',
           eq: ['event_id', sessionData.eventId],
-          order: ['order_position', { ascending: true }]
+          // Temporarily removed order_position to avoid 400 error if column is missing
+          // order: ['order_position', { ascending: true }]
+        }).catch(err => {
+          console.error('Coord fetch failed:', err);
+          return { data: [], source: 'error' };
         }),
         dualRead({
           table: 'registrations',
           eq: ['event_id', sessionData.eventId]
+        }).catch(err => {
+          console.error('Regs fetch failed:', err);
+          return { data: [], source: 'error' };
         }),
       ]);
 
@@ -91,6 +103,7 @@ export const CoordinatorDashboard: React.FC = () => {
           full_name: r.full_name,
           phone: r.phone,
           college: r.college || r.institution,
+          batch: r.participant_type || r.batch || '',
           status: r.status,
           created_at: r.created_at
         }));
@@ -362,7 +375,7 @@ export const CoordinatorDashboard: React.FC = () => {
   }, [session, registrationOpen, isTogglingReg, push, updateEvent]);
 
   // Process registrations stats & filters
-  const { filteredRegs, approvedCount, pendingCount, rejectedCount } = useMemo(() => {
+  const stats = useMemo(() => {
     const approved = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved');
     const pending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'pending');
     const rejected = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'rejected');
@@ -371,6 +384,11 @@ export const CoordinatorDashboard: React.FC = () => {
     if (activeTab === 'approved') baseList = approved;
     else if (activeTab === 'pending') baseList = pending;
     else baseList = rejected;
+
+    // Apply batch filter
+    if (selectedBatch !== 'all') {
+      baseList = baseList.filter(reg => (reg.batch || '').toLowerCase() === selectedBatch.toLowerCase());
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -386,11 +404,21 @@ export const CoordinatorDashboard: React.FC = () => {
       filteredRegs: baseList.sort((a: any, b: any) => a.full_name?.localeCompare(b.full_name)),
       approvedCount: approved.length,
       pendingCount: pending.length,
-      rejectedCount: rejected.length
+      rejectedCount: rejected.length,
+      batchOptions: Array.from(new Set(rpcRegistrations.map((r: any) => r.batch).filter(Boolean))).sort()
     };
-  }, [rpcRegistrations, activeTab, searchQuery]);
+  }, [rpcRegistrations, activeTab, searchQuery, selectedBatch]);
+
+  const { filteredRegs, approvedCount, pendingCount, rejectedCount, batchOptions } = stats;
 
   const handleExportPDF = () => {
+    if (registrationOpen === true) {
+      push({ 
+        message: "🔒 Please close registration before exporting the final participant list.", 
+        type: "info" 
+      });
+      return;
+    }
     if (!filteredRegs.length) {
       push({ message: "No data to export", type: "error" });
       return;
@@ -407,736 +435,649 @@ export const CoordinatorDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col relative text-white selection:bg-purple-500/30">
       {/* Dynamic Event Background */}
-      {eventDetails?.motion_poster_url ? (
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline
-          preload="auto"
+      {eventDetails?.motion_poster_url && eventDetails?.prefer_video ? (
+        <video autoPlay loop muted playsInline preload="auto"
           className="fixed inset-0 z-0 w-full h-full object-cover opacity-60 pointer-events-none"
           style={{ filter: 'blur(4px)' }}
-        >
-          <source src={eventDetails.motion_poster_url} type="video/mp4" />
+          poster={sanitizeUrl(eventDetails.image)}>
+          <source src={sanitizeUrl(eventDetails.motion_poster_url)} type="video/mp4" />
         </video>
-      ) : eventDetails?.poster_url ? (
-        <div 
-          className="fixed inset-0 z-0 opacity-20 pointer-events-none"
-          style={{ 
-            backgroundImage: `url(${eventDetails.poster_url})`, 
-            backgroundSize: 'cover', 
-            backgroundPosition: 'center',
-            filter: 'blur(10px)'
-          }}
+      ) : eventDetails?.image ? (
+        <div className="fixed inset-0 z-0 opacity-20 pointer-events-none"
+          style={{ backgroundImage: `url(${sanitizeUrl(eventDetails.image)})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(10px)' }}
         />
       ) : null}
       <div className="fixed inset-0 z-0 bg-black/40 pointer-events-none" />
 
+      {/* Aurora orbs — only visible when no video background */}
+      {!(eventDetails?.motion_poster_url && eventDetails?.prefer_video) && (
+        <>
+          <div className="fixed top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full pointer-events-none z-0"
+            style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+          <div className="fixed bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full pointer-events-none z-0"
+            style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.12) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full pointer-events-none z-0"
+            style={{ background: 'radial-gradient(ellipse, rgba(99,102,241,0.08) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        </>
+      )}
+
       {welcomeSplash}
-      
-      {/* Header with dynamic theme */}
-      <header className="bg-black/40 backdrop-blur-xl shadow-lg border-b border-white/10 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 sm:px-6 lg:px-8">
-          <div className="flex items-start justify-between gap-3">
-            {/* Left: title + event badge + coordinator chips */}
-            <div className="flex-1 min-w-0">
-              <h1 className="text-base sm:text-xl font-bold text-white tracking-tight">Coordinator Dashboard</h1>
-              <p className="text-xs sm:text-sm font-medium text-purple-400 bg-purple-500/10 inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full mt-1.5 border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)] max-w-full truncate">
-                <Shield className="w-3 h-3 mr-1 flex-shrink-0" />
-                <span className="truncate">{session.eventTitle}</span>
-              </p>
-              {/* Coordinator names */}
-              {eventCoordinators.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                  {eventCoordinators.map((coord, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/80 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full"
-                    >
-                      <span className="w-3.5 h-3.5 rounded-full bg-purple-500/40 flex items-center justify-center text-[9px] font-bold text-purple-200 flex-shrink-0">
-                        {coord.name.charAt(0)}
-                      </span>
-                      <span className="truncate max-w-[100px] sm:max-w-none">{coord.name}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            {/* Right: logout */}
-            <button
-              onClick={handleLogout}
-              className="flex-shrink-0 flex items-center text-sm font-medium text-gray-400 hover:text-white bg-white/5 hover:bg-red-500/20 px-3 py-2 rounded-lg transition-all border border-transparent hover:border-red-500/30"
-              title="Logout"
-            >
-              <LogOut size={16} className="sm:mr-2" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6 relative z-10">
-        {/* WhatsApp Link Section */}
-        <div className="bg-black/40 backdrop-blur-xl rounded-2xl p-4 sm:p-6 border border-white/10 shadow-2xl relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 group-hover:bg-green-500/20 transition-colors duration-700" />
-          <div className="relative">
-            <h3 className="text-xs sm:text-sm font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-              <MessageCircle size={16} className="text-green-500" />
-              Communication Hub
-            </h3>
-            {/* Input + action buttons — all on one row on mobile */}
-            <div className="flex gap-2 items-center">
-              <div className="relative flex-1 min-w-0">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <LinkIcon size={14} className="text-gray-500" />
-                </div>
-                <input
-                  type="url"
-                  value={whatsappLink}
-                  onChange={(e) => setWhatsappLink(e.target.value)}
-                  className="block w-full pl-9 pr-3 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all text-sm"
-                  placeholder="https://chat.whatsapp.com/..."
-                />
-              </div>
-              <button
-                onClick={handleSaveLink}
-                disabled={linkSaving}
-                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 sm:px-5 py-2.5 border border-transparent text-sm font-bold rounded-xl text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(22,163,74,0.3)]"
-              >
-                <Save size={15} />
-                <span className="hidden sm:inline">{linkSaving ? 'Saving...' : 'Save Link'}</span>
-                <span className="sm:hidden">{linkSaving ? '...' : 'Save'}</span>
-              </button>
-              {whatsappLink && (
-                <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 border border-white/10 rounded-xl text-gray-300 bg-white/5 hover:bg-white/10 transition-all"
-                  title="Test Link"
-                >
-                  <ExternalLink size={16} />
-                </a>
-              )}
-            </div>
-            <p className="mt-2 text-xs text-green-400/80 font-medium">
-              This link will be sent to candidates via email upon approval, if they are eligible.
-            </p>
-          </div>
-        </div>
+      {/* ══ MAIN LAYOUT ══ */}
+      <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
 
-        {/* Registration Open/Close Toggle Card */}
-        {registrationOpen !== null && (
-          <div className={`rounded-2xl border shadow-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-            registrationOpen
-              ? 'bg-green-500/10 border-green-500/20'
-              : 'bg-red-500/10 border-red-500/20'
-          }`}>
-            <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${registrationOpen ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                {registrationOpen ? <Unlock className="w-5 h-5 text-green-400" /> : <Lock className="w-5 h-5 text-red-400" />}
+        {/* ─── DESKTOP SIDEBAR ─── */}
+        <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 sticky top-0 h-screen border-r border-white/[0.08] bg-black/30 backdrop-blur-2xl overflow-y-auto">
+          {/* Event identity */}
+          <div className="p-6 border-b border-white/[0.08]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-purple-400" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-black text-white text-sm">Registration Gate</h3>
-                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    registrationOpen ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'
-                  }`}>
-                    {registrationOpen ? 'OPEN' : 'CLOSED'}
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 leading-none">Coordinator Portal</p>
+                <h1 className="text-sm font-black text-white truncate leading-tight mt-0.5">{session.eventTitle}</h1>
+              </div>
+            </div>
+            {eventCoordinators.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {eventCoordinators.map((coord, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/70 bg-white/5 border border-white/10 px-2.5 py-1 rounded-full">
+                    <span className="w-4 h-4 rounded-full bg-purple-500/40 flex items-center justify-center text-[9px] font-black text-purple-200 flex-shrink-0">{coord.name.charAt(0)}</span>
+                    <span className="truncate max-w-[120px]">{coord.name}</span>
                   </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stats */}
+          <div className="p-4 border-b border-white/[0.08] grid grid-cols-3 gap-2">
+            {([
+              { label: 'Approved', count: approvedCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
+              { label: 'Pending', count: pendingCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+              { label: 'Rejected', count: rejectedCount, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+            ] as const).map(s => (
+              <div key={s.label} className={`rounded-xl border p-2.5 text-center ${s.bg}`}>
+                <div className={`text-xl font-black ${s.color}`}>{s.count}</div>
+                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Registration pill */}
+          {registrationOpen !== null && (
+            <div className="px-4 pt-4">
+              <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${registrationOpen ? 'bg-green-500/[0.08] border-green-500/20' : 'bg-red-500/[0.08] border-red-500/20'}`}>
+                <div className="flex items-center gap-2 min-w-0">
+                  {registrationOpen ? <Unlock className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Lock className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                  <div>
+                    <div className="text-xs font-black text-white leading-none">Registration</div>
+                    <div className={`text-[10px] font-black mt-0.5 ${registrationOpen ? 'text-green-400' : 'text-red-400'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {registrationOpen
-                    ? 'Participants can currently register for this event.'
-                    : 'Registrations are closed. Participants cannot register.'}
-                </p>
+                <button onClick={handleToggleRegistration} disabled={isTogglingReg}
+                  className={`flex-shrink-0 text-xs font-black px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${registrationOpen ? 'bg-red-500/15 border-red-500/30 text-red-300 hover:bg-red-500/25' : 'bg-green-500/15 border-green-500/30 text-green-300 hover:bg-green-500/25'}`}>
+                  {isTogglingReg ? <RefreshCw className="w-3 h-3 animate-spin" /> : registrationOpen ? 'Close' : 'Open'}
+                </button>
               </div>
             </div>
-            <button
-              onClick={handleToggleRegistration}
-              disabled={isTogglingReg}
-              className={`flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all border ${
-                registrationOpen
-                  ? 'bg-red-500/20 border-red-500/30 text-red-300 hover:bg-red-500/30'
-                  : 'bg-green-500/20 border-green-500/30 text-green-300 hover:bg-green-500/30'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isTogglingReg ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : registrationOpen ? (
-                <><ToggleRight className="w-5 h-5" /> Close Registration</>
-              ) : (
-                <><ToggleLeft className="w-5 h-5" /> Open Registration</>
-              )}
+          )}
+
+          {/* Navigation */}
+          <nav className="p-4 space-y-1 flex-1 pt-4">
+            {([
+              { key: 'participants', label: 'Participants', icon: Users },
+              { key: 'chat', label: 'Student Chat', icon: MessageCircle },
+              { key: 'announcements', label: 'Announcements', icon: Mail },
+              { key: 'settings', label: 'Event Settings', icon: LinkIcon },
+            ] as const).map(({ key, label, icon: Icon }) => (
+              <button key={key} onClick={() => setActiveSection(key)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {label}
+                {key === 'participants' && pendingCount > 0 && (
+                  <span className="ml-auto text-[10px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full animate-pulse">{pendingCount}</span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Logout */}
+          <div className="p-4 border-t border-white/[0.08]">
+            <button onClick={handleLogout}
+              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all">
+              <LogOut className="w-4 h-4" />Logout
             </button>
           </div>
-        )}
+        </aside>
 
-        {/* Main Interface */}
-        <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-[100px] translate-x-1/3 -translate-y-1/2" />
-          <div className="p-3 sm:p-6 lg:p-8 relative">
-            <div className="flex items-center justify-between gap-2 mb-5 sm:mb-8">
-              <div>
-                <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight">Participant Gateway</h2>
-                <p className="text-xs sm:text-sm font-medium text-gray-400 mt-0.5">
-                  {rpcRegistrations.length} registered candidates
-                </p>
-              </div>
+        {/* ─── MOBILE HEADER ─── */}
+        <header className="lg:hidden sticky top-0 z-50 bg-black/60 backdrop-blur-2xl border-b border-white/10 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
+              <Shield className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 leading-none">Coordinator</p>
+              <h1 className="text-sm font-black text-white truncate">{session.eventTitle}</h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {registrationOpen !== null && (
+              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${registrationOpen ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'bg-red-500/15 border-red-500/30 text-red-400'}`}>
+                Reg {registrationOpen ? 'Open' : 'Closed'}
+              </span>
+            )}
+            <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 transition-all text-gray-400 hover:text-red-300">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        {/* ─── MAIN CONTENT ─── */}
+        <main className="flex-1 min-w-0 overflow-y-auto pb-24 lg:pb-8">
+          <div className="max-w-5xl mx-auto px-4 py-6 lg:px-8 space-y-6">
+
+            {/* Alert banners */}
+            <div className="space-y-3">
+              {tokenWarning && (
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
+                    <AlertTriangle className="w-4 h-4 animate-pulse flex-shrink-0" />
+                    Session expires in &lt;5 min. Save your work.
+                  </div>
+                  <button onClick={handleLogout} className="flex-shrink-0 text-xs font-black text-white bg-amber-500/30 hover:bg-amber-500/50 px-3 py-1.5 rounded-xl border border-amber-500/30 transition-all">Re-Login</button>
+                </div>
+              )}
+              {newRegsCount > 0 && (
+                <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-indigo-300 text-sm font-bold">
+                    <Wifi className="w-4 h-4 animate-pulse flex-shrink-0" />
+                    {newRegsCount} new registration{newRegsCount > 1 ? 's' : ''} received live!
+                  </div>
+                  <button onClick={() => setNewRegsCount(0)} className="text-xs text-indigo-300/60 hover:text-indigo-300 transition-colors">Dismiss</button>
+                </div>
+              )}
+              {errorMsg && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2 text-red-400 text-sm"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />{errorMsg}</div>
+                  <button onClick={handleRetry} disabled={isRetrying} className="flex-shrink-0 flex items-center gap-1.5 text-xs font-black text-red-300 border border-red-500/30 hover:bg-red-500/20 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50">
+                    <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />{isRetrying ? 'Retrying...' : 'Retry'}
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="space-y-6">
-              {/* Token Expiry Warning Banner */}
-              {tokenWarning && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 flex items-start sm:items-center justify-between gap-2">
-                  <div className="flex items-start sm:items-center gap-2 text-amber-400 text-xs sm:text-sm font-semibold">
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0 animate-pulse mt-0.5 sm:mt-0" />
-                    <span>Session expires in &lt;5 min. Save your work.</span>
+            {/* ══ PARTICIPANTS ══ */}
+            {activeSection === 'participants' && (
+              <div className="space-y-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-black text-white tracking-tight">Participant Gateway</h2>
+                    <p className="text-sm text-gray-400 mt-0.5">{rpcRegistrations.length} total registrations</p>
                   </div>
-                  <button onClick={handleLogout} className="flex-shrink-0 text-xs font-bold text-white bg-amber-500/30 hover:bg-amber-500/50 px-2.5 py-1 rounded-lg transition-all border border-amber-500/30">
-                    Re-Login
-                  </button>
-                </div>
-              )}
-
-              {/* Real-time new registrations badge */}
-              {newRegsCount > 0 && (
-                <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-indigo-300 text-sm font-semibold">
-                    <Wifi className="w-4 h-4 animate-pulse" />
-                    {newRegsCount} new registration{newRegsCount > 1 ? 's' : ''} received in real-time!
+                  <div className="flex gap-2 lg:hidden">
+                    <span className="text-xs font-black px-2 py-1 rounded-lg bg-green-500/15 border border-green-500/25 text-green-400">{approvedCount} ✓</span>
+                    {pendingCount > 0 && <span className="text-xs font-black px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/25 text-yellow-400 animate-pulse">{pendingCount} !</span>}
                   </div>
-                  <button onClick={() => setNewRegsCount(0)} className="text-xs text-indigo-300/60 hover:text-indigo-300 transition-colors flex-shrink-0">
-                    Dismiss
-                  </button>
                 </div>
-              )}
 
-              {/* Error Message with Retry */}
-              {errorMsg && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4 text-red-400 text-sm flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-xl block mt-[-2px]">⚠️</span>
-                    <span>{errorMsg}</span>
+                {/* Filters bar */}
+                <div className="bg-black/40 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3 space-y-3">
+                  <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+                    {(['approved', 'pending', 'rejected'] as const).map((tab) => {
+                      const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : rejectedCount;
+                      const active = activeTab === tab;
+                      const colorActive = tab === 'approved' ? 'text-green-400 bg-green-500/20 border-green-500/30' : tab === 'pending' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30' : 'text-red-400 bg-red-500/20 border-red-500/30';
+                      return (
+                        <button key={tab} onClick={() => setActiveTab(tab)}
+                          className={`relative px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap capitalize flex items-center gap-2 border ${active ? colorActive : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border-transparent'}`}>
+                          {tab}
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${tab === 'pending' && count > 0 ? 'bg-yellow-400 text-yellow-900 animate-pulse' : 'bg-white/10 text-gray-300'}`}>{count}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <button
-                    onClick={handleRetry}
-                    disabled={isRetrying}
-                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-bold text-red-300 border border-red-500/30 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />
-                    {isRetrying ? 'Retrying...' : 'Retry'}
-                  </button>
-                </div>
-              )}
-
-              {/* Filters / Search and Tabs */}
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between bg-black/20 p-2 border border-white/5 rounded-2xl">
-                <div className="flex gap-1 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
-                  {(['approved', 'pending', 'rejected'] as const).map((tab) => {
-                    const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : rejectedCount;
-                    const isPending = tab === 'pending' && count > 0;
-                    return (
-                      <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`relative px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap capitalize
-                          ${activeTab === tab 
-                            ? tab === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_15px_rgba(34,197,94,0.1)]' :
-                              tab === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 shadow-[0_0_15px_rgba(234,179,8,0.1)]' :
-                              'bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]'
-                            : 'bg-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5 border border-transparent'
-                          }`}
-                      >
-                        {tab}
-                        <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-black
-                          ${isPending
-                            ? 'bg-yellow-400 text-yellow-900 animate-pulse shadow-[0_0_8px_rgba(234,179,8,0.6)]'
-                            : 'bg-white/10 text-gray-300'
-                          }`}
-                        >
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                
-                <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto mt-2 lg:mt-0 px-2 lg:px-0 pb-2 lg:pb-0">
-                  <div className="relative flex-grow lg:w-80">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <input
-                      type="text"
-                      placeholder="Search name, phone, or ID..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm"
-                    />
-                  </div>
-                  
-                  <button
-                    onClick={handleExportPDF}
-                    className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white hover:bg-white/10 hover:border-white/20 transition-all font-bold text-sm"
-                  >
-                    <Download className="w-4 h-4 text-purple-400" />
-                    <span className="hidden sm:inline">Export List</span>
-                    <span className="sm:hidden">PDF</span>
-                  </button>
-
-                  {/* Bulk Invite button — only in Approved tab when link is set */}
-                  {activeTab === 'approved' && whatsappLink && approvedCount > 0 && (
-                    <button
-                      onClick={() => setShowBulkInvite(true)}
-                      className="flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 hover:bg-green-500/20 hover:border-green-500/40 transition-all font-bold text-sm shadow-[0_0_15px_rgba(34,197,94,0.1)]"
-                    >
-                      <SendHorizonal className="w-4 h-4" />
-                      <span className="hidden sm:inline">Bulk Invite</span>
-                      <span className="sm:hidden">Invite</span>
-                      {invitedSet.size > 0 && (
-                        <span className="bg-green-400 text-green-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                          {invitedSet.size}/{approvedCount}
-                        </span>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Participants List */}
-              {isLoadingData && rpcRegistrations.length === 0 ? (
-                // Skeleton loader — only when truly no data yet
-                <div className="space-y-2">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/5 animate-pulse">
-                      <div className="w-6 h-4 bg-white/10 rounded" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-white/10 rounded w-1/3" />
-                        <div className="h-3 bg-white/5 rounded w-1/4" />
-                      </div>
-                      <div className="h-4 bg-white/10 rounded w-24" />
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                      <input type="text" placeholder="Search name, phone, or ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm" />
                     </div>
-                  ))}
-                </div>
-              ) : filteredRegs.length === 0 ? (
-                <div className="text-center py-16 text-gray-400 bg-black/20 rounded-2xl border border-dashed border-white/20">
-                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-500" />
-                  <p className="font-bold text-gray-300">No {activeTab} participants found.</p>
-                  {searchQuery && <p className="text-sm mt-1 text-gray-500">Try clearing your search query.</p>}
-                </div>
-              ) : (
-                <>
-                  {/* Mobile View - Cards */}
-                  <div className="block md:hidden space-y-3">
-                    {filteredRegs.map((reg: any, index: number) => (
-                      <div 
-                        key={reg.reg_id} 
-                        className={`bg-black/40 backdrop-blur-md rounded-xl p-4 shadow-lg transition-all border
-                          ${activeTab === 'pending' ? 'border-yellow-500/30' : 'border-white/10'}`}
+                    
+                    {/* Batch Filter Dropdown */}
+                    <div className="relative group min-w-[140px]">
+                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" />
+                      <select 
+                        value={selectedBatch} 
+                        onChange={(e) => setSelectedBatch(e.target.value)}
+                        className="w-full pl-9 pr-6 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm font-bold truncate"
                       >
-                        <div className="flex flex-col gap-3">
-                          <div className="flex justify-between items-start">
-                            <div 
-                              className="flex-1 cursor-pointer" 
-                              onClick={() => setSelectedReg(reg)}
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold text-gray-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md">#{index + 1}</span>
-                                <h3 className="font-bold text-white leading-tight">
-                                  {reg.full_name}
-                                  <span className="ml-2 text-xs text-purple-400 font-medium inline-block">View</span>
-                                </h3>
+                        <option value="all">All Batches</option>
+                        {batchOptions.map((opt: string) => (
+                          <option key={opt} value={opt} className="bg-gray-900">{opt}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleExportPDF} 
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold text-sm flex-shrink-0 border ${
+                          registrationOpen ? 'bg-white/5 border-white/10 text-gray-500 opacity-60 cursor-not-allowed' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                        }`}
+                      >
+                        {registrationOpen ? <Lock className="w-4 h-4 text-gray-500" /> : <Download className="w-4 h-4 text-purple-400" />}
+                        <span className="hidden sm:inline">{registrationOpen ? 'Close Reg to Export' : 'Export PDF'}</span>
+                        <span className="sm:hidden">{registrationOpen ? 'Locked' : 'PDF'}</span>
+                      </button>
+                      {activeTab === 'approved' && whatsappLink && approvedCount > 0 && (
+                        <button onClick={() => setShowBulkInvite(true)} className="flex items-center gap-2 px-4 py-2.5 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400 hover:bg-green-500/20 transition-all font-bold text-sm flex-shrink-0">
+                          <SendHorizonal className="w-4 h-4" /><span className="hidden sm:inline">Bulk Invite</span><span className="sm:hidden">Invite</span>
+                          {invitedSet.size > 0 && <span className="bg-green-400 text-green-900 text-[10px] font-black px-1.5 py-0.5 rounded-full">{invitedSet.size}/{approvedCount}</span>}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* List */}
+                {isLoadingData && rpcRegistrations.length === 0 ? (
+                  <div className="space-y-2">{[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 animate-pulse">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
+                      <div className="flex-1 space-y-2"><div className="h-4 bg-white/10 rounded w-1/3" /><div className="h-3 bg-white/5 rounded w-1/4" /></div>
+                      <div className="h-6 bg-white/10 rounded-full w-20" />
+                    </div>
+                  ))}</div>
+                ) : filteredRegs.length === 0 ? (
+                  <div className="text-center py-20 text-gray-400 bg-black/30 backdrop-blur-xl rounded-2xl border border-dashed border-white/10">
+                    <Users className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                    <p className="font-black text-gray-300">No {activeTab} participants</p>
+                    {searchQuery && <p className="text-sm mt-1 text-gray-500">Try clearing your search.</p>}
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile cards */}
+                    <div className="block md:hidden space-y-2">
+                      {filteredRegs.map((reg: any, index: number) => (
+                        <div key={reg.reg_id}
+                          className={`bg-black/50 backdrop-blur-xl rounded-2xl border transition-all cursor-pointer hover:border-purple-500/30 ${activeTab === 'pending' ? 'border-yellow-500/25' : 'border-white/[0.08]'}`}
+                          onClick={() => setSelectedReg(reg)}>
+                          <div className="p-4 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/25 flex items-center justify-center flex-shrink-0 text-sm font-black text-purple-300">
+                              {reg.full_name?.charAt(0) || '#'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-0.5">
+                                <span className="text-[10px] text-gray-500 font-bold">#{index + 1}</span>
+                                <h3 className="font-black text-white text-sm truncate">{reg.full_name}</h3>
                               </div>
-                              <div className="text-sm text-gray-400 mt-1">{reg.college || reg.institution || 'No institution'}</div>
-                              <div className="flex items-center gap-2 text-sm font-medium text-gray-300 mt-2">
-                                <span>{reg.phone}</span>
+                              <p className="text-xs text-gray-400 font-bold truncate tracking-wide">{reg.batch || 'No batch listed'}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-sm font-medium text-gray-300">{reg.phone}</span>
                                 {reg.phone && whatsappLink && activeTab === 'approved' && (
-                                  <a
-                                    href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded p-1.5 transition-colors border border-green-500/20"
-                                    title="Send WhatsApp group link"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <WhatsAppLogo className="w-5 h-5" />
+                                  <a href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                    target="_blank" rel="noopener noreferrer"
+                                    className="inline-flex items-center text-green-400 bg-green-500/10 hover:bg-green-500/20 rounded-lg p-1.5 border border-green-500/20 transition-colors"
+                                    onClick={(e) => e.stopPropagation()}>
+                                    <WhatsAppLogo className="w-4 h-4" />
                                   </a>
                                 )}
                               </div>
                             </div>
                           </div>
-                          
-                          {/* Pending Actions */}
                           {activeTab === 'pending' && (
-                            <div className="flex gap-2 pt-3 border-t border-gray-100 mt-1">
-                               <button
-                                 disabled={isUpdatingStatus === reg.reg_id}
-                                 onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
-                                 className="flex-1 flex items-center justify-center gap-1.5 bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-                               >
-                                  <CheckCircle className="w-4 h-4" /> Approve
-                               </button>
-                               <button
-                                 disabled={isUpdatingStatus === reg.reg_id}
-                                 onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
-                                 className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 py-1.5 rounded-md text-sm font-medium transition-colors disabled:opacity-50"
-                               >
-                                  <XCircle className="w-4 h-4" /> Reject
-                               </button>
+                            <div className="flex gap-2 px-4 pb-4 border-t border-yellow-500/10">
+                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'approved'); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                                <CheckCircle className="w-3.5 h-3.5" /> Approve
+                              </button>
+                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'rejected'); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                                <XCircle className="w-3.5 h-3.5" /> Reject
+                              </button>
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block bg-black/40 backdrop-blur-xl border border-white/[0.08] rounded-2xl overflow-hidden">
+                      <table className="min-w-full">
+                        <thead className="border-b border-white/[0.08]">
+                          <tr>
+                            <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">#</th>
+                            <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Participant</th>
+                            <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Contact</th>
+                            {activeTab === 'pending' && <th className="px-5 py-3.5 text-right text-[10px] font-black text-gray-500 uppercase tracking-widest">Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {filteredRegs.map((reg: any, index: number) => (
+                            <tr key={reg.reg_id} className="hover:bg-white/[0.04] transition-colors cursor-pointer group" onClick={() => setSelectedReg(reg)}>
+                              <td className="px-5 py-4 text-sm text-gray-500 font-black">{index + 1}</td>
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/20 flex items-center justify-center text-sm font-black text-purple-300 flex-shrink-0">
+                                    {reg.full_name?.charAt(0)}
+                                  </div>
+                                  <div>
+                                    <div className="font-black text-white group-hover:text-purple-300 transition-colors text-sm">{reg.full_name}</div>
+                                    <div className="text-xs text-gray-400 font-bold truncate max-w-xs mt-0.5 tracking-wide">{reg.batch || 'No batch listed'}</div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4 text-sm text-gray-300">
+                                <div className="font-medium">{reg.phone}</div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="text-xs text-gray-500 truncate max-w-[140px]">{reg.email}</div>
+                                  {reg.phone && whatsappLink && activeTab === 'approved' && (
+                                    <a href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
+                                      target="_blank" rel="noopener noreferrer"
+                                      className="inline-flex items-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded-lg px-2 py-1 transition-colors border border-transparent hover:border-green-500/25"
+                                      onClick={(e) => e.stopPropagation()}>
+                                      <WhatsAppLogo className="w-3.5 h-3.5 mr-1" /><span className="text-[10px] font-black uppercase">Invite</span>
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              {activeTab === 'pending' && (
+                                <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex justify-end gap-2">
+                                    <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
+                                      className="px-3 py-1.5 bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
+                                    <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
+                                      className="px-3 py-1.5 bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ══ CHAT ══ */}
+            {activeSection === 'chat' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Student Inbox</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Chat with registered students</p>
+                </div>
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden">
+                  <ChatPanel themeAccent="purple" eventId={session?.eventId?.toString()} />
+                </div>
+              </div>
+            )}
+
+            {/* ══ ANNOUNCEMENTS ══ */}
+            {activeSection === 'announcements' && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Announcements</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Broadcast important updates to participants</p>
+                </div>
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5">
+                  <AnnouncementsPanel mode="coordinator" eventTitle={session?.eventTitle} eventId={session?.eventId?.toString()} />
+                </div>
+              </div>
+            )}
+
+            {/* ══ SETTINGS ══ */}
+            {activeSection === 'settings' && (
+              <div className="space-y-5">
+                <div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Event Settings</h2>
+                  <p className="text-sm text-gray-400 mt-0.5">Manage event-level controls</p>
+                </div>
+
+                {/* WhatsApp card */}
+                <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/[0.06] rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
+                    <MessageCircle size={15} className="text-green-500" />WhatsApp Group Link
+                  </h3>
+                  <p className="text-xs text-gray-500 mb-4">This link is sent to approved participants when you invite them.</p>
+                  <div className="flex gap-2 items-center">
+                    <div className="relative flex-1">
+                      <LinkIcon size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                      <input type="url" value={whatsappLink} onChange={(e) => setWhatsappLink(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all text-sm"
+                        placeholder="https://chat.whatsapp.com/..." />
+                    </div>
+                    <button onClick={handleSaveLink} disabled={linkSaving} className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-xl text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(22,163,74,0.25)]">
+                      <Save size={15} />{linkSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    {whatsappLink && (
+                      <a href={whatsappLink} target="_blank" rel="noopener noreferrer"
+                        className="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 border border-white/10 rounded-xl text-gray-300 bg-white/5 hover:bg-white/10 transition-all">
+                        <ExternalLink size={15} />
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Registration toggle */}
+                {registrationOpen !== null && (
+                  <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${registrationOpen ? 'bg-green-500/[0.08] border-green-500/20' : 'bg-red-500/[0.08] border-red-500/20'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-xl ${registrationOpen ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                        {registrationOpen ? <Unlock className="w-5 h-5 text-green-400" /> : <Lock className="w-5 h-5 text-red-400" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-white text-sm">Registration Gate</h3>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${registrationOpen ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-0.5">{registrationOpen ? 'Participants can currently register.' : 'Registrations are closed.'}</p>
+                      </div>
+                    </div>
+                    <button onClick={handleToggleRegistration} disabled={isTogglingReg}
+                      className={`flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all border disabled:opacity-50 ${registrationOpen ? 'bg-red-500/15 border-red-500/25 text-red-300 hover:bg-red-500/25' : 'bg-green-500/15 border-green-500/25 text-green-300 hover:bg-green-500/25'}`}>
+                      {isTogglingReg ? <RefreshCw className="w-4 h-4 animate-spin" /> : registrationOpen ? <><ToggleRight className="w-5 h-5" />Close Registration</> : <><ToggleLeft className="w-5 h-5" />Open Registration</>}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        </main>
+      </div>
+
+      {/* ─── MOBILE BOTTOM NAV ─── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-2xl border-t border-white/10 flex items-stretch">
+        {([
+          { key: 'participants', label: 'People', icon: Users },
+          { key: 'chat', label: 'Chat', icon: MessageCircle },
+          { key: 'announcements', label: 'Announce', icon: Mail },
+          { key: 'settings', label: 'Settings', icon: LinkIcon },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button key={key} onClick={() => setActiveSection(key)}
+            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[10px] font-black uppercase tracking-wider transition-all relative ${activeSection === key ? 'text-purple-400' : 'text-gray-600 hover:text-gray-400'}`}>
+            {activeSection === key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-purple-500" />}
+            <Icon className="w-5 h-5" />
+            {label}
+            {key === 'participants' && pendingCount > 0 && (
+              <span className="absolute top-2 right-[calc(50%-14px)] text-[9px] font-black bg-yellow-400 text-yellow-900 w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* ══ REGISTRATION DETAIL MODAL ══ */}
+      {selectedReg && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-950/95 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl max-h-[95svh] sm:max-h-[90vh] overflow-hidden flex flex-col rounded-t-2xl">
+            <div className="px-5 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/25 flex items-center justify-center text-sm font-black text-purple-300 flex-shrink-0">
+                  {selectedReg.full_name?.charAt(0)}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base font-black text-white truncate">{selectedReg.full_name}</h2>
+                  <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">ID: {selectedReg.reg_id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedReg(null)} className="ml-3 flex-shrink-0 text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-5 py-5 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 pb-2 border-b border-white/[0.08]">Basic Info</h3>
+                  {[
+                    { label: 'Email', val: selectedReg.email },
+                    { label: 'Phone', val: selectedReg.phone },
+                    { label: 'Batch', val: selectedReg.batch },
+                    ...(selectedReg.gender ? [{ label: 'Gender', val: selectedReg.gender }] : []),
+                  ].map(({ label, val }) => (
+                    <div key={label} className="bg-white/5 rounded-xl p-3 border border-white/5">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-0.5">{label}</p>
+                      <p className="text-sm font-semibold text-gray-200 break-all">{val || 'N/A'}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-3">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 pb-2 border-b border-white/[0.08]">Registration</h3>
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Status</p>
+                      <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                        selectedReg.status?.toLowerCase() === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/25' :
+                        selectedReg.status?.toLowerCase() === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/25' :
+                        'bg-red-500/20 text-red-400 border border-red-500/25'
+                      }`}>{selectedReg.status}</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black mb-1">Registered On</p>
+                      <p className="text-sm font-semibold text-gray-200">{new Date(selectedReg.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {selectedReg.custom_answers && Object.keys(selectedReg.custom_answers).length > 0 && (
+                <div className="mt-5 pt-5 border-t border-white/[0.08]">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3">Additional Info</h3>
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {Object.entries(selectedReg.custom_answers).map(([key, value]) => (
+                      <div key={key} className="bg-white/5 p-3 rounded-xl border border-white/5">
+                        <dt className="text-[10px] text-gray-500 font-black uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</dt>
+                        <dd className="text-sm font-semibold text-gray-200 break-words">{String(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+              {selectedReg.team_members && Array.isArray(selectedReg.team_members) && selectedReg.team_members.length > 0 && (
+                <div className="mt-5 pt-5 border-t border-white/[0.08]">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5" />Team Members ({selectedReg.team_members.length})
+                  </h3>
+                  <div className="bg-white/5 rounded-2xl border border-white/[0.08] overflow-hidden divide-y divide-white/5">
+                    {selectedReg.team_members.map((member: any, idx: number) => (
+                      <div key={idx} className="p-3 flex items-center gap-3">
+                        <div className="w-7 h-7 rounded-lg bg-purple-500/20 border border-purple-500/25 flex items-center justify-center text-purple-300 font-black text-[11px] flex-shrink-0">{idx + 1}</div>
+                        <div>
+                          <div className="text-sm font-black text-gray-200">{member.name || member.full_name}</div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
+                            {member.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{member.email}</span>}
+                            {member.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{member.phone}</span>}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Desktop View - Table */}
-                  <div className="hidden md:block border border-white/10 rounded-xl overflow-hidden shadow-2xl bg-black/40 backdrop-blur-md">
-                    <table className="min-w-full divide-y divide-white/10">
-                      <thead className="bg-black/40 border-b border-white/10">
-                        <tr>
-                          <th className="px-5 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">#</th>
-                          <th className="px-5 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Participant Details</th>
-                          <th className="px-5 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Contact</th>
-                          {activeTab === 'pending' && (
-                            <th className="px-5 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {filteredRegs.map((reg: any, index: number) => (
-                          <tr 
-                            key={reg.reg_id} 
-                            className={`hover:bg-white/5 transition-colors cursor-pointer group`}
-                            onClick={() => setSelectedReg(reg)}
-                          >
-                            <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-400 font-bold">
-                              {index + 1}
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className="font-bold text-white group-hover:text-purple-300 transition-colors">{reg.full_name}</div>
-                                <span className="text-[10px] uppercase font-bold tracking-wider text-purple-300 bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-500/30">View</span>
-                              </div>
-                              <div className="text-xs text-gray-400 mt-1 max-w-xs truncate" title={reg.college || reg.institution}>
-                                {reg.college || reg.institution || <span className="text-gray-500 italic">No institution listed</span>}
-                              </div>
-                            </td>
-                            <td className="px-5 py-4 whitespace-nowrap text-sm text-gray-300">
-                              <div className="font-medium">{reg.phone}</div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <div className="text-xs text-gray-400 truncate max-w-[150px]" title={reg.email}>{reg.email}</div>
-                                {reg.phone && whatsappLink && activeTab === 'approved' && (
-                                  <a
-                                    href={`https://wa.me/91${reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have successfully registered for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nPlease join the official WhatsApp group for important updates:\n\n${whatsappLink}`)}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center text-green-400 hover:text-green-300 bg-green-500/10 hover:bg-green-500/20 rounded px-2 py-1 transition-colors border border-transparent hover:border-green-500/30"
-                                    title="Send WhatsApp group link"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <WhatsAppLogo className="w-3.5 h-3.5 mr-1" /> <span className="text-xs font-bold tracking-wide uppercase">Invite</span>
-                                  </a>
-                                )}
-                              </div>
-                            </td>
-                            {activeTab === 'pending' && (
-                              <td className="px-5 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-end gap-2">
-                                  <button
-                                     disabled={isUpdatingStatus === reg.reg_id}
-                                     onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
-                                     className="inline-flex bg-green-50 text-green-700 hover:bg-green-600 hover:text-white border border-green-200 hover:border-transparent px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide transition-all disabled:opacity-50"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                     disabled={isUpdatingStatus === reg.reg_id}
-                                     onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
-                                     className="inline-flex bg-red-50 text-red-700 hover:bg-red-600 hover:text-white border border-red-200 hover:border-transparent px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide transition-all disabled:opacity-50"
-                                  >
-                                    Reject
-                                  </button>
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 bg-white/5 border-t border-white/[0.08] flex justify-end gap-3">
+              {selectedReg.status?.toLowerCase() === 'pending' && (
+                <>
+                  <button disabled={isUpdatingStatus === selectedReg.reg_id} onClick={() => handleUpdateStatus(selectedReg.reg_id, 'rejected')}
+                    className="px-5 py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2">
+                    <X className="w-4 h-4" />Reject
+                  </button>
+                  <button disabled={isUpdatingStatus === selectedReg.reg_id} onClick={() => handleUpdateStatus(selectedReg.reg_id, 'approved')}
+                    className="px-5 py-2.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.15)]">
+                    <CheckCircle className="w-4 h-4" />Approve
+                  </button>
                 </>
+              )}
+              {selectedReg.status?.toLowerCase() !== 'pending' && (
+                <button onClick={() => setSelectedReg(null)} className="px-6 py-2.5 bg-white/10 text-white hover:bg-white/20 border border-white/10 rounded-xl text-sm font-black transition-all">Close</button>
               )}
             </div>
           </div>
         </div>
-      </main>
-
-      {/* Detailed Modal View */}
-      {selectedReg && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-gray-950/95 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl max-h-[95svh] sm:max-h-[90vh] overflow-hidden flex flex-col rounded-t-2xl">
-             
-             {/* Modal Header */}
-             <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-white/10 flex justify-between items-center bg-white/5">
-               <div className="flex-1 min-w-0">
-                 <h2 className="text-base sm:text-xl font-bold text-white truncate">{selectedReg.full_name}</h2>
-                 <p className="text-xs text-gray-400 font-mono mt-0.5 truncate">ID: {selectedReg.reg_id}</p>
-               </div>
-               <button 
-                 onClick={() => setSelectedReg(null)}
-                 className="ml-3 flex-shrink-0 text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors"
-               >
-                 <X className="w-5 h-5" />
-               </button>
-             </div>
-
-             {/* Modal Body */}
-             <div className="px-4 sm:px-6 py-4 sm:py-6 overflow-y-auto flex-1">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {/* Basic Info */}
-                 <div className="space-y-4">
-                   <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 border-b border-white/10 pb-2">Basic Info</h3>
-                   <div className="bg-white/5 rounded-lg p-3 border border-white/5">
-                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Email</p>
-                     <p className="text-sm font-medium text-gray-200 break-all">{selectedReg.email || 'N/A'}</p>
-                   </div>
-                   <div className="bg-white/5 rounded-lg p-3 border border-white/5">
-                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Phone</p>
-                     <p className="text-sm font-medium text-gray-200">{selectedReg.phone || 'N/A'}</p>
-                   </div>
-                   <div className="bg-white/5 rounded-lg p-3 border border-white/5">
-                     <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Institution</p>
-                     <p className="text-sm font-medium text-gray-200">{selectedReg.institution || selectedReg.college || 'N/A'}</p>
-                   </div>
-                   {selectedReg.gender && (
-                     <div className="bg-white/5 rounded-lg p-3 border border-white/5">
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1">Gender</p>
-                       <p className="text-sm font-medium text-gray-200 capitalize">{selectedReg.gender}</p>
-                     </div>
-                   )}
-                 </div>
-
-                 {/* Registration Info */}
-                 <div className="space-y-4">
-                   <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-2 border-b border-white/10 pb-2">Registration Details</h3>
-                   <div className="bg-white/5 rounded-lg p-3 border border-white/5 flex flex-col gap-2">
-                     <div className="flex gap-3 items-center">
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Status</p>
-                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                          selectedReg.status?.toLowerCase() === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/20' :
-                          selectedReg.status?.toLowerCase() === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/20' :
-                          'bg-red-500/20 text-red-400 border border-red-500/20'
-                       }`}>
-                         {selectedReg.status}
-                       </span>
-                     </div>
-                     <div>
-                       <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold mb-1 mt-2">Registered On</p>
-                       <p className="text-sm font-medium text-gray-200">{new Date(selectedReg.created_at).toLocaleString()}</p>
-                     </div>
-                   </div>
-                   {/* Payment if available */}
-                    {false && (
-                     <div className="bg-gradient-to-br from-white/10 to-white/5 p-4 rounded-lg border border-white/10 shadow-inner">
-                       <p className="text-[10px] text-purple-300 uppercase tracking-widest font-black mb-2 flex items-center gap-2">
-                         <Shield className="w-3 h-3" /> Payment Details
-                       </p>
-                       <div className="grid grid-cols-2 gap-2 mb-2">
-                         {selectedReg.amount > 0 && (
-                           <div>
-                             <p className="text-[10px] text-gray-400 uppercase">Amount</p>
-                             <p className="text-base font-bold text-white tracking-wide">${selectedReg.amount}</p>
-                           </div>
-                         )}
-                         {selectedReg.payment_status && (
-                           <div>
-                             <p className="text-[10px] text-gray-400 uppercase">Status</p>
-                             <p className="text-sm text-gray-300 mt-0.5 capitalize font-medium">{selectedReg.payment_status}</p>
-                           </div>
-                         )}
-                       </div>
-                       {selectedReg.payment_reference && (
-                         <div className="mt-3 pt-3 border-t border-white/10">
-                           <p className="text-[10px] text-gray-400 uppercase mb-1">Transaction Ref</p>
-                           <p className="text-xs text-purple-300 font-mono break-all bg-black/40 p-1.5 rounded">{selectedReg.payment_reference}</p>
-                         </div>
-                       )}
-                     </div>
-                   )}
-                 </div>
-               </div>
-
-               {/* Custom Fields */}
-               {selectedReg.custom_answers && Object.keys(selectedReg.custom_answers).length > 0 && (
-                 <div className="mt-6 pt-6 border-t border-white/10">
-                   <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-4 flex items-center gap-2">
-                     <MessageCircle className="w-4 h-4" /> Additional Information
-                   </h3>
-                   <dl className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-                     {Object.entries(selectedReg.custom_answers).map(([key, value]) => (
-                       <div key={key} className="bg-white/5 p-3 rounded-lg border border-white/5">
-                         <dt className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">{key.replace(/_/g, ' ')}</dt>
-                         <dd className="text-sm font-medium text-gray-200 break-words">{String(value)}</dd>
-                       </div>
-                     ))}
-                   </dl>
-                 </div>
-               )}
-               
-               {/* Team Info */}
-               {selectedReg.team_members && Array.isArray(selectedReg.team_members) && selectedReg.team_members.length > 0 && (
-                 <div className="mt-6 pt-6 border-t border-white/10">
-                   <h3 className="text-xs font-bold uppercase tracking-wider text-purple-400 mb-4 flex items-center gap-2">
-                     <Users className="w-4 h-4" /> Team Members <span className="text-gray-500 font-normal ml-2">({selectedReg.team_members.length})</span>
-                   </h3>
-                   <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden divide-y divide-white/5">
-                     {selectedReg.team_members.map((member: any, idx: number) => (
-                        <div key={idx} className="p-4 hover:bg-white/5 transition-colors">
-                           <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded-full bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300 font-bold text-xs">
-                               {idx + 1}
-                             </div>
-                             <div>
-                               <div className="text-sm font-bold text-gray-200">{member.name || member.full_name}</div>
-                               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-xs text-gray-400">
-                                 {member.email && <span className="flex items-center gap-1"><Mail className="w-3 h-3" /> {member.email}</span>}
-                                 {member.phone && <span className="flex items-center gap-1"><Phone className="w-3 h-3" /> {member.phone}</span>}
-                               </div>
-                             </div>
-                           </div>
-                        </div>
-                     ))}
-                   </div>
-                 </div>
-               )}
-             </div>
-
-             {/* Modal Footer actions (mostly for pending) */}
-             <div className="px-6 py-5 bg-white/5 border-t border-white/10 flex justify-end gap-3">
-                {selectedReg.status?.toLowerCase() === 'pending' && (
-                  <>
-                     <button
-                       disabled={isUpdatingStatus === selectedReg.reg_id}
-                       onClick={() => handleUpdateStatus(selectedReg.reg_id, 'rejected')}
-                       className="px-5 py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 hover:border-red-500/50 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                     >
-                       <X className="w-4 h-4 mr-1.5" /> Reject
-                     </button>
-                     <button
-                       disabled={isUpdatingStatus === selectedReg.reg_id}
-                       onClick={() => handleUpdateStatus(selectedReg.reg_id, 'approved')}
-                       className="px-5 py-2.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 hover:border-green-500/60 rounded-xl text-sm font-bold transition-all disabled:opacity-50 flex items-center shadow-[0_0_20px_rgba(34,197,94,0.15)]"
-                     >
-                       <CheckCircle className="w-4 h-4 mr-1.5" /> Approve
-                     </button>
-                  </>
-                )}
-                {selectedReg.status?.toLowerCase() !== 'pending' && (
-                  <button 
-                    onClick={() => setSelectedReg(null)}
-                    className="px-6 py-2.5 bg-white/10 text-white hover:bg-white/20 border border-white/10 rounded-xl text-sm font-bold transition-all"
-                  >
-                    Close
-                  </button>
-                )}
-             </div>
-          </div>
-        </div>
       )}
 
-      {/* Bulk WhatsApp Invite Modal */}
+      {/* ══ BULK WHATSAPP INVITE MODAL ══ */}
       {showBulkInvite && session && whatsappLink && (() => {
-        const eligible = rpcRegistrations.filter(
-          (r: any) => r.status?.toLowerCase() === 'approved' && r.phone
-        );
+        const eligible = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.phone);
         const sentCount = eligible.filter((r: any) => invitedSet.has(r.reg_id)).length;
         const progress = eligible.length > 0 ? Math.round((sentCount / eligible.length) * 100) : 0;
-
         return (
           <div className="fixed inset-0 z-[101] flex items-end sm:items-center justify-center sm:p-4 bg-black/80 backdrop-blur-sm">
             <div className="bg-gray-950/95 backdrop-blur-xl border border-white/10 sm:rounded-2xl rounded-t-2xl shadow-2xl w-full sm:max-w-lg max-h-[90svh] flex flex-col">
-              {/* Header */}
               <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between bg-white/5">
                 <div>
-                  <h2 className="font-black text-white text-base flex items-center gap-2">
-                    <SendHorizonal className="w-4 h-4 text-green-400" />
-                    Bulk WhatsApp Invite
-                  </h2>
+                  <h2 className="font-black text-white text-base flex items-center gap-2"><SendHorizonal className="w-4 h-4 text-green-400" />Bulk WhatsApp Invite</h2>
                   <p className="text-xs text-gray-400 mt-0.5">{eligible.length} approved participants with phone numbers</p>
                 </div>
-                <button onClick={() => setShowBulkInvite(false)} className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
+                <button onClick={() => setShowBulkInvite(false)} className="text-gray-400 hover:text-white hover:bg-white/10 p-2 rounded-full transition-colors"><X className="w-4 h-4" /></button>
               </div>
-
-              {/* Progress */}
               <div className="px-5 py-3 border-b border-white/5 bg-black/20">
-                <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                <div className="flex items-center justify-between text-xs font-black mb-2">
                   <span className="text-gray-400">Progress</span>
-                  <span className={sentCount === eligible.length && eligible.length > 0 ? 'text-green-400' : 'text-white'}>
-                    {sentCount} / {eligible.length} sent
-                  </span>
+                  <span className={sentCount === eligible.length && eligible.length > 0 ? 'text-green-400' : 'text-white'}>{sentCount} / {eligible.length} sent</span>
                 </div>
-                <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  />
+                <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                 </div>
               </div>
-
-              {/* Participant list */}
               <div className="overflow-y-auto flex-1 divide-y divide-white/5">
                 {eligible.length === 0 ? (
-                  <div className="py-12 text-center text-gray-500 text-sm">No approved participants with phone numbers found.</div>
-                ) : (
-                  eligible.map((reg: any) => {
-                    const isSent = invitedSet.has(reg.reg_id);
-                    const phone = reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '');
-                    const waLink = `https://wa.me/91${phone}?text=${encodeURIComponent(
-                      `Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have been approved for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nJoin the official WhatsApp group for important updates:\n\n${whatsappLink}`
-                    )}`;
-                    return (
-                      <div key={reg.reg_id} className={`flex items-center justify-between gap-3 px-5 py-3 transition-colors ${isSent ? 'bg-green-500/5' : 'hover:bg-white/5'}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{reg.full_name}</p>
-                          <p className="text-xs text-gray-400 truncate">{reg.phone}</p>
+                  <div className="py-12 text-center text-gray-500 text-sm">No approved participants with phone numbers.</div>
+                ) : eligible.map((reg: any) => {
+                  const isSent = invitedSet.has(reg.reg_id);
+                  const phone = reg.phone.replace(/[^0-9]/g, '').replace(/^91/, '');
+                  const waLink = `https://wa.me/91${phone}?text=${encodeURIComponent(`Hello ${reg.full_name.split(' ')[0]}! 👋\n\nYou have been approved for *${session.eventTitle}* at ${BRAND_NAME} ${BRAND_YEAR}! 🎭\n\nJoin our WhatsApp group:\n\n${whatsappLink}`)}`;
+                  return (
+                    <div key={reg.reg_id} className={`flex items-center justify-between gap-3 px-5 py-3.5 ${isSent ? 'bg-green-500/5' : 'hover:bg-white/[0.04]'}`}>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/20 flex items-center justify-center text-xs font-black text-purple-300 flex-shrink-0">{reg.full_name?.charAt(0)}</div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-white truncate">{reg.full_name}</p>
+                          <p className="text-xs text-gray-500 truncate">{reg.phone}</p>
                         </div>
-                        {isSent ? (
-                          <span className="flex-shrink-0 flex items-center gap-1 text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-lg">
-                            <CheckCircle className="w-3.5 h-3.5" /> Sent
-                          </span>
-                        ) : (
-                          <a
-                            href={waLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setInvitedSet(prev => new Set([...prev, reg.reg_id]))}
-                            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-white bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded-lg transition-all shadow-[0_0_12px_rgba(22,163,74,0.3)]"
-                          >
-                            <WhatsAppLogo className="w-3.5 h-3.5" /> Send
-                          </a>
-                        )}
                       </div>
-                    );
-                  })
-                )}
+                      {isSent ? (
+                        <span className="flex-shrink-0 flex items-center gap-1 text-xs font-black text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-xl">
+                          <CheckCircle className="w-3.5 h-3.5" />Sent
+                        </span>
+                      ) : (
+                        <a href={waLink} target="_blank" rel="noopener noreferrer"
+                          onClick={() => setInvitedSet(prev => new Set([...prev, reg.reg_id]))}
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-black text-white bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_12px_rgba(22,163,74,0.25)]">
+                          <WhatsAppLogo className="w-3.5 h-3.5" />Send
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-
-              {/* Footer */}
               <div className="px-5 py-4 border-t border-white/10 bg-white/5 flex items-center justify-between gap-3">
-                {sentCount > 0 && (
-                  <button
-                    onClick={() => setInvitedSet(new Set())}
-                    className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                  >
-                    Reset progress
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowBulkInvite(false)}
-                  className="ml-auto px-5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-sm font-bold text-white transition-all"
-                >
+                {sentCount > 0 && <button onClick={() => setInvitedSet(new Set())} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Reset progress</button>}
+                <button onClick={() => setShowBulkInvite(false)} className="ml-auto px-5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-sm font-black text-white transition-all">
                   {sentCount === eligible.length && eligible.length > 0 ? '🎉 All Sent! Close' : 'Close'}
                 </button>
               </div>

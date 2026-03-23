@@ -1,18 +1,10 @@
 import { type Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-flash';
-const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-pro-latest'];
+import { callAI, AIMessage, AIModel } from './lib/ai';
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
-  }
-
-  const API_KEY = process.env.GOOGLE_API_KEY;
-  if (!API_KEY) {
-    return { statusCode: 500, body: 'AI configuration error (missing API key)' };
   }
 
   try {
@@ -34,8 +26,6 @@ export const handler: Handler = async (event) => {
       return { statusCode: 400, body: JSON.stringify({ error: 'No images provided' }) };
     }
 
-    const selectedModel = ALLOWED_MODELS.includes(model) ? model : DEFAULT_MODEL;
-
     const systemInstruction = `
 You are an expert OCR and data extraction AI. 
 Extract all student names, their unique IDs, and assigned passwords from the provided images of printed lists.
@@ -53,36 +43,37 @@ JSON Structure:
 CRITICAL: Return ONLY raw JSON. No markdown blocks.
 `;
 
-    const imageParts = images.map(base64 => ({
-      inline_data: {
-        mime_type: 'image/jpeg',
-        data: base64.replace(/^data:image\/(png|jpeg|webp);base64,/, "")
+    const messages: AIMessage[] = [
+      {
+        role: 'user',
+        content: "Extract student names, IDs, and passwords from these images.",
+        images: images.map(img => img.replace(/^data:image\/(png|jpeg|webp);base64,/, ""))
       }
-    }));
+    ];
 
-    const response = await fetch(`${GEMINI_BASE}/${selectedModel}:generateContent?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: systemInstruction }, ...imageParts] }],
-        generationConfig: { temperature: 0.1, responseMimeType: 'application/json' }
-      })
-    });
+    const aiResponse = await callAI(model as AIModel, messages, systemInstruction, 0.1);
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Gemini API Error');
+    if (!aiResponse.success) {
+      return { 
+        statusCode: aiResponse.status || 500, 
+        body: JSON.stringify({ error: aiResponse.error || 'AI request failed' }) 
+      };
     }
 
-    const data = await response.json();
-    const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!resultText) throw new Error('AI returned empty response');
+    // Try to parse JSON from response
+    let students = [];
+    try {
+      const cleanJson = aiResponse.message.replace(/```json\n?|\n?```/g, '').trim();
+      students = JSON.parse(cleanJson);
+    } catch (e) {
+      console.error('Failed to parse AI JSON:', aiResponse.message);
+      throw new Error('AI returned invalid format');
+    }
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, students: JSON.parse(resultText) })
+      body: JSON.stringify({ success: true, students, model: aiResponse.model })
     };
 
   } catch (error: any) {

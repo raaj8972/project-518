@@ -14,12 +14,15 @@ import { ValidationRule } from './validationRules';
 export interface EntryPass {
   pass_token: string; // Primary key
   participant_name: string;
-  pass_type: 'regular' | 'vip';
+  pass_type: string;
   is_active: boolean;
   is_used: boolean;
   created_at?: string;
   valid_date?: string; // Format: YYYY-MM-DD
+  day_number?: number;
   last_sync_time?: number;
+  scanned_at?: string;
+  scanned_by?: string;
 }
 
 export interface PendingScan {
@@ -63,6 +66,11 @@ class SecurityScannerDB extends Dexie {
     // Version 2: Add validation rules
     this.version(2).stores({
       rules: 'id, is_active'
+    });
+
+    // Version 3: Add scanned_at and valid_date to indexes for faster lookups
+    this.version(3).stores({
+      passes: 'pass_token, participant_name, is_used, pass_type, valid_date, scanned_at'
     });
   }
 }
@@ -208,11 +216,12 @@ export async function getPendingScans(): Promise<PendingScan[]> {
  */
 export async function hasBeenScannedToday(token: string): Promise<boolean> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     const scan = await db.pending_scans
       .where('pass_token')
       .equals(token)
-      .and(scan => scan.timestamp.startsWith(today) && scan.result === 'valid')
+      .and(scan => scan.timestamp.startsWith(todayStr) && scan.result === 'valid')
       .first();
     return !!scan;
   } catch (error) {

@@ -1,23 +1,25 @@
 import nodemailer from 'nodemailer';
 
-// Validate environment variables on module load
-const validateEnvVars = () => {
+// Validate environment variables on demand based on provider
+const validateResendConfig = () => {
+    if (!process.env.RESEND_API_KEY) {
+        console.error('❌ Missing RESEND_API_KEY');
+        return { valid: false, error: 'Missing RESEND_API_KEY environment variable' };
+    }
+    return { valid: true };
+};
+
+const validateSMTPConfig = () => {
   const missing: string[] = [];
-  
   if (!process.env.SMTP_USER) missing.push('SMTP_USER');
   if (!process.env.SMTP_PASS) missing.push('SMTP_PASS');
   
   if (missing.length > 0) {
-    console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
+    console.error(`❌ Missing required SMTP variables: ${missing.join(', ')}`);
     return { valid: false, missing };
   }
-  
-  console.log('✅ SMTP environment variables validated');
   return { valid: true, missing: [] };
 };
-
-// Validate immediately
-const envCheck = validateEnvVars();
 
 const transporter = nodemailer.createTransport({
   host: 'smtp.hostinger.com',
@@ -77,17 +79,6 @@ const formatSMTPError = (error: any): string => {
 };
 
 export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, attachments }: EmailOptions) => {
-  // Check environment variables first
-  if (!envCheck.valid) {
-    const errorMsg = `Missing required environment variables: ${envCheck.missing.join(', ')}`;
-    console.error('❌ sendEmail failed:', errorMsg);
-    return { 
-      success: false, 
-      error: errorMsg,
-      details: { missing: envCheck.missing }
-    };
-  }
-
   const sender = from || process.env.EMAIL_SENDER || process.env.SMTP_USER || 'no-reply@ricorrenza.fun';
   
   console.log(`📧 Sending email via [${provider.toUpperCase()}] to: ${to}`);
@@ -98,6 +89,14 @@ export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, at
 
   try {
     if (provider === 'smtp') {
+        const smtpCheck = validateSMTPConfig();
+        if (!smtpCheck.valid) {
+            return { 
+              success: false, 
+              error: `Missing SMTP credentials: ${smtpCheck.missing?.join(', ')}`,
+              details: smtpCheck 
+            };
+        }
         // Verify transporter configuration (only on first send)
         if (!transporter.transporter) {
           try {
@@ -145,13 +144,21 @@ export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, at
         return { success: true, messageId: info.messageId, provider: 'smtp' };
     } 
     else if (provider === 'resend') {
+        const resendCheck = validateResendConfig();
+        if (!resendCheck.valid) {
+          return { success: false, error: resendCheck.error };
+        }
         const resendKey = process.env.RESEND_API_KEY;
-        if (!resendKey) {
-          console.error('❌ Missing RESEND_API_KEY');
-          return { 
-            success: false, 
-            error: 'Missing RESEND_API_KEY environment variable' 
-          };
+
+        // Resend strictness: 'from' must be from a verified domain.
+        // If EMAIL_SENDER is a Gmail/Yahoo address, Resend will reject it.
+        let verifiedSender = sender;
+        const unverifiedDomains = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'];
+        const isUnverified = unverifiedDomains.some(domain => sender.toLowerCase().includes(`@${domain}`));
+
+        if (isUnverified) {
+          console.warn(`⚠️ Warning: Resend rejects ${sender.split('@')[1]} addresses. Falling back to onboarding@resend.dev.`);
+          verifiedSender = 'onboarding@resend.dev';
         }
 
         // Resend accepts attachments with base64 content
@@ -160,25 +167,37 @@ export const sendEmail = async ({ to, subject, html, provider = 'smtp', from, at
             content: att.content
         }));
 
+        const resBody = {
+            from: verifiedSender,
+            to: Array.isArray(to) ? to : [to],
+            subject,
+            html,
+            attachments: resendAttachments
+        };
+
         const res = await fetch('https://api.resend.com/emails', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${resendKey}`,
             },
-            body: JSON.stringify({
-                from: sender,
-                to: Array.isArray(to) ? to : [to],
-                subject,
-                html,
-                attachments: resendAttachments
-            }),
+            body: JSON.stringify(resBody),
         });
 
         if (!res.ok) {
             const errorData = await res.json();
             const errorMsg = `Resend API error (${res.status}): ${JSON.stringify(errorData)}`;
             console.error('❌ Resend failed:', errorMsg);
+            
+            // Diagnostic logging to file for easier retrieval
+            try {
+              const fs = await import('fs');
+              const logEntry = `[${new Date().toISOString()}] Resend Failure:\nPayload: ${JSON.stringify(resBody, null, 2)}\nError: ${errorMsg}\n\n`;
+              fs.appendFileSync('/tmp/resend_error.log', logEntry);
+            } catch (logErr) {
+              // ignore log errors
+            }
+
             return { 
               success: false, 
               error: errorMsg,

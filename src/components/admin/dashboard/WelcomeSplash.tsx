@@ -19,6 +19,9 @@ export const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ user, onComplete }
   const [stage, setStage] = useState(0);
   const [progress, setProgress] = useState(0);
 
+  const onCompleteRef = React.useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   useEffect(() => {
     // Stage 1: Initial Reveal
     setTimeout(() => setStage(1), 100);
@@ -37,16 +40,16 @@ export const WelcomeSplash: React.FC<WelcomeSplashProps> = ({ user, onComplete }
       });
     }, 150);
 
-    // Cleanup & Complete
+    // Cleanup & Complete — runs exactly once, 2.8s after mount
     const timer = setTimeout(() => {
-      onComplete();
+      onCompleteRef.current();
     }, 2800);
 
     return () => {
       clearInterval(interval);
       clearTimeout(timer);
     };
-  }, [onComplete]);
+  }, []); // ← empty deps: run once on mount only
 
   const getGreeting = () => {
     const hour = new Date().getHours();

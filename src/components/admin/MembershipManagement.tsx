@@ -1,26 +1,131 @@
 import React, { useState } from 'react';
-import { Download, Filter, Search, Users, Mail, Phone, Building, Eye, Trash2, CheckCircle, Clock } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
+import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
 import { exportMembershipsToExcel } from '../../utils/excelExport';
 // import type { Membership } from '../../context/DataContext';
+import {
+  CheckCircle,
+  Eye,
+  Clock,
+  Download,
+  Filter,
+  Search,
+  Users,
+  Mail,
+  Phone,
+  Building,
+  Trash2
+} from 'lucide-react';
+
 
 export const MembershipManagement: React.FC = () => {
-  const { memberships, updateMembershipStatus, deleteMembership } = useData();
+  const { memberships, updateMembershipStatus, deleteMembership, adminUsers, refreshAll } = useData();
+  const { user } = useAuth();
+
+  const { updateBatchGlobally } = useRegistrationMutations(() => {
+    refreshAll();
+  });
+
+  const isOwner = React.useMemo(() => {
+    const admin = adminUsers?.find(u => u.user_id === user?.id);
+    return admin?.role === 'owner' || admin?.is_primary || (user as any)?.user_metadata?.is_super_admin;
+  }, [adminUsers, user]);
+
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedMembership, setExpandedMembership] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
 
+  // Inline Editable Row Component for details
+  const EditableRow = ({ 
+    label, 
+    value, 
+    onSave, 
+    canEdit = false, 
+    className = '',
+    showLabel = true
+  }: { 
+    label: string, 
+    value: string | number | null | undefined, 
+    onSave: (val: string) => Promise<boolean>, 
+    canEdit?: boolean,
+    className?: string,
+    showLabel?: boolean
+  }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [tempValue, setTempValue] = useState(String(value || ''));
+    const [saving, setSaving] = useState(false);
+
+    React.useEffect(() => {
+      setTempValue(String(value || ''));
+    }, [value]);
+
+    const handleSave = async () => {
+      if (tempValue.trim() === String(value || '').trim()) {
+        setIsEditing(false);
+        return;
+      }
+      setSaving(true);
+      try {
+        const success = await onSave(tempValue);
+        if (success) setIsEditing(false);
+      } catch (e) {
+        console.error('Save failed', e);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div className={`flex items-start gap-2 group min-h-[24px] text-[10px] ${className}`}>
+        {showLabel && <strong className="text-gray-400 w-[140px] flex-shrink-0 pt-0.5">{label}:</strong>}
+        {isEditing ? (
+          <div className="flex-1 flex items-start gap-2 max-w-[120px]">
+            <input 
+              type="text" 
+              className="flex-1 border rounded px-1.5 py-0.5 text-[10px] focus:ring-1 focus:ring-emerald-500 outline-none border-white/10 text-emerald-400 bg-white/5" 
+              value={tempValue} 
+              onChange={e => setTempValue(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-1">
+              <button onClick={handleSave} disabled={saving} className="text-emerald-500 hover:text-emerald-400">
+                 {saving ? <div className="w-3 h-3 border border-emerald-500 border-t-transparent animate-spin rounded-full"/> : <CheckCircle size={12}/>}
+              </button>
+            </div>
+          </div>
+        ) : (
+           <div className="flex-1 flex items-center gap-1.5 min-h-[16px]">
+              <span className="text-emerald-500/80 font-medium">{value || <span className="text-gray-500 italic">None</span>}</span>
+              {canEdit && (
+                 <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-emerald-400" title="Edit Batch">
+                    <Users size={10} />
+                 </button>
+              )}
+           </div>
+        )}
+      </div>
+    );
+  };
+
   // Filter memberships based on selected filters
   const filteredMemberships = memberships.filter(membership => {
     const matchesStatus = selectedStatus === 'all' || membership.status === selectedStatus;
+    const matchesBatch = selectedBatch === 'all' || membership.participant_type === selectedBatch;
     const matchesSearch = searchTerm === '' || 
       membership.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       membership.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       membership.college_department.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesBatch && matchesSearch;
   });
+
+  // Get unique batches for filter
+  const batches = React.useMemo(() => {
+    return Array.from(new Set(memberships.map(m => m.participant_type).filter(Boolean))).sort();
+  }, [memberships]);
 
   const handleStatusUpdate = async (membershipId: string, newStatus: 'pending' | 'reviewed' | 'accepted') => {
     try {
@@ -122,7 +227,7 @@ export const MembershipManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Filter by Status</label>
@@ -137,6 +242,24 @@ export const MembershipManagement: React.FC = () => {
                 <option value="pending" className="bg-[#181824]">Pending</option>
                 <option value="reviewed" className="bg-[#181824]">Reviewed</option>
                 <option value="accepted" className="bg-[#181824]">Accepted</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Batch Filter */}
+          <div>
+            <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Filter by Batch</label>
+            <div className="relative">
+              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+              <select
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-white appearance-none"
+              >
+                <option value="all" className="bg-[#181824]">All Batches</option>
+                {batches.map(batch => (
+                  <option key={batch} value={batch} className="bg-[#181824]">{batch}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -165,6 +288,7 @@ export const MembershipManagement: React.FC = () => {
           <button
             onClick={() => {
               setSelectedStatus('all');
+              setSelectedBatch('all');
               setSearchTerm('');
             }}
             className="text-sm text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1 transition-colors"
@@ -243,9 +367,22 @@ export const MembershipManagement: React.FC = () => {
                             <Phone size={12} className="mr-1.5 text-emerald-500/60" />
                             {membership.phone}
                           </div>
-                         <div className="text-xs font-medium text-emerald-500/80 mt-1 bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block">
-                           {membership.participant_type}
-                         </div>
+                           <div className="text-xs font-medium mt-1 bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block">
+                             <EditableRow 
+                               label="Batch" 
+                               showLabel={false}
+                               value={membership.participant_type} 
+                               onSave={async (val) => {
+                                 if (membership.email && val) {
+                                   await updateBatchGlobally(membership.email, val);
+                                   return true;
+                                 }
+                                 return false;
+                               }}
+                               canEdit={isOwner}
+                               className="!min-h-0"
+                             />
+                           </div>
                         </div>
                       </div>
                     </td>
@@ -327,7 +464,7 @@ export const MembershipManagement: React.FC = () => {
                                   <span className="text-gray-300 font-mono">{membership.id}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-white/5 pb-1">
-                                  <span className="text-gray-500">Participant Type</span>
+                                  <span className="text-gray-500">Batch</span>
                                   <span className="text-emerald-400 font-bold">{membership.participant_type}</span>
                                 </div>
                                 <div className="flex justify-between border-b border-white/5 pb-1">

@@ -59,6 +59,16 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
     ];
   }, [siteSettings]);
 
+  // Modal state side effects (Body class for navbar suppression)
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [isOpen]);
+
   // Glitch effect trigger
   useEffect(() => {
     if (isOpen) {
@@ -259,10 +269,10 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
               )}
 
               <div className="grid md:grid-cols-2 gap-6">
-                {/* Participant Type */}
+                {/* Batch Selection */}
                 <div className="cyberpunk-section">
                   <label className="cyberpunk-label">
-                    PARTICIPANT_TYPE *
+                    Batch <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-400 pointer-events-none" />

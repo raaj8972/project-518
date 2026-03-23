@@ -19,8 +19,7 @@ import {
   searchPassesLocally,
 } from '../utils/offlineStorage';
 import { dualRead } from '../lib/dualDb';
-import { onSnapshot, collection, query, orderBy, limit as fsLimit } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 
 interface SecurityUser {
   username: string;
@@ -102,19 +101,21 @@ export default function SecurityDashboard() {
       if (isOnline) {
         const { data } = await dualRead({
           table: 'entry_passes',
-          eq: ['is_active', true]
+          eq: ['is_active', true],
+          limit: 10 // Limit search results to 10
         });
         
         results = (data || []).filter((p: any) => 
           p.participant_name?.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, 10);
+        );
         
         // Fetch usage logs for these passes
         if (results.length > 0) {
           const ids = results.map(p => p.id);
           // For now, doing simple loop or multiple dualReads if needed, but lets just try a broad fetch
           const { data: usageData } = await dualRead({
-            table: 'pass_scans'
+            table: 'pass_scans',
+            limit: 100 // Limit usage check to recent 100 scans for efficiency
           });
           
           const filteredUsage = (usageData || []).filter((s: any) => ids.includes(s.pass_id) && s.scan_result === 'valid');
@@ -175,6 +176,14 @@ export default function SecurityDashboard() {
     return () => clearTimeout(delay);
   }, [manualSearch, showManualEntry]);
   
+  // Debounced stats loader to prevent egress thrashing
+  const debouncedLoadStats = useCallback(
+    debounce(async () => {
+      await loadStats();
+    }, 2000),
+    []
+  );
+
   // Debounced sync stats loader (Performance Optimization #3)
   const debouncedLoadSyncStats = useCallback(
     debounce(async () => {
@@ -184,7 +193,7 @@ export default function SecurityDashboard() {
       } catch (error) {
         console.error('Failed to load sync stats:', error);
       }
-    }, 1000),
+    }, 2000),
     []
   );
 
@@ -228,31 +237,43 @@ export default function SecurityDashboard() {
       await loadStats();
       await loadSyncStats();
 
-      // Subscribe to real-time updates for cross-device coordination (Firestore)
-      const q = query(
-        collection(db, 'pass_scans'),
-        orderBy('scanned_at', 'desc'),
-        fsLimit(20)
-      );
-
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log('🔔 Scan table change detected via Firestore');
-        loadStats();
-        
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added') {
-            const data = change.doc.data();
+      // Subscribe to real-time updates for cross-device coordination (Supabase Realtime)
+      const subscription = supabase
+        .channel('public:pass_scans')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'pass_scans'
+          },
+          async (payload) => {
+            console.log('🔔 New scan detected via Supabase Realtime:', payload.new);
+            
+            const data = payload.new as any;
+            
+            // 1. Sync local cache
             if (data.pass_token) {
-               import('../utils/offlineDB').then(({ markPassAsUsedLocally }) => {
+              import('../utils/offlineDB').then(({ markPassAsUsedLocally }) => {
                 markPassAsUsedLocally(data.pass_token);
               });
             }
+
+            // 2. Increment today's count locally if it's a valid scan from today
+            const todayString = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+            if (data.scan_result === 'valid' && data.scanned_at?.startsWith(todayString)) {
+              debouncedLoadStats(); // Use a debounced version to prevent thrashing
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('📡 SecurityDashboard subscribed to pass_scans');
           }
         });
-      });
 
       return () => {
-        unsubscribe();
+        supabase.removeChannel(subscription);
       };
     };
     
@@ -316,7 +337,8 @@ export default function SecurityDashboard() {
       // Fetch scans for this user or all (Dashboard context)
       const { data } = await dualRead({
         table: 'pass_scans',
-        order: ['scanned_at', { ascending: false }]
+        order: ['scanned_at', { ascending: false }],
+        limit: 100 // CRITICAL: Stop fetching the entire history. 100 is enough for a dashboard overview.
       });
 
       if (data) {

@@ -12,7 +12,7 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { dualRead, dualUpdate, dualInsert } from '../../lib/dualDb';
+import { dualRead, dualUpdate } from '../../lib/dualDb';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
 import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
@@ -185,7 +185,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   );
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedParticipantType, setSelectedParticipantType] = useState<string>('all');
+  const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [selectedEmailStatus, setSelectedEmailStatus] = useState<string>('all'); 
   const [viewMode, setViewMode] = useState<'active' | 'trash'>('active');
   const [searchTerm, setSearchTerm] = useState('');
@@ -203,7 +203,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     filters: {
       event: selectedEvent,
       status: selectedStatus,
-      type: selectedParticipantType,
+      batch: selectedBatch,
       category: selectedCategory,
       search: searchTerm,
       viewMode
@@ -221,8 +221,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     bulkReject: bulkRejectRegistrations,
     bulkDelete: bulkDeleteRegistrations,
     bulkRestore: bulkRestoreRegistrations,
-    bulkPermanentDelete: bulkPermanentDeleteRegistrations
-  } = useRegistrationMutations(refreshRegistrations);
+    bulkPermanentDelete,
+    bulkGeneratePasses,
+    updateBatchGlobally
+  } = useRegistrationMutations(() => {
+    refreshRegistrations();
+  });
 
   // const [bulkSaving, setBulkSaving] = useState(false);
   // const [bulkRejecting, setBulkRejecting] = useState(false);
@@ -608,7 +612,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     [useData().eventCategories]
   );
 
-  const uniqueParticipantTypes = ['Individual', 'Team', 'Group']; // simplified
+  const batchOptions = useMemo(() => {
+    const fromSettings = (siteSettings as any)?.registration_participant_types || [];
+    const fromRegs = Array.from(new Set(registrations.map(r => r.participant_type).filter(Boolean)));
+    return Array.from(new Set([...fromSettings, ...fromRegs])).sort();
+  }, [siteSettings, registrations]);
 
   // Use event.current_registrations for counts
   const eventCounts = useMemo(() => {
@@ -618,8 +626,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     });
     return counts;
   }, [events]);
-
-  const participantTypeCounts: Record<string, number> = {}; // Simplified/Removed for performance
 
   // Selection helpers
   const toggleRowSelect = (id: string) => setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -638,7 +644,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       if (viewMode === 'trash') {
       if (!confirm(`PERMANENTLY DELETE ${ids.length} registration(s)?\n\nThis cannot be undone.`)) return;
       try { 
-        await bulkPermanentDeleteRegistrations?.(ids); 
+        await bulkPermanentDelete?.(ids); 
         setSelectedIds(new Set()); 
       }
       catch (e) { console.error(e); }
@@ -667,7 +673,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const fetchEmailStatuses = React.useCallback(async () => {
     try {
       // Use all registrations from current view mode (active or trash)
-      // Hook handles the viewMode filtering so registrations IS the correct source
       const sourceRegs = registrations;
       const regIds = sourceRegs.map(r => r.id);
       if (regIds.length === 0) return;
@@ -681,11 +686,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       
       // Build status map
       const statusMap: Record<string, { sent: boolean; count: number }> = {};
-      data?.forEach(log => {
+      data?.forEach((log: any) => {
         if (!statusMap[log.registration_id]) {
           statusMap[log.registration_id] = { sent: false, count: 0 };
         }
-        if (log.status === 'sent') {
+        if (log.status === 'sent' || log.delivery_status === 'sent' || log.delivery_status === 'delivered') {
           statusMap[log.registration_id].sent = true;
         }
         statusMap[log.registration_id].count++;
@@ -1168,6 +1173,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     }
   };
 
+
+
   // PDF export now handled by ExportPdfButton which dynamically imports the
   // heavy PDF libraries when a user triggers export. The previous helper
   // function was kept for reference but isn't used here anymore.
@@ -1292,7 +1299,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                       Reject All Pending
                     </button>
 
-                    <div className="h-8 w-px bg-white/10 mx-1"></div>
                   </>
                 )}
 
@@ -1306,6 +1312,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   <Send size={16} className="mr-2" />
                   Email Selected ({selectedIds.size})
                 </button>
+
 
                 {viewMode === 'trash' ? (
                   <button
@@ -1382,11 +1389,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   stampDataUrl={stampDataUrl}
                 />
                 <button
-                  onClick={() => exportRegistrationsToPDF(filteredRegistrations, {
+                  onClick={() => exportRegistrationsToPDF(filteredRegistrations as any, {
                     filename: `registrations-detailed-${new Date().toISOString().slice(0,10)}.pdf`,
                     title: 'Event Registrations Report',
-                    watermarkDataUrl,
-                    stampDataUrl
+                    watermarkDataUrl: (window as any).watermarkDataUrl,
+                    stampDataUrl: (window as any).stampDataUrl
                   })}
                   className="flex items-center justify-center bg-purple-600 text-white px-4 py-2.5 rounded-xl hover:bg-purple-500 transition-all shadow-lg shadow-purple-600/20 text-sm font-bold hover:-translate-y-0.5"
                   title="Detailed PDF with team information"
@@ -1396,9 +1403,9 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                 </button>
                 <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => exportEventSummaryPDF(filteredRegistrations, {
-                      watermarkDataUrl,
-                      stampDataUrl
+                    onClick={() => exportEventSummaryPDF(filteredRegistrations as any, {
+                      watermarkDataUrl: (window as any).watermarkDataUrl,
+                      stampDataUrl: (window as any).stampDataUrl
                     })}
                     className="flex items-center justify-center bg-teal-600 text-white px-3 py-2 rounded-xl hover:bg-teal-500 transition-all shadow-lg shadow-teal-600/20 text-sm font-bold"
                     title="Summary: Count & Batch breakdown"
@@ -1407,7 +1414,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     Summary
                   </button>
                   <button
-                    onClick={() => exportRegistrationsByEventPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+                    onClick={() => exportRegistrationsByEventPDF(filteredRegistrations as any, (window as any).watermarkDataUrl, (window as any).stampDataUrl)}
                     className="flex items-center justify-center bg-blue-600 text-white px-3 py-2 rounded-xl hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20 text-sm font-bold"
                     title="PDF grouped by event"
                   >
@@ -1415,7 +1422,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                     By Event
                   </button>
                   <button
-                    onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations, watermarkDataUrl, stampDataUrl)}
+                    onClick={() => exportRegistrationsByStatusPDF(filteredRegistrations as any, (window as any).watermarkDataUrl, (window as any).stampDataUrl)}
                     className="flex items-center justify-center bg-indigo-600 text-white px-3 py-2 rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20 text-sm font-bold"
                     title="PDF grouped by status"
                   >
@@ -1708,7 +1715,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       )}
 
       {/* Active Filters Display */}
-      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedParticipantType !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
+      {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedBatch !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
         <div className="superia-glass-card border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[500px] h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
           <div className="flex flex-wrap items-center gap-2 relative z-10">
@@ -1735,10 +1742,10 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               </span>
             )}
             
-            {selectedParticipantType !== 'all' && (
+            {selectedBatch !== 'all' && (
               <span className="inline-flex items-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-lg text-sm font-medium text-white border border-white/10 hover:border-indigo-400/50 transition-all shadow-lg">
-                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Type:</span> {selectedParticipantType}
-                <button onClick={() => setSelectedParticipantType('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
+                <span className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Batch:</span> {selectedBatch}
+                <button onClick={() => setSelectedBatch('all')} className="ml-1 hover:text-red-400 p-0.5 rounded-full hover:bg-white/10 transition-colors">
                   <X size={14} />
                 </button>
               </span>
@@ -1803,8 +1810,8 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               onClick={() => {
                 setSelectedEvent('all');
                 setSelectedStatus('all');
+                setSelectedBatch('all');
                 setSelectedCategory('all');
-                setSelectedParticipantType('all');
                 setSelectedEmailStatus('all');
                 setSearchTerm('');
                 setDateFrom('');
@@ -1889,20 +1896,20 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
               </div>
             </div>
 
-            {/* Participant Type Filter */}
+            {/* Batch Filter */}
             <div>
-              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Type</label>
+              <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-wide">Batch</label>
               <div className="relative group">
                 <Users className="absolute left-3 top-3.5 w-4 h-4 text-indigo-400 pointer-events-none group-hover:scale-110 transition-transform" />
                 <select
-                  value={selectedParticipantType}
-                  onChange={(e) => setSelectedParticipantType(e.target.value)}
+                  value={selectedBatch}
+                  onChange={(e) => setSelectedBatch(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-white/10 rounded-xl bg-black/20 hover:bg-black/30 text-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 appearance-none transition-all shadow-lg"
                 >
-                  <option value="all" className="bg-[#050508] text-gray-300">All Types</option>
-                  {uniqueParticipantTypes.map(type => (
-                    <option key={type} value={type} className="bg-[#050508] text-white">
-                      {type} ({participantTypeCounts[type] || 0})
+                  <option value="all" className="bg-[#050508] text-gray-300">All Batches</option>
+                  {batchOptions.map(batch => (
+                    <option key={batch} value={batch} className="bg-[#050508] text-white">
+                      {batch}
                     </option>
                   ))}
                 </select>
@@ -2117,7 +2124,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   Event
                 </th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-                  Type
+                  Batch
                 </th>
                 <th className="px-6 py-5 text-left text-[10px] font-black text-indigo-300 uppercase tracking-[0.2em] shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
                   Status
@@ -2316,7 +2323,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                           setEmailStatusMap(prev => ({
                                             ...prev,
                                             [registration.id]: { 
-                                              sent: data.some(log => log.status === 'sent'), 
+                                              sent: data.some((log: any) => log.status === 'sent'), 
                                               count: data.length 
                                             }
                                           }));
@@ -2468,22 +2475,24 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                                   }} 
                                   canEdit={isOwner} 
                                 />
-                                <EditableRow 
-                                  label="Part. Type" 
-                                  value={registration.participant_type} 
-                                  onSave={async (val) => {
-                                    try {
-                                      await dualUpdate('registrations', registration.id, { participant_type: val });
-                                    } catch (err) {
-                                      push({ message: 'Update failed', type: 'error' });
-                                      return false;
-                                    }
-                                    await updateRegistrationStatus(registration.id, registration.status);
-                                    push({ message: 'Participant type updated', type: 'success' });
-                                    return true;
-                                  }} 
-                                  canEdit={isOwner} 
-                                />
+                                  <EditableRow 
+                                    label="Batch" 
+                                    value={registration.participant_type} 
+                                    onSave={async (val) => {
+                                      try {
+                                        // Update the batch globally for this user's email
+                                        if (registration.email && val) {
+                                           await updateBatchGlobally(registration.email, val);
+                                           return true;
+                                        }
+                                        return false;                                        
+                                      } catch (err) {
+                                        push({ message: 'Global batch update failed', type: 'error' });
+                                        return false;
+                                      }
+                                    }} 
+                                    canEdit={isOwner} 
+                                  />
                                 <div className="flex items-start gap-2 min-h-[24px] text-sm">
                                   <strong className="text-gray-400 w-[140px] flex-shrink-0 pt-0.5">Date:</strong>
                                   <span className="text-gray-200 pt-0.5">{new Date(registration.registration_date).toLocaleString()}</span>

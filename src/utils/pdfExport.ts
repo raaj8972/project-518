@@ -201,7 +201,7 @@ export const exportAuditionsToPDF = (
   // Create main table
   autoTable(doc, {
     startY: 35,
-    head: [['Name', 'Type', 'Instrument/Role', 'Email', 'Phone', 'Status', 'Date']],
+    head: [['Name', 'Batch', 'Instrument/Role', 'Email', 'Phone', 'Status', 'Date']],
     body: tableData,
     theme: 'striped',
     headStyles: {
@@ -220,7 +220,7 @@ export const exportAuditionsToPDF = (
     },
     columnStyles: {
       0: { cellWidth: 35, fontStyle: 'bold' }, // Name
-      1: { cellWidth: 25 }, // Type
+      1: { cellWidth: 25 }, // Batch
       2: { cellWidth: 35 }, // Instrument/Role
       3: { cellWidth: 50 }, // Email
       4: { cellWidth: 30 }, // Phone
@@ -318,7 +318,7 @@ export const exportAuditionsToPDF = (
       doc.setTextColor(60, 60, 60);
 
       const details = [
-        `Participant Type: ${audition.participant_type}`,
+        `Batch: ${audition.participant_type}`,
         `Instrument/Role: ${audition.instrument_role}`,
         `Email: ${audition.email}`,
         `Phone: ${audition.phone}`,
@@ -475,7 +475,7 @@ export const exportAuditionsByStatus = (auditions: Audition[], watermarkDataUrl?
 
     autoTable(doc, {
       startY: 40,
-      head: [['Name', 'Type', 'Instrument/Role', 'Email', 'Phone', 'Date']],
+      head: [['Name', 'Batch', 'Instrument/Role', 'Email', 'Phone', 'Date']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -929,7 +929,7 @@ export const exportRegistrationsByEvent = (registrations: Registration[], waterm
 
     autoTable(doc, {
       startY: 40,
-      head: [['Name', 'Type', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
+      head: [['Name', 'Batch', 'Team/Individual', 'Email', 'Phone', 'College', 'Status', 'Date']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -1057,7 +1057,7 @@ export const exportRegistrationsByStatus = (registrations: Registration[], water
 
     autoTable(doc, {
       startY: 40,
-      head: [['Name', 'Type', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Date']],
+      head: [['Name', 'Batch', 'Event', 'Team/Individual', 'Email', 'Phone', 'College', 'Date']],
       body: tableData,
       theme: 'striped',
       headStyles: {
@@ -1186,7 +1186,7 @@ export const generateRegistrationReceiptPDF = async (
     { label: 'Name', value: registration.full_name },
     { label: 'Email', value: registration.email },
     { label: 'Phone', value: registration.phone },
-    { label: 'Participant Type', value: registration.participant_type || 'N/A' },
+    { label: 'Batch', value: registration.participant_type || 'N/A' },
     { label: 'Registration Date', value: new Date(registration.registration_date).toLocaleString('en-IN', {
       dateStyle: 'long',
       timeStyle: 'short',
@@ -1220,7 +1220,7 @@ export const generateRegistrationReceiptPDF = async (
   yPos += 7;
 
   doc.setFont('helvetica', 'normal');
-  doc.text('Registration Type:', margin + 5, yPos);
+  doc.text('Batch:', margin + 5, yPos);
   doc.text(registration.is_team_registration ? 'Team Registration' : 'Individual Registration', margin + 55, yPos);
   yPos += 10;
 
@@ -1336,7 +1336,7 @@ export const generateRegistrationReceiptPDF = async (
 
 /**
  * Export a summary report of event participation
- * Lists Event Name, Total Count, and Breakdown by Participant Type
+ * Lists Event Name, Total Count, and Breakdown by Batch
  */
 export const exportEventSummaryPDF = (
   registrations: Registration[],
@@ -1387,7 +1387,7 @@ export const exportEventSummaryPDF = (
     const regs = groups[title];
     const total = regs.length;
     
-    // Breakdown by Participant Type
+    // Breakdown by Batch
     const typeCounts: Record<string, number> = {};
     regs.forEach(r => {
       const t = r.participant_type || 'Unknown';

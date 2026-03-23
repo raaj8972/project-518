@@ -1,6 +1,6 @@
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.0-flash-lite';
-const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-pro-latest'];
+import { type Handler } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
+import { callAI, AIMessage, AIModel } from './lib/ai';
 
 const TIER_COLOR_MAP: Record<string, string> = {
   'title': 'from-yellow-400 to-amber-600',
@@ -45,9 +45,6 @@ function inferColorAndIcon(tierName: string) {
   return { color, icon };
 }
 
-import { type Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
-
 export const handler: Handler = async (event: any) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -67,15 +64,9 @@ export const handler: Handler = async (event: any) => {
     }
 
     const { images, model } = JSON.parse(event.body || '{}');
-    const selectedModel = ALLOWED_MODELS.includes(model) ? model : DEFAULT_MODEL;
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'At least one image is required.' }) };
-    }
-
-    const API_KEY = process.env.GOOGLE_API_KEY;
-    if (!API_KEY) {
-      return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'AI configuration error (missing API key)' }) };
     }
 
     const systemInstruction = `
@@ -100,42 +91,33 @@ Required JSON structure - an Array of Tier objects:
 ]
 `;
 
-    const parts: any[] = [{ text: systemInstruction }];
-
-    images.forEach((base64Data: string, index: number) => {
-      const base64Clean = base64Data.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
-      parts.push({ inline_data: { mime_type: "image/jpeg", data: base64Clean } });
-      parts.push({ text: `Brochure image ${index + 1} provided above.` });
-    });
-
-    parts.push({ text: "Extract all sponsorship tiers/packages from the brochure images above into the required JSON format." });
-
-    const requestBody = {
-      contents: [{ role: 'user', parts }],
-      generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
-    };
-
-    const apiUrl = `${GEMINI_BASE}/${selectedModel}:generateContent?key=${API_KEY}`;
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (!response.ok) {
-      const errorData: any = await response.json().catch(() => ({}));
-      console.error('Gemini API Error:', errorData);
-      if (response.status === 429 || response.status === 503) {
-        return { statusCode: response.status, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: `Model "${selectedModel}" is busy. Try a different model.` }) };
+    const messages: AIMessage[] = [
+      {
+        role: 'user',
+        content: "Extract all sponsorship tiers/packages from the brochure images provided.",
+        images: images.map(img => img.replace(/^data:image\/(png|jpeg|webp);base64,/, ""))
       }
-      throw new Error(errorData.error?.message || 'Failed to communicate with Gemini API');
+    ];
+
+    const aiResponse = await callAI(model as AIModel, messages, systemInstruction, 0.1);
+
+    if (!aiResponse.success) {
+      return { 
+        statusCode: aiResponse.status || 500, 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ error: aiResponse.error || 'AI request failed' }) 
+      };
     }
 
-    const data = await response.json();
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!generatedText) throw new Error('Gemini API returned an empty response');
-
-    const rawTiers = JSON.parse(generatedText);
+    // Try to parse the JSON
+    let rawTiers = [];
+    try {
+      const cleanJson = aiResponse.message.replace(/```json\n?|\n?```/g, '').trim();
+      rawTiers = JSON.parse(cleanJson);
+    } catch (e) {
+      console.error('Failed to parse AI JSON:', aiResponse.message);
+      throw new Error('AI returned invalid format');
+    }
 
     const enrichedTiers = rawTiers.map((t: any, i: number) => {
       const { color, icon } = inferColorAndIcon(t.tier || '');
@@ -153,7 +135,7 @@ Required JSON structure - an Array of Tier objects:
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, tiers: enrichedTiers, model: selectedModel }),
+      body: JSON.stringify({ success: true, tiers: enrichedTiers, model: aiResponse.model }),
     };
   } catch (error: any) {
     console.error('AI Tier Extraction Error:', error);

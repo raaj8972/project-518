@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../context/AuthContext';
+import { useStudentAuth } from '../context/StudentAuthContext';
 import { dualRead } from '../lib/dualDb';
 import confetti from 'canvas-confetti';
 import 'canvas-confetti'; 
@@ -21,8 +21,8 @@ const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-
 const iconCls = 'absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20 group-focus-within:text-indigo-400 transition-colors duration-300';
 
 export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, onClose, eventId, eventTitle, previewOverrides }) => {
-  const { events, siteSettings, addRegistration, user: dbUser } = useData() as any;
-  const { user } = useAuth();
+  const { events, siteSettings, addRegistration } = useData() as any;
+  const { user, profile, isAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
   
   const [mode, setMode] = useState<'individual' | 'team'>('individual');
   const [step, setStep] = useState<'form' | 'success'>('form');
@@ -56,25 +56,32 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
 
   useEffect(() => {
     if (isOpen) {
+      document.body.classList.add('modal-open');
       setStep('form');
       setLoading(false);
       setError(null);
       if (event?.registration_default_mode) {
            setMode(event.registration_default_mode === 'team' ? 'team' : 'individual');
       }
+    } else {
+      document.body.classList.remove('modal-open');
     }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
   }, [isOpen]); 
 
   useEffect(() => {
     if (isOpen && user) {
       setFormData(prev => ({
         ...prev,
-        name: user.user_metadata?.full_name || prev.name,
-        phone: (dbUser as any)?.phone || prev.phone,
-        institution: (dbUser as any)?.institution || prev.institution, 
+        name: profile?.full_name || prev.name,
+        email: user.email || prev.email,
+        phone: profile?.phone || prev.phone,
+        institution: profile?.college || prev.institution, 
       }));
     }
-  }, [isOpen, user, dbUser]); 
+  }, [isOpen, user, profile]); 
 
   useEffect(() => {
     if (step === 'success') {
@@ -115,7 +122,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     if (!formData.email.trim()) return setError('Email is required.');
     if (!formData.phone.trim() || formData.phone.length < 10) return setError('Valid phone number is required.');
     if (showInstitution && !isInstitutionOptional && !formData.institution.trim()) return setError('Institution/College is required.');
-    if (!formData.participant_type) return setError('Please select your participant type (e.g. Year).');
+    if (!formData.participant_type) return setError('Please select your batch (e.g. Year).');
 
     if (mode === 'team') {
       if (!formData.team_name.trim()) return setError('Team Name is required.');
@@ -165,6 +172,7 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         total_members: mode === 'team' ? (formData.team_members.length + 1) : 1,
         registration_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
+        user_id: user?.id,
         status: 'pending',
         id: newId,
       };
@@ -235,7 +243,6 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
         <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-purple-600/10 rounded-full blur-[100px] pointer-events-none" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/[0.03] rounded-full blur-[120px] pointer-events-none" />
 
-        {/* Close button */}
         <button 
           onClick={onClose}
           className="absolute top-5 right-5 p-2.5 text-white/20 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.05] hover:border-white/10 rounded-xl transition-all duration-300 z-10"
@@ -243,7 +250,28 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
           <X size={16} />
         </button>
 
-        {step === 'form' ? (
+        {!isAuthenticated ? (
+          <div className="flex flex-col items-center justify-center h-full p-10 text-center animate-in fade-in duration-500">
+             <div className="relative mb-8">
+               <div className="absolute inset-0 w-24 h-24 rounded-full bg-indigo-500/20 animate-pulse" />
+               <div className="relative w-24 h-24 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                 <AlertCircle size={40} className="text-white" />
+               </div>
+             </div>
+             
+             <h2 className="text-2xl font-black text-white mb-3 tracking-tight">Access Restricted</h2>
+             
+             <p className="text-white/40 max-w-sm mb-8 leading-relaxed text-sm font-medium">
+               You must be logged in as a student to register for this event.
+             </p>
+             <a 
+               href="/student/login"
+               className="w-full max-w-xs py-4 bg-white text-black rounded-2xl font-black text-sm uppercase tracking-[0.15em] hover:bg-white/90 transition-all duration-300 flex items-center justify-center gap-2"
+             >
+               Login Now <ChevronRight size={16} />
+             </a>
+          </div>
+        ) : step === 'form' ? (
            <div className="flex flex-col h-full overflow-hidden">
               {/* Header */}
               <div className="p-7 pb-4 shrink-0">
@@ -355,9 +383,9 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
                       </div>
                     )}
 
-                    {/* Participant Type */}
-                    <div className="group">
-                       <label className={labelCls}>Participant Type <span className="text-rose-400">*</span></label>
+                    {/* Batch Selection */}
+                    <div className="space-y-4">
+                       <label className={labelCls}>Batch <span className="text-rose-400">*</span></label>
                        <div className="relative">
                           <BookOpen className={iconCls} size={16} />
                           <select 

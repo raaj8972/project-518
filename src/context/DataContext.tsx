@@ -7,14 +7,20 @@ import { usePersonnelData } from './PersonnelContext';
 import { useGalleryData } from './GalleryContext';
 import { useManagementData } from './ManagementContext';
 import { useAuth } from './AuthContext';
+import { isMasterOwner } from '../constants/owners';
 import { sanitizeUrl, publicUrlFor } from '../utils/dataUtils';
 import { supabase } from '../lib/supabase';
 import { urlsEqual, normalizeStorageUrl, deleteStorageFileByPublicUrl, isUrlReferencedSomewhere } from '../utils/storageUtils';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryDataContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__DATA_CONTEXT__ || ((window as any).__DATA_CONTEXT__ = DataContext))
+  : DataContext) as React.Context<DataContextType | undefined>;
+
 export const useData = () => {
-  const context = useContext(DataContext);
+  const context = useContext(PrimaryDataContext);
   if (context === undefined) {
     throw new Error('useData must be used within a DataProvider');
   }
@@ -41,7 +47,7 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
   // Combine everything into the legacy interface for backward compatibility
   const value: DataContextType = {
     // Core Domain
-    loading: core.loading || events.loading || personnel.loading || gallery.loading || management.loading || auth.loading,
+    loading: core.loading || events.loading || personnel.loading || auth.loading,
     connectionStatus: core.connectionStatus,
     lastError: core.lastError,
     latencyMs: core.latencyMs,
@@ -221,15 +227,17 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     isAdmin: () => {
       if (!user) return false;
       const me = management.adminUsers?.find(u => u.user_id === user.id);
-      return !!me;
+      const isMasterBypass = Boolean((user as any)?.user_metadata?.master_bypass) || 
+                             user.id === 'master-admin-bypass' || 
+                             isMasterOwner(user.email);
+      return !!me || isMasterBypass;
     },
     isOwner: () => {
       if (!user) return false;
       const me = management.adminUsers?.find(u => u.user_id === user.id);
       const isMasterBypass = Boolean((user as any)?.user_metadata?.master_bypass) || 
                              user.id === 'master-admin-bypass' || 
-                             user.email?.toLowerCase() === 'raja@rico.fun' ||
-                             user.email?.toLowerCase() === 'raaj@rico.fun';
+                             isMasterOwner(user.email);
       return isMasterBypass || me?.role === 'owner' || !!me?.is_primary;
     },
     hasPermission: (p: string) => {
@@ -246,9 +254,9 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     memberships: management.memberships,
     storageQuotaBytes: null,
     reorderEventCategories: events.reorderEventCategories,
-    toggleEventFeatured: async () => {},
-    toggleEventVisibility: async () => {},
-    toggleEventRegistration: async () => {},
+    toggleEventFeatured: events.toggleEventFeatured,
+    toggleEventVisibility: events.toggleEventVisibility,
+    toggleEventRegistration: events.toggleEventRegistration,
     deleteAllGalleryImages: async () => {},
     toggleGalleryImageFeatured: async () => {},
     toggleSponsorFeatured: async () => {},
@@ -325,5 +333,5 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     computeAllBucketsUsage: async () => ({ totalBytes: 0, count: 0 })
   };
 
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+  return <PrimaryDataContext.Provider value={value}>{children}</PrimaryDataContext.Provider>;
 };

@@ -94,7 +94,7 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings }) => {
 
         {/* Helper */}
         <div className="mt-10 flex flex-col items-center gap-3">
-          <div className="text-sm text-white/60">Admin can still access the dashboard and login.</div>
+          <div className="text-sm text-white/80">Admin can still access the dashboard and login.</div>
           <a href="/login" className="inline-flex items-center gap-2 bg-white text-black px-4 py-2 rounded shadow hover:shadow-lg hover:translate-y-[-1px] transition-all">
             Go to Admin Login
           </a>

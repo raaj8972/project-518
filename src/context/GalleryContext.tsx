@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import { dualRead, dualInsert, dualUpdate, dualDelete, dualUpsert } from '../lib/dualDb';
 import { 
   GalleryImage, GallerySettings
 } from '../types/data';
@@ -25,8 +26,13 @@ interface GalleryContextType {
 
 const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryGalleryContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__GALLERY_CONTEXT__ || ((window as any).__GALLERY_CONTEXT__ = GalleryContext))
+  : GalleryContext) as React.Context<GalleryContextType | undefined>;
+
 export const useGalleryData = () => {
-  const context = useContext(GalleryContext);
+  const context = useContext(PrimaryGalleryContext);
   if (context === undefined) {
     throw new Error('useGalleryData must be used within a GalleryProvider');
   }
@@ -42,30 +48,70 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchGalleryData = useCallback(async () => {
     setLoading(true);
+    console.log('[GalleryContext] fetchGalleryData started');
+    const start = Date.now();
     try {
-      const [imagesRes, settingsRes] = await Promise.all([
-        supabase
-          .from('gallery_images')
-          .select('*')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('gallery_settings')
-          .select('*')
-          .eq('id', 1)
-          .maybeSingle()
-      ]);
+      // 1. Fetch settings (single request)
+      const { data: settingsData } = await dualRead({
+        table: 'gallery_settings',
+        eq: ['id', 1],
+        maybeSingle: true
+      });
+      console.log('✔ gallery_settings');
+      setGallerySettings(settingsData || DEFAULT_GALLERY_SETTINGS);
 
-      if (imagesRes.error) {
-        console.error('[GalleryContext] Supabase gallery_images error:', imagesRes.error.message);
-      } else {
-        setGalleryImages(imagesRes.data || []);
+      // 2. Fetch total count first (using dualRead with head: true logic if supported, or just select all and count)
+      // For now, let's use a simple direct count but with a timeout
+      const countPromise = supabase
+        .from('gallery_images')
+        .select('*', { count: 'exact', head: true });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT')), 25000)
+      );
+
+      console.log('[GalleryContext] Fetching image count...');
+      const { count, error: countError } = await Promise.race([countPromise, timeoutPromise]) as any;
+
+      if (countError) {
+        console.error('[GalleryContext] Failed to get image count:', countError.message);
       }
 
-      if (settingsRes.error) {
-        console.error('[GalleryContext] Supabase gallery_settings error:', settingsRes.error.message);
-      } else {
-        setGallerySettings(settingsRes.data || DEFAULT_GALLERY_SETTINGS);
+      const total = count || 0;
+      const batchSize = 1000;
+      const numBatches = Math.ceil(total / batchSize);
+      
+      console.log(`[GalleryContext] Total images to fetch: ${total} (${numBatches} batches)`);
+
+      const batchPromises = [];
+      for (let i = 0; i < numBatches; i++) {
+        const from = i * batchSize;
+        const to = Math.min((i + 1) * batchSize - 1, total - 1);
+        batchPromises.push(
+          dualRead({
+            table: 'gallery_images',
+            order: ['created_at', { ascending: false }],
+            range: [from, to]
+          })
+        );
       }
+
+      const results = await Promise.all(batchPromises);
+      console.log(`✔ ${numBatches} batches fetched`);
+      
+      let allImages: GalleryImage[] = [];
+      
+      results.forEach((res) => {
+        if (res.data) {
+          allImages = [...allImages, ...res.data];
+        }
+      });
+
+      // Sort again just in case parallel results are out of order (though range handles it)
+      allImages.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+      console.log(`[GalleryContext] Successfully fetched ${allImages.length} images in ${Date.now() - start}ms`);
+      setGalleryImages(allImages);
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
@@ -81,36 +127,23 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshTrigger, user?.id, fetchGalleryData]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
-    const { error } = await supabase
-      .from('gallery_images')
-      .insert(image);
-    if (error) throw new Error(`[GalleryContext] insert failed: ${error.message}`);
+    await dualInsert('gallery_images', image);
     await fetchGalleryData();
   };
 
   const updateGalleryImage = async (id: number, image: Partial<GalleryImage>) => {
-    const { error } = await supabase
-      .from('gallery_images')
-      .update(image)
-      .eq('id', id);
-    if (error) throw new Error(`[GalleryContext] update failed: ${error.message}`);
+    await dualUpdate('gallery_images', id, image);
     await fetchGalleryData();
   };
 
   const deleteGalleryImage = async (id: number) => {
-    const { error } = await supabase
-      .from('gallery_images')
-      .delete()
-      .eq('id', id);
-    if (error) throw new Error(`[GalleryContext] delete failed: ${error.message}`);
+    await dualDelete('gallery_images', id);
     await fetchGalleryData();
   };
 
   const bulkDeleteGalleryImages = async (ids: number[]) => {
-    const { error } = await supabase
-      .from('gallery_images')
-      .delete()
-      .in('id', ids);
+    // Bulk delete directly via Supabase (dualDelete is one-by-one)
+    const { error } = await supabase.from('gallery_images').delete().in('id', ids);
     if (error) throw new Error(`[GalleryContext] bulk delete failed: ${error.message}`);
     await fetchGalleryData();
   };
@@ -127,7 +160,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch folder structure');
+      throw new Error(error.details ? `${error.error} - ${error.details}` : (error.error || 'Failed to fetch folder structure'));
     }
     return response.json();
   };
@@ -144,7 +177,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to sync folder');
+      throw new Error(error.details ? `${error.error} - ${error.details}` : (error.error || 'Failed to sync folder'));
     }
     const data = await response.json();
     await fetchGalleryData();
@@ -164,7 +197,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     });
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to sync Google Drive');
+      throw new Error(error.details ? `${error.error} - ${error.details}` : (error.error || 'Failed to sync Google Drive'));
     }
     const data = await response.json();
     await fetchGalleryData();
@@ -172,10 +205,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
-    const { error } = await supabase
-      .from('gallery_settings')
-      .upsert({ id: 1, ...settings });
-    if (error) throw new Error(`[GalleryContext] settings upsert failed: ${error.message}`);
+    await dualUpsert('gallery_settings', { id: 1, ...settings });
     await fetchGalleryData();
   };
 
@@ -193,5 +223,5 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     updateGallerySettings
   };
 
-  return <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>;
+  return <PrimaryGalleryContext.Provider value={value}>{children}</PrimaryGalleryContext.Provider>;
 };

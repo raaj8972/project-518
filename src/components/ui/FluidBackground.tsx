@@ -29,14 +29,20 @@ export const FluidBackground: React.FC = () => {
     window.addEventListener('mouseleave', handleMouseLeave);
     
     let points: any[] = [];
-    const spacing = 45; // Spacing of the fluid grid
+    const spacing = 65; // Increased spacing (from 45) to reduce point count by ~50%
     let cols = 0, rows = 0;
 
     const initPoints = () => {
-      width = canvas.parentElement?.clientWidth || window.innerWidth;
-      height = canvas.parentElement?.clientHeight || window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+      const parent = canvas.parentElement;
+      width = parent?.clientWidth || window.innerWidth;
+      height = parent?.clientHeight || window.innerHeight;
+      
+      // Use a lower resolution for the internal canvas buffer to save fill-rate
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = width * Math.min(dpr, 1.5); 
+      canvas.height = height * Math.min(dpr, 1.5);
+      ctx.scale(Math.min(dpr, 1.5), Math.min(dpr, 1.5));
+
       points = [];
       cols = Math.floor(width / spacing) + 1;
       rows = Math.floor(height / spacing) + 1;
@@ -64,61 +70,73 @@ export const FluidBackground: React.FC = () => {
       time += 0.015;
 
       // Update points
-      points.forEach(p => {
-        const dx = mouse.x - p.x;
-        const dy = mouse.y - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        const maxDist = 250;
-        // Natural drifting (fluid noise)
-        let pX = p.baseX + Math.sin(p.angle + time) * 15;
-        let pY = p.baseY + Math.cos(p.angle + time) * 15;
+      const maxDist = 200; // Reduced from 250
+      const mouseX = mouse.x;
+      const mouseY = mouse.y;
 
-        // Mouse interaction (repulsion)
-        if (dist < maxDist) {
+      for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const dx = mouseX - p.x;
+        const dy = mouseY - p.y;
+        
+        // Use squared distance for faster check
+        const distSq = dx * dx + dy * dy;
+        
+        let pX = p.baseX + Math.sin(p.angle + time) * 12;
+        let pY = p.baseY + Math.cos(p.angle + time) * 12;
+
+        if (distSq < maxDist * maxDist) {
+            const dist = Math.sqrt(distSq);
             const force = (maxDist - dist) / maxDist;
-            pX -= (dx / dist) * force * 50;
-            pY -= (dy / dist) * force * 50;
+            pX -= (dx / dist) * force * 40;
+            pY -= (dy / dist) * force * 40;
         }
 
-        // Elastic return
         p.x += (pX - p.x) * 0.1;
         p.y += (pY - p.y) * 0.1;
-      });
+      }
 
       // Draw lines
       ctx.lineWidth = 1;
+      const mouseReach = 250; // Reduced from 300
+      
       for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
           const idx = i * rows + j;
           const p = points[idx];
           
+          // Pre-calculate squared distance for mouse reach once per point
+          const distSqToMouse = (mouseX - p.x)**2 + (mouseY - p.y)**2;
+          const reachSq = mouseReach * mouseReach;
+          const isInReach = distSqToMouse < reachSq;
+
+          // Draw right connection
           if (i < cols - 1) {
             const right = points[(i + 1) * rows + j];
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(right.x, right.y);
             
-            const dist = Math.hypot(mouse.x - p.x, mouse.y - p.y);
-            if(dist < 300) {
-                const intensity = 0.6 * (1 - dist/300);
-                ctx.strokeStyle = `rgba(168, 85, 247, ${intensity})`; // Purple glow
+            if (isInReach) {
+                const intensity = 0.5 * (1 - Math.sqrt(distSqToMouse) / mouseReach);
+                ctx.strokeStyle = `hsla(270, 90%, 65%, ${intensity})`; 
             } else {
-                ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)'; // Dull indigo
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.05)'; 
             }
             ctx.stroke();
           }
+          // Draw bottom connection
           if (j < rows - 1) {
             const bottom = points[i * rows + (j + 1)];
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(bottom.x, bottom.y);
-            const dist = Math.hypot(mouse.x - p.x, mouse.y - p.y);
-            if(dist < 300) {
-                const intensity = 0.6 * (1 - dist/300);
-                ctx.strokeStyle = `rgba(0, 248, 255, ${intensity})`; // Cyan glow
+            
+            if (isInReach) {
+                const intensity = 0.5 * (1 - Math.sqrt(distSqToMouse) / mouseReach);
+                ctx.strokeStyle = `hsla(185, 100%, 50%, ${intensity})`;
             } else {
-                ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.05)';
             }
             ctx.stroke();
           }

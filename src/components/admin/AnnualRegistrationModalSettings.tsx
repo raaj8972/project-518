@@ -74,7 +74,7 @@ export const AnnualRegistrationModalSettings: React.FC = () => {
   };
 
   const addType = () => {
-    const t = prompt('Enter participant type (e.g. Alumni):');
+    const t = prompt('Enter batch (e.g. 2024):');
     if (t) {
       setDraft((prev: any) => ({
         ...prev,
@@ -108,7 +108,7 @@ export const AnnualRegistrationModalSettings: React.FC = () => {
               </div>
               <span className="text-xs font-black text-gold-400 uppercase tracking-widest">Annual Domain</span>
             </div>
-            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-none mb-3">Annual Registration Model</h2>
+            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter leading-none mb-3">Annual Batch Model</h2>
             <p className="text-base text-white/40 font-medium max-w-xl italic">Architect the data ingestion matrix for annual sports. Define criteria, custom fields, and access levels.</p>
           </div>
 
@@ -247,13 +247,13 @@ export const AnnualRegistrationModalSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Participant Types & Actions */}
+        {/* Right: Batches & Actions */}
         <div className="lg:col-span-4 space-y-8">
            <div className="rounded-[2.5rem] bg-white/[0.02] border border-white/5 overflow-hidden shadow-2xl">
              <div className="px-8 py-6 border-b border-white/5 bg-gradient-to-r from-teal-500/10 to-transparent flex items-center justify-between">
                 <div className="flex items-center gap-4">
                    <Sparkles size={20} className="text-teal-400" />
-                   <h3 className="text-sm font-black text-white tracking-widest uppercase">Entities</h3>
+                   <h3 className="text-sm font-black text-white tracking-widest uppercase">Batches</h3>
                 </div>
                 {isEditing && (
                    <button onClick={addType} className="p-2 bg-teal-500/20 text-teal-400 rounded-xl border border-teal-500/30 hover:bg-teal-500/30 transition-all">

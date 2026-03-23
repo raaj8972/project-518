@@ -139,10 +139,9 @@ export const AdminPresencePanel = ({
                 'Auditions': 'auditions',
                 'Memberships': 'memberships',
                 'Form Settings': 'form-settings',
-                'Registration Modal': 'registration-modal',
+                'Batch Model': 'registration-modal',
                 'Roadmap': 'roadmap',
                 'Security': 'security',
-                'Biometric Login': 'biometric-login',
                 'Site Settings': 'site-settings',
                 'Admin Users': 'admin-users',
                 'Notifications': 'notifications'

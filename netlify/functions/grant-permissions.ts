@@ -1,5 +1,6 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions'
-import { createClient } from '@supabase/supabase-js'
+import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
+import { supabase as adminClient } from './lib/supabase';
+import { verifyAdmin } from './lib/auth-verify';
 
 // POST /.netlify/functions/grant-permissions  { email, flags? or all:true }
 // Auth: Authorization: Bearer <supabase access token>
@@ -24,8 +25,6 @@ type Flags = Partial<{
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
-    const { getSupabaseClient } = await import('./lib/supabase');
-    const adminClient = getSupabaseClient(true);
     
     const { email, all, flags } = JSON.parse(event.body || '{}') as { email?: string; all?: boolean; flags?: Flags }
     if (!email) return { statusCode: 400, body: 'Missing email' }
@@ -35,8 +34,8 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       return { statusCode: 401, body: 'Missing authorization header' }
     }
 
-    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
-    const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), adminClient);
+    const { isOwner, user } = await verifyAdmin(authHeader.toString(), adminClient);
+
 
     if (!user) {
       return { statusCode: 401, body: 'Invalid or expired session' }

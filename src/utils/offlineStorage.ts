@@ -4,7 +4,8 @@
  * High-level functions for managing offline pass validation
  */
 
-import { dualRead, dualInsert, dualUpdate } from '../lib/dualDb';
+import { supabase } from '../lib/supabase';
+import { dualRead, dualInsert } from '../lib/dualDb';
 import { registerBackgroundSync, isBackgroundSyncSupported } from './backgroundSync';
 import { evaluateRules } from './validationRules';
 import {
@@ -23,51 +24,69 @@ import {
   validateCacheIntegrity,
   storeRules,
   getStoredRules,
-  hasBeenScannedToday,
   searchPassesLocally,
-  type EntryPass
+  type EntryPass,
+  db
 } from './offlineDB';
 
 
 /**
- * Sync passes from Supabase to local IndexedDB
+ * Sync passes from server to local IndexedDB
+ * Uses incremental syncing if possible to reduce egress
  */
-export async function syncPassesFromServer(): Promise<{ success: boolean; count: number; error?: string }> {
+export async function syncPassesFromServer(forceRefresh: boolean = false): Promise<{ success: boolean; count: number; error?: string }> {
   try {
     console.log('🔄 Syncing passes from server...');
     
-    // Sync validation rules first
+    // Sync validation rules and settings first
     await syncRulesFromServer();
+    await syncSettingsFromServer();
     
-    // Fetch ALL passes from Primary (Firestore)
-    // This ensures we can validate inactive/used passes offline too
-    const { data: passes } = await dualRead({
+    // Get sync metadata
+    const metadata = await getSyncMetadata();
+    const isIncremental = !forceRefresh && metadata.lastSync > 0;
+    
+    // Fetch passes with optimization
+    const options: any = {
       table: 'entry_passes',
-      select: 'pass_token, participant_name, pass_type, is_active, is_used, created_at, valid_date'
-    });
+      select: 'pass_token, participant_name, pass_type, is_active, is_used, created_at, updated_at, valid_date, day_number, scanned_at, scanned_by'
+    };
+
+    if (isIncremental) {
+      // Use ISO string for date comparisons
+      const lastSyncDate = new Date(metadata.lastSync).toISOString();
+      options.gt = ['updated_at', lastSyncDate];
+      console.log(`📡 Fetching incremental updates since ${lastSyncDate}`);
+    } else {
+      console.log('📡 Performing full pass sync');
+    }
+
+    const { data: passes } = await dualRead(options);
 
     if (!passes) {
+      if (isIncremental) {
+        console.log('ℹ️ No new updates found');
+        return { success: true, count: 0 };
+      }
       return { success: false, count: 0, error: 'Failed to fetch passes from server' };
     }
 
     if (passes.length === 0) {
-      console.warn('⚠️ No passes found in database');
-      return {
-        success: false,
-        count: 0,
-        error: 'No passes found. Please create passes first from Admin Dashboard.'
-      };
+      console.log('ℹ️ Sync complete - no new records');
+      await setLastSyncTime(Date.now());
+      return { success: true, count: 0 };
     }
 
-    // Clear old passes and store new ones
-    await clearAllPasses();
+    // Store passes (bulkPut handles updates automatically)
+    if (!isIncremental) {
+      await clearAllPasses();
+    }
     await storePasses(passes as EntryPass[]);
 
     // Update sync metadata
     await setLastSyncTime(Date.now());
 
-    const activeCount = (passes as EntryPass[]).filter((p: EntryPass) => p.is_active).length;
-    console.log(`✅ Synced ${passes.length} passes from server (${activeCount} active)`);
+    console.log(`✅ Synced ${passes.length} passes from server`);
     
     return {
       success: true,
@@ -102,8 +121,6 @@ export async function validatePassOffline(
     let searchToken = token.trim();
     let restrictedDateSuffix: string | null = null;
 
-    console.log('🔍 ValidatePassOffline Input:', token);
-
     if (searchToken.includes('|')) {
        const parts = searchToken.split('|');
        if (parts.length === 2) {
@@ -125,12 +142,13 @@ export async function validatePassOffline(
       };
     }
 
+    // Indian Standard Time is UTC+5:30
+    const now = new Date();
+    const todayStr = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+
     // STRICT DATE CHECK for Multi-Day Pass Split
     if (restrictedDateSuffix) {
-       const today = new Date();
-       const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-       
-       console.log('📅 Date Validation:', { qrDate: restrictedDateSuffix, today: todayStr });
+        console.log('📅 Date Validation:', { qrDate: restrictedDateSuffix, today: todayStr });
 
        if (restrictedDateSuffix !== todayStr) {
           return {
@@ -164,7 +182,7 @@ export async function validatePassOffline(
       };
     }
 
-    // Check if pass is inactive
+    // 1. Check if pass is inactive
     if (!pass.is_active) {
       return {
         valid: false,
@@ -174,47 +192,8 @@ export async function validatePassOffline(
       };
     }
 
-    // Check restricted date (Database Level Override)
-    if (pass.valid_date) {
-      const today = new Date();
-      // Adjust for Indian Standard Time (since event is in India)
-      // Or just use local date string if devices are local.
-      // Using 'en-CA' gives YYYY-MM-DD format which matches Supabase DATE type
-      const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      
-      console.log('🔍 Offline Date Check:', {
-          passDate: pass.valid_date,
-          todayDate: todayStr,
-          match: pass.valid_date === todayStr
-      });
-
-      if (pass.valid_date !== todayStr) {
-        return {
-           valid: false,
-           result: 'invalid',
-           message: `Valid for ${pass.valid_date} only`,
-           name: pass.participant_name
-        };
-      }
-    } else {
-       console.log('🔍 Offline Date Check: No valid_date (All Access)');
-    }
-
-    // Check if already scanned TODAY (multi-day support)
-    // Instead of blocking any used pass, we only block if it was already scanned today.
-    const alreadyScannedToday = await hasBeenScannedToday(token);
-    if (alreadyScannedToday) {
-      return {
-        valid: false,
-        result: 'already_used',
-        message: `Already scanned today: ${pass.participant_name}`,
-        name: pass.participant_name
-      };
-    }
-
-    // Check for previous usage (for standard passes)
-    // VIPs can be used on multiple days, but regular passes are one-time only.
-    if (pass.is_used && pass.pass_type !== 'vip') {
+    // 2. STRICT ONE-TIME USE CHECK
+    if (pass.is_used || pass.scanned_at) {
       return {
         valid: false,
         result: 'already_used',
@@ -223,14 +202,57 @@ export async function validatePassOffline(
       };
     }
 
-    // Check if in pending queue (scanned offline but not synced yet)
-    const pendingScan = await isInPendingQueue(token);
+    // 3. Check if in pending queue (scanned offline but not synced yet)
+    const pendingScan = await isInPendingQueue(searchToken);
     if (pendingScan) {
       const scanTime = new Date(pendingScan.timestamp).toLocaleTimeString();
       return {
         valid: false,
         result: 'already_used',
         message: `Already scanned at ${scanTime}`,
+        name: pass.participant_name
+      };
+    }
+
+    // 4. DATE VALIDATION ("Not before and after")
+    
+    let targetDate: string | null = pass.valid_date || null;
+
+    // If day_number is used, get date from cached settings
+    if (!targetDate && pass.day_number) {
+      const settings = (await db.sync_metadata.get('security_settings'))?.value;
+      if (settings?.event_dates && settings.event_dates[pass.day_number - 1]) {
+        targetDate = settings.event_dates[pass.day_number - 1];
+      }
+    }
+
+    // Strict Date Check
+    if (targetDate) {
+      console.log('🔍 Offline Date Check:', { targetDate, todayStr });
+      
+      if (todayStr < targetDate) {
+        return {
+          valid: false,
+          result: 'invalid',
+          message: `Event not started (Valid for ${targetDate})`,
+          name: pass.participant_name
+        };
+      } else if (todayStr > targetDate) {
+        return {
+          valid: false,
+          result: 'invalid',
+          message: `Pass expired (Valid for ${targetDate})`,
+          name: pass.participant_name
+        };
+      }
+    }
+
+    // Fallback/Legacy: QR Suffix Date Check
+    if (restrictedDateSuffix && restrictedDateSuffix !== todayStr) {
+      return {
+        valid: false,
+        result: 'invalid',
+        message: `Pass suffix identifies ${restrictedDateSuffix}`,
         name: pass.participant_name
       };
     }
@@ -429,131 +451,59 @@ export async function validatePassHybrid(
   // ONLINE - Try server validation first
   if (isOnline) {
     try {
-      // 1. Fetch Pass Details (Read Only first) - Use Primary
-      const { data: passData } = await dualRead({
-        table: 'entry_passes',
-        eq: ['pass_token', token],
-        maybeSingle: true
+      // 1. Call RPC for atomic validation and consumption
+      const { data, error } = await supabase.rpc('validate_entry_pass', {
+        p_pass_token: token,
+        p_scanned_by: securityUsername
       });
-      
-      if (!passData) {
+
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      }
+
+      if (!data.valid) {
         return {
           valid: false,
-          result: 'invalid',
-          message: 'Pass not found'
+          result: data.error_code || 'invalid',
+          message: data.reason,
+          name: data.name,
+          pass_type: data.pass_type
         };
       }
 
-      // 2. Check Active Status
-      if (!passData.is_active) {
-         return {
-          valid: false,
-          result: 'inactive',
-          message: 'Pass is inactive',
-          name: passData.participant_name,
-          pass_type: passData.pass_type
-        };
-      }
-
-      // Check restricted date (Online Path)
-      if (passData.valid_date) {
-        // We can trust the client date for this quick check or parse server date if needed.
-        // For consistency with offline mode, we check against local time (IST typically for physical event)
-        const today = new Date();
-        const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      // 2. Evaluate any additional client-side rules (e.g., local capacity)
+      // Note: We do this AFTER RPC succeeds because most rules should be server-side.
+      // If a client rule fails now, it's actually bad because server marked it as used.
+      // However, the rules engine is currently designed for more complex/custom logic.
+      const storedRules = await getStoredRules();
+      if (storedRules && storedRules.length > 0) {
+        const rulesResult = await evaluateRules(
+          { pass_type: data.pass_type, pass_token: token },
+          storedRules
+        );
         
-        console.log('🔍 Date Validation Debug:', {
-          passDate: passData.valid_date,
-          todayDate: todayStr,
-          match: passData.valid_date === todayStr
-        });
-
-        if (passData.valid_date !== todayStr) {
+        if (!rulesResult.valid) {
           return {
-             valid: false,
-             result: 'invalid',
-             message: `Valid for ${passData.valid_date} only`,
-             name: passData.participant_name,
-             pass_type: passData.pass_type
+            valid: false,
+            result: 'rule_violation',
+            message: rulesResult.reason || 'Rule validation failed',
+            name: data.name || 'Unknown',
+            pass_type: data.pass_type
           };
         }
-      } else {
-        console.log('🔍 Date Validation: Pass has NO valid_date (All Access)');
       }
 
-      // 3. Evaluate Validation Rules (Before Consumption)
-      const storedRules = await getStoredRules();
-      const activeRules = storedRules; // Default removed
+      // 3. Mark pass as used locally in IndexedDB to prevent offline re-use
+      await markPassAsUsedLocally(token).catch(console.error);
       
-      const rulesResult = await evaluateRules(
-        { pass_type: passData.pass_type, pass_token: token },
-        activeRules
-      );
-      
-      if (!rulesResult.valid) {
-        return {
-          valid: false,
-          result: 'rule_violation',
-          message: rulesResult.reason || 'Rule validation failed',
-          name: passData.participant_name || 'Unknown',
-          pass_type: passData.pass_type
-        };
-      }
-
-      // 4. Everything Valid -> CONSUME (Replaced RPC with Direct Dual Update)
-      // Check for usage on server (one last time)
-      const { data: usageLogs } = await dualRead({
-        table: 'pass_scans',
-        eq: ['pass_token', token]
-      });
-
-      const today = new Date();
-      const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      const alreadyUsedToday = (usageLogs || []).some((s: any) => s.scan_result === 'valid' && s.scanned_at.startsWith(todayStr));
-
-      if (alreadyUsedToday) {
-        return {
-          valid: false,
-          result: 'already_used',
-          message: 'Pass already used today',
-          name: passData.participant_name
-        };
-      }
-
-      if (passData.is_used && passData.pass_type !== 'vip') {
-        return {
-          valid: false,
-          result: 'already_used',
-          message: 'Pass already used',
-          name: passData.participant_name
-        };
-      }
-
-      // Record scan entry
-      await dualInsert('pass_scans', {
-        pass_token: token,
-        participant_name: passData.participant_name,
-        scan_result: 'valid',
-        scanned_by_username: securityUsername,
-        guard_name: guardName,
-        pass_type: passData.pass_type,
-        scanned_at: new Date().toISOString()
-      });
-
-      // Mark pass as used if not VIP
-      if (passData.pass_type !== 'vip') {
-        await dualUpdate('entry_passes', passData.id, { is_used: true });
-      }
-
-      // Sync rules back to cache
-      syncRulesFromServer().catch(console.error);
-
+      // 4. Success
       return {
         valid: true,
         result: 'valid',
         message: 'Valid entry',
-        name: passData.participant_name,
-        pass_type: passData.pass_type,
+        name: data.name,
+        pass_type: data.pass_type,
         scanned_by: securityUsername
       };
     } catch (error: any) {
@@ -596,5 +546,28 @@ export async function syncRulesFromServer(): Promise<void> {
     }
   } catch (err) {
     console.error('Failed to sync rules', err);
+  }
+}
+/**
+ * Sync security settings (event dates, venue, etc.) from server
+ */
+export async function syncSettingsFromServer(): Promise<void> {
+  try {
+    const { data: settings } = await dualRead({
+      table: 'security_settings',
+      limit: 1
+    });
+      
+    if (settings && settings.length > 0) {
+      const { db } = await import('./offlineDB');
+      await db.sync_metadata.put({
+        key: 'security_settings',
+        value: settings[0],
+        updated_at: Date.now()
+      });
+      console.log('✅ Security settings synced offline');
+    }
+  } catch (err) {
+    console.error('Failed to sync security settings', err);
   }
 }

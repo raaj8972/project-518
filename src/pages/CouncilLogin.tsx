@@ -42,13 +42,46 @@ export default function CouncilLogin() {
     return () => ctx.revert();
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) return;
-    sessionStorage.setItem('council_auth', password);
-    React.startTransition(() => {
-      navigate('/council-dashboard');
-    });
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch('/api/verify-council', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode: password })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Invalid passcode');
+      }
+
+      const data = await res.json();
+      
+      if (!data.success) {
+        throw new Error('Authentication failed');
+      }
+
+      // Valid passcode, now set the session variable to the passcode directly
+      // Since CouncilDashboard still reads the exact plaintext password to make DB calls
+      sessionStorage.setItem('council_auth', password);
+      
+      React.startTransition(() => {
+        navigate('/council-dashboard');
+      });
+    } catch (err: any) {
+      setError(err.message || 'Access denied');
+      setPassword('');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -81,6 +114,12 @@ export default function CouncilLogin() {
                 </p>
               </div>
 
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-xs font-bold text-center stagger-item">
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={handleLogin} className="space-y-4 stagger-item">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/70 font-bold ml-1 flex items-center gap-2">
@@ -101,11 +140,16 @@ export default function CouncilLogin() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="btn-emerald w-full group"
+                    disabled={isSubmitting}
+                    className="btn-emerald w-full group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
-                      <BarChart3 size={18} className="group-hover:scale-110 transition-transform" />
-                      Access Analytics
+                      {isSubmitting ? (
+                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                      ) : (
+                        <BarChart3 size={18} className="group-hover:scale-110 transition-transform" />
+                      )}
+                      {isSubmitting ? 'Authenticating...' : 'Access Analytics'}
                     </div>
                   </button>
                 </div>

@@ -55,8 +55,13 @@ interface PersonnelContextType {
 
 const PersonnelContext = createContext<PersonnelContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryPersonnelContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__PERSONNEL_CONTEXT__ || ((window as any).__PERSONNEL_CONTEXT__ = PersonnelContext))
+  : PersonnelContext) as React.Context<PersonnelContextType | undefined>;
+
 export const usePersonnelData = () => {
-  const context = useContext(PersonnelContext);
+  const context = useContext(PrimaryPersonnelContext);
   if (context === undefined) {
     throw new Error('usePersonnelData must be used within a PersonnelProvider');
   }
@@ -78,16 +83,18 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchPersonnelData = useCallback(async () => {
     setLoading(true);
+    console.log('[PersonnelContext] fetchPersonnelData started');
+    const start = Date.now();
     try {
       const [facultyRes, coreCommitteesRes, coreTeamRes, sportsCommitteesRes, sportsTeamRes, bandRes, guestRes, chiefRes] = await Promise.all([
-        fetchSupabaseBatch<FacultyHead>('faculty_heads'),
-        fetchSupabaseBatch<CoreCommittee>('core_committees'),
-        fetchSupabaseBatch<CoreTeamMember>('core_team_members'),
-        fetchSupabaseBatch<SportsCommittee>('sports_committees', { order: { column: 'order_position', ascending: true } }),
-        fetchSupabaseBatch<SportsTeamMember>('sports_team_members', { order: { column: 'order_position', ascending: true } }),
-        fetchSupabaseBatch<BandMember>('band_members', { order: { column: 'order_position', ascending: true } }),
-        fetchSupabaseBatch<GuestArtist>('guest_artists', { order: { column: 'order_position', ascending: true } }),
-        fetchSupabaseBatch<any>('chief_guests', { order: { column: 'order_position', ascending: true } })
+        fetchSupabaseBatch<FacultyHead>('faculty_heads').then(r => { console.log('✔ faculty_heads'); return r; }),
+        fetchSupabaseBatch<CoreCommittee>('core_committees').then(r => { console.log('✔ core_committees'); return r; }),
+        fetchSupabaseBatch<CoreTeamMember>('core_team_members').then(r => { console.log('✔ core_team_members'); return r; }),
+        fetchSupabaseBatch<SportsCommittee>('sports_committees', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ sports_committees'); return r; }),
+        fetchSupabaseBatch<SportsTeamMember>('sports_team_members', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ sports_team_members'); return r; }),
+        fetchSupabaseBatch<BandMember>('band_members', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ band_members'); return r; }),
+        fetchSupabaseBatch<GuestArtist>('guest_artists', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ guest_artists'); return r; }),
+        fetchSupabaseBatch<any>('chief_guests', { order: { column: 'order_position', ascending: true } }).then(r => { console.log('✔ chief_guests'); return r; })
       ]);
 
       if (!facultyRes.error) setFacultyHeads(facultyRes.data || []);
@@ -99,6 +106,7 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
       if (!guestRes.error) setGuestArtists(guestRes.data || []);
       if (!chiefRes.error) setChiefGuests(chiefRes.data || []);
 
+      console.log(`[PersonnelContext] Data fetched in ${Date.now() - start}ms`);
     } catch (err) {
       console.error('[PersonnelContext] Failed to fetch personnel data', err);
     } finally {
@@ -215,5 +223,5 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  return <PersonnelContext.Provider value={value}>{children}</PersonnelContext.Provider>;
+  return <PrimaryPersonnelContext.Provider value={value}>{children}</PrimaryPersonnelContext.Provider>;
 };

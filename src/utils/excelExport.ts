@@ -6,7 +6,7 @@ const getXLSX = async () => {
   _XLSX = (mod && (mod as any).default) ? (mod as any).default : mod;
   return _XLSX;
 };
-import { Registration } from '../context/DataContext';
+import { Registration } from '../types/data';
 
 // Defensive helper: parse team_members that might be null/string/json
 const safeTeamMembers = (r: any): any[] => {
@@ -34,7 +34,7 @@ export const exportRegistrationsToExcel = async (registrations: Registration[], 
       'Team Name': reg.team_name || 'N/A',
       'Total Members': reg.total_members,
       'Leader/Participant Name': reg.full_name,
-      'Leader/Participant Type': reg.participant_type,
+      'Leader/Batch': reg.participant_type,
       'Leader/Participant Email': reg.email,
       'Leader/Participant Phone': reg.phone,
       'Photo URL': (reg as any).photo_url || '—',
@@ -117,7 +117,7 @@ export const exportRegistrationsByEvent = async (registrations: Registration[]) 
       'Team Name': reg.team_name || 'N/A',
       'Total Members': reg.total_members,
       'Leader/Participant Name': reg.full_name,
-      'Participant Type': reg.participant_type,
+      'Batch': reg.participant_type,
       'Email': reg.email,
       'Phone': reg.phone,
       'Photo URL': (reg as any).photo_url || '—',
@@ -194,7 +194,7 @@ export const exportRegistrationsByStatus = async (registrations: Registration[])
       'Team Name': reg.team_name || 'N/A',
       'Total Members': reg.total_members,
       'Leader/Participant Name': reg.full_name,
-      'Participant Type': reg.participant_type,
+      'Batch': reg.participant_type,
       'Email': reg.email,
       'Phone': reg.phone,
       'Photo URL': (reg as any).photo_url || '—',
@@ -251,7 +251,7 @@ export const exportAuditionsToExcel = async (auditions: any[], filename: string 
   const excelData = auditions.map(audition => ({
     'Audition ID': audition.id,
     'Full Name': audition.full_name,
-     'Participant Type': audition.participant_type,
+     'Batch': audition.participant_type,
     'Email': audition.email,
     'Phone': audition.phone,
     'Instrument/Role': audition.instrument_role,
@@ -292,7 +292,7 @@ export const exportMembershipsToExcel = async (memberships: any[], filename: str
   const excelData = memberships.map(membership => ({
     'Membership ID': membership.id,
     'Full Name': membership.full_name,
-     'Participant Type': membership.participant_type,
+     'Batch': membership.participant_type,
     'Email': membership.email,
     'Phone': membership.phone,
     'College/Department': membership.college_department,

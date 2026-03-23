@@ -7,7 +7,11 @@ export type GalleryImage = Database['public']['Tables']['gallery_images']['Row']
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
 export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[], schedule_type?: 'prelims' | 'mains' };
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
-export type Registration = Database['public']['Tables']['registrations']['Row'] & { deleted_at?: string | null };
+export type Registration = Database['public']['Tables']['registrations']['Row'] & { 
+  deleted_at?: string | null;
+  user_id?: string | null;
+  registration_date?: string | null;
+};
 export type SponsorshipSettings = Database['public']['Tables']['sponsorship_settings']['Row'] & { contactSections: ContactSection[] };
 export type ContactSection = Database['public']['Tables']['contact_sections']['Row'];
 export type EventCategory = Database['public']['Tables']['event_categories']['Row'];
@@ -17,6 +21,7 @@ export type AdminPermission = Database['public']['Tables']['admin_permissions'][
   can_sports?: boolean;
   can_security_passes?: boolean;
   can_sports_registrations?: boolean;
+  can_roadmap?: boolean;
 };
 export type CoreTeamMember = Database['public']['Tables']['core_team_members']['Row'];
 export type SportsCommittee = Database['public']['Tables']['sports_committees']['Row'];
@@ -29,7 +34,11 @@ export type SportsSeason = Database['public']['Tables']['sports_seasons']['Row']
 };
 export type SportsTeam = Database['public']['Tables']['sports_teams']['Row'] & { annual_event_id?: string | null };
 export type SportsPlayer = Database['public']['Tables']['sports_players']['Row'] & { annual_event_id?: string | null };
-export type SportsRegistration = Database['public']['Tables']['sports_registrations']['Row'] & { metadata?: any };
+export type SportsRegistration = Database['public']['Tables']['sports_registrations']['Row'] & { 
+  metadata?: any;
+  user_id?: string | null;
+  registration_date?: string | null;
+};
 export type SportsMatch = Database['public']['Tables']['sports_matches']['Row'] & { annual_event_id?: string | null, annual_team_a_id?: string | null, annual_team_b_id?: string | null };
 export interface AnnualSportsEvent {
   id: string;
@@ -62,7 +71,7 @@ export interface AnnualSportsEvent {
   registration_mode_locked?: boolean;
   team_min_members?: number | null;
   team_max_members?: number | null;
-  fee?: number;
+
   visible?: boolean;
   display_teams?: boolean;
   display_schedule?: boolean;
@@ -77,6 +86,8 @@ export interface AnnualSportsEvent {
 export interface AnnualSportsRegistration {
   id: string;
   reg_id: string;
+  user_id?: string | null;
+  registration_date?: string | null;
   event_id: string;
   full_name: string;
   email: string;
@@ -89,6 +100,7 @@ export interface AnnualSportsRegistration {
   is_team_registration?: boolean;
   team_name?: string | null;
   team_members?: Array<{ name: string; email?: string; photo_url?: string }> | null;
+  team_id?: string | null;
   total_members?: number;
   status?: 'pending' | 'approved' | 'rejected';
   photo_url?: string | null;
@@ -113,6 +125,14 @@ export interface AnnualSportsMatch {
   created_at: string;
   updated_at: string;
 }
+export interface Team {
+  id: string;
+  name: string;
+  code: string;
+  event_id: string | null;
+  created_at: string;
+  created_by: string;
+}
 export type BandMember = Database['public']['Tables']['band_members']['Row'];
 export type GuestArtist = Database['public']['Tables']['guest_artists']['Row'];
 export type ChiefGuest = Database['public']['Tables']['chief_guests']['Row'];
@@ -121,7 +141,9 @@ export type Audition = Database['public']['Tables']['auditions']['Row'];
 export type Membership = Database['public']['Tables']['memberships']['Row'];
 export type FormSettings = Database['public']['Tables']['form_settings']['Row'];
 export type SocialMediaSettings = Database['public']['Tables']['social_media_settings']['Row'];
-export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'];
+export type HomepageSettings = Database['public']['Tables']['homepage_settings']['Row'] & {
+  roadmap_enabled?: boolean;
+};
 export type HomeboundSettings = Database['public']['Tables']['homebound_settings']['Row'];
 export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] & {
   sports_registration_config?: {
@@ -158,7 +180,28 @@ export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] 
     }>;
   };
   annual_sports_mode_enabled?: boolean;
+  batch_options?: string[]; // Deprecated: use registration_participant_types
+  registration_participant_types?: string[];
+  registration_participant_quotas?: Record<string, number>;
+  registration_institution_visible?: boolean;
+  registration_institution_optional?: boolean;
+  student_google_auth_enabled?: boolean;
+  shoutouts_enabled?: boolean;
+  shoutouts_daily_limit?: number;
+  shoutouts_expiry_hours?: number;
+  site_version?: string | null;
 };
+
+export interface Admirer {
+  target_id: string;
+  liker_id: string;
+  liker_name: string;
+  liker_avatar: string | null;
+  liker_tier: string | null;
+  created_at: string;
+}
+
+
 export type AboutSettings = {
   id: number;
   enabled: boolean;
@@ -188,6 +231,8 @@ export type HeroMedia = Database['public']['Tables']['hero_media']['Row'];
 export type PageKey = HeroMedia['page_key'];
 export type SecuritySettings = Database['public']['Tables']['security_settings']['Row'] & {
   council_passcode?: string | null;
+  sports_passcode?: string | null;
+  venue?: string | null;
 };
 
 export interface DataContextType {
@@ -340,6 +385,7 @@ export interface DataContextType {
   updateHomepageSettings: (settings: Partial<HomepageSettings>) => Promise<void>;
   updateHomeboundSettings: (settings: Partial<HomeboundSettings>) => Promise<void>;
   updateSiteSettings: (settings: Partial<SiteSettings>) => Promise<void>;
+
   updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
   prefetchEvents?: () => Promise<void>;
@@ -393,6 +439,7 @@ export interface DataContextType {
   listAdminPermissions?: () => Promise<any[]>;
   setAdminPermission?: (userId: string, patch: Partial<AdminPermission>) => Promise<void>;
   updateAdminRole?: (userId: string, role: 'owner' | 'admin') => Promise<void>;
+  updateAdminPassword?: (userId: string, password: string) => Promise<void>;
   myPermissions?: {
     can_events?: boolean;
     can_schedule?: boolean;

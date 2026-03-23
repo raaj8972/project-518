@@ -81,8 +81,8 @@ export const CountdownTimer: React.FC<{
     }
     if (showEnded) {
     return (
-        <div className={`inline-flex items-center gap-3 font-mono ${neon ? 'drop-shadow-[0_0_16px_rgba(236,72,153,0.35)]' : ''} ${className}`} aria-live="polite">
-          <span className="px-2 py-1 rounded-md bg-pink-500/20 text-pink-300 border border-pink-400/40 text-sm font-semibold ring-1 ring-pink-400/40 animate-pulse">
+        <div className={`inline-flex items-center gap-3 font-mono ${neon ? 'drop-shadow-[0_0_16px_rgba(239,68,68,0.35)]' : ''} ${className}`} aria-live="polite">
+          <span className="px-2 py-1 rounded-md bg-red-500/20 text-red-300 border border-red-400/40 text-sm font-semibold ring-1 ring-red-400/40 animate-pulse">
             {endedText}
           </span>
           {liveLink && (
@@ -102,7 +102,7 @@ export const CountdownTimer: React.FC<{
 
   return (
     // Group into two no-wrap pairs so the colon never dangles at the line end when wrapping
-  <div className={`flex flex-nowrap items-center gap-x-3 lg:gap-x-3 font-mono lg:scale-95 ${neon ? 'drop-shadow-[0_0_18px_rgba(34,211,238,0.25)]' : ''} ${className}`} aria-live="polite">
+  <div className={`flex flex-nowrap items-center gap-x-3 lg:gap-x-3 font-mono lg:scale-95 ${neon ? 'drop-shadow-[0_0_18px_rgba(239,68,68,0.25)]' : ''} ${className}`} aria-live="polite">
       <div className="flex items-center gap-2 lg:gap-2 whitespace-nowrap">
         <TimeBlock label="D" value={days} highlight={days <= 1} neon={neon} sizeCfg={sizeCfg} />
         <span className={`opacity-70 leading-none ${sizeCfg.colon} ${neon ? 'drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]' : ''}`}>:</span>
@@ -120,9 +120,9 @@ export const CountdownTimer: React.FC<{
 const TimeBlock: React.FC<{ label: string; value: number; highlight?: boolean; neon?: boolean; sizeCfg: { num: string; label: string; pad: string } }> = ({ label, value, highlight, neon, sizeCfg }) => (
   <div className={`${sizeCfg.pad} rounded-lg md:rounded-xl text-white shadow 
     ${neon
-      ? 'bg-gradient-to-b from-pink-500/10 via-white/5 to-cyan-400/10 border border-white/15 ring-1 ring-white/10 shadow-[0_0_20px_rgba(236,72,153,0.2),0_0_28px_rgba(34,211,238,0.18)]'
+      ? 'bg-gradient-to-b from-red-500/10 via-white/5 to-orange-400/10 border border-white/15 ring-1 ring-white/10 shadow-[0_0_20px_rgba(239,68,68,0.2),0_0_28px_rgba(239,68,68,0.18)]'
       : 'bg-black/40 border border-white/10'} 
-    ${highlight ? (neon ? 'ring-2 ring-pink-400/40' : 'ring-1 ring-pink-400/50') : ''}
+    ${highlight ? (neon ? 'ring-2 ring-red-400/40' : 'ring-1 ring-red-400/50') : ''}
   `}>
     <div className={`${sizeCfg.num} tabular-nums tracking-wider ${neon ? 'drop-shadow-[0_0_10px_rgba(255,255,255,0.45)]' : ''}`}>
       {pad(value)}

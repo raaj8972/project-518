@@ -69,10 +69,10 @@ const buildPathD = (w: number, h: number, segments: number, edgePad: number) => 
 const DigitalGrid = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
     <div className="absolute inset-0" style={{ 
-      backgroundImage: `linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px)`,
+      backgroundImage: `linear-gradient(to right, #450a0a 1px, transparent 1px), linear-gradient(to bottom, #450a0a 1px, transparent 1px)`,
       backgroundSize: '40px 40px'
     }} />
-    <div className="absolute inset-0 bg-gradient-to-b from-[#06121c] via-transparent to-[#06121c]" />
+    <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
   </div>
 );
 
@@ -303,33 +303,33 @@ const Roadmap: React.FC<RoadmapProps> = ({
   }, [durationMs, reducedMotion, inView, offsetAlong, offsetNormal, MILESTONES.length]);
 
   return (
-  <section id="roadmap" className="relative w-full overflow-hidden pt-24 pb-48 bg-[#06121c]" aria-label="Ricorrenza Roadmap">
+  <section id="roadmap" className="relative w-full overflow-hidden pt-24 pb-48 bg-[#0a0a0a]" aria-label="Ricorrenza Roadmap">
       <DigitalGrid />
-      <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 30% 0%, #4338ca 0%, transparent 60%)' }} />
+      <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 30% 0%, #7f1d1d 0%, transparent 60%)' }} />
       <div className="px-4 relative z-10">
         <h2 className="text-4xl md:text-5xl font-black text-center mb-16 tracking-tight text-white uppercase italic">
           <span className="relative inline-block">
             RICORRENZA Evolution
-            <span className="absolute inset-x-0 -bottom-2 h-1 bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 rounded-full blur-[1px]" />
+            <span className="absolute inset-x-0 -bottom-2 h-1 bg-gradient-to-r from-red-500 via-orange-500 to-red-900 rounded-full blur-[1px]" />
           </span>
         </h2>
       </div>
         {/* Full-width path container (no max-width constraint) */}
         <div className="relative w-full" style={{ height: containerHeight }} ref={containerRef}>
           {/* Bottom fade mask to make it "never ending" */}
-          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#06121c] to-transparent z-30 pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-64 bg-gradient-to-t from-[#0a0a0a] to-transparent z-30 pointer-events-none" />
 
           <svg ref={svgRef} viewBox={`0 0 ${viewWidth} ${containerHeight}`} className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
             <defs>
               <linearGradient id="roadGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="50%" stopColor="#334155" />
-                <stop offset="100%" stopColor="#1e293b" />
+                <stop offset="0%" stopColor="#2D0A0A" />
+                <stop offset="50%" stopColor="#450a0a" />
+                <stop offset="100%" stopColor="#2D0A0A" />
               </linearGradient>
               <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity="0" />
-                <stop offset="50%" stopColor="#22d3ee" stopOpacity="1" />
-                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                <stop offset="0%" stopColor="#ef4444" stopOpacity="0" />
+                <stop offset="50%" stopColor="#ef4444" stopOpacity="1" />
+                <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
               </linearGradient>
               <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -412,16 +412,16 @@ const Roadmap: React.FC<RoadmapProps> = ({
                 {/* Pin positioned back toward the path center */}
                 <div className="absolute" style={{ left: leftSide ? '100%' : 'auto', right: leftSide ? 'auto' : '100%', top: 14 }}>
                   <div className={`relative ${active ? 'scale-125' : 'scale-100'} transition-transform duration-500`}>
-                    <MapPin className={`w-7 h-7 ${active ? 'text-cyan-400' : 'text-slate-500'} transition-colors duration-500`} />
-                    {active && <div className="absolute inset-0 bg-cyan-400 rounded-full blur-xl opacity-40 animate-pulse" />}
+                    <MapPin className={`w-7 h-7 ${active ? 'text-red-500' : 'text-slate-700'} transition-colors duration-500`} />
+                    {active && <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-40 animate-pulse" />}
                   </div>
                 </div>
                 <div style={{ width: milestoneWidth }} className={`${leftSide ? 'text-right pr-6' : 'text-left pl-6'} select-none relative group`}>
                     {active && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-transparent -inset-y-4 -mx-4 rounded-2xl blur-xl" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-red-900/40 to-transparent -inset-y-4 -mx-4 rounded-2xl blur-xl" />
                     )}
                   <h3
-                    className={`font-black tracking-tighter ${isMobile ? 'text-2xl' : 'text-4xl'} mb-2 italic transition-all duration-700 ${active ? 'text-cyan-400' : 'text-slate-400/80 group-hover:text-slate-200'}`}
+                    className={`font-black tracking-tighter ${isMobile ? 'text-2xl' : 'text-4xl'} mb-2 italic transition-all duration-700 ${active ? 'text-red-500' : 'text-slate-600 group-hover:text-slate-400 font-serif'}`}
                   >
                     {milestone.year}
                   </h3>
@@ -432,7 +432,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
                         className={`transition-all duration-700 ${active ? 'text-slate-100' : 'text-slate-400'} flex items-start gap-2`}
                         style={{ transitionDelay: isRevealed ? `${200 + j * 100}ms` : '0ms' }}
                       >
-                        <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${active ? 'bg-cyan-400 shadow-[0_0_8px_#22d3ee]' : 'bg-slate-600'}`} />
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${active ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' : 'bg-slate-800'}`} />
                         <span className="flex-1">{l}</span>
                       </li>
                     ))}
@@ -450,7 +450,7 @@ const Roadmap: React.FC<RoadmapProps> = ({
             className="absolute z-20 will-change-transform"
             style={{ width: vehicleSize, height: vehicleSize }}
           >
-            <div className="absolute inset-0 bg-cyan-400/20 blur-2xl rounded-full scale-150 animate-pulse" />
+            <div className="absolute inset-0 bg-red-400/20 blur-2xl rounded-full scale-150 animate-pulse" />
             
             {vehicleImage ? (
               vehicleImage.endsWith('.mp4') || vehicleImage.endsWith('.webm') || vehicleImage.endsWith('.mov') ? (
@@ -473,9 +473,9 @@ const Roadmap: React.FC<RoadmapProps> = ({
                 />
               )
             ) : (
-                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-cyan-400 via-indigo-500 to-purple-600 border border-white/20 flex items-center justify-center relative shadow-2xl overflow-hidden group">
+                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-red-700 via-red-900 to-black border border-white/20 flex items-center justify-center relative shadow-2xl overflow-hidden group">
                   <div className="absolute inset-0 bg-white/10 group-hover:bg-white/20 transition-colors" />
-                  <span className="text-[10px] font-black text-white tracking-widest select-none drop-shadow-md">RICO-BOT</span>
+                  <span className="text-[10px] font-black text-white tracking-widest select-none drop-shadow-md font-serif">THE GATE</span>
                 </div>
             )}
           </div>

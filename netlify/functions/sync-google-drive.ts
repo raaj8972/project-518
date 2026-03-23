@@ -7,6 +7,12 @@ export const handler: Handler = async (event) => {
   const supabase = getSupabaseClient(true);
   const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || '';
   
+  console.log(`[DriveSync] Checking environment...`);
+  console.log(`[DriveSync] GOOGLE_API_KEY present: ${!!GOOGLE_API_KEY}`);
+  if (GOOGLE_API_KEY) {
+    console.log(`[DriveSync] Key ends with: ...${GOOGLE_API_KEY.substring(GOOGLE_API_KEY.length - 4)}`);
+  }
+  
   const START_TIME = Date.now();
   const TIMEOUT_MS = 25000; // 25 seconds for Netlify (default is 10s, can be increased)
 
@@ -96,8 +102,9 @@ export const handler: Handler = async (event) => {
                 `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&pageToken=${pageToken}&key=${GOOGLE_API_KEY}`
             );
             if (!res.ok) {
-                console.error(`Error fetching files for ${parentId}: ${res.status}`);
-                break;
+                const errDetail = await res.text();
+                console.error(`Error fetching files for ${parentId}: ${res.status} - ${errDetail}`);
+                throw new Error(`Google Drive API Error: ${res.status} - ${errDetail}`);
             }
             const data = await res.json();
             const files = data.files || [];

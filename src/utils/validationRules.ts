@@ -165,11 +165,9 @@ function evaluateDateRestriction(rule: ValidationRule): { valid: boolean; reason
     return { valid: true };
   }
 
-  // Get local date string YYYY-MM-DD
-  const now = new Date();
-  // Adjust for timezone offset to get correct local YYYY-MM-DD
-  const offset = now.getTimezoneOffset();
-  const localDate = new Date(now.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0];
+  // Get local date string YYYY-MM-DD in Asia/Kolkata
+  const today = new Date();
+  const localDate = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
   if (!allowedDates.includes(localDate)) {
     // Format dates for display
@@ -191,12 +189,13 @@ async function getCurrentScanCount(): Promise<number> {
   try {
     // Try to get from IndexedDB first (offline)
     const { db } = await import('./offlineDB');
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date();
+    const todayStr = today.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
     
     // Count scans from today
     const scans = await db.pending_scans
       .where('timestamp')
-      .startsWith(today)
+      .startsWith(todayStr)
       .and(scan => scan.result === 'valid')
       .count();
       

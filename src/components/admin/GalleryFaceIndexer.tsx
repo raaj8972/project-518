@@ -192,7 +192,7 @@ export const GalleryFaceIndexer: React.FC = () => {
                     Neural Map: v3.0 Ultra
                   </span>
                   <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Core Engine: Biometric S4</span>
+                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Core Engine: Identity S4</span>
                 </div>
               </div>
             </div>

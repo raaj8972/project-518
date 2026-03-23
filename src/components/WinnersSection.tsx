@@ -73,8 +73,8 @@ const WinnersSection: React.FC = () => {
       <div className="absolute inset-0 bg-[url('/noise.png')] opacity-5 mix-blend-overlay"></div>
       
       {/* Glow Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse" style={{ animationDelay: '1s' }}></div>
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-red-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-600/20 rounded-full blur-[100px] pointer-events-none animate-pulse" style={{ animationDelay: '1s' }}></div>
 
       <div className="container mx-auto relative z-10 w-full">
         <div className="scroll-animate-3d">
@@ -98,13 +98,13 @@ const WinnersSection: React.FC = () => {
                 animation: 'fadeOut 5s forwards',
               }}
             >
-              <div className="bg-black/60 backdrop-blur-sm border border-cyan-500/30 rounded-lg px-6 py-4 flex items-center gap-4 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
-                <ChevronLeft className="w-6 h-6 text-cyan-400 animate-pulse" style={{ animation: 'slideLeft 1.5s infinite' }} />
+              <div className="bg-black/60 backdrop-blur-sm border border-red-500/30 rounded-lg px-6 py-4 flex items-center gap-4 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+                <ChevronLeft className="w-6 h-6 text-red-400 animate-pulse" style={{ animation: 'slideLeft 1.5s infinite' }} />
                 <div className="text-center">
-                  <p className="text-cyan-300 font-mono text-sm font-bold uppercase tracking-wider">Swipe to See More</p>
+                  <p className="text-red-300 font-mono text-sm font-bold uppercase tracking-wider">Swipe to See More</p>
                   <p className="text-gray-400 font-mono text-xs mt-1">← Drag or Use Arrows →</p>
                 </div>
-                <ChevronRight className="w-6 h-6 text-cyan-400 animate-pulse" style={{ animation: 'slideRight 1.5s infinite' }} />
+                <ChevronRight className="w-6 h-6 text-red-400 animate-pulse" style={{ animation: 'slideRight 1.5s infinite' }} />
               </div>
             </div>
           )}

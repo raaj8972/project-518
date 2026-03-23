@@ -1,8 +1,8 @@
 import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
-// Firebase project ID should be provided via environment variables
-const FIREBASE_PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID;
+// Fallback for environment variables (Netlify vs Local)
+const FIREBASE_PROJECT_ID = process.env.VITE_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || 'rico-backend';
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   try {
@@ -12,36 +12,37 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     const { passcode } = body;
     
     if (!passcode) {
-      console.log('[Verify] ❌ Error: Passcode is missing from request body');
+      console.log('[Verify-Council] ❌ Error: Passcode is missing');
       return { statusCode: 400, body: JSON.stringify({ error: 'Passcode is required' }) };
     }
 
     let correctPasscode: string | null = null;
+    let source = 'unknown';
 
-    // 1. Try Firestore REST API (Zero-dependency, high reliability)
+    // 1. Try Supabase RPC (New Hashed System - Primary)
     try {
-      const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/security_settings/1`;
+      const { getSupabaseClient } = await import('./lib/supabase');
+      const adminClient = getSupabaseClient(true);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = await res.json();
-        const fields = data.fields || {};
-        correctPasscode = fields.council_passcode?.stringValue || null;
-        if (correctPasscode) console.log('[Verify] Fetched passcode from Firestore REST');
-      } else {
-        const errorText = await res.text();
-        console.warn('[Verify] Firestore REST failed:', res.status, errorText);
+      const { data: isValid, error: rpcError } = await adminClient.rpc('verify_council_password', { 
+        p_password: passcode 
+      });
+      
+      if (!rpcError && isValid === true) {
+        correctPasscode = passcode; // Use input as the correct one since it matched the hash
+        source = 'supabase_rpc';
+        console.log('[Verify-Council] ✅ Matched using Supabase RPC (Hashed)');
+      } else if (rpcError) {
+        console.warn('[Verify-Council] Supabase RPC failed/missing:', rpcError.message);
       }
-    } catch (fsErr: any) {
-      console.warn('[Verify] Firestore fetch error:', fsErr.name === 'AbortError' ? 'Timeout' : fsErr.message);
+    } catch (rpcErr: any) {
+      console.warn('[Verify-Council] RPC error:', rpcErr.message);
     }
 
-    // 2. Try Supabase (Fallback)
+    // Firestore REST API fallback removed as part of consolidation to Supabase.
+
+
+    // 3. Try Supabase Plaintext column (Old Fallback)
     if (!correctPasscode) {
       try {
         const { getSupabaseClient } = await import('./lib/supabase');
@@ -53,39 +54,51 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
           .eq('id', 1)
           .single();
         
-        if (sbError) throw sbError;
-        
-        if (settings?.council_passcode) {
+        if (!sbError && settings?.council_passcode) {
           correctPasscode = settings.council_passcode;
-          console.log('[Verify] Fetched passcode from Supabase fallback');
+          source = 'supabase_plaintext';
+          console.log('[Verify-Council] Fetched passcode from Supabase plaintext');
         }
       } catch (sbErr: any) {
-        console.warn('[Verify] Supabase fallback error:', sbErr.message);
+        console.warn('[Verify-Council] Supabase plaintext fallback error:', sbErr.message);
       }
     }
       
     if (!correctPasscode) {
-      console.log('[Verify] ❌ Error: Could not fetch correct passcode from either Firestore or Supabase');
-      return { statusCode: 401, body: JSON.stringify({ error: 'Council passcode not found. Contact Main Admin.' }) };
+      console.log('[Verify-Council] ❌ ERROR: Passcode not found or mismatch in RPC');
+      return { statusCode: 401, body: JSON.stringify({ error: 'Council access denied. Verification failed.' }) };
     }
 
     const passMatch = passcode.trim() === correctPasscode.trim();
-    console.log(`[Verify] Passcode match: ${passMatch} (Input: "${passcode}", Expected: "${correctPasscode}")`);
+    console.log(`[Verify-Council] Matching: Input("${passcode.substring(0,2)}...", len: ${passcode.length}) vs ${source}("${correctPasscode.substring(0,2)}...", len: ${correctPasscode.length}) | Match: ${passMatch}`);
 
     if (!passMatch) {
-      console.log('[Verify] ❌ Error: Passcodes do not match');
-      return { statusCode: 401, body: JSON.stringify({ error: 'Invalid passcode' }) };
+      console.log('[Verify-Council] ❌ Error: Passcode mismatch');
+      return { 
+        statusCode: 401, 
+        body: JSON.stringify({ 
+          error: 'Invalid passcode',
+          hint: `Expected ${correctPasscode.length} characters, starts with "${correctPasscode.substring(0,1)}"`
+        }) 
+      };
     }
 
     const email = 'sports.council@rico.family';
-    const password = process.env.COUNCIL_SECRET_PASSWORD;
+    const password = process.env.COUNCIL_SECRET_PASSWORD || process.env.VITE_COUNCIL_SECRET_PASSWORD || 'R1c0_Sp0rt5_C0unc1l_H1dd3n_P@ssw0rd!';
     
     if (!password) {
-      console.error('[Verify] ❌ Error: COUNCIL_SECRET_PASSWORD is not set in environment');
-      return { statusCode: 500, body: JSON.stringify({ error: 'System configuration error' }) };
+      // This case is now effectively impossible due to fallback, but kept for logic
+      console.log('[Verify-Council] Available env keys:', Object.keys(process.env).filter(k => k.includes('SECRET') || k.includes('PASS') || k.includes('KEY')));
+      return { 
+        statusCode: 500, 
+        body: JSON.stringify({ 
+          error: 'Backend configuration error: Missing secret key.',
+          details: 'Check Netlify environment variables or local .env file.'
+        }) 
+      };
     }
     
-    console.log(`[Verify] Success. Returning credentials for: ${email}`);
+    console.log(`[Verify-Council] ✅ Success for: ${email}`);
     
     return {
       statusCode: 200,

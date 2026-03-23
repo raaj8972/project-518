@@ -1,336 +1,306 @@
 /**
- * Database Layer — Firebase Firestore (Primary & Only)
- * Storage remains on Supabase.
- * 
- * READS:  Firestore only
- * WRITES: Firestore only
+ * Database Layer — Supabase (Primary) + Firebase Firestore (Passive Backup)
+ *
+ * READS:  Supabase ONLY — fast, no Firestore fallback overhead
+ * WRITES: Supabase first (await), then async fire-and-forget Firestore sync
+ *
+ * Key rule: NEVER pass an explicit `null` or `undefined` id to Supabase for
+ * SERIAL/identity tables — simply omit the key and let Postgres auto-generate it.
  */
+
 import { db } from './firebase';
 import { supabase } from './supabase';
-import { 
-  collection, doc, getDocs, setDoc, deleteDoc, 
-  query, where, orderBy, limit as firestoreLimit 
+import {
+  doc, setDoc, deleteDoc,
+  collection, getDocs, query as fsQuery,
+  where, orderBy, limit as firestoreLimit
 } from 'firebase/firestore';
 
-// Helper for UUID generation that doesn't depend on external modules
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+// ─────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────
+
+/** Strip keys starting with _ (Firestore internal metadata) */
+function sanitize(data: any): any {
+  if (!data || typeof data !== 'object' || data instanceof Date) return data;
+  if (Array.isArray(data)) return data.map(sanitize);
+  const out: any = {};
+  for (const k of Object.keys(data)) {
+    if (!k.startsWith('_')) out[k] = sanitize(data[k]);
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
+  return out;
+}
 
-// Tables that should bypass Firestore (Primary & Only on Supabase)
-const SUPABASE_ONLY_TABLES = [
-  'annual_sports_events', 
-  'annual_sports_registrations',
-  'sports_seasons',
-  'sports_teams',
-  'sports_players',
-  'sports_registrations',
-  'sports_matches',
-  'annual_sports_matches'
-];
-// ═══════════════════════════════════════════════════
-// READ — Firestore only
-// ═══════════════════════════════════════════════════
+/** Build a clean Supabase insert/upsert payload — never pass a null/undefined id */
+function supabasePayload(item: any, includeId = false): any {
+  const { id, created_at: _ca, updated_at: _ua, ...rest } = item;
+  const payload = sanitize(rest);
+  // Only include id when it's a real value (for updates/upserts)
+  if (includeId && id !== undefined && id !== null && id !== '') {
+    payload.id = id;
+  }
+  return payload;
+}
 
-interface ReadOptions {
+/** Fire-and-forget Firestore backup — never blocks the caller */
+function firestoreBackup(table: string, items: any[]) {
+  if (!db) return;
+  for (const item of items) {
+    if (item?.id == null) continue;
+    setDoc(doc(db, table, String(item.id)), item, { merge: true })
+      .catch(e => console.warn(`[Db] Firestore backup failed ${table}/${item.id}:`, e.message));
+  }
+}
+
+/** Fire-and-forget Firestore delete */
+function firestoreDeleteBackup(table: string, id: number | string) {
+  if (!db) return;
+  deleteDoc(doc(db, table, String(id)))
+    .catch(e => console.warn(`[Db] Firestore delete backup failed ${table}/${id}:`, e.message));
+}
+
+// ─────────────────────────────────────────────────────────
+/** Promisified timeout wrapper to prevent indefinite hangs */
+function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number): Promise<T> {
+  const timeoutMs = ms || 12000;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
+    )
+  ]);
+}
+
+/** UUID Regex for validation */
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(id: any): boolean {
+  if (typeof id !== 'string') return false;
+  return uuidRegex.test(id);
+}
+
+// ─────────────────────────────────────────────────────────
+// READ — Supabase only
+// ─────────────────────────────────────────────────────────
+
+export interface ReadOptions {
   table: string;
   select?: string;
   eq?: [string, any];
+  gt?: [string, any];
   in?: [string, any[]];
   order?: [string, { ascending?: boolean }];
   limit?: number;
   single?: boolean;
   maybeSingle?: boolean;
+  range?: [number, number];
 }
 
-export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 'firestore' | 'supabase' }> {
-  const { table, eq, in: inOpts, order, limit, single, maybeSingle } = opts;
+export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 'supabase' | 'firestore' }> {
+  const { table, eq, gt, in: inOpts, order, limit, single, maybeSingle } = opts;
 
-  // Fallback to Supabase if Firestore is not initialized
-  if (!db) {
-    console.warn(`[Db] Firestore not initialized, falling back to Supabase for ${table}`);
-    return await fallbackToSupabase(opts);
-  }
+  let q = supabase.from(table).select(opts.select || '*');
+  if (eq)     q = q.eq(eq[0], eq[1]);
+  if (gt)     q = q.gt(gt[0], gt[1]);
+  if (inOpts) q = q.in(inOpts[0], inOpts[1]);
+  if (order)  q = q.order(order[0], { ascending: order[1]?.ascending !== false });
+  if (limit)  q = q.limit(limit);
+  if (opts.range) q = q.range(opts.range[0], opts.range[1]);
 
-  let colRef = collection(db, table);
   try {
-    // Bypass Firestore for specific tables
-    if (SUPABASE_ONLY_TABLES.includes(table)) {
-      throw new Error('SUPABASE_ONLY'); 
+    if (single || maybeSingle) {
+      if (eq && (eq[0] === 'user_id' || eq[0] === 'id') && typeof eq[1] === 'string' && eq[1].includes('hardcoded') && !isUuid(eq[1])) {
+        console.info(`[Db] Skipping Supabase read for static ID: ${eq[1]}, falling back to Firestore`);
+        return await firestoreRead(opts);
+      }
+      const { data, error } = await withTimeout<any>((q as any).maybeSingle(), 15000);
+      if (error) throw error;
+      
+      if (single && !data) throw new Error('NOT_FOUND');
+      
+      // If maybeSingle and not found in Supabase, try Firestore
+      if (maybeSingle && !data) {
+        return await firestoreRead(opts);
+      }
+      
+      return { data, source: 'supabase' };
+    } else {
+      if (eq && (eq[0] === 'user_id' || eq[0] === 'id') && typeof eq[1] === 'string' && eq[1].includes('hardcoded') && !isUuid(eq[1])) {
+        console.info(`[Db] Skipping Supabase read for static ID: ${eq[1]}, falling back to Firestore`);
+        return await firestoreRead(opts);
+      }
+      const { data, error } = await withTimeout<any>(q, 20000);
+      if (error) throw error;
+      
+      // If Supabase returns empty, try Firestore (migration fallback)
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        console.info(`[Db] Supabase returned empty for ${table}, checking Firestore fallback...`);
+        return await firestoreRead(opts);
+      }
+      
+      return { data: data ?? [], source: 'supabase' };
     }
+  } catch (err: any) {
+    // Supabase failed — try Firestore as last resort
+    console.warn(`[Db] Supabase read failed/timed out for ${table}, trying Firestore:`, err.message);
+    return await firestoreRead(opts);
+  }
+}
+
+/** Firestore is now only a last-resort fallback (not primary) */
+async function firestoreRead(opts: ReadOptions): Promise<{ data: any; source: 'firestore' }> {
+  const { table, eq, gt, in: inOpts, order, limit, single, maybeSingle } = opts;
+  const empty = { data: single || maybeSingle ? null : [], source: 'firestore' as const };
+  if (!db) return empty;
+
+  try {
+    const colRef = collection(db, table);
     let q: any = colRef;
-    if (eq) q = query(q, where(eq[0], '==', eq[1]));
-    if (inOpts) q = query(q, where(inOpts[0], 'in', inOpts[1]));
-    
-    // Apply server-side ordering if specified
-    if (order) {
-      const [col, config] = order;
-      q = query(q, orderBy(col, config?.ascending === false ? 'desc' : 'asc'));
-    }
+    if (eq)     q = fsQuery(q, where(eq[0], '==', eq[1]));
+    if (gt)     q = fsQuery(q, where(gt[0], '>', gt[1]));
+    if (inOpts) q = fsQuery(q, where(inOpts[0], 'in', inOpts[1]));
+    if (order)  q = fsQuery(q, orderBy(order[0], order[1]?.ascending === false ? 'desc' : 'asc'));
+    const eff = (single || maybeSingle) && !limit ? 1 : limit;
+    if (eff)    q = fsQuery(q, firestoreLimit(eff));
 
-    // Apply server-side limit
-    let effectiveLimit = limit;
-    if ((single || maybeSingle) && !effectiveLimit) {
-      effectiveLimit = 1;
-    }
-    if (effectiveLimit) {
-      q = query(q, firestoreLimit(effectiveLimit));
-    }
-
-    const snapshot = await getDocs(q);
-    const data = snapshot.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    const snap = await withTimeout<any>(getDocs(q), 15000);
+    const data = snap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
 
     if (single || maybeSingle) {
-      const result = data[0] || null;
+      const result = data[0] ?? null;
       if (single && !result) throw new Error('NOT_FOUND');
       return { data: result, source: 'firestore' };
     }
-
     return { data, source: 'firestore' };
   } catch (err: any) {
-    console.warn(`[Db] Firestore read failed for ${table}, falling back to Supabase:`, err.message);
-    return await fallbackToSupabase(opts);
+    console.error(`[Db] Firestore fallback read failed for ${table}:`, err.message);
+    return empty;
   }
 }
 
-/** Internal helper for Supabase fallback to avoid repetition */
-async function fallbackToSupabase(opts: ReadOptions): Promise<{ data: any; source: 'firestore' | 'supabase' }> {
-  const { table, eq, in: inOpts, order, limit, single, maybeSingle } = opts;
-  try {
-    let query = supabase.from(table).select('*');
-    
-    if (eq) query = query.eq(eq[0], eq[1]);
-    if (inOpts) query = query.in(inOpts[0], inOpts[1]);
-    if (order) query = query.order(order[0], { ascending: order[1]?.ascending !== false });
-    if (limit) query = query.limit(limit);
-    
-    if (single || maybeSingle) {
-      const { data, error } = await query.maybeSingle();
-      if (error) throw error;
-      if (single && !data) throw new Error('NOT_FOUND');
-      return { data, source: 'supabase' };
-    } else {
-      const { data, error } = await query;
-      if (error) throw error;
-      return { data: data || [], source: 'supabase' };
-    }
-  } catch (supaErr: any) {
-    console.error(`[Db] Supabase fallback failed for ${table}:`, supaErr.message);
-    return { data: single || maybeSingle ? null : [], source: 'supabase' };
+// ─────────────────────────────────────────────────────────
+// WRITE — Supabase primary, Firestore backup
+// ─────────────────────────────────────────────────────────
+
+export async function dualInsert(table: string, data: any | any[]) {
+  const isArray = Array.isArray(data);
+  const items = isArray ? data : [data];
+
+  // Build Supabase payloads — OMIT id entirely for SERIAL tables (Postgres auto-generates)
+  const rows = items.map(item => supabasePayload(item, false));
+
+  const { data: saved, error } = await withTimeout<any>(
+    supabase
+      .from(table)
+      .insert(isArray ? rows : rows[0])
+      .select(),
+    30000
+  );
+
+  if (error) {
+    console.error(`[Db] dualInsert FAILED for ${table}:`, error.message, { rows });
+    throw new Error(error.message);
   }
+
+  const savedArr = Array.isArray(saved) ? saved : saved ? [saved] : [];
+
+  // ✦ Async Firestore backup (fire-and-forget)
+  firestoreBackup(table, savedArr);
+
+  return isArray ? savedArr : savedArr[0];
 }
 
-// ═══════════════════════════════════════════════════
-// WRITE — Firestore & Supabase
-// ═══════════════════════════════════════════════════
+export async function dualUpdate(table: string, id: number | string, patch: any, idColumn = 'id') {
+  const clean = sanitize({ ...patch });
+  // Never send id in the patch body — it's in the eq filter
+  delete clean.id;
+  delete clean.user_id;
 
-export async function dualInsert(table: string, data: any) {
-  try {
-    const now = new Date().toISOString();
-    
-    if (SUPABASE_ONLY_TABLES.includes(table)) {
-      // Let Supabase handle ID generation if not provided
-      const record = {
-        ...data,
-        updated_at: now,
-        created_at: data.created_at || now
-      };
-      
-      const { data: supaData, error } = await supabase.from(table).insert(record).select();
-      if (error) throw new Error(error.message);
-      return supaData;
-    }
-
-    const id = data.id || generateId();
-    
-    const record = { 
-      ...data, 
-      id, 
-      created_at: data.created_at || now,
-      updated_at: now 
-    };
-
-    // If Firestore is not initialized, only write to Supabase
-    if (!db) {
-      console.warn(`[Db] Firestore not initialized, skipping Firestore insert for ${table}`);
-      const { data: supaData, error } = await supabase.from(table).insert(record).select();
-      if (error) throw new Error(error.message);
-      return [record];
-    }
-
-    const docRef = doc(db, table, String(id));
-
-    // Write to Firestore
-    const firestorePromise = setDoc(docRef, record, { merge: true });
-    
-    // Write to Supabase - check for error in resolution to throw
-    const supabasePromise = supabase.from(table).insert(record).then(res => {
-      if (res.error) throw new Error(res.error.message);
-      return res.data;
-    });
-
-    await Promise.all([firestorePromise, supabasePromise]);
-    return [record];
-  } catch (err: any) {
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (isLocal) {
-        console.warn(`[Db] dualInsert: Swallowing error for local offline testing:`, err.message);
-        return [data]; 
-    }
-    console.error(`[Db] dualInsert FAILED for ${table}:`, err.message, { data });
-    throw err;
+  if (idColumn === 'user_id' && !isUuid(id)) {
+    console.info(`[Db] Skipping Supabase update for non-UUID id: ${id}, using Firestore only`);
+    // Minimal mock for return consistency
+    const savedArr = [sanitize({ ...patch, [idColumn]: id })];
+    firestoreBackup(table, savedArr);
+    return savedArr[0];
   }
-}
 
-export async function dualUpdate(table: string, id: number | string, patch: any) {
-  try {
-    const now = new Date().toISOString();
-    const record = { ...patch, updated_at: now };
+  const { data: saved, error } = await withTimeout<any>(
+    supabase
+      .from(table)
+      .update({ ...clean, updated_at: new Date().toISOString() })
+      .eq(idColumn, id)
+      .select(),
+    30000
+  );
 
-    if (SUPABASE_ONLY_TABLES.includes(table)) {
-      const { data, error } = await supabase.from(table).update(record).eq('id', id).select();
-      if (error) throw new Error(error.message);
-      return data;
-    }
-
-    // If Firestore is not initialized, only write to Supabase
-    if (!db) {
-      console.warn(`[Db] Firestore not initialized, skipping Firestore update for ${table}`);
-      const { error } = await supabase.from(table).update(record).eq('id', id);
-      if (error) throw new Error(error.message);
-      return [{ id }];
-    }
-
-    const docRef = doc(db, table, String(id));
-
-    // Write to Firestore
-    const firestorePromise = setDoc(docRef, record, { merge: true });
-    
-    // Write to Supabase
-    const supabasePromise = supabase.from(table).update(record).eq('id', id).then(res => {
-      if (res.error) throw new Error(res.error.message);
-      return res.data;
-    });
-
-    await Promise.all([firestorePromise, supabasePromise]);
-    return [{ id }];
-  } catch (err: any) {
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (isLocal) {
-        console.warn(`[Db] dualUpdate: Swallowing error for local offline testing:`, err.message);
-        return [{ id }];
-    }
-    console.error(`[Db] dualUpdate FAILED for ${table}/${id}:`, err.message, { patch });
-    throw err;
+  if (error) {
+    console.error(`[Db] dualUpdate FAILED for ${table}/${id}:`, error.message);
+    throw new Error(error.message);
   }
+
+  const savedArr = Array.isArray(saved) ? saved : saved ? [saved] : [{ id }];
+
+  // ✦ Async Firestore backup
+  firestoreBackup(table, savedArr);
+
+  return saved ?? [{ id }];
 }
 
 export async function dualUpsert(table: string, data: any | any[]) {
-  const items = Array.isArray(data) ? data : [data];
-  const now = new Date().toISOString();
-  
-  try {
-    const promises = items.map(async (item) => {
-      const id = (item.id && item.id !== '') ? item.id : (item.page_key || generateId());
-      console.log(`[DualDb] Upserting to ${table}/${id}:`, item);
-      
-      const record = {
-        ...item,
-        id: (item.id && item.id !== '') ? item.id : id,
-        created_at: item.created_at || now,
-        updated_at: now
-      };
+  const isArray = Array.isArray(data);
+  const items = isArray ? data : [data];
 
-      if (SUPABASE_ONLY_TABLES.includes(table)) {
-        const { data: supaData, error } = await supabase.from(table).upsert(record).select();
-        if (error) throw new Error(error.message);
-        console.log(`[DualDb] Supabase-only upsert SUCCESS for ${table}/${id}`);
-        return supaData ? supaData[0] : record;
-      }
-      
-      // If Firestore is not initialized
-      if (!db) {
-        console.warn(`[DualDb] Firestore not initialized, skipping Firestore upsert for ${table}/${id}`);
-        const { error } = await supabase.from(table).upsert(record);
-        if (error) throw new Error(error.message);
-        return record;
-      }
+  // For upsert we MUST include id (it's the conflict key)
+  const rows = items.map(item => {
+    const payload = supabasePayload(item, true); // include id if present
+    payload.updated_at = new Date().toISOString();
+    return payload;
+  });
 
-      const docRef = doc(db, table, String(id));
-      
-      // Write to Firestore
-      const firestorePromise = setDoc(docRef, record, { merge: true })
-        .then(() => console.log(`[DualDb] Firestore upsert SUCCESS for ${table}/${id}`))
-        .catch(e => { console.error(`[DualDb] Firestore upsert FAILED for ${table}/${id}:`, e); throw e; });
-      
-      // Write to Supabase
-      const supabasePromise = supabase.from(table).upsert(record).then(res => {
-        if (res.error) {
-          console.error(`[DualDb] Supabase upsert FAILED for ${table}/${id}:`, res.error.message);
-          throw new Error(res.error.message);
-        }
-        console.log(`[DualDb] Supabase upsert SUCCESS for ${table}/${id}`);
-        return res.data;
-      });
+  const { data: saved, error } = await withTimeout<any>(
+    supabase
+      .from(table)
+      .upsert(isArray ? rows : rows[0])
+      .select(),
+    30000
+  );
 
-      return Promise.all([firestorePromise, supabasePromise]).then(() => record);
-    });
-
-    const results = await Promise.all(promises);
-    return Array.isArray(data) ? results : results[0];
-  } catch (err: any) {
-    console.error(`[Db] dualUpsert FAILED for ${table}:`, err.message);
-    throw err;
+  if (error) {
+    console.error(`[Db] dualUpsert FAILED for ${table}:`, error.message);
+    throw new Error(error.message);
   }
+
+  const savedArr = Array.isArray(saved) ? saved : saved ? [saved] : [];
+
+  // ✦ Async Firestore backup
+  firestoreBackup(table, savedArr);
+
+  return isArray ? savedArr : savedArr[0];
 }
 
-export async function dualDelete(table: string, id: number | string) {
-  try {
-    if (SUPABASE_ONLY_TABLES.includes(table)) {
-      const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) throw new Error(error.message);
-      return;
-    }
-
-    // If Firestore is not initialized
-    if (!db) {
-      console.warn(`[Db] Firestore not initialized, skipping Firestore delete for ${table}/${id}`);
-      const { error } = await supabase.from(table).delete().eq('id', id);
-      if (error) throw new Error(error.message);
-      return;
-    }
-
-    const firestorePromise = deleteDoc(doc(db, table, String(id)));
-    const supabasePromise = supabase.from(table).delete().eq('id', id).then(res => {
-      if (res.error) throw new Error(res.error.message);
-      return res.data;
-    });
-    await Promise.all([firestorePromise, supabasePromise]);
-  } catch (err: any) {
-    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (isLocal) {
-        console.warn(`[Db] dualDelete: Swallowing error for local offline testing:`, err.message);
-        return;
-    }
-    console.error(`[Db] dualDelete FAILED for ${table}/${id}:`, err.message);
-    throw err;
+export async function dualDelete(table: string, id: number | string, idColumn = 'id') {
+  if (idColumn === 'user_id' && !isUuid(id)) {
+    console.info(`[Db] Skipping Supabase delete for non-UUID id: ${id}`);
+    firestoreDeleteBackup(table, id);
+    return;
   }
+  const { error } = await withTimeout(supabase.from(table).delete().eq(idColumn, id), 30000);
+  if (error) {
+    console.error(`[Db] dualDelete FAILED for ${table}/${id}:`, error.message);
+    throw new Error(error.message);
+  }
+
+  // ✦ Async Firestore backup
+  firestoreDeleteBackup(table, id);
 }
 
-// ═══════════════════════════════════════════════════
-// CONVENIENCE WRAPPERS
-// ═══════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────
+// Convenience wrappers
+// ─────────────────────────────────────────────────────────
 
-/** Select all from a table */
+/** Read all rows from a table */
 export async function readTable(table: string, select = '*'): Promise<any[]> {
   const { data } = await dualRead({ table, select });
-  return data || [];
+  return data ?? [];
 }
 
 /** Read single settings row (id=1) */

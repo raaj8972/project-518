@@ -42,6 +42,10 @@ interface EventsContextType {
   updateEventCoordinator: (id: number, patch: Partial<EventCoordinator>) => Promise<void>;
   deleteEventCoordinator: (id: number) => Promise<void>;
   
+  toggleEventVisibility: (id: number) => Promise<void>;
+  toggleEventFeatured: (id: number) => Promise<void>;
+  toggleEventRegistration: (id: number) => Promise<void>;
+
   addScheduleDay: (day: Partial<ScheduleDay>) => Promise<any>;
   updateScheduleDay: (id: number, patch: Partial<ScheduleDay>) => Promise<void>;
   deleteScheduleDay: (id: number) => Promise<void>;
@@ -53,8 +57,13 @@ interface EventsContextType {
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryEventsContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__EVENTS_CONTEXT__ || ((window as any).__EVENTS_CONTEXT__ = EventsContext))
+  : EventsContext) as React.Context<EventsContextType | undefined>;
+
 export const useEventsData = () => {
-  const context = useContext(EventsContext);
+  const context = useContext(PrimaryEventsContext);
   if (context === undefined) {
     throw new Error('useEventsData must be used within an EventsProvider');
   }
@@ -75,13 +84,15 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchEventsData = useCallback(async () => {
     setLoading(true);
+    console.log('[EventsContext] fetchEventsData started');
+    const start = Date.now();
     try {
       const [eventsRes, coordinatorsRes, categoriesRes, scheduleRes, roadmapRes] = await Promise.all([
-        fetchAllEvents(),
-        dualRead({ table: 'event_coordinators' }),
-        dualRead({ table: 'event_categories' }),
-        dualRead({ table: 'schedule_days' }),
-        supabase.from('roadmap_milestones').select('*').order('order_position', { ascending: true })
+        fetchAllEvents().then(r => { console.log('✔ events'); return r; }),
+        dualRead({ table: 'event_coordinators' }).then(r => { console.log('✔ event_coordinators'); return r; }),
+        dualRead({ table: 'event_categories' }).then(r => { console.log('✔ event_categories'); return r; }),
+        dualRead({ table: 'schedule_days' }).then(r => { console.log('✔ schedule_days'); return r; }),
+        dualRead({ table: 'roadmap_milestones', order: ['order_position', { ascending: true }] }).then(r => { console.log('✔ roadmap_milestones'); return r; })
       ]);
 
       if (eventsRes.data) setEvents(eventsRes.data || []);
@@ -91,6 +102,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       if (scheduleRes.data) {
         const days = scheduleRes.data || [];
         const { data: allScheduleEvents } = await dualRead({ table: 'schedule_events' });
+        console.log('✔ schedule_events');
         
         const mappedSchedule = days.map((day: any) => {
           const dayEvents = (allScheduleEvents || []).filter((e: any) => e.schedule_day_id === day.id);
@@ -114,12 +126,15 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       }
       // Fetch winners
       const winnersRes = await dualRead({ table: 'event_winners' });
+      console.log('✔ event_winners');
       if (winnersRes.data) {
         setEventWinners(winnersRes.data || []);
       }
 
+      console.log('[EventsContext] Fetching notifications...');
       const nowIso = new Date().toISOString();
       const { data: notifyData } = await dualRead({ table: 'notifications' });
+      console.log('✔ notifications');
       
       const filteredNotifications = (notifyData || []).filter((n: any) => 
         n.visible && 
@@ -129,6 +144,7 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
       
       setNotifications(filteredNotifications);
 
+      console.log(`[EventsContext] Data fetched in ${Date.now() - start}ms`);
     } catch (err) {
       console.error('[EventsContext] Failed to fetch events data', err);
     } finally {
@@ -143,21 +159,30 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   }, [refreshTrigger, user?.id, fetchEventsData]);
 
   const addEvent = async (event: Partial<Event>) => {
-    await dualInsert('events', event);
+    await dualInsert('events', {
+      ...event,
+      visible: event.visible ?? true,
+      registration_open: event.registration_open ?? true,
+      featured: event.featured ?? false
+    });
     await fetchEventsData();
   };
 
   const addEventWithCoordinators = async (event: Partial<Event>, coordinators: any[]) => {
     // dualInsert returns an array or object. Let's assume array of results.
-    const result = await dualInsert('events', event);
+    const result = await dualInsert('events', {
+      ...event,
+      visible: event.visible ?? true,
+      registration_open: event.registration_open ?? true,
+      featured: event.featured ?? false
+    });
     const insertedEvent = Array.isArray(result) ? result[0] : result;
     
     if (insertedEvent && insertedEvent.id && coordinators && coordinators.length > 0) {
       const coordsToInsert = coordinators.map(c => ({
         event_id: insertedEvent.id,
         name: c.name,
-        phone: c.phone || null,
-        password: c.password || null
+        phone: c.phone || null
       }));
       await dualInsert('event_coordinators', coordsToInsert);
     }
@@ -265,6 +290,27 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     await fetchEventsData();
   };
 
+  const toggleEventVisibility = async (id: number) => {
+    const event = events.find(e => e.id === id);
+    if (!event) return;
+    await dualUpdate('events', id, { visible: !event.visible });
+    await fetchEventsData();
+  };
+
+  const toggleEventFeatured = async (id: number) => {
+    const event = events.find(e => e.id === id);
+    if (!event) return;
+    await dualUpdate('events', id, { featured: !event.featured });
+    await fetchEventsData();
+  };
+
+  const toggleEventRegistration = async (id: number) => {
+    const event = events.find(e => e.id === id);
+    if (!event) return;
+    await dualUpdate('events', id, { registration_open: !event.registration_open });
+    await fetchEventsData();
+  };
+
   const addScheduleDay = async (day: Partial<ScheduleDay>): Promise<any> => {
     const result = await dualInsert('schedule_days', day);
     await fetchEventsData();
@@ -323,6 +369,9 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     addEventCoordinator,
     updateEventCoordinator,
     deleteEventCoordinator,
+    toggleEventVisibility,
+    toggleEventFeatured,
+    toggleEventRegistration,
     addScheduleDay,
     updateScheduleDay,
     deleteScheduleDay,
@@ -331,5 +380,5 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     deleteScheduleEvent
   };
 
-  return <EventsContext.Provider value={value}>{children}</EventsContext.Provider>;
+  return <PrimaryEventsContext.Provider value={value}>{children}</PrimaryEventsContext.Provider>;
 };

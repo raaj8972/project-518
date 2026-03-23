@@ -1,13 +1,81 @@
-import React, { useState } from 'react';
-import { Download, Check, X, Filter, Search, Shield, Info, Eye, Trash2, FileText } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Download, Check, X, Filter, Search, Shield, Info, Eye, Trash2, FileText, Pencil, Loader2, BookOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSportsData } from '../../context/SportsContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
+import { useData } from '../../context/DataContext';
+import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import toast from 'react-hot-toast';
 
 const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2 px-3 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all';
 const selectCls = `${inputCls} appearance-none cursor-pointer [&>option]:bg-[#0a0a12] [&>option]:text-white`;
+
+const EditableBatch = ({ 
+  registration, 
+  options, 
+  onSave 
+}: { 
+  registration: any; 
+  options: string[]; 
+  onSave: (email: string, newBatch: string) => Promise<void> 
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(registration.participant_type || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tempValue.trim() === (registration.participant_type || '').trim()) {
+      setIsEditing(false);
+      return;
+    }
+    if (!registration.email) {
+      toast.error('Email not found for registration');
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(registration.email, tempValue);
+      registration.participant_type = tempValue; // Optimistic update
+      setIsEditing(false);
+    } catch (e) {
+      console.error('Save failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1 mt-1" onClick={e => e.stopPropagation()}>
+        <select
+          value={tempValue}
+          onChange={e => setTempValue(e.target.value)}
+          className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white outline-none focus:border-emerald-500/50"
+        >
+          {options.map(opt => <option key={opt} value={opt} className="bg-gray-900">{opt}</option>)}
+        </select>
+        <button onClick={handleSave} disabled={saving} className="text-emerald-400 hover:text-emerald-300 p-0.5" title="Save">
+          {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+        </button>
+        <button onClick={() => { setIsEditing(false); setTempValue(registration.participant_type || ''); }} className="text-rose-400 hover:text-rose-300 p-0.5" title="Cancel">
+          <X size={10} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 mt-1 group/batch cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}>
+      <span className="text-[10px] font-bold text-emerald-300 tracking-wider bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">{registration.participant_type || 'No Batch'}</span>
+      <button className="opacity-0 group-hover/batch:opacity-100 text-gray-500 hover:text-emerald-400 transition-opacity p-0.5 bg-white/5 rounded">
+        <Pencil size={10} />
+      </button>
+    </div>
+  );
+};
 
 export const SportsRegistrationAdmin: React.FC = () => {
   const savingProgress = useSavingProgress();
@@ -18,11 +86,21 @@ export const SportsRegistrationAdmin: React.FC = () => {
     addSportsPlayer,
   } = useSportsData() as any;
 
+  const { siteSettings } = useData();
+  const { updateBatchGlobally } = useRegistrationMutations();
+
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('all'); // all, pending, approved, rejected
+  const [batchFilter, setBatchFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'player' | 'owner'>('player');
   const [viewPhotoModal, setViewPhotoModal] = useState<{ url: string, name: string } | null>(null);
+
+  const batchOptions = React.useMemo(() => {
+    const fromSettings = (siteSettings as any)?.registration_participant_types || [];
+    const fromRegs = Array.from(new Set(sportsRegistrations.map((r: any) => r.participant_type).filter(Boolean)));
+    return Array.from(new Set([...fromSettings, ...fromRegs])).sort() as string[];
+  }, [siteSettings, sportsRegistrations]);
 
   // Effect to default select season
   React.useEffect(() => {
@@ -46,6 +124,7 @@ export const SportsRegistrationAdmin: React.FC = () => {
     if (viewMode === 'player' && !isPlayer) return false;
 
     if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+    if (batchFilter !== 'all' && r.participant_type !== batchFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return r.name.toLowerCase().includes(q) || (r.email && r.email.toLowerCase().includes(q)) || (r.phone && r.phone.includes(q));
@@ -287,6 +366,13 @@ export const SportsRegistrationAdmin: React.FC = () => {
               <option value="rejected">Rejected</option>
             </select>
          </div>
+         <div className="w-full md:w-32 relative">
+            <BookOpen className="w-4 h-4 text-white/30 absolute left-3 top-1/2 -translate-y-1/2 z-10" />
+            <select value={batchFilter} onChange={e => setBatchFilter(e.target.value)} className={`${selectCls} pl-9`}>
+              <option value="all">All Batches</option>
+              {batchOptions.map(opt => <option key={opt} value={opt} className="bg-gray-900">{opt}</option>)}
+            </select>
+         </div>
       </div>
 
       {/* Group Quota Overview */}
@@ -298,17 +384,18 @@ export const SportsRegistrationAdmin: React.FC = () => {
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
             {Object.entries(limits).map(([val, limit]) => {
-              const count = currentSeasonRegistrations.filter(r => 
+              const numLimit = limit as number;
+              const count = currentSeasonRegistrations.filter((r: any) => 
                 r.status !== 'rejected' && 
                 (r[field_name] === val || r.metadata?.[field_name] === val || (field_name === 'year' && r.year_or_class === val))
               ).length;
-              const isFull = count >= limit;
+              const isFull = count >= numLimit;
               
               return (
                 <div key={val} className={`p-3 rounded-xl border ${isFull ? 'bg-red-500/10 border-red-500/20' : 'bg-emerald-500/5 border-emerald-500/10'} backdrop-blur-sm`}>
                   <div className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">{val}</div>
                   <div className="flex items-end justify-between">
-                    <div className="text-xl font-black text-white">{count}<span className="text-sm text-white/30 font-normal ml-1">/ {limit}</span></div>
+                    <div className="text-xl font-black text-white">{count}<span className="text-sm text-white/30 font-normal ml-1">/ {numLimit}</span></div>
                     {isFull && <div className="text-[8px] font-black text-red-500 uppercase tracking-tighter mb-1">FULL</div>}
                   </div>
                 </div>
@@ -336,6 +423,7 @@ export const SportsRegistrationAdmin: React.FC = () => {
                   <td className="p-4">
                     <div className="font-bold text-white text-sm">{reg.name}</div>
                     <div className="text-xs text-white/50">{reg.year_or_class}</div>
+                    <EditableBatch registration={reg} options={batchOptions} onSave={updateBatchGlobally} />
                   </td>
                   <td className="p-4">
                     <div className="text-sm text-white/80">{reg.email}</div>

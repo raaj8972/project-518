@@ -1,23 +1,102 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Trash2, Mail, Phone, User, Calendar, Tag, ShieldCheck } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, Trash2, Mail, Phone, User, Calendar, Tag, ShieldCheck, Pencil, Check, X, Loader2, BookOpen } from 'lucide-react';
 import { useAnnualSports } from '../../context/AnnualSportsContext';
+import { useData } from '../../context/DataContext';
+import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
+import toast from 'react-hot-toast';
+
+const EditableBatch = ({ 
+  registration, 
+  options, 
+  onSave 
+}: { 
+  registration: any; 
+  options: string[]; 
+  onSave: (email: string, newBatch: string) => Promise<void> 
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(registration.participant_type || '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tempValue.trim() === (registration.participant_type || '').trim()) {
+      setIsEditing(false);
+      return;
+    }
+    if (!registration.email) {
+      toast.error('Email not found for registration');
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(registration.email, tempValue);
+      registration.participant_type = tempValue; // Optimistic update
+      setIsEditing(false);
+    } catch (e) {
+      console.error('Save failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        <select
+          value={tempValue}
+          onChange={e => setTempValue(e.target.value)}
+          className="bg-white/5 border border-white/10 rounded px-1.5 py-0.5 text-[10px] text-white outline-none focus:border-gold-500/50"
+        >
+          {options.map(opt => <option key={opt} value={opt} className="bg-gray-900">{opt}</option>)}
+        </select>
+        <button onClick={handleSave} disabled={saving} className="text-emerald-400 hover:text-emerald-300 p-0.5" title="Save">
+          {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+        </button>
+        <button onClick={() => { setIsEditing(false); setTempValue(registration.participant_type || ''); }} className="text-rose-400 hover:text-rose-300 p-0.5" title="Cancel">
+          <X size={10} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 group/batch cursor-pointer" onClick={(e) => { e.stopPropagation(); setIsEditing(true); }}>
+      <span className="text-[10px] font-bold text-gold-300 tracking-wider bg-gold-500/10 px-2 py-0.5 rounded-md border border-gold-500/20">{registration.participant_type || 'No Batch'}</span>
+      <button className="opacity-0 group-hover/batch:opacity-100 text-gray-500 hover:text-gold-400 transition-opacity p-0.5 bg-white/5 rounded">
+        <Pencil size={10} />
+      </button>
+    </div>
+  );
+};
 
 const badgeCls = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border';
 
 export const AnnualRegistrationsManagement: React.FC = () => {
   const { annualRegistrations, annualEvents, updateAnnualRegistrationStatus, deleteAnnualRegistration } = useAnnualSports();
+  const { siteSettings } = useData();
+  const { updateBatchGlobally } = useRegistrationMutations();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [eventFilter, setEventFilter] = useState<string>('all');
+  const [batchFilter, setBatchFilter] = useState<string>('all');
+
+  const batchOptions = useMemo(() => {
+    const fromSettings = (siteSettings as any)?.registration_participant_types || [];
+    const fromRegs = Array.from(new Set(annualRegistrations.map(r => r.participant_type).filter(Boolean)));
+    return Array.from(new Set([...fromSettings, ...fromRegs])).sort() as string[];
+  }, [siteSettings, annualRegistrations]);
 
   const filteredRegistrations = useMemo(() => {
     return annualRegistrations.filter(reg => {
-      const matchesSearch = reg.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           reg.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           reg.reg_id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = reg.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           reg.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           reg.reg_id?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || reg.status === statusFilter;
       const matchesEvent = eventFilter === 'all' || reg.event_id === eventFilter;
-      return matchesSearch && matchesStatus && matchesEvent;
+      const matchesBatch = batchFilter === 'all' || reg.participant_type === batchFilter;
+      return matchesSearch && matchesStatus && matchesEvent && matchesBatch;
     });
   }, [annualRegistrations, searchTerm, statusFilter, eventFilter]);
 
@@ -109,6 +188,20 @@ export const AnnualRegistrationsManagement: React.FC = () => {
             ))}
           </select>
         </div>
+
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-white/30" />
+          <select
+            value={batchFilter}
+            onChange={e => setBatchFilter(e.target.value)}
+            className="flex-1 bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-sm text-white focus:outline-none focus:border-gold-500/50"
+          >
+            <option value="all">All Batches</option>
+            {batchOptions.map(opt => (
+              <option key={opt} value={opt} className="bg-gray-900">{opt}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="space-y-4">
@@ -174,6 +267,10 @@ export const AnnualRegistrationsManagement: React.FC = () => {
                     <div className="flex items-center gap-2 text-white/50 text-xs">
                       <ShieldCheck className="w-3.5 h-3.5" />
                       {reg.department} ({reg.year} Year, {reg.roll_no})
+                    </div>
+                    <div className="flex items-center gap-2 text-white/50 text-xs">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <EditableBatch registration={reg} options={batchOptions} onSave={updateBatchGlobally} />
                     </div>
                   </div>
                   

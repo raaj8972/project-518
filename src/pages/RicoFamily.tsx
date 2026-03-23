@@ -1,115 +1,24 @@
 import React, { useEffect, useRef, useState, startTransition } from 'react';
-import { Users, Heart, Star, Crown, AlignJustify as Spotify, Zap, ArrowRight, Shield, Instagram, Youtube, Facebook, Mail, Phone, UsersRound } from 'lucide-react';
-import Instagram3DButtonLink from '../components/Instagram3DButtonLink';
-import YouTube3DButtonLink from '../components/YouTube3DButtonLink';
-import Phone3DButtonLink from '../components/Phone3DButtonLink';
-import Email3DButtonLink from '../components/Email3DButtonLink';
-import PreserveNewlines from '../components/PreserveNewlines';
-import DescriptionHeaderBody from '../components/DescriptionHeaderBody';
+import { Heart, Crown, UsersRound, Star, Users, Zap, Shield, ArrowRight } from 'lucide-react';
 import { useData } from '../context/DataContext';
 
 import { MembershipModal } from '../components/MembershipModal';
 import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
-import CommitteeBackgroundEffect from '../components/CommitteeBackgroundEffect';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import { KineticText } from '../components/ui/KineticText';
+
+// RicoFamily Sub-components
+import { FounderCard } from '../components/RicoFamily/FounderCard';
+import { CouncilMemberCard } from '../components/RicoFamily/CouncilMemberCard';
+import { CommitteeSection } from '../components/RicoFamily/CommitteeSection';
+
+import '../styles/RicoFamily.css';
+
 const InfiniteMarquee = React.lazy(() => import('../components/InfiniteMarquee'));
 const CoverflowCarousel = React.lazy(() => import('../components/CoverflowCarousel'));
 const FacultyProfileModal = React.lazy(() => import('../components/FacultyProfileModal'));
 // gsap removed for marquee adornments to avoid Safari flicker; CSS keyframes used instead
-  const FounderCard: React.FC<{ founder: any; compact: boolean; isActive: boolean }> = ({ founder, compact, isActive }) => {
-    const isRaaj = founder.name.toLowerCase().includes('raaj');
-    
-    return (
-      <div 
-        className={`w-full ${compact ? 'max-w-[420px]' : 'max-w-6xl'} grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-center transition-all duration-700 ${!isActive ? 'opacity-40 grayscale blur-[2px] scale-90' : 'opacity-100 grayscale-0 blur-0 scale-100'}`}
-      >
-        {/* Portrait Frame */}
-        <div className="lg:col-span-5 flex justify-center lg:justify-end order-1">
-          <div className="relative group w-full max-w-[320px] md:max-w-[380px]">
-            <div className="absolute -inset-4 border border-cyan-500/10 rounded-[2.5rem] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
-            
-            <div className="relative overflow-hidden rounded-[2rem] bg-black/40 border-2 border-white/10 shadow-[0_0_40px_-10px_rgba(6,182,212,0.2)] group-hover:border-cyan-500/30 transition-all duration-700">
-              <div className="hologram-scanline opacity-20"></div>
-              <img 
-                loading="lazy" 
-                src={founder.image} 
-                alt={founder.name} 
-                className="w-full aspect-[4/5] object-cover object-top transition-transform duration-[2s] group-hover:scale-110 grayscale-[0.1] group-hover:grayscale-0" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#030712] via-transparent to-transparent opacity-50"></div>
-              
-              <div className="absolute top-4 right-4 hidden md:flex items-center justify-center">
-                 <div className="w-10 h-10 rounded-xl bg-black/60 border border-cyan-500/40 backdrop-blur-2xl flex items-center justify-center rotate-12 group-hover:rotate-0 transition-transform duration-500">
-                    <Crown className="w-5 h-5 text-cyan-400" />
-                 </div>
-              </div>
-            </div>
-
-            <div className="absolute -bottom-4 -right-4 md:-right-6 px-4 py-2.5 rounded-2xl bg-[#0a0f1d] border border-cyan-500/30 backdrop-blur-3xl shadow-xl z-20 hidden md:block">
-               <p className="text-xs font-bold text-white flex items-center gap-2">
-                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span>
-                 Lead Architect
-               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Content Section */}
-        <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left order-2">
-           <div className="mb-0 overflow-hidden">
-              {isRaaj ? (
-                <KineticText as="h3" className="text-5xl sm:text-6xl md:text-8xl font-black text-white tracking-tighter mb-1">
-                  RAAJ
-                </KineticText>
-              ) : (
-                <h3 className="text-4xl sm:text-5xl md:text-7xl font-black text-white tracking-tighter mb-1">
-                  {founder.name}
-                </h3>
-              )}
-           </div>
-           
-           <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:gap-6 mb-6">
-             <div className="inline-flex items-center gap-2 text-cyan-400 font-bold text-[10px] md:text-xs uppercase tracking-[0.3em] py-1 border-b border-cyan-500/20">
-                Founder of Website
-             </div>
-             <div className="text-white/40 text-[9px] md:text-[10px] font-mono uppercase tracking-widest flex items-center justify-center lg:justify-start gap-2">
-                <Shield className="w-3 h-3 text-white/20" />
-                System Sovereign
-             </div>
-           </div>
-
-           <p className="text-sm md:text-base text-white/70 max-w-md leading-relaxed font-light mb-8 italic">
-             "Building the digital infrastructure for excellence. The architect behind the platform, ensuring every byte serves the vision."
-           </p>
-
-           <div className="flex flex-wrap justify-center lg:justify-start gap-3">
-              {founder.social_links?.instagram && (
-                 <a href={founder.social_links.instagram} target="_blank" rel="noopener noreferrer" className="group/social relative flex items-center gap-3 pl-3 pr-5 py-2.5 rounded-xl bg-pink-500/5 border border-pink-500/20 hover:border-pink-500/40 transition-all duration-300 overflow-hidden">
-                   <Instagram className="w-4 h-4 text-pink-400" />
-                   <span className="text-[9px] font-black uppercase tracking-widest text-pink-50/80">Instagram</span>
-                 </a>
-              )}
-              {founder.social_links?.youtube && (
-                 <a href={founder.social_links.youtube} target="_blank" rel="noopener noreferrer" className="group/social relative flex items-center gap-3 pl-3 pr-5 py-2.5 rounded-xl bg-red-500/5 border border-red-500/20 hover:border-red-500/40 transition-all duration-300 overflow-hidden">
-                   <Youtube className="w-4 h-4 text-red-100" />
-                   <span className="text-[9px] font-black uppercase tracking-widest text-red-50/80">YouTube</span>
-                 </a>
-              )}
-              <div className="flex gap-2">
-                 {founder.social_links?.facebook && (
-                    <a href={founder.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-500/5 border border-blue-500/20 text-blue-400 hover:border-blue-500/40 transition-all duration-300"><Facebook size={16} /></a>
-                 )}
-                 {founder.social_links?.spotify && (
-                    <a href={founder.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-xl flex items-center justify-center bg-green-500/5 border border-green-500/20 text-green-400 hover:border-green-500/40 transition-all duration-300"><Spotify size={16} /></a>
-                 )}
-              </div>
-           </div>
-        </div>
-      </div>
-    );
-  };
+// FounderCard extracted to separate component
 
 export const RicoFamily: React.FC = () => {
   const { facultyHeads, coreCommittees, coreTeamMembers, bandMembers, formSettings, homepageSettings } = useData();
@@ -275,7 +184,7 @@ export const RicoFamily: React.FC = () => {
 
 
   return (
-  <div className="bg-[#030712] text-[#e2e8f0] selection:bg-cyan-500/30 min-h-screen font-sans antialiased overflow-x-hidden">
+  <div className="bg-[#030712] text-[#e2e8f0] selection:bg-red-500/30 min-h-screen font-sans antialiased overflow-x-hidden">
     <SEO 
       title={`Rico Family — ${BRAND_NAME} ${BRAND_YEAR}`} 
       description={`Meet the team behind ${BRAND_NAME} ${BRAND_YEAR} - Faculty, Council, and Committee members.`} 
@@ -296,11 +205,11 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             {/* Section Header */}
             <div className="scroll-animate opacity-0 transform translate-y-10 flex flex-col items-center mb-12 md:mb-16">
-              <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-cyan-500/5 border border-cyan-500/20 backdrop-blur-xl mb-6 md:mb-8 group hover:border-cyan-500/40 transition-all duration-500 focus-within:border-cyan-500/40">
-                <Crown className="w-4 h-4 text-cyan-400 group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] md:text-xs font-black tracking-[0.3em] uppercase text-cyan-50/90 whitespace-nowrap">The Visionary Backend</span>
+              <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-red-500/5 border border-red-500/20 backdrop-blur-xl mb-6 md:mb-8 group hover:border-red-500/40 transition-all duration-500 focus-within:border-red-500/40">
+                <Crown className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
+                <span className="text-[9px] md:text-xs font-black tracking-[0.3em] uppercase text-red-50/90 whitespace-nowrap">The Visionary Backend</span>
               </div>
-              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black mb-2 tracking-tighter text-center leading-none">
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black mb-2 tracking-tighter text-center leading-none font-serif">
                 FOUNDER OF <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/20">WEBSITE</span>
               </h2>
             </div>
@@ -343,7 +252,7 @@ export const RicoFamily: React.FC = () => {
                    <Star className="w-4 h-4 text-indigo-400" />
                    <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-indigo-50">Leadership</span>
                 </div>
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
+                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white font-serif">
                   FACULTY <span className="text-white/50 font-light">LEADERSHIP</span>
                 </h2>
                 <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">
@@ -402,110 +311,18 @@ export const RicoFamily: React.FC = () => {
                   Strategic leadership and executive oversight
                 </p>
               </div>
+              <div className="grid md:grid-cols-2 gap-10">
+              {councilMembers.map((member, idx) => (
+                <CouncilMemberCard 
+                  key={member.id} 
+                  member={member} 
+                  idx={idx} 
+                  isLeadWebDevRole={isLeadWebDevRole} 
+                  isMobile={isMobile}
+                />
+              ))}
             </div>
-            <div className="grid md:grid-cols-2 gap-10">
-              {councilMembers.map((member, idx) => { const lead = isLeadWebDevRole(member.role); return (
-                <div key={member.id} className="scroll-animate opacity-0 transform translate-y-20" style={{ animationDelay: `${idx * 0.15}s` }}>
-                  <div className={`group overflow-hidden border bg-white/[0.02] backdrop-blur-2xl rounded-[2rem] shadow-2xl relative flex flex-col md:grid md:grid-cols-12 gap-0 h-full ${lead ? 'border-cyan-500/20' : 'border-white/5'}`}> 
-                    {/* Image */}
-                    <div className="relative aspect-[4/5] sm:aspect-square md:aspect-auto md:col-span-4 md:h-full overflow-hidden">
-                      <img decoding="async" src={member.image} alt={member.name} className="w-full h-full object-cover object-top transition-transform duration-[1.5s] group-hover:scale-105" />
-                      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#030712] md:from-transparent to-transparent opacity-90"></div>
-                      <div className="absolute top-4 right-4 md:right-auto md:left-4">
-                         <div className="w-8 h-8 rounded-full bg-black/40 border border-white/10 flex items-center justify-center backdrop-blur-md">
-                            <Crown className={`w-3.5 h-3.5 ${lead ? 'text-cyan-400' : 'text-red-500'}`} />
-                         </div>
-                      </div>
-                      <div className="absolute bottom-4 left-4">
-                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border backdrop-blur-md ${lead ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>COUNCIL</div>
-                      </div>
-                    </div>
-                    {/* Content */}
-                    <div className="px-6 pb-8 pt-4 md:p-8 flex flex-col justify-center relative md:col-span-8">
-                      <h3 className={`text-2xl sm:text-3xl font-bold mb-1 tracking-tight ${lead ? 'text-cyan-50' : 'text-white'}`}>{member.name}</h3>
-                      <p className={`text-[11px] font-bold uppercase tracking-widest mb-6 ${lead ? 'text-cyan-400/80' : 'text-red-400/80'}`}>{lead ? 'Founder of Website' : (member.role || 'Member')}</p>
-                              {member.description && (
-                                (() => {
-                                  // Simplified clear highlighting
-                                  const isTreasurer = String(member.role || '').toLowerCase().includes('treasur');
-                                  const headerClass = isTreasurer
-                                    ? 'text-white font-semibold mb-2'
-                                    : 'text-white/80 font-semibold mb-2';
-                                  return (
-                                    <DescriptionHeaderBody
-                                      text={member.description}
-                                      headerClassName={headerClass}
-                                      bodyClassName="text-white/60 mb-6 leading-relaxed text-sm font-light"
-                                      highlights={["I Treasure Ricorrenza", "Treasure"]}
-                                      headerHighlightRules={[
-                                        // General Secretary header line highlight (red glow) — match full phrase
-                                        {
-                                          pattern: new RegExp(`^\\s*as\\s+the\\s+(?:(?:g(?:\\.\\s*)?s(?:\\.|\\b))(?:\\s*\\/\\s*gen(?:e)?ral\\s+secretary)?|gen(?:e)?ral\\s+secretary)\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
-                                          className: 'text-white font-semibold'
-                                        },
-                                        // President header line highlight (blue glow) — match full phrase
-                                        {
-                                          pattern: new RegExp(`^\\s*as\\s+the\\s+president\\s+of\\s+${BRAND_NAME.toLowerCase()}\\s*${BRAND_YEAR}`, 'i'),
-                                          className: 'text-white font-semibold'
-                                        }
-                                      ]}
-                                    />
-                                  );
-                                })()
-                              )}
-                      {member.specialty && (
-                        <div className="mb-6">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border border-white/10 bg-white/5 text-white/70`}>
-                            {member.specialty}
-                          </span>
-                        </div>
-                      )}
-                      {member.social_links && Object.values(member.social_links).some(l => l) && (
-                        <div className="flex flex-wrap items-center gap-3 mb-6">
-                           {member.social_links.instagram && (
-                             <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"><Instagram size={18} /></a>
-                           )}
-                           {member.social_links.youtube && (
-                             <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"><Youtube size={18} /></a>
-                           )}
-                           {member.social_links.facebook && (
-                             <a href={member.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all"><Facebook size={18} /></a>
-                           )}
-                           {member.social_links.spotify && (
-                             <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all"><Spotify size={18} /></a>
-                           )}
-                        </div>
-                      )}
-                      {(Boolean((member as any).email) || Boolean((member as any).phone)) && (
-                        <div className="mb-6">
-                          <div className="flex flex-wrap items-center gap-3">
-                            {Boolean((member as any).email) && (
-                               <a href={`mailto:${(member as any).email}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"><Mail size={18} /></a>
-                            )}
-                            {Boolean((member as any).phone) && (
-                               <a href={`tel:${(member as any).phone}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"><Phone size={18} /></a>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {member.achievements && member.achievements.length > 0 && (
-                        <div>
-                          <h6 className={`text-xs font-bold mb-4 tracking-widest uppercase text-white/50`}>Key Achievements</h6>
-                          <div className="space-y-3">
-                            {member.achievements.map((a, i2) => (
-                              <div key={i2} className="flex items-start space-x-3 achievement-item" style={{ animationDelay: `${i2 * 0.18}s` }}>
-                                <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-white/30`}></div>
-                                <span className="text-white/60 text-sm font-light leading-snug">{a}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ); })}
-            </div>
+   </div>
           </div>
         </section>
       )}
@@ -518,8 +335,8 @@ export const RicoFamily: React.FC = () => {
             <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
               <div className="text-center mb-12">
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 font-mono">
-                   <UsersRound className="w-4 h-4 text-cyan-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-cyan-50">Team Leaders</span>
+                   <UsersRound className="w-4 h-4 text-red-400" />
+                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-red-50">Team Leaders</span>
                 </div>
                 <h2 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tighter text-white">
                   COMMITTEE <span className="text-white/50 font-light">HEADS</span>
@@ -548,7 +365,7 @@ export const RicoFamily: React.FC = () => {
                       <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="font-bold text-white flex items-center mb-1">
-                      <Crown className="w-3.5 h-3.5 text-cyan-400 mr-2" /> {m.name}
+                      <Crown className="w-3.5 h-3.5 text-red-400 mr-2" /> {m.name}
                     </div>
                     <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{m.role}</div>
                   </div>
@@ -585,278 +402,19 @@ export const RicoFamily: React.FC = () => {
 
             {/* Committees */}
             <div className="space-y-16">
-              {enabledCommittees.map((committee, committeeIndex) => {
-                const allCommitteeMembers = membersByCommittee[committee.id] || [];
-                // Exclude council members so they don't appear twice (in Council section + their committee)
-                const regularMembers = allCommitteeMembers.filter(member => !member.is_head && !((member as any).isCouncil || (member as any).is_council));
-                
-                if (allCommitteeMembers.length === 0) return null;
-
-                return (
-                  <div
-                    key={committee.id}
-                    className={`relative overflow-hidden rounded-3xl ${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}`}
-                    style={!isMobile ? { animationDelay: `${committeeIndex * 0.3}s` } : {}}
-                  >
-                    <CommitteeBackgroundEffect committeeName={committee.name} mode="background" />
-                    {/* Committee Header */}
-                    <div className="text-center mb-12 relative z-10">
-                      <div className="inline-flex items-center bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 text-blue-400 px-6 py-3 rounded-full text-sm font-medium mb-6 backdrop-blur-sm shadow-xl">
-                        <Users className="w-4 h-4 mr-2" />
-                        {committee.is_core ? 'CORE COMMITTEE' : 'SPECIALIZED TEAM'}
-                      </div>
-                      <h3 className="text-2xl md:text-3xl lg:text-4xl font-black mb-4 neon-title committee-title" style={{ color: committee.color }}>
-                        {committee.name.toUpperCase()}
-                      </h3>
-                      <PreserveNewlines as="div" text={committee.description} className="text-sm md:text-base text-gray-300 max-w-2xl mx-auto" />
-                    </div>
-
-                    {/* Committee Head */}
-                    {allCommitteeMembers.filter(m => m.is_head).length > 0 && (
-                      <div className="mb-8 relative z-10">
-                        <h4 className="text-lg font-semibold text-gray-300 mb-4 flex items-center justify-center">
-                          <Crown className="w-5 h-5 text-yellow-500 mr-2" />
-                          Committee Heads ({allCommitteeMembers.filter(m => m.is_head).length})
-                        </h4>
-                        <div className="grid md:grid-cols-2 gap-8">
-                          {allCommitteeMembers.filter(m => m.is_head).map(head => {
-                            const lead = isLeadWebDevRole(head.role, committee.name);
-                            // Special check for RAAJ in Tech Team (non-web) to show green
-                            const isTechLeadRaaj = head.name.toLowerCase().includes('raaj') && !lead;
-
-                            return (
-                              <div
-                                key={head.id}
-                                className={`group overflow-hidden bg-white/[0.02] border backdrop-blur-2xl rounded-3xl shadow-2xl transition-all duration-500 hover:bg-white/[0.04] ${isTechLeadRaaj ? 'border-green-500/20' : 'border-white/5'} hologram-card hologram-flicker hologram-reveal ${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}`}
-                                style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + 0.1}s` } : {}}
-                              >
-                                <div className="hologram-scanline"></div>
-                                <div className="grid md:grid-cols-2 gap-0 relative z-10">
-                                  {/* Image Section */}
-                                  <div className="relative h-72 md:h-auto overflow-hidden">
-                                    <img loading="lazy" decoding="async" src={head.image} alt={head.name} className="w-full h-full object-cover transition-transform duration-[1.5s] group-hover:scale-105" />
-                                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#030712] md:from-transparent to-transparent opacity-90"></div>
-                                    <div className="absolute top-4 right-4">
-                                      <div className="w-8 h-8 rounded-full bg-black/40 border border-white/10 flex items-center justify-center backdrop-blur-md">
-                                        <Crown className={`w-3.5 h-3.5 ${lead ? 'text-cyan-400' : isTechLeadRaaj ? 'text-green-400' : 'text-yellow-400'}`} />
-                                      </div>
-                                    </div>
-                                    <div className="absolute bottom-4 left-4 right-4">
-                                      <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase border backdrop-blur-md inline-block ${lead ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20' : isTechLeadRaaj ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'}`}>
-                                        COMMITTEE HEAD
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {/* Content Section */}
-                                  <div className="p-6 md:p-8 flex flex-col justify-center">
-                                    <h5 className={`text-xl md:text-2xl font-bold mb-2 ${lead ? 'text-cyan-50' : isTechLeadRaaj ? 'text-white' : 'text-white'}`}>{isTechLeadRaaj ? 'RAAJ' : head.name}</h5>
-                                    <p className={`text-[11px] font-bold uppercase tracking-widest mb-4 ${lead ? 'text-cyan-400/80' : isTechLeadRaaj ? 'text-green-400/80' : 'text-yellow-400/80'}`}>{lead ? 'Founder of Website' : head.role}</p>
-                                    <PreserveNewlines text={head.description} className="text-white/60 mb-6 leading-relaxed text-sm font-light hologram-text-reveal" />
-                                    {head.specialty && (
-                                      <div className="mb-6">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-widest border border-white/10 bg-white/5 text-white/70`}>
-                                          {head.specialty}
-                                        </span>
-                                      </div>
-                                    )}
-                                    {head.social_links && Object.values(head.social_links).some(link => link) && (
-                                      <div className="flex flex-wrap items-center gap-2 mb-4">
-                                         {head.social_links.instagram && (
-                                           <a href={head.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-pink-500/10 border border-pink-500/20 text-pink-400 hover:bg-pink-500 hover:text-white hover:border-pink-500 transition-all"><Instagram size={18} /></a>
-                                         )}
-                                         {head.social_links.youtube && (
-                                           <a href={head.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"><Youtube size={18} /></a>
-                                         )}
-                                         {head.social_links.facebook && (
-                                           <a href={head.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all"><Facebook size={18} /></a>
-                                         )}
-                                         {head.social_links.spotify && (
-                                           <a href={head.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full flex items-center justify-center bg-green-500/10 border border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:border-green-500 transition-all"><Spotify size={18} /></a>
-                                         )}
-                                      </div>
-                                    )}
-                                    {(Boolean((head as any).phone) || Boolean((head as any).email)) && (
-                                      <div className="mb-6">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                          {Boolean((head as any).email) && (
-                                             <a href={`mailto:${(head as any).email}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all"><Mail size={18} /></a>
-                                          )}
-                                          {Boolean((head as any).phone) && (
-                                             <a href={`tel:${(head as any).phone}`} className="w-10 h-10 rounded-full flex items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 transition-all"><Phone size={18} /></a>
-                                          )}
-                                        </div>
-                                      </div>
-                                    )}
-                                    {head.achievements.length > 0 && (
-                                      <div>
-                                        <h6 className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-3">Key Achievements</h6>
-                                        <div className="space-y-3">
-                                          {head.achievements.map((achievement, achievementIndex) => (
-                                            <div key={achievementIndex} className="flex items-start space-x-3 achievement-item" style={{ animationDelay: `${achievementIndex * 0.2}s` }}>
-                                              <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 bg-white/30`}></div>
-                                              <span className="text-white/60 text-sm font-light leading-snug">{achievement}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="hologram-projection-light"></div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Team Members Grid */}
-                    {regularMembers.length > 0 && (
-                      <div className="relative z-10">
-                        <h4 className="text-lg font-semibold text-gray-300 mb-4 text-center mt-6 sm:mt-0">Team Members</h4>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 px-1 sm:px-0">
-                          {regularMembers.map((member, memberIndex) => {
-                            const isExpanded = expandedMembers.has(member.id);
-                            const isBooting = bootingMembers.has(member.id);
-                            return (
-                              <div
-                                key={member.id}
-                                className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} transition-all duration-500 ${isExpanded ? 'z-20' : 'hover:-translate-y-1 hover:z-10'}`}
-                                style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` } : {}}
-                              >
-                                <div className={`group h-full overflow-hidden bg-white/[0.02] border backdrop-blur-xl transition-all duration-500 rounded-2xl ${isExpanded ? 'scale-105 border-cyan-400/50 shadow-2xl shadow-cyan-900/20' : 'border-white/5'} hologram-card hologram-flicker ${isBooting ? 'hologram-booting' : ''}`}>
-                                  <div className={`hologram-scanline ${isBooting ? 'opacity-100 scale-y-150 brightness-200' : 'opacity-50'}`}></div>
-                                  <div className={`relative z-10 h-full flex flex-col ${isBooting ? 'hologram-glitch-active' : ''}`}>
-                                    {/* Member Image (always visible) */}
-                                    <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
-                                      <img
-                                        src={member.image}
-                                        alt={member.name}
-                                        className={`w-full h-full object-cover object-top transition-transform duration-700 ${isExpanded ? 'scale-105' : 'group-hover:scale-110'} team-member-image hologram-tint`}
-                                      />
-                                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                                      {/* Specialty Badge (overlay) */}
-                                      {member.specialty && (
-                                        <div
-                                          className="absolute top-2 left-2 opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto"
-                                          title={member.specialty}
-                                        >
-                                          <span
-                                            className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg"
-                                            style={{
-                                              backgroundColor: committee.color + 'CC',
-                                              borderColor: committee.color,
-                                              boxShadow: `0 0 6px ${committee.color}, 0 0 14px ${committee.color}55`
-                                            }}
-                                          >
-                                            {member.specialty}
-                                          </span>
-                                        </div>
-                                      )}
-                                      {/* Floating Icon */}
-                                      <div className="absolute top-2 right-2 floating-icon">
-                                        <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
-                                      </div>
-                                    </div>
-
-                                    {/* Collapsed Basic Info */}
-                                    <div className="p-4 flex-1">
-                                      <h4 className="text-base font-bold text-white mb-0.5 member-name">
-                                        {member.name}
-                                      </h4>
-                                      <p className="text-blue-400 font-semibold mb-2 text-xs">
-                                        {member.role}
-                                      </p>
-                                      {/* Social Links + More/Less button row */}
-                                      {((member.social_links && Object.values(member.social_links).some(link => Boolean(link))) || Boolean((member as any).phone)) ? (
-                                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                                          {member.social_links?.instagram && (
-                                            <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
-                                          )}
-                                          {member.social_links?.youtube && (
-                                            <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
-                                          )}
-                                          {member.social_links?.spotify && (
-                                            <a
-                                              href={member.social_links.spotify}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                                            >
-                                              <Spotify size={22} />
-                                            </a>
-                                          )}
-                                          {Boolean((member as any).phone) && (
-                                            <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
-                                          )}
-                                          {/* Spacer pushes button to right */}
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleMemberExpanded(member.id)}
-                                            className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
-                                            aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                                          >
-                                            {isExpanded ? 'Less' : 'More'}
-                                          </button>
-                                        </div>
-                                      ) : (
-                                        <div className="flex items-center mb-3">
-                                          <button
-                                            type="button"
-                                            onClick={() => toggleMemberExpanded(member.id)}
-                                            className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
-                                            aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                                          >
-                                            {isExpanded ? 'Less' : 'More'}
-                                          </button>
-                                        </div>
-                                      )}
-
-                                      {/* Expanded Details */}
-                                      {isExpanded && (
-                                        <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
-                                          {member.description && (
-                                            <PreserveNewlines text={member.description} className="leading-relaxed" />
-                                          )}
-                                          {member.specialty && (
-                                            <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
-                                          )}
-                                          {Boolean((member as any).email) && (
-                                            <div className="flex flex-wrap items-center gap-2">
-                                              <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
-                                            </div>
-                                          )}
-                                          {member.achievements.length > 0 && (
-                                            <div>
-                                              <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
-                                                Achievements
-                                              </p>
-                                              <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-400">
-                                                {member.achievements.map((ach, i) => (
-                                                  <li key={i}>{ach}</li>
-                                                ))}
-                                              </ul>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                      {isExpanded && (
-                                      <div className="mt-0.5" />
-                                    )}
-                                  </div>
-                                </div>
-                                  <div className={`hologram-projection-light ${isExpanded ? 'hologram-projection-light-expanded' : ''}`}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    <CommitteeBackgroundEffect committeeName={committee.name} mode="foreground" />
-                  </div>
-                );
-              })}
+              {enabledCommittees.map((committee, committeeIndex) => (
+                <CommitteeSection 
+                  key={committee.id}
+                  committee={committee}
+                  membersByCommittee={membersByCommittee}
+                  isMobile={isMobile}
+                  committeeIndex={committeeIndex}
+                  isLeadWebDevRole={isLeadWebDevRole}
+                  expandedMembers={expandedMembers}
+                  bootingMembers={bootingMembers}
+                  toggleMemberExpanded={toggleMemberExpanded}
+                />
+              ))}
             </div>
           </div>
         </section>

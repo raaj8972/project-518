@@ -8,7 +8,7 @@ export interface UseRegistrationsOptions {
   filters?: {
     event?: string; // 'all' or event title
     status?: string; // 'all' or status
-    type?: string; // 'all' or type
+    batch?: string; // 'all' or batch
     search?: string;
     showDuplicatesOnly?: boolean;
     dateFrom?: string;
@@ -108,8 +108,8 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
         if (filters?.status && filters.status !== 'all') {
           filtered = filtered.filter(r => r.status === filters.status);
         }
-        if (filters?.type && filters.type !== 'all') {
-          filtered = filtered.filter(r => r.participant_type === filters.type);
+        if (filters?.batch && filters.batch !== 'all') {
+          filtered = filtered.filter(r => r.participant_type === filters.batch);
         }
         if (filters?.category && filters.category !== 'all') {
           filtered = filtered.filter(r => (r as any).category === filters.category);

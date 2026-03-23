@@ -44,9 +44,11 @@ const GuestArtistVideoModal: React.FC<Props> = ({ isOpen, onClose, artist }) => 
     document.addEventListener('keydown', keyHandler);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('modal-open');
     return () => {
       document.removeEventListener('keydown', keyHandler);
       document.body.style.overflow = prev;
+      document.body.classList.remove('modal-open');
     };
   }, [isOpen, onClose]);
 

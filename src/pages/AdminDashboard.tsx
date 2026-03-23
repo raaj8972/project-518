@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState, startTransition, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AdminLayout, TabType } from '../components/admin/layout/AdminLayout';
 import { 
   BarChart3, 
@@ -14,7 +14,6 @@ import {
   History as HistoryIcon,
   Info,
   CheckCircle,
-  Fingerprint,
   Share2,
   Star,
   Building,
@@ -29,10 +28,15 @@ import {
   AlertTriangle,
   Bell,
   Scan,
+  QrCode,
+  MessageSquare,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { AnnouncementsPanel } from '../components/shared/AnnouncementsPanel';
+import { ChatPanel } from '../components/shared/ChatPanel';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { isMasterOwner } from '../constants/owners';
 import { useData } from '../context/DataContext';
 // Lazy load admin panels to reduce initial bundle size
 const EventsManagement = React.lazy(() => import('../components/admin/EventsManagement').then(m => ({ default: m.EventsManagement })));
@@ -40,10 +44,10 @@ const ScheduleManagement = React.lazy(() => import('../components/admin/Schedule
 const GalleryManagement = React.lazy(() => import('../components/admin/GalleryManagement').then(m => ({ default: m.GalleryManagement })));
 const SponsorsManagement = React.lazy(() => import('../components/admin/SponsorsManagement').then(m => ({ default: m.SponsorsManagement })));
 const RegistrationManagement = React.lazy(() => import('../components/admin/RegistrationManagement').then(m => ({ default: m.RegistrationManagement })));
+const StudentManagement = React.lazy(() => import('../components/admin/StudentManagement').then(m => ({ default: m.StudentManagement })));
 const EventCategoriesManagement = React.lazy(() => import('../components/admin/EventCategoriesManagement').then(m => ({ default: m.EventCategoriesManagement })));
 const SocialMediaManagement = React.lazy(() => import('../components/admin/SocialMediaManagement').then(m => ({ default: m.SocialMediaManagement })));
 const SecuritySettings = React.lazy(() => import('../components/admin/SecuritySettings').then(m => ({ default: m.SecuritySettings })));
-const BiometricLogin = React.lazy(() => import('../components/admin/BiometricLogin').then(m => ({ default: m.BiometricLogin })));
 const FacultyHeadsManagement = React.lazy(() => import('../components/admin/FacultyHeadsManagement').then(m => ({ default: m.FacultyHeadsManagement })));
 const CoreTeamManagement = React.lazy(() => import('../components/admin/CoreTeamManagement').then(m => ({ default: m.CoreTeamManagement })));
 const SportsTeamManagement = React.lazy(() => import('../components/admin/SportsTeamManagement').then(m => ({ default: m.SportsTeamManagement })));
@@ -70,6 +74,8 @@ const RoadmapMilestonesAdmin = React.lazy(() => import('../components/admin/Road
 const HeroMediaManagement = React.lazy(() => import('../components/admin/HeroMediaManagement').then(m => ({ default: m.HeroMediaManagement })));
 const AboutSettings = React.lazy(() => import('../components/admin/AboutSettings').then(m => ({ default: m.AboutSettings })));
 const NotificationsManagement = React.lazy(() => import('../components/admin/NotificationsManagement').then(m => ({ default: m.NotificationsManagement })));
+const ShoutoutManagement = React.lazy(() => import('../components/admin/ShoutoutManagement'));
+const StudentPassManagement = React.lazy(() => import('../components/admin/StudentPassManagement').then(m => ({ default: m.StudentPassManagement })));
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useRegistrations } from '../hooks/useRegistrations';
 import { StatsOverview } from '../components/admin/dashboard/StatsOverview';
@@ -83,6 +89,7 @@ const ConnectionOverview = React.lazy(() => import('../components/admin/Connecti
 const SecurityManagement = React.lazy(() => import('../components/admin/SecurityManagement').then(m => ({ default: m.SecurityManagement })));
 const OwnerApprovalCenter = React.lazy(() => import('../components/admin/OwnerApprovalCenter').then(m => ({ default: m.OwnerApprovalCenter })));
 const CoordinatorPasswordManagement = React.lazy(() => import('../components/admin/CoordinatorPasswordManagement').then(m => ({ default: m.CoordinatorPasswordManagement })));
+const AdminPasscodesPanel = React.lazy(() => import('../components/admin/AdminPasscodesPanel').then(m => ({ default: m.AdminPasscodesPanel })));
 const AuditLogPanel = React.lazy(() => import('../components/admin/AuditLogPanel').then(m => ({ default: m.AuditLogPanel })));
 const GalleryFaceIndexer = React.lazy(() => import('../components/admin/GalleryFaceIndexer').then(m => ({ default: m.GalleryFaceIndexer })));
 const ProtectionCenter = React.lazy(() => import('../components/admin/ProtectionCenter').then(m => ({ default: m.ProtectionCenter })));
@@ -110,28 +117,52 @@ export const AdminDashboard: React.FC = () => {
     adminUsers,
     siteSettings,
   } = useData();
-  const [activeTab, setActiveTab] = useLocalStorage<TabType>('admin_active_tab', 'overview');
-  const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const navigate = useNavigate();
+  // Derive activeTab from URL path: /admin/schedule → 'schedule', /admin → 'overview'
+  const location = useLocation();
+  const activeTab: TabType = useMemo(() => {
+    const path = location.pathname.replace(/^\/admin\/?/, '').replace(/\/$/, '');
+    return (path || 'overview') as TabType;
+  }, [location.pathname]);
+
+  // Navigate-based tab setter (replaces old localStorage-based setActiveTab)
+  const setActiveTab = useCallback((tab: TabType) => {
+    const targetPath = tab === 'overview' ? '/admin' : `/admin/${tab}`;
+    navigate(targetPath);
+  }, [navigate]);
+  const [autoLogoutEnabled, setAutoLogoutEnabled] = useLocalStorage<boolean>('admin_auto_logout', false);
   const [authGrace, setAuthGrace] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSplash, setShowSplash] = useState(true);
+  const [stuckLoading, setStuckLoading] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Handle splash screen timeout
+  // Failsafe for stuck loading
   useEffect(() => {
-    if (!authLoading && (isAuthenticated || authGrace)) {
+    if (authLoading && !user) {
+      const timer = setTimeout(() => {
+        setStuckLoading(true);
+      }, 12000); // 12s failsafe
+      return () => clearTimeout(timer);
+    } else {
+      setStuckLoading(false);
+    }
+  }, [authLoading, user]);
+
+  // Handle splash screen timeout — start timer as soon as we have auth context
+  useEffect(() => {
+    if (isAuthenticated || authGrace) {
       const timer = setTimeout(() => {
         setShowSplash(false);
       }, 2500); // Show splash for 2.5 seconds for premium feel
       return () => clearTimeout(timer);
     }
-  }, [authLoading, isAuthenticated, authGrace]);
+  }, [isAuthenticated, authGrace]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -163,7 +194,7 @@ export const AdminDashboard: React.FC = () => {
     try {
       // Check for master admin bypass and hardcoded owners
       const email = user?.email?.toLowerCase().trim();
-      const isHardcoded = email === 'raja@rico.fun' || email === 'raaj@rico.fun';
+      const isHardcoded = isMasterOwner(email);
 
       if (isMasterBypassUser || user?.user_metadata?.is_super_admin || isHardcoded) {
         return true;
@@ -274,19 +305,18 @@ export const AdminDashboard: React.FC = () => {
   }, [isAuthenticated]);
 
   const handleLogout = async () => {
-    // Clear any pending logout timers to prevent interference
+    // Prevent the auto-redirect useEffect from firing its timer/grace
+    setAuthGrace(false);
     if (logoutTimer.current) {
       clearTimeout(logoutTimer.current);
       logoutTimer.current = null;
     }
     
-    // Wait for logout to complete to ensure session is cleared
+    // Clear state immediately to avoid re-renders with stale data
     await logout();
     
-    // Then navigate (wrap in startTransition to prevent React suspension)
-    startTransition(() => {
-      navigate('/');
-    });
+    // Direct window location for a clean break (clears all memory state)
+    window.location.href = '/';
   };
 
   // Optional inactivity/visibility auto-logout with generous thresholds
@@ -330,66 +360,70 @@ export const AdminDashboard: React.FC = () => {
   // Tabs and visibility/permissions (computed early so hooks can follow)
   // Tabs and visibility/permissions (computed early so hooks can follow)
   const tabs = [
-    // Dashboard
-    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'Dashboard' },
-    { id: 'protection-center' as TabType, name: 'Protection Center', icon: Shield, group: 'Dashboard' },
-    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'Dashboard' }] : []),
+    // DASHBOARD
+    { id: 'overview' as TabType, name: 'Overview', icon: BarChart3, group: 'DASHBOARD' },
+    { id: 'announcements' as TabType, name: 'Announcements', icon: Bell, group: 'DASHBOARD' },
+    { id: 'support-chat' as TabType, name: 'Support Chat', icon: MessageSquare, group: 'DASHBOARD' },
+    ...(isOwner ? [{ id: 'notifications' as TabType, name: 'Notifications', icon: Info, group: 'DASHBOARD' }] : []),
+    { id: 'protection-center' as TabType, name: 'Protection Center', icon: Shield, group: 'DASHBOARD' },
 
-    // Security & System (High priority for admins)
-    { id: 'admin-users' as TabType, name: 'Admin Users', icon: Shield, group: 'Security & System' },
-    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings, group: 'Security & System' },
-    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Owner Approvals', icon: CheckCircle, group: 'Security & System' }] : []),
-    { id: 'security' as TabType, name: 'Security Settings', icon: Shield, group: 'Security & System' },
-    { id: 'biometric-login' as TabType, name: 'Biometric Login', icon: Fingerprint, group: 'Security & System' },
-    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock, group: 'Security & System' }] : []),
-    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Entry Pass Security', icon: Shield, group: 'Security & System' }] : []),
-    ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council Access', icon: Lock, group: 'Security & System' }] : []),
-    ...(isOwner ? [{ id: 'audit-logs' as TabType, name: 'Audit Logs', icon: HistoryIcon, group: 'Security & System' }] : []),
-    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexer', icon: Scan, group: 'Security & System' }] : []),
+    // CONTENT
+    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'CONTENT' },
+    { id: 'gallery' as TabType, name: 'Gallery', icon: Image, group: 'CONTENT' },
+    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image, group: 'CONTENT' },
+    { id: 'social' as TabType, name: 'Social Media', icon: Share2, group: 'CONTENT' },
+    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star, group: 'CONTENT' },
+    { id: 'shoutouts' as TabType, name: 'Shout-outs', icon: MessageSquare, group: 'CONTENT' },
+    { id: 'about' as TabType, name: 'About', icon: Info, group: 'CONTENT' },
 
-    // Content
-    { id: 'homepage' as TabType, name: 'Homepage', icon: Settings, group: 'Content' },
-    { id: 'about' as TabType, name: 'About', icon: Info, group: 'Content' },
-    { id: 'hero-media' as TabType, name: 'Hero Media', icon: Image, group: 'Content' },
-    { id: 'gallery' as TabType, name: 'Gallery', icon: Image, group: 'Content' },
-    { id: 'social' as TabType, name: 'Social Media', icon: Share2, group: 'Content' },
-    { id: 'roadmap' as TabType, name: 'Roadmap', icon: Star, group: 'Content' },
+    // FESTIVAL
+    { id: 'events' as TabType, name: 'Events', icon: Calendar, group: 'FESTIVAL' },
+    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock, group: 'FESTIVAL' },
+    { id: 'categories' as TabType, name: 'Categories', icon: Palette, group: 'FESTIVAL' },
+    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building, group: 'FESTIVAL' },
+    { id: 'homebound' as TabType, name: 'Homebound', icon: Settings, group: 'FESTIVAL' },
 
-    // Events & Schedule
-    { id: 'events' as TabType, name: 'Events', icon: Calendar, group: 'Events & Schedule' },
-    { id: 'schedule' as TabType, name: 'Schedule', icon: Clock, group: 'Events & Schedule' },
-    { id: 'categories' as TabType, name: 'Categories', icon: Palette, group: 'Events & Schedule' },
-    { id: 'sponsors' as TabType, name: 'Sponsors', icon: Building, group: 'Events & Schedule' },
-    { id: 'homebound' as TabType, name: 'Home Bound Settings', icon: Settings, group: 'Events & Schedule' },
+    // REGISTRATIONS
+    { id: 'registrations' as TabType, name: 'Event Reg', icon: UserCheck, group: 'REGISTRATIONS' },
+    { id: 'student-system' as TabType, name: 'ID Approval', icon: Shield, group: 'REGISTRATIONS' },
+    { id: 'student-passes' as TabType, name: 'Entry Passes', icon: QrCode, group: 'REGISTRATIONS' },
+    { id: 'reg-photos' as TabType, name: 'Reg Photos', icon: Image, group: 'REGISTRATIONS' },
+    { id: 'auditions' as TabType, name: 'Auditions', icon: Users, group: 'REGISTRATIONS' },
+    { id: 'memberships' as TabType, name: 'Memberships', icon: Users, group: 'REGISTRATIONS' },
+    { id: 'registration-modal' as TabType, name: 'Batch Model', icon: UserCheck, group: 'REGISTRATIONS' },
 
-    // Registrations
-    { id: 'registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'Registrations' },
-    { id: 'reg-photos' as TabType, name: 'Registration Photos', icon: Image, group: 'Registrations' },
-    { id: 'auditions' as TabType, name: 'Auditions', icon: Users, group: 'Registrations' },
-    { id: 'memberships' as TabType, name: 'Memberships', icon: Users, group: 'Registrations' },
-    { id: 'registration-modal' as TabType, name: 'Registration Modal', icon: UserCheck, group: 'Registrations' },
+    // SPORTS LEAGUE
+    { id: 'sports-seasons' as TabType, name: 'Seasons', icon: Trophy, group: 'SPORTS LEAGUE' },
+    { id: 'sports-teams' as TabType, name: 'Teams', icon: Flag, group: 'SPORTS LEAGUE' },
+    { id: 'sports-matches' as TabType, name: 'Matches', icon: Calendar, group: 'SPORTS LEAGUE' },
+    { id: 'sports-auction' as TabType, name: 'Auction', icon: Gavel, group: 'SPORTS LEAGUE' },
+    { id: 'sports-registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'SPORTS LEAGUE' },
+    { id: 'sports-registration-model' as TabType, name: 'Sports Model', icon: Settings, group: 'SPORTS LEAGUE' },
+    { id: 'sports-announcements' as TabType, name: 'Announce', icon: Bell, group: 'SPORTS LEAGUE' },
+    { id: 'annual-events' as TabType, name: 'Annual Events', icon: Trophy, group: 'SPORTS LEAGUE' },
+    { id: 'annual-schedule' as TabType, name: 'Annual Schedule', icon: Calendar, group: 'SPORTS LEAGUE' },
+    { id: 'annual-registrations' as TabType, name: 'Annual Reg', icon: UserCheck, group: 'SPORTS LEAGUE' },
+    { id: 'annual-registration-model' as TabType, name: 'Annual Model', icon: Settings, group: 'SPORTS LEAGUE' },
 
-    // People
-    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users, group: 'People' },
-    { id: 'core-team' as TabType, name: 'Core Team', icon: Users, group: 'People' },
-    { id: 'band' as TabType, name: 'Home Bound Band', icon: Users, group: 'People' },
-    { id: 'sports-team' as TabType, name: 'Legacy Sports Team', icon: Users, group: 'People' },
-    { id: 'guest-artists' as TabType, name: 'Guest Artists', icon: Star, group: 'People' },
-    { id: 'chief-guests' as TabType, name: 'Chief Guest', icon: Star, group: 'People' },
+    // PEOPLE
+    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users, group: 'PEOPLE' },
+    { id: 'core-team' as TabType, name: 'Core Team', icon: Users, group: 'PEOPLE' },
+    { id: 'band' as TabType, name: 'Band', icon: Users, group: 'PEOPLE' },
+    { id: 'sports-team' as TabType, name: 'Legacy Teams', icon: Users, group: 'PEOPLE' },
+    { id: 'guest-artists' as TabType, name: 'Artists', icon: Star, group: 'PEOPLE' },
+    { id: 'chief-guests' as TabType, name: 'Chief Guests', icon: Star, group: 'PEOPLE' },
 
-    // Sports Area
-    { id: 'sports-seasons' as TabType, name: 'Sports Seasons', icon: Trophy, group: 'Sports' },
-    { id: 'sports-teams' as TabType, name: 'Sports Teams', icon: Flag, group: 'Sports' },
-    { id: 'sports-matches' as TabType, name: 'Match Schedule', icon: Calendar, group: 'Sports' },
-    { id: 'sports-auction' as TabType, name: 'Sports Auction', icon: Gavel, group: 'Sports' },
-    { id: 'sports-registrations' as TabType, name: 'Registrations', icon: UserCheck, group: 'Sports' },
-    { id: 'sports-registration-model' as TabType, name: 'Registration Model', icon: Settings, group: 'Sports' },
-
-    // Annual Sports Area
-    { id: 'annual-events' as TabType, name: 'Annual Events', icon: Trophy, group: 'Annual Sports' },
-    { id: 'annual-schedule' as TabType, name: 'Annual Schedule', icon: Calendar, group: 'Annual Sports' },
-    { id: 'annual-registrations' as TabType, name: 'Annual Registrations', icon: UserCheck, group: 'Annual Sports' },
-    { id: 'annual-registration-model' as TabType, name: 'Registration Model', icon: Settings, group: 'Annual Sports' },
+    // SYSTEM
+    { id: 'admin-users' as TabType, name: 'Admins', icon: Shield, group: 'SYSTEM' },
+    { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings, group: 'SYSTEM' },
+    { id: 'security' as TabType, name: 'Security', icon: Shield, group: 'SYSTEM' },
+    ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Approvals', icon: CheckCircle, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'admin-passcodes' as TabType, name: 'Global Passcodes', icon: Lock, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'coordinator-passwords' as TabType, name: 'Coordinator Passwords', icon: Lock, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'security-passes' as TabType, name: 'Pass Security', icon: Shield, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'council-access' as TabType, name: 'Council', icon: Lock, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'audit-logs' as TabType, name: 'Audit Logs', icon: HistoryIcon, group: 'SYSTEM' }] : []),
+    ...(isOwner ? [{ id: 'face-indexing' as TabType, name: 'Face Indexer', icon: Scan, group: 'SYSTEM' }] : []),
   ];
 
   // Determine if current user is an ADMIN (owner OR admin role)
@@ -397,6 +431,8 @@ export const AdminDashboard: React.FC = () => {
     try {
       if (isMasterBypassUser || user?.user_metadata?.is_super_admin) return true;
       const uid = user?.id;
+      const email = user?.email?.toLowerCase();
+      if (email?.includes('sports') && email?.includes('council')) return true;
       if (!uid || !Array.isArray(adminUsers)) return false;
       return !!adminUsers.find((a) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.role === 'council' || a.is_primary));
     } catch {
@@ -405,19 +441,23 @@ export const AdminDashboard: React.FC = () => {
   })();
 
   // Filter visible tabs based on permissions (owner sees all)
-  const isCouncil = !isOwner && adminUsers?.some((a: any) => a.user_id === user?.id && a.role === 'council');
+  const isCouncil = !isOwner && (
+    adminUsers?.some((a: any) => a.user_id === user?.id && a.role === 'council') || 
+    user?.email?.toLowerCase().includes('sports.council')
+  );
 
   const visibleTabs = (() => {
   if (isOwner) return tabs;
     // Non-owners: do NOT show Overview or Security by default
     const allowedIds = new Set<TabType>();
-  // Allow the Security tab for non-owner admins so they can manage their own 2FA
-  if (isAdmin) {
+  // Allow the Security tab for non-owner/non-council admins so they can manage their own 2FA
+  if (isAdmin && !isCouncil) {
     allowedIds.add('security');
-    allowedIds.add('biometric-login');
+    allowedIds.add('support-chat'); // Allow support chat for admins
   }
     // Notifications manager is generally safe; allow for all admins by default
     allowedIds.add('notifications');
+    allowedIds.add('announcements');
     if (myPermissions?.can_events) allowedIds.add('events');
     if (myPermissions?.can_schedule) {
       allowedIds.add('schedule');
@@ -428,11 +468,14 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('sponsors');
       // sponsorship settings/packages are separate tabs? kept under SponsorsManagement tab
     }
-    if (myPermissions?.can_registrations) allowedIds.add('registrations');
+    if (myPermissions?.can_registrations) {
+      allowedIds.add('registrations');
+      allowedIds.add('student-system');
+    }
     if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
     if (myPermissions?.can_faculty) allowedIds.add('faculty');
     if (myPermissions?.can_core_team) allowedIds.add('core-team');
-    if (myPermissions?.can_sports) {
+    if (myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) {
       allowedIds.add('sports-team');
       allowedIds.add('sports-seasons');
       allowedIds.add('sports-teams');
@@ -440,6 +483,7 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('sports-auction');
       allowedIds.add('sports-registrations');
       allowedIds.add('sports-registration-model');
+      allowedIds.add('sports-announcements');
       allowedIds.add('annual-events');
       allowedIds.add('annual-schedule');
       allowedIds.add('annual-registrations');
@@ -448,7 +492,7 @@ export const AdminDashboard: React.FC = () => {
 
     if (isCouncil) {
        const forbiddenForCouncil: TabType[] = [
-         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'faculty', 'core-team', 'homebound', 'band'
+         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'faculty', 'core-team', 'homebound', 'band', 'announcements'
        ];
        forbiddenForCouncil.forEach(id => allowedIds.delete(id));
     }
@@ -469,9 +513,57 @@ export const AdminDashboard: React.FC = () => {
 
 
 
-  // Show Loading or Splash
-  if (authLoading || (showSplash && (isAuthenticated || authGrace))) {
+  // Failsafe UI for hung initialization
+  if (stuckLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
+          <div className="w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
+            <AlertTriangle className="w-10 h-10 text-rose-500 animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2 tracking-tighter uppercase">Security Handshake Timeout</h2>
+          <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+            The admin node is taking longer than expected to verify your security clearance. This could be due to a network interruption or heavy traffic.
+          </p>
+          <div className="space-y-4">
+            <button 
+              onClick={() => window.location.reload()}
+              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-yellow-400 transition-all active:scale-95"
+            >
+              Reboot Terminal
+            </button>
+            <button 
+              onClick={() => navigate('/login')}
+              className="w-full py-4 bg-white/5 text-white/60 font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all"
+            >
+              Emergency Exit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show Splash (only if we have a user to welcome)
+  if (showSplash && (isAuthenticated || authGrace) && user) {
     return <WelcomeSplash user={user} onComplete={() => setShowSplash(false)} />;
+  }
+
+  // Fallback Loading if auth is still pending (without a user yet)
+  if (authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4">
+        <div className="text-center animate-in fade-in duration-1000">
+          <div className="w-24 h-24 mb-8 mx-auto relative">
+            <div className="absolute inset-0 bg-yellow-400/20 rounded-full animate-ping"></div>
+            <div className="relative w-24 h-24 border-t-4 border-r-4 border-yellow-400 rounded-full animate-spin shadow-lg shadow-yellow-400/20"></div>
+            <Shield className="absolute inset-0 m-auto w-10 h-10 text-yellow-400 animate-pulse" />
+          </div>
+          <p className="text-white/60 font-black tracking-widest uppercase text-xs mb-2">Connecting to Admin Node...</p>
+          <p className="text-white/20 text-[10px] uppercase tracking-[0.2em]">Verifying Security Clearances</p>
+        </div>
+      </div>
+    );
   }
 
   // If user is not authenticated yet and grace is not active
@@ -519,7 +611,9 @@ export const AdminDashboard: React.FC = () => {
       autoLogoutEnabled={autoLogoutEnabled}
       setAutoLogoutEnabled={setAutoLogoutEnabled}
       isTOTPEnabled={isTOTPEnabled}
+      siteSettings={siteSettings}
     >
+
       <React.Suspense fallback={
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
                <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -539,7 +633,7 @@ export const AdminDashboard: React.FC = () => {
                    {/* Decorative background effects */}
                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] group-hover:bg-indigo-500/15 transition-all duration-1000"></div>
                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
-                   
+
                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
                       <div className="space-y-4">
                          <div className="flex items-center gap-3">
@@ -557,7 +651,7 @@ export const AdminDashboard: React.FC = () => {
                             <span className="uppercase tracking-[0.1em] text-xs font-black text-gray-500">{currentTime.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}</span>
                          </div>
                       </div>
-                      
+
                       <div className="flex flex-wrap items-center gap-4">
                          <div className="bg-white/[0.03] backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 flex items-center gap-3 shadow-2xl">
                             <div className={`w-2.5 h-2.5 rounded-full ${connectionStatus === 'ok' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-rose-400'}`}></div>
@@ -583,11 +677,26 @@ export const AdminDashboard: React.FC = () => {
                    totalFaces: galleryImages.length
                 }} />
 
+                {/* ─── ADMIN ANNOUNCEMENTS BROADCAST ─── */}
+                 <div className="superia-glass-card rounded-[2.5rem] p-8 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                   <div className="relative z-10">
+                    <AnnouncementsPanel 
+                      mode="admin" 
+                      compact={true} 
+                      onMore={(id) => {
+                        window.location.hash = `#announcement-${id}`;
+                        setActiveTab('announcements');
+                      }}
+                    />
+                   </div>
+                 </div>
+
                 {/* Priority Attention Vector */}
                 {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
                    <div className="superia-glass-card rounded-[2.5rem] p-8 border-rose-500/10 relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
-                      
+
                       <div className="flex items-center gap-4 mb-8 relative z-10">
                          <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-lg shadow-rose-500/5">
                             <Bell className="w-6 h-6 text-rose-400 animate-bounce" />
@@ -600,9 +709,9 @@ export const AdminDashboard: React.FC = () => {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
                          {pendingRegistrations > 0 && (
-                            <div 
+                            <div
                                className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-indigo-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => setActiveTab('registrations')}
+                               onClick={() => navigate('/admin/registrations')}
                             >
                                <div className="flex items-center justify-between mb-4">
                                   <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
@@ -617,9 +726,9 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                          )}
                          {pendingAuditions > 0 && (
-                            <div 
+                            <div
                                className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-purple-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => setActiveTab('auditions')}
+                               onClick={() => navigate('/admin/auditions')}
                             >
                                <div className="flex items-center justify-between mb-4">
                                   <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400 group-hover/action:scale-110 transition-transform">
@@ -634,9 +743,9 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                          )}
                          {pendingMemberships > 0 && (
-                            <div 
+                            <div
                                className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-amber-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
-                               onClick={() => setActiveTab('memberships')}
+                               onClick={() => navigate('/admin/memberships')}
                             >
                                <div className="flex items-center justify-between mb-4">
                                   <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 group-hover/action:scale-110 transition-transform">
@@ -675,18 +784,18 @@ export const AdminDashboard: React.FC = () => {
                           Recent Registrations
                         </h3>
                         <button
-                          onClick={() => setActiveTab('registrations')}
+                          onClick={() => navigate('/admin/registrations')}
                           className="px-6 py-2.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 rounded-2xl text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] transition-all flex items-center gap-3 group"
                         >
                           Access Logs <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                         </button>
                       </div>
-                      
+
                       {registrations.length > 0 ? (
                         <div className="space-y-4">
                           {registrations.slice(0, 5).map((registration, idx) => (
-                            <div key={registration.id} 
-                              className="flex items-center justify-between p-5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group animate-in fade-in slide-in-from-right-4 duration-500" 
+                            <div key={registration.id}
+                              className="flex items-center justify-between p-5 bg-white/[0.02] hover:bg-white/[0.05] rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group animate-in fade-in slide-in-from-right-4 duration-500"
                               style={{ animationDelay: `${300 + idx * 100}ms` }}
                             >
                               <div className="flex items-center gap-5">
@@ -755,7 +864,7 @@ export const AdminDashboard: React.FC = () => {
                           Application HUD
                         </h3>
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/aud cursor-pointer" onClick={() => setActiveTab('auditions')}>
+                           <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/aud cursor-pointer" onClick={() => navigate('/admin/auditions')}>
                             <div>
                                <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Band Auditions</div>
                                <div className="text-2xl font-black text-white group-hover/aud:text-amber-400 transition-colors">{auditions?.length || 0}</div>
@@ -764,7 +873,7 @@ export const AdminDashboard: React.FC = () => {
                               <div className="bg-rose-500/20 text-rose-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-rose-500/20 animate-pulse shadow-lg shadow-rose-500/10">{pendingAuditions} Pending</div>
                             )}
                           </div>
-                          <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/mem cursor-pointer" onClick={() => setActiveTab('memberships')}>
+                           <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/mem cursor-pointer" onClick={() => navigate('/admin/memberships')}>
                             <div>
                                <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Memberships</div>
                                <div className="text-2xl font-black text-white group-hover/mem:text-indigo-400 transition-colors">{memberships?.length || 0}</div>
@@ -789,10 +898,12 @@ export const AdminDashboard: React.FC = () => {
                           { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-purple-400', bg: 'bg-purple-500/10' },
                           { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-amber-400', bg: 'bg-amber-500/10' },
                           { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-                        ].map((item, idx) => (
+                        ]
+                        .filter(item => visibleTabs.some(vt => vt.id === item.id))
+                        .map((item, idx) => (
                           <button
                             key={item.id}
-                            onClick={() => setActiveTab(item.id as TabType)}
+                            onClick={() => navigate(`/admin/${item.id}`)}
                             className="flex flex-col items-center justify-center p-7 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:scale-[1.03] hover:bg-white/[0.06] hover:border-white/20 transition-all duration-500 group shadow-2xl animate-in fade-in slide-in-from-right-4 duration-700"
                             style={{ animationDelay: `${700 + idx * 100}ms` }}
                           >
@@ -815,8 +926,8 @@ export const AdminDashboard: React.FC = () => {
                               Security Alert
                           </h4>
                           <p className="text-white/80 text-sm mb-8 leading-relaxed font-medium">Your operator profile is unprotected. Enable Tier-1 Authentication to secure system data.</p>
-                          <button 
-                            onClick={() => setActiveTab('security')}
+                          <button
+                            onClick={() => navigate('/admin/security')}
                             className="w-full bg-white text-rose-600 font-black py-4 rounded-3xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3 group/btn shadow-xl"
                           >
                             Shield Upgrade <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
@@ -849,7 +960,7 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               </div>
             )}
-            {(isOwner || myPermissions?.can_sports) && activeTab === 'sports-team' && (
+            {(isOwner || myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) && activeTab === 'sports-team' && (
               <div className="bg-white rounded-lg shadow-md p-6">
                 <SportsTeamManagement />
               </div>
@@ -860,6 +971,19 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'sports-matches' && <SportsMatchesAdmin />}
             {activeTab === 'sports-registrations' && <SportsRegistrationAdmin />}
             {activeTab === 'sports-registration-model' && <SportsRegistrationModalSettings />}
+
+            {/* Sports-only announcements — category locked to 'sports' */}
+            {activeTab === 'sports-announcements' && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="superia-glass-card rounded-[2rem] p-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                  <div className="relative z-10">
+                    <AnnouncementsPanel mode="admin" defaultCategory="sports" />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'annual-events' && <AnnualEventsManagement />}
             {activeTab === 'annual-schedule' && <AnnualSportsScheduleManagement />}
             {activeTab === 'annual-registrations' && <AnnualRegistrationsManagement />}
@@ -878,7 +1002,26 @@ export const AdminDashboard: React.FC = () => {
               <SiteSettingsPanel />
             )}
             {activeTab === 'admin-users' && (
-              <AdminUsersPanel onManage2FA={() => setActiveTab('security')} />
+              <AdminUsersPanel 
+                onManage2FA={() => setActiveTab('security')} 
+              />
+            )}
+
+            {activeTab === 'announcements' && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="superia-glass-card rounded-[2rem] p-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                  <div className="relative z-10">
+                    <AnnouncementsPanel mode="admin" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'support-chat' && (
+              <div className="h-[750px]">
+                <ChatPanel themeAccent="indigo" />
+              </div>
             )}
 
             {activeTab === 'protection-center' && (
@@ -887,13 +1030,20 @@ export const AdminDashboard: React.FC = () => {
               </React.Suspense>
             )}
             {activeTab === 'homepage' && <HomepageManagement />}
+            {activeTab === 'shoutouts' && <ShoutoutManagement />}
             {activeTab === 'notifications' && isOwner && <NotificationsManagement />}
             {activeTab === 'events' && <EventsManagement />}
             {activeTab === 'homebound' && <HomeBoundSettings />}
             {activeTab === 'schedule' && <ScheduleManagement />}
             {activeTab === 'gallery' && <GalleryManagement />}
             {activeTab === 'sponsors' && <SponsorsManagement />}
-            {activeTab === 'registrations' && <RegistrationManagement />}
+            { activeTab === 'registrations' && <RegistrationManagement />}
+            { activeTab === 'student-passes' && (
+              <React.Suspense fallback={<div className="p-8 text-center text-gray-500">Loading Pass Management...</div>}>
+                <StudentPassManagement />
+              </React.Suspense>
+            )}
+            { activeTab === 'student-system' && <StudentManagement />}
             {activeTab === 'reg-photos' && <RegistrationPhotosPanel />}
             {activeTab === 'registration-modal' && <RegistrationModalSettings />}
             {activeTab === 'categories' && <EventCategoriesManagement />}
@@ -907,7 +1057,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'memberships' && <MembershipManagement />}
             {activeTab === 'form-settings' && <FormSettingsManagement />}
             {activeTab === 'security' && <SecuritySettings />}
-            {activeTab === 'biometric-login' && <BiometricLogin />}
+            {activeTab === 'admin-passcodes' && isOwner && <AdminPasscodesPanel />}
             {activeTab === 'owner-approvals' && <OwnerApprovalCenter />}
             {activeTab === 'coordinator-passwords' && <CoordinatorPasswordManagement />}
             {activeTab === 'audit-logs' && isOwner && <AuditLogPanel />}

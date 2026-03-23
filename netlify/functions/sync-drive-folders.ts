@@ -51,12 +51,18 @@ export const handler: Handler = async (event) => {
 
     if (!folderRes.ok) {
       const errText = await folderRes.text();
+      let errorDetails = errText;
+      try {
+        const parsed = JSON.parse(errText);
+        if (parsed.error?.message) errorDetails = parsed.error.message;
+      } catch (e) {}
+      
       console.error(`Google Drive API Error (${folderRes.status}):`, errText);
       return { 
         statusCode: folderRes.status, 
         body: JSON.stringify({ 
           error: `Google Drive API Error: ${folderRes.statusText}`, 
-          details: errText 
+          details: errorDetails
         }) 
       };
     }

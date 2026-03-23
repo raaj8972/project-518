@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
-import { dualRead, dualUpsert } from '../lib/dualDb';
+import { dualRead, dualUpsert, dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
 import { useAuth } from './AuthContext';
 import { 
   SiteSettings, HeroMedia, AboutSettings, HomeboundSettings, 
@@ -58,8 +58,13 @@ interface CoreContextType {
 
 const CoreContext = createContext<CoreContextType | undefined>(undefined);
 
+// [DEDUPE] Ensure singleton Context across module duplication
+const PrimaryCoreContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__CORE_CONTEXT__ || ((window as any).__CORE_CONTEXT__ = CoreContext))
+  : CoreContext) as React.Context<CoreContextType | undefined>;
+
 export const useCoreData = () => {
-  const context = useContext(CoreContext);
+  const context = useContext(PrimaryCoreContext);
   if (context === undefined) {
     throw new Error('useCoreData must be used within a CoreDataProvider');
   }
@@ -67,7 +72,18 @@ export const useCoreData = () => {
 };
 
 export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  // useAuth is wrapped in try/catch to handle Vite HMR module re-execution order edge cases
+  // CoreDataProvider IS inside AuthProvider in the tree, but during hot reload the singleton
+  // context reference can momentarily mismatch. user is only used as a refresh dependency.
+  let user: any = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const auth = useAuth();
+    user = auth.user;
+  } catch {
+    // Context not mounted yet during HMR — safe to continue with user = null
+  }
+
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
@@ -159,28 +175,24 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addRoadmapMilestone = async (m: Partial<RoadmapMilestone>) => {
-    const { error } = await supabase.from('roadmap_milestones').insert(m);
-    if (error) throw new Error(`[Roadmap] insert failed: ${error.message}`);
+    await dualInsert('roadmap_milestones', m);
     setRefreshTrigger(p => p + 1);
   };
 
   const updateRoadmapMilestone = async (id: number, patch: Partial<RoadmapMilestone>) => {
-    const { error } = await supabase.from('roadmap_milestones').update(patch).eq('id', id);
-    if (error) throw new Error(`[Roadmap] update failed: ${error.message}`);
+    await dualUpdate('roadmap_milestones', id, patch);
     setRefreshTrigger(p => p + 1);
   };
 
   const deleteRoadmapMilestone = async (id: number) => {
-    const { error } = await supabase.from('roadmap_milestones').delete().eq('id', id);
-    if (error) throw new Error(`[Roadmap] delete failed: ${error.message}`);
+    await dualDelete('roadmap_milestones', id);
     setRefreshTrigger(p => p + 1);
   };
 
   const toggleRoadmapMilestoneEnabled = async (id: number) => {
-    const { data: current } = await supabase.from('roadmap_milestones').select('enabled').eq('id', id).maybeSingle();
+    const { data: current } = await dualRead({ table: 'roadmap_milestones', eq: ['id', id], maybeSingle: true });
     if (current) {
-      const { error } = await supabase.from('roadmap_milestones').update({ enabled: !current.enabled }).eq('id', id);
-      if (error) throw new Error(`[Roadmap] toggle failed: ${error.message}`);
+      await dualUpdate('roadmap_milestones', id, { enabled: !current.enabled });
       setRefreshTrigger(p => p + 1);
     }
   };
@@ -204,21 +216,36 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshAll = useCallback(async (silent: boolean = false) => {
-    if (!silent) setLoading(true);
+    // Determine if we should show the full-page loader
+    const shouldShowLoader = !silent && (refreshTrigger === 0 || !siteSettings);
+    if (shouldShowLoader) setLoading(true);
+    console.log('[CoreContext] refreshAll started (silent:', silent, ')');
+    console.time('refreshAll_total');
     try {
       // Increment trigger to signal all sub-contexts to re-fetch
       setRefreshTrigger(prev => prev + 1);
       
       // Fetch core-specific data using dualRead for Firestore prioritization
+      console.log('[CoreContext] Fetching settings...');
+      const startQueries = Date.now();
+      
       const [siteRes, aboutRes, homeboundRes, homepageRes, formRes, socialRes, securityRes] = await Promise.all([
-        dualRead({ table: 'site_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'about_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'homebound_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'homepage_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'form_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'social_media_settings', eq: ['id', 1], maybeSingle: true }),
-        dualRead({ table: 'security_settings', eq: ['id', 1], maybeSingle: true })
+        dualRead({ 
+          table: 'site_settings', 
+          select: '*,registration_participant_types,registration_participant_quotas,registration_institution_optional,registration_institution_visible',
+          eq: ['id', 1], 
+          maybeSingle: true 
+        }).then(r => { console.log('✔ site_settings'); return r; }),
+        dualRead({ table: 'about_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ about_settings'); return r; }),
+        dualRead({ table: 'homebound_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ homebound_settings'); return r; }),
+        dualRead({ table: 'homepage_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ homepage_settings'); return r; }),
+        dualRead({ table: 'form_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ form_settings'); return r; }),
+        dualRead({ table: 'social_media_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ social_settings'); return r; }),
+        dualRead({ table: 'security_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ security_settings'); return r; })
       ]);
+
+      console.log('[CoreContext] Settings fetched in ' + (Date.now() - startQueries) + 'ms');
+      console.log('[CoreContext] Site Settings Data:', siteRes.data);
 
       setSiteSettings(siteRes.data);
       setAboutSettings(aboutRes.data);
@@ -229,8 +256,10 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
       setSecuritySettings(securityRes.data);
 
     } catch (err: any) {
+      console.error('[CoreContext] refreshAll error:', err);
       setLastError(err.message);
     } finally {
+      console.timeEnd('refreshAll_total');
       if (!silent) setLoading(false);
     }
   }, []);
@@ -238,6 +267,26 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     refreshAll();
   }, [refreshAll, user?.id]);
+
+  // Real-time subscription for site_settings
+  useEffect(() => {
+    const channel = supabase
+      .channel('site_settings_changes')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'site_settings',
+        filter: 'id=eq.1'
+      }, (payload) => {
+        console.log('[CoreContext] site_settings real-time update:', payload.new);
+        setSiteSettings(payload.new as SiteSettings);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const value: CoreContextType = {
     loading,
@@ -278,5 +327,5 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     toggleSponsorshipPackageEnabled
   };
 
-  return <CoreContext.Provider value={value}>{children}</CoreContext.Provider>;
+  return <PrimaryCoreContext.Provider value={value}>{children}</PrimaryCoreContext.Provider>;
 };

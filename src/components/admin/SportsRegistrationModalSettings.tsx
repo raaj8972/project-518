@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, X, Plus, Trash2, Settings2, Eye, Building2, Sparkles, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, Settings2, Building2, Sparkles, AlertCircle } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
@@ -82,11 +82,6 @@ export const SportsRegistrationModalSettings: React.FC = () => {
     }
   };
 
-  const handleCancel = () => {
-    setIsEditing(false);
-    setMessage(null);
-  };
-
   const updateField = (idx: number, patch: any) => {
     setDraft((prev: any) => {
       const fields = [...prev.form_fields];
@@ -96,7 +91,7 @@ export const SportsRegistrationModalSettings: React.FC = () => {
   };
 
   const addType = () => {
-    const t = prompt('Enter participant type (e.g. Alumnus):');
+    const t = prompt('Enter batch (e.g. Alumnus):');
     if (t) {
       setDraft((prev: any) => ({
         ...prev,
@@ -126,7 +121,7 @@ export const SportsRegistrationModalSettings: React.FC = () => {
               <Settings2 size={14} className="text-emerald-400" />
               <span className="text-[10px] font-black text-emerald-400/80 uppercase tracking-[0.2em]">Sports Domain</span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Sports Registration Model</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Sports Batch Model</h2>
             <p className="text-sm text-gray-400 mt-1 font-medium">Configure fields and types for sports participation.</p>
           </div>
 
@@ -254,13 +249,13 @@ export const SportsRegistrationModalSettings: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Participant Types */}
+        {/* Right: Batches */}
         <div className="space-y-6">
            <div className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
              <div className="px-6 py-4 border-b border-white/5 bg-gradient-to-r from-teal-500/10 to-transparent flex items-center justify-between">
                 <div className="flex items-center gap-3">
                    <Sparkles size={14} className="text-teal-400" />
-                   <h3 className="text-sm font-black text-white tracking-tight uppercase">Participant Types</h3>
+                   <h3 className="text-sm font-black text-white tracking-tight uppercase">Batches</h3>
                 </div>
                 {isEditing && (
                    <button onClick={addType} className="p-1.5 bg-teal-500/20 text-teal-400 rounded-lg">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { CoreCommittee, CoreTeamMember } from '../../context/DataContext';
+import type { CoreCommittee, CoreTeamMember } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
@@ -14,6 +14,21 @@ import PreserveNewlines from '../PreserveNewlines';
 import { AdminModal } from './layout/AdminModal';
 import { AICoreTeamScanner, type ExtractedCoreTeamData } from './AICoreTeamScanner';
 import { toast } from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
+
+const base64ToFile = async (base64String: string, fileName: string): Promise<File> => {
+  const [header, data] = base64String.includes(',') ? base64String.split(',') : ['', base64String];
+  const mimeMatch = header.match(/:(.*?);/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  
+  const binary = atob(data);
+  const array = [];
+  for (let i = 0; i < binary.length; i++) {
+    array.push(binary.charCodeAt(i));
+  }
+  const blob = new Blob([new Uint8Array(array)], { type: mime });
+  return new File([blob], fileName, { type: mime });
+};
 
 export const CoreTeamManagement: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -67,34 +82,61 @@ export const CoreTeamManagement: React.FC = () => {
     setShowAIScanner(true);
   };
 
-  const handleScanComplete = async (data: ExtractedCoreTeamData) => {
+  const handleScanComplete = async (data: ExtractedCoreTeamData, images: string[]) => {
     try {
       setShowAIScanner(false);
-      savingProgress.withSteps(data.committees.length + data.members.length, 'Saving Team Structure...');
+      const progress = savingProgress.withSteps(data.committees.length + data.members.length, 'Saving Team Structure...');
 
       // If scanning for a specific committee (Team Members tab), skip committee creation
       if (scannerTargetCommitteeId) {
         // All members go to the selected committee
         for (const member of data.members) {
           try {
+            let imageUrl = 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200';
+            
+            // Handle AI captured image
+            const imgBase64 = typeof member.image_index === 'number' ? images[member.image_index] : null;
+
+            if (imgBase64) {
+              const fileName = `team_${Date.now()}_${member.name.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+              const file = await base64ToFile(imgBase64, fileName);
+              
+              const { error: uploadError } = await supabase.storage
+                .from('team-images')
+                .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+              if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                  .from('team-images')
+                  .getPublicUrl(fileName);
+                imageUrl = publicUrl;
+              }
+            }
+
             await addCoreTeamMember({
               committee_id: scannerTargetCommitteeId,
               name: member.name,
               role: member.role,
-              is_head: member.is_head,
-              phone: member.phone,
-              specialty: member.specialty,
+              is_head: (member as any).is_head,
+              phone: (member as any).phone,
+              specialty: (member as any).specialty,
               description: member.description,
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200',
+              image: imageUrl,
               achievements: [],
               order_position: 99,
               enabled: true,
-              social_links: { instagram: '', linkedin: '', twitter: '', youtube: '', facebook: '' }
+              social_links: { 
+                instagram: member.instagram || '', 
+                linkedin: '', 
+                twitter: '', 
+                youtube: '', 
+                facebook: '' 
+              }
             });
-            savingProgress.advance('Added member...');
+            progress.next('Added member...');
           } catch (err) {
             console.error('Failed to create member:', err);
-            savingProgress.advance('Skipped member...');
+            progress.next('Skipped member...');
           }
         }
         setScannerTargetCommitteeId(null);
@@ -110,7 +152,7 @@ export const CoreTeamManagement: React.FC = () => {
         
         if (existing) {
           committeeMap.set(committee.name.toLowerCase(), existing.id);
-          savingProgress.advance('Found existing committee...');
+          progress.next('Found existing committee...');
         } else {
           try {
             const result = await addCoreCommittee({
@@ -124,10 +166,10 @@ export const CoreTeamManagement: React.FC = () => {
             if (result && result.id) {
               committeeMap.set(committee.name.toLowerCase(), result.id);
             }
-            savingProgress.advance('Created new committee...');
+            progress.next('Created new committee...');
           } catch (err) {
             console.error('Failed to create committee:', err);
-            savingProgress.advance('Skipped committee...');
+            progress.next('Skipped committee...');
           }
         }
       }
@@ -137,6 +179,27 @@ export const CoreTeamManagement: React.FC = () => {
         
         if (committeeId) {
           try {
+            let imageUrl = 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200';
+            
+            // Handle AI captured image
+            const imgBase64 = typeof member.image_index === 'number' ? images[member.image_index] : null;
+
+            if (imgBase64) {
+              const fileName = `team_${Date.now()}_${member.name.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+              const file = await base64ToFile(imgBase64, fileName);
+              
+              const { error: uploadError } = await supabase.storage
+                .from('team-images')
+                .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+              if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                  .from('team-images')
+                  .getPublicUrl(fileName);
+                imageUrl = publicUrl;
+              }
+            }
+
             await addCoreTeamMember({
               committee_id: committeeId,
               name: member.name,
@@ -145,19 +208,25 @@ export const CoreTeamManagement: React.FC = () => {
               phone: member.phone,
               specialty: member.specialty,
               description: member.description,
-              image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200&h=200',
+              image: imageUrl,
               achievements: [],
               order_position: 99,
               enabled: true,
-              social_links: { instagram: '', linkedin: '', twitter: '', youtube: '', facebook: '' }
+              social_links: { 
+                instagram: member.instagram || '', 
+                linkedin: '', 
+                twitter: '', 
+                youtube: '', 
+                facebook: '' 
+              }
             });
-            savingProgress.advance('Added member...');
+            progress.next('Added member...');
           } catch (err) {
             console.error('Failed to create member:', err);
-            savingProgress.advance('Skipped member...');
+            progress.next('Skipped member...');
           }
         } else {
-           savingProgress.advance('Skipped member (no committee)...');
+           progress.next('Skipped member (no committee)...');
         }
       }
 
@@ -763,15 +832,6 @@ export const CoreTeamManagement: React.FC = () => {
             </div>
           </div>
 
-          {/* Inline AI Scanner for Committees */}
-          {showAIScanner && activeSection === 'committees' && (
-            <div className="mb-6 animate-in slide-in-from-top duration-300">
-              <AICoreTeamScanner
-                onScanComplete={handleScanComplete}
-                onCancel={() => setShowAIScanner(false)}
-              />
-            </div>
-          )}
 
           {/* Add Committee Modal */}
           <AdminModal
@@ -1242,15 +1302,6 @@ export const CoreTeamManagement: React.FC = () => {
             </div>
           )}
 
-          {/* Inline AI Scanner for Team Members */}
-          {showAIScanner && activeSection === 'members' && (
-            <div className="mb-6 animate-in slide-in-from-top duration-300">
-              <AICoreTeamScanner
-                onScanComplete={handleScanComplete}
-                onCancel={() => { setShowAIScanner(false); setScannerTargetCommitteeId(null); }}
-              />
-            </div>
-          )}
 
           {/* Add/Edit Member Modal */}
           <AdminModal
@@ -1609,12 +1660,24 @@ export const CoreTeamManagement: React.FC = () => {
                              {/* Socials */}
                              <div className="flex items-center gap-2">
                                 {member.social_links?.instagram && (
-                                  <a href={member.social_links.instagram} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-pink-500 transition-colors">
+                                  <a 
+                                    href={member.social_links.instagram.startsWith('http') ? member.social_links.instagram : `https://instagram.com/${member.social_links.instagram.replace('@', '')}`} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="text-pink-400/60 hover:text-pink-400 transition-colors p-1 hover:bg-pink-500/10 rounded-lg"
+                                    title="View Instagram Profile"
+                                  >
                                     <Instagram size={14} />
                                   </a>
                                 )}
                                 {member.social_links?.youtube && (
-                                  <a href={member.social_links.youtube} target="_blank" rel="noreferrer" className="text-gray-500 hover:text-red-500 transition-colors">
+                                  <a 
+                                    href={member.social_links.youtube.startsWith('http') ? member.social_links.youtube : `https://youtube.com/${member.social_links.youtube}`} 
+                                    target="_blank" 
+                                    rel="noreferrer" 
+                                    className="text-red-400/60 hover:text-red-400 transition-colors p-1 hover:bg-red-500/10 rounded-lg"
+                                    title="View YouTube Channel"
+                                  >
                                     <Youtube size={14} />
                                   </a>
                                 )}
@@ -1739,6 +1802,16 @@ export const CoreTeamManagement: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showAIScanner && (
+        <AICoreTeamScanner
+          onScanComplete={handleScanComplete}
+          onCancel={() => { 
+            setShowAIScanner(false); 
+            setScannerTargetCommitteeId(null); 
+          }}
+        />
+      )}
 
 
     </div>

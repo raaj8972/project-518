@@ -23,8 +23,16 @@ interface AnnualSportsContextType {
 
 const AnnualSportsContext = createContext<AnnualSportsContextType | undefined>(undefined);
 
+// [DEDUPE] Use window bridge for singleton Context
+if (typeof window !== 'undefined') {
+  if (!(window as any).__ANNUAL_SPORTS_CONTEXT__) {
+    (window as any).__ANNUAL_SPORTS_CONTEXT__ = AnnualSportsContext;
+  }
+}
+
 export const useAnnualSports = () => {
-  const context = useContext(AnnualSportsContext);
+  const primaryContext = (typeof window !== 'undefined' ? (window as any).__ANNUAL_SPORTS_CONTEXT__ : null) as React.Context<AnnualSportsContextType | undefined> || AnnualSportsContext;
+  const context = useContext(primaryContext);
   if (context === undefined) {
     throw new Error('useAnnualSports must be used within an AnnualSportsProvider');
   }

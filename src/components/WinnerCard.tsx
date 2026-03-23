@@ -51,10 +51,10 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
         };
       default:
         return {
-          icon: <Trophy className="w-4 h-4 text-blue-400" />,
-          borderColor: 'border-blue-500/30',
-          gradient: 'from-blue-900/30 via-blue-500/5 to-transparent',
-          textColor: 'text-blue-300',
+          icon: <Trophy className="w-4 h-4 text-red-500" />,
+          borderColor: 'border-red-500/30',
+          gradient: 'from-red-900/40 via-red-500/10 to-transparent',
+          textColor: 'text-red-400',
           label: 'WINNER'
         };
     }
@@ -109,7 +109,7 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
 
           {/* Text Details */}
           <div className="text-center space-y-3 relative z-20 mt-4">
-             <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase tracking-tighter line-clamp-2 leading-tight">
+             <h3 className="text-2xl sm:text-3xl md:text-4xl font-black text-white uppercase tracking-tighter line-clamp-2 leading-tight font-serif">
                {name}
              </h3>
              
@@ -124,7 +124,7 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
              
              <div className="w-16 h-0.5 bg-white/10 mx-auto my-6 rounded-full"></div>
              
-             <p className="text-xs sm:text-sm font-black text-indigo-400 uppercase tracking-[0.2em] leading-snug">
+             <p className="text-xs sm:text-sm font-black text-red-500 uppercase tracking-[0.2em] leading-snug">
                {eventName}
              </p>
              {category && (

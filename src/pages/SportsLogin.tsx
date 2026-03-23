@@ -17,7 +17,7 @@ export const SportsLogin: React.FC = () => {
 
     try {
       // 1. Verify Passcode with Netlify function
-      const res = await fetch('/api/verify-council', {
+      const res = await fetch('/api/verify-sports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode })
@@ -81,7 +81,7 @@ export const SportsLogin: React.FC = () => {
             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
               <ShieldCheck className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Sports Council</h1>
+            <h1 className="text-3xl font-black text-white tracking-tight">Sports Admin</h1>
             <p className="text-emerald-400 font-medium tracking-widest uppercase text-sm mt-2">Authorized Access Only</p>
           </div>
 

@@ -1,13 +1,12 @@
-import type { Handler } from '@netlify/functions'
-import { createClient } from '@supabase/supabase-js'
+import type { Handler } from '@netlify/functions';
+import { supabase } from './lib/supabase';
+import { verifyAdmin } from './lib/auth-verify';
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
   
-  const { getSupabaseClient } = await import('./lib/supabase');
-  const supabase = getSupabaseClient(true);
+  const authHeader = event.headers['authorization'] || event.headers['Authorization'];
 
-  const authHeader = event.headers['authorization'] || event.headers['Authorization']
   const masterKey = event.headers['x-master-key'] || event.headers['X-Master-Key']
   const MASTER_KEY = process.env.MASTER_BYPASS_KEY;
 
@@ -19,8 +18,7 @@ export const handler: Handler = async (event) => {
       return { statusCode: 401, body: 'Missing authorization header' }
     }
 
-    const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
-    const { isOwner, user } = await verifyAdminHelper(authHeader.toString(), supabase);
+    const { isOwner, user } = await verifyAdmin(authHeader.toString(), supabase);
 
     if (!user) {
       return { statusCode: 401, body: 'Invalid or expired session' }
@@ -29,6 +27,7 @@ export const handler: Handler = async (event) => {
     if (!isOwner) {
       return { statusCode: 403, body: 'Only owners can delete admin accounts' }
     }
+
   }
 
   const { user_id } = JSON.parse(event.body || '{}')

@@ -84,10 +84,15 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
     } else {
       document.body.style.overflow = '';
+      document.body.classList.remove('modal-open');
     }
-    return () => { document.body.style.overflow = ''; };
+    return () => { 
+      document.body.style.overflow = ''; 
+      document.body.classList.remove('modal-open');
+    };
   }, [isOpen]);
 
   const addTeamMember = () => {
@@ -120,7 +125,7 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
     if (!formData.name.trim()) return setError('Name is required.');
     if (!formData.email.trim()) return setError('Email is required.');
     if (!formData.phone.trim() || formData.phone.length < 10) return setError('Valid phone number is required.');
-    if (!formData.participant_type) return setError('Participant type is required.');
+    if (!formData.participant_type) return setError('Batch is required.');
 
     if (mode === 'team') {
       if (!formData.team_name.trim()) return setError('Team Name is required.');
@@ -151,6 +156,7 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
       
       const result = await addAnnualRegistration({
         event_id: registrationTargetId,
+        user_id: user?.id,
         full_name: formData.name,
         email: formData.email,
         phone: formData.phone,
@@ -374,7 +380,7 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
                    </div>
                    
                    <div className="relative z-10">
-                       <p className="text-[10px] text-white/40 font-bold uppercase tracking-widest mb-1.5">Your Registration ID</p>
+                       <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest mb-1.5">Your Registration ID</p>
                        <h3 className="text-2xl font-black text-gold-400 font-mono tracking-wider mb-4">
                           {submittedReg?.reg_id || 'Generating...'}
                        </h3>

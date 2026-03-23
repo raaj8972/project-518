@@ -489,7 +489,7 @@ export const EventsManagement: React.FC = () => {
     'title', 'category', 'description', 'image', 'date', 'time', 'venue',
     'participants', 'highlights', 'registration_open', 'max_participants',
     'current_registrations', 'featured', 'visible', 'rules',
-    'payment_gateway_config', 'payment_amount', 'display_order',
+    'display_order',
     // Motion poster fields
     'motion_poster_url', 'motion_poster_autoplay', 'owner_hover_reveal',
     // Registration fields
@@ -682,7 +682,7 @@ export const EventsManagement: React.FC = () => {
              ];
              for (const check of checks) {
                  if (check.old && check.old !== check.new) {
-                     await deleteFromStorageByPublicUrl(check.old, 'event-images');
+                     await deleteFromStorageByPublicUrl(check.old);
                  }
              }
         }
@@ -797,7 +797,6 @@ export const EventsManagement: React.FC = () => {
     }
   };
 
-
   const handleDeleteEvent = async (id: number) => {
     if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) return;
     
@@ -821,7 +820,7 @@ export const EventsManagement: React.FC = () => {
             // Cleanup files
             const files = [event.image, event.motion_poster_url];
             for (const url of files) {
-                if (url) await deleteFromStorageByPublicUrl(url, 'event-images');
+                if (url) await deleteFromStorageByPublicUrl(url);
             }
         }
         await deleteEvent(id);
@@ -1111,34 +1110,98 @@ export const EventsManagement: React.FC = () => {
   const updateItem = (idx: number, bIndex: number, pIndex: number, value: string) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).map((p, k) => k === pIndex ? value : p) } : b) } : s));
   const removeItem = (idx: number, bIndex: number, pIndex: number) => setRulesSections(prev => prev.map((s, i) => i === idx ? { ...s, blocks: (s.blocks || []).map((b, j) => j === bIndex ? { ...b, items: (b.items || []).filter((_, k) => k !== pIndex) } : b) } : s));
 
-  const handleEventScanComplete = async (scannedEvents: any[]) => {
-    setShowEventScanner(false);
-    const toastId = push({ message: 'Importing AI-extracted events...', type: 'info' });
+  const base64ToFile = async (base64String: string, fileName: string): Promise<File> => {
+    const [header, data] = base64String.includes(',') ? base64String.split(',') : ['', base64String];
+    const mimeMatch = header.match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
     
+    const binary = atob(data);
+    const array = [];
+    for (let i = 0; i < binary.length; i++) {
+      array.push(binary.charCodeAt(i));
+    }
+    const blob = new Blob([new Uint8Array(array)], { type: mime });
+    return new File([blob], fileName, { type: mime });
+  };
+
+  const handleEventScanComplete = async (scannedEvents: any[], images: string[]) => {
     try {
-      let count = 0;
-      for (const evt of scannedEvents) {
-        await addEventWithCoordinators({
-          title: evt.title || 'Untitled Event',
-          category: evt.category || 'General',
-          description: evt.description || '',
-          image: '',
-          date: evt.date || new Date().toISOString().split('T')[0],
-          time: evt.time || '10:00',
-          venue: evt.venue || 'TBA',
-          participants: evt.participants || 'Open to all',
-          highlights: evt.highlights || [],
-          rules: evt.rules || [],
-          registration_open: evt.registration_open ?? true,
-          visible: true,
-          featured: false,
-        }, []);
-        count++;
+      setShowEventScanner(false);
+      const progress = savingProgress.withSteps(scannedEvents.length, 'Saving Events...');
+      let skippedCount = 0;
+
+      for (const eventData of scannedEvents) {
+        try {
+          let imageUrl = 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800';
+          
+          // Handle AI captured image
+          const imgBase64 = typeof eventData.image_index === 'number' ? images[eventData.image_index] : null;
+
+          if (imgBase64) {
+            try {
+              const fileName = `event_${Date.now()}_${eventData.title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+              const file = await base64ToFile(imgBase64, fileName);
+              
+              const { error: uploadError } = await supabase.storage
+                .from('event-images')
+                .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+              if (!uploadError) {
+                const { data: { publicUrl } } = supabase.storage
+                  .from('event-images')
+                  .getPublicUrl(fileName);
+                imageUrl = publicUrl;
+              } else {
+                console.error(`[AIImport] Upload error for ${eventData.title}:`, uploadError);
+              }
+            } catch (imageErr) {
+              console.error(`[AIImport] Image processing error for ${eventData.title}:`, imageErr);
+            }
+          }
+
+          // Fallback image if both current and AI image are missing
+          const defaultImage = 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=1200&q=80';
+          if (!imageUrl || imageUrl.includes('images.unsplash.com') && !eventData.image) {
+             imageUrl = imageUrl || defaultImage;
+          }
+
+          const payload = {
+            ...eventData,
+            image: imageUrl,
+            date: eventData.date || '',
+            time: eventData.time || '',
+            venue: eventData.venue || '',
+            participants: eventData.participants || 'Open to all',
+            highlights: Array.isArray(eventData.highlights) ? eventData.highlights : [],
+            rules: Array.isArray(eventData.rules) ? eventData.rules : [],
+            registration_open: true,
+            visible: true,
+            current_registrations: 0,
+            featured: false
+          };
+
+          const safeData = sanitizeEventPayload(payload);
+          console.info(`[AIImport] Final event payload for ${eventData.title}:`, safeData);
+          await addEventWithCoordinators(safeData, eventData.coordinators || []);
+          progress.next(`Added ${eventData.title}`);
+        } catch (err) {
+          console.error(`Failed to create event ${eventData.title}:`, err);
+          progress.next(`Skipped ${eventData.title}`);
+          skippedCount++;
+        }
       }
-      push({ message: `Successfully imported ${count} events from AI scan!`, type: 'success' });
-    } catch (error: any) {
-      console.error('[EventsManagement] AI import failed:', error);
-      push({ message: `Import failed: ${error.message}`, type: 'error' });
+
+      const successCount = scannedEvents.length - skippedCount;
+      if (successCount > 0) {
+        push({ message: `Successfully imported ${successCount} events!`, type: 'success' });
+      } else {
+        push({ message: `Failed to import events. Check console for details.`, type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error saving scanned events:', error);
+      push({ message: 'Failed to save scanned events', type: 'error' });
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -1146,12 +1209,10 @@ export const EventsManagement: React.FC = () => {
     <div className="space-y-6">
       {/* AI Event Scanner Modal */}
       {showEventScanner && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <AIEventScanner
-            onScanComplete={handleEventScanComplete}
-            onCancel={() => setShowEventScanner(false)}
-          />
-        </div>
+        <AIEventScanner 
+          onScanComplete={handleEventScanComplete}
+          onCancel={() => setShowEventScanner(false)}
+        />
       )}
       {/* Backend schema compatibility notice */}
       {events.length > 0 && !('registration_timer_enabled' in (events[0] as any)) && (
@@ -1165,7 +1226,7 @@ export const EventsManagement: React.FC = () => {
           <h2 className="text-3xl font-black text-white tracking-tight flex items-center gap-4">
             <div className="w-2 h-10 bg-gradient-to-b from-purple-500 to-indigo-600 rounded-full shadow-[0_0_20px_rgba(168,85,247,0.5)]" />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/70">Events Management</span>
-            <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black text-purple-400 tracking-widest uppercase ml-2">v3.0</div>
+            <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-black text-purple-400 tracking-widest uppercase ml-2">{siteSettings?.site_version || 'v10.0 PRO'}</div>
           </h2>
           <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
             <Calendar size={14} className="text-purple-400" />
@@ -1872,7 +1933,7 @@ export const EventsManagement: React.FC = () => {
                 )}
               </div>
 
-              {/* Participant Types / Quotas */}
+              {/* Batches / Quotas */}
               <div className="bg-black/20 rounded-2xl p-6 border border-white/5 space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2760,7 +2821,7 @@ export const EventsManagement: React.FC = () => {
 
                      {/* Participants Types */}
                      <div className="space-y-2">
-                        <label className="text-xs font-medium text-gray-400 block">Allowed Participant Types</label>
+                        <label className="text-xs font-medium text-gray-400 block">Allowed Batches</label>
                         {Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length > 0 ? (
                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {((siteSettings as any).registration_participant_types as string[]).map((t: string) => {

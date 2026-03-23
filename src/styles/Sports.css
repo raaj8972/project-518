@@ -1,0 +1,122 @@
+/* Sports Page Styles */
+.sports-container {
+  min-height: 100vh;
+  background: #050505;
+  color: white;
+  overflow-x: hidden;
+}
+
+.arena-glow {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at 50% 0%, rgba(255, 51, 51, 0.1), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; }
+  50% { transform: translateY(-20px) scale(1.1); opacity: 0.6; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.sport-card-glow {
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #ff3333, #ff6666, #ff3333);
+  border-radius: 1.5rem;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.sport-card:hover .sport-card-glow {
+  opacity: 0.4;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Stranger Things Theme Enhancements */
+.stranger-theme {
+    background: #030712;
+}
+
+.stranger-title {
+    background: linear-gradient(180deg, #ffffff, #ff0000 60%, #7f0000 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.3));
+}
+
+.stranger-flicker-text {
+    animation: stranger-flicker 3s linear infinite;
+}
+
+@keyframes stranger-flicker {
+    0%, 18%, 22%, 25%, 53%, 57%, 100% {
+        opacity: 1;
+        filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.8));
+    }
+    20%, 24%, 55% {
+        opacity: 0.5;
+        filter: drop-shadow(0 0 5px rgba(220, 38, 38, 0.3));
+    }
+}
+
+.stranger-pulse-glow {
+    animation: stranger-pulse-glow 2s infinite;
+}
+
+@keyframes stranger-pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(220, 38, 38, 0.2);
+        border-color: rgba(220, 38, 38, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(220, 38, 38, 0.4);
+        border-color: rgba(220, 38, 38, 0.6);
+    }
+}
+
+.stat-box {
+    @apply flex flex-col items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl backdrop-blur-3xl min-w-[160px];
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-box:hover {
+    @apply bg-red-950/20 border-red-600/30 -translate-y-2;
+    box-shadow: 0 20px 40px rgba(220, 38, 38, 0.1);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 51, 51, 0.2);
+    border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 51, 51, 0.4);
+}

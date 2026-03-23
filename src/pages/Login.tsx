@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { signInWithFirebase, ensureFirebaseUser } from '../lib/firebase';
-import { dualRead } from '../lib/dualDb';
-import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, Fingerprint, ChevronRight, Trophy, Lock, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, ChevronRight, Trophy, Lock, ArrowLeft } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 import { AdminService, AdminUser } from '../lib/adminService';
+import { isMasterOwner } from '../constants/owners';
 import { gsap } from 'gsap';
 
 export const Login: React.FC = () => {
@@ -21,7 +19,13 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [showRepairModal, setShowRepairModal] = useState(false);
+  const [repairEmail, setRepairEmail] = useState('');
+  const [repairMasterKey, setRepairMasterKey] = useState('');
+  const [repairLoading, setRepairLoading] = useState(false);
+  const [repairMessage, setRepairMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -30,7 +34,7 @@ export const Login: React.FC = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
-  const { login, loginWithPasskey, loginWithGoogle, isAuthenticated, user, loading: authLoading } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError } = useAuth();
   const navigate = useNavigate();
   const { homepageSettings, isAdmin, isOwner, loading: dataLoading } = useData();
   const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
@@ -146,8 +150,7 @@ export const Login: React.FC = () => {
         
         // Always ensure system owners are present even if DB read fails (RLS)
         const systemOwners: AdminUser[] = [
-          { user_id: 'hardcoded-raja', email: 'RAJA@rico.fun', role: 'owner', created_at: '' },
-          { user_id: 'hardcoded-raaj', email: 'raaj@rico.fun', role: 'owner', created_at: '' }
+          { user_id: 'hardcoded-raaj', email: 'ricorrenza.theiqcityfestival@gmail.com', role: 'owner', created_at: '' }
         ];
 
         // Merge and deduplicate by email
@@ -159,16 +162,16 @@ export const Login: React.FC = () => {
         });
 
         // merged list logic remains for pre-selection
+        setAdminUsers(merged);
         
-        // Pre-select RAJA if available
-        const raja = merged.find(a => a.email.toLowerCase() === 'raja@rico.fun');
-        if (raja) setEmail(raja.email);
+        // Pre-select Raaj if available
+        const raaj = merged.find(a => isMasterOwner(a.email));
+        if (raaj) setEmail(raaj.email);
         else if (merged.length > 0) setEmail(merged[0].email);
       } catch (err) {
         console.error('Failed to pre-fetch admin users:', err);
         // Minimum safety fallback
-        // Minimum safety fallback
-        setEmail('RAJA@rico.fun');
+        setEmail('ricorrenza.theiqcityfestival@gmail.com');
       } finally {
         // isLoading handled
       }
@@ -233,39 +236,8 @@ export const Login: React.FC = () => {
       );
 
       if (result.success) {
-        ensureFirebaseUser(email, password).catch(() => {});
-        const { data: userRoleData } = await (supabase as any)
-          .from('admin_users')
-          .select('role')
-          .eq('user_id', (await (supabase as any).auth.getUser()).data.user?.id)
-          .maybeSingle();
-
-        const isOwner = userRoleData?.role === 'owner';
-        if (isOwner && (!isMasterMode || !isGatePassValid)) {
-          sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
-          await (supabase as any).from('audit_logs').insert({
-            user_id: (await (supabase as any).auth.getUser()).data.user?.id,
-            action: 'UNAUTHORIZED_OWNER_ACCESS_REDIRECTED',
-            table_name: 'admin_users',
-            new_data: {
-              reason: 'Attempted owner login without passing through Master Gateway. Fast-track initiated.',
-              mode: searchParams.get('mode'),
-              has_session_pass: !!gatePass
-            }
-          });
-          await (supabase as any).auth.signOut();
-          setError('Security Handshake Required. Initiating Fast-Track...');
-          setIsLoading(true);
-          setTimeout(() => { navigate('/master-node-access'); }, 800);
-          return;
-        }
         navigate('/admin');
       } else if (result.requiresTOTP) {
-        const searchParams = new URLSearchParams(window.location.search);
-        const isMasterMode = searchParams.get('mode') === 'master';
-        const gatePass = sessionStorage.getItem('rico_master_gate_access');
-        const isGatePassValid = gatePass && gatePass.startsWith('vault_v2_');
-
         if (result.role === 'owner' && (!isMasterMode || !isGatePassValid)) {
           sessionStorage.setItem('rico_fast_track_creds', JSON.stringify({ e: email, p: password }));
           setError('Security Handshake Required. Initiating Fast-Track...');
@@ -273,52 +245,44 @@ export const Login: React.FC = () => {
           setTimeout(() => { navigate('/master-node-access'); }, 800);
           return;
         }
-        if (isMasterMode && isGatePassValid) {
-          sessionStorage.setItem('rico_auth_source', 'supabase');
-          navigate('/admin');
-          return;
-        }
         setRequiresTOTP(true);
         setError('');
       } else {
-        console.warn('[DualAuth] Supabase login failed, trying Firebase Auth...');
-        try {
-          const fbResult = await signInWithFirebase(email, password);
-          if (fbResult.success) {
-            const { data: adminData } = await dualRead({ table: 'admin_users' });
-            const isAdmin = Array.isArray(adminData) && adminData.some((a: any) => a.email === email);
-            if (isAdmin) {
-              sessionStorage.setItem('rico_auth_source', 'firebase');
-              navigate('/admin');
-              return;
-            } else {
-              setError('Account not found in admin users.');
-            }
-          } else {
-            if (fbResult.error?.includes('network-request-failed')) {
-                setError('Network Error: Using local bypass might be required. Try the Master Key.');
-            } else {
-                setError(result.error || fbResult.error || 'Authentication failed. Please try again.');
-            }
-          }
-        } catch (fbErr: any) {
-           if (fbErr.message?.includes('network-request-failed')) {
-                setError('Firebase Network Error. Please use Master Key for local development.');
-           } else {
-                setError('Secure connection failed. Check your network.');
-           }
-        }
+        setError(result.error || 'Authentication failed. Please try again.');
       }
     } catch (error: any) {
-      console.warn('[DualAuth] Login exception:', error);
-      if (error.message?.includes('Master Key')) {
-          setError(error.message);
-      } else {
-          setError('Authentication failed. Check your connection.');
-      }
+      console.warn('[Auth] Login exception:', error);
+      setError(error.message || 'Authentication failed. Check your connection.');
     }
 
     setIsLoading(false);
+  };
+
+  const handleRepairAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRepairLoading(true);
+    setRepairMessage(null);
+    try {
+      const res = await fetch('/.netlify/functions/admin-security-controls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'repair_auth', 
+          email: repairEmail, 
+          masterKey: repairMasterKey 
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRepairMessage({ type: 'success', text: data.message });
+      } else {
+        throw new Error(data.error || 'Repair failed');
+      }
+    } catch (err: any) {
+      setRepairMessage({ type: 'error', text: err.message });
+    } finally {
+      setRepairLoading(false);
+    }
   };
 
   const handleBackToPassword = () => {
@@ -369,6 +333,7 @@ export const Login: React.FC = () => {
         description={`Admin login for ${BRAND_NAME} ${BRAND_YEAR} management dashboard.`}
         canonical="https://ricorrenza.fun/login"
       />
+
 
       {/* Video Background */}
       <div className="fixed inset-0 z-0">
@@ -521,10 +486,62 @@ export const Login: React.FC = () => {
                 {/* ── Content Area ── */}
                 <div className="relative">
 
+                  {/* ── Identity Quick Select (INSTANT ACCESS) ── */}
+                  {!isFormOpen && !requiresTOTP && adminUsers.length > 0 && (
+                    <div className="mb-8 stagger-item">
+                      <p className="text-[9px] font-bold tracking-[0.3em] text-cyan-400/60 uppercase mb-4">
+                        Quick Identity Select
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        {adminUsers.filter(u => u.email).slice(0, 4).map((a) => {
+                          const isOwner = isMasterOwner(a.email);
+                          return (
+                            <button
+                              key={a.email}
+                              onClick={() => {
+                                setEmail(a.email);
+                                setIsFormOpen(true);
+                                // Focus password field after animation
+                                setTimeout(() => {
+                                  const pwdInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+                                  if (pwdInput) pwdInput.focus();
+                                }, 600);
+                              }}
+                              className={`flex-1 min-w-[120px] p-3 rounded-2xl border transition-all duration-300 group/id relative overflow-hidden ${
+                                isOwner 
+                                  ? 'bg-cyan-500/10 border-cyan-500/30 hover:bg-cyan-500/20 hover:border-cyan-500/50' 
+                                  : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                              }`}
+                            >
+                              {/* Background glow */}
+                              <div className={`absolute inset-0 opacity-0 group-hover/id:opacity-20 transition-opacity duration-500 ${isOwner ? 'bg-cyan-400' : 'bg-white'}`} style={{ filter: 'blur(20px)' }} />
+                              
+                              <div className="relative z-10 flex flex-col items-center gap-2">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center border transition-transform duration-500 group-hover/id:scale-110 ${
+                                  isOwner ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400' : 'bg-white/10 border-white/20 text-white/70'
+                                }`}>
+                                  {isOwner ? <Shield size={18} /> : <Users size={18} />}
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-[10px] font-black text-white truncate w-full max-w-[100px] uppercase tracking-tighter">
+                                    {isOwner ? 'Raaj (Owner)' : a.email.split('@')[0]}
+                                  </p>
+                                  <p className={`text-[8px] font-bold uppercase tracking-widest ${isOwner ? 'text-cyan-500/70' : 'text-gray-500'}`}>
+                                    {a.role || 'Admin'}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* ── Role Selection Buttons ── */}
                   <div ref={buttonsRef} className="flex flex-col gap-2.5 stagger-item">
                     <p className="text-[9px] font-bold tracking-[0.3em] text-gray-600 uppercase mb-1.5">
-                      Select Access Role
+                      Standard Access Roles
                     </p>
 
                     {roles.map(({ label, sub, icon: Icon, color, action }) => {
@@ -579,11 +596,18 @@ export const Login: React.FC = () => {
                         </div>
                       )}
 
-                      {/* ═══ OWNER LOGIN: Dropdown + Password ═══ */}
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-yellow-500/5 to-amber-500/5 border border-yellow-500/15 space-y-3">
+                      {lastAuthError && !error && (
+                        <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/25 flex items-center gap-3 animate-pulse">
+                          <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+                          <span className="text-amber-400 text-xs font-medium">{lastAuthError}</span>
+                        </div>
+                      )}
+
+                      {/* ═══ SECURE ACCESS: Dropdown + Password ═══ */}
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/15 space-y-3">
                         <div className="flex items-center gap-2 mb-1">
-                          <Shield className="w-4 h-4 text-yellow-400" />
-                          <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">Owner Access</span>
+                          <Shield className="w-4 h-4 text-cyan-400" />
+                          <span className="text-[10px] font-black text-white uppercase tracking-widest">Secure Access</span>
                         </div>
 
                         <form 
@@ -605,27 +629,33 @@ export const Login: React.FC = () => {
                           className="space-y-3"
                         >
 
-                        {/* Owner Dropdown */}
+                        {/* Admin/Owner Dropdown */}
                         <div className="space-y-1.5">
-                          <label className="text-[9px] uppercase tracking-[0.25em] text-yellow-400/60 font-bold">Select Owner</label>
+                          <label className="text-[9px] uppercase tracking-[0.25em] text-cyan-400/60 font-bold">Select Identity</label>
                           <div className="relative group">
                             <select
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
-                              className="input-cyber appearance-none pr-10 cursor-pointer hover:border-yellow-400/40 transition-all"
+                              className="input-cyber appearance-none pr-10 cursor-pointer hover:border-cyan-400/40 transition-all font-bold"
                             >
-                              <option value="" disabled className="bg-[#0a0a15] text-gray-500">Select Owner</option>
-                              <option value="RAJA@rico.fun" className="bg-[#0a0a15] text-white">RAJA — System Owner</option>
-                              <option value="raaj@rico.fun" className="bg-[#0a0a15] text-white">RAAJ — System Owner</option>
+                              <option value="" disabled className="bg-[#0a0a15] text-gray-500">Select User</option>
+                              {/* RAAJ/RAJA are pre-filled by fetchAdmins useEffect which includes all fetched admins */}
+                              {adminUsers.filter(u => u.email).map((a: any) => (
+                                <option key={a.email} value={a.email} className="bg-[#0a0a15] text-white">
+                                  {isMasterOwner(a.email) ? 'Raaj — OWNER' : `${a.email.split('@')[0].toUpperCase()} — ${a.role?.toUpperCase() || 'ADMIN'}`}
+                                </option>
+                              ))}
                             </select>
                             <input type="hidden" name="username" value={email} autoComplete="username" />
-                            <Users className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-yellow-400 pointer-events-none transition-colors" />
+                            <Users className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-600 group-focus-within:text-cyan-400 pointer-events-none transition-colors" />
                           </div>
                         </div>
 
                         {/* Password */}
                         <div className="space-y-1.5">
-                          <label className="text-[9px] uppercase tracking-[0.25em] text-yellow-400/60 font-bold">Access Key</label>
+                          <div className="flex items-center justify-between px-1">
+                            <label className="text-[9px] uppercase tracking-[0.25em] text-cyan-400/60 font-bold">Access Key</label>
+                          </div>
                           <div className="relative group">
                             <input
                               type={showPassword ? "text" : "password"}
@@ -639,14 +669,14 @@ export const Login: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setShowPassword(!showPassword)}
-                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-yellow-400 transition-colors"
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-cyan-400 transition-colors"
                             >
                               {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                             </button>
                           </div>
                         </div>
 
-                        {/* Owner Login Button */}
+                        {/* Login Button */}
                         <button
                           type="button"
                           disabled={isLoading || !email || !password}
@@ -664,7 +694,7 @@ export const Login: React.FC = () => {
                               setError(res.error || 'Invalid credentials');
                             }
                           }}
-                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-yellow-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-cyan-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isLoading ? (
                             <span className="flex items-center justify-center gap-2">
@@ -674,11 +704,22 @@ export const Login: React.FC = () => {
                           ) : (
                             <span className="flex items-center justify-center gap-2">
                               <Key size={14} />
-                              Owner Login
+                              Secure Login
                             </span>
                           )}
                         </button>
                         </form>
+                      </div>
+
+                      {/* Global Forgot Password Link */}
+                      <div className="text-center pt-1 pb-2">
+                        <Link 
+                          to="/forgot-password" 
+                          className="text-[10px] uppercase tracking-[0.2em] text-gray-500 hover:text-cyan-400 transition-colors font-black flex items-center justify-center gap-2 group"
+                        >
+                          <Lock size={10} className="text-gray-600 group-hover:text-cyan-400 transition-colors" />
+                          Forgot your password? Reset Identity
+                        </Link>
                       </div>
 
                       {/* Divider */}
@@ -724,31 +765,19 @@ export const Login: React.FC = () => {
                       </button>
                       <p className="text-[9px] text-gray-600 text-center">Only owner-approved Gmail accounts can sign in.</p>
 
-                      {/* ═══ BIOMETRIC LOGIN ═══ */}
-                      <button
-                        type="button"
-                        disabled={isLoading}
-                        onClick={async () => {
-                          setIsLoading(true);
-                          setError('');
-                          try {
-                            const res = await loginWithPasskey();
-                            if (res.success) {
-                              navigate('/admin');
-                            } else {
-                              setIsLoading(false);
-                              if (res.error) setError(res.error);
-                            }
-                          } catch (err: any) {
-                            setIsLoading(false);
-                            setError(err.message || 'Biometric authentication failed');
-                          }
-                        }}
-                        className="biometric-btn w-full stagger-item"
-                      >
-                        <Fingerprint className="w-5 h-5 text-cyan-400" />
-                        <span className="text-xs font-bold text-white uppercase tracking-widest">Login with Biometrics</span>
-                      </button>
+                      {/* Emergency Repair trigger */}
+                      <div className="pt-2 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setShowRepairModal(true)}
+                          className="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/5 hover:border-cyan-500/30 bg-white/5 hover:bg-cyan-500/5 transition-all"
+                        >
+                          <Lock size={10} className="text-gray-600 group-hover:text-cyan-400" />
+                          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500 group-hover:text-cyan-400">Locked out? Emergency Repair</span>
+                        </button>
+                      </div>
+
+
 
 
                     </div>
@@ -776,6 +805,75 @@ export const Login: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Emergency Repair Modal */}
+      {showRepairModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-sm bg-[#0a0a15] border border-cyan-500/30 rounded-2xl shadow-2xl shadow-cyan-500/20 overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-lg font-extrabold text-white uppercase tracking-tighter">Emergency Auth Repair</h3>
+              </div>
+              <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Rebuild identity from Master Node</p>
+            </div>
+            
+            <form onSubmit={handleRepairAuth} className="p-6 space-y-4">
+              {repairMessage && (
+                <div className={`p-3 rounded-xl border text-xs font-medium ${
+                  repairMessage.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-green-500/10 border-green-500/20 text-green-400'
+                }`}>
+                  {repairMessage.text}
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] uppercase tracking-widest text-cyan-400/60 font-black">Target Email</label>
+                <input
+                  type="email"
+                  required
+                  value={repairEmail}
+                  onChange={(e) => setRepairEmail(e.target.value)}
+                  placeholder="e.g. email@gmail.com"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-cyan-400/40 outline-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[9px] uppercase tracking-widest text-cyan-400/60 font-black">Master Bypass Key</label>
+                <input
+                  type="password"
+                  required
+                  value={repairMasterKey}
+                  onChange={(e) => setRepairMasterKey(e.target.value)}
+                  placeholder="Paste Master Key here"
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm focus:border-cyan-400/40 outline-none transition-all"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRepairModal(false);
+                    setRepairMessage(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 border border-white/10 rounded-xl text-gray-500 text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={repairLoading || !repairEmail || !repairMasterKey}
+                  className="flex-1 px-4 py-2.5 bg-cyan-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-cyan-600/20 disabled:opacity-50"
+                >
+                  {repairLoading ? 'Repairing...' : 'Run Repair'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');

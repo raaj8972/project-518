@@ -2,14 +2,95 @@ import React, { useState, useMemo } from 'react';
 import { Download, Filter, Search, Music, Mail, Phone, Eye, Trash2, CheckCircle, Clock, FileText, Upload, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
 import { exportAuditionsToExcel } from '../../utils/excelExport';
 import { exportAuditionsToPDF, exportAuditionsByStatus, preloadWatermark } from '../../utils/pdfExport';
 import { supabase } from '../../lib/supabase';
 // import type { Audition } from '../../context/DataContext';
 
+// Inline Editable Row Component
+const EditableRow = ({ 
+  label, 
+  value, 
+  onSave, 
+  canEdit = false, 
+  className = '',
+  showLabel = true
+}: { 
+  label: string, 
+  value: string | number | null | undefined, 
+  onSave: (val: string) => Promise<boolean>, 
+  canEdit?: boolean,
+  className?: string,
+  showLabel?: boolean
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(String(value || ''));
+  const [saving, setSaving] = useState(false);
+
+  React.useEffect(() => {
+    setTempValue(String(value || ''));
+  }, [value]);
+
+  const handleSave = async () => {
+    if (tempValue.trim() === String(value || '').trim()) {
+      setIsEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const success = await onSave(tempValue);
+      if (success) setIsEditing(false);
+    } catch (e) {
+      console.error('Save failed', e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={`flex items-start gap-2 group min-h-[24px] text-sm ${className}`}>
+      {showLabel && <strong className="text-gray-400 w-[140px] flex-shrink-0 pt-0.5">{label}:</strong>}
+      {isEditing ? (
+        <div className="flex-1 flex items-start gap-2 max-w-sm">
+          <input 
+            type="text" 
+            className="flex-1 border rounded px-2 py-0.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none border-gray-200 bg-white text-gray-900" 
+            value={tempValue} 
+            onChange={e => setTempValue(e.target.value)}
+            autoFocus
+          />
+          <div className="flex gap-1">
+            <button onClick={handleSave} disabled={saving} className="text-green-600 hover:text-green-800" title="Save">
+               {saving ? <Clock className="animate-spin" size={14}/> : <CheckCircle size={14}/>}
+            </button>
+            <button onClick={() => { setIsEditing(false); setTempValue(String(value || '')); }} className="text-red-600 hover:text-red-800" title="Cancel">
+               <RotateCcw size={14}/>
+            </button>
+          </div>
+        </div>
+      ) : (
+         <div className="flex-1 flex items-center gap-2 min-h-[20px]">
+            <span className="text-gray-700">{value || <span className="text-gray-400 italic text-xs">None</span>}</span>
+            {canEdit && (
+              <button onClick={() => setIsEditing(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600" title="Edit">
+                <FileText size={10} />
+              </button>
+            )}
+         </div>
+      )}
+    </div>
+  );
+};
+
 export const AuditionManagement: React.FC = () => {
-  const { auditions, updateAuditionStatus, deleteAudition, adminUsers } = useData();
+  const { auditions, updateAuditionStatus, deleteAudition, adminUsers, refreshAll } = useData();
   const { user } = useAuth();
+
+  const { updateBatchGlobally } = useRegistrationMutations(() => {
+    // Refresh all data after a global update
+    refreshAll();
+  });
 
   const isOwner = useMemo(() => {
     const admin = adminUsers?.find(u => u.user_id === user?.id);
@@ -17,6 +98,7 @@ export const AuditionManagement: React.FC = () => {
   }, [adminUsers, user]);
 
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedBatch, setSelectedBatch] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedAudition, setExpandedAudition] = useState<string | null>(null);
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
@@ -77,7 +159,7 @@ export const AuditionManagement: React.FC = () => {
       // Delete existing files first to avoid confusion
       await supabase.storage.from('pdf-watermarks').remove(['watermark.png', 'watermark.svg']);
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('pdf-watermarks')
         .upload(fileName, file, { cacheControl: '0', upsert: true });
 
@@ -164,13 +246,19 @@ export const AuditionManagement: React.FC = () => {
   // Filter auditions based on selected filters
   const filteredAuditions = auditions.filter(audition => {
     const matchesStatus = selectedStatus === 'all' || audition.status === selectedStatus;
+    const matchesBatch = selectedBatch === 'all' || audition.participant_type === selectedBatch;
     const matchesSearch = searchTerm === '' || 
       audition.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       audition.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       audition.instrument_role.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesBatch && matchesSearch;
   });
+
+  // Get unique batches for filter
+  const batches = useMemo(() => {
+    return Array.from(new Set(auditions.map(a => a.participant_type).filter(Boolean))).sort();
+  }, [auditions]);
 
   const handleStatusUpdate = async (auditionId: string, newStatus: 'pending' | 'reviewed' | 'contacted') => {
     try {
@@ -242,25 +330,25 @@ export const AuditionManagement: React.FC = () => {
     {
       label: 'Export Excel',
       icon: Download,
-      action: () => exportAuditionsToExcel(filteredAuditions, 'all-auditions.xlsx'),
+      action: () => exportAuditionsToExcel(filteredAuditions as any, 'all-auditions.xlsx'),
       color: 'bg-green-600 hover:bg-green-500'
     },
     {
       label: 'Export PDF',
       icon: FileText,
-      action: () => exportAuditionsToPDF(filteredAuditions, {
+      action: () => exportAuditionsToPDF(filteredAuditions as any, {
         filename: 'auditions-report.pdf',
         title: 'Audition Applications Report',
         includeDetails: true,
         watermarkDataUrl,
         stampDataUrl
-      }),
+      } as any),
       color: 'bg-red-600 hover:bg-red-500'
     },
     {
       label: 'PDF by Status',
       icon: FileText,
-      action: () => exportAuditionsByStatus(filteredAuditions, watermarkDataUrl, stampDataUrl),
+      action: () => exportAuditionsByStatus(filteredAuditions as any, watermarkDataUrl, stampDataUrl),
       color: 'bg-purple-600 hover:bg-purple-500'
     }
   ];
@@ -396,7 +484,7 @@ export const AuditionManagement: React.FC = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-4 gap-4">
           {/* Status Filter */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Status</label>
@@ -411,6 +499,24 @@ export const AuditionManagement: React.FC = () => {
                 <option value="pending">Pending</option>
                 <option value="reviewed">Reviewed</option>
                 <option value="contacted">Contacted</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Batch Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Batch</label>
+            <div className="relative">
+              <Filter className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+              <select
+                value={selectedBatch}
+                onChange={(e) => setSelectedBatch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 dark:bg-white dark:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="all">All Batches</option>
+                {batches.map(batch => (
+                  <option key={batch} value={batch}>{batch}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -439,6 +545,7 @@ export const AuditionManagement: React.FC = () => {
           <button
             onClick={() => {
               setSelectedStatus('all');
+              setSelectedBatch('all');
               setSearchTerm('');
             }}
             className="text-sm text-blue-600 hover:text-blue-800"
@@ -515,9 +622,23 @@ export const AuditionManagement: React.FC = () => {
                             <Phone size={12} className="mr-1" />
                             {audition.phone}
                           </div>
-                         <div className="text-sm text-gray-500">
-                           {audition.participant_type}
-                         </div>
+                          <div className="text-sm text-gray-500 flex items-center mt-1">
+                            <span className="font-medium mr-1 text-gray-400">Batch:</span>
+                            <EditableRow 
+                              label="Batch" 
+                              showLabel={false}
+                              value={audition.participant_type} 
+                              onSave={async (val) => {
+                                if (audition.email && val) {
+                                  await updateBatchGlobally(audition.email, val);
+                                  return true;
+                                }
+                                return false;
+                              }}
+                              canEdit={isOwner}
+                              className="!min-h-0"
+                            />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -608,7 +729,7 @@ export const AuditionManagement: React.FC = () => {
                               <h4 className="font-semibold text-gray-900 mb-2">Audition Details</h4>
                               <div className="space-y-1 text-sm">
                                 <div><strong>Audition ID:</strong> {audition.id}</div>
-                               <div><strong>Participant Type:</strong> {audition.participant_type}</div>
+                               <div><strong>Batch:</strong> {audition.participant_type}</div>
                                 <div><strong>Instrument/Role:</strong> {audition.instrument_role}</div>
                                 <div><strong>Application Date:</strong> {new Date(audition.created_at).toLocaleString()}</div>
                                 {audition.portfolio_link && (

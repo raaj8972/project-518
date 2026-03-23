@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, X, Pencil, Trash2, Search, Filter, Loader2, Sparkles, Wand2, Medal, Crown, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, X, Pencil, Trash2, Sparkles, Medal, Edit, Save, Building, Star, ExternalLink, FileImage, ArrowUp, ArrowDown, Eye, EyeOff, Award, FileText, Link as LinkIcon, Download, Mail } from 'lucide-react';
 import * as LucideIcons from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import { InlineDescriptionAI } from './InlineDescriptionAI';
 import { AISponsorScanner } from './sponsors/AISponsorScanner';
 import { AITierScanner } from './sponsors/AITierScanner';
+import { supabase } from '../../lib/supabase';
+import { useToast } from '../../components/ToastProvider';
 import type { Sponsor, SponsorshipPackage, ContactSection } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
@@ -15,6 +17,7 @@ import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 type SubTabType = 'sponsors' | 'packages' | 'settings';
 
 export const SponsorsManagement: React.FC = () => {
+  const { push } = useToast();
   const { 
     sponsors, 
     sponsorshipPackages,
@@ -28,9 +31,6 @@ export const SponsorsManagement: React.FC = () => {
     deleteSponsorshipPackage,
     toggleSponsorshipPackageEnabled,
     updateSponsorshipSettings,
-    updateSponsorsOrder,
-    updatePackagesOrder,
-    contactSections,
     addContactSection,
     updateContactSection,
     deleteContactSection,
@@ -737,25 +737,69 @@ export const SponsorsManagement: React.FC = () => {
     }
   };
 
-  const handleSponsorScanComplete = async (scannedSponsors: any[]) => {
+  const base64ToFile = async (base64String: string, fileName: string): Promise<File> => {
+    const [header, data] = base64String.includes(',') ? base64String.split(',') : ['', base64String];
+    const mimeMatch = header.match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    
+    const binary = atob(data);
+    const array = [];
+    for (let i = 0; i < binary.length; i++) {
+      array.push(binary.charCodeAt(i));
+    }
+    const blob = new Blob([new Uint8Array(array)], { type: mime });
+    return new File([blob], fileName, { type: mime });
+  };
+
+  const handleSponsorScanComplete = async (scannedSponsors: any[], images: string[]) => {
     setShowSponsorScanner(false);
+    const progress = savingProgress.withSteps(scannedSponsors.length, 'Saving Sponsors...');
+    
     try {
       let count = 0;
       for (const sp of scannedSponsors) {
-        await addSponsor({
-          name: sp.name || 'Unknown Sponsor',
-          category: sp.category || 'Associate Sponsor',
-          logo: '',
-          description: sp.description || '',
-          website: sp.website || '',
-          order_position: sponsors.length + count + 1,
-        });
-        count++;
+        try {
+          let logoUrl = '';
+          
+          // Handle AI captured logo
+          const imgBase64 = typeof sp.image_index === 'number' ? images[sp.image_index] : null;
+
+          if (imgBase64) {
+            const fileName = `sponsor_${Date.now()}_${sp.name.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+            const file = await base64ToFile(imgBase64, fileName);
+            
+            const { error: uploadError } = await supabase.storage
+              .from('sponsor-logos')
+              .upload(`sponsors/${fileName}`, file, { cacheControl: '3600', upsert: true });
+
+            if (!uploadError) {
+              const { data: { publicUrl } } = supabase.storage
+                .from('sponsor-logos')
+                .getPublicUrl(`sponsors/${fileName}`);
+              logoUrl = publicUrl;
+            }
+          }
+
+          await addSponsor({
+            name: sp.name || 'Unknown Sponsor',
+            category: sp.tier_level || sp.category || 'Associate Sponsor',
+            logo: logoUrl,
+            description: sp.description || '',
+            website: sp.website || '',
+            order_position: sponsors.length + count + 1,
+          });
+          count++;
+          progress.next(`Added ${sp.name}`);
+        } catch (err) {
+          console.error(`Failed to add sponsor ${sp.name}:`, err);
+        }
       }
-      alert(`Successfully imported ${count} sponsors from AI scan!`);
+      push({ message: `Successfully imported ${count} sponsors from AI scan!`, type: 'success' });
     } catch (error: any) {
       console.error('[SponsorsManagement] AI import failed:', error);
-      alert(`Import failed: ${error.message}`);
+      push({ message: `Import failed: ${error.message}`, type: 'error' });
+    } finally {
+      savingProgress.done();
     }
   };
 
@@ -786,22 +830,18 @@ export const SponsorsManagement: React.FC = () => {
     <div className="space-y-6">
       {/* AI Sponsor Scanner Modal */}
       {showSponsorScanner && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <AISponsorScanner
-            onScanComplete={handleSponsorScanComplete}
-            onCancel={() => setShowSponsorScanner(false)}
-          />
-        </div>
+        <AISponsorScanner 
+          onScanComplete={handleSponsorScanComplete}
+          onCancel={() => setShowSponsorScanner(false)}
+        />
       )}
 
       {/* AI Tier/Brochure Scanner Modal */}
       {showTierScanner && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <AITierScanner
-            onScanComplete={handleTierScanComplete}
-            onCancel={() => setShowTierScanner(false)}
-          />
-        </div>
+        <AITierScanner 
+          onScanComplete={handleTierScanComplete}
+          onCancel={() => setShowTierScanner(false)}
+        />
       )}
 
       {/* Edit Sponsor Modal */}

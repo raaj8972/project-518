@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
+import { dualInsert, dualUpdate, dualDelete, dualUpsert } from '../lib/dualDb';
 
 export interface PendingApproval {
   id: string; // Changed to string for Firestore ID
@@ -33,34 +32,59 @@ export const useApprovals = () => {
 
     setLoading(true);
 
-    const q = query(
-      collection(db, 'pending_approvals'),
-      where('status', '==', 'pending')
-    );
+    const subscription = supabase
+      .channel('public:pending_approvals')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pending_approvals',
+          filter: 'status=eq.pending'
+        },
+        async () => {
+          // Re-fetch on any change for consistency
+          const { data, error } = await supabase
+            .from('pending_approvals')
+            .select('*')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const approvals: PendingApproval[] = snapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        ...docSnap.data(),
-      })) as PendingApproval[];
-      
-      // Sort in memory by created_at desc
-      approvals.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setPendingApprovals(approvals);
-      setLoading(false);
-    }, (err) => {
-      console.error('❌ Exception listening to pending_approvals:', err);
-      setError(err.message);
-      setLoading(false);
-    });
+          if (error) {
+            console.error('❌ Error fetching pending_approvals:', error);
+            setError(error.message);
+          } else {
+            setPendingApprovals(data as PendingApproval[]);
+          }
+          setLoading(false);
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Initial fetch
+          supabase
+            .from('pending_approvals')
+            .select('*')
+            .eq('status', 'pending')
+            .order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+              if (error) {
+                console.error('❌ Error in initial fetch:', error);
+                setError(error.message);
+              } else {
+                setPendingApprovals(data as PendingApproval[]);
+              }
+              setLoading(false);
+            });
+        }
+      });
 
     return () => {
-      unsubscribe();
+      supabase.removeChannel(subscription);
     };
   }, [user?.id]);
 
-  // Refetch wrapper for API compatibility, though onSnapshot automatically handles it
+  // Refetch wrapper for API compatibility, though Supabase Realtime automatically handles it
   const fetchPendingApprovals = async () => {};
 
   // Submit new change for approval
@@ -93,8 +117,7 @@ export const useApprovals = () => {
       
       console.log('🔵 Inserting approval data:', approvalData);
 
-      const docRef = doc(db, 'pending_approvals', newId);
-      await setDoc(docRef, approvalData);
+      await dualUpsert('pending_approvals', approvalData);
 
       console.log('✅ Approval inserted successfully:', approvalData);
       return { success: true };
@@ -110,16 +133,8 @@ export const useApprovals = () => {
       const approval = pendingApprovals.find(a => a.id === approvalId);
       if (!approval) throw new Error('Approval not found');
 
-      const docRef = doc(db, 'pending_approvals', approvalId);
-
-      // If modified changes are provided, update the pending approval record first
-      if (modifiedChanges) {
-        await updateDoc(docRef, { changes: modifiedChanges });
-        approval.changes = modifiedChanges;
-      }
-
       // First, mark as approved
-      await updateDoc(docRef, {
+      await dualUpdate('pending_approvals', approvalId, {
         status: 'approved',
         reviewed_by: user?.id,
         reviewed_at: new Date().toISOString()
@@ -138,9 +153,7 @@ export const useApprovals = () => {
   // Reject a pending change
   const rejectChange = async (approvalId: string, reason?: string) => {
     try {
-      const docRef = doc(db, 'pending_approvals', approvalId);
-
-      await updateDoc(docRef, {
+      await dualUpdate('pending_approvals', approvalId, {
         status: 'rejected',
         reviewed_by: user?.id,
         reviewed_at: new Date().toISOString(),

@@ -29,9 +29,6 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
         setLoading(true);
         setError('');
         
-        // Instagram oEmbed API
-        const oembedUrl = `https://graph.facebook.com/v18.0/instagram_oembed?url=${encodeURIComponent(url)}&access_token=YOUR_ACCESS_TOKEN`;
-        
         // Alternative: use a proxy or direct embed approach
         // For now, we'll use a simple iframe embed approach
         const postId = extractInstagramPostId(url);
@@ -41,7 +38,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
 
         // Create embed HTML using Instagram's embed format
         const embed = `
-          <blockquote class="instagram-media" data-instgrm-permalink="${url}?utm_source=ig_embed&utm_campaign=loading" data-instgrm-version="14" style="background:#000; border:0; border-radius:12px; box-shadow:0 0 1em 0 rgba(0,255,255,0.3); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
+          <blockquote class="instagram-media" data-instgrm-permalink="${url}?utm_source=ig_embed&utm_campaign=loading" data-instgrm-version="14" style="background:#000; border:0; border-radius:12px; box-shadow:0 0 1em 0 rgba(239,68,68,0.3); margin: 1px; max-width:540px; min-width:326px; padding:0; width:99.375%; width:-webkit-calc(100% - 2px); width:calc(100% - 2px);">
           </blockquote>
         `;
         
@@ -99,22 +96,22 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
   return (
     <section className="py-16 md:py-24 relative overflow-hidden">
       {/* Background gradients */}
-      <div className="absolute inset-0 bg-gradient-to-br from-pink-900/20 via-purple-900/30 to-blue-900/20"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 via-[#0a0a0a] to-orange-900/20"></div>
       
       <div className="container mx-auto px-4 relative z-10">
         {/* Section Header */}
         <div className="scroll-animate opacity-0 transform translate-y-20">
           <div className="text-center mb-12 md:mb-16">
-            <div className="inline-flex items-center bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 text-pink-400 px-6 py-3 rounded-full text-sm md:text-base font-medium mb-6 backdrop-blur-sm pulse-glow">
+            <div className="inline-flex items-center bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 text-red-500 px-6 py-3 rounded-full text-sm md:text-base font-medium mb-6 backdrop-blur-sm pulse-glow font-serif">
               <Sparkles className="w-4 h-4 mr-2 animate-pulse" />
               NOW SHOWING
             </div>
             
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 cyberpunk-title">
-              {title.split(' ')[0]} <span className="neon-pink">{title.split(' ').slice(1).join(' ')}</span>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 cyberpunk-title font-serif">
+               {title.split(' ')[0]} <span className="text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]">{title.split(' ').slice(1).join(' ')}</span>
             </h2>
             
-            <div className="w-32 h-1 bg-gradient-to-r from-pink-500 to-purple-500 mx-auto mb-6 md:mb-8 expand-width"></div>
+            <div className="w-32 h-1 bg-gradient-to-r from-red-600 to-orange-600 mx-auto mb-6 md:mb-8 expand-width"></div>
             
             <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">
               {subtitle}
@@ -128,8 +125,8 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
             {loading && (
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
-                  <div className="cyberpunk-spinner mb-4 mx-auto"></div>
-                  <p className="text-cyan-300 font-mono text-sm">Loading trailer...</p>
+                  <div className="cyberpunk-spinner mb-4 mx-auto !border-t-red-500 !border-r-orange-500"></div>
+                  <p className="text-red-500 font-mono text-sm">Loading trailer...</p>
                 </div>
               </div>
             )}
@@ -137,12 +134,12 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
             {error && !loading && (
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
-                  <p className="text-red-400 mb-4">{error}</p>
+                  <p className="text-red-600 mb-4">{error}</p>
                   <a
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="cyberpunk-btn cyberpunk-btn-secondary"
+                    className="superia-btn-primary"
                   >
                     View on Instagram
                   </a>
@@ -165,7 +162,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
             href={url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center text-pink-400 hover:text-pink-300 font-semibold transition-colors"
+            className="inline-flex items-center text-red-500 hover:text-red-400 font-semibold transition-colors font-serif italic tracking-wider"
           >
             Watch on Instagram
             <svg className="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 24 24">
@@ -180,8 +177,8 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
           width: 48px;
           height: 48px;
           border: 4px solid transparent;
-          border-top: 4px solid #00ffff;
-          border-right: 4px solid #ff00ff;
+          border-top: 4px solid #ef4444;
+          border-right: 4px solid #f97316;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -206,10 +203,10 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
 
         @keyframes pulse-glow {
           0%, 100% {
-            box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+            box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
           }
           50% {
-            box-shadow: 0 0 20px rgba(236, 72, 153, 0.8), 0 0 30px rgba(236, 72, 153, 0.4);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.8), 0 0 30px rgba(220, 38, 38, 0.4);
           }
         }
 

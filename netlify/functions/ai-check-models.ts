@@ -1,8 +1,11 @@
 import { type Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from './lib/supabase';
+import { pingAI, type AIModel } from './lib/ai';
 
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const ALLOWED_MODELS = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-pro-latest'];
+const ALLOWED_MODELS: AIModel[] = [
+  'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-pro-latest',
+  'gemini-3-flash-preview', 'gemini-3.1-pro-preview'
+];
 
 // Using a simple cache so we don't spam the API and use up the quota just checking availability
 let cachedStatuses: Record<string, boolean> | null = null;
@@ -16,7 +19,6 @@ export const handler: Handler = async (event) => {
 
   try {
     const authHeader = event.headers.authorization || event.headers.Authorization;
-    const { getSupabaseClient } = await import('./lib/supabase');
     const { verifyAdmin: verifyAdminHelper } = await import('./lib/auth-verify');
     
     const supabase = getSupabaseClient(true);
@@ -24,11 +26,6 @@ export const handler: Handler = async (event) => {
 
     if (!authUser || !isAdmin) {
        return { statusCode: 403, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Unauthorized: Admin access required' }) };
-    }
-
-    const API_KEY = process.env.GOOGLE_API_KEY;
-    if (!API_KEY) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'Server configuration error' }) };
     }
 
     const now = Date.now();
@@ -40,33 +37,10 @@ export const handler: Handler = async (event) => {
       };
     }
 
-    const pingModel = async (model: string): Promise<boolean> => {
-      try {
-        const data = JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: "ping" }] }],
-          generationConfig: { maxOutputTokens: 1 }
-        });
-
-        const response = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${API_KEY}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: data,
-          signal: AbortSignal.timeout(3000)
-        });
-
-        if (response.ok) return true;
-        if (response.status === 429 || response.status === 503) return false;
-        return false;
-      } catch (error) {
-        console.error(`Error checking model ${model}:`, error);
-        return false;
-      }
-    };
-
     const statuses: Record<string, boolean> = {};
     const results = await Promise.all(
       ALLOWED_MODELS.map(async (model) => {
-        const isAvailable = await pingModel(model);
+        const isAvailable = await pingAI(model);
         return { model, isAvailable };
       })
     );

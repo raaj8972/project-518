@@ -598,7 +598,7 @@ export const OwnerApprovalCenter: React.FC = () => {
         const currentTypes = (editedChanges?.[key] || []) as string[];
         const currentQuotas = (editedChanges?.['registration_participant_quotas'] || {}) as Record<string, number>;
 
-        if (!siteList.length) return <div className="text-sm text-gray-500 italic">No participant types defined in Site Settings.</div>;
+        if (!siteList.length) return <div className="text-sm text-gray-500 italic">No batches defined in Site Settings.</div>;
 
         return (
           <div className="mt-2 space-y-2 border border-gray-200 rounded p-3 bg-gray-50">
@@ -665,7 +665,7 @@ export const OwnerApprovalCenter: React.FC = () => {
         );
       }
       
-      // Skip rendering quotas directly as they are handled within participant types
+      // Skip rendering quotas directly as they are handled within batches
       if (key === 'registration_participant_quotas') return null;
 
       // Handle different types of values

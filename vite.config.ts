@@ -32,7 +32,18 @@ export default defineConfig({
     hmr: {
       protocol: 'ws',
       host: 'localhost',
-      clientPort: 8888,
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/.netlify/functions'),
+      },
+      '/.netlify/functions': {
+        target: 'http://localhost:8888',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
   preview: {

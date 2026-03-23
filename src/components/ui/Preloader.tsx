@@ -68,9 +68,9 @@ const EcgLine = React.memo<EcgLineProps>(({ progress, glowColor }) => {
         style={{ display: 'block', overflow: 'visible' }}
       >
         <defs>
-          {/* Shared SVG glow filter — single definition */}
-          <filter id="ecg-glow" x="-30%" y="-80%" width="160%" height="260%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
+          {/* Simplified glow filter — less blur area for better fill performance */}
+          <filter id="ecg-glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="1.5" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
@@ -213,7 +213,7 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
         animationRef.current = requestAnimationFrame(animate);
       } else {
         setProgress(100);
-        setTimeout(() => setPhase('hold'), 300);
+        setTimeout(() => setPhase('hold'), 200);
       }
     };
 
@@ -225,21 +225,26 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
   // ── Phase transitions ─────────────────────────────────────────────────────
   useEffect(() => {
     if (phase === 'hold') {
-      const id = setTimeout(() => setPhase('fadeout'), 700);
+      const id = setTimeout(() => setPhase('fadeout'), 250); 
       return () => clearTimeout(id);
     }
     if (phase === 'fadeout') {
-      const id = setTimeout(() => onCompleteRef.current(), 900);
+      const id = setTimeout(() => onCompleteRef.current(), 500); 
       return () => clearTimeout(id);
     }
   }, [phase]);
 
-  // ── Ambient glow pulse (sine wave) ────────────────────────────────────────
+  // ── Ambient glow pulse (low frequency update) ─────────────────────────────
   useEffect(() => {
     const origin = performance.now();
+    let lastUpdate = 0;
     const tick = (now: number) => {
-      const t = ((now - origin) % 2000) / 2000;
-      setPulse(Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
+      // Throttle pulse update to ~30fps to save CPU/GPU
+      if (now - lastUpdate > 32) {
+        const t = ((now - origin) % 3000) / 3000; // Slower, calmer pulse
+        setPulse(Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
+        lastUpdate = now;
+      }
       pulseFrameRef.current = requestAnimationFrame(tick);
     };
     pulseFrameRef.current = requestAnimationFrame(tick);

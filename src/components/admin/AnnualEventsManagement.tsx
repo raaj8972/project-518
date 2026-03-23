@@ -36,7 +36,7 @@ export const AnnualEventsManagement: React.FC = () => {
     registration_mode_locked: false,
     team_min_members: 1,
     custom_fields: siteSettings?.annual_registration_config?.form_fields?.filter((f: any) => !['fullName', 'email', 'phone', 'college', 'department', 'year', 'rollNo'].includes(f.name)) || [],
-    fee: 0,
+
     visible: true,
     display_teams: true,
     display_schedule: true,
@@ -173,16 +173,7 @@ export const AnnualEventsManagement: React.FC = () => {
               </select>
             </div>
 
-            <div>
-              <label className={labelCls}>Registration Fee ($)</label>
-              <input 
-                type="number" 
-                value={form.fee} 
-                onChange={e => setForm({...form, fee: parseFloat(e.target.value) || 0})} 
-                className={inputCls} 
-                placeholder="0.00" 
-              />
-            </div>
+
 
             <div className="md:col-span-2">
               <label className={labelCls}>Description</label>
@@ -196,12 +187,12 @@ export const AnnualEventsManagement: React.FC = () => {
 
             {/* Standard Registration Settings */}
             <div className="md:col-span-2 grid md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
-              {/* Participant Types & Quotas */}
+              {/* Batches & Quotas */}
               <div className="space-y-6">
                 <div>
                   <h4 className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
                     <Users className="w-3.5 h-3.5 text-gold-500" />
-                    Participant Types & Quotas
+                    Batches & Quotas
                   </h4>
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-2">
@@ -670,7 +661,6 @@ export const AnnualEventsManagement: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span className="px-2 py-0.5 rounded-md bg-gold-500/10 text-[9px] font-black text-gold-500 uppercase tracking-widest border border-gold-500/20">{event.category || 'Event'}</span>
-                    <span className="text-sm font-black text-white/80">${event.fee || '0'}</span>
                   </div>
                   <h3 className="text-lg font-bold text-white line-clamp-1">{event.name}</h3>
                 </div>

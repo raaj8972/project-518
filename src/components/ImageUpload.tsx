@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   AlertCircle, 
   FileText, 
@@ -7,18 +8,34 @@ import {
   UploadCloud, 
   X, 
   Check, 
-  ZoomIn, 
-  Crop as CropIcon,
-  RotateCcw
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  RotateCw,
+  RefreshCw,
+  Maximize,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import Cropper from 'react-easy-crop';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'; // Added from instruction
 import { useData } from '../context/DataContext';
 import { optimizeImage, OptimizationOptions } from '../utils/imageOptimizer';
 import { optimizeVideo, VideoOptimizationOptions } from '../utils/videoOptimizer';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 import { humanSize, getFileName } from '../utils/uploadUtils';
 import { deleteStorageFileByPublicUrl } from '../utils/storageUtils';
+
+const getRadianAngle = (degreeValue: number) => {
+  return (degreeValue * Math.PI) / 180;
+};
+
+const rotateSize = (width: number, height: number, rotation: number) => {
+  const rotRad = getRadianAngle(rotation);
+  return {
+    width: Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height: Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
+};
 
 interface ImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
@@ -77,11 +94,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [originalImageMime, setOriginalImageMime] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<null | { x: number; y: number; width: number; height: number }>(null);
   
   // Responsive / Layout state
-  const { adminUsers, sanitizeUrl } = (useData?.() || {}) as any;
+  const { adminUsers, sanitizeUrl, isAdmin } = (useData?.() || {}) as any;
   const [isOwner, setIsOwner] = useState<boolean>(false);
+  const isAdminUser = typeof isAdmin === 'function' ? isAdmin() : false;
   const [cropAspectLocal, setCropAspectLocal] = useState<number>(typeof cropAspect === 'number' ? cropAspect : 16/9);
 
   // Hook integration
@@ -220,8 +239,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       processedFile = await handleVideoOptimization(processedFile);
     }
 
-    // 3. Cropper or Direct Upload
-    if (!isPdfUpload && !isVideoUpload && !isAudioUpload && enableCropper) {
+    // 3. Cropper or Direct Upload (Cropper restricted to admins)
+    const effectiveEnableCropper = enableCropper && isAdminUser;
+
+    if (!isPdfUpload && !isVideoUpload && !isAudioUpload && effectiveEnableCropper) {
       openCropper(processedFile);
     } else {
       // Local preview fallback
@@ -310,6 +331,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       setCropSrc(reader.result as string);
       setLocalPreview(reader.result as string);
       setZoom(1);
+      setRotation(0);
       setCrop({ x: 0, y: 0 });
       setError('');
       setIsProcessing(false);
@@ -318,11 +340,21 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setOriginalImageMime(file.type || null);
   };
 
+  const handleRotate90 = (direction: 'cw' | 'ccw') => {
+    setRotation((prev) => prev + (direction === 'cw' ? 90 : -90));
+  };
+
+  const handleReset = () => {
+    setZoom(1);
+    setRotation(0);
+    setCrop({ x: 0, y: 0 });
+  };
+
   // --- Crop Actions ---
   
   const getCroppedImgBlob = async (pixelCrop: any): Promise<Blob> => {
     if (!cropSrc) throw new Error('No crop source');
-    const image = await new Promise<HTMLImageElement>((resolve) => {
+    const imageElement = await new Promise<HTMLImageElement>((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous'; 
       img.src = cropSrc;
@@ -333,23 +365,42 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No context');
 
+    const rotRad = getRadianAngle(rotation);
+    const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
+      imageElement.width,
+      imageElement.height,
+      rotation
+    );
+
+    canvas.width = bBoxWidth;
+    canvas.height = bBoxHeight;
+
+    ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
+    ctx.rotate(rotRad);
+    ctx.translate(-imageElement.width / 2, -imageElement.height / 2);
+    ctx.drawImage(imageElement, 0, 0);
+
+    const croppedCanvas = document.createElement('canvas');
+    const croppedCtx = croppedCanvas.getContext('2d');
+    if (!croppedCtx) throw new Error('No context');
+
     // High quality scale
     const maxDim = 1200;
     const scale = Math.min(1, maxDim / Math.max(pixelCrop.width, pixelCrop.height));
     
-    canvas.width = pixelCrop.width * scale;
-    canvas.height = pixelCrop.height * scale;
+    croppedCanvas.width = pixelCrop.width * scale;
+    croppedCanvas.height = pixelCrop.height * scale;
     
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(
-      image,
+    croppedCtx.imageSmoothingEnabled = true;
+    croppedCtx.imageSmoothingQuality = 'high';
+    croppedCtx.drawImage(
+      canvas,
       pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-      0, 0, canvas.width, canvas.height
+      0, 0, croppedCanvas.width, croppedCanvas.height
     );
 
     return new Promise((resolve) => {
-      canvas.toBlob(blob => resolve(blob!), originalImageMime === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
+      croppedCanvas.toBlob(blob => resolve(blob!), originalImageMime === 'image/png' ? 'image/png' : 'image/jpeg', 0.9);
     });
   };
 
@@ -405,6 +456,65 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     return sanitized;
   })();
 
+  const getAspectRatiosForBucket = () => {
+    switch (bucket) {
+      case 'event-images':
+        return [
+          { label: 'Event Card (49:59)', value: 49 / 59.4, icon: undefined },
+          { label: 'Home Bound (49:59)', value: 49 / 59.4, icon: undefined },
+          { label: 'Square (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      case 'team-images':
+        return [
+          { label: 'Core Team (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Portrait (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      case 'faculty-images':
+        return [
+          { label: 'Faculty Card (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Portrait (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      case 'guest-artist-images':
+        return [
+          { label: 'Feature Artist / Guest (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Home Bound Card (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Square (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      case 'band-images':
+        return [
+          { label: 'Home Bound (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Feature Artist (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Square (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      case 'hero-media':
+      case 'hero_v2':
+      case 'hero-video':
+        return [
+          { label: 'Desktop (16:9)', value: 16 / 9, icon: undefined },
+          { label: 'Mobile (9:16)', value: 9 / 16, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+      default:
+        return [
+          { label: 'Square (1:1)', value: 1 / 1, icon: undefined },
+          { label: 'Landscape (16:9)', value: 16 / 9, icon: undefined },
+          { label: 'Portrait (3:4)', value: 3 / 4, icon: undefined },
+          { label: 'Story (9:16)', value: 9 / 16, icon: undefined },
+          { label: 'Free', value: undefined, icon: Maximize }
+        ];
+    }
+  };
+
+  const ASPECT_RATIOS = getAspectRatiosForBucket();
+
+  // Scroll Lock for Cropper
+  useBodyScrollLock(!!cropSrc); // Changed from showCropper to cropSrc
+
   return (
     <div className={`relative ${className}`}>
       <input 
@@ -430,10 +540,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       <div 
         className={`group relative w-full overflow-hidden rounded-2xl transition-all duration-300 ${
            displayImage 
-            ? 'border border-white/10 bg-black/40' 
+            ? 'border border-white/10 bg-black/40 shadow-xl' 
             : dragOver 
-              ? 'border-2 border-dashed border-purple-500 bg-purple-500/10' 
-              : 'border-2 border-dashed border-white/10 bg-white/5 hover:border-purple-500/50 hover:bg-white/10'
+              ? 'border-2 border-dashed border-purple-500 bg-purple-500/10 shadow-[0_0_30px_rgba(147,51,234,0.15)]' 
+              : 'border-2 border-dashed border-white/10 bg-white/5 hover:border-purple-500/50 hover:bg-white/10 hover:shadow-lg'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
@@ -447,7 +557,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       >
         
         {(isProcessing || uploading) && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <div className="relative w-16 h-16 mb-4">
                <svg className="animate-spin w-full h-full text-purple-500" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
@@ -475,7 +585,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                 <video src={displayImage} className="max-h-full max-w-full w-auto h-auto object-contain" controls />
               ) : isPdfUpload ? (
                  <div className="flex flex-col items-center gap-2 p-6">
-                   <FileText className="w-16 h-16 text-red-400" />
+                   <FileText className="w-16 h-16 text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.3)]" />
                    <span className="text-sm text-gray-300 font-mono break-all text-center">{getFileName(displayImage)}</span>
                    <a href={displayImage} target="_blank" rel="noreferrer" className="text-xs text-blue-400 hover:underline">Open PDF</a>
                  </div>
@@ -484,12 +594,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               )}
               
               {!hideControls && (
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                  <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform">
-                     <button onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/20 text-white transition-colors" title="Change">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <div className="flex items-center justify-center gap-3 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                     <button onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110 shadow-lg" title="Change">
                        <RotateCcw size={18} />
                      </button>
-                     <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-full bg-red-500/20 hover:bg-red-500/40 backdrop-blur border border-red-500/30 text-red-200 transition-colors" title="Delete">
+                     <button onClick={() => setShowDeleteConfirm(true)} className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md border border-red-500/30 text-red-200 transition-all hover:scale-110 shadow-lg" title="Delete">
                         <Trash2 size={18} />
                      </button>
                   </div>
@@ -498,30 +608,30 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             </div>
             
             {!hideControls && (
-               <div className="lg:hidden flex items-center justify-between p-3 bg-white/5 border-t border-white/5">
-                  <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-300 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5">
+               <div className="lg:hidden flex items-center justify-between p-3 bg-black/60 backdrop-blur-md border-t border-white/10">
+                  <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-200 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                     <RotateCcw size={14} /> Change
                   </button>
-                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10">
+                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-colors">
                     <Trash2 size={14} /> Remove
                   </button>
                </div>
             )}
             
-            <div className="absolute top-2 right-2 flex flex-col items-end gap-1 pointer-events-none">
-              <div className="px-2 py-1 rounded-md bg-black/60 border border-white/10 text-white text-[10px] font-medium backdrop-blur-md">
+            <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5 pointer-events-none">
+              <div className="px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-white text-[10px] font-medium backdrop-blur-md shadow-lg">
                 <span className="font-medium truncate max-w-[150px]">{currentImage ? (isVideoUpload ? 'Video URL' : (isAudioUpload ? 'Audio URL' : 'Image URL')) : 'None'}</span>
               </div>
               
               {isDirty && (
-                <div className="px-2 py-1 bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-md shadow-lg backdrop-blur-sm flex items-center gap-1">
-                  <AlertCircle size={10} />
+                <div className="px-2.5 py-1.5 bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-lg backdrop-blur-sm flex items-center gap-1.5">
+                  <AlertCircle size={12} />
                   Unsaved
                 </div>
               )}
               {optimizedPreviewMeta && (
-                <div className="px-2 py-1 rounded-md bg-black/60 border border-white/10 text-gray-400 text-[9px] backdrop-blur-md">
-                  {humanSize(optimizedPreviewMeta.size)} • {optimizedPreviewMeta.type.split('/')[1].toUpperCase()}
+                <div className="px-2.5 py-1.5 rounded-lg bg-black/60 border border-white/10 text-zinc-300 text-[10px] uppercase font-bold backdrop-blur-md shadow-lg">
+                  {humanSize(optimizedPreviewMeta.size)} • {optimizedPreviewMeta.type.split('/')[1]}
                 </div>
               )}
             </div>
@@ -531,112 +641,233 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
              onClick={() => fileInputRef.current?.click()}
              className="flex flex-col items-center justify-center py-10 px-4 cursor-pointer text-center min-h-[160px]"
           >
-            <div className={`p-4 rounded-full mb-4 transition-all duration-300 ${dragOver ? 'bg-purple-500/20 scale-110' : 'bg-white/5 group-hover:bg-white/10 group-hover:scale-105'}`}>
-               {isVideoUpload ? <Play className="w-8 h-8 text-purple-400" /> : <UploadCloud className="w-8 h-8 text-purple-400" />}
+            <div className={`p-4 rounded-2xl mb-4 transition-all duration-300 ${dragOver ? 'bg-purple-500/20 scale-110 shadow-[0_0_30px_rgba(147,51,234,0.3)] border border-purple-500/30' : 'bg-white/5 border border-white/10 group-hover:bg-white/10 group-hover:scale-105 group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}>
+               {isVideoUpload ? <Play className="w-8 h-8 text-purple-400 transform group-hover:scale-110 transition-transform" /> : <UploadCloud className="w-8 h-8 text-purple-400 transform group-hover:-translate-y-1 transition-transform" />}
             </div>
-            <h3 className="text-sm font-bold text-white mb-1">
+            <h3 className="text-sm font-bold text-white mb-1.5">
               Click to upload or drag & drop
             </h3>
-            <p className="text-xs text-gray-500 max-w-[200px]">
+            <p className="text-xs font-medium text-zinc-500 max-w-[200px]">
               {effectiveFileTypeLabel}
             </p>
           </div>
         )}
       </div>
 
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+      {showDeleteConfirm && createPortal(
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+              <Trash2 className="w-6 h-6 text-red-500" />
+            </div>
             <h3 className="text-lg font-bold text-white mb-2">Delete File?</h3>
-            <p className="text-sm text-gray-400 mb-6">This action cannot be undone. The file will be permanently removed.</p>
+            <p className="text-sm text-zinc-400 mb-6">This action cannot be undone. The file will be permanently removed from storage.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white font-medium text-sm transition-colors border border-white/5">
                 Cancel
               </button>
-              <button onClick={handleDelete} className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg shadow-red-900/20 transition-all">
+              <button onClick={handleDelete} className="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-bold text-sm shadow-[0_4px_20px_rgba(239,68,68,0.3)] transition-all">
                 Delete
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {cropSrc && (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black animate-in fade-in duration-300">
-           <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur border-b border-white/10 z-10 shrink-0">
-             <div className="flex items-center gap-2">
-                <CropIcon size={16} className="text-purple-400" />
-                <span className="text-sm font-bold text-white tracking-wide">ADJUST IMAGE</span>
-             </div>
-             <button onClick={() => setCropSrc(null)} className="p-2 -mr-2 text-gray-400 hover:text-white">
+      {cropSrc && createPortal(
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[12000] flex items-center justify-center p-0 sm:p-4 lg:p-8 animate-in fade-in duration-300">
+          
+          <div className="bg-zinc-950 lg:bg-black/40 lg:backdrop-blur-2xl lg:border lg:border-white/10 lg:rounded-[2rem] w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] lg:max-w-6xl flex flex-col lg:flex-row overflow-hidden shadow-2xl relative">
+            
+            {/* Mobile Header (Only visible on smallest screens/touch) */}
+            <div className="w-full h-14 bg-black/50 backdrop-blur-md border-b border-white/10 flex items-center justify-between px-4 lg:hidden sticky top-0 z-20">
+              <h3 className="text-white font-medium">Crop & Adjust Image</h3>
+              <button
+                onClick={() => setCropSrc(null)}
+                disabled={isProcessing}
+                className="p-2 text-zinc-400 hover:text-white transition-colors"
+              >
                 <X size={20} />
-             </button>
-           </div>
-           
-           <div className="relative flex-1 bg-[#1a1a1a] w-full overflow-hidden">
-             <Cropper
+              </button>
+            </div>
+            
+            {/* Left/Top Area: Cropper */}
+            <div className="relative flex-1 min-h-[40vh] bg-black">
+              <Cropper
                 image={cropSrc}
                 crop={crop}
                 zoom={zoom}
+                rotation={rotation}
                 aspect={cropAspectLocal}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
+                onRotationChange={setRotation}
                 onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
-                objectFit="contain"
+                cropShape="rect"
                 showGrid={true}
-             />
-           </div>
+              />
+              
+              {/* Desktop Close Button */}
+              <button
+                onClick={() => setCropSrc(null)}
+                className="hidden lg:flex items-center justify-center absolute top-6 right-6 z-10 w-10 h-10 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105 border border-white/10 shadow-lg"
+              >
+                <X size={20} />
+              </button>
 
-           <div className="bg-gray-900 border-t border-white/10 p-4 md:p-6 shrink-0 safe-area-pb">
-              <div className="flex items-center gap-4 mb-6 max-w-lg mx-auto">
-                 <ZoomIn size={16} className="text-gray-500" />
-                 <input 
-                   type="range" min={1} max={3} step={0.1} 
-                   value={zoom} onChange={(e) => setZoom(parseFloat(e.target.value))}
-                   className="flex-1 h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                 />
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 text-zinc-300 text-xs font-medium shadow-lg pointer-events-none hidden lg:block">
+                Drag to pan • Scroll to zoom
+              </div>
+            </div>
+
+            {/* Right/Bottom Area: Controls */}
+            <div className="w-full lg:w-[400px] bg-zinc-900/50 backdrop-blur-xl flex flex-col flex-1 lg:h-auto lg:max-h-full rounded-t-3xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-white/10 relative overflow-hidden">
+              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/10 to-transparent pointer-events-none" />
+              
+              <div className="flex-1 overflow-y-auto px-5 py-6 lg:p-8 space-y-6 lg:gap-8 pb-safe">
+                <div className="hidden lg:block relative z-10">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">Adjust Image</h3>
+                  <p className="text-sm text-zinc-400">Position, rotate, and crop for your template.</p>
+                </div>
+
+              {/* Templates / Ratio (Accessible to all admins) */}
+              {isAdminUser && (
+                <div className="space-y-4 relative z-10">
+                  <label className="text-[11px] font-bold text-purple-400 uppercase tracking-widest flex items-center justify-between">
+                    <span>Template Settings</span>
+                    <span className="bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-md text-[10px] normal-case tracking-wide border border-purple-500/20">
+                      {bucket}
+                    </span>
+                  </label>
+                  <div className="flex flex-col gap-2.5">
+                    {ASPECT_RATIOS.map((ratio) => (
+                      <button
+                        key={ratio.label}
+                        onClick={() => setCropAspectLocal(ratio.value || 0)} // react-easy-crop takes undefined for free aspect, we'll map below
+                        className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all w-full flex items-center justify-between border ${
+                          (!cropAspectLocal && !ratio.value) || (cropAspectLocal === ratio.value)
+                            ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-[0_4px_20px_rgba(147,51,234,0.3)] border-purple-400/50 scale-[1.02]'
+                            : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
+                        }`}
+                      >
+                        <span>{ratio.label}</span>
+                        {((!cropAspectLocal && !ratio.value) || (cropAspectLocal === ratio.value)) && (
+                          <Check size={16} className="text-white drop-shadow-md" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Zoom */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  Zoom
+                </label>
+                <div className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-zinc-800">
+                  <ZoomOut className="text-zinc-500" size={16} />
+                  <input
+                    type="range"
+                    min="1"
+                    max="3"
+                    step="0.05"
+                    value={zoom}
+                    onChange={(e) => setZoom(parseFloat(e.target.value))}
+                    disabled={isProcessing}
+                    className="flex-1 accent-purple-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <ZoomIn className="text-zinc-500" size={16} />
+                </div>
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-2 no-scrollbar justify-start md:justify-center">
-                 {[
-                   ...(bucket === 'event-images' ? [{ label: 'Card', val: 49 / 59.4 }] : []),
-                   { label: 'Square', val: 1 }, 
-                   { label: '16:9', val: 16/9 }, 
-                   { label: '4:3', val: 4/3 }, 
-                   { label: 'Portrait', val: 3/4 },
-                   { label: 'Story', val: 9/16 }
-                 ].map(r => (
-                   <button 
-                     key={r.label}
-                     onClick={() => setCropAspectLocal(r.val)}
-                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
-                       Math.abs(cropAspectLocal - r.val) < 0.01 
-                         ? 'bg-purple-500 border-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.4)]' 
-                         : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
-                     }`}
-                   >
-                     {r.label}
-                   </button>
-                 ))}
-                 <div className="w-px h-6 bg-white/10 mx-2" />
-                 <button 
-                    onClick={onConfirmFull} 
-                    className="px-3 py-1.5 rounded-full text-xs font-medium text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 whitespace-nowrap"
-                 >
-                    Full Original
-                 </button>
+              {/* Rotation */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                    Rotation
+                  </label>
+                  <span className="text-[11px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+                    {Math.round(rotation)}°
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-zinc-800">
+                  <RotateCcw 
+                    className="text-zinc-500 cursor-pointer hover:text-purple-400 transition-colors" 
+                    size={16} 
+                    onClick={() => handleRotate90('ccw')}
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="360"
+                    step="1"
+                    value={Math.round(rotation)}
+                    onChange={(e) => setRotation(parseFloat(e.target.value))}
+                    disabled={isProcessing}
+                    className="flex-1 accent-purple-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <RotateCw 
+                    className="text-zinc-500 cursor-pointer hover:text-purple-400 transition-colors" 
+                    size={16} 
+                    onClick={() => handleRotate90('cw')}
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 max-w-lg mx-auto">
-                 <button onClick={() => setCropSrc(null)} className="py-3 rounded-xl bg-white/5 text-white font-medium text-sm hover:bg-white/10 transition-colors">
+              </div>
+
+              {/* Sticky Actions Container */}
+              <div className="sticky bottom-0 left-0 right-0 p-5 lg:p-8 bg-zinc-950/90 backdrop-blur-xl border-t border-white/10 space-y-4 z-20">
+                <div className="flex items-center justify-between text-zinc-500 mb-2">
+                  <button
+                    onClick={handleReset}
+                    disabled={isProcessing}
+                    className="flex items-center gap-2 text-xs font-medium hover:text-white transition-colors"
+                  >
+                    <RefreshCw size={12} /> Reset
+                  </button>
+                  <button
+                    onClick={onConfirmFull}
+                    disabled={isProcessing}
+                    className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    Use Original
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setCropSrc(null)}
+                    disabled={isProcessing}
+                    className="flex-1 py-3.5 border border-white/10 bg-white/5 hover:bg-white/10 text-white rounded-xl disabled:opacity-50 font-medium transition-all shadow-sm"
+                  >
                     Cancel
-                 </button>
-                 <button onClick={onConfirmCrop} className="py-3 rounded-xl bg-purple-600 text-white font-bold text-sm shadow-lg shadow-purple-900/30 hover:bg-purple-500 transition-colors flex items-center justify-center gap-2">
-                    <Check size={18} /> Apply Crop
-                 </button>
+                  </button>
+                  <button
+                    onClick={onConfirmCrop}
+                    disabled={isProcessing}
+                    className="flex-[2] py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-500 hover:to-indigo-500 shadow-[0_4px_20px_rgba(147,51,234,0.4)] hover:shadow-[0_4px_25px_rgba(147,51,234,0.6)] disabled:opacity-50 font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+                  >
+                    {isProcessing ? (
+                      <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <>
+                        <Check size={18} className="drop-shadow-md" /> Save & Apply
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-           </div>
-        </div>
+
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

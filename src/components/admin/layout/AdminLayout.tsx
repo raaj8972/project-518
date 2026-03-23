@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
   Menu, 
@@ -14,8 +15,10 @@ import {
 import { HealthBadge } from '../HealthBadge';
 import { BRAND_NAME_WITH_YEAR } from '../../../constants/brand';
 import { CommandPalette } from './CommandPalette';
+import { SiteSettings } from '../../../types/data';
 
-export type TabType = 'overview' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'biometric-login' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'audit-logs';
+
+export type TabType = 'overview' | 'announcements' | 'support-chat' | 'shoutouts' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'student-passes' | 'student-approvals' | 'student-system' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'sports-announcements' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'admin-passcodes' | 'audit-logs';
 
 interface AdminLayoutProps {
   user: any;
@@ -33,7 +36,9 @@ interface AdminLayoutProps {
   autoLogoutEnabled: boolean;
   setAutoLogoutEnabled: (enabled: boolean) => void;
   isTOTPEnabled: boolean;
+  siteSettings?: SiteSettings | null;
 }
+
 
 export const AdminLayout: React.FC<AdminLayoutProps> = ({
   user,
@@ -49,11 +54,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   children,
   autoLogoutEnabled,
   setAutoLogoutEnabled,
-  isTOTPEnabled
+  isTOTPEnabled,
+  siteSettings
 }) => {
+
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const navNavigate = useNavigate();
+
+  // Navigate to an admin section via URL
+  const navigateToTab = (tabId: string) => {
+    const path = tabId === 'overview' ? '/admin' : `/admin/${tabId}`;
+    navNavigate(path);
+  };
 
   // Global Keyboard Shortcut for Command Palette
   useEffect(() => {
@@ -79,7 +93,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
      if (!groups[g]) groups[g] = [];
      groups[g].push(tab);
   });
-  const groupOrder = ['Dashboard', 'Content', 'Events & Schedule', 'Registrations', 'People', 'Sports', 'Annual Sports', 'Security & System', 'Other'];
+  const groupOrder = ['DASHBOARD', 'CONTENT', 'FESTIVAL', 'REGISTRATIONS', 'SPORTS LEAGUE', 'PEOPLE', 'SYSTEM', 'Other'];
 
   return (
     <div className="h-screen bg-[#050508] text-gray-200 flex font-sans selection:bg-indigo-500/30 overflow-hidden superia-mesh-glow">
@@ -117,8 +131,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <h1 className="font-black text-white text-base tracking-tighter leading-none flex items-center gap-1.5">
                   SUPERIA <Sparkles size={12} className="text-amber-400 fill-amber-400" />
                 </h1>
-                <p className="text-[10px] text-gray-500 font-black tracking-[0.2em] uppercase opacity-70">ADMIN OS v3.0</p>
+                <p className="text-[10px] text-gray-500 font-black tracking-[0.2em] uppercase opacity-70">ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
               </div>
+
             </div>
             <button 
               onClick={() => setIsSidebarOpen(false)}
@@ -129,7 +144,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </div>
 
           {/* User Profile Snippet - V3 Enhanced */}
-          <div className="p-4 mx-4 mt-8 mb-4 rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/5 flex items-center gap-4 group/profile cursor-pointer hover:bg-white/[0.08] transition-all duration-500">
+          <div 
+            onClick={() => setActiveTab('security')}
+            className="p-4 mx-4 mt-8 mb-4 rounded-2xl bg-gradient-to-br from-white/[0.05] to-transparent border border-white/5 flex items-center gap-4 group/profile cursor-pointer hover:bg-white/[0.08] hover:border-white/10 transition-all duration-500"
+          >
             <div className="relative">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shadow-2xl transition-transform duration-500 group-hover/profile:scale-110 ${isOwner ? 'bg-gradient-to-br from-indigo-600 to-purple-700 text-white' : 'bg-gray-800 text-gray-400'}`}>
                 {user?.email?.[0].toUpperCase() || 'A'}
@@ -142,6 +160,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest ${isOwner ? 'bg-indigo-500/20 text-indigo-400' : 'bg-green-500/20 text-green-400'}`}>
                   {isOwner ? 'Owner' : 'Admin'}
                 </span>
+                <Shield size={12} className="text-white/20 group-hover/profile:text-indigo-400 transition-colors" />
               </div>
             </div>
           </div>
@@ -188,7 +207,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                         <button
                           key={tab.id}
                           onClick={() => {
-                            setActiveTab(tab.id);
+                            navigateToTab(tab.id);
                             if (window.innerWidth < 1024) setIsSidebarOpen(false);
                             setSearchQuery(''); 
                           }}
@@ -249,9 +268,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
                 </button>
                 <button 
                   onClick={onLogout}
-                  className="px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all duration-300 text-rose-400 group shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 transition-all duration-300 text-rose-400 group shadow-sm"
+                  title="Sign Out"
                 >
                   <LogOut size={16} className="group-hover:scale-110 group-hover:-translate-x-0.5 transition-all" />
+                  <span className="text-[10px] font-black tracking-widest uppercase">Logout</span>
                 </button>
              </div>
              
@@ -282,18 +303,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[40%] bg-purple-600/5 blur-[120px] rounded-full" style={{ animationDuration: '8s' }} />
 
         {/* Top Header - Mobile V3 */}
-        <header className="h-16 flex items-center justify-between px-6 bg-[#050508]/80 backdrop-blur-3xl border-b border-white/5 sticky top-0 z-40 lg:hidden">
-           <div className="flex items-center gap-4">
-             <button 
-               onClick={() => setIsSidebarOpen(true)}
-               className="p-2 -ml-2 text-white bg-white/5 rounded-xl border border-white/10 shadow-lg"
-             >
-               <Menu size={20} />
-             </button>
-             <span className="font-black text-white tracking-tighter text-sm uppercase">SUPERIA <span className="text-gray-500">ADMIN</span></span>
-           </div>
-           <HealthBadge />
-        </header>
+         <header className="h-16 flex items-center justify-between px-6 bg-[#050508]/80 backdrop-blur-3xl border-b border-white/5 sticky top-0 z-40 lg:hidden">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 -ml-2 text-white bg-white/5 rounded-xl border border-white/10 shadow-lg"
+              >
+                <Menu size={20} />
+              </button>
+              <span className="font-black text-white tracking-tighter text-sm uppercase">SUPERIA <span className="text-gray-500">ADMIN</span></span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={onLogout}
+                className="p-2 text-rose-400 bg-rose-500/10 rounded-xl border border-rose-500/20 active:scale-95 transition-all"
+                aria-label="Logout"
+              >
+                <LogOut size={18} />
+              </button>
+              <HealthBadge />
+            </div>
+         </header>
 
         {/* Content Wrapper */}
         <div 
@@ -341,8 +371,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </main>
 
           <footer className="px-10 py-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 mt-auto">
-             <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{BRAND_NAME_WITH_YEAR} • SUPERIA ADMIN OS v3.0</p>
+             <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{BRAND_NAME_WITH_YEAR} • SUPERIA ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
              <div className="flex items-center gap-6">
+
                 <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Documentation</a>
                 <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Support</a>
                 <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Logs</a>
@@ -355,7 +386,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       <CommandPalette 
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
-        onSelectTab={(tabId) => setActiveTab(tabId as TabType)}
+        onSelectTab={(tabId) => navigateToTab(tabId)}
         tabs={visibleTabs}
       />
     </div>

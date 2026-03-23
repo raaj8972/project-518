@@ -1,8 +1,9 @@
-import React, { useMemo, useState, useEffect, lazy, startTransition } from 'react';
+import React, { useMemo, useState, useEffect, startTransition } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Calendar, Image, Clock, LogIn, Music, Heart, Trophy, HeartHandshake, Home, ShieldCheck } from 'lucide-react';
+import { Menu, X, Calendar, Image, Clock, LogIn, Music, Heart, Trophy, HeartHandshake, Home, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
+import { useStudentAuth } from '../context/StudentAuthContext';
 import BrandLogo3D from './BrandLogo3D';
 import { BRAND_YEAR } from '../constants/brand';
 
@@ -14,6 +15,7 @@ export const Navbar: React.FC = () => {
   // Single subscription to DataContext to avoid multiple context subscribers
   const { homepageSettings, prefetchEvents, prefetchGalleryImages, adminUsers } = useData() as any;
   const { user } = useAuth();
+  const { user: studentUser } = useStudentAuth();
   const currentUserId = user?.id || null;
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
@@ -97,15 +99,21 @@ export const Navbar: React.FC = () => {
 
   const navItems = useMemo(() => {
     const base = [
-      { name: 'Home', path: '/', icon: Home, color: 'text-blue-400' },
-      { name: 'Events', path: '/events', icon: Calendar, color: 'text-purple-400', onHover: prefetchEvents },
-      { name: 'Schedule', path: '/schedule', icon: Clock, color: 'text-teal-400' },
-      { name: 'Gallery', path: '/gallery', icon: Image, color: 'text-amber-400', onHover: prefetchGalleryImages },
-      { name: 'Home Bound', path: '/home-bound', icon: Music, color: 'text-rose-400' },
-      { name: 'Rico Family', path: '/rico-family', icon: Heart, color: 'text-pink-400' },
-      { name: 'Sports', path: '/sports', icon: Trophy, color: 'text-emerald-400' },
-      { name: 'Sponsors', path: '/sponsors', icon: HeartHandshake, color: 'text-indigo-400' },
-      { name: 'Login', path: '/login', icon: LogIn, color: 'text-gray-400' },
+      { name: 'Home', path: '/', icon: Home, color: 'text-red-500' },
+      { name: 'Events', path: '/events', icon: Calendar, color: 'text-red-600', onHover: prefetchEvents },
+      { name: 'Schedule', path: '/schedule', icon: Clock, color: 'text-orange-600' },
+      { name: 'Gallery', path: '/gallery', icon: Image, color: 'text-amber-700', onHover: prefetchGalleryImages },
+      { name: 'Home Bound', path: '/home-bound', icon: Music, color: 'text-red-800' },
+      { name: 'Rico Family', path: '/rico-family', icon: Heart, color: 'text-rose-900' },
+      { name: 'Sports', path: '/sports', icon: Trophy, color: 'text-orange-800' },
+      { name: 'Sponsors', path: '/sponsors', icon: HeartHandshake, color: 'text-red-400' },
+      { 
+        name: studentUser ? 'Dashboard' : 'Student Login', 
+        path: studentUser ? '/dashboard' : '/student/login', 
+        icon: studentUser ? LayoutDashboard : LogIn, 
+        color: 'text-blue-500' 
+      },
+      { name: 'Login', path: '/login', icon: ShieldCheck, color: 'text-zinc-500' },
     ];
 
     // If current user appears in adminUsers, add Admin link that prefetches admin chunk on hover
@@ -148,6 +156,12 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  // Reset visibility on location change to avoid getting stuck in hidden state
+  useEffect(() => {
+    setIsVisible(true);
+    setLastScrollY(window.scrollY);
+  }, [location.pathname]);
+
   // Handle scroll effect with rAF-throttle for both background and auto-hide visibility
   useEffect(() => {
     let raf = 0 as number | null;
@@ -164,12 +178,18 @@ export const Navbar: React.FC = () => {
         if (currentScrollY < 80) {
           setIsVisible(true);
         } else {
+          const isHome = location.pathname === '/';
+          // On Home page, increase threshold to allow room for Hero animations
+          const hideThreshold = isHome ? window.innerHeight * 2.5 : 200;
+          
           // If scrolling down, hide; If scrolling up, show
-          if (currentScrollY > lastScrollY && currentScrollY > 200) {
+          if (currentScrollY > lastScrollY && currentScrollY > hideThreshold) {
             setIsVisible(false);
-            setIsOpen(false); // Close mobile menu if scrolling down
-          } else if (currentScrollY < lastScrollY) {
-            setIsVisible(true);
+          } else if (currentScrollY < lastScrollY - 10) { // Slightly larger threshold on home
+            // If on home, only force show if we are well outside the hero cinematic zone Or near the top
+            if (!isHome || currentScrollY < 100 || currentScrollY > window.innerHeight * 1.6) {
+              setIsVisible(true);
+            }
           }
         }
         
@@ -182,15 +202,35 @@ export const Navbar: React.FC = () => {
       window.removeEventListener('scroll', handleScroll);
       if (raf) cancelAnimationFrame(raf as number);
     };
-  }, [lastScrollY]);
+  }, [lastScrollY, location.pathname]);
 
   // Handle mouse movement to top of screen to restore navbar
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      // Don't show if a modal is open
+      if (document.body.classList.contains('modal-open')) return;
       if (e.clientY < 60) setIsVisible(true);
     };
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  // Monitor body class for modal-open to suppress navbar
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (document.body.classList.contains('modal-open')) {
+        setIsVisible(false);
+      }
+    });
+
+    observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    
+    // Initial check
+    if (document.body.classList.contains('modal-open')) {
+      setIsVisible(false);
+    }
+
+    return () => observer.disconnect();
   }, []);
 
   // Stable Shell: Return null internally for non-public routes so the component 
@@ -201,8 +241,8 @@ export const Navbar: React.FC = () => {
   if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
 
   return (
-    <div className={`fixed inset-x-0 z-50 transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 ${
-      isVisible ? 'top-0' : '-top-20 opacity-0'
+    <div className={`stranger-navbar fixed inset-x-0 z-[70] transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 pt-[calc(env(safe-area-inset-top,8px)+4px)] ${
+      isVisible ? 'top-0' : '-top-32 opacity-0'
     } ${scrolled ? '' : 'sm:top-2'} `}>
       <div className={`w-full max-w-[1600px] flex items-center justify-between gap-2 md:gap-4 px-2 sm:px-4 transition-transform duration-500 ${
         isVisible ? 'translate-y-0' : '-translate-y-full'
@@ -214,16 +254,16 @@ export const Navbar: React.FC = () => {
         } ${!isVisible ? 'opacity-0 scale-95' : 'opacity-100 scale-100'} shadow-xl border border-white/10`}>
           <Link to="/" onClick={(e)=>handleNavClick(e, '/')} className="flex items-center space-x-2 md:space-x-3 group">
             {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'left' && (
-              <div className="relative scale-75 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
-                <BrandLogo3D src={logoSrc} size={logoSize} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
+              <div className="relative scale-90 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
+                <BrandLogo3D src={logoSrc} size={logoSize * (vw < 768 ? 1.2 : 1)} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
               </div>
             )}
-            <span className="text-xs sm:text-base md:text-xl font-black tracking-wider leading-none cyberpunk-text whitespace-nowrap">
+            <span className="text-xl sm:text-2xl md:text-3xl font-black tracking-wider leading-none stranger-things-text whitespace-nowrap">
               RICORRENZA {homepageSettings?.brand_year ?? BRAND_YEAR}
             </span>
             {logoSrc && ((homepageSettings as any)?.brand_logo_side ?? 'left') === 'right' && (
-              <div className="relative scale-75 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
-                <BrandLogo3D src={logoSrc} size={logoSize} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
+              <div className="relative scale-90 md:scale-100" style={{ transform: `translate(${offX}px, ${offY}px)` }}>
+                <BrandLogo3D src={logoSrc} size={logoSize * (vw < 768 ? 1.2 : 1)} glowStrength={glowStrength} glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} />
               </div>
             )}
           </Link>
@@ -253,7 +293,7 @@ export const Navbar: React.FC = () => {
                   <span>{item.name}</span>
                 </div>
                 {isActive(item.path) && (
-                  <span className="absolute inset-x-2 -bottom-1 h-[2px] bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 rounded-full blur-[1px] shadow-[0_0_10px_rgba(236,72,153,0.8)]"></span>
+                  <span className="absolute inset-x-2 -bottom-1 h-[2px] bg-gradient-to-r from-red-600 via-orange-600 to-red-800 rounded-full blur-[1px] shadow-[0_0_10px_rgba(220,38,38,0.8)]"></span>
                 )}
               </Link>
             );
@@ -277,7 +317,7 @@ export const Navbar: React.FC = () => {
                   onClick={(e)=>handleNavClick(e, item.path)}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-full font-bold text-xs xl:text-sm transition-all hover:scale-105 active:scale-95 ${
                     isAdmin 
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                      ? 'bg-gradient-to-r from-red-700 to-black text-white shadow-[0_0_15px_rgba(220,38,38,0.3)] border border-red-900/50'
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
@@ -301,8 +341,8 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Navigation - Enhanced */}
       {isOpen && (
-        <div className="md:hidden cyberpunk-mobile-menu">
-          <div className="px-3 pt-3 pb-4 space-y-2 bg-black/95 backdrop-blur-md border-t border-pink-500/30">
+        <div className="lg:hidden stranger-mobile-menu">
+          <div className="px-3 pt-3 pb-4 space-y-2 bg-black/95 backdrop-blur-md border-t border-red-600/30">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
@@ -310,7 +350,7 @@ export const Navbar: React.FC = () => {
                   key={item.path}
                   to={item.path}
                   onClick={(e) => handleNavClick(e, item.path)}
-                  className={`cyberpunk-mobile-nav-item ${
+                  className={`stranger-mobile-nav-item ${
                     isActive(item.path) ? 'active' : ''
                   }`}
                 >
@@ -325,6 +365,7 @@ export const Navbar: React.FC = () => {
         </div>
       )}
 
+
       <style>{`
         .glass-pill {
           background: rgba(0, 0, 0, 0.4);
@@ -336,14 +377,17 @@ export const Navbar: React.FC = () => {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .cyberpunk-text {
-          font-family: 'Orbitron', sans-serif;
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
+        .stranger-things-text {
+          font-family: 'Benguiat', 'Crimson Pro', serif;
+          background: linear-gradient(45deg, #ff0000, #990000, #ff0000);
           background-size: 200% 200%;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
           animation: gradientShift 4s ease-in-out infinite;
+          text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+          letter-spacing: 0.1em;
+          font-weight: 900;
         }
 
         @keyframes gradientShift {
@@ -351,14 +395,14 @@ export const Navbar: React.FC = () => {
           50% { background-position: 100% 50%; }
         }
 
-        .cyberpunk-mobile-menu {
+        .stranger-mobile-menu {
           position: fixed;
-          top: 80px;
+          top: calc(80px + env(safe-area-inset-top, 0px));
           left: 16px;
           right: 16px;
-          background: rgba(0, 0, 0, 0.9);
+          background: rgba(0, 0, 0, 0.95);
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 0, 255, 0.2);
+          border: 1px solid rgba(220, 38, 38, 0.3);
           border-radius: 24px;
           overflow: hidden;
           animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -371,13 +415,13 @@ export const Navbar: React.FC = () => {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        .cyberpunk-mobile-nav-item {
+        .stranger-mobile-nav-item {
           display: block;
           color: rgba(255, 255, 255, 0.7);
           transition: all 0.2s ease;
         }
 
-        .cyberpunk-mobile-nav-item.active {
+        .stranger-mobile-nav-item.active {
           color: #fff;
           background: rgba(255, 255, 255, 0.05);
         }

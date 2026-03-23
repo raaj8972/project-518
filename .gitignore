@@ -36,3 +36,11 @@ vercel.json
 # Mobile App
 rico-app/
 firebase-service-account.json
+
+# Temporary Test Files
+tmp/
+test-drive-key.js
+test-range-full.js
+test-range.js
+test_supabase_conn.ts
+verify-supabase.mjs

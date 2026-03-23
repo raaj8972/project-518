@@ -1,14 +1,10 @@
-  /* v3.0 SUPERIA Design System */
-  .superia-mesh-glow {
-    background: radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.15), transparent 80%),
-                radial-gradient(circle at 0% 50%, rgba(168, 85, 247, 0.08), transparent 50%),
-                radial-gradient(circle at 100% 100%, rgba(245, 158, 11, 0.05), transparent 50%);
-    position: relative;
-    isolation: isolate;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Poppins:wght@400;700;900&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+
+@layer utilities {
   .superia-glass {
     @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.5)];
   }
+}
   .superia-glass-card {
     @apply bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-3xl border border-white/5 shadow-[0_24px_48px_rgba(0,0,0,0.6)];
   }
@@ -242,6 +238,16 @@
   /* 3D Utilities */
   .backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
   .backface-visible { backface-visibility: visible; -webkit-backface-visibility: visible; }
+  .rotate-x-12 { transform: perspective(1000px) rotateX(12deg); }
+  .rotate-x-minus-12 { transform: perspective(1000px) rotateX(-12deg); }
+
+  @keyframes shine-sweep {
+    0% { transform: translateX(-100%) skewX(-20deg); }
+    100% { transform: translateX(200%) skewX(-20deg); }
+  }
+  .animate-shine {
+    animation: shine-sweep 2s ease-in-out infinite;
+  }
 
   /* Larger tap targets on touch devices */
   .tap-target {
@@ -575,6 +581,27 @@
 
 /* (Removed) 3D Glow Social Icons utilities */
 
+/* ── Browser autofill: force dark theme ──────────────────────────────────── */
+/* Browsers ignore background-color on autofilled inputs. The only working    */
+/* cross-browser hack is inset box-shadow to paint over the UA yellow/white.  */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0d0d0d inset !important;
+  box-shadow: 0 0 0 1000px #0d0d0d inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+  border-color: rgba(255,255,255,0.15) !important;
+  transition: background-color 9999s ease-in-out 0s; /* delay UA flash */
+}
+
 /* Global responsive fixes */
 * {
   box-sizing: border-box;
@@ -591,10 +618,10 @@ body {
 
 /* Global theme variables (used by LogoLoop and other accents) */
 :root {
-  /* default light-ish theme */
-  --theme-accent: rgb(217, 176, 255); /* soft purple rim */
-  --theme-glow-spread: rgba(11, 15, 26, 0.42);
-  --theme-card-bg: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  /* default dark theme - ST5 inspired */
+  --theme-accent: rgb(220, 38, 38); /* Blood red accent */
+  --theme-glow-spread: rgba(18, 6, 12, 0.60);
+  --theme-card-bg: linear-gradient(180deg, #0f0f0f 0%, #050505 100%);
   /* Featured Artists carousel stage height (default/mobile) */
   --featured-stage-height: clamp(520px, 82svh, 760px);
 }
@@ -624,40 +651,39 @@ body {
 
 /* Page-specific theme hooks via data-theme on <html> */
 html[data-theme="home"] {
-  --theme-accent: rgb(217, 176, 255); /* lavender */
-  --theme-glow-spread: rgba(11, 15, 26, 0.60);
-  --theme-card-bg: linear-gradient(180deg, #151a24 0%, #0b0f1a 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="events"] {
-  --theme-accent: rgb(56, 189, 248); /* cyan */
-  --theme-glow-spread: rgba(3, 7, 18, 0.55);
-  --theme-card-bg: linear-gradient(180deg, #0b1720 0%, #071019 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="schedule"] {
-  /* Cyan/blue to match schedule hero visuals */
-  --theme-accent: rgb(34, 211, 238); /* cyan-400 */
-  --theme-glow-spread: rgba(3, 7, 18, 0.55);
-  --theme-card-bg: linear-gradient(180deg, #0b1720 0%, #071019 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="gallery"] {
-  --theme-accent: rgb(99, 102, 241); /* indigo */
-  --theme-glow-spread: rgba(10, 12, 28, 0.55);
-  --theme-card-bg: linear-gradient(180deg, #0f1020 0%, #0a0b16 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="homebound"] {
-  --theme-accent: rgb(34, 197, 94); /* green */
-  --theme-glow-spread: rgba(3, 18, 10, 0.50);
-  --theme-card-bg: linear-gradient(180deg, #0f1a14 0%, #09120d 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="ricofamily"] {
-  --theme-accent: rgb(244, 114, 182); /* pink */
-  --theme-glow-spread: rgba(18, 6, 12, 0.50);
-  --theme-card-bg: linear-gradient(180deg, #1c1016 0%, #100a0f 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="sponsors"] {
-  --theme-accent: rgb(251, 191, 36); /* gold */
-  --theme-glow-spread: rgba(21, 14, 0, 0.55);
-  --theme-card-bg: linear-gradient(180deg, #19150e 0%, #0d0b07 100%);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 
 /* Prevent horizontal scroll */
@@ -862,6 +888,22 @@ img {
 @keyframes igFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(2.5deg); } }
 @keyframes fbFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-2.5deg); } }
 @keyframes ytFloat { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.05); } }
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  33% { transform: translateY(-20px) translateX(10px); }
+  66% { transform: translateY(-10px) translateX(-10px); }
+}
+
+.animate-float {
+  animation: float 15s ease-in-out infinite;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
 @keyframes phFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(3deg); } }
 @keyframes emFloat { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-3deg); } }
 

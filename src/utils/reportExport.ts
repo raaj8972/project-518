@@ -1,5 +1,5 @@
 // Centralized report export utility (Excel, PDF, CSV) with column presets and splitting
-import type { Registration } from '../context/DataContext';
+import { Registration } from '../types/data';
 import { supabase, SUPABASE_HOST } from '../lib/supabase';
 
 // Defensive helpers to normalize team member shape coming from DB/UI
@@ -37,7 +37,7 @@ export const REGISTRATION_COLUMNS: ColumnDefinition[] = [
   { key: 'team_name', header: 'Team Name', accessor: r => r.team_name || 'N/A' },
   { key: 'total_members', header: 'Total Members' },
   { key: 'full_name', header: 'Leader/Participant Name' },
-  { key: 'participant_type', header: 'Leader/Participant Type' },
+  { key: 'participant_type', header: 'Leader/Batch' },
   { key: 'email', header: 'Leader/Participant Email' },
   { key: 'phone', header: 'Leader/Participant Phone' },
   { key: 'photo_url', header: 'Leader Photo', accessor: r => (r as any).photo_url || '—' },

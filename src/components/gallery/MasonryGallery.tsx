@@ -18,7 +18,7 @@ interface MasonryGalleryProps {
 }
 
 export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
-  const [visibleCount, setVisibleCount] = useState(20);
+  const [visibleCount, setVisibleCount] = useState(100);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
   
@@ -35,7 +35,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
 
   // Reset visible count when source images change
   useEffect(() => {
-    setVisibleCount(20);
+    setVisibleCount(100);
   }, [images]);
 
   // Infinite Scroll Observer
@@ -43,7 +43,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setVisibleCount((prev) => Math.min(prev + 20, images.length));
+          setVisibleCount((prev) => Math.min(prev + 100, images.length));
         }
       },
       { threshold: 0.1, rootMargin: '400px' }
@@ -120,6 +120,8 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     setScale(1);
     setPanX(0);
     setPanY(0);
+    // Suppress navbar
+    document.body.classList.add('modal-open');
   };
   
   const closeLightbox = () => {
@@ -127,6 +129,8 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
     setScale(1);
     setPanX(0);
     setPanY(0);
+    // Restore navbar
+    document.body.classList.remove('modal-open');
   };
 
   const handleZoomIn = (e?: React.MouseEvent) => {
@@ -294,7 +298,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
         {visibleImages.map((img, index) => (
           <div 
             key={`${img.id}-${index}`}
-            className="gallery-item break-inside-avoid group relative rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 cursor-zoom-in"
+            className="gallery-item break-inside-avoid group relative rounded-sm overflow-hidden bg-[#050505] border border-red-950/20 cursor-zoom-in"
             onClick={() => openLightbox(index)}
           >
             <img 
@@ -304,45 +308,39 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
               className="w-full h-auto object-cover transform transition-all duration-700 ease-in-out group-hover:scale-110 group-hover:filter-none filter grayscale-[20%] group-hover:grayscale-0"
             />
             
-            {/* Cyberpunk Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
-              
-              <div className="absolute inset-0 border-2 border-transparent group-hover:border-indigo-500/50 rounded-2xl transition-all duration-500 box-border pointer-events-none shadow-[inset_0_0_20px_rgba(79,70,229,0.3)]" />
-              
-              <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-100">
-                {!/^(IMG|DSC|PXL|Screenshot|VID|WA|FB)_/i.test(img.alt || '') && !/^\d{4}[-_]\d{2}[-_]\d{2}/.test(img.alt || '') && !/\.(jpg|png|jpeg|webp)$/i.test(img.alt || '') && (
-                  <p className="text-white font-bold text-sm line-clamp-2 drop-shadow-md">{img.alt || ''}</p>
-                )}
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {img.year && (
-                    <span className="text-[10px] font-mono bg-indigo-600/30 border border-indigo-500/30 text-indigo-200 px-2 py-0.5 rounded-full backdrop-blur-md">
-                      {img.year}
-                    </span>
-                  )}
-                  {img.category && (
-                    <span className="text-[10px] font-mono bg-purple-600/30 border border-purple-500/30 text-purple-200 px-2 py-0.5 rounded-full backdrop-blur-md">
-                      {img.category}
-                    </span>
-                  )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 delay-100">
+                    <p className="text-red-50 text-sm font-serif font-bold italic tracking-wide line-clamp-2 drop-shadow-md">{img.alt || ''}</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {img.year && (
+                      <span className="text-[10px] font-serif font-black tracking-widest bg-red-950/60 border border-red-800/30 text-red-400 px-2 py-0.5 rounded-sm backdrop-blur-md uppercase">
+                        {img.year}
+                      </span>
+                    )}
+                    {img.category && (
+                      <span className="text-[10px] font-serif font-black tracking-widest bg-black/60 border border-red-900/40 text-red-500 px-2 py-0.5 rounded-sm backdrop-blur-md uppercase">
+                        {img.category}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="absolute top-3 right-3 transform translate-x-10 group-hover:translate-x-0 transition-transform duration-300 delay-200">
-                <div className="p-2 rounded-full bg-white/10 backdrop-blur-md text-white hover:bg-white/20 transition-colors">
-                   <ZoomIn size={16} />
+                
+                <div className="absolute top-3 right-3 transform translate-x-10 group-hover:translate-x-0 transition-transform duration-300 delay-200">
+                   <div className="p-2 rounded-full bg-red-600/10 backdrop-blur-md text-red-500 hover:bg-red-600/20 transition-colors">
+                     <ZoomIn size={16} />
+                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
       {/* Loading Sentinel */}
-      {visibleCount < images.length && (
+       {visibleCount < images.length && (
         <div ref={observerTarget} className="h-24 flex items-center justify-center mt-12 mb-20 group">
-          <div className="relative px-6 py-2 rounded-full bg-gray-900 border border-indigo-500/30 flex items-center gap-3 shadow-[0_0_15px_rgba(79,70,229,0.2)]">
-            <div className="w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
-            <span className="text-xs font-mono text-indigo-300 tracking-widest animate-pulse">LOADING MEMORIES_</span>
+          <div className="relative px-8 py-3 rounded-sm bg-black border border-red-900/40 flex items-center gap-4 shadow-[0_0_20px_rgba(153,27,27,0.15)]">
+            <div className="w-2 h-2 bg-red-600 rounded-full animate-ping" />
+            <span className="text-xs font-serif font-black text-red-600 tracking-[0.3em] animate-pulse uppercase">Searching Archives_</span>
           </div>
         </div>
       )}
@@ -351,15 +349,15 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
       {lightboxIndex !== null && (
         <div 
           ref={lightboxRef}
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl" 
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[#050505]/98 backdrop-blur-3xl" 
           onClick={closeLightbox}
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black -z-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-red-950/20 via-black to-black -z-10 pointer-events-none" />
 
           {/* Top Controls */}
           <div className="absolute top-4 left-4 z-50 flex items-center gap-4">
-             <div className="text-white/80 font-mono text-xs tracking-wider bg-white/5 px-4 py-2 rounded-full border border-white/10">
-                {lightboxIndex + 1} <span className="text-white/30">/</span> {images.length}
+             <div className="text-red-100/80 font-serif font-bold text-xs tracking-[0.2em] bg-red-950/40 px-5 py-2.5 rounded-sm border border-red-900/30 uppercase shadow-[0_0_15px_rgba(153,27,27,0.1)]">
+                {lightboxIndex + 1} <span className="text-red-500/30 mx-1">/</span> {images.length}
              </div>
           </div>
 
@@ -387,7 +385,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
                   <div className="w-px h-4 bg-white/10 mx-1" />
                   <button 
                     onClick={resetZoom}
-                    className="p-2 rounded-full hover:bg-white/10 text-indigo-400 transition-all"
+                    className="p-2 rounded-full hover:bg-red-500/10 text-red-500 transition-all"
                     title="Reset Zoom"
                   >
                     <RotateCcw size={18} />
@@ -436,7 +434,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
           {/* Main Image Container - CSS transform replaces framer-motion */}
           <div 
             className="relative w-full h-full flex items-center justify-center overflow-hidden" 
-            onClick={(e) => scale === 1 && closeLightbox()}
+            onClick={() => scale === 1 && closeLightbox()}
             onWheel={handleWheel}
           >
             <div

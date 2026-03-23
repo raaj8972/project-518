@@ -4,9 +4,7 @@ import {
   Upload,
   X,
   Scan,
-  Loader2,
-  AlertCircle,
-  Repeat
+  AlertCircle
 } from 'lucide-react';
 import { loadImageFromUrl, extractFaceDescriptors } from '../../utils/faceUtils';
 import { supabase } from '../../lib/supabase';
@@ -157,23 +155,23 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 dark:border-gray-800 animate-in zoom-in-95 duration-300 relative">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-[#0a0a0a] w-full max-w-lg rounded-lg overflow-hidden shadow-2xl border border-red-950/30 animate-in zoom-in-95 duration-300 relative stranger-things-theme">
         
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white/50 dark:bg-gray-900/50 backdrop-blur-md sticky top-0 z-10">
+        <div className="p-6 border-b border-red-950/20 flex items-center justify-between bg-red-950/10 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+            <div className="w-10 h-10 rounded-lg bg-red-600/10 flex items-center justify-center text-red-500">
               <Scan size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Find My Photos</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400">AI Face Recognition</p>
+              <h3 className="text-xl font-serif font-bold text-red-50 uppercase tracking-wider">Find Your Face_</h3>
+              <p className="text-[10px] text-red-900/60 uppercase tracking-widest">Neural Archive Search</p>
             </div>
           </div>
           <button 
             onClick={() => { stopCamera(); onClose(); }}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400"
+            className="p-2 hover:bg-white/5 rounded-full transition-colors text-white/40 hover:text-white"
           >
             <X size={20} />
           </button>
@@ -184,78 +182,86 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
           {searching ? (
             <div className="py-12 flex flex-col items-center justify-center text-center">
               <div className="relative mb-8">
-                <div className="w-24 h-24 rounded-full border-4 border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center">
-                  <Scan className="w-12 h-12 text-indigo-600 animate-pulse" />
+                <div className="w-24 h-24 rounded-full border-4 border-red-950/30 flex items-center justify-center">
+                  <Scan className="w-12 h-12 text-red-600 animate-pulse" />
                 </div>
-                <div className="absolute inset-0 border-4 border-indigo-600 rounded-full animate-spin border-t-transparent"></div>
+                <div className="absolute inset-0 border-4 border-red-600 rounded-full animate-spin border-t-transparent"></div>
               </div>
-              <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2 animate-pulse">Scanning Faces...</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 max-w-[200px] mx-auto">
-                Searching 2,500+ photos for you.
+              <h4 className="text-xl font-serif text-red-100 mb-2 uppercase tracking-widest animate-pulse">Scanning Archives_</h4>
+              <p className="text-sm text-red-900/60 font-serif italic max-w-[200px] mx-auto">
+                Searching the records for your match...
               </p>
             </div>
           ) : cameraActive ? (
-             <div className="relative w-full h-[400px] bg-black rounded-3xl overflow-hidden flex flex-col">
-                <video 
-                  ref={videoRef} 
-                  autoPlay 
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1]"
-                />
-                <div className="absolute inset-0 pointer-events-none border-[3px] border-white/20 rounded-3xl"></div>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-48 h-64 border-2 border-white/50 rounded-full border-dashed opacity-50"></div>
-                </div>
-                
-                <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6 z-20">
-                  <button 
-                    onClick={stopCamera}
-                    className="p-3 bg-red-500/20 text-red-100 rounded-full backdrop-blur-sm border border-red-500/30 hover:bg-red-500/40"
-                  >
-                    <X size={24} />
-                  </button>
-                  <button 
-                    onClick={capturePhoto}
-                    className="w-16 h-16 rounded-full bg-white border-4 border-indigo-500 flex items-center justify-center shadow-lg hover:scale-110 transition-transform active:scale-95"
-                  ></button>
-                  <div className="w-12 opacity-0"></div> {/* Spacer */}
-                </div>
-             </div>
-          ) : error ? (
-            <div className="py-8 flex flex-col items-center justify-center text-center">
-              <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500 mb-4">
-                <AlertCircle size={32} />
+              <div className="relative w-full h-[400px] bg-black rounded-lg overflow-hidden flex flex-col border border-red-950/30">
+                 <video 
+                   ref={videoRef} 
+                   autoPlay 
+                   playsInline
+                   className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-70 grayscale contrast-125"
+                 />
+                 <div className="absolute inset-0 pointer-events-none border-[3px] border-red-600/20 rounded-lg"></div>
+                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                   <div className="w-48 h-64 border-2 border-red-600/30 rounded-full border-dashed opacity-40"></div>
+                 </div>
+                 
+                 <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6 z-20">
+                   <button 
+                     onClick={stopCamera}
+                     className="p-3 bg-black/60 text-red-500 rounded-full backdrop-blur-md border border-red-950/30 hover:bg-red-600/20 transition-colors"
+                   >
+                     <X size={24} />
+                   </button>
+                   <button 
+                     onClick={capturePhoto}
+                     className="w-16 h-16 rounded-full bg-red-600 border-4 border-red-950 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:scale-110 transition-transform active:scale-95 group"
+                   >
+                     <div className="w-12 h-12 rounded-full border-2 border-white/20 group-hover:border-white/40 transition-colors"></div>
+                   </button>
+                   <div className="w-12 opacity-0"></div> {/* Spacer */}
+                 </div>
               </div>
-              <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">No Matches Found</h4>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-4">{error}</p>
+          ) : error ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+              <div className="w-20 h-20 bg-red-950/20 rounded-full flex items-center justify-center border border-red-900/30">
+                <AlertCircle className="w-10 h-10 text-red-600" />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-xl font-serif text-red-100 uppercase tracking-widest">Search Failed_</h4>
+                <p className="text-sm text-red-900/60 font-serif italic max-w-[250px] mx-auto">
+                  {error}
+                </p>
+              </div>
               <button 
                 onClick={() => setError(null)}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30"
+                className="mt-6 px-8 py-2 bg-red-600 hover:bg-red-700 text-white font-serif uppercase tracking-widest rounded transition-all shadow-lg shadow-red-900/40 active:scale-95 cursor-pointer"
               >
-                Try Again
+                Try Again_
               </button>
             </div>
-          ) : (
-            <div className="w-full flex flex-col gap-6">
+          ) : ( // Initial state for selection
+            <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center p-8 bg-indigo-50 dark:bg-indigo-900/20 border-2 border-dashed border-indigo-200 dark:border-indigo-800/50 rounded-[2.5rem] hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all group"
+                  className="flex flex-col items-center justify-center p-8 bg-red-950/10 border-2 border-dashed border-red-900/30 rounded-xl hover:border-red-600/50 hover:bg-red-600/5 transition-all group group-hover:cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center text-indigo-600 mb-4 group-hover:scale-110 transition-transform">
-                    <Upload size={28} />
+                  <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-6 h-6 text-red-500" /> {/* Changed from ImagePlus to Upload */}
                   </div>
-                  <span className="text-base font-bold text-indigo-900 dark:text-indigo-200">Upload Selfie</span>
+                  <span className="text-sm font-serif uppercase tracking-widest text-red-200">Upload Dossier</span>
+                  <span className="text-[10px] text-red-900/60 mt-1 uppercase">from your drive</span>
                 </button>
 
                 <button
-                  onClick={startCamera}
-                  className="flex flex-col items-center justify-center p-8 bg-blue-50 dark:bg-blue-900/20 border-2 border-dashed border-blue-200 dark:border-blue-800/50 rounded-[2.5rem] hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all group"
+                  onClick={startCamera} // Changed from setShowCamera(true) to startCamera
+                  className="flex flex-col items-center justify-center p-8 bg-red-950/10 border-2 border-dashed border-red-900/30 rounded-xl hover:border-red-600/50 hover:bg-red-600/5 transition-all group group-hover:cursor-pointer"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-white dark:bg-gray-800 shadow-sm flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
-                    <Camera size={28} />
+                  <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Camera className="w-6 h-6 text-red-500" />
                   </div>
-                  <span className="text-base font-bold text-blue-900 dark:text-blue-200">Take Selfie</span>
+                  <span className="text-sm font-serif uppercase tracking-widest text-red-200">Live Capture</span>
+                  <span className="text-[10px] text-red-900/60 mt-1 uppercase">using webcam</span>
                 </button>
               </div>
 
@@ -267,10 +273,10 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
                 className="hidden" 
               />
 
-              <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-100 dark:border-amber-800/50 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed font-medium">
-                  Privacy First: Face analysis happens instantly. We identify matches and discard your selfie immediately.
+              <div className="p-4 bg-amber-950/10 border border-amber-900/20 rounded-lg flex gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" /> {/* Changed from ShieldAlert to AlertCircle */}
+                <p className="text-xs text-amber-700/80 leading-relaxed font-serif uppercase tracking-tight">
+                  <span className="font-bold text-amber-600">Confidentiality Notice:</span> Face data is handled locally. No temporary facial vectors are stored in the archive after search completion.
                 </p>
               </div>
             </div>

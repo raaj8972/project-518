@@ -13,12 +13,12 @@ service cloud.firestore {
 
     // Check if user is an admin via custom claims OR by checking the admin_users collection
     function isAdmin() {
-      // First check custom claim for speed
-      return (request.auth != null && request.auth.token.admin == true) || 
-      // Hardcoded owner bypass for initial provisioning
-      (request.auth != null && request.auth.token.email in ['raja@rico.fun', 'raaj@rico.fun', 'master@rico.family']) ||
-      // Fallback to checking if they exist in the admin_users collection
-      (isSignedIn() && get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.role in ['admin', 'owner', 'council']);
+      return (request.auth != null && (
+        request.auth.token.admin == true || 
+        request.auth.token.email in ['raja@rico.fun', 'raaj@rico.fun', 'master@rico.family'] ||
+        // Check local collection WITHOUT using isAdmin recursive call
+        get(/databases/$(database)/documents/admin_users/$(request.auth.uid)).data.role in ['admin', 'owner', 'council']
+      ));
     }
 
     // Check if user has can_sports permission explicitly
@@ -166,6 +166,25 @@ service cloud.firestore {
     }
 
     // ---------------------------------------------------------
+    // COMMUNITY (Dual DB Sync)
+    // ---------------------------------------------------------
+
+    match /profiles/{document=**} {
+      allow read: if true; // Profiles are public
+      allow write: if isAdmin() || (isSignedIn() && request.auth.uid == document);
+    }
+
+    match /shoutouts/{document=**} {
+      allow read: if true; // Approved shoutouts are public
+      allow write: if isSignedIn();
+    }
+
+    match /profile_likes/{document=**} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // ---------------------------------------------------------
     // PUBLIC WRITE (Submissions)
     // ---------------------------------------------------------
 
@@ -221,9 +240,10 @@ service cloud.firestore {
     }
 
     // Admin Users Table
-    match /admin_users/{document=**} {
-      // Only admins can read/write the admin list
-      allow read, write: if isAdmin(); 
+    match /admin_users/{userId} {
+      // Allow users to read their own admin doc to check roles, or if they are already an admin
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin(); 
     }
 
     // Admin Sessions Tracking
@@ -322,6 +342,26 @@ service cloud.firestore {
     }
 
     match /sports_auction_bids/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------
+    // ANNUAL SPORTS
+    // ---------------------------------------------------------
+
+    match /annual_sports_events/{document=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /annual_sports_registrations/{document=**} {
+      allow create: if true;
+      allow read: if isAdmin() || (isSignedIn() && request.auth.token.email == resource.data.email);
+      allow update, delete: if isAdmin();
+    }
+    
+    match /annual_sports_matches/{document=**} {
       allow read: if true;
       allow write: if isAdmin();
     }

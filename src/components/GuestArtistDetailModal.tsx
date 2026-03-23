@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import WatchLiveButton from './WatchLiveButton';
-import { LIVE_LEAD_MINUTES } from '../config/liveStream';
 import CountdownTimer from './CountdownTimer';
 import Sparkle3D from './Sparkle3D';
 import { Calendar, MapPin, Music2 } from 'lucide-react';
@@ -41,7 +40,12 @@ const GuestArtistDetailModal: React.FC<{
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+    document.body.classList.add('modal-open');
+    return () => { 
+      document.removeEventListener('keydown', onKey); 
+      document.body.style.overflow = prevOverflow; 
+      document.body.classList.remove('modal-open');
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen || !artist) return null;

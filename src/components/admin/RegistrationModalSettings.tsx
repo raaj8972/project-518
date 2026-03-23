@@ -9,7 +9,7 @@ const inputCls = 'w-full bg-white/[0.04] border border-white/10 rounded-xl py-2.
 const labelCls = 'block text-[10px] font-black text-white/30 uppercase tracking-[0.15em] mb-2';
 
 export const RegistrationModalSettings: React.FC = () => {
-  const { siteSettings, updateSiteSettings, adminUsers, user, myPermissions, addRegistration } = useData() as any;
+  const { siteSettings, updateSiteSettings, isAdmin, isOwner, myPermissions, addRegistration } = useData() as any;
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -119,15 +119,7 @@ export const RegistrationModalSettings: React.FC = () => {
     });
   };
 
-  // Permission check
-  const canEdit = (() => {
-    try {
-      const uid = user?.id;
-      const isListedAdmin = !!adminUsers?.find((a: any) => a.user_id === uid && (a.role === 'owner' || a.role === 'admin' || a.is_primary));
-      const hasPermission = !!(myPermissions?.can_registrations || myPermissions?.can_events);
-      return isListedAdmin || hasPermission;
-    } catch { return false; }
-  })();
+  const canEdit = isOwner?.() || isAdmin?.() || !!(myPermissions?.can_registrations || myPermissions?.can_events);
 
   return (
     <div className="space-y-6">
@@ -143,9 +135,9 @@ export const RegistrationModalSettings: React.FC = () => {
               <Settings2 size={14} className="text-indigo-400" />
               <span className="text-[10px] font-black text-indigo-400/80 uppercase tracking-[0.2em]">Configuration</span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Registration Modal</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Batch Model</h2>
             <p className="text-sm text-gray-400 mt-1 font-medium">
-              Manage participant types, institution field, and quotas
+              Manage batches, institution field, and quotas
             </p>
           </div>
 
@@ -186,7 +178,7 @@ export const RegistrationModalSettings: React.FC = () => {
           </div>
           <div className="p-6 space-y-5">
             <div>
-              <h4 className={labelCls}>Participant Types</h4>
+              <h4 className={labelCls}>Batches</h4>
               <div className="flex flex-wrap gap-2">
                 {(draft.participantTypes || []).map((t: string, i: number) => (
                   <span key={i} className="px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white font-medium">
@@ -257,13 +249,13 @@ export const RegistrationModalSettings: React.FC = () => {
             </div>
           </div>
 
-          {/* Participant Types Card */}
+          {/* Batches Card */}
           <div className="rounded-2xl bg-white/[0.02] border border-white/5 overflow-hidden">
             <div className="px-6 py-4 border-b border-white/5 bg-gradient-to-r from-indigo-500/10 to-transparent flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
                 <Sparkles size={14} className="text-indigo-400" />
               </div>
-              <h3 className="text-sm font-black text-white tracking-tight">Participant Types</h3>
+              <h3 className="text-sm font-black text-white tracking-tight">Batches</h3>
             </div>
             <div className="p-6 space-y-4">
               {/* Add new */}
@@ -272,7 +264,7 @@ export const RegistrationModalSettings: React.FC = () => {
                   value={newType}
                   onChange={(e) => setNewType(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addParticipantType()}
-                  placeholder="New type (e.g. Student)"
+                  placeholder="New batch (e.g. 2024)"
                   className={inputCls + ' flex-1'}
                 />
                 <button

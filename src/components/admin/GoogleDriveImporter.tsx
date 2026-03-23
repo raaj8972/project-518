@@ -48,7 +48,12 @@ export const GoogleDriveImporter: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Check folders error:', err);
-      toast.error(err.message || 'Failed to fetch folder structure');
+      if (err.message?.includes('403') || err.message?.toLowerCase().includes('forbidden')) {
+        const detail = err.message.split(' - ')[1] || 'Check if Google Drive API is enabled and your API key is correctly configured in .env';
+        toast.error(`Access Forbidden: ${detail}`, { duration: 6000 });
+      } else {
+        toast.error(err.message || 'Failed to fetch folder structure');
+      }
     } finally {
       setCheckingFolders(false);
     }
@@ -62,7 +67,13 @@ export const GoogleDriveImporter: React.FC = () => {
       toast.success(`Synced "${subfolder.name}" successfully!`);
       // Update local count if possible or just refresh
     } catch (err: any) {
-      toast.error(`Failed to sync ${subfolder.name}: ${err.message}`);
+      console.error('Subfolder sync error:', err);
+      if (err.message?.includes('403') || err.message?.toLowerCase().includes('forbidden')) {
+        const detail = err.message.split(' - ')[1] || 'Check if Google Drive API is enabled and your API key is correctly configured in .env';
+        toast.error(`Access Forbidden: ${detail}`, { duration: 6000 });
+      } else {
+        toast.error(`Failed to sync ${subfolder.name}: ${err.message}`);
+      }
     } finally {
       setSyncingFolderId(null);
     }
@@ -103,6 +114,9 @@ export const GoogleDriveImporter: React.FC = () => {
           imagesCount: -1, 
           categoriesCount: -1 
         });
+      } else if (err.message?.includes('403') || err.message?.toLowerCase().includes('forbidden')) {
+        const detail = err.message.split(' - ')[1] || 'Check if Google Drive API is enabled and your API key is correctly configured in .env';
+        toast.error(`Access Forbidden: ${detail}`, { duration: 6000 });
       } else {
         toast.error(err.message || 'Failed to sync with Google Drive');
       }

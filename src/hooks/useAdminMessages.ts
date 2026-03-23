@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { db } from '../lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { dualUpsert, dualUpdate } from '../lib/dualDb';
 
 export interface AdminMessage {
   id: string; // Changed to string for Firestore ID
@@ -23,8 +23,7 @@ export const useAdminMessages = () => {
 
     try {
       const newId = Date.now().toString();
-      const docRef = doc(db, 'admin_messages', newId);
-      await setDoc(docRef, {
+      await dualUpsert('admin_messages', {
         id: newId,
         from_user_id: user.id,
         to_user_id: toUserId,
@@ -43,8 +42,7 @@ export const useAdminMessages = () => {
   // Mark message as read
   const markAsRead = useCallback(async (messageId: string) => {
     try {
-      const docRef = doc(db, 'admin_messages', messageId);
-      await updateDoc(docRef, { is_read: true });
+      await dualUpdate('admin_messages', messageId, { is_read: true });
       
       // Remove from unread list immediately
       setUnreadMessages(prev => prev.filter(m => m.id !== messageId));
@@ -57,30 +55,57 @@ export const useAdminMessages = () => {
   useEffect(() => {
     if (!user?.id) return;
 
-    const q = query(
-      collection(db, 'admin_messages'),
-      where('to_user_id', '==', user.id),
-      where('is_read', '==', false)
-    );
+    const subscription = supabase
+      .channel(`admin_messages:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'admin_messages',
+          filter: `to_user_id=eq.${user.id}`
+        },
+        async () => {
+          // Re-fetch unread messages on any change
+          const { data, error } = await supabase
+            .from('admin_messages')
+            .select('*')
+            .eq('to_user_id', user.id)
+            .eq('is_read', false)
+            .order('created_at', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const messages: AdminMessage[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...(doc.data() as Omit<AdminMessage, 'id'>)
-      }));
-      
-      // Sort in memory since Firestore requires composite index for query + multiple where clauses
-      messages.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setUnreadMessages(messages);
-      setIsSubscribed(true);
-    }, (error) => {
-      console.error('Error listening to messages:', error);
-      setIsSubscribed(false);
-    });
+          if (error) {
+            console.error('Error fetching messages:', error);
+            setIsSubscribed(false);
+          } else {
+            setUnreadMessages(data as AdminMessage[]);
+            setIsSubscribed(true);
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          // Initial fetch
+          supabase
+            .from('admin_messages')
+            .select('*')
+            .eq('to_user_id', user.id)
+            .eq('is_read', false)
+            .order('created_at', { ascending: false })
+            .then(({ data, error }) => {
+              if (error) {
+                console.error('Initial message fetch error:', error);
+                setIsSubscribed(false);
+              } else {
+                setUnreadMessages(data as AdminMessage[]);
+                setIsSubscribed(true);
+              }
+            });
+        }
+      });
 
     return () => {
-      unsubscribe();
+      supabase.removeChannel(subscription);
       setIsSubscribed(false);
     };
   }, [user?.id]);
