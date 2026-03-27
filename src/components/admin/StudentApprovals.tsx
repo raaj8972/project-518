@@ -11,12 +11,15 @@ import {
   Pencil,
   Check,
   X,
-  Loader2
+  Loader2,
+  Bot,
+  CheckSquare
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useRegistrationMutations } from '../../hooks/useRegistrationMutations';
+import { AIChatScanner } from './AIChatScanner';
 
 const EditableBatch = ({ 
   profile, 
@@ -89,6 +92,11 @@ export const StudentApprovals: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('pending'); // Added filter state
   const [selectedBatch, setSelectedBatch] = useState('all'); // Added selectedBatch state
+  const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(new Set());
+  const [showAIScanner, setShowAIScanner] = useState(false);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
+  const [aiSelectedBatch, setAiSelectedBatch] = useState('Unassigned');
+  
   const { siteSettings } = useData();
   const { updateBatchGlobally } = useRegistrationMutations();
   
@@ -137,9 +145,41 @@ export const StudentApprovals: React.FC = () => {
       
       toast.success(currentStatus ? 'Approval revoked' : 'Profile approved');
       fetchProfiles();
+      // Remove from selected if its status changed and no longer matches filter potentially
+      const newSelected = new Set(selectedProfileIds);
+      newSelected.delete(id);
+      setSelectedProfileIds(newSelected);
     } catch (err: any) {
       toast.error('Operation failed: ' + err.message);
     }
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedProfileIds.size === 0) return;
+    setIsBulkApproving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_approved: true })
+        .in('id', Array.from(selectedProfileIds));
+        
+      if (error) throw error;
+      toast.success(`Successfully approved ${selectedProfileIds.size} profiles`);
+      setSelectedProfileIds(new Set());
+      fetchProfiles();
+    } catch (err: any) {
+      toast.error('Bulk approval failed: ' + err.message);
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
+
+  const toggleSelection = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const newSet = new Set(selectedProfileIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedProfileIds(newSet);
   };
 
   const filteredProfiles = profiles.filter(p => {
@@ -161,13 +201,32 @@ export const StudentApprovals: React.FC = () => {
           <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mt-1">Manage portal access for registered students</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="bg-white/5 rounded-xl p-1 flex border border-white/5">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
+          {selectedProfileIds.size > 0 && filter === 'pending' && (
+            <button
+              onClick={handleBulkApprove}
+              disabled={isBulkApproving}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20"
+            >
+              {isBulkApproving ? <Loader2 size={14} className="animate-spin" /> : <CheckSquare size={14} />}
+              Approve ({selectedProfileIds.size})
+            </button>
+          )}
+
+          <button
+            onClick={() => setShowAIScanner(true)}
+            className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 px-4 py-2 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all"
+          >
+            <Bot size={14} />
+            AI Verify
+          </button>
+
+          <div className="bg-white/5 rounded-xl p-1 flex border border-white/5 w-full sm:w-auto">
             {['pending', 'approved', 'all'].map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f as any)}
-                className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                onClick={() => { setFilter(f as any); setSelectedProfileIds(new Set()); }}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
                   filter === f 
                     ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
                     : 'text-gray-500 hover:text-white hover:bg-white/5'
@@ -237,13 +296,25 @@ export const StudentApprovals: React.FC = () => {
                 {/* Status Bar */}
                 <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${profile.is_approved ? 'bg-emerald-500' : 'bg-amber-500'} opacity-30 group-hover:opacity-100 transition-opacity`} />
                 
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
                   <div className="flex items-center gap-5">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-2xl transition-transform group-hover:scale-110 ${profile.is_approved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
+                    {filter === 'pending' && (
+                      <div 
+                        onClick={(e) => toggleSelection(profile.id, e)}
+                        className={`w-5 h-5 rounded flex items-center justify-center cursor-pointer transition-colors border ${
+                          selectedProfileIds.has(profile.id) 
+                            ? 'bg-indigo-500 border-indigo-500' 
+                            : 'bg-black/20 border-white/20 hover:border-indigo-500/50'
+                        }`}
+                      >
+                        {selectedProfileIds.has(profile.id) && <Check size={12} className="text-white" />}
+                      </div>
+                    )}
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl shadow-2xl transition-transform group-hover:scale-110 shrink-0 ${profile.is_approved ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
                       {profile.full_name?.charAt(0) || 'S'}
                     </div>
-                    <div>
-                      <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                    <div className="min-w-0">
+                      <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2 truncate">
                         {profile.full_name}
                         {profile.is_approved && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
                       </h3>
@@ -284,6 +355,83 @@ export const StudentApprovals: React.FC = () => {
           )}
         </AnimatePresence>
       </div>
+
+      {showAIScanner && (
+        <AIChatScanner
+          title="AI Bulk Verifications"
+          description="Upload an image or paste a list of students to auto-match and approve them from the DB."
+          systemInstruction={`You are an AI assistant for a student management portal. 
+The user will provide an image or text containing a list of students to bulk approve, along with their batch.
+
+Your ONLY job is to match the provided student names and batches to the correct IDs from this list of currently pending students:
+${JSON.stringify(profiles.filter(p => !p.is_approved).map(p => ({
+  id: p.id,
+  name: p.full_name,
+  batch: p.batch || 'Unassigned'
+})))}
+
+Instructions:
+1. Extract the names and batches from the user's input.
+2. Find the best match from the pending students list. Match primarily on name (allowing for typos), but verify the batch matches as well if a batch is specified in the image.
+3. If the user explicitly sets the Default Batch to "${aiSelectedBatch}" in the UI (and it isn't "Unassigned"), apply it as the "new_batch" for all matched students unless the image explicitly says otherwise.
+4. Return ONLY a valid JSON array of objects, containing the exact "id" from the pending list and an optional "new_batch". Example: [{"id": "uuid-here", "new_batch": "New Batch"}]
+5. Do not include markdown formatting or any other text. Return an empty array [] if nothing matches.`}
+          customControls={
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-bold text-gray-400">Assign Default Batch:</span>
+              <select 
+                value={aiSelectedBatch}
+                onChange={(e) => setAiSelectedBatch(e.target.value)}
+                className="bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500/50"
+              >
+                <option value="Unassigned">Keep current batch</option>
+                {batchOptions.map(opt => (
+                  <option key={opt} value={opt} className="bg-gray-900">{opt}</option>
+                ))}
+              </select>
+            </div>
+          }
+          onCancel={() => setShowAIScanner(false)}
+          onDataComplete={async (parsedData) => {
+            setShowAIScanner(false);
+            try {
+              let matches = typeof parsedData === 'string' ? JSON.parse(parsedData) : parsedData;
+              if (!Array.isArray(matches)) {
+                if (matches.students && Array.isArray(matches.students)) matches = matches.students;
+                else if (matches.ids && Array.isArray(matches.ids)) matches = matches.ids;
+                else throw new Error("Invalid format");
+              }
+
+              if (matches.length === 0) {
+                toast.error('AI found no matching pending students.');
+                return;
+              }
+
+              let approvedCount = 0;
+              for (const match of matches) {
+                 const profileId = typeof match === 'string' ? match : match.id;
+                 if (!profileId) continue;
+                 
+                 const updates: any = { is_approved: true };
+                 if (match.new_batch) updates.batch = match.new_batch;
+                 
+                 const { error } = await supabase.from('profiles').update(updates).eq('id', profileId);
+                 if (!error) approvedCount++;
+              }
+
+              if (approvedCount > 0) {
+                toast.success(`Automatically verified ${approvedCount} student(s) via AI!`);
+                fetchProfiles();
+              } else {
+                toast.error('Could not verify any students.');
+              }
+            } catch (err) {
+              console.error('AI Data Error', err);
+              toast.error('Failed to parse AI matches. Please try again.');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

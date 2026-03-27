@@ -247,8 +247,14 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
     const ann = announcements.find(a => a.id === id);
     if (!ann || !canDelete(ann)) return;
 
+    // Optimistic remove
     setAnnouncements(prev => prev.filter(a => a.id !== id));
-    await supabase.from('announcements').delete().eq('id', id);
+    const { error } = await supabase.from('announcements').delete().eq('id', id);
+    if (error) {
+      // Roll back on failure
+      setAnnouncements(prev => [ann, ...prev]);
+      console.error('[Announcements] delete failed:', error.message);
+    }
   };
 
   const handleEdit = (ann: Announcement) => {
@@ -260,28 +266,40 @@ export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({
   const handleEditSave = async (id: string) => {
     if (!editText.trim()) return;
     const updatedText = editText.trim();
-    setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, text: updatedText } : a));
+    const prev = announcements.find(a => a.id === id);
+    setAnnouncements(anns => anns.map(a => a.id === id ? { ...a, text: updatedText } : a));
     setEditingId(null);
     setEditText('');
-    await supabase.from('announcements').update({ text: updatedText, updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('announcements').update({ text: updatedText, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) {
+      // Roll back text change
+      if (prev) setAnnouncements(anns => anns.map(a => a.id === id ? prev : a));
+      console.error('[Announcements] update failed:', error.message);
+    }
   };
 
   const handlePost = async () => {
     if (!composeText.trim() || !currentUserId) return;
     const textToInsert = composeText.trim();
+    const savedText = composeText;
     setComposeText('');
     setUrgent(false);
 
     // Coordinators always post with their event_id — their announcements are event-specific
-    await supabase.from('announcements').insert({
+    const { error } = await supabase.from('announcements').insert({
       text: textToInsert,
       urgent,
-      target: mode === 'coordinator' ? 'students' : target, // Coordinator always targets students
+      target: mode === 'coordinator' ? 'students' : target,
       sender_id: currentUserId,
       sender_role: mode,
-      event_id: mode === 'coordinator' ? (eventId || null) : null, // Admin posts are global
+      event_id: mode === 'coordinator' ? (eventId || null) : null,
       category: postCategory,
     });
+    if (error) {
+      // Restore compose text so user doesn't lose it
+      setComposeText(savedText);
+      console.error('[Announcements] insert failed:', error.message);
+    }
   };
 
   const formatTime = (ts: string) => {

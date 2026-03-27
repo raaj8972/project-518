@@ -416,14 +416,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleSend = async () => {
     const trimmed = input.trim();
     if (!trimmed || !activeConvoId || !currentUserId || chatLocked) return;
+    const savedInput = input;
     setInput('');
     setIsTyping(false);
-    await supabase.from('chat_messages').insert({
+    const { error } = await supabase.from('chat_messages').insert({
       conversation_id: activeConvoId,
       sender_id: currentUserId,
       sender_role: mode,
       text: trimmed
     });
+    if (error) {
+      setInput(savedInput);
+      console.error('[Chat] send failed:', error.message);
+    }
   };
 
   // WhatsApp-style: anyone can edit or delete ONLY their own messages sent in their current role
@@ -439,14 +444,23 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleDelete = async (id: string, msg: ChatMessage) => {
     if (!canDelete(msg)) return;
     setMessages(prev => prev.filter(m => m.id !== id));
-    await supabase.from('chat_messages').delete().eq('id', id);
+    const { error } = await supabase.from('chat_messages').delete().eq('id', id);
+    if (error) {
+      setMessages(prev => [msg, ...prev].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+      console.error('[Chat] delete failed:', error.message);
+    }
   };
 
   const handleClearHistory = async () => {
     if (!activeConvoId || (mode !== 'admin' && mode !== 'coordinator')) return;
     if (!window.confirm('Are you sure you want to PERMANENTLY delete all messages in this chat?')) return;
+    const backup = messages;
     setMessages([]);
-    await supabase.from('chat_messages').delete().eq('conversation_id', activeConvoId);
+    const { error } = await supabase.from('chat_messages').delete().eq('conversation_id', activeConvoId);
+    if (error) {
+      setMessages(backup);
+      console.error('[Chat] clear history failed:', error.message);
+    }
   };
 
   const handleEditSave = async (id: string, msg: ChatMessage) => {
@@ -455,7 +469,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
     setMessages(prev => prev.map(m => m.id === id ? { ...m, text: updTx } : m));
     setEditingId(null);
     setEditText('');
-    await supabase.from('chat_messages').update({ text: updTx, updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await supabase.from('chat_messages').update({ text: updTx, updated_at: new Date().toISOString() }).eq('id', id);
+    if (error) {
+      // Roll back edit
+      setMessages(prev => prev.map(m => m.id === id ? msg : m));
+      console.error('[Chat] edit failed:', error.message);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

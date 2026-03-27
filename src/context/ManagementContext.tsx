@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib/dualDb';
+import { supabase } from '../lib/supabase';
 import { 
   Sponsor, SponsorshipPackage, SponsorshipSettings, Registration,
   Audition, Membership
@@ -125,6 +126,21 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
       fetchManagementData();
     }
   }, [refreshTrigger, user?.id, fetchManagementData]);
+
+  // Real-time: re-fetch when any management table changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('management-context-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsors' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_packages' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sponsorship_settings' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'auditions' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships' }, () => fetchManagementData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_users' }, () => fetchManagementData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchManagementData]);
 
   const addSponsor = async (sponsor: Partial<Sponsor>) => {
     await dualInsert('sponsors', sponsor);

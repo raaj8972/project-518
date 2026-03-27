@@ -334,34 +334,74 @@ export const AdminService = {
   // ═══════════════════════════════════════════
 
   /** Add a Gmail to the allowed admins whitelist */
-  async addAllowedAdmin(email: string, role: 'owner' | 'admin' = 'admin', displayName?: string): Promise<void> {
+  async addAllowedAdmin(email: string, role: 'owner' | 'admin' = 'admin', displayName?: string, permissions: AdminPermissions = {}): Promise<void> {
     const key = email.toLowerCase().trim().replace(/[.@]/g, '_');
-    await dualUpsert('allowed_admins', {
-      id: key,
-      email: email.toLowerCase().trim(),
-      role,
-      display_name: displayName || email.split('@')[0],
-      created_at: new Date().toISOString()
-    });
+    const { supabase } = await import('./supabase');
+    const { error } = await supabase
+      .from('allowed_admins')
+      .upsert({
+        id: key,
+        email: email.toLowerCase().trim(),
+        role,
+        display_name: displayName || email.split('@')[0],
+        permissions,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' })
+      .select();
+    if (error) throw new Error(error.message);
+  },
+
+  /** Update permissions of a whitelisted Gmail */
+  async updateAllowedAdminPermissions(email: string, permissions: Partial<AdminPermissions>): Promise<void> {
+    const key = email.toLowerCase().trim().replace(/[.@]/g, '_');
+    const { supabase } = await import('./supabase');
+
+    // Read current record (maybeSingle returns object, not array)
+    const { data } = await supabase
+      .from('allowed_admins')
+      .select('permissions')
+      .eq('id', key)
+      .maybeSingle();
+    const currentPerms = (data as any)?.permissions || {};
+
+    // Update merged permissions
+    const { error } = await supabase
+      .from('allowed_admins')
+      .update({
+        permissions: { ...currentPerms, ...permissions },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', key);
+    if (error) throw new Error(error.message);
   },
 
   /** Remove a Gmail from the whitelist */
   async removeAllowedAdmin(email: string): Promise<void> {
     const key = email.toLowerCase().trim().replace(/[.@]/g, '_');
-    await dualDelete('allowed_admins', key);
+    const { supabase } = await import('./supabase');
+    const { error } = await supabase.from('allowed_admins').delete().eq('id', key);
+    if (error) throw new Error(error.message);
   },
 
   /** Get all whitelisted admins */
-  async getAllowedAdmins(): Promise<{ email: string; role: string; display_name?: string }[]> {
-    const { data } = await dualRead({ table: 'allowed_admins' });
+  async getAllowedAdmins(): Promise<{ email: string; role: string; display_name?: string; permissions?: AdminPermissions }[]> {
+    const { supabase } = await import('./supabase');
+    const { data, error } = await supabase
+      .from('allowed_admins')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
     return data || [];
   },
 
   /** Check if a specific email is whitelisted */
-  async isEmailAllowed(email: string): Promise<{ allowed: boolean; role: string; display_name?: string }> {
+  async isEmailAllowed(email: string): Promise<{ allowed: boolean; role: string; display_name?: string; permissions?: AdminPermissions }> {
     // Hardcoded owners always allowed
     if (this.isHardcodedOwner(email)) {
-      return { allowed: true, role: 'owner', display_name: 'System Owner' };
+      return { allowed: true, role: 'owner', display_name: 'System Owner', permissions: {
+        can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
+        can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true
+      } };
     }
     
     // Direct lookup by ID is O(1) and fetches only 1 record
@@ -375,7 +415,7 @@ export const AdminService = {
     console.log(`[AdminService] isEmailAllowed check for ${email}:`, { key, foundInWhitelist: !!data, role: data?.role });
 
     if (data) {
-      return { allowed: true, role: data.role || 'admin', display_name: data.display_name };
+      return { allowed: true, role: data.role || 'admin', display_name: data.display_name, permissions: data.permissions || {} };
     }
     
     // Safety Fallback: If user already exists in the admin_users table, they are clearly allowed

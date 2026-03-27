@@ -158,6 +158,22 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [refreshTrigger, user?.id, fetchEventsData]);
 
+  // Real-time: re-fetch when any events-related table changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('events-context-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_categories' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_coordinators' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_days' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'schedule_events' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'event_winners' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => fetchEventsData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'roadmap_milestones' }, () => fetchEventsData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchEventsData]);
+
   const addEvent = async (event: Partial<Event>) => {
     await dualInsert('events', {
       ...event,

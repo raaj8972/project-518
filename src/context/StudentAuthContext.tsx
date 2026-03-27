@@ -61,7 +61,7 @@ export const StudentAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
               batch: userMetadata.batch || null,
               participant_type: userMetadata.participant_type || null,
               avatar_url: userMetadata.avatar_url || userMetadata.picture || null,
-              is_approved: true
+              is_approved: false
             })
             .select()
             .single();

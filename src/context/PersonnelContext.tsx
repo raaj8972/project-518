@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { dualInsert, dualUpdate, dualDelete } from '../lib/dualDb';
+import { supabase } from '../lib/supabase';
 import { 
   FacultyHead, CoreCommittee, CoreTeamMember, SportsCommittee, 
   SportsTeamMember, BandMember, GuestArtist
@@ -119,6 +120,22 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
       fetchPersonnelData();
     }
   }, [refreshTrigger, user?.id, fetchPersonnelData]);
+
+  // Real-time: re-fetch when any personnel table changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('personnel-context-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'faculty_heads' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'core_committees' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'core_team_members' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_committees' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sports_team_members' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'band_members' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guest_artists' }, () => fetchPersonnelData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chief_guests' }, () => fetchPersonnelData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [fetchPersonnelData]);
 
   // Faculty
   const addFacultyHead = async (head: Partial<FacultyHead>) => {

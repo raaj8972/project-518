@@ -99,7 +99,7 @@ const ProtectionCenter = React.lazy(() => import('../components/admin/Protection
 
 
 export const AdminDashboard: React.FC = () => {
-  const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user } = useAuth();
+  const { isAuthenticated, logout, isTOTPEnabled, loading: authLoading, user, isLoggingOut } = useAuth();
   const {
     events,
     // registrations removed - use hook
@@ -211,6 +211,13 @@ export const AdminDashboard: React.FC = () => {
   // Debounce redirect to handle transient auth events on tab focus
   const logoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // If explicit logout is in progress, jump straight to login — skip grace delay
+    if (isLoggingOut) {
+      if (logoutTimer.current) clearTimeout(logoutTimer.current);
+      setAuthGrace(false);
+      navigate('/login');
+      return;
+    }
     if (logoutTimer.current) {
       clearTimeout(logoutTimer.current);
       logoutTimer.current = null;
@@ -222,7 +229,7 @@ export const AdminDashboard: React.FC = () => {
         // Double-check before redirect in case auth stabilized
         if (!isAuthenticated) navigate('/login');
         setAuthGrace(false);
-  }, 1500);
+    }, 500);
     }
     if (isAuthenticated) {
       setAuthGrace(false);
@@ -230,7 +237,7 @@ export const AdminDashboard: React.FC = () => {
     return () => {
       if (logoutTimer.current) clearTimeout(logoutTimer.current);
     };
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, isLoggingOut, navigate]);
 
   // VIP Arrival Real-time Alerts
   useEffect(() => {
@@ -513,6 +520,18 @@ export const AdminDashboard: React.FC = () => {
 
 
 
+  // Instant logout overlay — hides admin content immediately on logout
+  if (isLoggingOut) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center animate-fade-in">
+        <div className="text-center">
+          <div className="w-16 h-16 border-t-4 border-yellow-400/60 rounded-full animate-spin mx-auto mb-6" />
+          <p className="text-white/40 text-xs font-bold tracking-[0.3em] uppercase">Signing out...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Failsafe UI for hung initialization
   if (stuckLoading) {
     return (
@@ -544,13 +563,13 @@ export const AdminDashboard: React.FC = () => {
     );
   }
 
-  // Show Splash (only if we have a user to welcome)
-  if (showSplash && (isAuthenticated || authGrace) && user) {
+  // Show Splash (only if we have a user to welcome and NOT logging out)
+  if (showSplash && (isAuthenticated || authGrace) && user && !isLoggingOut) {
     return <WelcomeSplash user={user} onComplete={() => setShowSplash(false)} />;
   }
 
   // Fallback Loading if auth is still pending (without a user yet)
-  if (authLoading && !user) {
+  if (authLoading && !user && !isLoggingOut) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="text-center animate-in fade-in duration-1000">
@@ -565,6 +584,7 @@ export const AdminDashboard: React.FC = () => {
       </div>
     );
   }
+
 
   // If user is not authenticated yet and grace is not active
   if (!isAuthenticated && !authGrace) {

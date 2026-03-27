@@ -3,7 +3,7 @@ import React, { createContext, useContext, ReactNode, FC, useState, useEffect, u
 console.log('[AuthContext.tsx] Module execution started. React available:', !!React, 'useState available:', !!useState);
 import { supabase } from '../lib/supabase';
 import { AdminService } from '../lib/adminService';
-import { dualRead, dualUpdate, dualUpsert } from '../lib/dualDb';
+import { dualRead, dualUpdate } from '../lib/dualDb';
 import { isMasterOwner } from '../constants/owners';
 
 import { authenticator } from 'otplib';
@@ -23,6 +23,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
   getValidToken: () => Promise<string | null>;
   lastAuthError: string | null;
+  isLoggingOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isTOTPEnabled, setIsTOTPEnabled] = useState(false);
   const [lastAuthError, setLastAuthError] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const currentInitIdRef = useRef<number>(0);
 
   const syncSupabaseAdmin = async (email: string) => {
@@ -112,18 +114,23 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         let allowed = false;
         let role = 'admin';
         let display_name = 'Admin';
+        let permissions: any = {};
 
         if (isMasterBypassUser(authUser) || isMasterOwner(email)) {
           console.log(`[AuthContext] System Owner recognized [${initId}]:`, email);
           allowed = true;
           role = 'owner';
           display_name = isMasterOwner(email) ? 'System Owner' : 'Raaj';
+          permissions = {
+            can_events: true, can_schedule: true, can_gallery: true, can_sponsors: true, 
+            can_registrations: true, can_faculty: true, can_chief_guests: true, can_security_passes: true
+          };
         } else {
           console.log(`[AuthContext] Checking whitelist [${initId}] for:`, email);
           // Timeout the whitelist check individually too
           const whitelistResult = await Promise.race([
             AdminService.isEmailAllowed(email),
-            new Promise<{ allowed: boolean; role: string; display_name: string }>((res) =>
+            new Promise<{ allowed: boolean; role: string; display_name: string; permissions?: any }>((res) =>
               setTimeout(() => {
                 console.warn(`[AuthContext] isEmailAllowed [${initId}] timed out — granting access for existing session`);
                 res({ allowed: true, role: 'admin', display_name: email.split('@')[0] });
@@ -133,6 +140,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
           allowed = whitelistResult.allowed;
           role = whitelistResult.role;
           display_name = whitelistResult.display_name || 'Admin';
+          permissions = whitelistResult.permissions || {};
         }
 
         console.log(`[AuthContext] [${initId}] Final whitelist result:`, { allowed, role, email });
@@ -197,7 +205,6 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         if (!userData) {
           console.log('[AuthContext] Syncing first-time allowed user to admin_users:', email);
           userData = {
-            id: userId,
             user_id: userId,
             email: email.toLowerCase(),
             role: role || 'admin',
@@ -205,14 +212,31 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
             photo_url: authUser.photoURL || authUser.user_metadata?.avatar_url || '',
             last_login: new Date().toISOString()
           };
-          await dualUpsert('admin_users', userData);
+          // Use direct supabase to avoid dualDb schema cache issues
+          const { error: upsertErr } = await supabase
+            .from('admin_users')
+            .upsert(userData, { onConflict: 'user_id' });
+          if (upsertErr) console.warn('[AuthContext] admin_users upsert failed:', upsertErr.message);
+
+          const { error: permErr } = await supabase
+            .from('admin_permissions')
+            .upsert({
+              user_id: userId,
+              email: email.toLowerCase(),
+              ...permissions,
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
+          if (permErr) console.warn('[AuthContext] admin_permissions upsert failed:', permErr.message);
         } else {
           console.log('[AuthContext] Profile found. Updating last login.');
-          // Update last login and ensure user_id is synced
-          dualUpdate('admin_users', userData.user_id, { 
-            last_login: new Date().toISOString(),
-            user_id: userId 
-          }, 'user_id').catch(() => {});
+          // Direct supabase call — avoids stale schema cache in dualDb
+          supabase
+            .from('admin_users')
+            .update({ last_login: new Date().toISOString(), user_id: userId })
+            .eq('user_id', userData.user_id)
+            .then(({ error }) => {
+              if (error) console.warn('[AuthContext] last_login update failed:', error.message);
+            });
         }
 
         if (currentInitIdRef.current !== initId) return;
@@ -411,6 +435,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
   const logout = async (): Promise<void> => {
     console.log('[AuthContext] Initiating logout...');
+    setIsLoggingOut(true); // <-- immediately signal logout to all consumers
     try {
       // 1. Optimistic UI update - Clear state immediately
       setUser(null);
@@ -568,7 +593,8 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       updatePassword,
       loginWithGoogle,
       getValidToken,
-      lastAuthError
+      lastAuthError,
+      isLoggingOut
     }}>
       {children}
     </PrimaryAuthContext.Provider>

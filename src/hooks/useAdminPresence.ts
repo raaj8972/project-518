@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
-import { firebaseDb } from '../lib/firebase';
-import { ref, set, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
+import { supabase } from '../lib/supabase';
 
 export interface AdminPresence {
   id: number;
@@ -48,42 +47,45 @@ export const useAdminPresence = () => {
 
   const [otherAdmins, setOtherAdmins] = useState<AdminPresence[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  
+
+  // Track peer state locally via a ref (keyed by user_id)
+  const peerState = useRef<Record<string, AdminPresence>>({});
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mouseThrottle = useRef<number>(0);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Sync state to Realtime DB
+  const buildPresencePayload = useCallback((update: PresenceUpdate & Partial<CursorUpdate> = {}): any => {
+    if (!user) return null;
+    const payload: any = {
+      user_id: user.id,
+      email: user.email,
+      last_activity_at: Date.now(),
+    };
+    if (update.page !== undefined) payload.current_page = update.page;
+    if (update.section !== undefined) payload.current_section = update.section;
+    if (update.isTyping !== undefined) payload.is_typing = update.isTyping;
+    if (update.x !== undefined) payload.cursor_x = update.x;
+    if (update.y !== undefined) payload.cursor_y = update.y;
+    if (update.screenW !== undefined) payload.screen_w = update.screenW;
+    if (update.screenH !== undefined) payload.screen_h = update.screenH;
+    if (update.focusedElement !== undefined) payload.focused_element = update.focusedElement;
+    return payload;
+  }, [user]);
+
+  const broadcastPresence = useCallback((payload: any) => {
+    if (!channelRef.current || !payload) return;
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'presence_update',
+      payload
+    }).catch(() => {});
+  }, []);
+
   const updatePresence = useCallback((update: PresenceUpdate & Partial<CursorUpdate> = {}) => {
     if (!user || isOwner) return;
-
-    try {
-      const userRef = ref(firebaseDb, `admin_presence/${user.id}`);
-      
-      const payload: any = {
-        user_id: user.id,
-        email: user.email,
-        last_activity_at: serverTimestamp()
-      };
-
-      if (update.page !== undefined) payload.current_page = update.page;
-      if (update.section !== undefined) payload.current_section = update.section;
-      if (update.isTyping !== undefined) payload.is_typing = update.isTyping;
-      
-      if (update.x !== undefined) payload.cursor_x = update.x;
-      if (update.y !== undefined) payload.cursor_y = update.y;
-      if (update.screenW !== undefined) payload.screen_w = update.screenW;
-      if (update.screenH !== undefined) payload.screen_h = update.screenH;
-      if (update.focusedElement !== undefined) payload.focused_element = update.focusedElement;
-
-      // Ensure cleanup on disconnect
-      onDisconnect(userRef).remove();
-      
-      // Update data
-      set(userRef, payload);
-    } catch (error) {
-      // Silent error
-    }
-  }, [user, isOwner]);
+    const payload = buildPresencePayload(update);
+    broadcastPresence(payload);
+  }, [user, isOwner, buildPresencePayload, broadcastPresence]);
 
   const broadcastCursor = useCallback((update: CursorUpdate) => {
     updatePresence(update);
@@ -91,11 +93,7 @@ export const useAdminPresence = () => {
 
   const setTyping = useCallback((isTyping: boolean) => {
     updatePresence({ isTyping });
-
-    if (typingTimeout.current) {
-      clearTimeout(typingTimeout.current);
-    }
-
+    if (typingTimeout.current) clearTimeout(typingTimeout.current);
     if (isTyping) {
       typingTimeout.current = setTimeout(() => {
         updatePresence({ isTyping: false });
@@ -103,53 +101,54 @@ export const useAdminPresence = () => {
     }
   }, [updatePresence]);
 
-  // Subscribe to real-time presence changes
   useEffect(() => {
     if (!user) return;
 
-    const presenceRef = ref(firebaseDb, 'admin_presence');
-    
-    // Initial connection
-    updatePresence();
-    setIsSubscribed(true);
-
-    const unsubscribe = onValue(presenceRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        const twoMinutesAgo = Date.now() - 120000;
-        
-        const activeAdmins: AdminPresence[] = Object.values(data)
-          .filter((admin: any) => admin.user_id !== user.id)
-          .filter((admin: any) => {
-             // Handle both server timestamps and exact numbers
-             const ts = typeof admin.last_activity_at === 'number' ? admin.last_activity_at : Date.now();
-             return ts >= twoMinutesAgo;
-          }) as AdminPresence[];
-          
-        setOtherAdmins(activeAdmins);
-      } else {
-        setOtherAdmins([]);
-      }
+    const channel = supabase.channel('admin_presence', {
+      config: { broadcast: { self: false } }
     });
 
+    channelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'presence_update' }, ({ payload }) => {
+        if (!payload?.user_id || payload.user_id === user.id) return;
+
+        const twoMinutesAgo = Date.now() - 120000;
+        if (payload.last_activity_at < twoMinutesAgo) {
+          // Stale entry — remove this peer
+          delete peerState.current[payload.user_id];
+        } else {
+          peerState.current[payload.user_id] = payload as AdminPresence;
+        }
+        setOtherAdmins(Object.values(peerState.current));
+      })
+      .on('broadcast', { event: 'presence_leave' }, ({ payload }) => {
+        if (!payload?.user_id) return;
+        delete peerState.current[payload.user_id];
+        setOtherAdmins(Object.values(peerState.current));
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsSubscribed(true);
+          // Announce initial presence
+          updatePresence();
+        }
+      });
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        updatePresence();
-      }
+      if (document.visibilityState === 'visible') updatePresence();
     };
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       const now = Date.now();
-      if (now - mouseThrottle.current > 50) { // 20fps
+      if (now - mouseThrottle.current > 50) {
         mouseThrottle.current = now;
-        const x = e.clientX / window.innerWidth;
-        const y = e.clientY / window.innerHeight;
-        
         broadcastCursor({
-          x,
-          y,
+          x: e.clientX / window.innerWidth,
+          y: e.clientY / window.innerHeight,
           screenW: window.innerWidth,
-          screenH: window.innerHeight
+          screenH: window.innerHeight,
         });
       }
     };
@@ -158,16 +157,24 @@ export const useAdminPresence = () => {
     window.addEventListener('mousemove', handleMouseMove);
 
     return () => {
-      unsubscribe();
       if (typingTimeout.current) clearTimeout(typingTimeout.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('mousemove', handleMouseMove);
-      
-      if (!isOwner) {
-         set(ref(firebaseDb, `admin_presence/${user.id}`), null).catch(() => {});
+
+      // Announce departure then unsubscribe
+      if (!isOwner && channelRef.current) {
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'presence_leave',
+          payload: { user_id: user.id }
+        }).catch(() => {});
       }
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+      peerState.current = {};
+      setIsSubscribed(false);
     };
-  }, [user, updatePresence, broadcastCursor, isOwner]);
+  }, [user, isOwner, updatePresence, broadcastCursor]);
 
   return {
     otherAdmins,

@@ -21,6 +21,7 @@ interface AIChatScannerProps {
   onDataComplete: (data: any, images: string[]) => void;
   onCancel: () => void;
   placeholder?: string;
+  customControls?: React.ReactNode;
 }
 
 export const AIChatScanner: React.FC<AIChatScannerProps> = ({
@@ -30,7 +31,8 @@ export const AIChatScanner: React.FC<AIChatScannerProps> = ({
   model = "gemini-2.5-flash", 
   onDataComplete,
   onCancel,
-  placeholder = "Message Gemini or drop images here..."
+  placeholder = "Message Gemini or drop images here...",
+  customControls
 }) => {
   const { getValidToken } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -257,11 +259,17 @@ export const AIChatScanner: React.FC<AIChatScannerProps> = ({
           </div>
           <button 
             onClick={onCancel}
-            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors self-start"
           >
             <X size={20} />
           </button>
         </div>
+        
+        {customControls && (
+          <div className="bg-black/30 border-b border-white/5 p-4 shrink-0">
+            {customControls}
+          </div>
+        )}
 
         {/* Chat Area */}
         <div 

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { dualRead } from '../lib/dualDb';
+import { supabase } from '../lib/supabase';
 import type { Registration } from '../types/data';
 
 export interface UseRegistrationsOptions {
@@ -87,41 +88,40 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
       // Use dualRead for primary fetch
       // Note: Full-text search and complex OR queries will fallback to Supabase inside dualRead if we structure correctly
       // For now, doing a basic fetch and filtering in memory if primary is Firestore
-      const { data, source } = await dualRead({ 
+      const { data } = await dualRead({ 
         table: 'registrations',
         order: [filters?.viewMode === 'trash' ? 'deleted_at' : 'created_at', { ascending: false }]
       });
 
       let filtered = (data || []) as Registration[];
 
-      // Apply filters in-memory if we got a large batch or if firestore is primary
-      if (source === 'firestore') {
-        if (filters?.viewMode === 'trash') {
-          filtered = filtered.filter(r => !!r.deleted_at);
-        } else {
-          filtered = filtered.filter(r => !r.deleted_at);
-        }
+      // Always apply filters in-memory for consistency across sources
+      if (filters?.viewMode === 'trash') {
+        filtered = filtered.filter(r => !!r.deleted_at);
+      } else {
+        filtered = filtered.filter(r => !r.deleted_at);
+      }
 
-        if (filters?.event && filters.event !== 'all') {
-          filtered = filtered.filter(r => r.event_title === filters.event);
-        }
-        if (filters?.status && filters.status !== 'all') {
-          filtered = filtered.filter(r => r.status === filters.status);
-        }
-        if (filters?.batch && filters.batch !== 'all') {
-          filtered = filtered.filter(r => r.participant_type === filters.batch);
-        }
-        if (filters?.category && filters.category !== 'all') {
-          filtered = filtered.filter(r => (r as any).category === filters.category);
-        }
-        if (filters?.search && filters.search.trim()) {
-          const s = filters.search.toLowerCase();
-          filtered = filtered.filter(r => 
-            r.full_name?.toLowerCase().includes(s) || 
-            r.email?.toLowerCase().includes(s) || 
-            r.phone?.toLowerCase().includes(s)
-          );
-        }
+      if (filters?.event && filters.event !== 'all') {
+        filtered = filtered.filter(r => String(r.event_id) === filters.event || r.event_title === filters.event);
+      }
+      if (filters?.status && filters.status !== 'all') {
+        filtered = filtered.filter(r => r.status === filters.status);
+      }
+      if (filters?.batch && filters.batch !== 'all') {
+        filtered = filtered.filter(r => r.participant_type === filters.batch);
+      }
+      if (filters?.category && filters.category !== 'all') {
+        filtered = filtered.filter(r => (r as any).category === filters.category);
+      }
+      if (filters?.search && filters.search.trim()) {
+        const s = filters.search.toLowerCase();
+        filtered = filtered.filter(r => 
+          r.full_name?.toLowerCase().includes(s) || 
+          r.email?.toLowerCase().includes(s) || 
+          r.phone?.toLowerCase().includes(s) ||
+          r.id?.toLowerCase().includes(s)
+        );
       }
 
       setCount(filtered.length);
@@ -150,6 +150,25 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
+
+  // Real-time synchronization
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:registrations_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'registrations' },
+        () => {
+          fetchRegistrations();
+          fetchStats();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRegistrations, fetchStats]);
 
   return {
     registrations,

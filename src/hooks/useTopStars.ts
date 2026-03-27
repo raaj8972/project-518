@@ -33,7 +33,8 @@ export function useTopStars(limit: number = 20) {
           likes_count, 
           student_xp ( tier, xp_total )
         `)
-        .eq('is_approved', true);
+        .eq('is_approved', true)
+        .not('full_name', 'is', null);
 
       if (error) throw error;
 

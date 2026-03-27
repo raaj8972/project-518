@@ -64,15 +64,13 @@ try {
   supabaseUrl = DEFAULT_SUPABASE_URL;
 }
 
-// Create the client from resolved values (env or safe defaults)
-// Allow opting out of realtime in local dev to avoid noisy WSS failures (e.g., blocked by extensions
-// or local network restrictions). To opt-in in dev, set VITE_SUPABASE_ENABLE_REALTIME=1.
+// Realtime is enabled by default in all environments.
+// Set VITE_SUPABASE_DISABLE_REALTIME=1 to explicitly disable (e.g. for CI or restricted networks).
 const realtimeEnabled = (() => {
   try {
     const env = (import.meta as any).env || {};
-    if (env.VITE_SUPABASE_ENABLE_REALTIME === '1') return true;
-    // default: disable realtime in DEV to avoid wss issues while developing
-    return !env.DEV;
+    if (env.VITE_SUPABASE_DISABLE_REALTIME === '1') return false;
+    return true; // always enabled — dev, staging, prod
   } catch {
     return true;
   }
