@@ -29,7 +29,7 @@ export type FlipCardHandle = {
   flip: (set: boolean) => void;
 };
 
-export const FlipCard = React.forwardRef<FlipCardHandle, FlipCardProps>(({ front, back, className = '', enableTapToggle = true, enableClickToggleOnDesktop = false, disableWrapperTap = false, initialFlipped = false }, ref) => {
+export const FlipCard = ({ front, back, className = '', enableTapToggle = true, enableClickToggleOnDesktop = false, disableWrapperTap = false, initialFlipped = false, ref }: FlipCardProps & { ref?: React.Ref<FlipCardHandle> }) => {
   const [flipped, setFlipped] = React.useState(initialFlipped);
 
   // Detect touch-capable devices (prefer pointer/hover queries, with fallbacks)
@@ -114,6 +114,6 @@ export const FlipCard = React.forwardRef<FlipCardHandle, FlipCardProps>(({ front
       </div>
     </div>
   );
-});
+};
 
 export default FlipCard;

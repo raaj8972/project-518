@@ -239,6 +239,10 @@ export interface DataContextType {
   events: Event[];
   eventCoordinators: EventCoordinator[];
   galleryImages: GalleryImage[];
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  fetchMore?: (category?: string, subcategory?: string) => void;
+  fetchGalleryData?: (page?: number, append?: boolean, category?: string, subcategory?: string) => Promise<void>;
   sponsors: Sponsor[];  
   schedule: ScheduleDay[];
   sponsorshipSettings: SponsorshipSettings | null;

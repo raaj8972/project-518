@@ -262,7 +262,7 @@ export const StorageOverview: React.FC = () => {
   };
 
   return (
-    <div className="superia-glass-card rounded-[2.5rem] p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden group">
+    <div className="rico-glass-card rounded-[2.5rem] p-8 sm:p-10 border-white/10 shadow-2xl relative overflow-hidden group">
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-blue-500/5 opacity-50 pointer-events-none" />
       
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-12 relative z-10">
@@ -292,7 +292,7 @@ export const StorageOverview: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 relative z-10">
-        <div className="superia-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden">
+        <div className="rico-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden">
           <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Current Sector</div>
           <div className="flex items-end justify-between">
             <div>
@@ -309,7 +309,7 @@ export const StorageOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="superia-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden group/quota">
+        <div className="rico-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden group/quota">
           <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Project Capacity</div>
           <div className="text-lg font-black text-white italic tracking-tighter mb-4">
             {loadingTotal ? 'ACCESSING...' : (
@@ -330,7 +330,7 @@ export const StorageOverview: React.FC = () => {
           </div>
         </div>
 
-        <div className="superia-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden">
+        <div className="rico-glass-card border-white/5 bg-white/[0.02] p-6 rounded-3xl relative overflow-hidden">
           <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4">Active Partition</div>
           <div className="relative group/sel">
             <Layers className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within/sel:text-indigo-400 transition-colors pointer-events-none" />
@@ -351,7 +351,7 @@ export const StorageOverview: React.FC = () => {
           </p>
         </div>
 
-        <div className="superia-glass-card border-white/5 bg-indigo-500/5 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-center">
+        <div className="rico-glass-card border-white/5 bg-indigo-500/5 p-6 rounded-3xl relative overflow-hidden flex flex-col justify-center">
           <div className="flex items-center gap-3 mb-2">
              <Zap size={14} className="text-yellow-500 animate-pulse" />
              <span className="text-[10px] font-black text-yellow-500/80 uppercase tracking-widest italic">System Protocol Note</span>
@@ -398,7 +398,7 @@ export const StorageOverview: React.FC = () => {
         </div>
 
         {topOpen && (
-          <div className="superia-glass-card border-indigo-500/10 bg-indigo-500/[0.02] rounded-[2rem] overflow-hidden mb-8 animate-in slide-in-from-top-4 duration-500">
+          <div className="rico-glass-card border-indigo-500/10 bg-indigo-500/[0.02] rounded-[2rem] overflow-hidden mb-8 animate-in slide-in-from-top-4 duration-500">
              <div className="p-6 border-b border-indigo-500/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                    <Activity size={16} className="text-indigo-400" />
@@ -463,7 +463,7 @@ export const StorageOverview: React.FC = () => {
         )}
 
         {breakdownOpen && (
-          <div className="superia-glass-card border-purple-500/10 bg-purple-500/[0.01] rounded-[2.5rem] overflow-hidden mb-8 animate-in slide-in-from-top-4 duration-500">
+          <div className="rico-glass-card border-purple-500/10 bg-purple-500/[0.01] rounded-[2.5rem] overflow-hidden mb-8 animate-in slide-in-from-top-4 duration-500">
              <div className="p-8 border-b border-purple-500/10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                    <Layers size={18} className="text-purple-400" />
@@ -482,7 +482,7 @@ export const StorageOverview: React.FC = () => {
                   const colorClass = intensity > 50 ? 'from-rose-600 to-rose-400' : intensity > 20 ? 'from-amber-600 to-amber-400' : 'from-purple-600 to-indigo-400';
                   
                   return (
-                    <div key={b.id} className="superia-glass-card p-5 border-white/5 bg-white/[0.02] rounded-2xl group/bar hover:bg-white/[0.04] transition-all">
+                    <div key={b.id} className="rico-glass-card p-5 border-white/5 bg-white/[0.02] rounded-2xl group/bar hover:bg-white/[0.04] transition-all">
                        <div className="flex items-center justify-between mb-3 text-[10px] font-black uppercase tracking-widest">
                           <span className="text-gray-400 italic group-hover/bar:text-purple-400 transition-colors">{b.id}</span>
                           <span className="text-white italic tracking-tighter tabular-nums">{intensity.toFixed(1)}%</span>

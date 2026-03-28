@@ -22,7 +22,7 @@
   
   <!-- PWA Manifest for Security Scanner -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#06b6d4" />
+  <meta name="theme-color" content="#010101" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Security" />
@@ -89,7 +89,7 @@
       :root {
         --accent-pink: #ff00ff;
         --accent-cyan: #00ffff;
-        --bg-dark: #0a0a0a;
+        --bg-dark: #010101;
       }
 
       * {
@@ -128,11 +128,12 @@
         font-weight: 900;
         font-family: 'Orbitron', sans-serif;
         color: transparent;
-        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.1);
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.05);
         margin-bottom: 2rem;
         text-transform: uppercase;
-        letter-spacing: 0.5rem;
-        animation: skeleton-pulse 2s infinite ease-in-out;
+        letter-spacing: 0.8rem;
+        animation: skeleton-pulse 3s infinite ease-in-out;
+        filter: drop-shadow(0 0 20px rgba(255,255,255,0.02));
       }
 
       .skeleton-buttons {

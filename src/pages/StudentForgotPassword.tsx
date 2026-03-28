@@ -106,7 +106,7 @@ export const StudentForgotPassword = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="superia-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
+              className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
             >
               {/* Subtle light streak */}
               <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent rotate-45 pointer-events-none" />
@@ -176,7 +176,7 @@ export const StudentForgotPassword = () => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="superia-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden text-center"
+              className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden text-center"
             >
               <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <LockKeyhole className="w-8 h-8 text-blue-400" />
@@ -239,7 +239,7 @@ export const StudentForgotPassword = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="superia-glass-card rounded-[2.5rem] p-10 text-center border border-white/10 shadow-2xl relative overflow-hidden"
+              className="rico-glass-card rounded-[2.5rem] p-10 text-center border border-white/10 shadow-2xl relative overflow-hidden"
             >
                <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
               

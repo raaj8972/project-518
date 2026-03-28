@@ -28,7 +28,7 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
   ];
   const aura = isLegendary ? auraGradients[(rank - 1) % 5] : null;
 
-  const { xp, level, percent, tier, color } = useMemo(() => {
+  const { level, percent, tier, color } = useMemo(() => {
     let total = realXP ?? 0;
     if (realXP === undefined) {
       if (profile?.full_name) total += 10;
@@ -100,7 +100,7 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
         </svg>
 
         {/* Avatar */}
-        <div className="absolute inset-[10px] rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center z-20 border-2 border-white/10 shadow-inner group/avatar">
+        <div className={`absolute inset-[10px] rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center z-20 border-2 border-white/10 shadow-inner group/avatar ${isLegendary ? 'animate-ring-pulse' : ''}`}>
           {isLegendary && (
             <motion.div 
               animate={{ 
@@ -114,13 +114,13 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
           {profile?.avatar_url ? (
             <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover relative z-10" />
           ) : (
-            <span className="text-white text-2xl font-black relative z-10">
+            <span className="text-white text-3xl font-black relative z-10 drop-shadow-lg">
               {profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
             </span>
           )}
           {isLegendary && (
             <div className="absolute -bottom-1 -right-1 z-30 transform scale-110 group-hover/avatar:scale-125 transition-transform duration-500">
-              <div className="relative p-1.5 rounded-lg bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 shadow-[0_2px_5px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.5)] border-2 border-black transform -rotate-6 rotate-x-12 shadow-xl group/trophy overflow-hidden">
+              <div className="relative p-1.5 rounded-lg bg-gradient-to-br from-yellow-300 via-yellow-500 to-amber-600 shadow-[0_2px_5px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.5)] border-2 border-black transform -rotate-6 shadow-xl group/trophy overflow-hidden">
                 {/* 3D Shine Effect */}
                 <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/40 to-transparent -translate-x-full group-hover/trophy:translate-x-full transition-transform duration-1000" />
                 <Trophy size={14} className="text-black drop-shadow-[0_0.5px_0.5px_rgba(255,255,255,0.3)]" />
@@ -155,7 +155,13 @@ const XPRing: React.FC<XPRingProps> = ({ profile, registrationsCount, sportsCoun
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes ring-pulse { 
+          0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 
+          50% { transform: scale(1.02); box-shadow: 0 0 20px 0 rgba(239, 68, 68, 0.2); }
+          100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 
+        }
         .animate-spin-slow { animation: spin-slow 12s linear infinite; }
+        .animate-ring-pulse { animation: ring-pulse 4s ease-in-out infinite; }
       `}} />
     </div>
   );

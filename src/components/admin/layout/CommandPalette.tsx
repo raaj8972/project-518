@@ -66,7 +66,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
       />
       
       {/* Palette Container */}
-      <div className="w-full max-w-2xl superia-glass-card rounded-[2.5rem] border-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.8)] pointer-events-auto animate-in zoom-in-95 duration-300 relative overflow-hidden">
+      <div className="w-full max-w-2xl rico-glass-card rounded-[2.5rem] border-white/10 shadow-[0_30px_100px_rgba(0,0,0,0.8)] pointer-events-auto animate-in zoom-in-95 duration-300 relative overflow-hidden">
         {/* Animated Glow */}
         <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 blur-[60px] rounded-full pointer-events-none" />
         
@@ -158,7 +158,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose,
             </div>
             <div className="flex items-center gap-2">
               <Sparkles size={12} className="text-indigo-500/50" />
-              <span>Superia AI Assistant Ready</span>
+              <span>RICO AI Assistant Ready</span>
             </div>
           </div>
         </div>

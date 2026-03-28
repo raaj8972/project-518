@@ -84,7 +84,7 @@ const NextUpTimeline: React.FC<NextUpTimelineProps> = ({ onBrowseEvents }) => {
 
   if (loading) {
     return (
-      <div className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 animate-pulse">
+      <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 animate-pulse">
         <div className="h-6 w-24 bg-white/10 rounded-md mb-4" />
         <div className="space-y-4">
           {[1, 2].map(i => <div key={i} className="h-16 bg-white/5 rounded-xl" />)}
@@ -95,7 +95,7 @@ const NextUpTimeline: React.FC<NextUpTimelineProps> = ({ onBrowseEvents }) => {
 
   if (events.length === 0) {
     return (
-      <div className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
+      <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
         <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><Clock size={18} className="text-red-400" /> Next Up</h3>
         <div className="text-center py-6">
           <Clock className="w-10 h-10 text-gray-700 mx-auto mb-3" />
@@ -109,7 +109,7 @@ const NextUpTimeline: React.FC<NextUpTimelineProps> = ({ onBrowseEvents }) => {
   }
 
   return (
-    <div className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 relative overflow-hidden group">
+    <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 relative overflow-hidden group">
       {/* Background glow */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-red-500/10 transition-colors" />
       

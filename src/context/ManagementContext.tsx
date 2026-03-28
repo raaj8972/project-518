@@ -323,5 +323,5 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     updateAdminRole
   };
 
-  return <PrimaryManagementContext.Provider value={value}>{children}</PrimaryManagementContext.Provider>;
+  return <PrimaryManagementContext value={value}>{children}</PrimaryManagementContext>;
 };

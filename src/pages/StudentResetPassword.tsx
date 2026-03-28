@@ -63,7 +63,7 @@ export const StudentResetPassword = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="superia-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl"
+            className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl"
           >
             <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-8 relative">
               <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full" />
@@ -96,7 +96,7 @@ export const StudentResetPassword = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="superia-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
+          className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
         >
           <div className="mb-10 text-center">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">

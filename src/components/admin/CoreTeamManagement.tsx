@@ -1528,7 +1528,7 @@ export const CoreTeamManagement: React.FC = () => {
                           type="text"
                           value={achievement}
                           onChange={(e) => updateAchievement(index, e.target.value)}
-                          placeholder="e.g. Best Organizer 2025"
+                          placeholder="e.g. Best Organizer 2026"
                            className="flex-1 bg-transparent border-b border-white/10 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-all"
                         />
                          <button onClick={() => removeAchievement(index)} className="p-1.5 hover:bg-white/10 rounded-full text-red-400/70 hover:text-red-400 transition-colors">

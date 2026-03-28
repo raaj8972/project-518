@@ -396,5 +396,5 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     deleteScheduleEvent
   };
 
-  return <PrimaryEventsContext.Provider value={value}>{children}</PrimaryEventsContext.Provider>;
+  return <PrimaryEventsContext value={value}>{children}</PrimaryEventsContext>;
 };

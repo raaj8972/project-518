@@ -45,7 +45,7 @@ const Sports: React.FC = () => {
           {sportsRegistrations.map((reg) => (
             <div 
               key={reg.id} 
-              className="superia-glass-card p-6 rounded-2xl border border-white/10 hover:border-blue-500/30 transition-all group relative overflow-hidden"
+              className="rico-glass-card p-6 rounded-2xl border border-white/10 hover:border-blue-500/30 transition-all group relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 w-24 h-24 bg-blue-600/5 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-blue-600/10 transition-colors" />
               <div className="flex flex-col sm:flex-row sm:items-center gap-6 relative z-10">
@@ -77,7 +77,7 @@ const Sports: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="superia-glass-card p-16 rounded-3xl border border-white/10 flex flex-col items-center text-center">
+        <div className="rico-glass-card p-16 rounded-3xl border border-white/10 flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6">
             <Trophy className="w-8 h-8 text-gray-500" />
           </div>

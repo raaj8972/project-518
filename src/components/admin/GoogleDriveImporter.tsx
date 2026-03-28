@@ -181,7 +181,7 @@ export const GoogleDriveImporter: React.FC = () => {
               type="text"
               value={year}
               onChange={(e) => setYear(e.target.value)}
-              placeholder="2025"
+              placeholder="2026"
               className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-100 dark:border-gray-700 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm font-medium"
             />
           </div>

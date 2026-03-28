@@ -163,7 +163,7 @@ export const GalleryFaceIndexer: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="superia-glass-card rounded-[3rem] p-24 relative overflow-hidden flex flex-col items-center justify-center text-center">
+      <div className="rico-glass-card rounded-[3rem] p-24 relative overflow-hidden flex flex-col items-center justify-center text-center">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent animate-pulse" />
         <Loader2 className="w-16 h-16 text-indigo-500 animate-spin mb-6 relative z-10" />
         <h3 className="text-2xl font-black text-white tracking-tighter relative z-10 uppercase italic">Initializing Vision...</h3>
@@ -175,7 +175,7 @@ export const GalleryFaceIndexer: React.FC = () => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700 pb-20">
       {/* Header Section */}
-      <div className="superia-glass-card rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden group border-white/10 shadow-2xl">
+      <div className="rico-glass-card rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden group border-white/10 shadow-2xl">
         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[80px]" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
@@ -254,7 +254,7 @@ export const GalleryFaceIndexer: React.FC = () => {
               };
               
               return (
-                <div key={i} className="superia-glass-card rounded-[2rem] p-8 relative overflow-hidden group/card hover:bg-white/[0.04] transition-all duration-500 border-white/10">
+                <div key={i} className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden group/card hover:bg-white/[0.04] transition-all duration-500 border-white/10">
                   <div className="flex justify-between items-start mb-6">
                     <div className={`p-4 rounded-2xl border shadow-xl ${colors[item.color]}`}>
                       <Icon size={24} />
@@ -278,7 +278,7 @@ export const GalleryFaceIndexer: React.FC = () => {
           </div>
 
           {/* Progress Section */}
-          <div className={`superia-glass-card rounded-[2.5rem] p-10 relative overflow-hidden border-white/10 group shadow-2xl ${indexing ? 'ring-2 ring-indigo-500/20' : ''}`}>
+          <div className={`rico-glass-card rounded-[2.5rem] p-10 relative overflow-hidden border-white/10 group shadow-2xl ${indexing ? 'ring-2 ring-indigo-500/20' : ''}`}>
             {indexing ? (
               <div className="flex flex-col gap-10">
                 <div className="flex flex-col md:flex-row items-center gap-10">
@@ -343,7 +343,7 @@ export const GalleryFaceIndexer: React.FC = () => {
 
         {/* Right Column: Activity Log */}
         <div className="space-y-6">
-          <div className="superia-glass-card rounded-[2rem] p-8 border-white/10 shadow-2xl h-full flex flex-col">
+          <div className="rico-glass-card rounded-[2rem] p-8 border-white/10 shadow-2xl h-full flex flex-col">
             <div className="flex items-center gap-3 mb-8 border-b border-white/5 pb-6">
               <div className="p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20">
                 <Terminal size={18} className="text-indigo-400" />
@@ -386,7 +386,7 @@ export const GalleryFaceIndexer: React.FC = () => {
           </div>
 
           {/* Protocols Reminder */}
-          <div className="superia-glass-card rounded-[2rem] p-8 border-amber-500/10 bg-amber-500/5 shadow-xl">
+          <div className="rico-glass-card rounded-[2rem] p-8 border-amber-500/10 bg-amber-500/5 shadow-xl">
              <div className="flex gap-4">
                 <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0" />
                 <div className="space-y-2">

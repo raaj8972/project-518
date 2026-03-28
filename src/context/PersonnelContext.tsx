@@ -240,5 +240,5 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  return <PrimaryPersonnelContext.Provider value={value}>{children}</PrimaryPersonnelContext.Provider>;
+  return <PrimaryPersonnelContext value={value}>{children}</PrimaryPersonnelContext>;
 };

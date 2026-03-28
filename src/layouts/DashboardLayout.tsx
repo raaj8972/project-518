@@ -66,7 +66,7 @@ const DashboardLayout: React.FC = () => {
     
     if (pt.length > 0) return pt;
     if (bo.length > 0) return bo;
-    return ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
+    return ['Batch 2025', 'Batch 2026', 'Batch 2027', 'Batch 2028'];
   }, [rawPt, rawBo]);
   
   const showCollege = siteSettings?.registration_institution_visible ?? false;
@@ -278,7 +278,7 @@ const DashboardLayout: React.FC = () => {
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-red-800/10 rounded-full blur-[100px]" />
         
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="superia-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5">
+          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5">
             <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8 relative">
               <User className="w-10 h-10 text-red-400" />
             </div>
@@ -314,7 +314,7 @@ const DashboardLayout: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#0a0a0a] pt-24 pb-12 px-4 flex items-center justify-center relative overflow-hidden">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="superia-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5 text-center">
+          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5 text-center">
             <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8"><Clock className="w-10 h-10 text-red-400" /></div>
             <h1 className="text-3xl font-bold text-white mb-4">Verification in Progress</h1>
             <p className="text-gray-400 text-lg mb-8">Our admins are currently verifying your profile details. Stay tuned!</p>
@@ -347,9 +347,63 @@ const DashboardLayout: React.FC = () => {
       {/* Aurora Background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[#060608]" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <motion.div className="absolute rounded-full" style={{ width: 700, height: 700, top: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(220,38,38,0.18) 0%, transparent 70%)' }} animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0], scale: [1, 1.1, 0.95, 1] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} />
-        <motion.div className="absolute rounded-full" style={{ width: rankInfo ? 1200 : 500, height: rankInfo ? 1200 : 500, top: '40%', left: '40%', transform: 'translate(-50%, -50%)', background: rankInfo ? `radial-gradient(circle, ${rankInfo.auraColor} 0%, transparent 70%)` : 'radial-gradient(circle, rgba(124,58,237,0.07) 0%, transparent 70%)' }} animate={{ x: [0, 60, -40, 0], y: [0, -40, 30, 0], scale: [1, 1.15, 0.9, 1] }} transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 7 }} />
+        
+        {/* Animated Aurora Orbs */}
+        <motion.div 
+          className="absolute rounded-full filter blur-[120px] opacity-20"
+          style={{ 
+            width: '60vw', 
+            height: '60vw', 
+            top: '-10%', 
+            right: '-5%', 
+            background: 'radial-gradient(circle, #ef4444 0%, transparent 70%)' 
+          }}
+          animate={{ 
+            x: [0, 50, -30, 0], 
+            y: [0, -40, 30, 0],
+            scale: [1, 1.1, 0.9, 1]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        
+        <motion.div 
+          className="absolute rounded-full filter blur-[100px] opacity-[0.15]"
+          style={{ 
+            width: '50vw', 
+            height: '50vw', 
+            bottom: '10%', 
+            left: '5%', 
+            background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)' 
+          }}
+          animate={{ 
+            x: [0, -40, 50, 0], 
+            y: [0, 30, -50, 0],
+            scale: [0.9, 1.15, 1, 0.9]
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+        />
+
+        {/* Dynamic Rank Aura */}
+        {rankInfo && (
+          <motion.div 
+            className="absolute rounded-full filter blur-[150px] opacity-[0.12]"
+            style={{ 
+              width: '100vw', 
+              height: '100vw', 
+              top: '20%', 
+              left: '10%', 
+              background: `radial-gradient(circle, ${rankInfo.auraColor} 0%, transparent 70%)` 
+            }}
+            animate={{ 
+              scale: [1, 1.2, 0.8, 1],
+              opacity: [0.08, 0.15, 0.1, 0.08]
+            }}
+            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          />
+        )}
+        
+        {/* Tech Grid */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:60px_60px]" />
       </div>
 
       {selectedPass && (
@@ -362,19 +416,22 @@ const DashboardLayout: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
         
         {/* Header Greeting */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-4 sm:p-6 md:p-10 superia-glass-card border border-white/10">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-4 sm:p-6 md:p-10 premium-glass premium-shadow border border-white/10">
           <div className="relative z-10 flex items-center justify-between gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2 text-white"><Menu className="w-6 h-6" /></button>
             <div className="flex items-center gap-3 sm:gap-5 min-w-0">
               <XPRing profile={profile as any} registrationsCount={registrations.length} sportsCount={sportsRegistrations.length} realXP={xpData?.total_xp} realTier={xpData?.tier} rank={rankInfo?.rank} />
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium mb-1.5"><ShieldCheck className="w-3 h-3" /> <span>{isNightMode ? '🌙 Night Mode' : 'Verified'}</span></div>
-                <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-white truncate">
-                  {hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening'}, <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rankInfo ? rankInfo.auraGradient : 'from-red-400 via-white to-orange-500'}`}>{profile?.full_name?.split(' ')[0] || 'Student'}!</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-[0.2em] mb-2 shadow-inner">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> 
+                  <span>{isNightMode ? 'Night Ops' : 'Verified Profile'}</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl md:text-5xl font-black text-white tracking-tighter truncate leading-none">
+                  {hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening'}, <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rankInfo ? rankInfo.auraGradient : 'from-indigo-400 via-white to-rose-400'}`}>{profile?.full_name?.split(' ')[0] || 'Student'}!</span>
                 </h1>
               </div>
             </div>
-            <button onClick={() => signOut()} className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white border border-white/5 transition-all text-sm flex items-center gap-2"><LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span></button>
+            <button onClick={() => signOut()} className="px-6 py-3 bg-white/[0.03] hover:bg-white/[0.08] rounded-2xl text-gray-400 hover:text-white border border-white/5 transition-all text-sm font-black uppercase tracking-widest flex items-center gap-2 shadow-xl"><LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Terminate Session</span></button>
           </div>
         </motion.div>
 
@@ -388,12 +445,16 @@ const DashboardLayout: React.FC = () => {
                 key={item.id}
                 to={item.path}
                 end={item.path === '/dashboard'}
-                className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
-                  isActive ? 'bg-red-600/10 border border-red-500/20 text-red-400 shadow-sm shadow-red-900/20' : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
+                className={({ isActive }) => `w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-300 premium-glass-hover ${
+                  isActive ? 'bg-indigo-600/10 border border-indigo-500/30 text-indigo-400 shadow-lg shadow-indigo-950/20 premium-shadow' : 'text-gray-500 hover:bg-white/5 hover:text-white border border-transparent'
                 }`}
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium truncate">{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-indigo-400' : 'text-gray-600'}`} />
+                    <span className="font-black uppercase tracking-widest text-[10px] truncate">{item.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
             <div className="mt-4"><NextUpTimeline onBrowseEvents={() => navigate('/events')} /></div>
@@ -413,11 +474,22 @@ const DashboardLayout: React.FC = () => {
 
       {/* Mobile Drawer */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/80 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <motion.div initial={{ x: -300 }} animate={{ x: 0 }} className="w-64 h-full bg-[#0d0d0d] p-6 space-y-2" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] bg-black/90 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <motion.div initial={{ x: -300 }} animate={{ x: 0 }} className="w-72 h-full bg-[#0d0d0d] p-8 space-y-3 premium-glass border-r border-white/10" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-10 pb-6 border-b border-white/5">
+              <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-red-500" />
+              </div>
+              <span className="text-sm font-black text-white uppercase tracking-widest leading-none">Command Center</span>
+            </div>
             {menuItems.map((item) => (
-              <NavLink key={item.id} to={item.path} end={item.path === '/dashboard'} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl ${isActive ? 'bg-red-600/10 text-red-400' : 'text-gray-400'}`}>
-                <item.icon className="w-5 h-5" /> {item.label}
+              <NavLink key={item.id} to={item.path} end={item.path === '/dashboard'} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${isActive ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-950/20' : 'text-gray-500 hover:bg-white/5'}`}>
+                {({ isActive }) => (
+                  <>
+                    <item.icon className={`w-5 h-5 ${isActive ? 'text-indigo-400' : 'text-gray-600'}`} /> 
+                    <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-indigo-400' : ''}`}>{item.label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </motion.div>

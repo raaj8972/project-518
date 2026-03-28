@@ -14,8 +14,12 @@ const auraGradients = [
 ];
 
 const TopLegendsSection: React.FC = () => {
-  const { stars: legends } = useTopStars(5);
+  const { stars: legends, loading } = useTopStars(5);
   const [selectedProfile, setSelectedProfile] = useState<TopStarProfile | null>(null);
+
+  if (!loading && legends.length === 0) {
+    return null;
+  }
 
   return (
     <section className="py-24 relative overflow-hidden bg-black">

@@ -854,7 +854,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       </div>
 
       {/* Modern Tabs */}
-      <div className="superia-glass-card p-2 rounded-[1.5rem] border-white/5 shadow-2xl flex flex-wrap gap-1.5 sticky top-24 z-40 backdrop-blur-3xl bg-black/40">
+      <div className="rico-glass-card p-2 rounded-[1.5rem] border-white/5 shadow-2xl flex flex-wrap gap-1.5 sticky top-24 z-40 backdrop-blur-3xl bg-black/40">
         {[
           { id: 'users', label: 'Nodes', icon: Users, color: 'indigo' },
           { id: 'passes', label: 'Inbound', icon: FileUp, color: 'blue' },
@@ -905,7 +905,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
 
           {showCreateUser && (
-            <form onSubmit={handleCreateSecurityUser} className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
+            <form onSubmit={handleCreateSecurityUser} className="rico-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Username</label>
@@ -964,14 +964,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           )}
 
           {securityUsers.length === 0 ? (
-            <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+            <div className="rico-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
               <Users size={32} className="mx-auto text-gray-500 mb-4" />
               <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Zero security nodes detected in the matrix</p>
             </div>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {securityUsers.map((user) => (
-                <div key={user.id} className="superia-glass-card p-5 rounded-2xl border-white/10 shadow-xl flex items-center justify-between hover:bg-white/5 transition-all group relative overflow-hidden">
+                <div key={user.id} className="rico-glass-card p-5 rounded-2xl border-white/10 shadow-xl flex items-center justify-between hover:bg-white/5 transition-all group relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2 group-hover:bg-indigo-500/10 transition-colors" />
                   <div className="relative z-10 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center font-black text-indigo-400 shadow-inner group-hover:scale-105 transition-transform">
@@ -1021,14 +1021,14 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
 
           {passRegistrations.length === 0 ? (
-            <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+            <div className="rico-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
               <FileUp size={32} className="mx-auto text-gray-500 mb-4" />
               <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No registration data streams detected</p>
             </div>
           ) : (
             <div className="grid gap-4">
               {passRegistrations.map((reg) => (
-                <div key={reg.id} className="superia-glass-card p-6 rounded-3xl border-white/10 shadow-xl hover:bg-white/5 transition-all group relative overflow-hidden">
+                <div key={reg.id} className="rico-glass-card p-6 rounded-3xl border-white/10 shadow-xl hover:bg-white/5 transition-all group relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
                   
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -1216,7 +1216,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
 
           {showBulkVIP && (
-            <div className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
+            <div className="rico-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xl font-black text-white tracking-tight uppercase">Bulk Import Nexus</h3>
@@ -1253,7 +1253,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           )}
 
           {showCreateVIP && (
-            <form onSubmit={handleCreateVIP} className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
+            <form onSubmit={handleCreateVIP} className="rico-glass-card p-8 rounded-3xl border-white/10 shadow-2xl space-y-6 animate-in fade-in slide-in-from-top-4">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-[10px] font-black text-indigo-300 uppercase tracking-widest ml-1">Identity Designation</label>
@@ -1306,7 +1306,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             {filteredVipPasses.length === 0 ? (
-              <div className="superia-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
+              <div className="rico-glass-card p-12 text-center rounded-3xl border-white/10 opacity-60">
                 <Crown size={32} className="mx-auto text-gray-500 mb-4" />
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">
                   {vipPasses.length === 0 ? 'Zero VIP signals detected' : 'No matches in the matrix'}
@@ -1501,7 +1501,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
 
           <div className="grid gap-6">
-            <div className="superia-glass-card p-8 rounded-3xl border-white/10 shadow-xl space-y-8 relative overflow-hidden">
+            <div className="rico-glass-card p-8 rounded-3xl border-white/10 shadow-xl space-y-8 relative overflow-hidden">
                <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
                
                <div className="space-y-4 relative z-10">
@@ -1610,7 +1610,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest opacity-60">Dashboard Credentials & Access Keys</p>
           </div>
 
-          <div className="superia-glass-card p-10 rounded-3xl border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="rico-glass-card p-10 rounded-3xl border-white/10 shadow-2xl relative overflow-hidden">
              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/5 rounded-full blur-[60px] -translate-y-1/2 translate-x-1/2" />
              
              <div className="max-w-2xl space-y-6 relative z-10">
@@ -1689,7 +1689,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
           </div>
 
           {!rulesTableReady && (
-            <div className="superia-glass-card p-6 rounded-2xl border-amber-500/20 bg-amber-500/5 flex items-start gap-4">
+            <div className="rico-glass-card p-6 rounded-2xl border-amber-500/20 bg-amber-500/5 flex items-start gap-4">
               <AlertTriangle className="text-amber-500 mt-1" size={20} />
               <div>
                 <p className="text-amber-500 font-black text-sm uppercase tracking-widest">Database Sync Error</p>
@@ -1703,7 +1703,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
 
           <div className="grid md:grid-cols-2 gap-6">
             {validationRules.map((rule) => (
-              <div key={rule.id} className={`superia-glass-card p-6 rounded-3xl border-white/10 shadow-xl transition-all group relative overflow-hidden ${
+              <div key={rule.id} className={`rico-glass-card p-6 rounded-3xl border-white/10 shadow-xl transition-all group relative overflow-hidden ${
                 !rule.is_active ? 'opacity-50 grayscale' : ''
               }`}>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
@@ -1822,7 +1822,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
       {/* QR Modal */}
       {selectedPass && createPortal(
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 animate-in fade-in duration-300">
-          <div className="superia-glass-card p-10 rounded-[3rem] max-w-md w-full border-white/10 shadow-[0_0_100px_rgba(99,102,241,0.2)] text-center relative overflow-hidden">
+          <div className="rico-glass-card p-10 rounded-[3rem] max-w-md w-full border-white/10 shadow-[0_0_100px_rgba(99,102,241,0.2)] text-center relative overflow-hidden">
              <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
              <div className="relative z-10 flex flex-col items-center">
                 <div className="w-16 h-1 w-24 bg-indigo-500 rounded-full mb-8 opacity-20" />
@@ -1876,7 +1876,7 @@ export const SecurityManagement: React.FC<SecurityManagementProps> = ({ defaultT
             </button>
           </div>
 
-          <div className="superia-glass-card rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden bg-white/[0.02]">
+          <div className="rico-glass-card rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden bg-white/[0.02]">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>

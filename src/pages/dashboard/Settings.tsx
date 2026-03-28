@@ -88,7 +88,7 @@ const Settings: React.FC = () => {
         <p className="text-gray-400">Manage your personal information and account details.</p>
       </div>
 
-      <div className="superia-glass-card p-8 rounded-3xl border border-white/10 bg-white/5 space-y-10">
+      <div className="rico-glass-card p-8 rounded-3xl border border-white/10 bg-white/5 space-y-10">
         {/* Photo Section */}
         <div className="flex flex-col items-center">
           <div 

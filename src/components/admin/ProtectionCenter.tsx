@@ -76,7 +76,7 @@ export const ProtectionCenter: React.FC = () => {
            <button 
              onClick={handleRunSystemScan}
              disabled={scanning}
-             className="superia-glass-card hover:bg-white/5 px-6 py-2.5 rounded-2xl border-white/5 hover:border-indigo-500/30 transition-all flex items-center gap-3 group"
+             className="rico-glass-card hover:bg-white/5 px-6 py-2.5 rounded-2xl border-white/5 hover:border-indigo-500/30 transition-all flex items-center gap-3 group"
            >
               <RefreshCw className={`w-4 h-4 text-indigo-400 ${scanning ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
               <span className="text-[10px] font-black text-white uppercase tracking-widest">Run Integrity Check</span>
@@ -91,7 +91,7 @@ export const ProtectionCenter: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           
           {/* Integrity HUD */}
-          <div className="superia-glass-card rounded-[2.5rem] p-10 relative overflow-hidden group">
+          <div className="rico-glass-card rounded-[2.5rem] p-10 relative overflow-hidden group">
              {/* Decorative background grid */}
              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
              
@@ -140,7 +140,7 @@ export const ProtectionCenter: React.FC = () => {
 
           {/* Quick Actions & Controls */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-             <div className="superia-glass-card rounded-[2.5rem] p-8 border-rose-500/10 group overflow-hidden">
+             <div className="rico-glass-card rounded-[2.5rem] p-8 border-rose-500/10 group overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[40px]" />
                 <div className="flex items-center gap-4 mb-6">
                    <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20">
@@ -166,7 +166,7 @@ export const ProtectionCenter: React.FC = () => {
                 </div>
              </div>
 
-             <div className="superia-glass-card rounded-[2.5rem] p-8 border-indigo-500/10 group overflow-hidden">
+             <div className="rico-glass-card rounded-[2.5rem] p-8 border-indigo-500/10 group overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[40px]" />
                 <div className="flex items-center gap-4 mb-6">
                    <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20">
@@ -193,7 +193,7 @@ export const ProtectionCenter: React.FC = () => {
         {/* Right Col: Live Logs & Metrics */}
         <div className="space-y-8">
            {/* Security Metrics */}
-           <div className="superia-glass-card rounded-[2.5rem] p-8">
+           <div className="rico-glass-card rounded-[2.5rem] p-8">
               <h4 className="text-xs font-black text-indigo-400 uppercase tracking-[0.3em] mb-6 flex items-center gap-3">
                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
                  Live Defense Stats
@@ -234,7 +234,7 @@ export const ProtectionCenter: React.FC = () => {
            </div>
 
            {/* Recent Protection Logs */}
-           <div className="superia-glass-card rounded-[2.25rem] p-8 flex-1">
+           <div className="rico-glass-card rounded-[2.25rem] p-8 flex-1">
               <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">Security Event stream</h4>
               <div className="space-y-5">
                  {[

@@ -79,7 +79,7 @@ const WinnersSection: React.FC = () => {
       <div className="container mx-auto relative z-10 w-full">
         <div className="scroll-animate-3d">
           <div className="text-center mb-12">
-            <h2 className="text-4xl md:text-6xl font-black mb-6 superia-title-gradient tracking-tight">
+            <h2 className="text-4xl md:text-6xl font-black mb-6 rico-title-gradient tracking-tight">
               HALL OF GLORY
             </h2>
             <div className="w-24 h-1 bg-amber-500/40 mx-auto mb-8 rounded-full"></div>

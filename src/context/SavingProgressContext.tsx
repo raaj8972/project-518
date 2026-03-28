@@ -81,10 +81,10 @@ export const SavingProgressProvider: React.FC<React.PropsWithChildren<{}>> = ({ 
   const value = useMemo(() => ({ isActive, percent, label, start, set, inc, done, withSteps }), [isActive, percent, label, start, set, inc, done, withSteps]);
 
   return (
-    <SavingProgressContext.Provider value={value}>
+    <SavingProgressContext value={value}>
       {children}
       <SavingProgressOverlay active={isActive} percent={percent} label={label} />
-    </SavingProgressContext.Provider>
+    </SavingProgressContext>
   );
 };
 

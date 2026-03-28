@@ -1,5 +1,7 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import React, { createContext, useContext, ReactNode, FC, useState, useEffect, useCallback, useRef } from 'react';
+import * as React from 'react';
+const { useState, useEffect, useCallback, useRef, useMemo, useContext, createContext } = React;
+import type { ReactNode, FC } from 'react';
 console.log('[AuthContext.tsx] Module execution started. React available:', !!React, 'useState available:', !!useState);
 import { supabase } from '../lib/supabase';
 import { AdminService } from '../lib/adminService';
@@ -579,7 +581,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
   }, [user]);
 
   return (
-    <PrimaryAuthContext.Provider value={{ 
+    <PrimaryAuthContext value={{ 
       isAuthenticated, 
       user, 
       login, 
@@ -597,7 +599,7 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
       isLoggingOut
     }}>
       {children}
-    </PrimaryAuthContext.Provider>
+    </PrimaryAuthContext>
   );
 };
 

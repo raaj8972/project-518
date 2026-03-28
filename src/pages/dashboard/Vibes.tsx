@@ -11,7 +11,7 @@ const Vibes: React.FC = () => {
       className="space-y-12 pb-20"
     >
       {/* Immersive Header */}
-      <section className="relative overflow-hidden rounded-[3rem] p-12 superia-glass-card border border-white/10 bg-white/5">
+      <section className="relative overflow-hidden rounded-[3rem] p-12 rico-glass-card border border-white/10 bg-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-orange-600/10 opacity-30" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse" />
         
@@ -50,7 +50,7 @@ const Vibes: React.FC = () => {
       </div>
 
       {/* Community Guidelines / Info Card */}
-      <footer className="max-w-3xl mx-auto superia-glass-card rounded-[2.5rem] p-10 border border-white/5 bg-white/[0.01] text-center">
+      <footer className="max-w-3xl mx-auto rico-glass-card rounded-[2.5rem] p-10 border border-white/5 bg-white/[0.01] text-center">
         <div className="flex flex-col items-center gap-6">
           <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
             <TrendingUp className="w-8 h-8 text-gray-500" />
