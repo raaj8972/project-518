@@ -6,11 +6,15 @@ import { SEO } from '../components/SEO';
 import { FaceSearchDialog } from '../components/gallery/FaceSearchDialog';
 
 export const Gallery: React.FC = () => {
-  const { galleryImages, eventCategories, loading, sanitizeUrl } = useData() as any;
+  const { galleryImages, eventCategories, loading, sanitizeUrl, loadGalleryImages } = useData() as any;
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [matchingImageIds, setMatchingImageIds] = useState<number[] | null>(null);
   const [showFaceSearch, setShowFaceSearch] = useState(false);
+
+  useEffect(() => {
+    loadGalleryImages?.();
+  }, [loadGalleryImages]);
 
   // Derive subcategories for the currently selected category
   const subcategories = useMemo(() => {

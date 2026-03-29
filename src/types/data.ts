@@ -388,6 +388,7 @@ export interface DataContextType {
 
   updateAboutSettings: (settings: Partial<AboutSettings>) => Promise<void>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
+  loadGalleryImages: () => Promise<void>;
   prefetchEvents?: () => Promise<void>;
   prefetchGalleryImages?: () => Promise<void>;
   addRoadmapMilestone: (m: Partial<RoadmapMilestone>) => Promise<void>;

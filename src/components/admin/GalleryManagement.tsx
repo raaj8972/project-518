@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Plus, Edit, Trash2, Star, Calendar, CheckSquare, Square, Tag, Image as ImageIcon, ScanFace, Loader2, LayoutGrid, List, Settings, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Plus, Edit, Trash2, Star, Calendar, CheckSquare, Square, Tag, Image as ImageIcon, ScanFace, Loader2, LayoutGrid, List, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { GalleryImage } from '../../context/DataContext';
+import type { GalleryImage } from '../../types/data';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
 import { GoogleDriveImporter } from './GoogleDriveImporter';
@@ -19,19 +19,22 @@ export const GalleryManagement: React.FC = () => {
     toggleGalleryImageFeatured,
     gallerySettings,
     updateGallerySettings,
-    sanitizeUrl
+    sanitizeUrl,
+    loadGalleryImages
   } = useData();
   const savingProgress = useSavingProgress();
   const { submitForApproval, checkRequiresApproval } = useApprovals();
+
+  useEffect(() => {
+    loadGalleryImages?.();
+  }, [loadGalleryImages]);
   const [requiresApproval, setRequiresApproval] = useState(false);
   // Auto-Indexer State
   const [isIndexing, setIsIndexing] = useState(false);
-  const [indexStats, setIndexStats] = useState<{ processed: number; faces: number } | null>(null);
 
   const handleAutoIndex = async () => {
     try {
       setIsIndexing(true);
-      setIndexStats(null);
       const res = await fetch('/api/index-faces-batch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -41,7 +44,6 @@ export const GalleryManagement: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Indexing failed');
       
-      setIndexStats({ processed: data.processed, faces: data.facesFound });
       alert(`Processed ${data.processed} images. Found ${data.facesFound} faces.`);
       
     } catch (err: any) {

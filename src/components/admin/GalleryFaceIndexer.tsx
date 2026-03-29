@@ -21,8 +21,12 @@ import { useToast } from '../../components/ToastProvider';
 import { dualRead, dualDelete, dualUpdate } from '../../lib/dualDb';
 
 export const GalleryFaceIndexer: React.FC = () => {
-  const { galleryImages } = useData();
+  const { galleryImages, loadGalleryImages } = useData();
   const { push: toast } = useToast();
+
+  React.useEffect(() => {
+    loadGalleryImages?.();
+  }, [loadGalleryImages]);
   const [indexing, setIndexing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [stats, setStats] = useState({ total: 0, processed: 0, facesFound: 0, errors: 0 });

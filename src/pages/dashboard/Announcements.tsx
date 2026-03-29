@@ -15,7 +15,7 @@ const Announcements: React.FC = () => {
         <h1 className="text-3xl font-bold text-white mb-2">Announcements</h1>
         <p className="text-gray-400">Official updates and important notices for {new Date().getFullYear()}.</p>
       </div>
-      <AnnouncementsPanel />
+      <AnnouncementsPanel mode="student" />
     </motion.div>
   );
 };

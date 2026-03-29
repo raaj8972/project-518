@@ -97,12 +97,13 @@ const AppShell: React.FC = () => {
   const personnel = usePersonnelData();
   const gallery = useGalleryData();
   const management = useManagementData();
-  
   const [msg, setMsg] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(getCachedLogoUrl() ?? undefined);
   const [splashVisible, setSplashVisible] = useState(true);
 
-  const combinedLoading = core.loading || events.loading || personnel.loading || gallery.loading || management.loading;
+  // Decoupled massive contexts from the root blocking loader to improve Time to Interactive.
+  // Other contexts will now asynchronously populate without freezing the entire site.
+  const combinedLoading = core.loading;
 
   const isAdminOrOwner = useMemo(() => {
     try {
@@ -121,7 +122,7 @@ const AppShell: React.FC = () => {
         console.log('[Loading Monitor]', {
           core: core.loading, events: events.loading,
           personnel: personnel.loading, gallery: gallery.loading,
-          management: management.loading, total: combinedLoading
+          management: management.loading, blockingUI: combinedLoading
         });
       }
     }, 2000);
@@ -134,7 +135,7 @@ const AppShell: React.FC = () => {
     }, 12000);
 
     return () => { clearInterval(interval); clearTimeout(timer); };
-  }, [splashVisible, core.loading, events.loading, personnel.loading, gallery.loading, management.loading]);
+  }, [splashVisible, core.loading, events.loading, personnel.loading, gallery.loading, management.loading, combinedLoading]);
 
   useEffect(() => {
     const handleRejection = (e: PromiseRejectionEvent) => {

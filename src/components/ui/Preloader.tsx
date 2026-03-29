@@ -195,7 +195,7 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
 
   // ── Progress animation ────────────────────────────────────────────────────
   useEffect(() => {
-    const DURATION = 2500;
+    const DURATION = 1000;
     const start = performance.now();
 
     const animate = (now: number) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Trash2, Pencil, Check, X, Bell, Globe, Users, AlertCircle, Tag } from 'lucide-react';
+import { Trash2, Pencil, Check, X, Bell, Globe, Users, AlertCircle, Tag, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type AnnouncementCategory = 'general' | 'sports' | 'cultural' | 'academic';
@@ -28,7 +28,7 @@ const CATEGORY_META: Record<AnnouncementCategory, { label: string; color: string
 type ViewMode = 'admin' | 'coordinator' | 'student';
 
 interface AnnouncementsPanelProps {
-  mode: ViewMode;
+  mode?: ViewMode;
   eventTitle?: string;
   eventId?: string; // For coordinator: restrict posts to this event
   compact?: boolean;
@@ -38,7 +38,7 @@ interface AnnouncementsPanelProps {
 }
 
 export const AnnouncementsPanel: React.FC<AnnouncementsPanelProps> = ({ 
-  mode, 
+  mode = 'student', 
   eventTitle, 
   eventId,
   compact = false,

@@ -22,6 +22,7 @@ interface GalleryContextType {
   fetchDriveFolders: (folderId: string) => Promise<any>;
   syncGoogleDriveBatch: (folderId: string, subfolderId: string, year?: string, category?: string) => Promise<any>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
+  loadGalleryImages: () => Promise<void>;
 }
 
 const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
@@ -45,10 +46,11 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
   const [loading, setLoading] = useState(false);
+  const [imagesFetched, setImagesFetched] = useState(false);
 
-  const fetchGalleryData = useCallback(async () => {
+  const fetchGalleryData = useCallback(async (includeImages: boolean = false) => {
     setLoading(true);
-    console.log('[GalleryContext] fetchGalleryData started');
+    console.log('[GalleryContext] fetchGalleryData started', { includeImages });
     const start = Date.now();
     try {
       // 1. Fetch settings (single request)
@@ -60,8 +62,15 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
       console.log('✔ gallery_settings');
       setGallerySettings(settingsData || DEFAULT_GALLERY_SETTINGS);
 
+      // Only fetch the tens of thousands of images if explicitly requested 
+      // (e.g., user is viewing the Gallery or Dashboard), to prevent network/memory lag across the site.
+      if (!includeImages && !imagesFetched) {
+        console.log('[GalleryContext] Deferring mass image fetch until requested.');
+        setLoading(false);
+        return;
+      }
+
       // 2. Fetch total count first (using dualRead with head: true logic if supported, or just select all and count)
-      // For now, let's use a simple direct count but with a timeout
       const countPromise = supabase
         .from('gallery_images')
         .select('*', { count: 'exact', head: true });
@@ -112,19 +121,22 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
 
       console.log(`[GalleryContext] Successfully fetched ${allImages.length} images in ${Date.now() - start}ms`);
       setGalleryImages(allImages);
+      setImagesFetched(true);
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [imagesFetched]);
 
   useEffect(() => {
     if (refreshTrigger > 0 || user?.id) {
-      fetchGalleryData();
+      // By default, just fetch settings. Context consumers must explicitly call `triggerGalleryLoad`
+      // or similar if they need the images array populated.
+      fetchGalleryData(imagesFetched);
     }
-  }, [refreshTrigger, user?.id, fetchGalleryData]);
+  }, [refreshTrigger, user?.id, imagesFetched, fetchGalleryData]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     await dualInsert('gallery_images', image);
@@ -206,8 +218,14 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
     await dualUpsert('gallery_settings', { id: 1, ...settings });
-    await fetchGalleryData();
+    await fetchGalleryData(); // Wait, this fetched with false by default now. Let's make sure it updates fine.
   };
+
+  const loadGalleryImages = useCallback(async () => {
+    if (!imagesFetched && !loading) {
+      await fetchGalleryData(true);
+    }
+  }, [imagesFetched, loading, fetchGalleryData]);
 
   const value: GalleryContextType = {
     galleryImages,
@@ -220,7 +238,8 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     syncGoogleDrive,
     fetchDriveFolders,
     syncGoogleDriveBatch,
-    updateGallerySettings
+    updateGallerySettings,
+    loadGalleryImages
   };
 
   return <PrimaryGalleryContext.Provider value={value}>{children}</PrimaryGalleryContext.Provider>;
