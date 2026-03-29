@@ -68,7 +68,7 @@ const ResetPassword = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="rico-glass-card rounded-3xl p-10 text-center border border-white/10"
+            className="superia-glass-card rounded-3xl p-10 text-center border border-white/10"
           >
             <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="w-10 h-10 text-emerald-400" />
@@ -99,7 +99,7 @@ const ResetPassword = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rico-glass-card rounded-3xl p-10 border border-white/10 shadow-2xl relative overflow-hidden"
+          className="superia-glass-card rounded-3xl p-10 border border-white/10 shadow-2xl relative overflow-hidden"
         >
           {/* Subtle Progress Bar */}
           {status === 'loading' && (

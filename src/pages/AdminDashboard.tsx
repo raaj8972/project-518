@@ -648,8 +648,8 @@ export const AdminDashboard: React.FC = () => {
             )}
             {isOwner && activeTab === 'overview' && (
               <div className="space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                {/* RICO V3 Welcome Hero */}
-                <div className="rico-glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden group">
+                {/* SUPERIA V3 Welcome Hero */}
+                <div className="superia-glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden group">
                    {/* Decorative background effects */}
                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] group-hover:bg-indigo-500/15 transition-all duration-1000"></div>
                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
@@ -698,7 +698,7 @@ export const AdminDashboard: React.FC = () => {
                 }} />
 
                 {/* ─── ADMIN ANNOUNCEMENTS BROADCAST ─── */}
-                 <div className="rico-glass-card rounded-[2.5rem] p-8 relative overflow-hidden">
+                 <div className="superia-glass-card rounded-[2.5rem] p-8 relative overflow-hidden">
                    <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                    <div className="relative z-10">
                     <AnnouncementsPanel 
@@ -714,7 +714,7 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Priority Attention Vector */}
                 {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
-                   <div className="rico-glass-card rounded-[2.5rem] p-8 border-rose-500/10 relative overflow-hidden">
+                   <div className="superia-glass-card rounded-[2.5rem] p-8 border-rose-500/10 relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
 
                       <div className="flex items-center gap-4 mb-8 relative z-10">
@@ -783,7 +783,7 @@ export const AdminDashboard: React.FC = () => {
                    </div>
                 )}
 
-                {/* RICO Real-time Stats */}
+                {/* SUPERIA Real-time Stats */}
                 <StatsOverview stats={{
                   eventsCount: events.length,
                   registrationsCount: registrations.length,
@@ -795,7 +795,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Recent Activity */}
                   <div className="lg:col-span-2 space-y-8">
-                    <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
+                    <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
                       <div className="flex justify-between items-center mb-8">
                         <h3 className="text-xl font-black text-white flex items-center gap-4">
                           <div className="p-3 bg-indigo-500/15 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
@@ -854,7 +854,7 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* Team Pulse & Applications */}
                     <div className="grid md:grid-cols-2 gap-8">
-                      <div className="rico-glass-card rounded-[2.5rem] p-8 group animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
+                      <div className="superia-glass-card rounded-[2.5rem] p-8 group animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
                         <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
                           <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-lg shadow-blue-500/5">
                             <Users className="w-6 h-6 text-blue-400" />
@@ -876,7 +876,7 @@ export const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400">
+                      <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400">
                         <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
                           <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/5">
                             <Star className="w-6 h-6 text-amber-400" />
@@ -910,7 +910,7 @@ export const AdminDashboard: React.FC = () => {
                   {/* Sidebar Components Dashboard */}
                   <div className="lg:col-span-1 space-y-8">
                     {/* Quick Launchpad */}
-                    <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-right-8 duration-700 delay-500">
+                    <div className="superia-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-right-8 duration-700 delay-500">
                       <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-8 text-center">Neural Navigator</h4>
                       <div className="grid grid-cols-2 gap-5">
                         {[
@@ -970,10 +970,10 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="rico-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
+                    <div className="superia-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
                       <ConnectionOverview />
                     </div>
-                    <div className="rico-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
+                    <div className="superia-glass-card rounded-[2.5rem] overflow-hidden p-1 border-white/5 hover:border-white/10 transition-colors">
                       <StorageOverview />
                     </div>
                   </div>
@@ -995,7 +995,7 @@ export const AdminDashboard: React.FC = () => {
             {/* Sports-only announcements — category locked to 'sports' */}
             {activeTab === 'sports-announcements' && (
               <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden">
+                <div className="superia-glass-card rounded-[2rem] p-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                   <div className="relative z-10">
                     <AnnouncementsPanel mode="admin" defaultCategory="sports" />
@@ -1029,7 +1029,7 @@ export const AdminDashboard: React.FC = () => {
 
             {activeTab === 'announcements' && (
               <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden">
+                <div className="superia-glass-card rounded-[2rem] p-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                   <div className="relative z-10">
                     <AnnouncementsPanel mode="admin" />

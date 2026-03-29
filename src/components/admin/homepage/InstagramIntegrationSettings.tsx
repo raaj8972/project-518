@@ -23,13 +23,13 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
             </div>
           </div>
           <label className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-10 h-6 rounded-full p-1 transition-colors duration-300 bg-white/10 group-has-[:checked]:bg-pink-500">
-              <div className="w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 translate-x-0 group-has-[:checked]:translate-x-4" />
+            <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.instagram_trailer_enabled ? 'bg-pink-500' : 'bg-white/10'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.instagram_trailer_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </div>
             <input
               type="checkbox"
               checked={form.instagram_trailer_enabled || false}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_trailer_enabled: e.target.checked }))}
+              onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_enabled: e.target.checked }))}
               className="hidden"
             />
           </label>
@@ -41,7 +41,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
             <input
               type="url"
               value={form.instagram_trailer_url || ''}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_trailer_url: e.target.value }))}
+              onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_url: e.target.value }))}
               placeholder="https://instagram.com/reel/..."
               className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all font-mono text-xs"
             />
@@ -52,7 +52,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
               <input
                 type="text"
                 value={form.instagram_trailer_title || ''}
-                onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_trailer_title: e.target.value }))}
+                onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_title: e.target.value }))}
                 placeholder="OFFICIAL TRAILER"
                 className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 text-xs font-bold"
               />
@@ -62,7 +62,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
               <input
                 type="text"
                 value={form.instagram_trailer_subtitle || ''}
-                onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_trailer_subtitle: e.target.value }))}
+                onChange={(e) => setForm(prev => ({ ...prev, instagram_trailer_subtitle: e.target.value }))}
                 placeholder="Experience the hype"
                 className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 text-xs"
               />
@@ -86,13 +86,13 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
             </div>
           </div>
           <label className="flex items-center gap-3 cursor-pointer group">
-            <div className="w-10 h-6 rounded-full p-1 transition-colors duration-300 bg-white/10 group-has-[:checked]:bg-purple-500">
-              <div className="w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 translate-x-0 group-has-[:checked]:translate-x-4" />
+            <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${form.instagram_aftermovie_enabled ? 'bg-purple-500' : 'bg-white/10'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${form.instagram_aftermovie_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </div>
             <input
               type="checkbox"
               checked={form.instagram_aftermovie_enabled || false}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_aftermovie_enabled: e.target.checked }))}
+              onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_enabled: e.target.checked }))}
               className="hidden"
             />
           </label>
@@ -104,7 +104,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
             <input
               type="url"
               value={form.instagram_aftermovie_url || ''}
-              onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_aftermovie_url: e.target.value }))}
+              onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_url: e.target.value }))}
               placeholder="https://instagram.com/reel/..."
               className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all font-mono text-xs"
             />
@@ -115,7 +115,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
               <input
                 type="text"
                 value={form.instagram_aftermovie_title || ''}
-                onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_aftermovie_title: e.target.value }))}
+                onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_title: e.target.value }))}
                 placeholder="EVENT AFTERMOVIE"
                 className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 text-xs font-bold"
               />
@@ -125,7 +125,7 @@ export const InstagramIntegrationSettings: React.FC<InstagramIntegrationSettings
               <input
                 type="text"
                 value={form.instagram_aftermovie_subtitle || ''}
-                onChange={(e) => setForm((prev: any) => ({ ...prev, instagram_aftermovie_subtitle: e.target.value }))}
+                onChange={(e) => setForm(prev => ({ ...prev, instagram_aftermovie_subtitle: e.target.value }))}
                 placeholder="Relive the moments"
                 className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 text-xs"
               />

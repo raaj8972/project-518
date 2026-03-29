@@ -74,7 +74,7 @@ const BatchWar: React.FC = () => {
   const maxCount = Math.max(...stats.map(s => s.count), 1);
 
   return (
-    <div className="rico-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 overflow-hidden relative group">
+    <div className="superia-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 overflow-hidden relative group">
       {/* Background Ambience */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-red-500/5 opacity-30 group-hover:opacity-50 transition-opacity" />
       

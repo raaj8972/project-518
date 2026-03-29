@@ -327,5 +327,5 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     toggleSponsorshipPackageEnabled
   };
 
-  return <PrimaryCoreContext value={value}>{children}</PrimaryCoreContext>;
+  return <PrimaryCoreContext.Provider value={value}>{children}</PrimaryCoreContext.Provider>;
 };

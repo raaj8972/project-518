@@ -340,20 +340,15 @@ export const Login: React.FC = () => {
         <video
           ref={videoRef}
           autoPlay loop muted playsInline preload="metadata"
-          className="absolute inset-0 w-full h-full object-cover opacity-20 scale-105"
+          className="absolute inset-0 w-full h-full object-cover opacity-30 scale-105"
           onError={(e) => { e.currentTarget.style.display = 'none'; }}
         >
           <source src="/login_page_video.mp4" type="video/mp4" />
         </video>
-        <div className="absolute inset-0 bg-[#050508]" />
-        
-        {/* Aurora Orbs */}
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-gradient-to-br from-cyan-600/10 to-blue-500/5 rounded-full blur-[140px] animate-pulse" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-gradient-to-br from-indigo-600/10 to-purple-500/5 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '3s' }} />
-
+        <div className="absolute inset-0 bg-gradient-to-br from-black via-[#050510] to-black opacity-80" />
         {/* Scanning line */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-10">
-          <div className="w-full h-[1px] bg-cyan-400/40 animate-scan" />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-15">
+          <div className="w-full h-[1px] bg-cyan-400/60 animate-scan" />
         </div>
       </div>
 
@@ -442,7 +437,7 @@ export const Login: React.FC = () => {
         <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[520px] flex items-center justify-center p-4 sm:p-8">
           <div ref={cardRef} className="w-full max-w-md lg:max-w-none">
             {/* Card */}
-            <div className="premium-glass overflow-hidden rounded-[2.5rem] border border-white/10 shadow-2xl">
+            <div className="login-card overflow-hidden">
               {/* Top accent bar */}
               <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
 

@@ -43,7 +43,7 @@ const Passes: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="rico-glass-card p-12 rounded-3xl border border-white/10 flex flex-col items-center text-center">
+        <div className="superia-glass-card p-12 rounded-3xl border border-white/10 flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6">
             <QrCode className="w-8 h-8 text-gray-500" />
           </div>

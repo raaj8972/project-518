@@ -1,90 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Poppins:wght@400;700;900&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
 
-@import "tailwindcss";
-
-@theme {
-  --color-red-50: #fff0f3;
-  --color-red-100: #ffe0e6;
-  --color-red-200: #ffc2cf;
-  --color-red-300: #ff94aa;
-  --color-red-400: #ff5c7c;
-  --color-red-500: #ff2452;
-  --color-red-600: #fa003c;
-  --color-red-700: #d9002c;
-  --color-red-800: #b80026;
-  --color-red-900: #990424;
-  --color-red-950: #540010;
-
-  --color-rose-50: #fff0f3;
-  --color-rose-100: #ffe0e6;
-  --color-rose-200: #ffc2cf;
-  --color-rose-300: #ff94aa;
-  --color-rose-400: #ff5c7c;
-  --color-rose-500: #ff2452;
-  --color-rose-600: #fa003c;
-  --color-rose-700: #d9002c;
-  --color-rose-800: #b80026;
-  --color-rose-900: #990424;
-  --color-rose-950: #540010;
-
-  --color-pink-50: #fff0f3;
-  --color-pink-100: #ffe0e6;
-  --color-pink-200: #ffc2cf;
-  --color-pink-300: #ff94aa;
-  --color-pink-400: #ff5c7c;
-  --color-pink-500: #ff2452;
-  --color-pink-600: #fa003c;
-  --color-pink-700: #d9002c;
-  --color-pink-800: #b80026;
-  --color-pink-900: #990424;
-  --color-pink-950: #540010;
-
-  --color-gold-50: #fffdf0;
-  --color-gold-100: #fef9c3;
-  --color-gold-200: #feef8a;
-  --color-gold-300: #fde047;
-  --color-gold-400: #fbbf24;
-  --color-gold-500: #f59e0b;
-  --color-gold-600: #d97706;
-  --color-gold-700: #b45309;
-  --color-gold-800: #92400e;
-  --color-gold-900: #78350f;
-  --color-gold-950: #451a03;
-
-  --animate-rico-float: ricoFloat 6s ease-in-out infinite;
-  --animate-float-slow: float 20s ease-in-out infinite;
-  --animate-shine: shine-sweep 2s ease-in-out infinite;
-}
-
-
-
-
-
 @layer utilities {
-
-  .rico-glass {
-    @apply bg-neutral-950/[0.04] backdrop-blur-[40px] border border-white/[0.08] shadow-[0_12px_48px_-12px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.05)];
+  .superia-glass {
+    @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.5)];
   }
-
-  .rico-glass-card {
-    @apply bg-gradient-to-br from-white/[0.05] to-transparent backdrop-blur-[60px] border border-white/[0.1] shadow-[0_24px_64px_-24px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.08)];
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.01) 100%);
+}
+  .superia-glass-card {
+    @apply bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-3xl border border-white/5 shadow-[0_24px_48px_rgba(0,0,0,0.6)];
+  }
+  .animate-superia-float {
+    animation: superiaFloat 6s ease-in-out infinite;
+  }
+  @keyframes superiaFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(0.5deg); }
   }
 
   .logo-backglow { position: relative; isolation: isolate; }
   .logo-backglow::before {
-    content: '';
-    position: absolute;
-    inset: -10px;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 0; /* sits behind the logo content */
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0; /* sits behind the logo content */
     background:
       radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.22), rgba(236,72,153,0.34) 42%, rgba(147,51,234,0.28) 64%, rgba(0,0,0,0) 76%);
     opacity: var(--bglo-base, 0.32);
-    filter: blur(var(--bglo-blur, 16px));
-    transform: scale(0.98);
-    animation: backGlowPulse var(--bglo-speed, 2.6s) ease-in-out infinite;
+  filter: blur(var(--bglo-blur, 16px));
+  transform: scale(0.98);
+  animation: backGlowPulse var(--bglo-speed, 2.6s) ease-in-out infinite;
   }
   @keyframes backGlowPulse {
     0% { opacity: var(--bglo-base, 0.32); filter: blur(var(--bglo-blur, 16px)); transform: scale(0.98); }
@@ -95,46 +40,10 @@
   .glow-strong { --bglo-base: 0.42; --bglo-amp: 0.38; --bglo-blur: 18px; --bglo-speed: 2.2s; }
   .glow-medium { --bglo-base: 0.32; --bglo-amp: 0.28; --bglo-blur: 16px; --bglo-speed: 2.6s; }
   .glow-soft { --bglo-base: 0.24; --bglo-amp: 0.22; --bglo-blur: 14px; --bglo-speed: 3.0s; }
-
-  /* Premium Design Tokens */
-  .premium-glass {
-    @apply bg-white/[0.03] backdrop-blur-[24px] border border-white/[0.08] shadow-[0_8px_32px_0_rgba(0,0,0,0.8)];
-  }
-
-  .premium-glass-hover {
-    @apply transition-all duration-300 hover:bg-white/[0.06] hover:border-white/[0.15] hover:shadow-[0_12px_48px_0_rgba(0,0,0,0.9)];
-  }
-
-  .premium-gradient-red {
-    background: linear-gradient(135deg, #ff2452 0%, #ff5c7d 100%);
-  }
-
-  .premium-gradient-dark {
-    background: linear-gradient(180deg, #121212 0%, #080808 100%);
-  }
-
-  .premium-shadow {
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
-  }
-
-  .premium-border {
-    @apply border border-white/[0.08];
-  }
-
-  .premium-text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-red-500 via-rose-400 to-orange-400;
-  }
-
-  /* Animated Aurora */
-  .aurora-container {
-    @apply relative overflow-hidden;
-  }
-
-  .aurora-blob {
-    @apply absolute rounded-full blur-[100px] opacity-20 pointer-events-none;
-    filter: blur(100px);
-  }
-
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Spinner keyframes used by the app splash overlay */
 @keyframes spin {
@@ -143,7 +52,7 @@
 }
 
 /* Global responsive utilities */
-
+@layer utilities {
   /* Offscreen rendering optimization */
   .content-auto { content-visibility: auto; contain-intrinsic-size: 1000px 800px; }
   /* Fluid responsive type scale (use with text-[size] for fine control) */
@@ -171,25 +80,13 @@
   /* Reveal-on-scroll helpers */
   .scroll-animate {
     opacity: 0;
-    transform: translateY(30px);
-    transition: all 800ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateY(20px);
+    transition: opacity 600ms ease, transform 600ms ease;
     will-change: opacity, transform;
   }
   .animate-in {
     opacity: 1 !important;
     transform: translateY(0) !important;
-  }
-  
-  /* Cyber-Glow utility for text */
-  .text-glow-red {
-    text-shadow: 0 0 10px rgba(255, 36, 82, 0.7), 0 0 20px rgba(255, 36, 82, 0.4);
-  }
-  
-  /* Premium Noise Background */
-  .bg-noise {
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    opacity: 0.04;
   }
 
   /* Sponsors 3D scroll zoom helpers */
@@ -344,6 +241,13 @@
   .rotate-x-12 { transform: perspective(1000px) rotateX(12deg); }
   .rotate-x-minus-12 { transform: perspective(1000px) rotateX(-12deg); }
 
+  @keyframes shine-sweep {
+    0% { transform: translateX(-100%) skewX(-20deg); }
+    100% { transform: translateX(200%) skewX(-20deg); }
+  }
+  .animate-shine {
+    animation: shine-sweep 2s ease-in-out infinite;
+  }
 
   /* Larger tap targets on touch devices */
   .tap-target {
@@ -715,8 +619,8 @@ body {
 /* Global theme variables (used by LogoLoop and other accents) */
 :root {
   /* default dark theme - ST5 inspired */
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson accent */
-  --theme-glow-spread: rgba(26, 0, 6, 0.60);
+  --theme-accent: rgb(220, 38, 38); /* Blood red accent */
+  --theme-glow-spread: rgba(18, 6, 12, 0.60);
   --theme-card-bg: linear-gradient(180deg, #0f0f0f 0%, #050505 100%);
   /* Featured Artists carousel stage height (default/mobile) */
   --featured-stage-height: clamp(520px, 82svh, 760px);
@@ -747,38 +651,38 @@ body {
 
 /* Page-specific theme hooks via data-theme on <html> */
 html[data-theme="home"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="events"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="schedule"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="gallery"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="homebound"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="ricofamily"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="sponsors"] {
-  --theme-accent: rgb(250, 0, 60); /* Neon Crimson */
-  --theme-glow-spread: rgba(26, 0, 6, 0.70);
+  --theme-accent: rgb(220, 38, 38); /* Blood red */
+  --theme-glow-spread: rgba(18, 6, 12, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 

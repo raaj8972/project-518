@@ -68,8 +68,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
             className="group relative"
             style={{ animationDelay: `${index * 100}ms` }}
           >
-            {/* Floating Card - RICO Glass */}
-            <div className="premium-glass rounded-[2rem] p-8 h-full transition-all duration-700 hover:translate-y-[-10px] premium-shadow premium-glass-hover relative overflow-hidden group/card">
+            {/* Floating Card - Superia Glass */}
+            <div className="superia-glass-card rounded-[2rem] p-8 h-full transition-all duration-700 hover:translate-y-[-10px] hover:shadow-[0_20px_50px_rgba(0,0,0,0.6)] relative overflow-hidden group/card">
               
               {/* Animated Background Gradient Orb */}
               <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full bg-gradient-to-br ${colorClasses.split(' ').slice(0,2).join(' ')} opacity-5 blur-3xl group-hover/card:opacity-15 transition-opacity duration-1000`} />

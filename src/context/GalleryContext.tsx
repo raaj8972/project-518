@@ -1,4 +1,4 @@
-import { createContext, use, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { dualRead, dualInsert, dualUpdate, dualDelete, dualUpsert } from '../lib/dualDb';
 import { 
@@ -12,17 +12,12 @@ interface GalleryContextType {
   galleryImages: GalleryImage[];
   gallerySettings: GallerySettings | null;
   loading: boolean;
-  loadingMore: boolean;
-  hasMore: boolean;
-  totalCount: number;
   
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
   deleteGalleryImage: (id: number) => Promise<void>;
   bulkDeleteGalleryImages: (ids: number[]) => Promise<void>;
   
-  fetchGalleryData: (page?: number, append?: boolean, category?: string, subcategory?: string) => Promise<void>;
-  fetchMore: (category?: string, subcategory?: string) => Promise<void>;
   syncGoogleDrive: (folderId: string, year?: string, category?: string) => Promise<any>;
   fetchDriveFolders: (folderId: string) => Promise<any>;
   syncGoogleDriveBatch: (folderId: string, subfolderId: string, year?: string, category?: string) => Promise<any>;
@@ -37,7 +32,7 @@ const PrimaryGalleryContext = ((typeof window !== 'undefined')
   : GalleryContext) as React.Context<GalleryContextType | undefined>;
 
 export const useGalleryData = () => {
-  const context = use(PrimaryGalleryContext);
+  const context = useContext(PrimaryGalleryContext);
   if (context === undefined) {
     throw new Error('useGalleryData must be used within a GalleryProvider');
   }
@@ -50,74 +45,86 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
 
-  const fetchGalleryData = useCallback(async (page = 0, append = false, category?: string, subcategory?: string) => {
-    if (page === 0 && !append) setLoading(true);
-    if (append) setLoadingMore(true);
-
-    const PAGE_SIZE = 50;
+  const fetchGalleryData = useCallback(async () => {
+    setLoading(true);
+    console.log('[GalleryContext] fetchGalleryData started');
+    const start = Date.now();
     try {
-      // 1. Fetch settings (only on first load)
-      if (page === 0 && !append) {
-        const { data: settingsData } = await dualRead({
-          table: 'gallery_settings',
-          eq: ['id', 1],
-          maybeSingle: true
-        });
-        setGallerySettings(settingsData || DEFAULT_GALLERY_SETTINGS);
-      }
+      // 1. Fetch settings (single request)
+      const { data: settingsData } = await dualRead({
+        table: 'gallery_settings',
+        eq: ['id', 1],
+        maybeSingle: true
+      });
+      console.log('✔ gallery_settings');
+      setGallerySettings(settingsData || DEFAULT_GALLERY_SETTINGS);
 
-      // 2. Fetch data with filters
-      const from = page * PAGE_SIZE;
-      const to = (page + 1) * PAGE_SIZE - 1;
-
-      let query = supabase
+      // 2. Fetch total count first (using dualRead with head: true logic if supported, or just select all and count)
+      // For now, let's use a simple direct count but with a timeout
+      const countPromise = supabase
         .from('gallery_images')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact', head: true });
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('TIMEOUT')), 25000)
+      );
 
-      if (category && category !== 'All') {
-        query = query.ilike('category', category);
-      }
-      if (subcategory) {
-        query = query.eq('subcategory', subcategory);
-      }
+      console.log('[GalleryContext] Fetching image count...');
+      const { count, error: countError } = await Promise.race([countPromise, timeoutPromise]) as any;
 
-      const { data, count, error } = await query
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) throw error;
-
-      if (page === 0 && !append) {
-        setTotalCount(count || 0);
+      if (countError) {
+        console.error('[GalleryContext] Failed to get image count:', countError.message);
       }
 
-      const newImages = data || [];
-      setGalleryImages(prev => append ? [...prev, ...newImages] : newImages);
-      setHasMore(newImages.length === PAGE_SIZE);
+      const total = count || 0;
+      const batchSize = 1000;
+      const numBatches = Math.ceil(total / batchSize);
+      
+      console.log(`[GalleryContext] Total images to fetch: ${total} (${numBatches} batches)`);
+
+      const batchPromises = [];
+      for (let i = 0; i < numBatches; i++) {
+        const from = i * batchSize;
+        const to = Math.min((i + 1) * batchSize - 1, total - 1);
+        batchPromises.push(
+          dualRead({
+            table: 'gallery_images',
+            order: ['created_at', { ascending: false }],
+            range: [from, to]
+          })
+        );
+      }
+
+      const results = await Promise.all(batchPromises);
+      console.log(`✔ ${numBatches} batches fetched`);
+      
+      let allImages: GalleryImage[] = [];
+      
+      results.forEach((res) => {
+        if (res.data) {
+          allImages = [...allImages, ...res.data];
+        }
+      });
+
+      // Sort again just in case parallel results are out of order (though range handles it)
+      allImages.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+      console.log(`[GalleryContext] Successfully fetched ${allImages.length} images in ${Date.now() - start}ms`);
+      setGalleryImages(allImages);
 
     } catch (err) {
       console.error('[GalleryContext] Failed to fetch gallery data', err);
     } finally {
-      if (page === 0 && !append) setLoading(false);
-      setLoadingMore(false);
+      setLoading(false);
     }
   }, []);
 
-  const fetchMore = useCallback(async (category?: string, subcategory?: string) => {
-    if (loading || loadingMore || !hasMore) return;
-    const nextPage = Math.floor(galleryImages.length / 50);
-    await fetchGalleryData(nextPage, true, category, subcategory);
-  }, [galleryImages.length, hasMore, loading, loadingMore, fetchGalleryData]);
-
   useEffect(() => {
     if (refreshTrigger > 0 || user?.id) {
-      fetchGalleryData(0, false);
+      fetchGalleryData();
     }
-  }, [refreshTrigger, user?.id]);
+  }, [refreshTrigger, user?.id, fetchGalleryData]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     await dualInsert('gallery_images', image);
@@ -206,20 +213,15 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     galleryImages,
     gallerySettings,
     loading,
-    loadingMore,
-    hasMore,
-    totalCount,
     addGalleryImage,
     updateGalleryImage,
     deleteGalleryImage,
     bulkDeleteGalleryImages,
-    fetchMore,
-    fetchGalleryData,
     syncGoogleDrive,
     fetchDriveFolders,
     syncGoogleDriveBatch,
     updateGallerySettings
   };
 
-  return <PrimaryGalleryContext value={value}>{children}</PrimaryGalleryContext>;
+  return <PrimaryGalleryContext.Provider value={value}>{children}</PrimaryGalleryContext.Provider>;
 };

@@ -54,7 +54,7 @@ const VibePreview: React.FC = () => {
   };
 
   return (
-    <div className="rico-glass-card rounded-[2rem] border border-white/10 bg-white/5 overflow-hidden flex flex-col h-full min-h-[320px]">
+    <div className="superia-glass-card rounded-[2rem] border border-white/10 bg-white/5 overflow-hidden flex flex-col h-full min-h-[320px]">
       <div className="p-6 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-red-600/5 to-transparent">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center border border-red-500/20">

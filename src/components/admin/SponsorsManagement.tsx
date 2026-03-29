@@ -995,7 +995,7 @@ export const SponsorsManagement: React.FC = () => {
       </div>
 
       {/* Sub Navigation */}
-      <div className="rico-glass-card rounded-2xl p-2 border-white/5 shadow-xl">
+      <div className="superia-glass-card rounded-2xl p-2 border-white/5 shadow-xl">
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => setActiveSubTab('sponsors')}
@@ -1043,7 +1043,7 @@ export const SponsorsManagement: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowSponsorScanner(true)}
-              className="rico-premium-button-amber group/btn relative overflow-hidden px-6 py-3 rounded-2xl flex items-center transition-all active:scale-95 mr-3"
+              className="superia-premium-button-amber group/btn relative overflow-hidden px-6 py-3 rounded-2xl flex items-center transition-all active:scale-95 mr-3"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-amber-500 group-hover/btn:opacity-90 transition-opacity"></div>
               <Sparkles size={18} className="mr-2 relative z-10 text-white" />
@@ -1055,7 +1055,7 @@ export const SponsorsManagement: React.FC = () => {
                 setIsAdding(true);
                 resetForm();
               }}
-              className="rico-premium-button-amber group/btn relative overflow-hidden px-8 py-3 rounded-2xl flex items-center transition-all active:scale-95"
+              className="superia-premium-button-amber group/btn relative overflow-hidden px-8 py-3 rounded-2xl flex items-center transition-all active:scale-95"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-amber-500 to-orange-600 group-hover/btn:opacity-90 transition-opacity"></div>
               <Plus size={18} className="mr-2 relative z-10 text-white" />
@@ -1095,7 +1095,7 @@ export const SponsorsManagement: React.FC = () => {
 
           {/* Add Sponsor Form */}
           {isAdding && (
-            <div className="rico-glass-card rounded-[2.5rem] p-8 md:p-10 border-amber-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative overflow-hidden mb-8">
+            <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-amber-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(245,158,11,0.1)] relative overflow-hidden mb-8">
               <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
               <h3 className="text-2xl font-black text-white tracking-tight mb-8">Onboard New Partner</h3>
 
@@ -1239,7 +1239,7 @@ export const SponsorsManagement: React.FC = () => {
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {categorySponsors.map((sponsor: Sponsor) => (
-                    <div key={sponsor.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
+                    <div key={sponsor.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
                       <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                       {editing === sponsor.id ? (
                         /* Edit handled by modal below */
@@ -1628,7 +1628,7 @@ export const SponsorsManagement: React.FC = () => {
             {sortedPackages.map((pkg: SponsorshipPackage, index: number) => {
               const IconComponent = getIconComponent(pkg.icon);
               return (
-                <div key={pkg.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
+                <div key={pkg.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-amber-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-900/20 tilt-3d relative">
                   <div className="absolute inset-0 bg-gradient-to-b from-amber-500/0 via-amber-500/0 to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                   {editingPackage === pkg.id ? (
                     <div className="p-6 space-y-4">

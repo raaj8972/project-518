@@ -134,5 +134,5 @@ export const AnnualSportsProvider = ({ children }: { children: ReactNode }) => {
     refreshData: fetchAnnualSportsData
   };
 
-  return <AnnualSportsContext value={value}>{children}</AnnualSportsContext>;
+  return <AnnualSportsContext.Provider value={value}>{children}</AnnualSportsContext.Provider>;
 };

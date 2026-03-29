@@ -4,19 +4,9 @@ import { useData } from '../context/DataContext';
 import { MasonryGallery } from '../components/gallery/MasonryGallery';
 import { SEO } from '../components/SEO';
 import { FaceSearchDialog } from '../components/gallery/FaceSearchDialog';
-import { getOptimizedImageUrl } from '../utils/dataUtils';
 
 export const Gallery: React.FC = () => {
-  const { 
-    galleryImages, 
-    hasMore, 
-    loadingMore, 
-    fetchMore, 
-    fetchGalleryData, 
-    eventCategories, 
-    loading, 
-    sanitizeUrl 
-  } = useData();
+  const { galleryImages, eventCategories, loading, sanitizeUrl } = useData() as any;
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [matchingImageIds, setMatchingImageIds] = useState<number[] | null>(null);
@@ -26,10 +16,9 @@ export const Gallery: React.FC = () => {
   const subcategories = useMemo(() => {
     if (selectedCategory === 'All') return [];
     const subs = new Set<string>();
-    galleryImages.forEach((img) => {
-      const imgCat = (img.category || '').toString().trim().toLowerCase();
-      // Temporarily cast subcategory if it's missing in type annotations but present in data
-      const sub = (img as any).subcategory || '';
+    galleryImages.forEach((img: any) => {
+      const imgCat = (img?.category || '').toString().trim().toLowerCase();
+      const sub = (img as any)?.subcategory || '';
       if (imgCat === selectedCategory.trim().toLowerCase() && sub) {
         subs.add(sub);
       }
@@ -37,49 +26,61 @@ export const Gallery: React.FC = () => {
     return Array.from(subs).sort();
   }, [selectedCategory, galleryImages]);
 
-  const categories = ['All', ...eventCategories.map((cat) => cat.name)];
+  const categories = ['All', ...eventCategories.map((cat: any) => cat.name as string)];
 
   const selectedCategoryNormalized = (selectedCategory || '').toString().trim().toLowerCase();
 
   // Memoized filtered images to prevent unnecessary re-renders in MasonryGallery
-  // Use local state for UI responsiveness, but trigger server-side fetch
-  useEffect(() => {
-    if (fetchGalleryData) {
-      fetchGalleryData(0, false, selectedCategory, selectedSubcategory || undefined);
-    }
-  }, [selectedCategory, selectedSubcategory, fetchGalleryData]);
-
   const filteredImages = useMemo(() => {
     return (matchingImageIds !== null
-      ? galleryImages.filter((img) => matchingImageIds.includes(img.id))
+      ? galleryImages.filter((img: any) => matchingImageIds.includes(img.id))
       : (selectedCategory === 'All'
           ? galleryImages
-          : galleryImages.filter((image) => {
-              const imgCat = (image.category || '').toString().trim().toLowerCase();
+          : galleryImages.filter((image: any) => {
+              const imgCat = (image?.category || '').toString().trim().toLowerCase();
               if (imgCat !== selectedCategoryNormalized) return false;
               // Apply subcategory filter if one is selected
               if (selectedSubcategory) {
-                const imgSub = ((image as any).subcategory || '').toString().trim();
+                const imgSub = ((image as any)?.subcategory || '').toString().trim();
                 return imgSub === selectedSubcategory;
               }
               return true;
             }))
-    ).filter((img) => img.src && img.src.trim() !== '');
+    ).filter((img: any) => img.src && img.src.trim() !== '');
   }, [galleryImages, matchingImageIds, selectedCategory, selectedCategoryNormalized, selectedSubcategory]);
 
   // Format images for MasonryGallery
-  const masonryImages = useMemo(() => filteredImages.map((img) => {
+  const masonryImages = useMemo(() => filteredImages.map((img: any) => {
     const s = sanitizeUrl ? sanitizeUrl(img.src) : img.src;
+    
+    // Optimization Helper
+    const getOptimized = (url: string, width: number) => {
+      if (!url) return '';
+      // Skip optimization in development (localhost) as wsrv.nl cannot access local
+      if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        return url;
+      }
+      
+      let absoluteUrl = url;
+      if (url.startsWith('/')) {
+         // Resolve relative URLs (like /api/...) to absolute for the proxy
+         absoluteUrl = `${window.location.protocol}//${window.location.host}${url}`;
+      }
+      
+      // Use wsrv.nl for global CDN caching & resizing - DISABLED due to caching issues on new domain
+      // return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=${width}&q=80&output=webp`;
+      return absoluteUrl;
+    };
 
     return { 
       id: img.id,
       src: s, 
-      thumbnail: getOptimizedImageUrl(s, 400),       // Fast thumbnail
-      optimizedSrc: getOptimizedImageUrl(s, 1600),   // High-quality but optimized for lightbox
+      thumbnail: getOptimized(s, 400),       // Fast thumbnail
+      optimizedSrc: getOptimized(s, 1600),   // High-quality but optimized for lightbox
       alt: (img.title as string) || '',
       category: img.category,
-      subcategory: (img as any).subcategory,
-      year: (img as any).year
+      subcategory: img.subcategory,
+      year: img.year
     };
   }), [filteredImages, sanitizeUrl]);
 
@@ -166,14 +167,14 @@ export const Gallery: React.FC = () => {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {categories.map((category) => {
-                    const categoryData = eventCategories.find((cat) => cat.name === category);
+                    const categoryData = eventCategories.find((cat: any) => cat.name === category);
                     const categoryColor = categoryData ? categoryData.color : '#6B7280';
                     const isActive = selectedCategory === category && matchingImageIds === null;
                     // Count images in this category
                     const catCount = category === 'All'
                       ? galleryImages.length
-                      : galleryImages.filter((img) =>
-                          (img.category || '').toString().trim().toLowerCase() === category.trim().toLowerCase()
+                      : galleryImages.filter((img: any) =>
+                          (img?.category || '').toString().trim().toLowerCase() === category.trim().toLowerCase()
                         ).length;
 
                     return (
@@ -240,9 +241,9 @@ export const Gallery: React.FC = () => {
                     </button>
                     {subcategories.map((sub) => {
                       const isSubActive = selectedSubcategory === sub;
-                      const subCount = galleryImages.filter((img) => {
-                        const imgCat = (img.category || '').toString().trim().toLowerCase();
-                        const imgSub = ((img as any).subcategory || '').toString().trim();
+                      const subCount = galleryImages.filter((img: any) => {
+                        const imgCat = (img?.category || '').toString().trim().toLowerCase();
+                        const imgSub = ((img as any)?.subcategory || '').toString().trim();
                         return imgCat === selectedCategory.trim().toLowerCase() && imgSub === sub;
                       }).length;
 
@@ -317,12 +318,7 @@ export const Gallery: React.FC = () => {
         {!loading && (
           <div className="container mx-auto">
              {masonryImages.length > 0 ? (
-               <MasonryGallery 
-                 items={masonryImages} 
-                 hasMore={hasMore} 
-                 loadingMore={loadingMore}
-                 onLoadMore={() => fetchMore?.(selectedCategory, selectedSubcategory || undefined)}
-               />
+               <MasonryGallery images={masonryImages} />
              ) : (
                 <div className="text-center py-12 scroll-animate opacity-0 transform translate-y-20">
                  <div className="stranger-card max-w-md mx-auto p-10">

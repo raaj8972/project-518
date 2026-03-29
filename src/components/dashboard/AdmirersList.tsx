@@ -9,7 +9,7 @@ const AdmirersList: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="rico-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 animate-pulse">
+      <div className="superia-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 animate-pulse">
         <div className="h-4 w-24 bg-white/10 rounded mb-6" />
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
@@ -24,7 +24,7 @@ const AdmirersList: React.FC = () => {
   }
 
   return (
-    <div className="rico-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/[0.03] relative overflow-hidden group">
+    <div className="superia-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/[0.03] relative overflow-hidden group">
       <div className="absolute top-0 right-0 p-6 opacity-10">
         <Heart className="w-16 h-16 text-red-500 group-hover:scale-110 transition-transform duration-500" />
       </div>

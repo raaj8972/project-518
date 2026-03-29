@@ -207,9 +207,9 @@ export const StudentAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   return (
-    <PrimaryStudentAuthContext value={value}>
+    <PrimaryStudentAuthContext.Provider value={value}>
       {children}
-    </PrimaryStudentAuthContext>
+    </PrimaryStudentAuthContext.Provider>
   );
 };
 

@@ -64,7 +64,7 @@ const WinnerCard: React.FC<WinnerCardProps> = ({
 
   return (
     <div className={`relative group w-64 h-[26rem] sm:w-72 sm:h-[28rem] md:w-80 md:h-[30rem] flex-shrink-0 cursor-pointer tilt-3d ${className}`}>
-      {/* RICO Glass Container */}
+      {/* Superia Glass Container */}
       <div className="absolute inset-0 bg-white/[0.02] backdrop-blur-2xl border border-white/10 rounded-[2rem] transform transition-all duration-500 group-hover:scale-[1.02] group-hover:-translate-y-2 group-hover:shadow-[0_40px_80px_rgba(0,0,0,0.5)] overflow-hidden">
         
         {/* Background Gradients */}

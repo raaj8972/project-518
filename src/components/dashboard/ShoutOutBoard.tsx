@@ -215,7 +215,7 @@ const ShoutOutBoard: React.FC = () => {
   };
 
   return (
-    <div className="rico-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 relative overflow-hidden group min-h-[500px] flex flex-col">
+    <div className="superia-glass-card rounded-[2.5rem] p-8 border border-white/10 bg-white/5 relative overflow-hidden group min-h-[500px] flex flex-col">
       {/* Premium Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-red-600/5 via-transparent to-orange-600/5 opacity-50" />
       <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/10 rounded-full blur-[100px] -mr-32 -mt-32 animate-pulse" />

@@ -1277,7 +1277,7 @@ export const EventsManagement: React.FC = () => {
       </div>
 
       {/* Email Configuration (Email Stamp) - Glassmorphic */}
-      <div className="rico-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
+      <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-50" />
         <div className="relative flex flex-col sm:flex-row items-center gap-6">
           <div className="w-24 h-24 bg-black/40 rounded-2xl border border-white/10 flex items-center justify-center overflow-hidden relative shadow-inner group-hover:border-indigo-500/30 transition-colors">
@@ -1334,7 +1334,7 @@ export const EventsManagement: React.FC = () => {
 
       {/* Add Event Form - Responsive */}
       {isAddingEvent && (
-        <div className="rico-glass-card rounded-[2.5rem] p-8 md:p-10 border-indigo-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(99,102,241,0.1)] relative overflow-hidden">
+        <div className="superia-glass-card rounded-[2.5rem] p-8 md:p-10 border-indigo-500/20 animate-in slide-in-from-top-4 duration-500 shadow-[0_0_50px_rgba(99,102,241,0.1)] relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div className="flex items-center gap-4">
@@ -2283,7 +2283,7 @@ export const EventsManagement: React.FC = () => {
       {/* Events List - Responsive Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {events.map((event: any) => (
-          <div key={event.id} className="rico-glass-card rounded-[2.5rem] overflow-hidden group hover:border-purple-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-900/20 tilt-3d relative">
+          <div key={event.id} className="superia-glass-card rounded-[2.5rem] overflow-hidden group hover:border-purple-500/40 transition-all duration-500 hover:shadow-2xl hover:shadow-purple-900/20 tilt-3d relative">
             <div className="absolute inset-0 bg-gradient-to-b from-purple-500/0 via-purple-500/0 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
               <div className="relative aspect-[16/10] overflow-hidden">
                 <img

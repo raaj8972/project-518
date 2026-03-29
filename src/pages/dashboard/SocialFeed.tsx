@@ -13,7 +13,7 @@ const SocialFeed: React.FC = () => {
       className="space-y-12 pb-20"
     >
       {/* ... existing header ... */}
-      <section className="relative overflow-hidden rounded-[3rem] p-12 rico-glass-card border border-white/10 bg-white/5">
+      <section className="relative overflow-hidden rounded-[3rem] p-12 superia-glass-card border border-white/10 bg-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-red-600/10 opacity-30" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] -mr-48 -mt-48" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-red-500/10 rounded-full blur-[120px] -ml-48 -mb-48" />
@@ -57,7 +57,7 @@ const SocialFeed: React.FC = () => {
             <p className="text-sm text-gray-500 font-medium">The most influential icons of the current season</p>
           </div>
         </div>
-        <div className="rico-glass-card rounded-[3rem] py-12 border border-white/10 bg-white/[0.03] relative overflow-hidden">
+        <div className="superia-glass-card rounded-[3rem] py-12 border border-white/10 bg-white/[0.03] relative overflow-hidden">
              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-yellow-500/5 to-transparent pointer-events-none" />
              <ParticipantCarousel />
         </div>

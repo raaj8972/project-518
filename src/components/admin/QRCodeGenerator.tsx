@@ -86,7 +86,7 @@ export function QRCodeGenerator({
         </head>
         <body>
           <div class="pass-container">
-            <h1>🎭 RICORRENZA 2026</h1>
+            <h1>🎭 RICORRENZA 2025</h1>
             <div class="type">${passType || 'Entry Pass'}</div>
             ${participantName ? `<div class="name">${participantName}</div>` : ''}
             <img src="${imageUrl}" alt="QR Code" />

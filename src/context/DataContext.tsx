@@ -118,10 +118,6 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
 
     // Gallery Domain
     galleryImages: gallery.galleryImages,
-    hasMore: gallery.hasMore,
-    loadingMore: gallery.loadingMore,
-    fetchMore: gallery.fetchMore,
-    fetchGalleryData: gallery.fetchGalleryData,
     gallerySettings: gallery.gallerySettings,
     addGalleryImage: gallery.addGalleryImage,
     updateGalleryImage: gallery.updateGalleryImage,
@@ -337,5 +333,5 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     computeAllBucketsUsage: async () => ({ totalBytes: 0, count: 0 })
   };
 
-  return <PrimaryDataContext value={value}>{children}</PrimaryDataContext>;
+  return <PrimaryDataContext.Provider value={value}>{children}</PrimaryDataContext.Provider>;
 };

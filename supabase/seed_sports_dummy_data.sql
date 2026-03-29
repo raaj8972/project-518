@@ -13,7 +13,7 @@ DELETE FROM public.sports_seasons;
 -- 2. Insert Dummy Seasons
 INSERT INTO public.sports_seasons (name, season, description, icon, max_teams, max_owners, max_players, owner_fee, player_fee, auction_status, auction_days, enabled, order_position)
 VALUES 
-  ('RICO Box Cricket', '2026', 'High energy floodlight cricket', '🏏', 8, 8, 120, 5000, 200, 'live', 2, true, 1),
+  ('Superia Box Cricket', '2026', 'High energy floodlight cricket', '🏏', 8, 8, 120, 5000, 200, 'live', 2, true, 1),
   ('Neon Futsal League', '2026', 'Fast-paced 5v5 action', '⚽', 6, 6, 60, 4000, 150, 'live', 1, true, 2);
 
 -- 3. Insert Dummy Teams for Cricket
@@ -28,7 +28,7 @@ FROM public.sports_seasons,
     ('Cyber Spartans', 'CYB', '#ef4444', 'Priya Sharma', 3),
     ('Quantum Royals', 'QUA', '#8b5cf6', 'Neha Gupta', 4)
   ) AS team_data(name, short_name, color, owner_name, ord)
-WHERE public.sports_seasons.name = 'RICO Box Cricket';
+WHERE public.sports_seasons.name = 'Superia Box Cricket';
 
 -- Insert Dummy Teams for Futsal
 INSERT INTO public.sports_teams (sport_id, name, short_name, color, logo, owner_name, enabled, order_position)
@@ -52,7 +52,7 @@ DECLARE
   t_cyb int;
   t_qua int;
 BEGIN
-  SELECT id INTO cricket_id FROM public.sports_seasons WHERE name = 'RICO Box Cricket';
+  SELECT id INTO cricket_id FROM public.sports_seasons WHERE name = 'Superia Box Cricket';
   SELECT id INTO t_tit FROM public.sports_teams WHERE short_name = 'TIT';
   SELECT id INTO t_nnk FROM public.sports_teams WHERE short_name = 'NNK';
   SELECT id INTO t_cyb FROM public.sports_teams WHERE short_name = 'CYB';

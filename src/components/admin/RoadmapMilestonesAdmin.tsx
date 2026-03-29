@@ -5,7 +5,7 @@ import { Plus, Trash2, Pencil, Check, X, ArrowUp, ArrowDown, Power, Milestone, G
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { BRAND_YEAR } from '../../constants/brand';
 
-// RICO-themed Roadmap Milestones Admin
+// SUPERIA-themed Roadmap Milestones Admin
 // Features: CRUD, enable toggle, duplicate year validation, drag & drop reorder + up/down buttons,
 // fallback default dataset import (edit individual default before adding) + bulk import.
 

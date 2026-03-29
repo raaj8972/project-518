@@ -1,16 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    tailwindcss({
-      optimize: false
-    }),
-
     nodePolyfills({
       include: ['buffer', 'crypto', 'stream', 'util', 'vm', 'process'],
       globals: {
@@ -20,9 +15,6 @@ export default defineConfig({
       },
     }),
   ],
-  css: {
-    transformer: 'postcss',
-  },
   define: {
     'process.env': {},
   },
@@ -66,7 +58,13 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     // Enable minification for smaller bundles
-    minify: true,
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs in production
+        drop_debugger: true,
+      },
+    },
     // Optimize chunk sizes
     chunkSizeWarningLimit: 1000,
     // Enable CSS code splitting

@@ -34,7 +34,7 @@ const StudentLogin: React.FC = () => {
     ? rawPt
     : (Array.isArray(rawBo) && rawBo.length > 0)
     ? rawBo
-    : ['Batch 2025', 'Batch 2026', 'Batch 2027', 'Batch 2028'];
+    : ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
 
   useEffect(() => {
     if (siteSettings) {
@@ -164,11 +164,9 @@ const StudentLogin: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center bg-[#050508] relative overflow-hidden">
-      {/* Aurora Orbs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-gradient-to-br from-red-600/20 to-orange-500/10 rounded-full blur-[120px] animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gradient-to-br from-indigo-600/20 to-purple-500/10 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03),transparent_70%)] pointer-events-none" />
+    <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center bg-[#0a0a0a] relative overflow-hidden">
+      <div className="absolute top-1/4 -left-20 w-80 h-80 bg-red-600/20 rounded-full blur-[100px]" />
+      <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-red-800/10 rounded-full blur-[100px]" />
 
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
@@ -182,7 +180,7 @@ const StudentLogin: React.FC = () => {
           <p className="text-gray-400">Manage your registrations for {BRAND_NAME} {BRAND_YEAR}</p>
         </div>
 
-        <div className="premium-glass p-8 rounded-[2.5rem] border border-white/10 relative overflow-hidden shadow-2xl">
+        <div className="superia-glass-card p-8 rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5 relative overflow-hidden">
           {/* Progress bar for loading */}
           {loading && (
             <motion.div 
@@ -195,13 +193,13 @@ const StudentLogin: React.FC = () => {
           <div className="flex p-1 bg-white/5 rounded-xl mb-8">
             <button
               onClick={() => { setIsLogin(true); setSignupStep(1); }}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isLogin ? 'bg-white/10 text-white shadow-lg border border-white/10' : 'text-gray-500 hover:text-white'}`}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${isLogin ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
             >
               Login
             </button>
             <button
               onClick={() => { setIsLogin(false); setSignupStep(1); }}
-              className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!isLogin ? 'bg-white/10 text-white shadow-lg border border-white/10' : 'text-gray-500 hover:text-white'}`}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${!isLogin ? 'bg-white/10 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
             >
               Sign Up
             </button>
@@ -442,11 +440,11 @@ const StudentLogin: React.FC = () => {
           )}
 
           <div className="mt-8 pt-6 border-t border-white/5 text-center">
-            <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">
+            <p className="text-gray-500 text-sm">
               {isLogin ? "Don't have an account?" : "Already have an account?"}
               <button 
                 onClick={toggleMode}
-                className="ml-2 text-red-500 hover:text-red-400 underline decoration-red-500/30 underline-offset-4"
+                className="ml-2 text-red-400 hover:text-red-300 font-medium"
               >
                 {isLogin ? 'Sign Up' : 'Log In'}
               </button>

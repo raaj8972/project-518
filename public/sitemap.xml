@@ -9,7 +9,7 @@
   <!-- Homepage -->
   <url>
     <loc>https://ricorrenza.fun/</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -17,7 +17,7 @@
   <!-- Events Page -->
   <url>
     <loc>https://ricorrenza.fun/events</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
@@ -25,7 +25,7 @@
   <!-- Schedule Page -->
   <url>
     <loc>https://ricorrenza.fun/schedule</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -33,7 +33,7 @@
   <!-- Gallery Page -->
   <url>
     <loc>https://ricorrenza.fun/gallery</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -41,7 +41,7 @@
   <!-- Rico Family Page -->
   <url>
     <loc>https://ricorrenza.fun/rico-family</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -49,7 +49,7 @@
   <!-- Sponsors Page -->
   <url>
     <loc>https://ricorrenza.fun/sponsors</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -57,7 +57,7 @@
   <!-- Home Bound Page -->
   <url>
     <loc>https://ricorrenza.fun/home-bound</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -65,7 +65,7 @@
   <!-- Login Page -->
   <url>
     <loc>https://ricorrenza.fun/login</loc>
-    <lastmod>2026-03-28T17:36:34.712Z</lastmod>
+    <lastmod>2026-03-26T21:18:29.328Z</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>

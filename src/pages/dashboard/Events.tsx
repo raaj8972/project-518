@@ -48,7 +48,7 @@ const Events: React.FC = () => {
               <div className="absolute left-[-9px] sm:left-[-9px] top-10 w-4 h-4 rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] border-[3px] border-[#050508] z-10" />
               
               <div 
-                className="rico-glass-card rounded-3xl border border-white/10 hover:border-red-500/30 transition-all duration-500 group overflow-hidden block"
+                className="superia-glass-card rounded-3xl border border-white/10 hover:border-red-500/30 transition-all duration-500 group overflow-hidden block"
               >
                 {/* Immersive Event Artwork Background */}
                 <div className="relative h-40 sm:h-56 w-full bg-[#111] overflow-hidden">
@@ -105,7 +105,7 @@ const Events: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="rico-glass-card p-16 rounded-3xl border border-white/10 flex flex-col items-center text-center">
+        <div className="superia-glass-card p-16 rounded-3xl border border-white/10 flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6">
             <Calendar className="w-8 h-8 text-gray-500" />
           </div>

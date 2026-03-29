@@ -220,5 +220,5 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  return <SportsContext value={value}>{children}</SportsContext>;
+  return <SportsContext.Provider value={value}>{children}</SportsContext.Provider>;
 };

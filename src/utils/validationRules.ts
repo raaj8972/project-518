@@ -241,7 +241,7 @@ export const DEFAULT_RULES: ValidationRule[] = [
     rule_type: 'date_restriction',
     pass_type: 'regular', // Applies to regular passes
     config: {
-      allowedDates: ['2026-12-30'] // Only valid on Dec 30th
+      allowedDates: ['2025-12-30'] // Only valid on Dec 30th
     },
     is_active: false, // Enable to enforce day-specific scanning
     priority: 20,

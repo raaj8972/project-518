@@ -135,26 +135,3 @@ export const publicUrlFor = (bucket: string, path: string): string => {
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 };
-
-/**
- * Global Optimization Helper
- * Uses wsrv.nl for global CDN caching & resizing.
- * @param url The image URL to optimize
- * @param width Target width in pixels
- */
-export const getOptimizedImageUrl = (url: string, width: number): string => {
-  if (!url) return '';
-  // Skip optimization in development (localhost) as wsrv.nl cannot access local
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return url;
-  }
-  
-  let absoluteUrl = url;
-  if (url.startsWith('/')) {
-     // Resolve relative URLs (like /api/...) to absolute for the proxy
-     absoluteUrl = `${window.location.protocol}//${window.location.host}${url}`;
-  }
-  
-  return `https://wsrv.nl/?url=${encodeURIComponent(absoluteUrl)}&w=${width}&q=80&output=webp`;
-};
-

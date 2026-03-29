@@ -131,7 +131,7 @@ export const ShoutoutManagement: React.FC = () => {
       </div>
       
       {/* Settings Panel */}
-      <div className="rico-glass-card rounded-3xl border border-white/5 overflow-hidden">
+      <div className="superia-glass-card rounded-3xl border border-white/5 overflow-hidden">
         <div className="px-6 py-4 bg-white/[0.02] border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-orange-500" />
@@ -213,7 +213,7 @@ export const ShoutoutManagement: React.FC = () => {
 
       {/* Stats Quick HUD */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="rico-glass-card rounded-3xl p-6 border border-white/5">
+        <div className="superia-glass-card rounded-3xl p-6 border border-white/5">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-blue-500/10 rounded-2xl border border-blue-500/20">
               <MessageSquare className="w-5 h-5 text-blue-400" />
@@ -224,7 +224,7 @@ export const ShoutoutManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="rico-glass-card rounded-3xl p-6 border border-white/5">
+        <div className="superia-glass-card rounded-3xl p-6 border border-white/5">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-yellow-500/10 rounded-2xl border border-yellow-500/20">
               <Shield className="w-5 h-5 text-yellow-400" />
@@ -237,7 +237,7 @@ export const ShoutoutManagement: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="rico-glass-card rounded-3xl p-6 border border-white/5">
+        <div className="superia-glass-card rounded-3xl p-6 border border-white/5">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-green-500/10 rounded-2xl border border-green-500/20">
               <ShieldOff className="w-5 h-5 text-green-400" />
@@ -253,7 +253,7 @@ export const ShoutoutManagement: React.FC = () => {
       </div>
 
       {/* Message List */}
-      <div className="rico-glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
+      <div className="superia-glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

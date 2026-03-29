@@ -96,7 +96,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   const groupOrder = ['DASHBOARD', 'CONTENT', 'FESTIVAL', 'REGISTRATIONS', 'SPORTS LEAGUE', 'PEOPLE', 'SYSTEM', 'Other'];
 
   return (
-    <div className="h-screen bg-[#050508] text-gray-200 flex font-sans selection:bg-indigo-500/30 overflow-hidden rico-mesh-glow">
+    <div className="h-screen bg-[#050508] text-gray-200 flex font-sans selection:bg-indigo-500/30 overflow-hidden superia-mesh-glow">
       
       {/* Mobile Overlay */}
       {isSidebarOpen && (
@@ -106,11 +106,11 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         />
       )}
 
-      {/* Sidebar - RICO Hyper-Glassmorphism */}
+      {/* Sidebar - SUPERIA Hyper-Glassmorphism */}
       <aside 
         className={`
           fixed lg:sticky top-0 h-[100dvh] z-50 w-72 flex-shrink-0 
-          premium-glass border-r border-white/10
+          bg-white/[0.02] backdrop-blur-3xl border-r border-white/10
           transform transition-all duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)]
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
           group/sidebar
@@ -123,13 +123,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           {/* Sidebar Header */}
           <div className="h-20 flex items-center px-6 border-b border-white/5 bg-white/[0.01]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 animate-rico-float relative overflow-hidden group/logo">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 animate-superia-float relative overflow-hidden group/logo">
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/logo:translate-y-0 transition-transform duration-500" />
                 <span className="font-black text-white text-xl relative z-10 drop-shadow-lg text-center leading-none">R</span>
               </div>
               <div className="flex flex-col">
                 <h1 className="font-black text-white text-base tracking-tighter leading-none flex items-center gap-1.5">
-                  RICO <Sparkles size={12} className="text-amber-400 fill-amber-400" />
+                  SUPERIA <Sparkles size={12} className="text-amber-400 fill-amber-400" />
                 </h1>
                 <p className="text-[10px] text-gray-500 font-black tracking-[0.2em] uppercase opacity-70">ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
               </div>
@@ -165,7 +165,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             </div>
           </div>
 
-          {/* Search - V3 RICO Style */}
+          {/* Search - V3 Superia Style */}
           <div className="px-4 mb-6">
             <div className="relative group">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-gray-500 transition-colors group-focus-within:text-white">
@@ -255,7 +255,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
             )}
           </nav>
 
-          {/* Sidebar Footer - RICO Style */}
+          {/* Sidebar Footer - SUPERIA Style */}
           <div className="p-6 border-t border-white/5 bg-white/[0.01] space-y-4">
              <div className="flex items-center gap-3">
                 <button 
@@ -299,9 +299,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
       {/* Main Content Area - V3 Enhanced */}
       <div className="flex-1 flex flex-col min-w-0 bg-transparent relative overflow-hidden">
         {/* Animated Background Orbs */}
-        <div className="aurora-blob w-[40%] h-[40%] top-[-10%] left-[-10%] bg-indigo-600/10 animate-float-slow" />
-        <div className="aurora-blob w-[30%] h-[40%] bottom-[-10%] right-[-10%] bg-purple-600/10 animate-float-slow" style={{ animationDelay: '-5s' }} />
-        <div className="aurora-blob w-[20%] h-[20%] top-[40%] left-[20%] bg-rose-500/5 animate-float-slow" style={{ animationDelay: '-10s' }} />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[120px] rounded-full animate-superia-float" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[40%] bg-purple-600/5 blur-[120px] rounded-full" style={{ animationDuration: '8s' }} />
 
         {/* Top Header - Mobile V3 */}
          <header className="h-16 flex items-center justify-between px-6 bg-[#050508]/80 backdrop-blur-3xl border-b border-white/5 sticky top-0 z-40 lg:hidden">
@@ -312,7 +311,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
               >
                 <Menu size={20} />
               </button>
-              <span className="font-black text-white tracking-tighter text-sm uppercase">RICO <span className="text-gray-500">ADMIN</span></span>
+              <span className="font-black text-white tracking-tighter text-sm uppercase">SUPERIA <span className="text-gray-500">ADMIN</span></span>
             </div>
             <div className="flex items-center gap-3">
               <button 
@@ -372,7 +371,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           </main>
 
           <footer className="px-10 py-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 mt-auto">
-             <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{BRAND_NAME_WITH_YEAR} • RICO ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
+             <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em]">{BRAND_NAME_WITH_YEAR} • SUPERIA ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
              <div className="flex items-center gap-6">
 
                 <a href="#" className="text-[10px] font-black text-gray-500 hover:text-indigo-400 transition-colors uppercase tracking-widest">Documentation</a>
