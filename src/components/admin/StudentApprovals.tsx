@@ -278,7 +278,7 @@ export const StudentApprovals: React.FC = () => {
               <p className="text-gray-500 font-black text-[10px] uppercase tracking-widest">Scanning Profiles...</p>
             </div>
           ) : filteredProfiles.length === 0 ? (
-            <div className="py-20 text-center superia-glass-card rounded-[2rem] border-white/5">
+            <div className="py-20 text-center rico-glass-card rounded-[2rem] border-white/5">
               <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Filter className="w-8 h-8 text-gray-700" />
               </div>
@@ -291,7 +291,7 @@ export const StudentApprovals: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="superia-glass-card p-6 rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group overflow-hidden relative"
+                className="rico-glass-card p-6 rounded-[2rem] border border-white/5 hover:border-white/10 transition-all group overflow-hidden relative"
               >
                 {/* Status Bar */}
                 <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${profile.is_approved ? 'bg-emerald-500' : 'bg-amber-500'} opacity-30 group-hover:opacity-100 transition-opacity`} />

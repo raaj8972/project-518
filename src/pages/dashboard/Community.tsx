@@ -75,7 +75,7 @@ const Community: React.FC = () => {
           <div className="h-10 w-64 bg-white/5 animate-pulse rounded-lg" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="h-80 superia-glass-card rounded-[2.5rem] bg-white/5 animate-pulse" />
+              <div key={i} className="h-80 rico-glass-card rounded-[2.5rem] bg-white/5 animate-pulse" />
             ))}
           </div>
         </div>
@@ -124,7 +124,7 @@ const Community: React.FC = () => {
       </div>
 
       {filteredStars.length === 0 ? (
-        <div className="py-24 text-center space-y-4 superia-glass-card rounded-[3rem] border border-white/5 bg-white/[0.02]">
+        <div className="py-24 text-center space-y-4 rico-glass-card rounded-[3rem] border border-white/5 bg-white/[0.02]">
           <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
             <User className="w-10 h-10 text-gray-700" />
           </div>

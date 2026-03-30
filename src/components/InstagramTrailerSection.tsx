@@ -139,7 +139,7 @@ export const InstagramTrailerSection: React.FC<InstagramTrailerSectionProps> = (
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="superia-btn-primary"
+                    className="rico-btn-primary"
                   >
                     View on Instagram
                   </a>

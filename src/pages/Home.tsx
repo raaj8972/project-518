@@ -10,15 +10,17 @@ import ChunkErrorBoundary from '../components/ChunkErrorBoundary.tsx';
 import type { GuestArtist } from '../types/data';
 
 // Extracted Components
-import ArtistCarousel from '../components/Home/ArtistCarousel';
-import ChiefGuestSection from '../components/Home/ChiefGuestSection';
-import FeaturedEventsSection from '../components/Home/FeaturedEventsSection';
-import FeaturedSponsors from '../components/Home/FeaturedSponsors';
-import LeadershipSection from '../components/Home/LeadershipSection';
-import AboutSection from '../components/Home/AboutSection';
-import CTASection from '../components/Home/CTASection';
-import ChiefGuestModal from '../components/Home/ChiefGuestModal';
-import TopLegendsSection from '../components/Home/TopLegendsSection';
+// Extracted Components (deferred via lazy)
+const ArtistCarousel = React.lazy(() => import('../components/Home/ArtistCarousel'));
+const ChiefGuestSection = React.lazy(() => import('../components/Home/ChiefGuestSection'));
+const FeaturedEventsSection = React.lazy(() => import('../components/Home/FeaturedEventsSection'));
+const FeaturedSponsors = React.lazy(() => import('../components/Home/FeaturedSponsors'));
+const LeadershipSection = React.lazy(() => import('../components/Home/LeadershipSection'));
+const AboutSection = React.lazy(() => import('../components/Home/AboutSection'));
+const CTASection = React.lazy(() => import('../components/Home/CTASection'));
+const ChiefGuestModal = React.lazy(() => import('../components/Home/ChiefGuestModal'));
+const TopLegendsSection = React.lazy(() => import('../components/Home/TopLegendsSection'));
+
 
 // Lazy Loaded Components
 const WinnersSection = React.lazy(() => import('../components/WinnersSection'));
@@ -443,7 +445,10 @@ export const Home: React.FC = () => {
       <HomeHero />
 
       {/* RICO STARS / Hall of Fame */}
-      <TopLegendsSection />
+      <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
+        <TopLegendsSection />
+      </React.Suspense>
+
 
       {/* Instagram Trailer Section */}
       {homepageSettings?.instagram_trailer_enabled && homepageSettings?.instagram_trailer_url && (
@@ -468,16 +473,19 @@ export const Home: React.FC = () => {
       )}
 
       {/* Featured Guest Artists */}
-      <ArtistCarousel
-        artists={featuredGuestArtists}
-        openDetailModal={openDetailModal}
-        setVideoModalOpen={setVideoModalOpen}
-        setSelectedArtistForVideo={setSelectedArtistForVideo}
-        detailOpen={detailOpen}
-        videoModalOpen={videoModalOpen}
-        showInteractive={showInteractive}
-        prefetchDetailModal={prefetchDetailModal}
-      />
+      <React.Suspense fallback={<div className="h-[500px] bg-black/20 animate-pulse" />}>
+        <ArtistCarousel
+          artists={featuredGuestArtists}
+          openDetailModal={openDetailModal}
+          setVideoModalOpen={setVideoModalOpen}
+          setSelectedArtistForVideo={setSelectedArtistForVideo}
+          detailOpen={detailOpen}
+          videoModalOpen={videoModalOpen}
+          showInteractive={showInteractive}
+          prefetchDetailModal={prefetchDetailModal}
+        />
+      </React.Suspense>
+
       
       {/* Winners Section */}
       <React.Suspense fallback={null}>
@@ -485,13 +493,16 @@ export const Home: React.FC = () => {
       </React.Suspense>
 
       {/* Chief Guest Section */}
-      <ChiefGuestSection
-        chiefGuests={chiefGuests as any}
-        setSelectedChiefGuest={setSelectedChiefGuest}
-        setChiefGuestModalOpen={setChiefGuestModalOpen}
-        detailOpen={detailOpen}
-        videoModalOpen={videoModalOpen}
-      />
+      <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
+        <ChiefGuestSection
+          chiefGuests={chiefGuests as any}
+          setSelectedChiefGuest={setSelectedChiefGuest}
+          setChiefGuestModalOpen={setChiefGuestModalOpen}
+          detailOpen={detailOpen}
+          videoModalOpen={videoModalOpen}
+        />
+      </React.Suspense>
+
       {videoModalOpen && (
         <ChunkErrorBoundary>
           <React.Suspense fallback={null}>
@@ -516,35 +527,44 @@ export const Home: React.FC = () => {
       )}
 
       {/* Featured Events */}
-      <FeaturedEventsSection
-        featuredEvents={featuredEvents}
-        hasManyEvents={hasManyEvents}
-      />
+      <React.Suspense fallback={<div className="h-96 bg-black/20 animate-pulse" />}>
+        <FeaturedEventsSection
+          featuredEvents={featuredEvents}
+          hasManyEvents={hasManyEvents}
+        />
+      </React.Suspense>
+
 
       {/* Featured Partners */}
-      <FeaturedSponsors
-        featuredSponsors={featuredSponsors as any}
-        homepageSettings={homepageSettings}
-        hasManySponsors={hasManySponsors}
-      />
+      <React.Suspense fallback={<div className="h-48 bg-black/20 animate-pulse" />}>
+        <FeaturedSponsors
+          featuredSponsors={featuredSponsors as any}
+          homepageSettings={homepageSettings}
+          hasManySponsors={hasManySponsors}
+        />
+      </React.Suspense>
+
 
       {/* Leadership Section */}
-      <LeadershipSection
-        homepageSettings={homepageSettings}
-        coreCommittees={coreCommittees}
-        enabledFacultyHeads={enabledFacultyHeads as any}
-        sortedFacultyHeads={sortedFacultyHeads as any}
-        sortedCommitteeHeads={sortedCommitteeHeads as any}
-        windowWidth={windowWidth}
-        facultyPaused={facultyPaused}
-        committeePaused={committeePaused}
-        setFacultyPaused={setFacultyPaused}
-        setCommitteePaused={setCommitteePaused}
-        setSelectedType={setSelectedType}
-        setSelectedIndex={setSelectedIndex}
-        setSelectedPerson={setSelectedPerson}
-        setFacultyModalOpen={setFacultyModalOpen}
-      />
+      <React.Suspense fallback={<div className="h-screen bg-black/20 animate-pulse" />}>
+        <LeadershipSection
+          homepageSettings={homepageSettings}
+          coreCommittees={coreCommittees}
+          enabledFacultyHeads={enabledFacultyHeads as any}
+          sortedFacultyHeads={sortedFacultyHeads as any}
+          sortedCommitteeHeads={sortedCommitteeHeads as any}
+          windowWidth={windowWidth}
+          facultyPaused={facultyPaused}
+          committeePaused={committeePaused}
+          setFacultyPaused={setFacultyPaused}
+          setCommitteePaused={setCommitteePaused}
+          setSelectedType={setSelectedType}
+          setSelectedIndex={setSelectedIndex}
+          setSelectedPerson={setSelectedPerson}
+          setFacultyModalOpen={setFacultyModalOpen}
+        />
+      </React.Suspense>
+
 
       {/* Roadmap Section */}
       {homepageSettings?.roadmap_enabled && (
@@ -554,13 +574,19 @@ export const Home: React.FC = () => {
       )}
 
       {/* About Section */}
-      <AboutSection aboutSettings={aboutSettings as any} />
+      <React.Suspense fallback={<div className="h-96 bg-black/20 animate-pulse" />}>
+        <AboutSection aboutSettings={aboutSettings as any} />
+      </React.Suspense>
+
 
       {/* CTA Section */}
-      <CTASection
-        formSettings={formSettings}
-        setMembershipModal={setMembershipModal}
-      />
+      <React.Suspense fallback={<div className="h-64 bg-black/20 animate-pulse" />}>
+        <CTASection
+          formSettings={formSettings}
+          setMembershipModal={setMembershipModal}
+        />
+      </React.Suspense>
+
 
       {/* Membership Modal */}
       {formSettings?.membership_form_enabled && (

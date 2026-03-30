@@ -229,7 +229,7 @@ export const StudentPassManagement: React.FC = () => {
             exit={{ opacity: 0, y: 20 }}
             className="fixed top-24 right-6 z-[100] w-96 max-w-[90vw]"
           >
-            <div className="superia-glass-card p-6 rounded-2xl shadow-2xl border-white/10 relative overflow-hidden">
+            <div className="rico-glass-card p-6 rounded-2xl shadow-2xl border-white/10 relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
                <div className="relative z-10">
                   <div className="flex items-center justify-between mb-3">
@@ -309,7 +309,7 @@ export const StudentPassManagement: React.FC = () => {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="superia-glass-card p-8 rounded-[2.5rem] border border-blue-500/10 mb-8 relative">
+            <div className="rico-glass-card p-8 rounded-[2.5rem] border border-blue-500/10 mb-8 relative">
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-[80px] -mr-32 -mt-32" />
               
               <div className="relative z-10">
@@ -376,7 +376,7 @@ export const StudentPassManagement: React.FC = () => {
 
       {/* Stats Board */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="superia-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
@@ -389,7 +389,7 @@ export const StudentPassManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="superia-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
@@ -402,7 +402,7 @@ export const StudentPassManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="superia-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
@@ -415,7 +415,7 @@ export const StudentPassManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="superia-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card p-8 rounded-[2rem] border border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -mr-16 -mt-16" />
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4">
@@ -460,7 +460,7 @@ export const StudentPassManagement: React.FC = () => {
       </div>
 
       {/* Student List */}
-      <div className="superia-glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
+      <div className="rico-glass-card rounded-[2.5rem] border border-white/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

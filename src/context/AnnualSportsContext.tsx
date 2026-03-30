@@ -39,13 +39,17 @@ export const useAnnualSports = () => {
   return context;
 };
 
-export const AnnualSportsProvider = ({ children }: { children: ReactNode }) => {
+export const AnnualSportsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const [annualEvents, setAnnualEvents] = useState<AnnualSportsEvent[]>([]);
   const [annualRegistrations, setAnnualRegistrations] = useState<AnnualSportsRegistration[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAnnualSportsData = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       // Fetch using dual-sync layer
@@ -67,11 +71,13 @@ export const AnnualSportsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    fetchAnnualSportsData();
-  }, [fetchAnnualSportsData, refreshTrigger]);
+    if (enabled) {
+      fetchAnnualSportsData();
+    }
+  }, [fetchAnnualSportsData, refreshTrigger, enabled]);
 
   const addAnnualEvent = async (eventData: Partial<AnnualSportsEvent>) => {
     await dualUpsert('annual_sports_events', eventData);

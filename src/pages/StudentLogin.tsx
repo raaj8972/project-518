@@ -180,7 +180,7 @@ const StudentLogin: React.FC = () => {
           <p className="text-gray-400">Manage your registrations for {BRAND_NAME} {BRAND_YEAR}</p>
         </div>
 
-        <div className="superia-glass-card p-8 rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5 relative overflow-hidden">
+        <div className="rico-glass-card p-8 rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5 relative overflow-hidden">
           {/* Progress bar for loading */}
           {loading && (
             <motion.div 

@@ -164,34 +164,42 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 
     }
   }
 
+  const performFetch = async (retryCount = 0): Promise<{ data: any; source: 'supabase' | 'supabase-cache' }> => {
+    try {
+      let q = supabase.from(table).select(opts.select || '*');
+      if (eq)     q = q.eq(eq[0], eq[1]);
+      if (gt)     q = q.gt(gt[0], gt[1]);
+      if (inOpts) q = q.in(inOpts[0], inOpts[1]);
+      if (order)  q = q.order(order[0], { ascending: order[1]?.ascending !== false });
+      if (limit)  q = q.limit(limit);
+      if (opts.range) q = q.range(opts.range[0], opts.range[1]);
 
-  let q = supabase.from(table).select(opts.select || '*');
-  if (eq)     q = q.eq(eq[0], eq[1]);
-  if (gt)     q = q.gt(gt[0], gt[1]);
-  if (inOpts) q = q.in(inOpts[0], inOpts[1]);
-  if (order)  q = q.order(order[0], { ascending: order[1]?.ascending !== false });
-  if (limit)  q = q.limit(limit);
-  if (opts.range) q = q.range(opts.range[0], opts.range[1]);
+      if (single || maybeSingle) {
+        const { data, error } = await withTimeout<any>((q as any).maybeSingle(), 30000);
+        if (error) throw error;
+        if (single && !data) throw new Error('NOT_FOUND');
+        setCachedData(cacheKey, data);
+        return { data, source: 'supabase' };
+      } else {
+        const { data, error } = await withTimeout<any>(q, 30000);
+        if (error) throw error;
+        const finalData = data ?? [];
+        setCachedData(cacheKey, finalData);
+        return { data: finalData, source: 'supabase' };
+      }
+    } catch (err: any) {
+      if ((err.message === 'TIMEOUT' || err.code === 'PGRST301') && retryCount < 2) {
+        const backoff = (retryCount + 1) * 800;
+        console.warn(`[Db] ${table} fetch TIMEOUT (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
+        await new Promise(r => setTimeout(r, backoff));
+        return performFetch(retryCount + 1);
+      }
+      console.error(`[Db] dualRead FAILED for ${table}:`, err.message || err);
+      throw err;
+    }
+  };
 
-  if (single || maybeSingle) {
-    const { data, error } = await withTimeout<any>((q as any).maybeSingle(), 15000);
-    if (error) {
-      console.error(`[Db] dualRead FAILED for ${table}:`, error.message);
-      throw new Error(error.message);
-    }
-    if (single && !data) throw new Error('NOT_FOUND');
-    setCachedData(cacheKey, data);
-    return { data, source: 'supabase' };
-  } else {
-    const { data, error } = await withTimeout<any>(q, 20000);
-    if (error) {
-      console.error(`[Db] dualRead FAILED for ${table}:`, error.message);
-      throw new Error(error.message);
-    }
-    const finalData = data ?? [];
-    setCachedData(cacheKey, finalData);
-    return { data: finalData, source: 'supabase' };
-  }
+  return performFetch();
 }
 
 // ─────────────────────────────────────────────────────────

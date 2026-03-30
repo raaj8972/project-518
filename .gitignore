@@ -44,3 +44,11 @@ test-range-full.js
 test-range.js
 test_supabase_conn.ts
 verify-supabase.mjs
+
+# Local Scripts & Caches
+.npm-cache/
+check_buckets_local.js
+check_buckets_local.mjs
+inspect_local_schema.mjs
+ricorrenza-2025@0.0.0
+vite

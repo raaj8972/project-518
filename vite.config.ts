@@ -81,16 +81,25 @@ export default defineConfig({
         manualChunks(id: string) {
           if (!id) return undefined;
           if (id.includes('node_modules')) {
-            // Only split out truly INDEPENDENT heavy libraries that are
-            // lazy-loaded and don't depend on React at load time.
-            // Everything else stays in the default chunk so Rollup can
-            // resolve the React dependency chain correctly.
+            // Priority 1: Large core frameworks
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) return 'vendor-core';
+            
+            // Priority 2: Heavy third-party UI/Logic
+            if (id.includes('lucide-react')) return 'vendor-ui';
+            if (id.includes('framer-motion')) return 'vendor-framer';
+            if (id.includes('gsap')) return 'vendor-gsap';
+            if (id.includes('lenis')) return 'vendor-lenis';
+            if (id.includes('@supabase/supabase-js')) return 'vendor-supabase';
+            
+            // Priority 3: Specialized heavy libraries
             if (id.includes('@tensorflow') || id.includes('face-api') || id.includes('@vladmandic')) return 'vendor-ai';
             if (id.includes('three') || id.includes('@react-three')) return 'vendor-three';
             if (id.includes('@ffmpeg')) return 'vendor-ffmpeg';
             if (id.includes('xlsx') || id.includes('exceljs')) return 'vendor-excel';
             if (id.includes('jspdf') || id.includes('html2canvas') || id.includes('jspdf-autotable')) return 'vendor-pdf';
             if (id.includes('@aws-sdk')) return 'vendor-aws';
+            
+            return 'vendor-stable';
           }
 
           // Admin Dashboard — lazy-loaded via router

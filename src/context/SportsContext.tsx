@@ -69,7 +69,7 @@ export const useSportsData = () => {
   return context;
 };
 
-export const SportsProvider = ({ children }: { children: ReactNode }) => {
+export const SportsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   
@@ -84,6 +84,7 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
   const [annualSportsMatches, setAnnualSportsMatches] = useState<AnnualSportsMatch[]>([]);
 
   const fetchSportsData = useCallback(async () => {
+    if (!enabled) return;
     try {
       const results = await Promise.all([
         fetchSupabaseBatch<SportsSeason>('sports_seasons', { order: { column: 'created_at', ascending: true } }),
@@ -111,13 +112,13 @@ export const SportsProvider = ({ children }: { children: ReactNode }) => {
     } catch (err) {
       console.error('[SportsContext] Failed to fetch sports data', err);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (refreshTrigger > 0 || user?.id) {
+    if (enabled) {
       fetchSportsData();
     }
-  }, [refreshTrigger, user?.id, fetchSportsData]);
+  }, [refreshTrigger, user?.id, fetchSportsData, enabled]);
 
   const value: SportsContextType = {
     sportsSeasons,

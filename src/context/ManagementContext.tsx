@@ -69,7 +69,7 @@ export const useManagementData = () => {
   return context;
 };
 
-export const ManagementProvider = ({ children }: { children: ReactNode }) => {
+export const ManagementProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const { user, getValidToken } = useAuth();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
@@ -82,6 +82,7 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
 
   const fetchManagementData = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     console.log('[ManagementContext] fetchManagementData started');
     const start = Date.now();
@@ -119,13 +120,13 @@ export const ManagementProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (refreshTrigger > 0 || user?.id) {
+    if (enabled) {
       fetchManagementData();
     }
-  }, [refreshTrigger, user?.id, fetchManagementData]);
+  }, [refreshTrigger, user?.id, fetchManagementData, enabled]);
 
   // Real-time: re-fetch when any management table changes
   useEffect(() => {

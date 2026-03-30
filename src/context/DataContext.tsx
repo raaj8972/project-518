@@ -1,6 +1,5 @@
 import { createContext, useContext, ReactNode } from 'react';
 import { DataContextType } from '../types/data';
-import { CombinedDataProvider } from './CombinedDataProvider';
 import { useCoreData } from './CoreDataContext';
 import { useEventsData } from './EventsContext';
 import { usePersonnelData } from './PersonnelContext';
@@ -29,9 +28,7 @@ export const useData = () => {
 
 export const DataProvider = ({ children }: { children: ReactNode }) => {
   return (
-    <CombinedDataProvider>
-      <DataContextAdapter>{children}</DataContextAdapter>
-    </CombinedDataProvider>
+    <DataContextAdapter>{children}</DataContextAdapter>
   );
 };
 

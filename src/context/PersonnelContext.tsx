@@ -69,7 +69,7 @@ export const usePersonnelData = () => {
   return context;
 };
 
-export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
+export const PersonnelProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   const [facultyHeads, setFacultyHeads] = useState<FacultyHead[]>([]);
@@ -83,6 +83,7 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(false);
 
   const fetchPersonnelData = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     console.log('[PersonnelContext] fetchPersonnelData started');
     const start = Date.now();
@@ -113,13 +114,13 @@ export const PersonnelProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (refreshTrigger > 0 || user?.id) {
+    if (enabled) {
       fetchPersonnelData();
     }
-  }, [refreshTrigger, user?.id, fetchPersonnelData]);
+  }, [refreshTrigger, user?.id, fetchPersonnelData, enabled]);
 
   // Real-time: re-fetch when any personnel table changes
   useEffect(() => {

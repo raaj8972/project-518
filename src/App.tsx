@@ -2,11 +2,14 @@ import React, { useMemo, useState, useEffect, lazy, Component, PropsWithChildren
 console.log('[App.tsx] Module loaded');
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
+// components (lazy loaded)
+const Navbar = lazy(() => import('./components/Navbar').then(m => ({ default: m.Navbar })));
+const Footer = lazy(() => import('./components/Footer').then(m => ({ default: m.Footer })));
+
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { StudentAuthProvider } from './context/StudentAuthContext';
 import { DataProvider, useData } from './context/DataContext';
+import { CombinedDataProvider, useSystemStatus } from './context/CombinedDataProvider';
 import { ToastProvider } from './components/ToastProvider';
 import { SavingProgressProvider } from './context/SavingProgressContext';
 import { ConnectionStatusBanner } from './components/ConnectionStatusBanner';
@@ -97,13 +100,15 @@ const AppShell: React.FC = () => {
   const personnel = usePersonnelData();
   const gallery = useGalleryData();
   const management = useManagementData();
+  const { stage, isReady } = useSystemStatus();
   const [msg, setMsg] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(getCachedLogoUrl() ?? undefined);
   const [splashVisible, setSplashVisible] = useState(true);
 
-  // Decoupled massive contexts from the root blocking loader to improve Time to Interactive.
-  // Other contexts will now asynchronously populate without freezing the entire site.
-  const combinedLoading = core.loading;
+  // Use orchestrated system status for the blocking loader
+  const systemReady = isReady;
+  const combinedLoading = !systemReady;
+
 
   const isAdminOrOwner = useMemo(() => {
     try {
@@ -184,7 +189,10 @@ const AppShell: React.FC = () => {
         
         <ConnectionStatusBanner />
         <NotificationsPanel />
-        <Navbar />
+        <React.Suspense fallback={<div className="h-20 bg-[#0a0a0a]" />}>
+          <Navbar />
+        </React.Suspense>
+
         
         <main id="main-content" className="relative">
           {gateActive && !isAdminRoute && !isLoginRoute && !isAdminOrOwner ? (
@@ -194,11 +202,15 @@ const AppShell: React.FC = () => {
           )}
         </main>
         
-        <Footer />
+        <React.Suspense fallback={<div className="h-64 bg-[#0a0a0a]" />}>
+          <Footer />
+        </React.Suspense>
+
         
         {splashVisible && (
           <Preloader 
             loading={combinedLoading}
+            stage={stage}
             onComplete={() => setSplashVisible(false)}
             logoUrl={logoUrl} 
           />
@@ -269,18 +281,21 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <StudentAuthProvider>
-          <DataProvider>
-            <ToastProvider>
-              <SavingProgressProvider>
-                <HelmetProvider>
-                  <OfflineIndicator />
-                  <SmoothScroll>
-                    <InnerRouter />
-                  </SmoothScroll>
-                </HelmetProvider>
-              </SavingProgressProvider>
-            </ToastProvider>
-          </DataProvider>
+          <CombinedDataProvider>
+            <DataProvider>
+
+              <ToastProvider>
+                <SavingProgressProvider>
+                  <HelmetProvider>
+                    <OfflineIndicator />
+                    <SmoothScroll>
+                      <InnerRouter />
+                    </SmoothScroll>
+                  </HelmetProvider>
+                </SavingProgressProvider>
+              </ToastProvider>
+            </DataProvider>
+          </CombinedDataProvider>
         </StudentAuthProvider>
       </AuthProvider>
     </ErrorBoundary>

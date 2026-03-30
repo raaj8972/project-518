@@ -40,7 +40,7 @@ export const useGalleryData = () => {
   return context;
 };
 
-export const GalleryProvider = ({ children }: { children: ReactNode }) => {
+export const GalleryProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const { user, getValidToken } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
@@ -49,6 +49,7 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
   const [imagesFetched, setImagesFetched] = useState(false);
 
   const fetchGalleryData = useCallback(async (includeImages: boolean = false) => {
+    if (!enabled) return;
     setLoading(true);
     console.log('[GalleryContext] fetchGalleryData started', { includeImages });
     const start = Date.now();
@@ -128,15 +129,13 @@ export const GalleryProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [imagesFetched]);
+  }, [enabled]);
 
   useEffect(() => {
-    if (refreshTrigger > 0 || user?.id) {
-      // By default, just fetch settings. Context consumers must explicitly call `triggerGalleryLoad`
-      // or similar if they need the images array populated.
-      fetchGalleryData(imagesFetched);
+    if (enabled) {
+      fetchGalleryData(false); // Only fetch settings initially; images are deferred or manual
     }
-  }, [refreshTrigger, user?.id, imagesFetched, fetchGalleryData]);
+  }, [refreshTrigger, fetchGalleryData, enabled]);
 
   const addGalleryImage = async (image: Partial<GalleryImage>) => {
     await dualInsert('gallery_images', image);

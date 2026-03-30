@@ -126,13 +126,37 @@ EcgLine.displayName = 'EcgLine';
 export interface PreloaderProps {
   /** True while the app data is still loading — holds progress at 98% until false */
   loading: boolean;
+  /** Orchestrated loading stage (0-3) */
+  stage?: number;
   /** Called when the exit animation is complete */
   onComplete: () => void;
   /** Brand logo URL — pulled from localStorage cache for instant display */
   logoUrl?: string;
 }
 
-export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoUrl }) => {
+const STAGE_MESSAGES: Record<number, string> = {
+  0: 'Initializing Core Systems...',
+  1: 'Loading Events & Personnel...',
+  2: 'Synchronizing Management Data...',
+  3: 'Finalizing Experience...',
+};
+
+const getTargetProgress = (stage: number) => {
+  switch (stage) {
+    case 0: return 25;
+    case 1: return 50;
+    case 2: return 75;
+    case 3: return 100;
+    default: return 98;
+  }
+};
+
+export const Preloader: React.FC<PreloaderProps> = ({ 
+  loading, 
+  stage = 0,
+  onComplete, 
+  logoUrl 
+}) => {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'run' | 'hold' | 'fadeout'>('run');
   const [beatFlash, setBeatFlash] = useState(false);
@@ -142,10 +166,11 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
   const progressRef  = useRef(0);
-  const animationRef = useRef<number>();
-  const pulseFrameRef = useRef<number>();
+  const animationRef = useRef<number | undefined>(undefined);
+  const pulseFrameRef = useRef<number | undefined>(undefined);
   const lastBeatRef  = useRef(-1);
-  const beatFlashTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const beatFlashTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
 
   // Random hue — initialised once on mount, stable for the session
   const baseHue = useRef(Math.floor(Math.random() * 360));
@@ -195,34 +220,51 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
 
   // ── Progress animation ────────────────────────────────────────────────────
   useEffect(() => {
-    const DURATION = 1000;
+    const DURATION = 2000;
     const start = performance.now();
 
     const animate = (now: number) => {
       const elapsed = now - start;
-      const target  = loading ? 98 : 100;
-      const easeT   = elapsed >= DURATION ? 1 : 1 - Math.pow(2, -10 * (elapsed / DURATION));
-      const next    = Math.min(Math.floor(easeT * 100), target);
+      const target = loading ? getTargetProgress(stage) : 100;
+      
+      const current = progressRef.current;
+      const diff = target - current;
+      
+      // Smooth increment logic
+      const increment = diff > 0 ? Math.max(0.1, diff * 0.05) : 0;
+      const next = Math.min(Math.floor(current + increment), target);
 
-      if (next !== progressRef.current) {
+      if (next !== current) {
         progressRef.current = next;
         setProgress(next);
       }
 
-      if (elapsed < DURATION || loading) {
+      const isStillAnimating = elapsed < DURATION || loading || next < 100;
+
+      if (isStillAnimating) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
         setProgress(100);
-        setTimeout(() => setPhase('hold'), 200);
+        setTimeout(() => setPhase('hold'), 300);
       }
     };
 
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [loading, stage]);
 
   // ── Phase transitions ─────────────────────────────────────────────────────
+  useEffect(() => {
+    // Failsafe timer: if loading gets stuck for > 15s, allow continuing
+    const timer = setTimeout(() => {
+      if (progressRef.current < 100) {
+        console.warn('[Preloader] Failsafe triggered');
+      }
+    }, 15000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (phase === 'hold') {
       const id = setTimeout(() => setPhase('fadeout'), 250); 
@@ -250,6 +292,7 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
     pulseFrameRef.current = requestAnimationFrame(tick);
     return () => { if (pulseFrameRef.current) cancelAnimationFrame(pulseFrameRef.current); };
   }, []);
+
 
   // ── Heartbeat detection — fires on each QRS crossing ─────────────────────
   useEffect(() => {
@@ -439,8 +482,22 @@ export const Preloader: React.FC<PreloaderProps> = ({ loading, onComplete, logoU
               %
             </span>
           </div>
+
+          {/* Stage Message */}
+          <div 
+            className="mt-4 text-center font-serif tracking-[0.2em] uppercase transition-all duration-700 h-6"
+            style={{
+              fontSize: 'clamp(0.6rem, 1.5vw, 0.8rem)',
+              color: glowColor,
+              opacity: progress > 5 ? 0.6 : 0,
+              textShadow: `0 0 8px ${glowAlpha(0.3)}`,
+            }}
+          >
+            {STAGE_MESSAGES[stage] || 'STRANGER THINGS AWAIT...'}
+          </div>
         </div>
       </div>
+
     </div>
   );
 };

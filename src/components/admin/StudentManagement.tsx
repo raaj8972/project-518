@@ -92,7 +92,7 @@ export const StudentManagement: React.FC = () => {
           {activeSubTab === 'settings' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Profile Field Toggles */}
-              <div className="superia-glass-card p-6 rounded-[2rem] border border-white/5">
+              <div className="rico-glass-card p-6 rounded-[2rem] border border-white/5">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
                     <School className="text-purple-400" />
@@ -123,7 +123,7 @@ export const StudentManagement: React.FC = () => {
           )}
 
           {activeSubTab === 'auth' && (
-            <div className="superia-glass-card p-8 rounded-[2rem] border border-white/5 max-w-2xl">
+            <div className="rico-glass-card p-8 rounded-[2rem] border border-white/5 max-w-2xl">
               <div className="flex items-center gap-4 mb-8">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center">
                   <Shield className="text-indigo-400" />

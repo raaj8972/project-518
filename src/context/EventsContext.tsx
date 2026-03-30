@@ -70,7 +70,7 @@ export const useEventsData = () => {
   return context;
 };
 
-export const EventsProvider = ({ children }: { children: ReactNode }) => {
+export const EventsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
@@ -81,9 +81,12 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchEventsData = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
+
     console.log('[EventsContext] fetchEventsData started');
     const start = Date.now();
     try {
@@ -150,13 +153,13 @@ export const EventsProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (refreshTrigger > 0 || user?.id) {
+    if (enabled) {
       fetchEventsData();
     }
-  }, [refreshTrigger, user?.id, fetchEventsData]);
+  }, [fetchEventsData, refreshTrigger, user?.id, enabled]);
 
   // Real-time: re-fetch when any events-related table changes
   useEffect(() => {

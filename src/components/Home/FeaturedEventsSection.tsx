@@ -88,7 +88,7 @@ const FeaturedEventsSection: React.FC<FeaturedEventsSectionProps> = ({
                   className="w-64 sm:w-72 md:w-80 scroll-animate-3d animate-in-3d group"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  <div className="superia-glass-card rounded-[2.5rem] p-4 h-full tilt-3d transition-all duration-500 hover:shadow-[0_30px_60px_rgba(0,0,0,0.4)]">
+                  <div className="rico-glass-card rounded-[2.5rem] p-4 h-full tilt-3d transition-all duration-500 hover:shadow-[0_30px_60px_rgba(0,0,0,0.4)]">
                     <div className="relative h-64 md:h-72 mb-6 rounded-[2rem] overflow-hidden bg-black/40">
                       <img
                         src={event.image}

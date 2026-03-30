@@ -46,7 +46,7 @@ const Overview: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
         {dataLoading ? (
           [0, 1, 2].map(i => (
-            <div key={i} className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 animate-pulse">
+            <div key={i} className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 animate-pulse">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-xl bg-white/10" />
                 <div className="w-10 h-7 rounded bg-white/10" />
@@ -56,7 +56,7 @@ const Overview: React.FC = () => {
           ))
         ) : (
           <>
-            <div className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
+            <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
                   <Calendar className="w-6 h-6 text-red-500" />
@@ -66,7 +66,7 @@ const Overview: React.FC = () => {
               <p className="text-gray-400 text-sm font-medium">Cultural Events</p>
             </div>
 
-            <div className="superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
+            <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
                   <Trophy className="w-6 h-6 text-blue-500" />
@@ -76,7 +76,7 @@ const Overview: React.FC = () => {
               <p className="text-gray-400 text-sm font-medium">Sports Events</p>
             </div>
 
-            <div className={`superia-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 hidden md:block relative overflow-hidden group`}>
+            <div className={`rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5 hidden md:block relative overflow-hidden group`}>
               {rankInfo && (
                 <div className={`absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br ${rankInfo.auraGradient} opacity-[0.03] group-hover:opacity-[0.08] transition-opacity rounded-full blur-2xl`} />
               )}

@@ -278,7 +278,7 @@ const DashboardLayout: React.FC = () => {
         <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-red-800/10 rounded-full blur-[100px]" />
         
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="superia-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5">
+          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5">
             <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8 relative">
               <User className="w-10 h-10 text-red-400" />
             </div>
@@ -314,7 +314,7 @@ const DashboardLayout: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#0a0a0a] pt-24 pb-12 px-4 flex items-center justify-center relative overflow-hidden">
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="superia-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5 text-center">
+          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5 text-center">
             <div className="w-20 h-20 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8"><Clock className="w-10 h-10 text-red-400" /></div>
             <h1 className="text-3xl font-bold text-white mb-4">Verification in Progress</h1>
             <p className="text-gray-400 text-lg mb-8">Our admins are currently verifying your profile details. Stay tuned!</p>
@@ -362,7 +362,7 @@ const DashboardLayout: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
         
         {/* Header Greeting */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-4 sm:p-6 md:p-10 superia-glass-card border border-white/10">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-4 sm:p-6 md:p-10 rico-glass-card border border-white/10">
           <div className="relative z-10 flex items-center justify-between gap-3">
             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2 text-white"><Menu className="w-6 h-6" /></button>
             <div className="flex items-center gap-3 sm:gap-5 min-w-0">

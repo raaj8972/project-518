@@ -1,17 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Poppins:wght@400;700;900&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
 
 @layer utilities {
-  .superia-glass {
+  .rico-glass {
     @apply bg-white/[0.02] backdrop-blur-3xl border border-white/5 shadow-[0_12px_40px_rgba(0,0,0,0.5)];
   }
 }
-  .superia-glass-card {
+  .rico-glass-card {
     @apply bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-3xl border border-white/5 shadow-[0_24px_48px_rgba(0,0,0,0.6)];
   }
-  .animate-superia-float {
-    animation: superiaFloat 6s ease-in-out infinite;
+  .animate-rico-float {
+    animation: ricoFloat 6s ease-in-out infinite;
   }
-  @keyframes superiaFloat {
+  @keyframes ricoFloat {
     0%, 100% { transform: translateY(0) rotate(0deg); }
     50% { transform: translateY(-10px) rotate(0.5deg); }
   }

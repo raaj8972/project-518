@@ -132,7 +132,7 @@ const safeTeamMembers = (r: any): any[] => {
 const ProcessingOverlay: React.FC<{ title: string; progress: number; currentItem?: string }> = ({ title, progress, currentItem }) => {
   return (
     <div className="fixed top-24 right-6 z-[100] w-96 max-w-[90vw] animate-in fade-in slide-in-from-right-8 duration-500 pointer-events-auto">
-      <div className="superia-glass-card p-5 rounded-2xl shadow-2xl border-white/10 relative overflow-hidden">
+      <div className="rico-glass-card p-5 rounded-2xl shadow-2xl border-white/10 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2" />
         <div className="relative z-10">
           <div className="flex items-center justify-between mb-3">
@@ -1272,7 +1272,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       </div>
           
           {/* Quick Actions Bar */}
-          <div className="superia-glass-card rounded-[2rem] p-5 border-white/5 shadow-2xl relative overflow-hidden group">
+          <div className="rico-glass-card rounded-[2rem] p-5 border-white/5 shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-indigo-500/10 transition-colors duration-700"></div>
             <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-3 md:gap-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -1355,7 +1355,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
           </div>
 
         {/* Export Section */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-500/5 rounded-full translate-x-1/3 translate-y-1/4 blur-[100px] group-hover:bg-purple-500/10 transition-colors duration-700"></div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-3">
@@ -1462,7 +1462,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Advanced Settings */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-white/5 relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-[80px] group-hover:bg-amber-500/10 transition-colors duration-700"></div>
           <button
             onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
@@ -1645,7 +1645,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
       {showColumnModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="superia-glass-card rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border-white/10">
+          <div className="rico-glass-card rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-5 border-white/10">
             <div className="flex justify-between items-center border-b border-white/5 pb-4">
               <h3 className="text-xl font-black text-white tracking-tight">Select Columns</h3>
               <button onClick={() => setShowColumnModal(false)} className="text-gray-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition-colors">
@@ -1716,7 +1716,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
       {/* Active Filters Display */}
       {(selectedEvent !== 'all' || selectedStatus !== 'all' || selectedBatch !== 'all' || selectedCategory !== 'all' || selectedEmailStatus !== 'all' || dateFrom || dateTo || searchTerm || showDuplicatesOnly) && (
-        <div className="superia-glass-card border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+        <div className="rico-glass-card border-white/10 rounded-2xl p-6 shadow-2xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-[500px] h-full bg-gradient-to-l from-indigo-500/10 to-transparent pointer-events-none" />
           <div className="flex flex-wrap items-center gap-2 relative z-10">
             <span className="text-sm font-bold text-indigo-300 flex items-center shadow-indigo-500/50 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]">
@@ -1833,7 +1833,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       )}
 
       {/* Filters Section - Reorganized */}
-      <div className="superia-glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden shadow-2xl">
+      <div className="rico-glass-card rounded-[2.5rem] p-8 border-white/5 relative overflow-hidden shadow-2xl">
         <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[100px]"></div>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-black text-white flex items-center tracking-tight">
@@ -2054,7 +2054,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       {/* Statistics Cards - Enhanced & Responsive */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Registrations */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-blue-500/10 hover:border-blue-500/30 transition-all duration-500 group relative overflow-hidden">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-blue-500/10 hover:border-blue-500/30 transition-all duration-500 group relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <Users className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
@@ -2069,7 +2069,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Pending */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-amber-500/10 hover:border-amber-500/30 transition-all duration-500 group relative overflow-hidden">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-amber-500/10 hover:border-amber-500/30 transition-all duration-500 group relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <AlertTriangle className="w-6 h-6 md:w-8 md:h-8 text-amber-600" />
@@ -2082,7 +2082,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Approved */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-green-500/10 hover:border-green-500/30 transition-all duration-500 group relative overflow-hidden">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-green-500/10 hover:border-green-500/30 transition-all duration-500 group relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <CheckCircle className="w-6 h-6 md:w-8 md:h-8 text-green-600" />
@@ -2095,7 +2095,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
         </div>
 
         {/* Rejected */}
-        <div className="superia-glass-card rounded-[2rem] p-8 border-red-500/10 hover:border-red-500/30 transition-all duration-500 group relative overflow-hidden">
+        <div className="rico-glass-card rounded-[2rem] p-8 border-red-500/10 hover:border-red-500/30 transition-all duration-500 group relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full translate-x-1/4 -translate-y-1/4 blur-[40px] group-hover:scale-110 transition-transform duration-700"></div>
           <div className="flex items-center justify-between mb-2">
             <XCircle className="w-6 h-6 md:w-8 md:h-8 text-red-600" />
@@ -2109,7 +2109,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       </div>
 
       {/* Registrations List */}
-      <div className="superia-glass-card rounded-[2.5rem] border-white/5 overflow-hidden shadow-2xl">
+      <div className="rico-glass-card rounded-[2.5rem] border-white/5 overflow-hidden shadow-2xl">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-white/5">
             <thead className="bg-white/5 backdrop-blur-sm border-b border-white/10">
@@ -2758,7 +2758,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       {/* Rejection Reason Modal */}
       {rejectingId && createPortal(
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[9999] animate-in fade-in duration-200">
-            <div className="superia-glass-card rounded-2xl p-6 max-w-md w-full shadow-2xl border-white/10">
+            <div className="rico-glass-card rounded-2xl p-6 max-w-md w-full shadow-2xl border-white/10">
                 <h3 className="text-lg font-black mb-4 text-white flex items-center gap-2">
                   <XCircle className="text-red-500" />
                   Reject Registration
@@ -2797,7 +2797,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       , document.body)}
       {showEmailModal && createPortal(
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[9999] p-4 overflow-y-auto animate-in fade-in duration-200">
-          <div className="superia-glass-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border-white/10">
+          <div className="rico-glass-card rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border-white/10">
             <div className="p-5 border-b border-white/10 flex justify-between items-center bg-white/5 rounded-t-2xl">
               <h3 className="font-black text-white flex items-center gap-3 text-lg">
                 <div className="p-2 bg-blue-500/20 rounded-lg">

@@ -27,7 +27,7 @@ export const AIBrainHUD: React.FC<AIBrainHUDProps> = ({ stats }) => {
   };
 
   return (
-    <div className="superia-glass-card rounded-[2.5rem] p-8 relative overflow-hidden group">
+    <div className="rico-glass-card rounded-[2.5rem] p-8 relative overflow-hidden group">
       {/* Animated HUD Scanline */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-indigo-500/5 to-transparent h-20 w-full -translate-y-full group-hover:translate-y-[500%] transition-transform duration-[3s] pointer-events-none" />
       
@@ -53,7 +53,7 @@ export const AIBrainHUD: React.FC<AIBrainHUDProps> = ({ stats }) => {
         <div className="flex-1 text-center md:text-left space-y-3">
           <div className="flex items-center justify-center md:justify-start gap-3">
             <div className="h-px w-8 bg-indigo-500/30" />
-            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">SUPERIA INTELLIGENCE</span>
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.4em]">RICO INTELLIGENCE</span>
           </div>
           
           <h3 className="text-xl md:text-2xl font-black text-white tracking-tighter leading-tight">
