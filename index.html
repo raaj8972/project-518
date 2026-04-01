@@ -73,10 +73,10 @@
     <link rel="preload" href="/rickshaw.svg" as="image" type="image/svg+xml" fetchpriority="high">
     <link rel="preload" href="/noise.png" as="image" type="image/png">
     
-    <!-- Preload critical fonts for text rendering -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" as="style">
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet"></noscript>
+    <!-- Optimized Google Fonts: Consolidated into a single request with display=swap and preconnect -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;700;900&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;700;900&display=swap" as="style">
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;700;900&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;700;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Anton&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;700;900&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;700;900&display=swap" rel="stylesheet"></noscript>
     
     <!-- Preload main JS module -->
 
@@ -110,7 +110,14 @@
         overflow-x: hidden;
       }
 
-      /* Skeleton Styles (Instant Paint) */
+      /* Premium Cyberpunk / Stranger Things Initial Load Skeleton */
+      :root {
+        --sk-bg: #030303;
+        --sk-accent: #ff0000;
+        --sk-glow: rgba(220, 38, 38, 0.4);
+        --sk-text: #ffffff;
+      }
+
       .skeleton-container {
         position: fixed;
         inset: 0;
@@ -118,59 +125,100 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: var(--bg-dark);
-        z-index: 5;
-        overflow: hidden;
-      }
-      
-      .skeleton-title {
-        font-size: 4rem;
-        font-weight: 900;
-        font-family: 'Orbitron', sans-serif;
-        color: transparent;
-        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.1);
-        margin-bottom: 2rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5rem;
-        animation: skeleton-pulse 2s infinite ease-in-out;
-      }
-
-      .skeleton-buttons {
-        display: flex;
-        gap: 1.5rem;
-        opacity: 0.1;
-      }
-
-      .skeleton-btn {
-        width: 180px;
-        height: 50px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 4px;
-        position: relative;
+        z-index: 9999;
+        background-color: var(--sk-bg);
+        background-image: 
+          radial-gradient(circle at 50% 50%, rgba(30, 0, 0, 0.2) 0%, transparent 70%),
+          linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8));
         overflow: hidden;
       }
 
-      .skeleton-btn::after {
-        content: "";
+      /* CRT Scanline Texture */
+      .skeleton-container::before {
+        content: '';
         position: absolute;
         inset: 0;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
-        transform: translateX(-100%);
-        animation: skeleton-shimmer 2s infinite;
+        pointer-events: none;
+        z-index: 10;
+        background: repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(255, 255, 255, 0.015) 2px,
+          rgba(255, 255, 255, 0.015) 4px
+        );
       }
 
-      @keyframes skeleton-pulse {
-        0%, 100% { opacity: 0.3; transform: scale(0.98); }
-        50% { opacity: 0.5; transform: scale(1); }
+      /* Scanning Beam Overlay */
+      .skeleton-container::after {
+        content: '';
+        position: absolute;
+        top: -100px;
+        left: 0;
+        right: 0;
+        height: 100px;
+        background: linear-gradient(to bottom, transparent, rgba(220, 38, 38, 0.05), transparent);
+        animation: sk-scan 4s linear infinite;
+        z-index: 11;
       }
 
-      @keyframes skeleton-shimmer {
-        100% { transform: translateX(100%); }
+      @keyframes sk-scan {
+        0% { top: -100px; }
+        100% { top: 100%; }
       }
 
-      @media (max-width: 768px) {
-        .skeleton-title { font-size: 2.5rem; }
-        .skeleton-buttons { flex-direction: column; }
+      .skeleton-title {
+        font-size: clamp(3rem, 12vw, 7rem);
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        color: var(--sk-text);
+        text-transform: uppercase;
+        position: relative;
+        text-shadow: 
+          0 0 10px rgba(255, 0, 0, 0.8),
+          0 0 20px rgba(255, 0, 0, 0.4),
+          0 0 40px rgba(255, 0, 0, 0.2);
+        animation: sk-glow-pulse 2.5s ease-in-out infinite;
+        z-index: 12;
+        font-family: 'Crimson Pro', serif;
+      }
+
+      @keyframes sk-glow-pulse {
+        0%, 100% { 
+          opacity: 0.8; 
+          filter: drop-shadow(0 0 5px rgba(255, 0, 0, 0.5)); 
+          transform: scale(0.985);
+        }
+        50% { 
+          opacity: 1; 
+          filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.8)); 
+          transform: scale(1);
+        }
+      }
+
+      .skeleton-status {
+        margin-top: 2rem;
+        font-family: monospace;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.4em;
+        color: var(--sk-accent);
+        opacity: 0.6;
+        animation: sk-status-fade 1.5s ease-in-out infinite;
+        z-index: 12;
+      }
+
+      @keyframes sk-status-fade {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.8; }
+      }
+
+      .skeleton-vignette {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.8) 100%);
+        z-index: 13;
+        pointer-events: none;
       }
       
       /* Custom scrollbar */
@@ -307,14 +355,12 @@
   <h1 class="sr-only">RICORRENZA — IQ City Medical College Cultural Festival</h1>
   <!-- Instant Paint Skeleton (Manually removed by main.tsx) -->
   <div id="app-skeleton" class="skeleton-container">
+    <div class="skeleton-vignette"></div>
     <div class="skeleton-title">RICORRENZA</div>
-    <div class="skeleton-buttons">
-      <div class="skeleton-btn"></div>
-      <div class="skeleton-btn"></div>
-    </div>
+    <div class="skeleton-status">Initializing Core Systems...</div>
   </div>
 
-  <div id="root" style="position: relative; z-index: 1;"></div>
+  <div id="root" style="position: relative;"></div>
     <!-- Main app module loaded with high priority -->
     <script type="module" src="/src/main.tsx" fetchpriority="high"></script>
 

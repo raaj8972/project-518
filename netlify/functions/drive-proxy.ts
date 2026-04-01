@@ -20,7 +20,7 @@ const R2_BUCKET      = process.env.R2_BUCKET_NAME || '';
 const R2_PUBLIC_HOST = process.env.R2_PUBLIC_DOMAIN || '';
 
 const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
+  // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };

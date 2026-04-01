@@ -21,6 +21,11 @@ export default defineConfig({
   cacheDir: 'node_modules/.vite_cache',
   resolve: {
     dedupe: ['react', 'react-dom'],
+    alias: {
+      'stats.js': 'three/examples/jsm/libs/stats.module.js',
+      'stats.js/src/Stats.js': 'three/examples/jsm/libs/stats.module.js',
+      'stats.js/build/stats.min.js': 'three/examples/jsm/libs/stats.module.js'
+    },
   },
   optimizeDeps: {
     include: ['react', 'react-dom', '@supabase/supabase-js', 'buffer', 'process'],

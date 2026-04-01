@@ -299,9 +299,8 @@ export const CoordinatorDashboard: React.FC = () => {
 
   const handleLogout = useCallback(() => {
     sessionStorage.removeItem('coordinator_session');
-    navigate('/coordinator');
-    push({ message: 'Logged out successfully', type: 'success' });
-  }, [navigate, push]);
+    window.location.href = '/coordinator';
+  }, []);
 
   const handleRetry = useCallback(async () => {
     const stored = sessionStorage.getItem('coordinator_session');

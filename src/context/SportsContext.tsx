@@ -14,6 +14,8 @@ interface SportsContextType {
   sportsPlayers: SportsPlayer[];
   sportsRegistrations: SportsRegistration[];
   sportsMatches: SportsMatch[];
+  loading: boolean;
+  isLoaded: boolean;
   
   // Annual Sports
   annualSportsEvents: AnnualSportsEvent[];
@@ -82,6 +84,8 @@ export const SportsProvider = ({ children, enabled = true }: { children: ReactNo
   const [annualSportsEvents, setAnnualSportsEvents] = useState<AnnualSportsEvent[]>([]);
   const [annualSportsRegistrations, setAnnualSportsRegistrations] = useState<AnnualSportsRegistration[]>([]);
   const [annualSportsMatches, setAnnualSportsMatches] = useState<AnnualSportsMatch[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchSportsData = useCallback(async () => {
     if (!enabled) return;
@@ -109,8 +113,9 @@ export const SportsProvider = ({ children, enabled = true }: { children: ReactNo
       if (!annualRegsRes.error) setAnnualSportsRegistrations(annualRegsRes.data || []);
       if (!annualMatchesRes.error) setAnnualSportsMatches(annualMatchesRes.data || []);
 
-    } catch (err) {
-      console.error('[SportsContext] Failed to fetch sports data', err);
+    } finally {
+      setLoading(false);
+      setIsLoaded(true);
     }
   }, [enabled]);
 
@@ -129,6 +134,8 @@ export const SportsProvider = ({ children, enabled = true }: { children: ReactNo
     annualSportsEvents,
     annualSportsRegistrations,
     annualSportsMatches,
+    loading,
+    isLoaded,
     
     addSportsSeason: async (season) => {
       const res = await dualInsert('sports_seasons', season);

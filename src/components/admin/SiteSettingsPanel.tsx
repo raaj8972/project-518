@@ -1,6 +1,6 @@
 import React from 'react';
 import { useData } from '../../context/DataContext';
-import { Calendar, Save, MessageSquareOff } from 'lucide-react';
+import { Calendar, Save, MessageSquareOff, Timer, Plus, Minus, X } from 'lucide-react';
 import { ComingSoon } from '../../pages/ComingSoon';
 import { useApprovals } from '../../hooks/useApprovals';
 
@@ -17,6 +17,7 @@ export const SiteSettingsPanel: React.FC = () => {
     site_closed: false,
     coming_soon_enabled: false,
     chat_locked: false,
+    locked_pages: {} as Record<string, boolean>,
     coming_soon_until: '',
     coming_soon_title: '',
     coming_soon_message: '',
@@ -27,6 +28,7 @@ export const SiteSettingsPanel: React.FC = () => {
     registration_institution_visible: true,
     registration_institution_optional: false,
     registration_participant_types: ['1st Year','2nd Year','3rd Year','4th Year'],
+    locked_pages_until: {} as Record<string, string | null>,
   });
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
@@ -37,6 +39,7 @@ export const SiteSettingsPanel: React.FC = () => {
       site_closed: !!siteSettings.site_closed,
       coming_soon_enabled: !!siteSettings.coming_soon_enabled,
       chat_locked: !!(siteSettings as any).chat_locked,
+      locked_pages: siteSettings.locked_pages || {},
       coming_soon_until: siteSettings.coming_soon_until ? new Date(siteSettings.coming_soon_until).toISOString().slice(0,16) : '',
       coming_soon_title: siteSettings.coming_soon_title || '',
       coming_soon_message: siteSettings.coming_soon_message || '',
@@ -48,6 +51,7 @@ export const SiteSettingsPanel: React.FC = () => {
       registration_participant_types: Array.isArray((siteSettings as any)?.registration_participant_types) && (siteSettings as any).registration_participant_types.length
         ? (siteSettings as any).registration_participant_types
         : ['1st Year','2nd Year','3rd Year','4th Year'],
+      locked_pages_until: siteSettings.locked_pages_until || {},
     });
   }, [siteSettings]);
 
@@ -58,6 +62,7 @@ export const SiteSettingsPanel: React.FC = () => {
         site_closed: local.site_closed,
         coming_soon_enabled: local.coming_soon_enabled,
         chat_locked: local.chat_locked,
+        locked_pages: local.locked_pages,
         coming_soon_until: local.coming_soon_until ? new Date(local.coming_soon_until).toISOString() : null,
         coming_soon_title: local.coming_soon_title || null,
         coming_soon_message: local.coming_soon_message || null,
@@ -68,6 +73,7 @@ export const SiteSettingsPanel: React.FC = () => {
         registration_institution_visible: !!local.registration_institution_visible,
         registration_institution_optional: !!local.registration_institution_optional,
         registration_participant_types: Array.isArray(local.registration_participant_types) ? local.registration_participant_types : null,
+        locked_pages_until: local.locked_pages_until,
       };
 
       if (requiresApproval) {
@@ -85,12 +91,47 @@ export const SiteSettingsPanel: React.FC = () => {
         await updateSiteSettings(newSettings as any);
         setSavedAt(Date.now());
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving site settings:', error);
-      alert('Failed to save settings. Please try again.');
+      const isRLS = error?.message?.includes('violates row-level security') || error?.code === '42501';
+      const msg = isRLS ? 'Permission Denied: You do not have permission to update site settings in Supabase RLS.' : (error.message || 'Failed to save settings. Please try again.');
+      alert(msg);
     } finally {
       setSaving(false);
     }
+  };
+  const adjustTimer = (page: string, minutes: number) => {
+    const current = local.locked_pages_until[page];
+    let baseDate = current ? new Date(current) : new Date();
+    
+    // If current timer is in the past or not set, start from now
+    if (isNaN(baseDate.getTime()) || baseDate.getTime() < Date.now()) {
+      baseDate = new Date();
+    }
+    
+    const newDate = new Date(baseDate.getTime() + minutes * 60000);
+    setLocal(s => ({
+      ...s,
+      locked_pages_until: {
+        ...s.locked_pages_until,
+        [page]: newDate.toISOString()
+      },
+      // Automatically enable the lock if we are setting a timer
+      locked_pages: {
+        ...s.locked_pages,
+        [page]: true
+      }
+    }));
+  };
+
+  const clearTimer = (page: string) => {
+    setLocal(s => ({
+      ...s,
+      locked_pages_until: {
+        ...s.locked_pages_until,
+        [page]: null
+      }
+    }));
   };
 
   return (
@@ -133,6 +174,70 @@ export const SiteSettingsPanel: React.FC = () => {
                   <span className="text-gray-300 group-hover:text-white transition-colors">Lock all chat (nobody can send messages)</span>
                 </div>
               </label>
+            </div>
+
+            {/* Page Locks Group */}
+            <div className="space-y-4 bg-black/20 p-4 rounded-xl border border-white/5">
+              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Page Level Maintenance Locks</h3>
+              <div className="space-y-3">
+                {['events', 'schedule', 'gallery', 'home-bound', 'rico-family', 'sponsors', 'sports'].map(page => {
+                  const timerExpiry = local.locked_pages_until[page];
+                  const hasTimer = !!timerExpiry && new Date(timerExpiry).getTime() > Date.now();
+                  
+                  return (
+                    <div key={page} className="space-y-2 pb-3 border-b border-white/5 last:border-0 last:pb-0">
+                      <label className="flex items-center justify-between cursor-pointer group p-1 rounded-lg transition-colors">
+                        <span className="text-gray-300 group-hover:text-white transition-colors capitalize text-sm">{page.replace('-', ' ')} Page</span>
+                        <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.locked_pages[page] ? 'bg-indigo-500' : 'bg-gray-700'}`}>
+                           <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.locked_pages[page] ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
+                        <input type="checkbox" className="hidden" checked={!!local.locked_pages[page]} onChange={(e) => setLocal((s) => ({ ...s, locked_pages: { ...s.locked_pages, [page]: e.target.checked } }))} />
+                      </label>
+                      
+                      {/* Timer Controls */}
+                      <div className="flex items-center gap-2 pl-2">
+                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] uppercase font-bold transition-all ${hasTimer ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400' : 'bg-white/5 border-white/10 text-gray-500'}`}>
+                          <Timer className="w-3 h-3" />
+                          {hasTimer ? (
+                            <span>Until {new Date(timerExpiry!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          ) : (
+                            <span>No Timer</span>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          <button 
+                            type="button" 
+                            onClick={() => adjustTimer(page, 5)}
+                            className="p-1.5 rounded-md bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                            title="Add 5 Minutes"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                          <button 
+                            type="button" 
+                            onClick={() => adjustTimer(page, -5)}
+                            className="p-1.5 rounded-md bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                            title="Subtract 5 Minutes"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          {hasTimer && (
+                            <button 
+                              type="button" 
+                              onClick={() => clearTimer(page)}
+                              className="p-1.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+                              title="Clear Timer"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-5">

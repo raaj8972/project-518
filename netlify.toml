@@ -70,7 +70,7 @@
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
+    # Access-Control-Allow-Origin = "*" (Restricted for security)
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     X-Content-Type-Options = "nosniff"
@@ -78,7 +78,7 @@
 [[headers]]
   for = "/.netlify/functions/get-r2-upload-url"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
+    # Access-Control-Allow-Origin = "*" (Restricted for security)
     Access-Control-Allow-Methods = "POST, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type"
 

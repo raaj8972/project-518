@@ -190,6 +190,8 @@ export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] 
   shoutouts_daily_limit?: number;
   shoutouts_expiry_hours?: number;
   site_version?: string | null;
+  locked_pages?: Record<string, boolean>;
+  locked_pages_until?: Record<string, string | null>;
 };
 
 export interface Admirer {

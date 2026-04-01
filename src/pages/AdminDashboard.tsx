@@ -83,6 +83,7 @@ import { WelcomeSplash } from '../components/admin/dashboard/WelcomeSplash';
 import { AIBrainHUD } from '../components/admin/dashboard/AIBrainHUD';
 const StorageOverview = React.lazy(() => import('../components/admin/StorageOverview').then(m => ({ default: m.StorageOverview })));
 const RegistrationPhotosPanel = React.lazy(() => import('../components/admin/RegistrationPhotosPanel'));
+const ThemeManagement = React.lazy(() => import('../components/admin/ThemeManagement').then(m => ({ default: m.ThemeManagement })));
 const SiteSettingsPanel = React.lazy(() => import('../components/admin/SiteSettingsPanel').then(m => ({ default: m.SiteSettingsPanel })));
 const AdminUsersPanel = React.lazy(() => import('../components/admin/AdminUsersPanel').then(m => ({ default: m.AdminUsersPanel })));
 const ConnectionOverview = React.lazy(() => import('../components/admin/ConnectionOverview').then(m => ({ default: m.ConnectionOverview })));
@@ -422,6 +423,7 @@ export const AdminDashboard: React.FC = () => {
 
     // SYSTEM
     { id: 'admin-users' as TabType, name: 'Admins', icon: Shield, group: 'SYSTEM' },
+    { id: 'theme' as TabType, name: 'Theme', icon: Palette, group: 'SYSTEM' },
     { id: 'site-settings' as TabType, name: 'Site Settings', icon: Settings, group: 'SYSTEM' },
     { id: 'security' as TabType, name: 'Security', icon: Shield, group: 'SYSTEM' },
     ...(isOwner ? [{ id: 'owner-approvals' as TabType, name: 'Approvals', icon: CheckCircle, group: 'SYSTEM' }] : []),
@@ -1018,6 +1020,8 @@ export const AdminDashboard: React.FC = () => {
                 <SecurityManagement defaultTab="council" />
               </React.Suspense>
             )}
+            {activeTab === 'theme' && <ThemeManagement />}
+
             {activeTab === 'site-settings' && (
               <SiteSettingsPanel />
             )}

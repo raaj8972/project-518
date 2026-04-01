@@ -1,11 +1,11 @@
-import React, { ReactNode, useState, useEffect, createContext, useContext } from 'react';
+import { ReactNode, useState, useEffect, createContext, useContext } from 'react';
 import { CoreDataProvider, useCoreData } from './CoreDataContext';
 import { EventsProvider, useEventsData } from './EventsContext';
 import { PersonnelProvider, usePersonnelData } from './PersonnelContext';
 import { GalleryProvider } from './GalleryContext';
 import { ManagementProvider, useManagementData } from './ManagementContext';
 import { SportsProvider, useSportsData } from './SportsContext';
-import { AnnualSportsProvider } from './AnnualSportsContext';
+import { AnnualSportsProvider, useAnnualSports } from './AnnualSportsContext';
 
 interface SystemStatusContextType {
   stage: number;
@@ -26,15 +26,29 @@ const StageAdvancer = ({ stage, setStage }: { stage: number, setStage: (n: numbe
   const events = useEventsData();
   const management = useManagementData();
   const sports = useSportsData();
+  const annualSports = useAnnualSports();
+
+  // --- Stage-Advancement Failsafe ---
+  // If a stage doesn't naturally complete within 2.5s, force it to prevent stuck preloaders.
+  useEffect(() => {
+    if (stage >= 3) return;
+
+    const failsafe = setTimeout(() => {
+      console.warn(`[Orchestration] Failsafe: Forcing Stage ${stage} -> ${stage + 1} due to inactivity.`);
+      setStage(stage + 1);
+    }, 2500);
+
+    return () => clearTimeout(failsafe);
+  }, [stage, setStage]);
 
   // Stage Transitions with staggered delays to prevent connection saturation
   useEffect(() => {
     // Stage 0 -> 1 (Personnel & Events)
-    if (stage === 0 && core.isLoaded && !core.loading) {
+    if (stage === 0 && (core.siteSettings || (core.isLoaded && !core.loading))) {
       const timer = setTimeout(() => {
         console.log('[Orchestration] Transitioning to Stage 1: Personnel & Events');
         setStage(1);
-      }, 1200);
+      }, 50); // Minimal delay now that we check for partial readiness
       return () => clearTimeout(timer);
     }
     
@@ -43,16 +57,19 @@ const StageAdvancer = ({ stage, setStage }: { stage: number, setStage: (n: numbe
       const timer = setTimeout(() => {
         console.log('[Orchestration] Transitioning to Stage 2: Management & Sports');
         setStage(2);
-      }, 1200);
+      }, 200);
       return () => clearTimeout(timer);
     }
     
-    // Stage 2 -> 3 (Gallery)
-    if (stage === 2 && sports.isLoaded && !sports.loading && management.isLoaded && !management.loading) {
+    // Stage 2 -> 3 (Gallery & Beyond)
+    if (stage === 2 && 
+        sports.isLoaded && !sports.loading && 
+        management.isLoaded && !management.loading &&
+        annualSports.isLoaded && !annualSports.loading) {
       const timer = setTimeout(() => {
         console.log('[Orchestration] Transitioning to Stage 3: Gallery');
         setStage(3);
-      }, 1200);
+      }, 200);
       return () => clearTimeout(timer);
     }
   }, [
@@ -61,7 +78,8 @@ const StageAdvancer = ({ stage, setStage }: { stage: number, setStage: (n: numbe
     personnel.isLoaded, personnel.loading,
     events.isLoaded, events.loading,
     sports.isLoaded, sports.loading,
-    management.isLoaded, management.loading
+    management.isLoaded, management.loading,
+    annualSports.isLoaded, annualSports.loading
   ]);
 
   return null;

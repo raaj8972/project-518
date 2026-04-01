@@ -3,7 +3,7 @@ import { sendEmail } from './lib/email';
 
 export default async (req: Request) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json',

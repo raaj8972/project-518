@@ -157,10 +157,14 @@ export const StudentAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
         setUser(null);
         setProfile(null);
         
-        // 3. Attempt Supabase signOut (but don't wait forever)
-        supabase.auth.signOut().catch(err => console.error('[StudentAuth] Supabase signOut error:', err));
+        // 3. Attempt Supabase signOut
+        try {
+          await supabase.auth.signOut();
+        } catch (err) {
+          console.error('[StudentAuth] Supabase signOut error:', err);
+        }
       } finally {
-        // 4. Always redirect
+        // 4. Always redirect with a full page reload for a clean state
         console.log('[StudentAuth] Force redirecting to login...');
         window.location.href = '/student/login';
       }

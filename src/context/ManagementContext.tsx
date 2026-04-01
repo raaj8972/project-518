@@ -19,6 +19,7 @@ interface ManagementContextType {
   memberships: Membership[];
   adminUsers: any[];
   loading: boolean;
+  isLoaded: boolean;
   
   // Sponsors
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
@@ -80,6 +81,7 @@ export const ManagementProvider = ({ children, enabled = true }: { children: Rea
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchManagementData = useCallback(async () => {
     if (!enabled) return;
@@ -119,6 +121,7 @@ export const ManagementProvider = ({ children, enabled = true }: { children: Rea
       console.error('[ManagementContext] Failed to fetch management data:', err);
     } finally {
       setLoading(false);
+      setIsLoaded(true);
     }
   }, [enabled]);
 
@@ -299,6 +302,7 @@ export const ManagementProvider = ({ children, enabled = true }: { children: Rea
     memberships,
     adminUsers,
     loading,
+    isLoaded,
     addSponsor,
     updateSponsor,
     deleteSponsor,

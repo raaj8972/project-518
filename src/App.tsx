@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, lazy, Component, PropsWithChildren, ReactElement } from 'react';
+import React, { useMemo, useState, useEffect, lazy, PropsWithChildren, ReactElement } from 'react';
 console.log('[App.tsx] Module loaded');
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -17,14 +17,14 @@ import { NotificationsPanel } from './components/NotificationsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
 import OfflineIndicator from './components/OfflineIndicator';
 import { NoiseOverlay } from './components/ui/NoiseOverlay';
+import { BollywoodThemeOverlay } from './components/ui/BollywoodThemeOverlay';
 import { AudioController } from './components/ui/AudioController';
 import { Preloader } from './components/ui/Preloader';
 import { SmoothScroll } from './components/ui/SmoothScroll';
 import { getCachedLogoUrl } from './utils/preloadBrand';
-import { useEventsData } from './context/EventsContext';
-import { usePersonnelData } from './context/PersonnelContext';
-import { useGalleryData } from './context/GalleryContext';
-import { useManagementData } from './context/ManagementContext';
+import LockedPageGuard from './components/LockedPageGuard';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { BollywoodLoader } from './components/ui/BollywoodLoader';
 
 // lazy loads
 const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
@@ -65,7 +65,7 @@ const StudentResetPassword = lazy(() => import('./pages/StudentResetPassword').t
 const ResetPassword = lazy(() => import('./pages/ResetPassword')) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary
-class RouteErrorBoundary extends Component<PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
+class RouteErrorBoundary extends React.Component<PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
   constructor(props: PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false };
@@ -96,10 +96,6 @@ const AppShell: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const core = useData();
-  const events = useEventsData();
-  const personnel = usePersonnelData();
-  const gallery = useGalleryData();
-  const management = useManagementData();
   const { stage, isReady } = useSystemStatus();
   const [msg, setMsg] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | undefined>(getCachedLogoUrl() ?? undefined);
@@ -119,28 +115,23 @@ const AppShell: React.FC = () => {
     } catch { return false; }
   }, [user, core.adminUsers]);
 
-  // Loading Monitor & Failsafe
+  // Loading Orchestration Monitor
   useEffect(() => {
-    let timer: any;
-    const interval = setInterval(() => {
+    if (isReady && splashVisible) {
+      console.log('[App] System reached operational stage. Transitioning to UI...');
+    }
+    
+    // Safety failsafe to ensure app activation even if a secondary context hangs
+    // This is now absolute: after 7 seconds, we ALWAYS reveal the UI.
+    const failsafeTimeout = setTimeout(() => {
       if (splashVisible) {
-        console.log('[Loading Monitor]', {
-          core: core.loading, events: events.loading,
-          personnel: personnel.loading, gallery: gallery.loading,
-          management: management.loading, blockingUI: combinedLoading
-        });
-      }
-    }, 2000);
-
-    timer = setTimeout(() => {
-      if (splashVisible) {
-        console.warn('[Failsafe] Forcing transition...');
+        console.warn(`[App] Emergency Splash Timeout (Stage: ${stage}, Ready: ${isReady}). Forcing activation.`);
         setSplashVisible(false);
       }
-    }, 12000);
-
-    return () => { clearInterval(interval); clearTimeout(timer); };
-  }, [splashVisible, core.loading, events.loading, personnel.loading, gallery.loading, management.loading, combinedLoading]);
+    }, 7000); // 7 second absolute wait max
+    
+    return () => clearTimeout(failsafeTimeout);
+  }, [isReady, splashVisible, stage]);
 
   useEffect(() => {
     const handleRejection = (e: PromiseRejectionEvent) => {
@@ -178,6 +169,7 @@ const AppShell: React.FC = () => {
     <RouteErrorBoundary>
       <div className="min-h-screen bg-[#0a0a0a]">
         <NoiseOverlay />
+        <BollywoodThemeOverlay />
         <AudioController />
         
         {msg && isAdminOrOwner && (
@@ -206,9 +198,8 @@ const AppShell: React.FC = () => {
           <Footer />
         </React.Suspense>
 
-        
         {splashVisible && (
-          <Preloader 
+          <ThemeAwareLoader 
             loading={combinedLoading}
             stage={stage}
             onComplete={() => setSplashVisible(false)}
@@ -220,6 +211,15 @@ const AppShell: React.FC = () => {
   );
 };
 
+const ThemeAwareLoader: React.FC<any> = (props) => {
+  const { theme } = useTheme();
+  return theme === 'bollywood' ? (
+    <BollywoodLoader {...props} />
+  ) : (
+    <Preloader {...props} />
+  );
+};
+
 const InnerRouter: React.FC = () => {
   const router = useMemo(() => createBrowserRouter([
     {
@@ -227,13 +227,13 @@ const InnerRouter: React.FC = () => {
       element: <AppShell />,
       children: [
         { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
-        { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Events /></React.Suspense> },
-        { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Schedule /></React.Suspense> },
-        { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Gallery /></React.Suspense> },
-        { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><HomeBound /></React.Suspense> },
-        { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><RicoFamily /></React.Suspense> },
-        { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sponsors /></React.Suspense> },
-        { path: 'sports', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Sports /></React.Suspense> },
+        { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="events"><Events /></LockedPageGuard></React.Suspense> },
+        { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="schedule"><Schedule /></LockedPageGuard></React.Suspense> },
+        { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="gallery"><Gallery /></LockedPageGuard></React.Suspense> },
+        { path: 'home-bound', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="home-bound"><HomeBound /></LockedPageGuard></React.Suspense> },
+        { path: 'rico-family', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="rico-family"><RicoFamily /></LockedPageGuard></React.Suspense> },
+        { path: 'sponsors', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="sponsors"><Sponsors /></LockedPageGuard></React.Suspense> },
+        { path: 'sports', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="sports"><Sports /></LockedPageGuard></React.Suspense> },
         { path: 'login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><Login /></React.Suspense> },
         { path: 'student/login', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><StudentLogin /></React.Suspense> },
         { 
@@ -277,6 +277,24 @@ const InnerRouter: React.FC = () => {
 };
 
 export default function App() {
+  // Quick preview override: if the URL contains ?theme=bollywood or ?theme=cyberpunk
+  // we force the body class so you can preview the landing page without changing site settings.
+  React.useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const forced = params.get('theme');
+      if (forced === 'bollywood') {
+        document.body.classList.add('theme-bollywood');
+        document.body.classList.remove('theme-cyberpunk');
+      } else if (forced === 'cyberpunk') {
+        document.body.classList.add('theme-cyberpunk');
+        document.body.classList.remove('theme-bollywood');
+      }
+    } catch (e) {
+      // ignore if window is unavailable
+    }
+  }, []);
+
   return (
     <ErrorBoundary>
       <AuthProvider>
@@ -287,10 +305,12 @@ export default function App() {
               <ToastProvider>
                 <SavingProgressProvider>
                   <HelmetProvider>
+                    <ThemeProvider>
                     <OfflineIndicator />
                     <SmoothScroll>
                       <InnerRouter />
                     </SmoothScroll>
+                    </ThemeProvider>
                   </HelmetProvider>
                 </SavingProgressProvider>
               </ToastProvider>

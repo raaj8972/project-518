@@ -1,123 +1,8 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MODULE-LEVEL CONSTANTS  (computed once, never recreated)
 // ─────────────────────────────────────────────────────────────────────────────
-
-/** One ECG beat: P-wave → QRS complex → T-wave (viewBox 0 0 400 60, baseline y=30) */
-const ECG_ONE_BEAT: [number, number][] = [
-  [0, 30], [18, 30], [22, 26], [26, 30],          // P-wave
-  [34, 30], [36, 34], [38, 8], [40, 52], [42, 30], // QRS complex
-  [60, 30], [68, 28], [76, 22], [84, 28], [92, 30], // T-wave
-  [100, 30],
-];
-
-/** 4 beats tiled across the 400-unit viewBox */
-const ECG_POINTS: [number, number][] = [];
-for (let i = 0; i < 4; i++) {
-  ECG_ONE_BEAT.forEach(([x, y]) => ECG_POINTS.push([x + i * 100, y]));
-}
-
-const ECG_D = 'M ' + ECG_POINTS.map(([x, y]) => `${x},${y}`).join(' L ');
-const ECG_PATH_LEN = 820; // approximate stroke length of the full ECG path
-
-/**
- * Progress % thresholds that correspond to QRS (R-peak) spikes.
- * Derived from ECG_ONE_BEAT index 6 (the [38,8] R-peak) out of 16 pts per beat:
- *   beat 0 → idx 6/64  ≈ 9.4% → rounded to 11
- *   beat 1 → idx 22/64 ≈ 34%  → rounded to 36
- *   beat 2 → idx 38/64 ≈ 59%  → rounded to 61
- *   beat 3 → idx 54/64 ≈ 84%  → rounded to 86
- */
-const QRS_THRESHOLDS = [11, 36, 61, 86] as const;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ECG LINE COMPONENT
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface EcgLineProps {
-  progress: number;
-  glowColor: string;
-}
-
-const EcgLine = React.memo<EcgLineProps>(({ progress, glowColor }) => {
-  if (ECG_POINTS.length < 2) return null;
-
-  const t = Math.max(0, Math.min(1, progress / 100));
-  const dashoffset = ECG_PATH_LEN * (1 - t);
-
-  // Interpolate the pulse-head dot position along the ECG path
-  const lastIdx = ECG_POINTS.length - 1;
-  const ptIdx = t * lastIdx;
-  const lo = Math.max(0, Math.min(lastIdx - 1, Math.floor(ptIdx)));
-  const hi = Math.min(lastIdx, lo + 1);
-  const frac = ptIdx - lo;
-  const pLo = ECG_POINTS[lo]!;
-  const pHi = ECG_POINTS[hi]!;
-  const headX = pLo[0] + (pHi[0] - pLo[0]) * frac;
-  const headY = pLo[1] + (pHi[1] - pLo[1]) * frac;
-
-  return (
-    <div className="w-full">
-      <svg
-        viewBox="0 0 400 60"
-        preserveAspectRatio="none"
-        width="100%"
-        height="48"
-        aria-hidden
-        style={{ display: 'block', overflow: 'visible' }}
-      >
-        <defs>
-          {/* Simplified glow filter — less blur area for better fill performance */}
-          <filter id="ecg-glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="1.5" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* Ghost baseline (dim, full strip) */}
-        <path
-          d={ECG_D}
-          fill="none"
-          stroke="rgba(255,255,255,0.07)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* Glowing drawn portion — revealed left-to-right via dashoffset */}
-        <path
-          d={ECG_D}
-          fill="none"
-          stroke={glowColor}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray={ECG_PATH_LEN}
-          strokeDashoffset={dashoffset}
-          filter="url(#ecg-glow)"
-          style={{ transition: 'stroke-dashoffset 0.12s linear, stroke 0.3s ease' }}
-        />
-
-        {/* Pulse-head dot sweeping at the draw boundary */}
-        {progress > 0 && progress < 100 && (
-          <circle
-            cx={headX}
-            cy={headY}
-            r="3.5"
-            fill="white"
-            filter="url(#ecg-glow)"
-            style={{ transition: 'cx 0.12s linear, cy 0.12s linear' }}
-          />
-        )}
-      </svg>
-    </div>
-  );
-});
-EcgLine.displayName = 'EcgLine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PRELOADER COMPONENT
@@ -159,7 +44,6 @@ export const Preloader: React.FC<PreloaderProps> = ({
 }) => {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'run' | 'hold' | 'fadeout'>('run');
-  const [beatFlash, setBeatFlash] = useState(false);
   const [pulse, setPulse] = useState(0);
 
   // Stable refs — avoids stale-closure issues in callbacks
@@ -168,59 +52,14 @@ export const Preloader: React.FC<PreloaderProps> = ({
   const progressRef  = useRef(0);
   const animationRef = useRef<number | undefined>(undefined);
   const pulseFrameRef = useRef<number | undefined>(undefined);
-  const lastBeatRef  = useRef(-1);
-  const beatFlashTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-
-  // Random hue — initialised once on mount, stable for the session
-  const baseHue = useRef(Math.floor(Math.random() * 360));
-
-  // ── Audio (Web Audio API — no files, no network) ─────────────────────────
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  const getAudioCtx = useCallback((): AudioContext | null => {
-    if (!audioCtxRef.current) {
-      try {
-        audioCtxRef.current = new (
-          window.AudioContext ?? (window as any).webkitAudioContext
-        )();
-      } catch { /* browser doesn't support Web Audio */ }
-    }
-    // Resume if suspended (browser auto-suspends until user interaction)
-    if (audioCtxRef.current?.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
-    return audioCtxRef.current;
-  }, []);
-
-  const playBeep = useCallback(() => {
-    const ctx = getAudioCtx();
-    if (!ctx) return;
-    try {
-      const now = ctx.currentTime;
-      // lub: 880 Hz quick burst · dub: 660 Hz softer follow-up
-      ([
-        [880, 0,    0.08, 0.12],
-        [660, 0.14, 0.06, 0.10],
-      ] as [number, number, number, number][]).forEach(([freq, delay, dur, peak]) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0, now + delay);
-        gain.gain.linearRampToValueAtTime(peak, now + delay + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + dur);
-        osc.start(now + delay);
-        osc.stop(now + delay + dur + 0.05);
-      });
-    } catch { /* autoplay policy or other browser restriction */ }
-  }, [getAudioCtx]);
+  // Fixed Red hue for Stranger Things / RICO brand consistency
+  const baseHue = useRef(0); 
 
   // ── Progress animation ────────────────────────────────────────────────────
   useEffect(() => {
-    const DURATION = 2000;
+    // Duration extended to 3.5s to align with CombinedDataProvider's ~3.6s orchestrated load
+    const DURATION = 3500;
     const start = performance.now();
 
     const animate = (now: number) => {
@@ -230,21 +69,28 @@ export const Preloader: React.FC<PreloaderProps> = ({
       const current = progressRef.current;
       const diff = target - current;
       
-      // Smooth increment logic
-      const increment = diff > 0 ? Math.max(0.1, diff * 0.05) : 0;
-      const next = Math.min(Math.floor(current + increment), target);
+      // Internal progress uses high-precision floats to avoid Math.floor deadlocks
+      const increment = diff > 0 ? Math.max(0.15, diff * 0.08) : 0;
+      const nextFloat = Math.min(current + increment, target);
+      const nextDisplay = Math.floor(nextFloat);
 
-      if (next !== current) {
-        progressRef.current = next;
-        setProgress(next);
+      if (nextDisplay !== progress) {
+        setProgress(nextDisplay);
       }
+      progressRef.current = nextFloat;
 
-      const isStillAnimating = elapsed < DURATION || loading || next < 100;
+      // Keep animating if:
+      // 1. Mandatory minimum duration not met (now 800ms for visual weight)
+      // 2. Data is still hard-loading
+      // 3. Precision progress hasn't hit 100
+      const MIN_DUR = loading ? 3500 : 800;
+      const isStillAnimating = elapsed < MIN_DUR || loading || nextFloat < 100;
 
       if (isStillAnimating) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
         setProgress(100);
+        // Hold at 100% for a brief "ready" beat before transition
         setTimeout(() => setPhase('hold'), 300);
       }
     };
@@ -293,29 +139,11 @@ export const Preloader: React.FC<PreloaderProps> = ({
     return () => { if (pulseFrameRef.current) cancelAnimationFrame(pulseFrameRef.current); };
   }, []);
 
-
-  // ── Heartbeat detection — fires on each QRS crossing ─────────────────────
-  useEffect(() => {
-    for (const threshold of QRS_THRESHOLDS) {
-      if (progress >= threshold && lastBeatRef.current < threshold) {
-        lastBeatRef.current = threshold;
-        playBeep();
-        setBeatFlash(true);
-        // Clear any previous timer before setting a new one
-        if (beatFlashTimerRef.current) clearTimeout(beatFlashTimerRef.current);
-        beatFlashTimerRef.current = setTimeout(() => setBeatFlash(false), 180);
-        break;
-      }
-    }
-  }, [progress, playBeep]);
-
   // ── Global cleanup on unmount ─────────────────────────────────────────────
   useEffect(() => {
     return () => {
       if (animationRef.current)   cancelAnimationFrame(animationRef.current);
       if (pulseFrameRef.current)  cancelAnimationFrame(pulseFrameRef.current);
-      if (beatFlashTimerRef.current) clearTimeout(beatFlashTimerRef.current);
-      audioCtxRef.current?.close().catch(() => {});
     };
   }, []);
 
@@ -350,17 +178,6 @@ export const Preloader: React.FC<PreloaderProps> = ({
           backgroundImage:
             'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.015) 2px,rgba(255,255,255,0.015) 4px)',
           zIndex: 1,
-        }}
-      />
-
-      {/* Heartbeat flash radial burst */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `radial-gradient(circle at center, ${glowAlpha(beatFlash ? 0.18 : 0)} 0%, transparent 70%)`,
-          transition: beatFlash ? 'none' : 'background 0.25s ease',
-          zIndex: 2,
         }}
       />
 
@@ -437,28 +254,29 @@ export const Preloader: React.FC<PreloaderProps> = ({
               />
             </>
           ) : (
-            /* No logo yet — show a pulsing % monogram */
-            <div className="flex items-center justify-center" style={{ minHeight: 'clamp(160px,35vw,320px)' }}>
+            /* No logo yet — show the 'RICORRENZA' title in high-fidelity Stranger Things style */
+            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'clamp(160px,35vw,320px)' }}>
               <span
-                className="font-black tracking-widest font-mono"
+                className="font-black tracking-widest"
                 style={{
-                  fontSize: 'clamp(3rem,10vw,6rem)',
-                  color: glowColor,
-                  textShadow: `0 0 20px ${glowColor}, 0 0 40px ${glowAlpha(0.5)}`,
-                  transition: 'color 0.3s, text-shadow 0.3s',
+                  fontSize: 'clamp(2.5rem, 8vw, 6rem)',
+                  color: 'white',
+                  textTransform: 'uppercase',
+                  fontFamily: 'serif',
+                  textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowAlpha(0.6)}`,
+                  animation: 'sk-glow-pulse 2s ease-in-out infinite',
+                  transition: 'text-shadow 0.3s ease',
                 }}
               >
-                {String(progress).padStart(3, '0')}
+                RICORRENZA
               </span>
             </div>
           )}
         </div>
 
-        {/* ECG strip + % counter */}
-        {/* ECG + % — matches logo width for visual cohesion */}
+        {/* % counter */}
+        {/* % — matches logo width for visual cohesion */}
         <div className="flex flex-col items-center gap-1" style={{ width: 'clamp(180px, min(80vw, 55vh), 520px)' }}>
-          <EcgLine progress={progress} glowColor={glowColor} />
-
           <div className="flex items-baseline gap-0.5">
             <span
               className="font-mono font-black tabular-nums tracking-widest"

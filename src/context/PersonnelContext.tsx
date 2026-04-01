@@ -19,6 +19,7 @@ interface PersonnelContextType {
   guestArtists: GuestArtist[];
   chiefGuests: any[];
   loading: boolean;
+  isLoaded: boolean;
   
   // Faculty
   addFacultyHead: (head: Partial<FacultyHead>) => Promise<void>;
@@ -81,6 +82,7 @@ export const PersonnelProvider = ({ children, enabled = true }: { children: Reac
   const [guestArtists, setGuestArtists] = useState<GuestArtist[]>([]);
   const [chiefGuests, setChiefGuests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchPersonnelData = useCallback(async () => {
     if (!enabled) return;
@@ -113,6 +115,7 @@ export const PersonnelProvider = ({ children, enabled = true }: { children: Reac
       console.error('[PersonnelContext] Failed to fetch personnel data', err);
     } finally {
       setLoading(false);
+      setIsLoaded(true);
     }
   }, [enabled]);
 
@@ -164,6 +167,7 @@ export const PersonnelProvider = ({ children, enabled = true }: { children: Reac
     guestArtists,
     chiefGuests,
     loading,
+    isLoaded,
     addFacultyHead,
     updateFacultyHead,
     deleteFacultyHead,

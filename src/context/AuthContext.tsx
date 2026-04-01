@@ -460,12 +460,12 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
         console.log(`[AuthContext] Cleared ${keysToRemove.length} auth-related storage keys.`);
       }
 
-      // 3. Supabase global sign out (best effort)
-      // We don't await this to block the UI, but we trigger it to notify the server
-      supabase.auth.signOut({ scope: 'global' }).catch(err => {
-        console.warn('[AuthContext] Supabase signOut warning (non-critical):', err);
-      });
-
+      // 3. Supabase global sign out (best effort, but we SHOULD await it)
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        console.warn('[AuthContext] Supabase signOut error (non-critical):', err);
+      }
     } catch (error) {
       console.error('[AuthContext] Logout Error:', error);
       // Ensure state is cleared even on error

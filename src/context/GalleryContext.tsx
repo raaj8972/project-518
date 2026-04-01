@@ -12,6 +12,7 @@ interface GalleryContextType {
   galleryImages: GalleryImage[];
   gallerySettings: GallerySettings | null;
   loading: boolean;
+  isLoaded: boolean;
   
   addGalleryImage: (image: Partial<GalleryImage>) => Promise<void>;
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
@@ -42,10 +43,11 @@ export const useGalleryData = () => {
 
 export const GalleryProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
   const { refreshTrigger } = useCoreData();
-  const { user, getValidToken } = useAuth();
+  const { getValidToken } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [gallerySettings, setGallerySettings] = useState<GallerySettings | null>(DEFAULT_GALLERY_SETTINGS);
   const [loading, setLoading] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [imagesFetched, setImagesFetched] = useState(false);
 
   const fetchGalleryData = useCallback(async (includeImages: boolean = false) => {
@@ -128,6 +130,7 @@ export const GalleryProvider = ({ children, enabled = true }: { children: ReactN
       console.error('[GalleryContext] Failed to fetch gallery data', err);
     } finally {
       setLoading(false);
+      setIsLoaded(true);
     }
   }, [enabled]);
 
@@ -230,6 +233,7 @@ export const GalleryProvider = ({ children, enabled = true }: { children: ReactN
     galleryImages,
     gallerySettings,
     loading,
+    isLoaded,
     addGalleryImage,
     updateGalleryImage,
     deleteGalleryImage,

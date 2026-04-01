@@ -26,7 +26,7 @@ export const handler: Handler = async (event) => {
       statusCode: 200,
       headers: {
         'Content-Type': contentType,
-        'Access-Control-Allow-Origin': '*', // Allow all origins (fixes CORS)
+        // 'Access-Control-Allow-Origin': '*' // Restricted by policy, // Allow all origins (fixes CORS)
         'Access-Control-Allow-Methods': 'GET',
         'Cache-Control': 'public, max-age=31536000, immutable'
       },

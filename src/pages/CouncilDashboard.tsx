@@ -197,9 +197,7 @@ export default function CouncilDashboard() {
 
    const handleLogout = () => {
     sessionStorage.removeItem('council_auth');
-    React.startTransition(() => {
-      navigate('/council');
-    });
+    window.location.href = '/council';
   };
 
   useEffect(() => {

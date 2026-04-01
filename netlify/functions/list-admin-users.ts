@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 
 export const handler: Handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-master-key',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };

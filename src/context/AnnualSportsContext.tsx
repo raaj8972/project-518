@@ -8,6 +8,7 @@ interface AnnualSportsContextType {
   annualEvents: AnnualSportsEvent[];
   annualRegistrations: AnnualSportsRegistration[];
   loading: boolean;
+  isLoaded: boolean;
   
   // Events
   addAnnualEvent: (eventData: Partial<AnnualSportsEvent>) => Promise<void>;
@@ -44,6 +45,7 @@ export const AnnualSportsProvider = ({ children, enabled = true }: { children: R
   const [annualEvents, setAnnualEvents] = useState<AnnualSportsEvent[]>([]);
   const [annualRegistrations, setAnnualRegistrations] = useState<AnnualSportsRegistration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const fetchAnnualSportsData = useCallback(async () => {
     if (!enabled) {
@@ -70,6 +72,7 @@ export const AnnualSportsProvider = ({ children, enabled = true }: { children: R
       console.error('[AnnualSportsContext] Fetch error:', err);
     } finally {
       setLoading(false);
+      setIsLoaded(true);
     }
   }, [enabled]);
 
@@ -131,6 +134,7 @@ export const AnnualSportsProvider = ({ children, enabled = true }: { children: R
     annualEvents,
     annualRegistrations,
     loading,
+    isLoaded,
     addAnnualEvent,
     updateAnnualEvent,
     deleteAnnualEvent,

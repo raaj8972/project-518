@@ -5,7 +5,7 @@ export const handler: Handler = async (event, context) => {
     statusCode: 200,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
+      // 'Access-Control-Allow-Origin': '*' // Restricted by policy
     },
     body: JSON.stringify({
       status: 'ok',

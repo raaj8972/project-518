@@ -10,6 +10,7 @@ import {
 
 interface CoreContextType {
   loading: boolean;
+  isLoaded: boolean;
   setLoading: (loading: boolean) => void;
   connectionStatus: 'ok' | 'degraded' | 'offline';
   lastError: string | null;
@@ -85,6 +86,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const [loading, setLoading] = useState(true);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'ok' | 'degraded' | 'offline'>('ok');
   const [lastError, setLastError] = useState<string | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
@@ -232,13 +234,26 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
       const [siteRes, aboutRes, homeboundRes, homepageRes, formRes, socialRes, securityRes] = await Promise.all([
         dualRead({ 
           table: 'site_settings', 
-          select: '*,registration_participant_types,registration_participant_quotas,registration_institution_optional,registration_institution_visible',
+          select: '*,locked_pages,registration_participant_types,registration_participant_quotas,registration_institution_optional,registration_institution_visible',
+          eq: ['id', 1], 
+          maybeSingle: true,
+          forceRefresh: true // Bypass cache on manual refresh
+        }).then(r => { console.log('✔ site_settings'); return r; }),
+        dualRead({ 
+          table: 'about_settings', 
           eq: ['id', 1], 
           maybeSingle: true 
-        }).then(r => { console.log('✔ site_settings'); return r; }),
-        dualRead({ table: 'about_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ about_settings'); return r; }),
-        dualRead({ table: 'homebound_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ homebound_settings'); return r; }),
-        dualRead({ table: 'homepage_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ homepage_settings'); return r; }),
+        }).then(r => { console.log('✔ about_settings'); return r; }),
+        dualRead({ 
+          table: 'homebound_settings', 
+          eq: ['id', 1], 
+          maybeSingle: true 
+        }).then(r => { console.log('✔ homebound_settings'); return r; }),
+        dualRead({ 
+          table: 'homepage_settings', 
+          eq: ['id', 1], 
+          maybeSingle: true 
+        }).then(r => { console.log('✔ homepage_settings'); return r; }),
         dualRead({ table: 'form_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ form_settings'); return r; }),
         dualRead({ table: 'social_media_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ social_settings'); return r; }),
         dualRead({ table: 'security_settings', eq: ['id', 1], maybeSingle: true }).then(r => { console.log('✔ security_settings'); return r; })
@@ -261,8 +276,9 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       console.timeEnd('refreshAll_total');
       if (!silent) setLoading(false);
+      setIsLoaded(true);
     }
-  }, []);
+  }, []); // Removed siteSettings dependency to prevent redundant refreshes.
 
   useEffect(() => {
     refreshAll();
@@ -290,6 +306,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
 
   const value: CoreContextType = {
     loading,
+    isLoaded,
     setLoading,
     connectionStatus,
     lastError,

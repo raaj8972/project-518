@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&family=Hind+Siliguri:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Poppins:wght@400;700;900&family=Noto+Sans+Devanagari:wght@400;700&display=swap');
+/* Fonts are loaded via index.html for performance optimization */
+
 
 @layer utilities {
   .rico-glass {
@@ -801,6 +802,51 @@ img {
   100% { transform: translate(0, 0); }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Bollywood theme: neutralize remaining heavy dark overlays so page brightness */
+/* stays consistent with the user's device. These are gentle overrides scoped to */
+/* body.theme-bollywood and are intentionally low-impact.                         */
+/* -------------------------------------------------------------------------- */
+body.theme-bollywood .bg-black\/95 { background-color: rgba(0,0,0,0.04) !important; }
+body.theme-bollywood .bg-black\/80 { background-color: rgba(0,0,0,0.06) !important; }
+body.theme-bollywood .bg-black\/70 { background-color: rgba(0,0,0,0.08) !important; }
+body.theme-bollywood .bg-black\/40 { background-color: rgba(0,0,0,0.06) !important; }
+body.theme-bollywood .bg-black { background-color: rgba(0,0,0,0.03) !important; }
+
+/* Fixed/fullscreen dark overlays often use these utility combos; lighten them */
+body.theme-bollywood .fixed.inset-0.bg-black\/95,
+body.theme-bollywood .fixed.inset-0.bg-black\/80,
+body.theme-bollywood .fixed.inset-0.bg-black\/70,
+body.theme-bollywood .fixed.inset-0.bg-black { background-color: rgba(0,0,0,0.03) !important; }
+
+/* Speedramp and other full-screen loaders should not kill brightness when theme active */
+body.theme-bollywood .speedramp-overlay,
+body.theme-bollywood .modal-backdrop,
+body.theme-bollywood .overlay-backdrop {
+  background: rgba(0,0,0,0.02) !important;
+  backdrop-filter: blur(0px) !important;
+}
+
+/* Reduce backdrop blur intensity to avoid a heavy frosted/dim effect */
+body.theme-bollywood .backdrop-blur, body.theme-bollywood .backdrop-blur-md, body.theme-bollywood .backdrop-blur-xl, body.theme-bollywood .backdrop-blur-3xl {
+  backdrop-filter: blur(2px) !important;
+}
+
+/* Ensure Bollywood overlay layer doesn't sit above UI and dim it; keep icons visible but subtle */
+body.theme-bollywood .bollywood-overlay, body.theme-bollywood .theme-bollywood-overlay, body.theme-bollywood .bollywood-theme-overlay {
+  pointer-events: none !important;
+  mix-blend-mode: screen !important;
+  opacity: 0.9 !important;
+  z-index: 0 !important;
+}
+
+/* Small safety: inputs autofill shadow should remain readable but not blacked out */
+input:-webkit-autofill, textarea:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px rgba(13,13,13,0.18) inset !important; }
+
+/* Smooth transition when toggling themes so change is less jarring */
+body.theme-bollywood, body.theme-bollywood * { transition: background-color 220ms ease, color 220ms ease !important; }
+
+
 .speedramp-frame {
   position: absolute;
   top: 0;
@@ -1108,3 +1154,72 @@ img {
     100% { top: 200%; }
   }
 }
+
+/* BOLLYWOOD THEME TARGETED OVERRIDES */
+body.theme-bollywood {
+  background-color: #000000 !important;
+  color: #fef08a !important;
+}
+
+body.theme-bollywood .bg-\[\#0a0a0a\],
+body.theme-bollywood .bg-\[\#070707\] {
+  background-color: #000000 !important;
+}
+
+body.theme-bollywood .bg-\[\#111\],
+body.theme-bollywood .bg-\[\#1a1a1a\] {
+  background-color: #0a0a0a !important;
+}
+
+/* Turn common neon pink/purple texts into gold/amber */
+body.theme-bollywood .text-pink-500,
+body.theme-bollywood .text-purple-500,
+body.theme-bollywood .text-rose-500,
+body.theme-bollywood .text-red-500 {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+/* Gradients overriding for buttons/icons */
+body.theme-bollywood .bg-gradient-to-r,
+body.theme-bollywood .bg-gradient-to-br {
+  background-image: linear-gradient(to right, #b45309, #fbbf24) !important;
+  -webkit-background-clip: inherit;
+  background-clip: inherit;
+}
+
+body.theme-bollywood .bg-gradient-to-r.text-transparent {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Cards and borders */
+body.theme-bollywood .border-pink-500\/30,
+body.theme-bollywood .border-purple-500\/30,
+body.theme-bollywood .border-rose-500\/30,
+body.theme-bollywood .border-white\/10 {
+  border-color: rgba(251, 191, 36, 0.2) !important;
+}
+
+body.theme-bollywood .rico-glass,
+body.theme-bollywood .rico-glass-card {
+  background: rgba(15, 12, 10, 0.7) !important;
+  border-color: rgba(251, 191, 36, 0.2) !important;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
+}
+
+body.theme-bollywood .bg-pink-500\/10,
+body.theme-bollywood .bg-purple-500\/10,
+body.theme-bollywood .bg-rose-500\/10 {
+  background-color: rgba(251, 191, 36, 0.1) !important;
+}
+
+/* Glow effects */
+body.theme-bollywood .glow-strong,
+body.theme-bollywood .glow-medium,
+body.theme-bollywood .glow-soft {
+  filter: hue-rotate(-60deg) saturate(1.5) brightness(1.2);
+}
+
+/* Additional thematic touches */
+/* Removed dark overlay mask */

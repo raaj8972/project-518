@@ -189,12 +189,12 @@ export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 
       }
     } catch (err: any) {
       if ((err.message === 'TIMEOUT' || err.code === 'PGRST301') && retryCount < 2) {
-        const backoff = (retryCount + 1) * 800;
-        console.warn(`[Db] ${table} fetch TIMEOUT (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
+        const backoff = (retryCount + 1) * 1500; // Increased backoff for better recovery
+        console.warn(`[Db] ${table} fetch stalled (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
         await new Promise(r => setTimeout(r, backoff));
         return performFetch(retryCount + 1);
       }
-      console.error(`[Db] dualRead FAILED for ${table}:`, err.message || err);
+      console.error(`[Db] dualRead CRITICAL for ${table}:`, err.message || err);
       throw err;
     }
   };
@@ -251,6 +251,9 @@ export async function dualUpdate(table: string, id: number | string, patch: any,
   );
 
   if (error) {
+    if (error.code === '42501') {
+      console.error(`[Db] dualUpdate PERMISSION DENIED (RLS) for ${table}/${id}. Check your Supabase policies.`);
+    }
     // If updated_at doesn't exist on this table, retry without it
     if (error.message?.includes('updated_at')) {
       const { data: saved2, error: error2 } = await withTimeout<any>(
@@ -292,6 +295,9 @@ export async function dualUpsert(table: string, data: any | any[]) {
   );
 
   if (error) {
+    if (error.code === '42501') {
+      console.error(`[Db] dualUpsert PERMISSION DENIED (RLS) for ${table}. Check your Supabase policies.`);
+    }
     // If updated_at doesn't exist on this table, retry without it
     if (error.message?.includes('updated_at')) {
       const rowsNoTs = items.map(item => supabasePayload(item, true));
@@ -336,6 +342,6 @@ export async function readTable(table: string, select = '*'): Promise<any[]> {
 
 /** Read single settings row (id=1) */
 export async function readSettings(table: string): Promise<any | null> {
-  const { data } = await dualRead({ table, eq: ['id', '1'], maybeSingle: true });
+  const { data } = await dualRead({ table, eq: ['id', 1], maybeSingle: true });
   return data;
 }
