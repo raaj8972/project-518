@@ -138,6 +138,10 @@ const AppShell: React.FC = () => {
 
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
+  const isStudentLoginRoute = location.pathname.startsWith('/student/login') || 
+                               location.pathname.startsWith('/student/forgot-password') || 
+                               location.pathname.startsWith('/student/reset-password');
+  const isDashboardRoute = location.pathname.startsWith('/dashboard');
 
   // Handling Dynamic Landing Page Redirect (Once per session for guests)
   React.useEffect(() => {
@@ -187,7 +191,7 @@ const AppShell: React.FC = () => {
 
         
         <main id="main-content" className="relative">
-          {gateActive && !isAdminRoute && !isLoginRoute && !isAdminOrOwner ? (
+          {gateActive && !isAdminRoute && !isLoginRoute && !isStudentLoginRoute && !isDashboardRoute && !isAdminOrOwner ? (
             <React.Suspense fallback={<div className="min-h-screen" />}><ComingSoon /></React.Suspense>
           ) : (
             <Outlet />

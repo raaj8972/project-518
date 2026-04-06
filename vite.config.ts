@@ -63,13 +63,9 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     // Enable minification for smaller bundles
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // Remove console.logs in production
-        drop_debugger: true,
-      },
-    },
+    minify: 'esbuild',
+    // Optimize modern JS output
+    target: 'esnext',
     // Optimize chunk sizes
     chunkSizeWarningLimit: 1000,
     // Enable CSS code splitting

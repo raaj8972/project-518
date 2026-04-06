@@ -3,7 +3,7 @@ import { useData } from '../context/DataContext';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { SEO } from '../components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, Activity, Zap, Terminal, Database, ShieldCheck, Github } from 'lucide-react';
+import { Cpu, Activity, Zap, Terminal, Database, ShieldCheck, Github, UserCircle } from 'lucide-react';
 import { ConcertMaintenanceScene } from '../components/ui/ConcertMaintenanceScene';
 
 interface ComingSoonProps {
@@ -80,9 +80,14 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
                 className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4"
               >
                  {!isAdmin() ? (
-                   <a href="/login" className="px-6 py-2.5 bg-[#0a0a0a]/40 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-500/50 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl shadow-2xl">
-                     <ShieldCheck size={14} className="group-hover:rotate-12 transition-transform text-cyan-400" /> Authorized Personnel Access
-                   </a>
+                   <div className="flex flex-col sm:flex-row gap-4 items-center">
+                     <a href="/student/login" className="px-8 py-3 bg-indigo-600/20 border border-indigo-500/30 rounded-full hover:bg-indigo-600/40 hover:border-indigo-400 transition-all text-[11px] tracking-[0.2em] uppercase font-black flex items-center gap-2 group backdrop-blur-xl shadow-[0_0_20px_rgba(168,85,247,0.2)] text-white">
+                       <UserCircle size={16} className="group-hover:scale-110 transition-transform text-indigo-400" /> Student Portal Access
+                     </a>
+                     <a href="/login" className="px-6 py-2.5 bg-[#0a0a0a]/40 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-500/50 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl opacity-60 hover:opacity-100">
+                       <ShieldCheck size={14} className="group-hover:rotate-12 transition-transform text-cyan-400" /> Admin/Coordinator
+                     </a>
+                   </div>
                  ) : (
                    <button 
                     onClick={() => setIsWrap(true)} 
@@ -270,9 +275,14 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
         {/* System Access Portal */}
         <div className="mt-16 flex flex-col items-center gap-6">
           <div className="text-[10px] text-white/30 tracking-[0.5em] uppercase">Manual Override Available for Authorized Personnel</div>
-          <a href="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:border-cyan-500/50 transition-all text-xs tracking-widest uppercase font-bold flex items-center gap-3 group">
-            <Github size={16} className="group-hover:rotate-12 transition-transform" /> Access Node Control
-          </a>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <a href="/student/login" className="px-10 py-4 bg-cyan-500 text-black border border-cyan-400 rounded-lg hover:scale-105 hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all text-sm tracking-[0.2em] uppercase font-black flex items-center gap-3 group">
+              <UserCircle size={18} className="group-hover:scale-110 transition-transform" /> Student Dashboard
+            </a>
+            <a href="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:border-cyan-500/50 transition-all text-xs tracking-widest uppercase font-bold flex items-center gap-3 group opacity-50 hover:opacity-100">
+              <Github size={16} className="group-hover:rotate-12 transition-transform" /> Staff Access
+            </a>
+          </div>
         </div>
       </div>
 
