@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, Mail, Phone, Building, CheckCircle, Zap, Terminal, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useStudentAuth } from '../context/StudentAuthContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface MembershipModalProps {
   isOpen: boolean;
@@ -21,7 +23,8 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
   onClose
 }) => {
   const { addMembership, coreCommittees, siteSettings } = useData();
-  const [formData, setFormData] = useState<MembershipData>({
+  const { user, profile } = useStudentAuth();
+  const [formData, setFormData, clearFormData] = useLocalStorage<MembershipData>('rico_membership_draft', {
     participant_type: '1st Year',
     full_name: '',
     email: '',
@@ -58,6 +61,18 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
       'PG (Post Graduate)'
     ];
   }, [siteSettings]);
+
+  // Auto-fill from profile when opening
+  useEffect(() => {
+    if (isOpen && user) {
+       setFormData(prev => ({
+         ...prev,
+         full_name: prev.full_name || profile?.full_name || '',
+         email: prev.email || user.email || '',
+         phone: prev.phone || profile?.phone || ''
+       }));
+    }
+  }, [isOpen, user, profile, setFormData]);
 
   // Modal state side effects (Body class for navbar suppression)
   useEffect(() => {
@@ -143,6 +158,7 @@ export const MembershipModal: React.FC<MembershipModalProps> = ({
         await new Promise((r) => setTimeout(r, minDelay - elapsed));
       }
       setIsSubmitted(true);
+      clearFormData();
     } catch (error) {
       console.error('Membership submission error:', error);
       setErrors({ submit: 'Failed to submit membership application. Please try again.' });

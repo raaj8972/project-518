@@ -14,7 +14,7 @@ interface SystemStatusContextType {
 
 const SystemStatusContext = createContext<SystemStatusContextType | undefined>(undefined);
 
-export const useSystemStatus = () => {
+const useSystemStatus = () => {
   const context = useContext(SystemStatusContext);
   if (!context) throw new Error('useSystemStatus must be used within CombinedDataProvider');
   return context;
@@ -85,7 +85,7 @@ const StageAdvancer = ({ stage, setStage }: { stage: number, setStage: (n: numbe
   return null;
 };
 
-export function CombinedDataProvider({ children }: { children: ReactNode }) {
+function CombinedDataProvider({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState(0);
 
   const value = {
@@ -114,3 +114,5 @@ export function CombinedDataProvider({ children }: { children: ReactNode }) {
     </SystemStatusContext.Provider>
   );
 }
+
+export { CombinedDataProvider, useSystemStatus };

@@ -82,8 +82,11 @@ const ThumbnailCard = ({
     if (!inView || status !== 'loading') return;
 
     timeoutRef.current = setTimeout(() => {
-      if (status === 'loading') setStatus('broken');
-    }, 10000);
+      if (status === 'loading') {
+        console.warn(`[ThumbnailCard] Image timed out: ${img.src}`);
+        setStatus('broken');
+      }
+    }, 20000);
 
     return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, [status, inView]);

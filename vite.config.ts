@@ -34,21 +34,11 @@ export default defineConfig({
   server: {
     host: 'localhost',
     port: 5173,
+    strictPort: true,
     hmr: {
       protocol: 'ws',
       host: 'localhost',
-    },
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/.netlify/functions'),
-      },
-      '/.netlify/functions': {
-        target: 'http://localhost:8888',
-        changeOrigin: true,
-        secure: false,
-      },
+      port: 5173,
     },
   },
   preview: {

@@ -1,10 +1,11 @@
 import { getSupabaseClient } from './lib/supabase';
 import dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../../.env.local') });
+// Standard dotenv loading, handles local and deployed environments without import.meta.url
+dotenv.config();
+dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '../../.env.local' });
 
 async function diagnose() {
   const supabase = getSupabaseClient(true);

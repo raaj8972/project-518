@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, User, Users, Mail, Phone, BookOpen, ChevronRight, Check, Loader2, AlertCircle, Building2, Sparkles, PartyPopper } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { dualRead } from '../lib/dualDb';
 import confetti from 'canvas-confetti';
 import 'canvas-confetti'; 
@@ -24,13 +25,13 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
   const { events, siteSettings, addRegistration } = useData() as any;
   const { user, profile, isAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
   
-  const [mode, setMode] = useState<'individual' | 'team'>('individual');
+  const [mode, setMode, clearMode] = useLocalStorage<'individual' | 'team'>(`registration_draft_mode_${eventId}`, 'individual');
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string>('');
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData, clearFormData] = useLocalStorage(`registration_draft_event_${eventId}`, {
     name: '',
     email: '',
     phone: '',
@@ -75,10 +76,11 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
     if (isOpen && user) {
       setFormData(prev => ({
         ...prev,
-        name: profile?.full_name || prev.name,
-        email: user.email || prev.email,
-        phone: profile?.phone || prev.phone,
-        institution: profile?.college || prev.institution, 
+        // Only set if field is empty, to preserve draft but allow profile data to fill once
+        name: prev.name || profile?.full_name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || profile?.phone || '',
+        institution: prev.institution || profile?.college || '', 
       }));
     }
   }, [isOpen, user, profile]); 
@@ -185,6 +187,10 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       
       setStep('success');
       setSuccessId(newId);
+
+      // Successfully registered — clean up local storage
+      clearFormData();
+      clearMode();
 
       confetti({
         particleCount: 150,

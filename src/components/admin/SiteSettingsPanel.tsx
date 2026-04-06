@@ -3,6 +3,7 @@ import { useData } from '../../context/DataContext';
 import { Calendar, Save, MessageSquareOff, Timer, Plus, Minus, X, Zap, Infinity as InfinityIcon, ArrowUp, ArrowDown, Layout } from 'lucide-react';
 import { ComingSoon } from '../../pages/ComingSoon';
 import { useApprovals } from '../../hooks/useApprovals';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 export const SiteSettingsPanel: React.FC = () => {
   const { siteSettings, updateSiteSettings } = useData();
@@ -13,7 +14,7 @@ export const SiteSettingsPanel: React.FC = () => {
     checkRequiresApproval().then(setRequiresApproval);
   }, []);
 
-  const [local, setLocal] = React.useState({
+  const INITIAL_LOCAL_STATE = {
     site_closed: false,
     coming_soon_enabled: false,
     chat_locked: false,
@@ -23,7 +24,6 @@ export const SiteSettingsPanel: React.FC = () => {
     coming_soon_message: '',
     coming_soon_ended_text: '',
     show_timer: false,
-    // Small convenience: allow editing the homepage hero title from Site Settings
     homepage_hero_title: '',
     sports_instagram_url: '',
     registration_institution_visible: true,
@@ -33,12 +33,18 @@ export const SiteSettingsPanel: React.FC = () => {
     show_page_timers: {} as Record<string, boolean>,
     default_landing_page: '/',
     navigation_order: [] as string[],
-  });
+    _is_draft: false, // Flag to track if the user has modified it
+  };
+
+  const [local, setLocal, clearLocal] = useLocalStorage('admin_site_settings_draft', INITIAL_LOCAL_STATE);
   const [saving, setSaving] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number | null>(null);
 
   React.useEffect(() => {
-    if (!siteSettings) return;
+    // Only sync from server if we don't have a local draft that was explicitly modified
+    // or if the local state is still at its initial defaults.
+    if (!siteSettings || local._is_draft) return;
+    
     setLocal({
       site_closed: !!siteSettings.site_closed,
       coming_soon_enabled: !!siteSettings.coming_soon_enabled,
@@ -64,8 +70,9 @@ export const SiteSettingsPanel: React.FC = () => {
       }, {} as Record<string, boolean>),
       default_landing_page: (siteSettings as any).default_landing_page || '/',
       navigation_order: (siteSettings as any).navigation_order || [],
+      _is_draft: false, // Maintain false since this is a server sync
     });
-  }, [siteSettings]);
+  }, [siteSettings, local._is_draft]);
 
   const onSave = async () => {
     setSaving(true);
@@ -108,6 +115,7 @@ export const SiteSettingsPanel: React.FC = () => {
         console.log('[SiteSettings] Saving locally...');
         await updateSiteSettings(newSettings as any);
         setSavedAt(Date.now());
+        clearLocal(); // Successful save clears the draft
         console.log('[SiteSettings] Save complete.');
       }
     } catch (error: any) {
@@ -146,7 +154,8 @@ export const SiteSettingsPanel: React.FC = () => {
       locked_pages: {
         ...s.locked_pages,
         [page]: true
-      }
+      },
+      _is_draft: true
     }));
   };
 
@@ -160,7 +169,8 @@ export const SiteSettingsPanel: React.FC = () => {
       show_page_timers: {
         ...s.show_page_timers,
         [page]: false
-      }
+      },
+      _is_draft: true
     }));
   };
 
@@ -174,12 +184,12 @@ export const SiteSettingsPanel: React.FC = () => {
     if (targetIndex < 0 || targetIndex >= newOrder.length) return;
     
     [newOrder[index], newOrder[targetIndex]] = [newOrder[targetIndex], newOrder[index]];
-    setLocal(s => ({ ...s, navigation_order: newOrder }));
+    setLocal(s => ({ ...s, navigation_order: newOrder, _is_draft: true }));
   };
 
   const resetNavOrder = () => {
     if (confirm('Are you sure you want to reset the navigation menu to its default order?')) {
-      setLocal(s => ({ ...s, navigation_order: [] }));
+      setLocal(s => ({ ...s, navigation_order: [], _is_draft: true }));
     }
   };
 
@@ -200,7 +210,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.site_closed ? 'bg-red-500' : 'bg-gray-700'}`}>
                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.site_closed ? 'translate-x-4' : 'translate-x-0'}`} />
                 </div>
-                <input type="checkbox" className="hidden" checked={local.site_closed} onChange={(e) => setLocal((s) => ({ ...s, site_closed: e.target.checked }))} />
+                <input type="checkbox" className="hidden" checked={local.site_closed} onChange={(e) => setLocal((s) => ({ ...s, site_closed: e.target.checked, _is_draft: true }))} />
                 <span className="text-gray-300 group-hover:text-white transition-colors">Close entire site (hard maintenance)</span>
               </label>
 
@@ -208,7 +218,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.coming_soon_enabled ? 'bg-yellow-500' : 'bg-gray-700'}`}>
                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.coming_soon_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
                 </div>
-                <input type="checkbox" className="hidden" checked={local.coming_soon_enabled} onChange={(e) => setLocal((s) => ({ ...s, coming_soon_enabled: e.target.checked }))} />
+                <input type="checkbox" className="hidden" checked={local.coming_soon_enabled} onChange={(e) => setLocal((s) => ({ ...s, coming_soon_enabled: e.target.checked, _is_draft: true }))} />
                 <span className="text-gray-300 group-hover:text-white transition-colors">Enable Coming Soon Mode</span>
               </label>
 
@@ -217,7 +227,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.chat_locked ? 'bg-orange-500' : 'bg-gray-700'}`}>
                    <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.chat_locked ? 'translate-x-4' : 'translate-x-0'}`} />
                 </div>
-                <input type="checkbox" className="hidden" checked={local.chat_locked} onChange={(e) => setLocal((s) => ({ ...s, chat_locked: e.target.checked }))} />
+                <input type="checkbox" className="hidden" checked={local.chat_locked} onChange={(e) => setLocal((s) => ({ ...s, chat_locked: e.target.checked, _is_draft: true }))} />
                 <div className="flex items-center gap-2">
                   <MessageSquareOff className={`w-4 h-4 transition-colors ${local.chat_locked ? 'text-orange-400' : 'text-gray-500'}`} />
                   <span className="text-gray-300 group-hover:text-white transition-colors">Lock all chat (nobody can send messages)</span>
@@ -248,7 +258,7 @@ export const SiteSettingsPanel: React.FC = () => {
                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Default Landing Page</label>
                   <select 
                     value={local.default_landing_page}
-                    onChange={(e) => setLocal(s => ({ ...s, default_landing_page: e.target.value }))}
+                    onChange={(e) => setLocal(s => ({ ...s, default_landing_page: e.target.value, _is_draft: true }))}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500/50 text-white text-sm appearance-none cursor-pointer"
                   >
                     <option value="/">Home Page (Default)</option>
@@ -312,7 +322,7 @@ export const SiteSettingsPanel: React.FC = () => {
                            <div className={`w-10 h-6 rounded-full p-1 transition-colors duration-300 ${local.locked_pages[page] ? 'bg-indigo-500' : 'bg-gray-700'}`}>
                               <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.locked_pages[page] ? 'translate-x-4' : 'translate-x-0'}`} />
                            </div>
-                           <input type="checkbox" className="hidden" checked={!!local.locked_pages[page]} onChange={(e) => setLocal((s) => ({ ...s, locked_pages: { ...s.locked_pages, [page]: e.target.checked } }))} />
+                           <input type="checkbox" className="hidden" checked={!!local.locked_pages[page]} onChange={(e) => setLocal((s) => ({ ...s, locked_pages: { ...s.locked_pages, [page]: e.target.checked }, _is_draft: true }))} />
                            <span className="text-gray-300 group-hover:text-white transition-colors capitalize text-sm font-bold tracking-wide">{page.replace('-', ' ')} Page Lock</span>
                          </label>
 
@@ -320,14 +330,14 @@ export const SiteSettingsPanel: React.FC = () => {
                          <div className="flex bg-black/40 p-1 rounded-lg border border-white/5">
                             <button 
                               type="button"
-                              onClick={() => setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: false } }))}
+                              onClick={() => setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: false }, _is_draft: true }))}
                               className={`px-3 py-1 text-[10px] uppercase font-bold rounded-md transition-all ${!pageModeTimer ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}
                             >
                               Forever
                             </button>
                             <button 
                               type="button"
-                              onClick={() => setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: true } }))}
+                              onClick={() => setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: true }, _is_draft: true }))}
                               className={`px-3 py-1 text-[10px] uppercase font-bold rounded-md transition-all ${pageModeTimer ? 'bg-indigo-500 text-white' : 'text-gray-500 hover:text-gray-300'}`}
                             >
                               Timer
@@ -358,7 +368,7 @@ export const SiteSettingsPanel: React.FC = () => {
                                 type="button" 
                                 onClick={() => {
                                   adjustTimer(page, 5);
-                                  setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: true } }));
+                                  setLocal(s => ({ ...s, show_page_timers: { ...s.show_page_timers, [page]: true }, _is_draft: true }));
                                 }}
                                 className="p-1.5 rounded-md bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-[0.98]"
                                 title="Add 5 Minutes"
@@ -405,7 +415,7 @@ export const SiteSettingsPanel: React.FC = () => {
                     <div className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-300 ${local.show_timer ? 'bg-cyan-500' : 'bg-gray-700'}`}>
                        <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform duration-300 ${local.show_timer ? 'translate-x-4' : 'translate-x-0'}`} />
                     </div>
-                    <input type="checkbox" className="hidden" checked={local.show_timer} onChange={(e) => setLocal((s) => ({ ...s, show_timer: e.target.checked }))} />
+                    <input type="checkbox" className="hidden" checked={local.show_timer} onChange={(e) => setLocal((s) => ({ ...s, show_timer: e.target.checked, _is_draft: true }))} />
                   </label>
                 </div>
 
@@ -416,7 +426,7 @@ export const SiteSettingsPanel: React.FC = () => {
                       <input
                         type="datetime-local"
                         value={local.coming_soon_until}
-                        onChange={(e) => setLocal((s) => ({ ...s, coming_soon_until: e.target.value }))}
+                        onChange={(e) => setLocal((s) => ({ ...s, coming_soon_until: e.target.value, _is_draft: true }))}
                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 pr-10 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 text-white transition-all text-sm"
                       />
                       <Calendar className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 group-focus-within:text-cyan-500 transition-colors" />
@@ -437,7 +447,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Page Title</label>
                 <input
                   value={local.coming_soon_title}
-                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_title: e.target.value }))}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_title: e.target.value, _is_draft: true }))}
                   className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
                   placeholder="Coming Soon"
                 />
@@ -447,7 +457,7 @@ export const SiteSettingsPanel: React.FC = () => {
                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Homepage Hero Title</label>
                 <input
                   value={local.homepage_hero_title}
-                  onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value }))}
+                  onChange={(e) => setLocal((s) => ({ ...s, homepage_hero_title: e.target.value, _is_draft: true }))}
                   className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
                   placeholder="RICORRENZA"
                 />
@@ -458,7 +468,7 @@ export const SiteSettingsPanel: React.FC = () => {
                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Sports Instagram URL</label>
                 <input
                   value={local.sports_instagram_url}
-                  onChange={(e) => setLocal((s) => ({ ...s, sports_instagram_url: e.target.value }))}
+                  onChange={(e) => setLocal((s) => ({ ...s, sports_instagram_url: e.target.value, _is_draft: true }))}
                   className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
                   placeholder="https://instagram.com/..."
                 />
@@ -469,7 +479,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Message Body</label>
                 <textarea
                   value={local.coming_soon_message}
-                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_message: e.target.value }))}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_message: e.target.value, _is_draft: true }))}
                   className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 min-h-[96px] text-white transition-all placeholder-gray-600"
                   placeholder="We are preparing something amazing..."
                 />
@@ -479,7 +489,7 @@ export const SiteSettingsPanel: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Post-Timer Text</label>
                 <input
                   value={local.coming_soon_ended_text}
-                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_ended_text: e.target.value }))}
+                  onChange={(e) => setLocal((s) => ({ ...s, coming_soon_ended_text: e.target.value, _is_draft: true }))}
                   className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-yellow-500/50 focus:ring-1 focus:ring-yellow-500/50 text-white transition-all placeholder-gray-600"
                   placeholder="We'll be back soon"
                 />

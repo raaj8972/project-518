@@ -20,6 +20,7 @@ import { useAnnualSports } from '../context/AnnualSportsContext';
 import { useSportsData } from '../context/SportsContext';
 import { useData } from '../context/DataContext';
 import { AnnualSportsEvent, AnnualSportsRegistration, SportsRegistration, SportsSeason } from '../types/data';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
 import gsap from 'gsap';
@@ -92,7 +93,7 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
   const totalSteps = 4;
   
   // Form State
-  const [formData, setFormData] = useState({
+  const [formData, setFormData, clearFormData] = useLocalStorage(`registration_draft_${type}_${targetId}`, {
     fullName: profile?.full_name || '',
     email: user?.email || '',
     phone: profile?.phone || '',
@@ -112,6 +113,21 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
     teamId: '' as string | null,
     teamMembers: [] as string[]
   });
+
+  // Ensure form is populated if profile loads late and form is still empty
+  useEffect(() => {
+    if (profile && !formData.fullName && !formData.email) {
+      setFormData(prev => ({
+        ...prev,
+        fullName: prev.fullName || profile.full_name || '',
+        email: prev.email || user?.email || '',
+        phone: prev.phone || profile.phone || '',
+        college: prev.college || profile.college || '',
+        year: prev.year || profile.batch || '',
+        photoUrl: prev.photoUrl || profile.avatar_url || ''
+      }));
+    }
+  }, [profile, user]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -322,6 +338,7 @@ export const ModernRegistrationModal: React.FC<ModernRegistrationModalProps> = (
       });
 
       onClose();
+      clearFormData();
     } catch (err) {
       const error = err as Error;
       toast.error('Submission failed: ' + error.message);

@@ -5,6 +5,7 @@ import { useAnnualSports } from '../context/AnnualSportsContext';
 import { useAuth } from '../context/AuthContext';
 import { ImageUpload } from './ImageUpload';
 import { getSportTheme } from '../utils/sportBranding';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import confetti from 'canvas-confetti';
 
 interface AnnualSportsRegistrationModalProps {
@@ -30,13 +31,16 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
   const maxRegTeamSize = targetDetails?.team_max_members || 1;
   const rawParticipantTypes = targetDetails?.registration_participant_types?.length ? targetDetails.registration_participant_types : ['Student', 'Faculty', 'Alumni', 'External'];
   
-  const [mode, setMode] = useState<'individual' | 'team'>('individual');
+  const [mode, setMode, clearMode] = useLocalStorage<'individual' | 'team'>(
+    `annual_reg_mode_${registrationTargetId}`, 
+    targetDetails?.registration_default_mode === 'team' ? 'team' : 'individual'
+  );
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submittedReg, setSubmittedReg] = useState<any | null>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData, clearFormData] = useLocalStorage(`annual_reg_draft_${registrationTargetId}`, {
     name: '',
     email: '',
     phone: '',
@@ -55,31 +59,22 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
     setSubmittedReg(null);
     setLoading(false);
     setError(null);
-    
-    if (targetDetails.registration_default_mode) {
-      setMode(targetDetails.registration_default_mode === 'team' ? 'team' : 'individual');
+  }, [isOpen, targetDetails?.id]); 
+
+  // Pre-fill profile data if form is empty
+  useEffect(() => {
+    if (isOpen && user && !formData.name && !formData.email) {
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || user.displayName || user.user_metadata?.full_name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.user_metadata?.phone || '',
+        participant_type: prev.participant_type || user.user_metadata?.participant_type || '',
+        roll_no: prev.roll_no || user.user_metadata?.roll_no || '',
+        photo_url: prev.photo_url || user.user_metadata?.photo_url || ''
+      }));
     }
-    
-    const initialMetadata: Record<string, any> = {};
-    (targetDetails.custom_fields || []).forEach((field: any) => {
-      initialMetadata[field.name] = '';
-    });
-
-    const baseFormData = {
-      name: '',
-      email: '',
-      phone: '',
-      college: '',
-      participant_type: '',
-      roll_no: '',
-      photo_url: '',
-      team_name: '',
-      team_members: [] as any[],
-      metadata: initialMetadata
-    };
-
-    setFormData(baseFormData);
-  }, [isOpen, targetDetails?.id, user?.id]); // Only reset when modal opens or primary IDs change
+  }, [user, isOpen, registrationTargetId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -173,6 +168,8 @@ export const AnnualSportsRegistrationModal: React.FC<AnnualSportsRegistrationMod
       
       setSubmittedReg(result);
       setStep('success');
+      clearFormData();
+      clearMode();
       console.log('Registration Success:', result);
       
       confetti({

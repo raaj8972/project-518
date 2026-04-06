@@ -12,10 +12,17 @@ import { useData } from '../../context/DataContext';
 import { useToast } from '../../components/ToastProvider';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { adminDataService } from '../../services/adminDataService';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
 import { exportRegistrationsToExcel } from '../../utils/excelExport';
 import { REGISTRATION_COLUMNS, EXPORT_PRESETS, RegistrationColumnKey } from '../../utils/reportExport';
-import { exportRegistrationsToPDF, exportRegistrationsByEvent as exportRegistrationsByEventPDF, exportRegistrationsByStatus as exportRegistrationsByStatusPDF, preloadWatermark, generateRegistrationReceiptPDF, exportEventSummaryPDF } from '../../utils/pdfExport';
+import { 
+  exportRegistrationsToPDF, 
+  exportRegistrationsByEvent as exportRegistrationsByEventPDF,
+  exportRegistrationsByStatus as exportRegistrationsByStatusPDF, 
+  preloadWatermark, 
+  exportEventSummaryPDF 
+} from '../../utils/pdfExport';
 import { encryptData } from '../../utils/encryption';
 import ExportPdfButton from '../../components/ExportPdfButton';
 import { useRegistrations } from '../../hooks/useRegistrations';
@@ -222,7 +229,6 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     bulkDelete: bulkDeleteRegistrations,
     bulkRestore: bulkRestoreRegistrations,
     bulkPermanentDelete,
-    bulkGeneratePasses,
     updateBatchGlobally
   } = useRegistrationMutations(() => {
     refreshRegistrations();
@@ -247,57 +253,11 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
   // Download handler for participant photos
   const downloadPhoto = async (photoUrl: string, participantName: string) => {
-    try {
-      // Parse the storage path from the URL
-      const parseStoragePath = (url: string): { bucket: string; name: string } | null => {
-        const m = url.match(/\/storage\/v1\/object\/(?:public|authenticated)\/([^/]+)\/(.+)$/);
-        if (m) return { bucket: decodeURIComponent(m[1]), name: decodeURIComponent(m[2]) };
-        
-        // Fallback: try to extract from known bucket patterns
-        const knownBuckets = ['registration-photos'];
-        for (const b of knownBuckets) {
-          const idx = url.indexOf(`${b}/`);
-          if (idx >= 0) return { bucket: b, name: decodeURIComponent(url.slice(idx + b.length + 1)) };
-        }
-        return null;
-      };
-
-      const parsed = parseStoragePath(photoUrl);
-      let blob: Blob | null = null;
-
-      if (parsed) {
-        // Download from Supabase storage with authentication
-        const { data, error } = await supabase.storage.from(parsed.bucket).download(parsed.name);
-        if (error) throw error;
-        blob = data as Blob;
-      } else {
-        // Fallback: try direct fetch for public URLs
-        const response = await fetch(photoUrl);
-        if (!response.ok) throw new Error('Failed to fetch photo');
-        blob = await response.blob();
-      }
-
-      // Create download link
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      
-      // Extract file extension from URL or blob type
-      const extension = blob.type.split('/')[1] || 'jpg';
-      const filename = `${participantName.replace(/[^a-z0-9]/gi, '_')}_photo.${extension}`;
-      link.download = filename;
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up blob URL after download
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-      
-      push({ message: 'Photo downloaded successfully', type: 'success' });
-    } catch (error) {
-      console.error('Error downloading photo:', error);
-      push({ message: 'Failed to download photo', type: 'error' });
+    const result = await adminDataService.downloadPhoto(photoUrl, participantName);
+    if (!result.success) {
+      push({ message: result.message, type: 'error' });
+    } else {
+      push({ message: result.message, type: 'success' });
     }
   };
   const [pdfExporting] = useState(false);
@@ -362,12 +322,12 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   // Watermark state
   const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
   const [watermarkDataUrl, setWatermarkDataUrl] = useState<string | null>(null);
-  const [uploadingWatermark, setUploadingWatermark] = useState(false);
+  const [watermarkUploading, setWatermarkUploading] = useState(false);
 
   // Stamp state (bottom corner image)
   const [stampUrl, setStampUrl] = useState<string | null>(null);
   const [stampDataUrl, setStampDataUrl] = useState<string | null>(null);
-  const [uploadingStamp, setUploadingStamp] = useState(false);
+  const [stampUploading, setStampUploading] = useState(false);
 
   // Map registration.id -> preview URL (signed if bucket is private)
   const [photoPreviewMap, setPhotoPreviewMap] = useState<Record<string, string>>({});
@@ -448,62 +408,40 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
   const handleWatermarkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    if (!file.type.includes('png') && !file.type.includes('svg')) {
-      push({ message: 'Please upload a PNG or SVG file for the watermark.', type: 'error' });
-      return;
-    }
-    
+
     try {
-      setUploadingWatermark(true);
-      
-      // Get file extension
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-      const fileName = `watermark.${ext}`;
-      
-      // Upload to Supabase storage (replace existing)
-      const { error } = await supabase.storage
-        .from('pdf-watermarks')
-        .upload(fileName, file, { 
-          cacheControl: '0',
-          upsert: true 
-        });
-      
-      if (error) throw error;
-      
-      // Get public URL
-      const { data } = await supabase.storage
-        .from('pdf-watermarks')
-        .getPublicUrl(fileName);
-      
-      if (data?.publicUrl) {
-        // Add cache buster
-        const urlWithCacheBuster = `${data.publicUrl}?t=${Date.now()}`;
-        setWatermarkUrl(urlWithCacheBuster);
-        const dataUrl = await preloadWatermark(urlWithCacheBuster);
-        setWatermarkDataUrl(dataUrl);
-        push({ message: 'Watermark uploaded successfully!', type: 'success' });
+      setWatermarkUploading(true);
+      const result = await adminDataService.uploadBrandAsset(file, 'watermark');
+      if (result.success && result.url) {
+        setWatermarkUrl(result.url);
+        const preloaded = await preloadWatermark(result.url);
+        setWatermarkDataUrl(preloaded);
+        push({ message: result.message, type: 'success' });
+      } else {
+        push({ message: result.message, type: 'error' });
       }
-    } catch (error) {
-      console.error('Watermark upload failed:', error);
-      push({ message: 'Failed to upload watermark.', type: 'error' });
+    } catch (error: any) {
+      push({ message: error.message || 'Upload failed', type: 'error' });
     } finally {
-      setUploadingWatermark(false);
+      setWatermarkUploading(false);
+      e.target.value = '';
     }
   };
 
   // Delete watermark from Supabase
   const handleWatermarkDelete = async () => {
+    if (!confirm('Remove the watermark?')) return;
     try {
-      await supabase.storage
-        .from('pdf-watermarks')
-        .remove(['watermark.png', 'watermark.svg']);
-      
-      setWatermarkUrl(null);
-      setWatermarkDataUrl(null);
-      push({ message: 'Watermark removed.', type: 'success' });
-    } catch (error) {
-      console.error('Failed to delete watermark:', error);
+      const result = await adminDataService.deleteBrandAsset('watermark');
+      if (result.success) {
+        setWatermarkUrl(null);
+        setWatermarkDataUrl(null);
+        push({ message: result.message, type: 'success' });
+      } else {
+        push({ message: result.message, type: 'error' });
+      }
+    } catch (error: any) {
+      push({ message: error.message || 'Delete failed', type: 'error' });
     }
   };
 
@@ -545,7 +483,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     }
     
     try {
-      setUploadingStamp(true);
+      setStampUploading(true);
       
       const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
       const fileName = `stamp.${ext}`;
@@ -574,7 +512,7 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
       console.error('Stamp upload failed:', error);
       push({ message: 'Failed to upload stamp.', type: 'error' });
     } finally {
-      setUploadingStamp(false);
+      setStampUploading(false);
     }
   };
 
@@ -708,82 +646,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
 
   // Helper to send approval email (extracted for reuse)
   const sendApprovalEmail = async (reg: any, onProgress?: (pct: number, stage: string) => void) => { 
-    try {
-      onProgress?.(5, 'Preparing data...');
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      // Get event details to include in email
-      const event = events.find(e => e.id === reg.event_id);
-
-      if (token) {
-          // Generate PDF receipt
-          let pdfBase64: string | null = null;
-          try {
-            console.log('[sendApprovalEmail] Generating PDF receipt...');
-            onProgress?.(20, 'Generating Receipt PDF...');
-            
-            // Force status to 'approved' for the receipt, as this is the approval email
-            pdfBase64 = await generateRegistrationReceiptPDF({ ...reg, status: 'approved' }, watermarkDataUrl, stampDataUrl);
-            
-            onProgress?.(50, 'Compressing & Validating...');
-            
-            // Check size (Base64 length * 0.75 = roughly bytes). Limit to 3MB to stay under Netlify 6MB limit.
-            const sizeInBytes = pdfBase64.length * 0.75;
-            const sizeInMB = sizeInBytes / (1024 * 1024);
-            console.log(`[sendApprovalEmail] PDF size: ${sizeInMB.toFixed(2)} MB`);
-
-            if (sizeInMB > 3) {
-              console.warn('[sendApprovalEmail] PDF too large for email attachment');
-              alert(`Warning: The generated PDF receipt is too large (${sizeInMB.toFixed(2)} MB). The email will be sent WITHOUT the attachment to ensure delivery. Please compress your watermark/stamp images.`);
-              pdfBase64 = null;
-            }
-          } catch (pdfError) {
-            console.error('[sendApprovalEmail] Failed to generate PDF receipt:', pdfError);
-            alert('PDF generation failed, but email will be sent without attachment. Error: ' + (pdfError as Error).message);
-          }
-
-          onProgress?.(70, 'Sending Email...');
-
-          const res = await fetch('/api/send-confirmation', {
-              method: 'POST',
-              headers: { 
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                  registrationId: reg.id,
-                  email: reg.email,
-                  fullName: reg.full_name,
-                  eventTitle: reg.event_title,
-                  eventDate: event?.date || 'TBA',
-                  eventTime: event?.time || 'TBA',
-                  eventVenue: event?.venue || 'TBA',
-                  provider: emailProvider,
-                  coordinators: eventCoordinators
-                      // @ts-ignore
-                      .filter(c => c.event_id === reg.event_id)
-                      // @ts-ignore
-                      .map(c => `${c.name}${c.phone ? ` (${c.phone})` : ''}`)
-                      .join(', '),
-                  teamMembers: safeTeamMembers(reg),
-                  pdfAttachment: pdfBase64 // Add PDF as base64
-              })
-          });
-
-          onProgress?.(95, 'Finalizing...');
-
-          if (!res.ok) {
-              const err = await res.json();
-              console.warn(`Email failed for ${reg.email}:`, err);
-              // We return false or throw to indicate failure, but for bulk ops we might want to just log
-              return { success: false, error: err.error || 'Server error' };
-          }
-          return { success: true };
-      }
-    } catch (emailErr: any) {
-       console.error('Failed to initiate email:', emailErr);
-       return { success: false, error: emailErr.message };
-    }
-    return { success: false, error: 'No token' };
+    return adminDataService.sendApprovalEmail(reg, {
+      emailProvider,
+      events,
+      eventCoordinators,
+      watermarkDataUrl,
+      stampDataUrl,
+      onProgress: (p) => onProgress?.(p.pct, p.stage)
+    });
   };
 
   const handleStatusUpdate = async (registrationId: string, newStatus: 'approved' | 'rejected' | 'pending') => {
@@ -1505,14 +1375,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   ) : (
                     <div className="text-xs text-gray-500 mb-3">No watermark set</div>
                   )}
-                  <label className={`flex items-center justify-center bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-gray-500 hover:to-gray-600 transition-all font-bold shadow-lg ${uploadingWatermark ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
-                    {uploadingWatermark ? 'Uploading...' : 'Upload PNG/SVG'}
+                  <label className={`flex items-center justify-center bg-gradient-to-r from-gray-600 to-gray-700 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-gray-500 hover:to-gray-600 transition-all font-bold shadow-lg ${watermarkUploading ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
+                    {watermarkUploading ? 'Uploading...' : 'Upload PNG/SVG'}
                     <input
                       type="file"
                       accept="image/png,image/svg+xml"
                       onChange={handleWatermarkUpload}
                       className="hidden"
-                      disabled={uploadingWatermark}
+                      disabled={watermarkUploading}
                     />
                   </label>
                 </div>
@@ -1538,14 +1408,14 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
                   ) : (
                     <div className="text-xs text-gray-500 mb-3">No stamp set</div>
                   )}
-                  <label className={`flex items-center justify-center bg-gradient-to-r from-amber-600 to-orange-600 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-amber-500 hover:to-orange-500 transition-all font-bold shadow-lg ${uploadingStamp ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
-                    {uploadingStamp ? 'Uploading...' : 'Upload Stamp'}
+                  <label className={`flex items-center justify-center bg-gradient-to-r from-amber-600 to-orange-600 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer hover:from-amber-500 hover:to-orange-500 transition-all font-bold shadow-lg ${stampUploading ? 'opacity-60 cursor-wait' : 'hover:-translate-y-0.5'}`}>
+                    {stampUploading ? 'Uploading...' : 'Upload Stamp'}
                     <input
                       type="file"
                       accept="image/png,image/svg+xml"
                       onChange={handleStampUpload}
                       className="hidden"
-                      disabled={uploadingStamp}
+                      disabled={stampUploading}
                     />
                   </label>
                 </div>

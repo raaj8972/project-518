@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, User, Mail, Phone, Music, CheckCircle, Link, Zap, Shield } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useStudentAuth } from '../context/StudentAuthContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { BRAND_NAME_WITH_YEAR } from '../constants/brand';
 
 interface AuditionModalProps {
@@ -23,7 +25,8 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
   onClose
 }) => {
   const { addAudition, siteSettings } = useData();
-  const [formData, setFormData] = useState<AuditionData>({
+  const { user, profile } = useStudentAuth();
+  const [formData, setFormData, clearFormData] = useLocalStorage<AuditionData>('rico_audition_draft', {
     participant_type: '1st Year',
     full_name: '',
     email: '',
@@ -74,6 +77,18 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
     'Sound Engineer',
     'Other'
   ];
+
+  // Auto-fill from profile when opening
+  useEffect(() => {
+    if (isOpen && user) {
+       setFormData(prev => ({
+         ...prev,
+         full_name: prev.full_name || profile?.full_name || '',
+         email: prev.email || user.email || '',
+         phone: prev.phone || profile?.phone || ''
+       }));
+    }
+  }, [isOpen, user, profile, setFormData]);
 
   // Modal state side effects (Body class for navbar suppression)
   useEffect(() => {
@@ -163,7 +178,8 @@ export const AuditionModal: React.FC<AuditionModalProps> = ({
       if (elapsed < minDelay) {
         await new Promise((r) => setTimeout(r, minDelay - elapsed));
       }
-  setIsSubmitted(true);
+      setIsSubmitted(true);
+      clearFormData();
     } catch (error) {
       // Normalize and surface a clear error message
       const toMessage = (err: any): string => {
