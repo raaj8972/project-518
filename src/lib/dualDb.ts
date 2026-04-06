@@ -286,39 +286,53 @@ export async function dualUpsert(table: string, data: any | any[]) {
     return payload;
   });
 
-  const { data: saved, error } = await withTimeout<any>(
-    supabase
-      .from(table)
-      .upsert(isArray ? rows : rows[0])
-      .select(),
-    30000
-  );
-
-  if (error) {
-    if (error.code === '42501') {
-      console.error(`[Db] dualUpsert PERMISSION DENIED (RLS) for ${table}. Check your Supabase policies.`);
-    }
-    // If updated_at doesn't exist on this table, retry without it
-    if (error.message?.includes('updated_at')) {
-      const rowsNoTs = items.map(item => supabasePayload(item, true));
-      const { data: saved2, error: error2 } = await withTimeout<any>(
-        supabase.from(table).upsert(isArray ? rowsNoTs : rowsNoTs[0]).select(),
+  const performUpsert = async (retryCount = 0): Promise<any> => {
+    try {
+      const { data: saved, error } = await withTimeout<any>(
+        supabase
+          .from(table)
+          .upsert(isArray ? rows : rows[0])
+          .select(),
         30000
       );
-      if (error2) {
-        console.error(`[Db] dualUpsert FAILED for ${table}:`, error2.message);
-        throw new Error(error2.message);
-      }
-      invalidateTableCache(table);
-      return isArray ? (saved2 ?? []) : (saved2?.[0] ?? null);
-    }
-    console.error(`[Db] dualUpsert FAILED for ${table}:`, error.message);
-    throw new Error(error.message);
-  }
 
-  invalidateTableCache(table);
-  const savedArr = Array.isArray(saved) ? saved : saved ? [saved] : [];
-  return isArray ? savedArr : savedArr[0];
+      if (error) {
+        if (error.code === '42501') {
+          console.error(`[Db] dualUpsert PERMISSION DENIED (RLS) for ${table}. Check your Supabase policies.`);
+        }
+        // If updated_at doesn't exist on this table, retry without it
+        if (error.message?.includes('updated_at')) {
+          const rowsNoTs = items.map(item => supabasePayload(item, true));
+          const { data: saved2, error: error2 } = await withTimeout<any>(
+            supabase.from(table).upsert(isArray ? rowsNoTs : rowsNoTs[0]).select(),
+            30000
+          );
+          if (error2) {
+            console.error(`[Db] dualUpsert FAILED for ${table}:`, error2.message);
+            throw new Error(error2.message);
+          }
+          invalidateTableCache(table);
+          return isArray ? (saved2 ?? []) : (saved2?.[0] ?? null);
+        }
+        console.error(`[Db] dualUpsert FAILED for ${table}:`, error.message);
+        throw new Error(error.message);
+      }
+
+      invalidateTableCache(table);
+      const savedArr = Array.isArray(saved) ? saved : saved ? [saved] : [];
+      return isArray ? savedArr : savedArr[0];
+    } catch (err: any) {
+      if (err.message === 'TIMEOUT' && retryCount < 2) {
+        const backoff = (retryCount + 1) * 2000;
+        console.warn(`[Db] ${table} upsert stalled (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
+        await new Promise(r => setTimeout(r, backoff));
+        return performUpsert(retryCount + 1);
+      }
+      throw err;
+    }
+  };
+
+  return performUpsert();
 }
 
 export async function dualDelete(table: string, id: number | string, idColumn = 'id') {

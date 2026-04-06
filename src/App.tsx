@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, lazy, PropsWithChildren, ReactElement } from 'react';
+import { AnimatePresence } from 'framer-motion';
 console.log('[App.tsx] Module loaded');
 import { createBrowserRouter, RouterProvider, Outlet, useLocation } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
@@ -19,12 +20,12 @@ import OfflineIndicator from './components/OfflineIndicator';
 import { NoiseOverlay } from './components/ui/NoiseOverlay';
 import { BollywoodThemeOverlay } from './components/ui/BollywoodThemeOverlay';
 import { AudioController } from './components/ui/AudioController';
-import { Preloader } from './components/ui/Preloader';
+
 import { SmoothScroll } from './components/ui/SmoothScroll';
-import { getCachedLogoUrl } from './utils/preloadBrand';
+
 import LockedPageGuard from './components/LockedPageGuard';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { BollywoodLoader } from './components/ui/BollywoodLoader';
+import { ThemeProvider } from './context/ThemeContext';
+import { Preloader } from './components/ui/Preloader';
 
 // lazy loads
 const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home }))) as unknown as React.ComponentType<any>;
@@ -96,15 +97,8 @@ const AppShell: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();
   const core = useData();
-  const { stage, isReady } = useSystemStatus();
+  useSystemStatus();
   const [msg, setMsg] = useState<string | null>(null);
-  const [logoUrl, setLogoUrl] = useState<string | undefined>(getCachedLogoUrl() ?? undefined);
-  const [splashVisible, setSplashVisible] = useState(true);
-
-  // Use orchestrated system status for the blocking loader
-  const systemReady = isReady;
-  const combinedLoading = !systemReady;
-
 
   const isAdminOrOwner = useMemo(() => {
     try {
@@ -115,23 +109,6 @@ const AppShell: React.FC = () => {
     } catch { return false; }
   }, [user, core.adminUsers]);
 
-  // Loading Orchestration Monitor
-  useEffect(() => {
-    if (isReady && splashVisible) {
-      console.log('[App] System reached operational stage. Transitioning to UI...');
-    }
-    
-    // Safety failsafe to ensure app activation even if a secondary context hangs
-    // This is now absolute: after 7 seconds, we ALWAYS reveal the UI.
-    const failsafeTimeout = setTimeout(() => {
-      if (splashVisible) {
-        console.warn(`[App] Emergency Splash Timeout (Stage: ${stage}, Ready: ${isReady}). Forcing activation.`);
-        setSplashVisible(false);
-      }
-    }, 7000); // 7 second absolute wait max
-    
-    return () => clearTimeout(failsafeTimeout);
-  }, [isReady, splashVisible, stage]);
 
   useEffect(() => {
     const handleRejection = (e: PromiseRejectionEvent) => {
@@ -144,10 +121,7 @@ const AppShell: React.FC = () => {
     return () => window.removeEventListener('unhandledrejection', handleRejection);
   }, [isAdminOrOwner]);
 
-  useEffect(() => {
-    const fresh = (core.homepageSettings as any)?.brand_logo_url;
-    if (fresh) setLogoUrl(fresh);
-  }, [core.homepageSettings]);
+
 
   useEffect(() => {
     document.body.style.overflow = '';
@@ -165,6 +139,24 @@ const AppShell: React.FC = () => {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isLoginRoute = location.pathname === '/login';
 
+  // Handling Dynamic Landing Page Redirect (Once per session for guests)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (core.loading) return; 
+
+    const landing = (core.siteSettings as any)?.default_landing_page;
+    const isRoot = location.pathname === '/';
+    
+    // Check if we have already landed in this session
+    const hasAlreadyLanded = sessionStorage.getItem('rico_landed');
+    
+    if (isRoot && landing && landing !== '/' && !isAdminOrOwner && !hasAlreadyLanded) {
+      console.log('[App] Performing initial landing redirect:', landing);
+      sessionStorage.setItem('rico_landed', 'true');
+      window.location.replace(landing);
+    }
+  }, [location.pathname, core.siteSettings, isAdminOrOwner, core.loading]);
+
   return (
     <RouteErrorBoundary>
       <div className="min-h-screen bg-[#0a0a0a]">
@@ -176,6 +168,14 @@ const AppShell: React.FC = () => {
           <div className="fixed top-0 inset-x-0 z-[10000] bg-rose-600/95 text-white text-sm px-4 py-2 flex justify-between">
             <span>{msg}</span>
             <button onClick={() => setMsg(null)} className="ml-4 underline">Dismiss</button>
+          </div>
+        )}
+
+        {gateActive && isAdminOrOwner && (
+          <div className="fixed top-0 inset-x-0 z-[10001] bg-amber-500 text-black text-[10px] font-black uppercase tracking-[0.2em] py-1 text-center shadow-lg border-b border-amber-400/50 flex items-center justify-center gap-4 select-none pointer-events-none">
+            <span className="animate-pulse">●</span> 
+            PUBLIC ACCESS DISABLED — SITE-WIDE MAINTENANCE MODE ACTIVE
+            <span className="animate-pulse">●</span>
           </div>
         )}
         
@@ -198,27 +198,11 @@ const AppShell: React.FC = () => {
           <Footer />
         </React.Suspense>
 
-        {splashVisible && (
-          <ThemeAwareLoader 
-            loading={combinedLoading}
-            stage={stage}
-            onComplete={() => setSplashVisible(false)}
-            logoUrl={logoUrl} 
-          />
-        )}
       </div>
     </RouteErrorBoundary>
   );
 };
 
-const ThemeAwareLoader: React.FC<any> = (props) => {
-  const { theme } = useTheme();
-  return theme === 'bollywood' ? (
-    <BollywoodLoader {...props} />
-  ) : (
-    <Preloader {...props} />
-  );
-};
 
 const InnerRouter: React.FC = () => {
   const router = useMemo(() => createBrowserRouter([
@@ -226,7 +210,7 @@ const InnerRouter: React.FC = () => {
       path: '/',
       element: <AppShell />,
       children: [
-        { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><Home /></React.Suspense> },
+        { index: true, element: <React.Suspense fallback={<div className="min-h-screen bg-[#0a0a0a]" />}><LockedPageGuard pageKey="home"><Home /></LockedPageGuard></React.Suspense> },
         { path: 'events', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="events"><Events /></LockedPageGuard></React.Suspense> },
         { path: 'schedule', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="schedule"><Schedule /></LockedPageGuard></React.Suspense> },
         { path: 'gallery', element: <React.Suspense fallback={<div className="p-8">Loading…</div>}><LockedPageGuard pageKey="gallery"><Gallery /></LockedPageGuard></React.Suspense> },
@@ -273,7 +257,26 @@ const InnerRouter: React.FC = () => {
     future: { v7_startTransition: true, v7_relativeSplatPath: true }
   } as any), []);
 
-  return <RouterProvider router={router} />;
+  const { isReady, stage } = useSystemStatus();
+  const [showPreloader, setShowPreloader] = useState(true);
+
+  // If system is ready but preloader is still showing, we'll keep it until onComplete
+  const actuallyShowLoader = showPreloader || !isReady;
+
+  return (
+    <>
+      <AnimatePresence>
+        {actuallyShowLoader && (
+          <Preloader 
+            loading={!isReady} 
+            stage={stage} 
+            onComplete={() => setShowPreloader(false)} 
+          />
+        )}
+      </AnimatePresence>
+      <RouterProvider router={router} />
+    </>
+  );
 };
 
 export default function App() {

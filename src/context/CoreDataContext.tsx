@@ -59,31 +59,22 @@ interface CoreContextType {
 
 const CoreContext = createContext<CoreContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
-const PrimaryCoreContext = ((typeof window !== 'undefined') 
-  ? ((window as any).__CORE_CONTEXT__ || ((window as any).__CORE_CONTEXT__ = CoreContext))
+// [DEDUPE] Use window bridge for singleton Context
+const PrimaryCoreDataContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__CORE_DATA_CONTEXT__ || ((window as any).__CORE_DATA_CONTEXT__ = CoreContext))
   : CoreContext) as React.Context<CoreContextType | undefined>;
 
 export const useCoreData = () => {
-  const context = useContext(PrimaryCoreContext);
+  const context = useContext(PrimaryCoreDataContext);
   if (context === undefined) {
     throw new Error('useCoreData must be used within a CoreDataProvider');
   }
   return context;
 };
 
-export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
-  // useAuth is wrapped in try/catch to handle Vite HMR module re-execution order edge cases
-  // CoreDataProvider IS inside AuthProvider in the tree, but during hot reload the singleton
-  // context reference can momentarily mismatch. user is only used as a refresh dependency.
-  let user: any = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const auth = useAuth();
-    user = auth.user;
-  } catch {
-    // Context not mounted yet during HMR — safe to continue with user = null
-  }
+export function CoreDataProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+
 
   const [loading, setLoading] = useState(true);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -158,7 +149,14 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSiteSettings = async (patch: Partial<SiteSettings>) => {
     await dualUpsert('site_settings', { id: 1, ...patch });
-    await refreshAll(true);
+    // Targeted refresh of just site_settings instead of refreshAll(true)
+    const { data } = await dualRead({ 
+      table: 'site_settings', 
+      eq: ['id', 1], 
+      maybeSingle: true,
+      forceRefresh: true 
+    });
+    if (data) setSiteSettings(data);
   };
 
   const updateFormSettings = async (patch: Partial<FormSettings>) => {
@@ -234,7 +232,7 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
       const [siteRes, aboutRes, homeboundRes, homepageRes, formRes, socialRes, securityRes] = await Promise.all([
         dualRead({ 
           table: 'site_settings', 
-          select: '*,locked_pages,registration_participant_types,registration_participant_quotas,registration_institution_optional,registration_institution_visible',
+          select: '*', // simplified: * handles all columns including new ones
           eq: ['id', 1], 
           maybeSingle: true,
           forceRefresh: true // Bypass cache on manual refresh
@@ -344,5 +342,9 @@ export const CoreDataProvider = ({ children }: { children: ReactNode }) => {
     toggleSponsorshipPackageEnabled
   };
 
-  return <PrimaryCoreContext.Provider value={value}>{children}</PrimaryCoreContext.Provider>;
+  return (
+    <CoreContext.Provider value={value}>
+      {children}
+    </CoreContext.Provider>
+  );
 };
