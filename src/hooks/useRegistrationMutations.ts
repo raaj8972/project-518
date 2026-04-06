@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { dualUpdate, dualDelete, dualRead, dualInsert } from '../lib/dualDb';
+import { dualUpdate, dualDelete, dualRead, dualInsert, dualBulkUpdate, dualBulkDelete } from '../lib/dualDb';
 import { useToast } from '../components/ToastProvider';
 
 
@@ -98,66 +98,72 @@ export function useRegistrationMutations(onSuccess?: () => void) {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      for (const id of ids) {
-        await updateStatus(id, 'approved');
-      }
+      // 1. Update all registration statuses in one go
+      await dualBulkUpdate('registrations', ids, { status: 'approved' });
+      
+      // 2. Update all linked entry passes in one go
+      await dualBulkUpdate('entry_passes', ids, { is_active: true }, 'registration_id');
+
       push({ type: 'success', message: `Approved ${ids.length} registrations` });
       onSuccess?.();
     } catch (e) { handleError(e, 'bulk approve'); }
     finally { setIsMutating(false); }
-  }, [updateStatus, push, onSuccess]);
+  }, [push, onSuccess]);
 
   const bulkReject = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      for (const id of ids) {
-        await updateStatus(id, 'rejected');
-      }
+      await dualBulkUpdate('registrations', ids, { status: 'rejected' });
+      await dualBulkUpdate('entry_passes', ids, { is_active: false }, 'registration_id');
+
       push({ type: 'success', message: `Rejected ${ids.length} registrations` });
       onSuccess?.();
     } catch (e) { handleError(e, 'bulk reject'); }
     finally { setIsMutating(false); }
-  }, [updateStatus, push, onSuccess]);
+  }, [push, onSuccess]);
 
   const bulkDelete = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      for (const id of ids) {
-        await deleteRegistration(id);
-      }
+      const timestamp = new Date().toISOString();
+      await dualBulkUpdate('registrations', ids, { deleted_at: timestamp });
+      await dualBulkUpdate('entry_passes', ids, { is_active: false }, 'registration_id');
+
       push({ type: 'success', message: `Moved ${ids.length} registrations to trash` });
       onSuccess?.();
     } catch (e) { handleError(e, 'bulk delete'); }
     finally { setIsMutating(false); }
-  }, [deleteRegistration, push, onSuccess]);
+  }, [push, onSuccess]);
 
   const bulkRestore = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      for (const id of ids) {
-        await restoreRegistration(id);
-      }
+      await dualBulkUpdate('registrations', ids, { deleted_at: null });
+      await dualBulkUpdate('entry_passes', ids, { is_active: true }, 'registration_id');
+
       push({ type: 'success', message: `Restored ${ids.length} registrations` });
       onSuccess?.();
     } catch (e) { handleError(e, 'bulk restore'); }
     finally { setIsMutating(false); }
-  }, [restoreRegistration, push, onSuccess]);
+  }, [push, onSuccess]);
 
   const bulkPermanentDelete = useCallback(async (ids: string[]) => {
     if (!ids.length) return;
     setIsMutating(true);
     try {
-      for (const id of ids) {
-        await permanentDelete(id);
-      }
+      // First delete linked passes
+      await dualBulkDelete('entry_passes', ids, 'registration_id');
+      // Then delete registrations
+      await dualBulkDelete('registrations', ids);
+
       push({ type: 'success', message: `Permanently deleted ${ids.length} registrations` });
       onSuccess?.();
     } catch (e) { handleError(e, 'bulk permanent delete'); }
     finally { setIsMutating(false); }
-  }, [permanentDelete, push, onSuccess]);
+  }, [push, onSuccess]);
 
   const bulkGeneratePasses = useCallback(async (ids: string[], onProgress?: (pct: number, item: string) => void) => {
     if (!ids.length) return;

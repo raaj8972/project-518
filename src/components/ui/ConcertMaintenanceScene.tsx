@@ -147,7 +147,7 @@ export const ConcertMaintenanceScene: React.FC<ConcertMaintenanceSceneProps> = (
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-4 md:mt-6 text-base sm:text-lg md:text-xl text-white/70 font-medium max-w-xl px-4 leading-relaxed tracking-wide"
+          className="mt-4 md:mt-6 text-base sm:text-lg md:text-xl text-white/70 font-medium max-w-2xl px-4 leading-relaxed tracking-wide"
         >
           {message}
         </motion.p>

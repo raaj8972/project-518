@@ -145,51 +145,59 @@ export interface ReadOptions {
   eq?: [string, any];
   gt?: [string, any];
   in?: [string, any[]];
+  is?: [string, any];
+  or?: string;
   order?: [string, { ascending?: boolean }];
   limit?: number;
   single?: boolean;
   maybeSingle?: boolean;
   range?: [number, number];
   forceRefresh?: boolean;
+  count?: 'exact' | 'planned' | 'estimated';
 }
 
-export async function dualRead(opts: ReadOptions): Promise<{ data: any; source: 'supabase' | 'supabase-cache' }> {
-  const { table, eq, gt, in: inOpts, order, limit, single, maybeSingle, forceRefresh } = opts;
+export async function dualRead(opts: ReadOptions): Promise<{ data: any; count?: number | null; source: 'supabase' | 'supabase-cache' }> {
+  const { table, eq, gt, in: inOpts, is, or, order, limit, single, maybeSingle, forceRefresh, count } = opts;
 
   const cacheKey = getCacheKey(opts);
   if (!forceRefresh) {
     const cached = getCachedData(cacheKey);
     if (cached !== null) {
+      // Note: cached data doesn't include count for now, which is fine for small tables
       return { data: cached, source: 'supabase-cache' };
     }
   }
 
-  const performFetch = async (retryCount = 0): Promise<{ data: any; source: 'supabase' | 'supabase-cache' }> => {
+  const performFetch = async (retryCount = 0): Promise<{ data: any; count?: number | null; source: 'supabase' | 'supabase-cache' }> => {
     try {
-      let q = supabase.from(table).select(opts.select || '*');
+      let q = supabase.from(table).select(opts.select || '*', { count: count || undefined });
+      
       if (eq)     q = q.eq(eq[0], eq[1]);
       if (gt)     q = q.gt(gt[0], gt[1]);
       if (inOpts) q = q.in(inOpts[0], inOpts[1]);
+      if (is)     q = q.is(is[0], is[1]);
+      if (or)     q = q.or(or);
+      
       if (order)  q = q.order(order[0], { ascending: order[1]?.ascending !== false });
       if (limit)  q = q.limit(limit);
       if (opts.range) q = q.range(opts.range[0], opts.range[1]);
 
       if (single || maybeSingle) {
-        const { data, error } = await withTimeout<any>((q as any).maybeSingle(), 30000);
+        const { data, error, count: resCount } = await withTimeout<any>((q as any).maybeSingle(), 30000);
         if (error) throw error;
         if (single && !data) throw new Error('NOT_FOUND');
         setCachedData(cacheKey, data);
-        return { data, source: 'supabase' };
+        return { data, count: resCount, source: 'supabase' };
       } else {
-        const { data, error } = await withTimeout<any>(q, 30000);
+        const { data, error, count: resCount } = await withTimeout<any>(q, 30000);
         if (error) throw error;
         const finalData = data ?? [];
         setCachedData(cacheKey, finalData);
-        return { data: finalData, source: 'supabase' };
+        return { data: finalData, count: resCount, source: 'supabase' };
       }
     } catch (err: any) {
       if ((err.message === 'TIMEOUT' || err.code === 'PGRST301') && retryCount < 2) {
-        const backoff = (retryCount + 1) * 1500; // Increased backoff for better recovery
+        const backoff = (retryCount + 1) * 1500;
         console.warn(`[Db] ${table} fetch stalled (attempt ${retryCount + 1}). Retrying in ${backoff}ms...`);
         await new Promise(r => setTimeout(r, backoff));
         return performFetch(retryCount + 1);
@@ -339,6 +347,45 @@ export async function dualDelete(table: string, id: number | string, idColumn = 
   const { error } = await withTimeout(supabase.from(table).delete().eq(idColumn, id), 30000);
   if (error) {
     console.error(`[Db] dualDelete FAILED for ${table}/${id}:`, error.message);
+    throw new Error(error.message);
+  }
+  invalidateTableCache(table);
+}
+
+export async function dualBulkUpdate(table: string, ids: (number | string)[], patch: any, idColumn = 'id') {
+  if (!ids.length) return [];
+  const clean = sanitize({ ...patch });
+  delete clean.id;
+  delete clean.user_id;
+
+  const updatePayload: any = { ...clean };
+  if (!('updated_at' in clean)) {
+    updatePayload.updated_at = new Date().toISOString();
+  }
+
+  const { data: saved, error } = await withTimeout<any>(
+    supabase
+      .from(table)
+      .update(updatePayload)
+      .in(idColumn, ids)
+      .select(),
+    30000
+  );
+
+  if (error) {
+    console.error(`[Db] dualBulkUpdate FAILED for ${table}:`, error.message);
+    throw new Error(error.message);
+  }
+
+  invalidateTableCache(table);
+  return saved || [];
+}
+
+export async function dualBulkDelete(table: string, ids: (number | string)[], idColumn = 'id') {
+  if (!ids.length) return;
+  const { error } = await withTimeout(supabase.from(table).delete().in(idColumn, ids), 30000);
+  if (error) {
+    console.error(`[Db] dualBulkDelete FAILED for ${table}:`, error.message);
     throw new Error(error.message);
   }
   invalidateTableCache(table);

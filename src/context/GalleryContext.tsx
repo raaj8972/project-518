@@ -18,12 +18,16 @@ interface GalleryContextType {
   updateGalleryImage: (id: number, image: Partial<GalleryImage>) => Promise<void>;
   deleteGalleryImage: (id: number) => Promise<void>;
   bulkDeleteGalleryImages: (ids: number[]) => Promise<void>;
+  deleteAllGalleryImages: () => Promise<void>;
+  toggleGalleryImageFeatured: (id: number) => Promise<void>;
   
   syncGoogleDrive: (folderId: string, year?: string, category?: string) => Promise<any>;
   fetchDriveFolders: (folderId: string) => Promise<any>;
   syncGoogleDriveBatch: (folderId: string, subfolderId: string, year?: string, category?: string) => Promise<any>;
   updateGallerySettings: (settings: Partial<GallerySettings>) => Promise<void>;
   loadGalleryImages: () => Promise<void>;
+  prefetchGalleryImages: () => Promise<void>;
+  indexGalleryImageFaces: () => Promise<void>;
 }
 
 const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
@@ -132,7 +136,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
       setLoading(false);
       setIsLoaded(true);
     }
-  }, [enabled]);
+  }, [enabled, imagesFetched]);
 
   useEffect(() => {
     if (enabled) {
@@ -160,6 +164,20 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
     const { error } = await supabase.from('gallery_images').delete().in('id', ids);
     if (error) throw new Error(`[GalleryContext] bulk delete failed: ${error.message}`);
     await fetchGalleryData();
+  };
+
+  const deleteAllGalleryImages = async () => {
+    const { error } = await supabase.from('gallery_images').delete().neq('id', 0); // Delete all
+    if (error) throw new Error(`[GalleryContext] delete all failed: ${error.message}`);
+    await fetchGalleryData();
+  };
+
+  const toggleGalleryImageFeatured = async (id: number) => {
+    const current = galleryImages.find(img => img.id === id);
+    if (current) {
+      await dualUpdate('gallery_images', id, { featured: !current.featured });
+      await fetchGalleryData();
+    }
   };
 
   const fetchDriveFolders = async (folderId: string) => {
@@ -220,7 +238,7 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
 
   const updateGallerySettings = async (settings: Partial<GallerySettings>) => {
     await dualUpsert('gallery_settings', { id: 1, ...settings });
-    await fetchGalleryData(); // Wait, this fetched with false by default now. Let's make sure it updates fine.
+    await fetchGalleryData();
   };
 
   const loadGalleryImages = useCallback(async () => {
@@ -228,6 +246,16 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
       await fetchGalleryData(true);
     }
   }, [imagesFetched, loading, fetchGalleryData]);
+
+  const prefetchGalleryImages = async () => {
+    // Placeholder for future edge function/caching logic
+    console.log('[GalleryContext] prefetching images...');
+  };
+
+  const indexGalleryImageFaces = async () => {
+    // Placeholder for future AI face indexing logic
+    console.log('[GalleryContext] indexing faces...');
+  };
 
   const value: GalleryContextType = {
     galleryImages,
@@ -238,11 +266,15 @@ export function GalleryProvider({ children, enabled = true }: { children: ReactN
     updateGalleryImage,
     deleteGalleryImage,
     bulkDeleteGalleryImages,
+    deleteAllGalleryImages,
+    toggleGalleryImageFeatured,
     syncGoogleDrive,
     fetchDriveFolders,
     syncGoogleDriveBatch,
     updateGallerySettings,
-    loadGalleryImages
+    loadGalleryImages,
+    prefetchGalleryImages,
+    indexGalleryImageFaces
   };
 
   return <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>;

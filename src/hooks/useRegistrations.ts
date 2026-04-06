@@ -34,6 +34,7 @@ export interface UseRegistrationsResult {
     trash: number;
   };
   refreshStats: () => Promise<void>;
+  globalDuplicateIds: Set<string>;
 }
 
 export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOptions): UseRegistrationsResult {
@@ -56,24 +57,68 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
 
   const fetchStats = useCallback(async () => {
     try {
-      // For now, we fetch all and count in memory or do multiple dualReads
-      // Ideally dualRead should support count, but we'll approximate for now
-      const { data } = await dualRead({ table: 'registrations' });
-      if (!data) return;
-
-      const all = data as Registration[];
-      const active = all.filter(r => !r.deleted_at);
-      const trash = all.filter(r => !!r.deleted_at);
+      // Fetch counts for different statuses in parallel
+      const [allRes, pendingRes, approvedRes, rejectedRes, trashRes] = await Promise.all([
+        dualRead({ table: 'registrations', is: ['deleted_at', null], count: 'exact', limit: 1 }),
+        dualRead({ table: 'registrations', is: ['deleted_at', null], eq: ['status', 'pending'], count: 'exact', limit: 1 }),
+        dualRead({ table: 'registrations', is: ['deleted_at', null], eq: ['status', 'approved'], count: 'exact', limit: 1 }),
+        dualRead({ table: 'registrations', is: ['deleted_at', null], eq: ['status', 'rejected'], count: 'exact', limit: 1 }),
+        dualRead({ table: 'registrations', gt: ['deleted_at', '1970-01-01'], count: 'exact', limit: 1 })
+      ]);
 
       setStats({
-        total: active.length,
-        pending: active.filter(r => r.status === 'pending').length,
-        approved: active.filter(r => r.status === 'approved').length,
-        rejected: active.filter(r => r.status === 'rejected').length,
-        trash: trash.length
+        total: allRes.count || 0,
+        pending: pendingRes.count || 0,
+        approved: approvedRes.count || 0,
+        rejected: rejectedRes.count || 0,
+        trash: trashRes.count || 0
       });
     } catch (e) {
       console.warn('Failed to fetch stats', e);
+    }
+  }, []);
+
+  const [globalDuplicateIds, setGlobalDuplicateIds] = useState<Set<string>>(new Set());
+
+  const fetchDuplicates = useCallback(async () => {
+    try {
+      // Fetch only ID, Email, Phone for all active registrations to find duplicates
+      const { data } = await dualRead({
+        table: 'registrations',
+        select: 'id, email, phone, event_title',
+        is: ['deleted_at', null],
+        limit: 10000 // Upper bound for safety
+      });
+
+      if (!data) return;
+
+      const emailMap = new Map<string, string[]>();
+      const phoneMap = new Map<string, string[]>();
+      const dupes = new Set<string>();
+
+      (data as any[]).forEach(r => {
+        if (r.email) {
+          const k = `${r.event_title?.trim()}|${r.email.toLowerCase().trim()}`;
+          if (!emailMap.has(k)) emailMap.set(k, []);
+          emailMap.get(k)?.push(r.id);
+        }
+        if (r.phone) {
+          const k = `${r.event_title?.trim()}|${r.phone.trim()}`;
+          if (!phoneMap.has(k)) phoneMap.set(k, []);
+          phoneMap.get(k)?.push(r.id);
+        }
+      });
+
+      for (const ids of emailMap.values()) {
+        if (ids.length > 1) ids.forEach(id => dupes.add(id));
+      }
+      for (const ids of phoneMap.values()) {
+        if (ids.length > 1) ids.forEach(id => dupes.add(id));
+      }
+
+      setGlobalDuplicateIds(dupes);
+    } catch (e) {
+      console.warn('Failed to fetch global duplicates', e);
     }
   }, []);
 
@@ -85,52 +130,53 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
     setError(null);
 
     try {
-      // Use dualRead for primary fetch
-      // Note: Full-text search and complex OR queries will fallback to Supabase inside dualRead if we structure correctly
-      // For now, doing a basic fetch and filtering in memory if primary is Firestore
-      const { data } = await dualRead({ 
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
+      const readOpts: any = {
         table: 'registrations',
+        count: 'exact',
+        range: [from, to],
         order: [filters?.viewMode === 'trash' ? 'deleted_at' : 'created_at', { ascending: false }]
-      });
+      };
 
-      let filtered = (data || []) as Registration[];
+      // Apply initial duplicates fetch if not already done or on refresh
+      if (page === 1) fetchDuplicates();
 
-      // Always apply filters in-memory for consistency across sources
+      // Apply filters server-side
       if (filters?.viewMode === 'trash') {
-        filtered = filtered.filter(r => !!r.deleted_at);
+        readOpts.gt = ['deleted_at', '1970-01-01'];
       } else {
-        filtered = filtered.filter(r => !r.deleted_at);
+        readOpts.is = ['deleted_at', null];
       }
 
       if (filters?.event && filters.event !== 'all') {
-        filtered = filtered.filter(r => String(r.event_id) === filters.event || r.event_title === filters.event);
-      }
-      if (filters?.status && filters.status !== 'all') {
-        filtered = filtered.filter(r => r.status === filters.status);
-      }
-      if (filters?.batch && filters.batch !== 'all') {
-        filtered = filtered.filter(r => r.participant_type === filters.batch);
-      }
-      if (filters?.category && filters.category !== 'all') {
-        filtered = filtered.filter(r => (r as any).category === filters.category);
-      }
-      if (filters?.search && filters.search.trim()) {
-        const s = filters.search.toLowerCase();
-        filtered = filtered.filter(r => 
-          r.full_name?.toLowerCase().includes(s) || 
-          r.email?.toLowerCase().includes(s) || 
-          r.phone?.toLowerCase().includes(s) ||
-          r.id?.toLowerCase().includes(s)
-        );
+        // Handle both ID and Title
+        if (!isNaN(Number(filters.event))) {
+          readOpts.eq = ['event_id', Number(filters.event)];
+        } else {
+          readOpts.eq = ['event_title', filters.event];
+        }
       }
 
-      setCount(filtered.length);
-      
-      // Pagination
-      const from = (page - 1) * pageSize;
-      const paginated = filtered.slice(from, from + pageSize);
-      
-      setRegistrations(paginated);
+      if (filters?.status && filters.status !== 'all') {
+        readOpts.eq = ['status', filters.status];
+      }
+
+      if (filters?.batch && filters.batch !== 'all') {
+        readOpts.eq = ['participant_type', filters.batch];
+      }
+
+      if (filters?.search && filters.search.trim()) {
+        const s = filters.search.trim();
+        // Construct OR filter for Supabase
+        readOpts.or = `full_name.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%,id.ilike.%${s}%`;
+      }
+
+      const { data, count: totalCount } = await dualRead(readOpts);
+
+      setRegistrations(data || []);
+      setCount(totalCount || 0);
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error('Fetch registrations failed', err);
@@ -138,7 +184,8 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
     } finally {
       setIsLoading(false);
     }
-  }, [page, pageSize, JSON.stringify(filters)]); // Deep compare filters
+  }, [page, pageSize, JSON.stringify(filters), fetchDuplicates]);
+ // Deep compare filters
 
   // Initial fetch effect
   useEffect(() => {
@@ -177,6 +224,7 @@ export function useRegistrations({ page, pageSize, filters }: UseRegistrationsOp
     error,
     refresh: fetchRegistrations,
     stats,
-    refreshStats: fetchStats
+    refreshStats: fetchStats,
+    globalDuplicateIds
   };
 }

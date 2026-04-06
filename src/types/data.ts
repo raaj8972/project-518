@@ -333,11 +333,13 @@ export interface DataContextType {
   permanentDeleteRegistration: (id: string) => Promise<void>;
   bulkRestoreRegistrations: (ids: string[]) => Promise<void>;
   bulkPermanentDeleteRegistrations: (ids: string[]) => Promise<void>;
-  resetRegistrationIdSequence?: () => Promise<void>;
-  updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
+  
+  // Contact Sections
   addContactSection: (section: Partial<ContactSection>) => Promise<void>;
   updateContactSection: (id: number, section: Partial<ContactSection>) => Promise<void>;
   deleteContactSection: (id: number) => Promise<void>;
+  resetRegistrationIdSequence?: () => Promise<void>;
+  updateSponsorshipSettings: (settings: Partial<SponsorshipSettings> & { contactSections?: Partial<ContactSection>[] }) => Promise<void>;
   addEventCategory: (category: Partial<EventCategory>) => Promise<void>;
   updateEventCategory: (id: number, category: Partial<EventCategory>) => Promise<void>;
   deleteEventCategory: (id: number) => Promise<void>;

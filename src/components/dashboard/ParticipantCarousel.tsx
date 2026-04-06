@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useXPEngine } from '../../hooks/useXPEngine';
 import { useTopStars, TopStarProfile } from '../../hooks/useTopStars';
 import { useStudentAuth } from '../../context/StudentAuthContext';
-import { User, Heart, Star, Crown, Trophy } from 'lucide-react';
+import { User, Heart, Star, Crown } from 'lucide-react';
 import AutoCarousel from '../AutoCarousel';
 import ProfileModal from './ProfileModal';
 

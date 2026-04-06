@@ -347,34 +347,42 @@ export function RegistrationManagement({ coordinatorMode = false, coordinatorEve
     let cancelled = false;
     (async () => {
       const next: Record<string, string> = {};
-      // Attempt to sign each URL; if signing fails (public bucket or no access), fall back to original URL
-      const tasks = rowsNeedingPreview.map(async (r) => {
-        // Try to derive the object path from a stored public-style URL
-        // Accept patterns .../storage/v1/object/public/registration-photos/<name>
+      const namesList = rowsNeedingPreview.map(r => {
         let name = '';
         try {
           const m = r.url.match(/\/storage\/v1\/object\/public\/registration-photos\/(.+)$/);
           if (m && m[1]) name = decodeURIComponent(m[1]);
         } catch {}
-        // If not matched, try to find after the bucket name directly
         if (!name) {
           const idx = r.url.indexOf('registration-photos/');
           if (idx >= 0) name = decodeURIComponent(r.url.slice(idx + 'registration-photos/'.length));
         }
-        if (!name) {
-          // Fallback: use original URL
-          next[r.id] = r.url;
-          return;
-        }
-        try {
-          const { data, error } = await supabase.storage.from('registration-photos').createSignedUrl(name, 60 * 60 * 24); // 24h
-          if (!error && data?.signedUrl) next[r.id] = data.signedUrl;
-          else next[r.id] = r.url;
-        } catch {
-          next[r.id] = r.url;
-        }
+        return { id: r.id, name, url: r.url };
       });
-      await Promise.all(tasks);
+
+      const validNames = namesList.filter(n => !!n.name);
+      
+      // Initialize with original URLs
+      namesList.forEach(n => { next[n.id] = n.url; });
+
+      if (validNames.length > 0) {
+        try {
+          const { data, error } = await supabase.storage
+            .from('registration-photos')
+            .createSignedUrls(validNames.map(n => n.name), 60 * 60 * 24);
+          
+          if (!error && data) {
+            data.forEach((signed, index) => {
+              if (signed.signedUrl) {
+                const originalId = validNames[index].id;
+                next[originalId] = signed.signedUrl;
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Bulk signing failed:', err);
+        }
+      }
       if (!cancelled) setPhotoPreviewMap(next);
     })();
     return () => { cancelled = true; };

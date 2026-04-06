@@ -215,8 +215,8 @@ export default async (req: Request) => {
     `;
 
     let successCount = 0;
-    const errors = [];
-
+    const errors: any[] = [];
+    const successfulLogs: any[] = [];
     for (const rcpt of batch) {
         try {
             const res = await sendEmail({
@@ -227,8 +227,7 @@ export default async (req: Request) => {
             });
             if (res.success) {
                 successCount++;
-                // Log successful send
-                await supabaseAdmin.from('email_logs').insert({
+                successfulLogs.push({
                     registration_id: rcpt.registrationId,
                     email_type: 'schedule_broadcast',
                     sent_at: new Date().toISOString(),
@@ -241,6 +240,10 @@ export default async (req: Request) => {
         } catch (e: any) {
              errors.push({ email: rcpt.email, error: e.message });
         }
+    }
+
+    if (successfulLogs.length > 0) {
+        await supabaseAdmin.from('email_logs').insert(successfulLogs);
     }
 
     return new Response(JSON.stringify({ 

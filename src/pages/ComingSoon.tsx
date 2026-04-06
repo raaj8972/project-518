@@ -83,8 +83,8 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
                  {!isAdmin() ? (
                    <div className="flex flex-col gap-5 items-center w-full max-w-xs px-6">
                      {!isStudentLocked && (
-                       <a href="/student/login" className="w-full justify-center px-10 py-4 bg-indigo-600/20 border border-indigo-500/30 rounded-full hover:bg-indigo-600/30 hover:border-indigo-400 transition-all text-[11px] tracking-[0.25em] uppercase font-black flex items-center gap-3 group backdrop-blur-2xl shadow-[0_10px_40px_rgba(168,85,247,0.15)] text-white hover:scale-105 active:scale-95">
-                         <UserCircle size={18} className="group-hover:scale-110 transition-transform text-indigo-400" /> Student Portal Access
+                       <a href="/student/login" className="px-8 py-2.5 bg-indigo-600/20 border border-indigo-500/30 rounded-full hover:bg-indigo-600/30 hover:border-indigo-400 transition-all text-[9px] tracking-[0.2em] uppercase font-bold flex items-center gap-2 group backdrop-blur-2xl shadow-[0_10px_40px_rgba(168,85,247,0.15)] text-white hover:scale-105 active:scale-95">
+                         <UserCircle size={16} className="group-hover:scale-110 transition-transform text-indigo-400" /> Student Portal Access
                        </a>
                      )}
                      

@@ -49,10 +49,29 @@ interface PersonnelContextType {
   updateBandMember: (id: number, member: Partial<BandMember>) => Promise<void>;
   deleteBandMember: (id: number) => Promise<void>;
 
+  // Missing Toggle Methods
+  toggleFacultyHeadEnabled: (id: number) => Promise<void>;
+  toggleCoreCommitteeEnabled: (id: number) => Promise<void>;
+  toggleCoreTeamMemberEnabled: (id: number) => Promise<void>;
+  toggleCoreTeamMemberIsHead: (id: number) => Promise<void>;
+  toggleSportsCommitteeEnabled: (id: number) => Promise<void>;
+  toggleSportsTeamMemberEnabled: (id: number) => Promise<void>;
+  toggleSportsTeamMemberIsHead: (id: number) => Promise<void>;
+  toggleBandMemberEnabled: (id: number) => Promise<void>;
+  toggleBandMemberFeatured: (id: number) => Promise<void>;
+  toggleGuestArtistEnabled: (id: number) => Promise<void>;
+  toggleGuestArtistFeatured: (id: number) => Promise<void>;
+  toggleChiefGuestEnabled: (id: number) => Promise<void>;
+
   // Chief Guests
   addChiefGuest: (guest: any) => Promise<void>;
   updateChiefGuest: (id: number, guest: any) => Promise<void>;
   deleteChiefGuest: (id: number) => Promise<void>;
+
+  // Guest Artists
+  addGuestArtist: (artist: Partial<GuestArtist>) => Promise<void>;
+  updateGuestArtist: (id: number, artist: Partial<GuestArtist>) => Promise<void>;
+  deleteGuestArtist: (id: number) => Promise<void>;
 }
 
 const PersonnelContext = createContext<PersonnelContextType | undefined>(undefined);
@@ -157,6 +176,108 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     await fetchPersonnelData();
   };
 
+  const deleteBandMember = async (id: number) => {
+    await dualDelete('band_members', id);
+    await fetchPersonnelData();
+  };
+
+  // Toggle Implementation
+  const toggleFacultyHeadEnabled = async (id: number) => {
+    const current = facultyHeads.find(f => f.id === id);
+    if (current) {
+      await dualUpdate('faculty_heads', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleCoreCommitteeEnabled = async (id: number) => {
+    const current = coreCommittees.find(c => c.id === id);
+    if (current) {
+      await dualUpdate('core_committees', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleCoreTeamMemberEnabled = async (id: number) => {
+    const current = coreTeamMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('core_team_members', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleCoreTeamMemberIsHead = async (id: number) => {
+    const current = coreTeamMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('core_team_members', id, { is_head: !current.is_head });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleSportsCommitteeEnabled = async (id: number) => {
+    const current = sportsCommittees.find(c => c.id === id);
+    if (current) {
+      await dualUpdate('sports_committees', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleSportsTeamMemberEnabled = async (id: number) => {
+    const current = sportsTeamMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('sports_team_members', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleSportsTeamMemberIsHead = async (id: number) => {
+    const current = sportsTeamMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('sports_team_members', id, { is_head: !current.is_head });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleBandMemberEnabled = async (id: number) => {
+    const current = bandMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('band_members', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleBandMemberFeatured = async (id: number) => {
+    const current = bandMembers.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('band_members', id, { is_featured: !current.is_featured });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleGuestArtistEnabled = async (id: number) => {
+    const current = guestArtists.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('guest_artists', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleGuestArtistFeatured = async (id: number) => {
+    const current = guestArtists.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('guest_artists', id, { is_featured: !current.is_featured });
+      await fetchPersonnelData();
+    }
+  };
+
+  const toggleChiefGuestEnabled = async (id: number) => {
+    const current = chiefGuests.find(m => m.id === id);
+    if (current) {
+      await dualUpdate('chief_guests', id, { enabled: !current.enabled });
+      await fetchPersonnelData();
+    }
+  };
+
   const value: PersonnelContextType = {
     facultyHeads,
     coreCommittees,
@@ -242,7 +363,31 @@ export function PersonnelProvider({ children, enabled = true }: { children: Reac
     deleteChiefGuest: async (id) => {
       await dualDelete('chief_guests', id);
       await fetchPersonnelData();
-    }
+    },
+    addGuestArtist: async (artist) => {
+      await dualInsert('guest_artists', artist);
+      await fetchPersonnelData();
+    },
+    updateGuestArtist: async (id, artist) => {
+      await dualUpdate('guest_artists', id, artist);
+      await fetchPersonnelData();
+    },
+    deleteGuestArtist: async (id) => {
+      await dualDelete('guest_artists', id);
+      await fetchPersonnelData();
+    },
+    toggleFacultyHeadEnabled,
+    toggleCoreCommitteeEnabled,
+    toggleCoreTeamMemberEnabled,
+    toggleCoreTeamMemberIsHead,
+    toggleSportsCommitteeEnabled,
+    toggleSportsTeamMemberEnabled,
+    toggleSportsTeamMemberIsHead,
+    toggleBandMemberEnabled,
+    toggleBandMemberFeatured,
+    toggleGuestArtistEnabled,
+    toggleGuestArtistFeatured,
+    toggleChiefGuestEnabled
   };
 
   return <PersonnelContext.Provider value={value}>{children}</PersonnelContext.Provider>;

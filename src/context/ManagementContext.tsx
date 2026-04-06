@@ -3,7 +3,7 @@ import { dualInsert, dualUpdate, dualDelete, dualUpsert, dualRead } from '../lib
 import { supabase } from '../lib/supabase';
 import { 
   Sponsor, SponsorshipPackage, SponsorshipSettings, Registration,
-  Audition, Membership
+  Audition, Membership, ContactSection
 } from '../types/data';
 import { useCoreData } from './CoreDataContext';
 import { useAuth } from './AuthContext';
@@ -25,6 +25,7 @@ interface ManagementContextType {
   addSponsor: (sponsor: Partial<Sponsor>) => Promise<void>;
   updateSponsor: (id: number, sponsor: Partial<Sponsor>) => Promise<void>;
   deleteSponsor: (id: number) => Promise<void>;
+  toggleSponsorFeatured: (id: number) => Promise<void>;
   
   // Registrations
   addRegistration: (registration: Partial<Registration>) => Promise<void>;
@@ -53,6 +54,22 @@ interface ManagementContextType {
   listAdminPermissions: () => Promise<any[]>;
   setAdminPermission: (userId: string, flags: any) => Promise<void>;
   updateAdminRole: (userId: string, role: 'owner' | 'admin') => Promise<void>;
+  updateAdminPassword: (userId: string, password: string) => Promise<void>;
+  resetRegistrationIdSequence: () => Promise<void>;
+
+  // Missing Registration Methods
+  bulkApproveRegistrations: (ids: string[]) => Promise<void>;
+  bulkRejectRegistrations: (ids: string[]) => Promise<void>;
+  bulkDeleteRegistrations: (ids: string[]) => Promise<void>;
+  restoreRegistration: (id: string) => Promise<void>;
+  permanentDeleteRegistration: (id: string) => Promise<void>;
+  bulkRestoreRegistrations: (ids: string[]) => Promise<void>;
+  bulkPermanentDeleteRegistrations: (ids: string[]) => Promise<void>;
+
+  // Contact Sections
+  addContactSection: (section: Partial<ContactSection>) => Promise<void>;
+  updateContactSection: (id: number, section: Partial<ContactSection>) => Promise<void>;
+  deleteContactSection: (id: number) => Promise<void>;
 }
 
 const ManagementContext = createContext<ManagementContextType | undefined>(undefined);
@@ -159,6 +176,14 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
   const deleteSponsor = async (id: number) => {
     await dualDelete('sponsors', id);
     await fetchManagementData();
+  };
+
+  const toggleSponsorFeatured = async (id: number) => {
+    const current = sponsors.find(s => s.id === id);
+    if (current) {
+      await dualUpdate('sponsors', id, { featured: !current.featured });
+      await fetchManagementData();
+    }
   };
 
   const addRegistration = async (registration: Partial<Registration>) => {
@@ -292,6 +317,87 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     await fetchManagementData();
   };
 
+  const updateAdminPassword = async (userId: string, password: string) => {
+    const token = await getValidToken();
+    const res = await fetch('/.netlify/functions/update-admin-password', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, password })
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to update admin password');
+    }
+  };
+
+  const resetRegistrationIdSequence = async () => {
+    const { error } = await supabase.rpc('reset_registration_id_sequence');
+    if (error) {
+      console.error('[ManagementContext] Failed to reset sequence:', error);
+      throw error;
+    }
+  };
+
+  const bulkApproveRegistrations = async (ids: string[]) => {
+    const { error } = await supabase.from('registrations').update({ status: 'approved' }).in('id', ids);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const bulkRejectRegistrations = async (ids: string[]) => {
+    const { error } = await supabase.from('registrations').update({ status: 'rejected' }).in('id', ids);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const bulkDeleteRegistrations = async (ids: string[]) => {
+    const { error } = await supabase.from('registrations').update({ deleted_at: new Date().toISOString() }).in('id', ids);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const restoreRegistration = async (id: string) => {
+    const { error } = await supabase.from('registrations').update({ deleted_at: null }).eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const permanentDeleteRegistration = async (id: string) => {
+    const { error } = await supabase.from('registrations').delete().eq('id', id);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const bulkRestoreRegistrations = async (ids: string[]) => {
+    const { error } = await supabase.from('registrations').update({ deleted_at: null }).in('id', ids);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const bulkPermanentDeleteRegistrations = async (ids: string[]) => {
+    const { error } = await supabase.from('registrations').delete().in('id', ids);
+    if (error) throw error;
+    await fetchManagementData();
+  };
+
+  const addContactSection = async (section: Partial<ContactSection>) => {
+    await dualInsert('contact_sections', section);
+    await fetchManagementData();
+  };
+
+  const updateContactSection = async (id: number, section: Partial<ContactSection>) => {
+    await dualUpdate('contact_sections', id, section);
+    await fetchManagementData();
+  };
+
+  const deleteContactSection = async (id: number) => {
+    await dualDelete('contact_sections', id);
+    await fetchManagementData();
+  };
+
 
   const value: ManagementContextType = {
     sponsors,
@@ -306,6 +412,7 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     addSponsor,
     updateSponsor,
     deleteSponsor,
+    toggleSponsorFeatured,
     addRegistration,
     updateRegistrationStatus,
     deleteRegistration,
@@ -325,7 +432,19 @@ export function ManagementProvider({ children, enabled = true }: { children: Rea
     updateAdminEmail,
     listAdminPermissions,
     setAdminPermission,
-    updateAdminRole
+    updateAdminRole,
+    updateAdminPassword,
+    resetRegistrationIdSequence,
+    bulkApproveRegistrations,
+    bulkRejectRegistrations,
+    bulkDeleteRegistrations,
+    restoreRegistration,
+    permanentDeleteRegistration,
+    bulkRestoreRegistrations,
+    bulkPermanentDeleteRegistrations,
+    addContactSection,
+    updateContactSection,
+    deleteContactSection
   };
 
   return <ManagementContext.Provider value={value}>{children}</ManagementContext.Provider>;
