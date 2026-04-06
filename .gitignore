@@ -53,3 +53,4 @@ check_buckets_local.mjs
 inspect_local_schema.mjs
 ricorrenza-2025@0.0.0
 vite
+.tmp_home
