@@ -161,6 +161,36 @@ const AppShell: React.FC = () => {
     }
   }, [location.pathname, core.siteSettings, isAdminOrOwner, core.loading]);
 
+  // Dynamic Favicon Update: Automatically syncs the browser favicon with the branded logo
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hs = core.homepageSettings as any;
+    const logoUrl = hs?.brand_logo_url;
+    if (!logoUrl) return;
+
+    // Build the versioned URL for cache-busting
+    const ver = hs?.updated_at || Date.now();
+    const finalUrl = logoUrl.includes('?') 
+      ? `${logoUrl}&v=${ver}` 
+      : `${logoUrl}?v=${ver}`;
+
+    // Update all relevant favicon links in the head
+    const faviconSelectors = [
+      'link[rel="icon"]',
+      'link[rel="shortcut icon"]',
+      'link[rel="apple-touch-icon"]'
+    ];
+
+    faviconSelectors.forEach(selector => {
+      const links = document.querySelectorAll(selector);
+      links.forEach(link => {
+        link.setAttribute('href', finalUrl);
+      });
+    });
+
+    console.log('[App] Favicon updated to:', finalUrl);
+  }, [core.homepageSettings?.brand_logo_url, (core.homepageSettings as any)?.updated_at]);
+
   return (
     <RouteErrorBoundary>
       <div className="min-h-screen bg-[#0a0a0a]">

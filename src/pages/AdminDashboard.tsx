@@ -118,6 +118,7 @@ export const AdminDashboard: React.FC = () => {
     connectionStatus,
     adminUsers,
     siteSettings,
+    homepageSettings,
   } = useData();
   const navigate = useNavigate();
   // Derive activeTab from URL path: /admin/schedule → 'schedule', /admin → 'overview'
@@ -633,6 +634,7 @@ export const AdminDashboard: React.FC = () => {
       setAutoLogoutEnabled={setAutoLogoutEnabled}
       isTOTPEnabled={isTOTPEnabled}
       siteSettings={siteSettings}
+      homepageSettings={homepageSettings}
     >
 
       <React.Suspense fallback={

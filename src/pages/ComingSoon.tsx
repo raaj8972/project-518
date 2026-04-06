@@ -32,6 +32,7 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
   const csTitle = (settings as any)?.coming_soon_title || null;
   const csMessage = (settings as any)?.coming_soon_message || null;
   const showTimer = enabled && !!until;
+  const isStudentLocked = (settings as any)?.locked_pages?.['student'] === true;
 
   // Check for Link state — poll every second
   useEffect(() => {
@@ -80,20 +81,29 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
                 className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4"
               >
                  {!isAdmin() ? (
-                   <div className="flex flex-col sm:flex-row gap-4 items-center">
-                     <a href="/student/login" className="px-8 py-3 bg-indigo-600/20 border border-indigo-500/30 rounded-full hover:bg-indigo-600/40 hover:border-indigo-400 transition-all text-[11px] tracking-[0.2em] uppercase font-black flex items-center gap-2 group backdrop-blur-xl shadow-[0_0_20px_rgba(168,85,247,0.2)] text-white">
-                       <UserCircle size={16} className="group-hover:scale-110 transition-transform text-indigo-400" /> Student Portal Access
-                     </a>
-                     <a href="/login" className="px-6 py-2.5 bg-[#0a0a0a]/40 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-500/50 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl opacity-60 hover:opacity-100">
-                       <ShieldCheck size={14} className="group-hover:rotate-12 transition-transform text-cyan-400" /> Admin/Coordinator
+                   <div className="flex flex-col gap-5 items-center w-full max-w-xs px-6">
+                     {!isStudentLocked && (
+                       <a href="/student/login" className="w-full justify-center px-10 py-4 bg-indigo-600/20 border border-indigo-500/30 rounded-full hover:bg-indigo-600/30 hover:border-indigo-400 transition-all text-[11px] tracking-[0.25em] uppercase font-black flex items-center gap-3 group backdrop-blur-2xl shadow-[0_10px_40px_rgba(168,85,247,0.15)] text-white hover:scale-105 active:scale-95">
+                         <UserCircle size={18} className="group-hover:scale-110 transition-transform text-indigo-400" /> Student Portal Access
+                       </a>
+                     )}
+                     
+                     <div className="flex items-center gap-4 w-full">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                        <span className="text-[8px] font-bold text-gray-600 tracking-[0.4em] uppercase">Security Portal</span>
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                     </div>
+
+                     <a href="/login" className="px-8 py-2.5 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 hover:border-white/20 transition-all text-[9px] tracking-[0.2em] uppercase font-bold flex items-center gap-2 group backdrop-blur-xl opacity-60 hover:opacity-100 text-gray-400 hover:text-white hover:scale-105 active:scale-95">
+                       <ShieldCheck size={14} className="group-hover:rotate-12 transition-transform text-cyan-400" /> Admin/Coordinator Access
                      </a>
                    </div>
                  ) : (
                    <button 
                     onClick={() => setIsWrap(true)} 
-                    className="px-6 py-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-full hover:bg-cyan-500/20 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl text-cyan-400 shadow-2xl shadow-cyan-500/10"
+                    className="px-10 py-3.5 bg-cyan-500/10 border border-cyan-500/30 rounded-full hover:bg-cyan-500/20 hover:border-cyan-400/50 transition-all text-[10px] tracking-[0.3em] uppercase font-black flex items-center gap-3 group backdrop-blur-xl text-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.1)] hover:scale-105 active:scale-95"
                    >
-                     <Zap size={14} className="group-hover:scale-125 transition-transform" /> Skip Maintenance Timer (Admin Override)
+                     <Zap size={16} className="group-hover:scale-125 transition-transform animate-pulse" /> Skip Maintenance Timer (Admin)
                    </button>
                  )}
               </motion.div>
@@ -276,9 +286,11 @@ export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettin
         <div className="mt-16 flex flex-col items-center gap-6">
           <div className="text-[10px] text-white/30 tracking-[0.5em] uppercase">Manual Override Available for Authorized Personnel</div>
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <a href="/student/login" className="px-10 py-4 bg-cyan-500 text-black border border-cyan-400 rounded-lg hover:scale-105 hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all text-sm tracking-[0.2em] uppercase font-black flex items-center gap-3 group">
-              <UserCircle size={18} className="group-hover:scale-110 transition-transform" /> Student Dashboard
-            </a>
+            {!isStudentLocked && (
+              <a href="/student/login" className="px-10 py-4 bg-cyan-500 text-black border border-cyan-400 rounded-lg hover:scale-105 hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all text-sm tracking-[0.2em] uppercase font-black flex items-center gap-3 group">
+                <UserCircle size={18} className="group-hover:scale-110 transition-transform" /> Student Dashboard
+              </a>
+            )}
             <a href="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:border-cyan-500/50 transition-all text-xs tracking-widest uppercase font-bold flex items-center gap-3 group opacity-50 hover:opacity-100">
               <Github size={16} className="group-hover:rotate-12 transition-transform" /> Staff Access
             </a>

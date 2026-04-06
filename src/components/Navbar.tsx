@@ -60,11 +60,17 @@ export const Navbar = React.memo(function Navbar() {
   const logoSrc = useMemo(() => {
     const hs = homepageSettings as Record<string, any>;
     const raw = hs?.brand_logo_url;
-    if (!raw) return '';
+    
+    // Explicitly fallback to favicon.svg if no custom logo is provided
+    if (!raw) return '/favicon.svg';
+    
     let u = String(raw).trim();
-    if (!u) return '';
+    if (!u) return '/favicon.svg';
+    
     if (u.startsWith('//')) u = 'https:' + u; 
     if (u.startsWith('http://')) u = 'https://' + u.slice(7);
+    
+    // Cache-busting using updated_at or default version
     const ver = hs?.updated_at || hs?.brand_logo_size_px || '1';
     const sep = u.includes('?') ? '&' : '?';
     return `${u}${sep}v=${encodeURIComponent(String(ver))}`;
@@ -186,7 +192,6 @@ export const Navbar = React.memo(function Navbar() {
           <Link to="/" onClick={handleNavClick} className="flex items-center space-x-2 md:space-x-3 group">
             <BrandLogo3D 
               src={logoSrc} 
-              prioritySrc="/favicon.svg"
               size={logoSize * (vw < 768 ? 1.2 : 1)} 
               glowStrength={glowStrength} 
               glowColor={(homepageSettings as any)?.brand_logo_glow_color || undefined} 
@@ -299,14 +304,14 @@ export const Navbar = React.memo(function Navbar() {
         .bollywood-text {
           font-family: 'Playfair Display', 'Merriweather', serif;
           font-style: italic;
-          background: linear-gradient(to right, #bc13fe, #00ffff, #bc13fe);
+          background: linear-gradient(to right, #00ffff, #7000ff, #00ffff);
           background-size: 200% auto;
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           animation: gradientShift 2s linear infinite;
-          filter: drop-shadow(0 0 15px rgba(188, 19, 254, 0.8));
-          text-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+          filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+          text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
           letter-spacing: 0.08em;
           font-weight: 950;
           display: inline-block;

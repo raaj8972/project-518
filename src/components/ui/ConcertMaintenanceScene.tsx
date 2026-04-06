@@ -74,7 +74,7 @@ export const ConcertMaintenanceScene: React.FC<ConcertMaintenanceSceneProps> = (
             xl:w-[800px] xl:h-[400px]
           ">
             <DotLottieReact
-              src="https://lottie.host/faac1b3e-6031-456e-bdb9-ae8d07e043fa/8GFe52bU6c.lottie"
+              src="/animations/maintenance.lottie"
               loop
               autoplay
             />

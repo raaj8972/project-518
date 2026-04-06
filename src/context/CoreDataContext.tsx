@@ -282,9 +282,9 @@ export function CoreDataProvider({ children }: { children: ReactNode }) {
     refreshAll();
   }, [refreshAll, user?.id]);
 
-  // Real-time subscription for site_settings
+  // Real-time subscription for site_settings & homepage_settings
   useEffect(() => {
-    const channel = supabase
+    const siteChannel = supabase
       .channel('site_settings_changes')
       .on('postgres_changes', { 
         event: 'UPDATE', 
@@ -297,8 +297,22 @@ export function CoreDataProvider({ children }: { children: ReactNode }) {
       })
       .subscribe();
 
+    const homeChannel = supabase
+      .channel('homepage_settings_changes')
+      .on('postgres_changes', { 
+        event: 'UPDATE', 
+        schema: 'public', 
+        table: 'homepage_settings',
+        filter: 'id=eq.1'
+      }, (payload) => {
+        console.log('[CoreContext] homepage_settings real-time update:', payload.new);
+        setHomepageSettings(payload.new as HomepageSettings);
+      })
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(siteChannel);
+      supabase.removeChannel(homeChannel);
     };
   }, []);
 

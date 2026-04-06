@@ -15,7 +15,9 @@ import {
 import { HealthBadge } from '../HealthBadge';
 import { BRAND_NAME_WITH_YEAR } from '../../../constants/brand';
 import { CommandPalette } from './CommandPalette';
-import { SiteSettings } from '../../../types/data';
+import { SiteSettings, HomepageSettings } from '../../../types/data';
+import { BrandLogo3D } from '../../BrandLogo3D';
+import { BRAND_YEAR } from '../../../constants/brand';
 
 
 export type TabType = 'theme' | 'overview' | 'announcements' | 'support-chat' | 'shoutouts' | 'protection-center' | 'homepage' | 'hero-media' | 'homebound' | 'about' | 'events' | 'schedule' | 'gallery' | 'face-indexing' | 'sponsors' | 'registrations' | 'student-passes' | 'student-approvals' | 'student-system' | 'registration-photos' | 'reg-photos' | 'categories' | 'social' | 'faculty' | 'core-team' | 'sports' | 'sports-team' | 'sports-seasons' | 'sports-teams' | 'sports-matches' | 'sports-players' | 'sports-auction' | 'sports-registrations' | 'sports-registration-model' | 'sports-announcements' | 'annual-events' | 'annual-schedule' | 'annual-registrations' | 'annual-registration-model' | 'band' | 'artist' | 'guest-artists' | 'chief-guest' | 'chief-guests' | 'sponsorship-packages' | 'auditions' | 'memberships' | 'form-settings' | 'registration-modal' | 'roadmap' | 'security' | 'site-settings' | 'admin-users' | 'notifications' | 'owner-approvals' | 'coordinator-passwords' | 'security-passes' | 'council-access' | 'admin-passcodes' | 'audit-logs' | 'rico-family';
@@ -37,6 +39,7 @@ interface AdminLayoutProps {
   setAutoLogoutEnabled: (enabled: boolean) => void;
   isTOTPEnabled: boolean;
   siteSettings?: SiteSettings | null;
+  homepageSettings?: HomepageSettings | null;
 }
 
 
@@ -55,7 +58,8 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
   autoLogoutEnabled,
   setAutoLogoutEnabled,
   isTOTPEnabled,
-  siteSettings
+  siteSettings,
+  homepageSettings
 }) => {
 
 
@@ -123,13 +127,20 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           {/* Sidebar Header */}
           <div className="h-20 flex items-center px-6 border-b border-white/5 bg-white/[0.01]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-500 to-amber-500 flex items-center justify-center shadow-2xl shadow-indigo-500/40 animate-rico-float relative overflow-hidden group/logo">
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover/logo:translate-y-0 transition-transform duration-500" />
-                <span className="font-black text-white text-xl relative z-10 drop-shadow-lg text-center leading-none">R</span>
-              </div>
+              <BrandLogo3D 
+                src={homepageSettings?.brand_logo_url ? (
+                  homepageSettings.brand_logo_url.includes('?') 
+                    ? `${homepageSettings.brand_logo_url}&v=${(homepageSettings as any).updated_at || Date.now()}` 
+                    : `${homepageSettings.brand_logo_url}?v=${(homepageSettings as any).updated_at || Date.now()}`
+                ) : '/favicon.svg'} 
+                size={38} 
+                glowStrength={1.5}
+                glowColor={undefined} 
+                className="animate-rico-float"
+              />
               <div className="flex flex-col">
-                <h1 className="font-black text-white text-base tracking-tighter leading-none flex items-center gap-1.5">
-                  RICO <Sparkles size={12} className="text-amber-400 fill-amber-400" />
+                <h1 className="font-black text-white text-base tracking-tighter leading-none flex items-center gap-1.5 bollywood-text">
+                  RICO {homepageSettings?.brand_year || BRAND_YEAR}
                 </h1>
                 <p className="text-[10px] text-gray-500 font-black tracking-[0.2em] uppercase opacity-70">ADMIN OS {siteSettings?.site_version || 'v10.0 PRO'}</p>
               </div>
@@ -389,6 +400,28 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
         onSelectTab={(tabId) => navigateToTab(tabId)}
         tabs={visibleTabs}
       />
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .bollywood-text {
+          font-family: 'Playfair Display', 'Merriweather', serif;
+          font-style: italic;
+          background: linear-gradient(to right, #00ffff, #7000ff, #00ffff);
+          background-size: 200% auto;
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: gradientShift 2s linear infinite;
+          filter: drop-shadow(0 0 12px rgba(0, 255, 255, 0.8));
+          text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+          letter-spacing: 0.05em;
+          font-weight: 900;
+        }
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      ` }} />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Zap, Sparkles } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import lottie from 'lottie-web';
-import groovyWalkAnimation from '../../assets/animations/groovy-walk.json';
+// Import removed - now using local path from public/animations/groovy-walk.json
 
 // Loop phases: walk+textIn → hold → fadeOut → restart
 type LoopPhase = 'enter' | 'hold' | 'exit';
@@ -13,7 +13,7 @@ export const CyberpunkHeroContent: React.FC<{ pageKey?: string }> = ({ pageKey =
   
   useEffect(() => {
     if (typeof fetchHeroMedia === 'function') {
-      fetchHeroMedia(pageKey);
+      fetchHeroMedia(pageKey as any);
     }
   }, [fetchHeroMedia, pageKey]);
 
@@ -97,7 +97,7 @@ export const CyberpunkHeroContent: React.FC<{ pageKey?: string }> = ({ pageKey =
       renderer: 'svg',
       loop: true,
       autoplay: true,
-      animationData: groovyWalkAnimation,
+      path: '/animations/groovy-walk.json',
     });
 
     return () => {

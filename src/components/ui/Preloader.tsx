@@ -166,10 +166,8 @@ export const Preloader: React.FC<PreloaderProps> = ({
             xl:w-[640px] xl:h-[320px]
             relative
           ">
-            <dotlottie-player
-              src="https://lottie.host/80801fd7-1bc7-4a51-acaf-41b1974afb85/8dfsbfpvRj.lottie"
-              background="transparent"
-              speed="1"
+            <DotLottieReact
+              src="/animations/preloader.lottie"
               loop
               autoplay
               style={{ width: '100%', height: '100%', display: 'block' }}
