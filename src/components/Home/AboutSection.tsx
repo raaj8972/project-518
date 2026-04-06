@@ -28,7 +28,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
             <h2 className="text-4xl md:text-6xl font-black mb-6 stranger-title-glow uppercase">
               {aboutSettings?.hero_title ? aboutSettings.hero_title : 'ABOUT RICORRENZA'}
             </h2>
-            <div className="w-24 h-1 bg-red-600/40 mx-auto mb-8 rounded-full"></div>
+            <div className="w-24 h-1 bg-indigo-500/40 mx-auto mb-8 rounded-full"></div>
           </div>
         </div>
 
@@ -56,7 +56,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                 {/* Key Features */}
                 <div className="mt-8 grid md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-red-600 mb-3">FESTIVAL TRACKS</h4>
+                    <h4 className="text-lg font-bold text-indigo-400 mb-3">FESTIVAL TRACKS</h4>
                     <div className="space-y-2">
                       {(aboutSettings?.tracks?.length ? aboutSettings.tracks : [
                         'Healthcare Technology','Digital Arts & Media','Music','Interactive Experiences'
@@ -66,7 +66,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                           className="flex items-center space-x-2 achievement-item"
                           style={{ animationDelay: `${index * 0.1}s` }}
                         >
-                          <div className="w-2 h-2 bg-red-600 rounded-full pulse-ring flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-indigo-500 rounded-full pulse-ring flex-shrink-0"></div>
                           <span className="text-gray-300 text-sm">{track}</span>
                         </div>
                       ))}
@@ -74,7 +74,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                   </div>
                   
                   <div className="space-y-3">
-                    <h4 className="text-lg font-bold text-orange-600 mb-3">EXPERIENCE ZONES</h4>
+                    <h4 className="text-lg font-bold text-violet-400 mb-3">EXPERIENCE ZONES</h4>
                     <div className="space-y-2">
                       {(aboutSettings?.zones?.length ? aboutSettings.zones : [
                         'Virtual Reality Labs','AI Demonstration Pods','Art Galleries','Future Tech Showcases'
@@ -84,7 +84,7 @@ const AboutSection: React.FC<AboutSectionProps> = ({ aboutSettings }) => {
                           className="flex items-center space-x-2 achievement-item"
                           style={{ animationDelay: `${index * 0.1 + 0.4}s` }}
                         >
-                          <div className="w-2 h-2 bg-orange-600 rounded-full pulse-ring flex-shrink-0"></div>
+                          <div className="w-2 h-2 bg-violet-500 rounded-full pulse-ring flex-shrink-0"></div>
                           <span className="text-gray-300 text-sm">{zone}</span>
                         </div>
                       ))}

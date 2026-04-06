@@ -13,26 +13,21 @@ import { urlsEqual, normalizeStorageUrl, deleteStorageFileByPublicUrl, isUrlRefe
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
-const PrimaryDataContext = ((typeof window !== 'undefined') 
-  ? ((window as any).__DATA_CONTEXT__ || ((window as any).__DATA_CONTEXT__ = DataContext))
-  : DataContext) as React.Context<DataContextType | undefined>;
-
 export const useData = () => {
-  const context = useContext(PrimaryDataContext);
+  const context = useContext(DataContext);
   if (context === undefined) {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;
 };
 
-export const DataProvider = ({ children }: { children: ReactNode }) => {
+export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContextAdapter>{children}</DataContextAdapter>
   );
-};
+}
 
-const DataContextAdapter = ({ children }: { children: ReactNode }) => {
+function DataContextAdapter({ children }: { children: ReactNode }) {
   const core = useCoreData();
   const events = useEventsData();
   const personnel = usePersonnelData();
@@ -331,5 +326,5 @@ const DataContextAdapter = ({ children }: { children: ReactNode }) => {
     computeAllBucketsUsage: async () => ({ totalBytes: 0, count: 0 })
   };
 
-  return <PrimaryDataContext.Provider value={value}>{children}</PrimaryDataContext.Provider>;
-};
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+}

@@ -17,13 +17,12 @@ type SavingProgressContextType = {
 const SavingProgressContext = createContext<SavingProgressContextType | null>(null);
 
 // [DEDUPE] Use window bridge for singleton Context
-if (typeof window !== 'undefined') {
-  if (!(window as any).__SAVING_PROGRESS_CONTEXT__) {
-    (window as any).__SAVING_PROGRESS_CONTEXT__ = SavingProgressContext;
-  }
-}
+const PrimarySavingProgressContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__SAVING_PROGRESS_CONTEXT__ || ((window as any).__SAVING_PROGRESS_CONTEXT__ = SavingProgressContext))
+  : SavingProgressContext) as React.Context<SavingProgressContextType | null>;
 
-export const SavingProgressProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+
+export function SavingProgressProvider({ children }: { children: React.ReactNode }) {
   const [isActive, setIsActive] = useState(false);
   const [percent, setPercent] = useState(0);
   const [label, setLabel] = useState<string | undefined>(undefined);
@@ -81,16 +80,15 @@ export const SavingProgressProvider: React.FC<React.PropsWithChildren<{}>> = ({ 
   const value = useMemo(() => ({ isActive, percent, label, start, set, inc, done, withSteps }), [isActive, percent, label, start, set, inc, done, withSteps]);
 
   return (
-    <SavingProgressContext.Provider value={value}>
+    <PrimarySavingProgressContext.Provider value={value}>
       {children}
       <SavingProgressOverlay active={isActive} percent={percent} label={label} />
-    </SavingProgressContext.Provider>
+    </PrimarySavingProgressContext.Provider>
   );
-};
+}
 
 export const useSavingProgress = () => {
-  const primaryContext = (typeof window !== 'undefined' ? (window as any).__SAVING_PROGRESS_CONTEXT__ : null) as React.Context<SavingProgressContextType | null> || SavingProgressContext;
-  const ctx = useContext(primaryContext);
+  const ctx = useContext(PrimarySavingProgressContext);
   if (!ctx) throw new Error('useSavingProgress must be used within SavingProgressProvider');
   return ctx;
 };

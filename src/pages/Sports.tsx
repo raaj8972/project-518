@@ -101,8 +101,8 @@ export const Sports: React.FC = () => {
     if (loading) return (
       <div className="min-h-screen bg-[#030712] flex items-center justify-center">
         <div className="relative">
-          <div className="w-24 h-24 border-2 border-red-600/20 rounded-full animate-ping" />
-          <Trophy className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-600 animate-pulse" size={40} />
+          <div className="w-24 h-24 border-2 border-indigo-600/20 rounded-full animate-ping" />
+          <Trophy className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-600 animate-pulse" size={40} />
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ export const Sports: React.FC = () => {
     return (
       <div className="stranger-theme min-h-screen relative overflow-hidden">
         <SEO />
-        <div ref={containerRef} className="text-white selection:bg-red-500/30 overflow-x-hidden pt-32">
+        <div ref={containerRef} className="text-white selection:bg-indigo-500/30 overflow-x-hidden pt-32">
           
           <div className="container mx-auto px-4 mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex-1 w-full">

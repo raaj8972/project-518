@@ -93,11 +93,11 @@ export const Schedule = () => {
   }, [schedule, scheduleType, searchQuery, activeFilter, events]);
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 bg-[#0a0a0a] text-red-50 stranger-things-theme selection:bg-[#ff3333] selection:text-white">
+    <div className="min-h-screen pt-24 pb-12 px-4 md:px-8 bg-[#0a0a0a] text-indigo-50 selection:bg-indigo-600 selection:text-white">
       
       {/* Background Glows */}
-      <div className="fixed top-20 left-10 w-96 h-96 bg-red-950/20 rounded-full mix-blend-multiply filter blur-[120px] opacity-40 animate-pulse pointer-events-none"></div>
-      <div className="fixed bottom-20 right-10 w-[30rem] h-[30rem] bg-orange-950/10 rounded-full mix-blend-multiply filter blur-[150px] opacity-30 animate-pulse pointer-events-none" style={{ animationDelay: '1.5s' }}></div>
+      <div className="fixed top-20 left-10 w-96 h-96 bg-indigo-950/20 rounded-full mix-blend-multiply filter blur-[120px] opacity-40 animate-pulse pointer-events-none"></div>
+      <div className="fixed bottom-20 right-10 w-[30rem] h-[30rem] bg-violet-950/10 rounded-full mix-blend-multiply filter blur-[150px] opacity-30 animate-pulse pointer-events-none" style={{ animationDelay: '1.5s' }}></div>
 
       <div className="max-w-7xl mx-auto relative z-10">
         <ScheduleHeader 
@@ -126,8 +126,8 @@ export const Schedule = () => {
         
         {filteredGroupedByDate.length === 0 && (
           <div className="text-center py-40 border-2 border-white/5 bg-white/5 rounded-[4rem] backdrop-blur-3xl relative overflow-hidden group">
-            <div className="absolute inset-0 bg-[#ff3333]/5 animate-pulse"></div>
-            <AlertCircle size={80} className="mx-auto text-gray-800 mb-8" />
+            <div className="absolute inset-0 bg-indigo-600/5 animate-pulse"></div>
+            <AlertCircle size={80} className="mx-auto text-indigo-900/40 mb-8" />
             <h3 className="text-4xl text-white font-black italic uppercase tracking-tighter mb-4">
               Schedule Not Found
             </h3>
@@ -145,8 +145,8 @@ export const Schedule = () => {
           .animate-fade-in-up {
             animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
           }
-          .stranger-things-theme {
-            text-shadow: 0 0 30px rgba(255, 51, 51, 0.05);
+          .nebula-theme {
+            text-shadow: 0 0 30px rgba(99, 102, 241, 0.05);
           }
         `}</style>
       </div>

@@ -41,7 +41,7 @@ const DEFAULT_HERO_MEDIA: HeroMediaV2 = {
   mobile_offset_y: 0,
 };
 
-const COLLECTION_NAME = 'hero_media_v2';
+const COLLECTION_NAME = 'hero_media';
 
 export const heroMediaService = {
   /**

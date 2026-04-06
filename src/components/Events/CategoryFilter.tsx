@@ -49,7 +49,7 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
         <div className="scroll-animate opacity-0 transform translate-y-10">
           <div className="relative group">
             {/* Glossy Background Container */}
-            <div className="absolute inset-0 bg-gradient-to-r from-red-600/5 via-red-900/10 to-red-600/5 blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-1000" />
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-violet-900/15 to-indigo-600/10 blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-1000" />
             
             <div className="relative bg-black/40 backdrop-blur-2xl border border-white/5 rounded-3xl p-2 md:p-3 shadow-2xl overflow-hidden">
               <div 
@@ -70,14 +70,14 @@ export const CategoryFilter: React.FC<CategoryFilterProps> = ({
                         transition-all duration-500 whitespace-nowrap uppercase tracking-[0.2em]
                         ${isActive ? 
                           'text-white active-category' : 
-                          'text-gray-400 hover:text-red-400'
+                          'text-gray-400 hover:text-indigo-400'
                         }
                       `}
                     >
                       {isActive && (
                         <motion.div
                           layoutId="active-pill"
-                          className="absolute inset-0 bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.5)] rounded-2xl z-0"
+                          className="absolute inset-0 bg-indigo-600 shadow-[0_0_20px_rgba(79,70,229,0.5)] rounded-2xl z-0"
                           transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
                         />
                       )}

@@ -87,29 +87,29 @@ export default function CouncilLogin() {
   return (
     <div className="min-h-screen bg-black overflow-hidden font-rajdhani relative">
       {/* Optimized background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-emerald-950/40 via-black to-green-950/40"></div>
+      <div className="fixed inset-0 bg-gradient-to-br from-indigo-950/40 via-black to-violet-950/40"></div>
       
       {/* Scanning line */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-15">
-        <div className="w-full h-[1px] bg-emerald-500/50 animate-scan"></div>
+        <div className="w-full h-[1px] bg-indigo-500/50 animate-scan"></div>
       </div>
 
       <div ref={containerRef} className="relative z-10 min-h-screen flex items-center justify-center p-3 sm:p-4">
         <div ref={cardRef} className="w-full max-w-md mx-auto">
-          <div className="glass-card-emerald overflow-hidden">
-            <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-green-500 to-emerald-500"></div>
+          <div className="glass-card-indigo overflow-hidden">
+            <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500"></div>
             
             <div className="p-5 sm:p-6 md:p-8">
               <div className="text-center mb-6 stagger-item">
                 <div className="flex justify-center mb-4">
-                  <div className="relative p-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 backdrop-blur-md shadow-2xl">
-                    <BarChart3 className="w-10 h-10 text-emerald-400" />
+                  <div className="relative p-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 backdrop-blur-md shadow-2xl">
+                    <BarChart3 className="w-10 h-10 text-indigo-400" />
                   </div>
                 </div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tighter text-white uppercase italic">
                   Council Dashboard
                 </h1>
-                <p className="text-emerald-400 font-mono text-[10px] tracking-[0.2em] mt-2 uppercase opacity-80">
+                <p className="text-indigo-400 font-mono text-[10px] tracking-[0.2em] mt-2 uppercase opacity-80">
                   Executive Analytics Portal
                 </p>
               </div>
@@ -122,7 +122,7 @@ export default function CouncilLogin() {
 
               <form onSubmit={handleLogin} className="space-y-4 stagger-item">
                 <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/70 font-bold ml-1 flex items-center gap-2">
+                  <label className="text-[10px] uppercase tracking-[0.2em] text-indigo-400/70 font-bold ml-1 flex items-center gap-2">
                     <Lock size={12} />
                     Access Code
                   </label>
@@ -131,7 +131,7 @@ export default function CouncilLogin() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="input-emerald"
+                    className="input-indigo"
                     placeholder="••••••••"
                     autoComplete="current-password"
                   />
@@ -141,7 +141,7 @@ export default function CouncilLogin() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="btn-emerald w-full group disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-indigo w-full group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-center justify-center gap-2 uppercase tracking-widest text-sm font-bold">
                       {isSubmitting ? (
@@ -171,7 +171,7 @@ export default function CouncilLogin() {
 
             <div className="px-4 sm:px-8 py-3 sm:py-4 border-t border-white/5 bg-black/40 backdrop-blur-md flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-0 stagger-item">
               <div className="flex items-center gap-2 text-gray-500 text-[9px] sm:text-[10px] uppercase font-bold tracking-widest">
-                <BarChart3 size={12} className="text-emerald-500/50" />
+                <BarChart3 size={12} className="text-indigo-500/50" />
                 Council Portal
               </div>
               <div className="text-gray-600 text-[9px] sm:text-[10px] font-mono">
@@ -193,21 +193,21 @@ export default function CouncilLogin() {
 
         .font-rajdhani { font-family: 'Rajdhani', sans-serif; }
 
-        .glass-card-emerald {
+        .glass-card-indigo {
           background: rgba(15, 15, 20, 0.7);
           backdrop-filter: blur(25px) saturate(180%);
-          border: 1px solid rgba(16, 185, 129, 0.15);
+          border: 1px solid rgba(99, 102, 241, 0.15);
           border-radius: 1.25rem;
           box-shadow: 
             0 25px 50px -12px rgba(0, 0, 0, 0.5),
-            0 0 40px rgba(16, 185, 129, 0.08),
-            inset 0 0 2px rgba(16, 185, 129, 0.1);
+            0 0 40px rgba(99, 102, 241, 0.08),
+            inset 0 0 2px rgba(99, 102, 241, 0.1);
         }
 
-        .input-emerald {
+        .input-indigo {
           width: 100%;
           background: rgba(255, 255, 255, 0.05);
-          border: 1.5px solid rgba(16, 185, 129, 0.15);
+          border: 1.5px solid rgba(99, 102, 241, 0.15);
           border-radius: 0.75rem;
           padding: 0.75rem 1rem;
           color: white;
@@ -215,29 +215,29 @@ export default function CouncilLogin() {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .input-emerald:focus {
+        .input-indigo:focus {
           outline: none;
-          background: rgba(16, 185, 129, 0.05);
-          border-color: rgba(16, 185, 129, 0.5);
-          box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+          background: rgba(99, 102, 241, 0.05);
+          border-color: rgba(99, 102, 241, 0.5);
+          box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
         }
 
-        .btn-emerald {
-          background: #10b981;
-          color: black;
+        .btn-indigo {
+          background: #4f46e5; /* indigo-600 */
+          color: white;
           padding: 0.75rem;
           border-radius: 0.75rem;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+          box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
         }
 
-        .btn-emerald:hover {
-          background: #34d399;
-          box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+        .btn-indigo:hover {
+          background: #6366f1; /* indigo-500 */
+          box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5);
           transform: translateY(-2px);
         }
 
-        .btn-emerald:active { transform: scale(0.98); }
+        .btn-indigo:active { transform: scale(0.98); }
 
         @keyframes scan {
           0% { transform: translateY(-100vh); }
@@ -248,8 +248,8 @@ export default function CouncilLogin() {
 
         /* Mobile optimizations */
         @media (max-width: 640px) {
-          .btn-emerald { min-height: 48px; }
-          .glass-card-emerald { border-radius: 1rem; }
+          .btn-indigo { min-height: 48px; }
+          .glass-card-indigo { border-radius: 1rem; }
           input, select, textarea { font-size: 16px !important; }
         }
       `}</style>

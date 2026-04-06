@@ -200,7 +200,7 @@ const GuestArtistDetailModal: React.FC<{
                     
                    {/* Channel Link fallback if only main URL exists */}
                    {artist.youtube_url && !artist.social_links?.youtube && (
-                      <a href={artist.youtube_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-xs text-red-300 hover:text-white transition-colors text-right">
+                      <a href={artist.youtube_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-xs text-indigo-300 hover:text-white transition-colors text-right">
                         Visit YouTube Channel →
                       </a>
                    )}

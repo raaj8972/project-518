@@ -315,15 +315,15 @@ export const Login: React.FC = () => {
     { label: 'Security Node', sub: 'Scan & Entry verification', icon: Shield, color: 'purple', action: () => navigate('/security-login') },
     { label: 'Coordinators', sub: 'Event management', icon: Users, color: 'blue', action: () => navigate('/coordinator') },
     { label: 'Council', sub: 'Analytics dashboard', icon: BarChart3, color: 'emerald', action: () => navigate('/council') },
-    { label: 'Sports Admin', sub: 'Tournament & Player management', icon: Trophy, color: 'rose', action: () => navigate('/sports-admin') },
+    { label: 'Sports Admin', sub: 'Tournament & Player management', icon: Trophy, color: 'indigo', action: () => navigate('/sports-admin') },
   ];
 
   const colorMap: Record<string, { border: string; bg: string; text: string; glow: string; ring: string }> = {
     cyan:    { border: 'border-cyan-500/40',    bg: 'bg-cyan-400/10',    text: 'text-cyan-400',    glow: 'shadow-cyan-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(34,211,238,0.25)]' },
-    purple:  { border: 'border-purple-500/40',  bg: 'bg-purple-400/10',  text: 'text-purple-400',  glow: 'shadow-purple-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(167,139,250,0.25)]' },
-    blue:    { border: 'border-blue-500/40',    bg: 'bg-blue-400/10',    text: 'text-blue-400',    glow: 'shadow-blue-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(96,165,250,0.25)]' },
-    emerald: { border: 'border-emerald-500/40', bg: 'bg-emerald-400/10', text: 'text-emerald-400', glow: 'shadow-emerald-500/20',ring: 'group-hover:shadow-[0_0_22px_rgba(52,211,153,0.25)]' },
-    rose:    { border: 'border-rose-500/40',    bg: 'bg-rose-400/10',    text: 'text-rose-400',    glow: 'shadow-rose-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(251,113,133,0.25)]' },
+    purple:  { border: 'border-violet-500/40',  bg: 'bg-violet-400/10',  text: 'text-violet-400',  glow: 'shadow-violet-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(139,92,246,0.25)]' },
+    blue:    { border: 'border-indigo-500/40',    bg: 'bg-indigo-400/10',    text: 'text-indigo-400',    glow: 'shadow-indigo-500/20',   ring: 'group-hover:shadow-[0_0_22px_rgba(99,102,241,0.25)]' },
+    emerald: { border: 'border-cyan-500/40', bg: 'bg-cyan-400/10', text: 'text-cyan-400', glow: 'shadow-cyan-500/20',ring: 'group-hover:shadow-[0_0_22px_rgba(34,211,238,0.25)]' },
+    indigo:  { border: 'border-indigo-500/40',  bg: 'bg-indigo-400/10',  text: 'text-indigo-400',  glow: 'shadow-indigo-500/20', ring: 'group-hover:shadow-[0_0_22px_rgba(99,102,241,0.25)]' },
   };
 
   return (
@@ -370,10 +370,10 @@ export const Login: React.FC = () => {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_50%_50%,rgba(34,211,238,0.07),transparent)]" />
 
           {/* Corner brackets */}
-          <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-cyan-400/40" />
-          <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-cyan-400/40" />
-          <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-cyan-400/40" />
-          <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-cyan-400/40" />
+          <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-indigo-400/40" />
+          <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-indigo-400/40" />
+          <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-indigo-400/40" />
+          <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-indigo-400/40" />
 
           {/* Content */}
           <div className="relative z-10 text-center max-w-sm">
@@ -398,7 +398,7 @@ export const Login: React.FC = () => {
             </div>
 
             {/* Title */}
-            <p className="left-panel-eyebrow text-[10px] font-bold tracking-[0.5em] text-cyan-400/60 uppercase mb-3">
+            <p className="left-panel-eyebrow text-[10px] font-bold tracking-[0.5em] text-indigo-400/60 uppercase mb-3">
               Authentication Gateway
             </p>
             <h2 className="text-5xl font-extrabold text-white tracking-tighter uppercase leading-none mb-2">
@@ -411,11 +411,11 @@ export const Login: React.FC = () => {
             {/* Status chips */}
             <div className="flex flex-col gap-2.5">
               {[
-                { icon: Shield, label: 'SSL Encrypted Tunnel', color: 'emerald' },
+                { icon: Shield, label: 'SSL Encrypted Tunnel', color: 'indigo' },
                 { icon: Lock, label: 'Multi-Factor Auth Ready', color: 'cyan' },
               ].map(({ icon: Icon, label, color }) => (
                 <div key={label} className={`inline-flex items-center gap-2.5 px-4 py-2 rounded-full border ${
-                  color === 'emerald' ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-400' : 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400'
+                  color === 'indigo' ? 'border-indigo-500/20 bg-indigo-500/5 text-indigo-400' : 'border-cyan-500/20 bg-cyan-500/5 text-cyan-400'
                 }`}>
                   <Icon className="w-3.5 h-3.5" />
                   <span className="text-[11px] font-bold uppercase tracking-widest">{label}</span>
@@ -431,7 +431,7 @@ export const Login: React.FC = () => {
         </div>
 
         {/* ─── DIVIDER ─── */}
-        <div className="hidden lg:block w-px bg-gradient-to-b from-transparent via-cyan-500/20 to-transparent" />
+        <div className="hidden lg:block w-px bg-gradient-to-b from-transparent via-indigo-500/20 to-transparent" />
 
         {/* ─── RIGHT PANEL (Login Card) ─── */}
         <div className="flex-1 lg:flex-none lg:w-[480px] xl:w-[520px] flex items-center justify-center p-4 sm:p-8">
@@ -604,7 +604,7 @@ export const Login: React.FC = () => {
                       )}
 
                       {/* ═══ SECURE ACCESS: Dropdown + Password ═══ */}
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/15 space-y-3">
+                      <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-500/5 to-cyan-500/5 border border-indigo-500/15 space-y-3">
                         <div className="flex items-center gap-2 mb-1">
                           <Shield className="w-4 h-4 text-cyan-400" />
                           <span className="text-[10px] font-black text-white uppercase tracking-widest">Secure Access</span>
@@ -694,7 +694,7 @@ export const Login: React.FC = () => {
                               setError(res.error || 'Invalid credentials');
                             }
                           }}
-                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-cyan-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 text-white font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {isLoading ? (
                             <span className="flex items-center justify-center gap-2">

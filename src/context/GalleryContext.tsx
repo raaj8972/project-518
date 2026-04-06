@@ -28,7 +28,7 @@ interface GalleryContextType {
 
 const GalleryContext = createContext<GalleryContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryGalleryContext = ((typeof window !== 'undefined') 
   ? ((window as any).__GALLERY_CONTEXT__ || ((window as any).__GALLERY_CONTEXT__ = GalleryContext))
   : GalleryContext) as React.Context<GalleryContextType | undefined>;
@@ -41,7 +41,7 @@ export const useGalleryData = () => {
   return context;
 };
 
-export const GalleryProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function GalleryProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { getValidToken } = useAuth();
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
@@ -245,5 +245,5 @@ export const GalleryProvider = ({ children, enabled = true }: { children: ReactN
     loadGalleryImages
   };
 
-  return <PrimaryGalleryContext.Provider value={value}>{children}</PrimaryGalleryContext.Provider>;
-};
+  return <GalleryContext.Provider value={value}>{children}</GalleryContext.Provider>;
+}

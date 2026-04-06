@@ -58,7 +58,7 @@ interface EventsContextType {
 
 const EventsContext = createContext<EventsContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryEventsContext = ((typeof window !== 'undefined') 
   ? ((window as any).__EVENTS_CONTEXT__ || ((window as any).__EVENTS_CONTEXT__ = EventsContext))
   : EventsContext) as React.Context<EventsContextType | undefined>;
@@ -71,7 +71,7 @@ export const useEventsData = () => {
   return context;
 };
 
-export const EventsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function EventsProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
@@ -83,7 +83,6 @@ export const EventsProvider = ({ children, enabled = true }: { children: ReactNo
   const [roadmapMilestones, setRoadmapMilestones] = useState<RoadmapMilestone[]>([]);
   const [loading, setLoading] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
 
   const fetchEventsData = useCallback(async () => {
     if (!enabled) return;
@@ -403,5 +402,5 @@ export const EventsProvider = ({ children, enabled = true }: { children: ReactNo
     deleteScheduleEvent
   };
 
-  return <PrimaryEventsContext.Provider value={value}>{children}</PrimaryEventsContext.Provider>;
-};
+  return <EventsContext.Provider value={value}>{children}</EventsContext.Provider>;
+}

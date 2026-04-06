@@ -201,7 +201,7 @@ const Settings: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:bg-red-600/50 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2"
+              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
             >
               {saving ? (
                 <>

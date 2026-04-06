@@ -9,6 +9,7 @@ interface AdminModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   maxWidth?: string;
+  onSave?: () => void | Promise<void>;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({ 
@@ -17,7 +18,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   title, 
   children, 
   footer,
-  maxWidth = 'max-w-4xl'
+  maxWidth = 'max-w-4xl',
+  onSave
 }) => {
   // Prevent scrolling on body when modal is open
   useEffect(() => {
@@ -61,9 +63,24 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         </div>
 
         {/* Footer */}
-        {footer && (
-          <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] shrink-0">
-            {footer}
+        {(footer || onSave) && (
+          <div className="px-6 py-4 border-t border-white/5 bg-white/[0.01] shrink-0 flex items-center justify-end gap-3">
+            {footer || (
+              <>
+                <button 
+                  onClick={onClose}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={onSave}
+                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white rounded-xl font-bold shadow-lg transition-all"
+                >
+                  Save Changes
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

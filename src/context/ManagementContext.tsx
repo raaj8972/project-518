@@ -57,7 +57,7 @@ interface ManagementContextType {
 
 const ManagementContext = createContext<ManagementContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryManagementContext = ((typeof window !== 'undefined') 
   ? ((window as any).__MANAGEMENT_CONTEXT__ || ((window as any).__MANAGEMENT_CONTEXT__ = ManagementContext))
   : ManagementContext) as React.Context<ManagementContextType | undefined>;
@@ -70,7 +70,7 @@ export const useManagementData = () => {
   return context;
 };
 
-export const ManagementProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function ManagementProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { user, getValidToken } = useAuth();
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
@@ -328,5 +328,5 @@ export const ManagementProvider = ({ children, enabled = true }: { children: Rea
     updateAdminRole
   };
 
-  return <PrimaryManagementContext.Provider value={value}>{children}</PrimaryManagementContext.Provider>;
-};
+  return <ManagementContext.Provider value={value}>{children}</ManagementContext.Provider>;
+}

@@ -8,11 +8,10 @@ import { useAuth } from '../context/AuthContext';
 
 // Components
 import { RegistrationModal } from '../components/RegistrationModal';
-import { HeroBackground } from '../components/HeroBackground';
-import ScrollHint from '../components/ScrollHint';
 import { SEO } from '../components/SEO';
-import { EventsHero } from '../components/Events/EventsHero';
 import { CategoryFilter } from '../components/Events/CategoryFilter';
+import { CyberpunkHeroContent } from '../components/ui/CyberpunkHeroContent';
+import { useTheme } from '../context/ThemeContext';
 import { EventCard } from '../components/Events/EventCard';
 import { RulesModal } from '../components/Events/RulesModal';
 import { WinnersSection } from '../components/Events/WinnersSection';
@@ -49,6 +48,7 @@ export const Events: React.FC = () => {
   const isAnyAuthenticated = isFirebaseAuthenticated || isSupabaseAuthenticated;
   const { push } = useToast();
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   const isOwner = (() => {
     try {
@@ -261,30 +261,21 @@ export const Events: React.FC = () => {
 
   return (
     <div className="stranger-theme min-h-screen" style={{ overscrollBehaviorY: 'contain' }}>
-      <SEO 
-        title="Events"
-        description="Explore the thrilling events and competitions at Ricorrenza. From cultural showcases to intense technical battles, there's a world to discover."
-      />
+      {theme === 'bollywood' && (
+        <CyberpunkHeroContent pageKey="events" />
+      )}
 
-      <HeroBackground pageKey="events" />
-      <EventsHero 
-        events={events} 
-        registrationModalOpen={registrationModal.isOpen} 
-        rulesModalOpen={!!rulesModalFor} 
-      />
-
-      <main className="relative z-10 -mt-20">
-        <ScrollHint />
+      <main className={`relative z-10 ${theme === 'bollywood' ? '-mt-20' : 'pt-20'}`}>
         
         <div className="container mx-auto px-4 py-12">
           {connectionStatus === 'error' && (
             <div className="max-w-2xl mx-auto mb-12 animate-in slide-in-from-top duration-500">
-              <div className="bg-red-950/40 backdrop-blur-md border border-red-500/50 rounded-2xl p-6 flex items-center gap-4 text-red-200 shadow-[0_0_30px_rgba(220,38,38,0.2)]">
-                <div className="p-3 bg-red-500/20 rounded-xl"><AlertCircle className="text-red-500" size={24} /></div>
+              <div className="bg-violet-950/40 backdrop-blur-md border border-violet-500/50 rounded-2xl p-6 flex items-center gap-4 text-violet-200 shadow-[0_0_30px_rgba(139,92,246,0.2)]">
+                <div className="p-3 bg-violet-500/20 rounded-xl"><AlertCircle className="text-violet-500" size={24} /></div>
                 <div>
                   <h3 className="font-bold text-lg mb-1">Connection Error</h3>
                   <p className="text-sm opacity-90">{lastError || 'Something went wrong. Please refresh the page.'}</p>
-                  <button onClick={refreshAll} className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg transition-all flex items-center gap-2">
+                  <button onClick={refreshAll} className="mt-4 px-6 py-2 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-lg transition-all flex items-center gap-2">
                     <Zap size={16} /> Reconnect Now
                   </button>
                 </div>
@@ -294,8 +285,8 @@ export const Events: React.FC = () => {
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 scroll-animate">
             <div className="flex-1">
-              <h2 className="text-4xl md:text-5xl font-black text-white stranger-text mb-4">EVENT CATEGORIES</h2>
-              <div className="h-1 w-24 bg-red-600 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
+              <h2 className="text-4xl md:text-5xl font-black text-white nebula-title-text mb-4">EVENT CATEGORIES</h2>
+              <div className="h-1 w-24 bg-cyan-500 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
             </div>
             <CategoryFilter 
               categories={categories} 

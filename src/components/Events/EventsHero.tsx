@@ -226,7 +226,7 @@ export const EventsHero: React.FC<EventsHeroProps> = ({
             <div className="inline-flex items-center bg-red-950/20 border border-red-600/30 text-red-500 px-6 py-3 rounded-full text-sm font-black tracking-widest mb-8 backdrop-blur-sm stranger-pulse-glow">
               <Zap className="w-4 h-4 mr-2 animate-pulse text-red-600" /> OFFICIAL EVENTS
             </div>
-            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 stranger-text ${glitchActive ? 'glitch-active' : ''}`}>
+            <h1 className={`text-5xl md:text-7xl lg:text-8xl font-black mb-6 nebula-title-text ${glitchActive ? 'glitch-active' : ''}`}>
               <span className="text-red-600">EVENTS</span>
             </h1>
             <p className="text-xl md:text-2xl lg:text-3xl font-light max-w-4xl mx-auto leading-relaxed mb-8">

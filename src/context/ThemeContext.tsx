@@ -1,19 +1,21 @@
-import React, { createContext, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { useData } from './DataContext';
 
-type Theme = 'cyberpunk' | 'bollywood';
+type Theme = 'cyberpunk' | 'bollywood' | 'vaporwave';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => Promise<void>;
 }
 
-const ThemeContext = createContext<ThemeContextType>({
-  theme: 'cyberpunk',
-  setTheme: async () => {},
-});
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// [DEDUPE] Use window bridge for singleton Context
+const PrimaryThemeContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__THEME_CONTEXT__ || ((window as any).__THEME_CONTEXT__ = ThemeContext))
+  : ThemeContext) as React.Context<ThemeContextType | undefined>;
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { siteSettings, updateSiteSettings } = useData();
 
   // Parse the active theme from the batch_options JSON blob or default to cyberpunk
@@ -29,22 +31,25 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
+  const value = useMemo(() => ({ theme, setTheme }), [theme]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    if (theme === 'bollywood') {
-      document.body.classList.add('theme-bollywood');
-      document.body.classList.remove('theme-cyberpunk');
-    } else {
-      document.body.classList.add('theme-cyberpunk');
-      document.body.classList.remove('theme-bollywood');
-    }
+    document.body.classList.remove('theme-cyberpunk', 'theme-bollywood', 'theme-vaporwave');
+    document.body.classList.add(`theme-${theme}`);
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <PrimaryThemeContext.Provider value={value}>
       {children}
-    </ThemeContext.Provider>
+    </PrimaryThemeContext.Provider>
   );
-};
+}
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = () => {
+  const context = useContext(PrimaryThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};

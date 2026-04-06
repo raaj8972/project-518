@@ -43,31 +43,11 @@ export const Home: React.FC = () => {
   facultyHeads,
   coreTeamMembers,
   coreCommittees,
-    socialMediaSettings, 
     homepageSettings,
     formSettings,
     aboutSettings,
-    securitySettings,
     loading
   } = useData();
-  
-  // Debug logs to diagnose loading issues
-  console.log('Home component render - Loading state:', loading);
-  console.log('Home component render - Events count:', events?.length || 0);
-  console.log('Home component render - Homepage settings:', homepageSettings);
-  console.log('Home component render - Form settings:', formSettings);
-  console.log('Home component render - All data:', {
-    events: events?.length || 0,
-    galleryImages: galleryImages?.length || 0,
-    sponsors: sponsors?.length || 0,
-    guestArtists: guestArtists?.length || 0,
-    facultyHeads: facultyHeads?.length || 0,
-    socialMediaSettings: !!socialMediaSettings,
-    homepageSettings: !!homepageSettings,
-    formSettings: !!formSettings,
-    securitySettings: !!securitySettings
-  });
-  
   
   // Modal states
   const [membershipModal, setMembershipModal] = useState(false);
@@ -87,23 +67,18 @@ export const Home: React.FC = () => {
   // Animation/Interaction states
   const [facultyPaused, setFacultyPaused] = useState(false);
   const [committeePaused, setCommitteePaused] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showInteractive, setShowInteractive] = useState(false);
   
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
     let idleId: number | null = null;
     if (typeof (window as any).requestIdleCallback === 'function') {
       idleId = (window as any).requestIdleCallback(() => setShowInteractive(true), { timeout: 500 });
       return () => { 
-        window.removeEventListener('resize', handleResize);
         if (idleId != null) (window as any).cancelIdleCallback(idleId); 
       };
     }
     const t = setTimeout(() => setShowInteractive(true), 350);
     return () => {
-      window.removeEventListener('resize', handleResize);
       clearTimeout(t);
     };
   }, []);
@@ -232,12 +207,15 @@ export const Home: React.FC = () => {
   }, [stopDetailAudio]);
 
   // Heads data and memoized sorted lists (must be before any early return)
+  // All data comes from the database — managed via Admin → Core Team Management
   const enabledFacultyHeads = facultyHeads.filter(head => head.enabled && head.image && head.image.trim() !== '');
-  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !((m as any).isCouncil || (m as any).is_council) && m.image && m.image.trim() !== '');
-  // Council members (non-head) are also part of leadership marquee
-  const councilMembers = coreTeamMembers.filter(m => m.enabled && ((m as any).isCouncil || (m as any).is_council) && !m.is_head && m.image && m.image.trim() !== '');
+  const committeeHeads = coreTeamMembers.filter(m => m.enabled && m.is_head && !m.is_council && m.image && m.image.trim() !== '');
+  // Council members (non-head) are also part of leadership carousel
+  const councilMembers = coreTeamMembers.filter(m => m.enabled && m.is_council && !m.is_head && m.image && m.image.trim() !== '');
+  
   const sortedFacultyHeads = React.useMemo(() => enabledFacultyHeads.slice().sort((a, b) => a.order_position - b.order_position), [enabledFacultyHeads]);
-  // Sorted full list of heads for display and navigation
+  
+  // Sorted full list of heads + council for display and navigation
   const sortedCommitteeHeads = React.useMemo(() => (
     [...committeeHeads, ...councilMembers]
       .slice()
@@ -355,52 +333,9 @@ export const Home: React.FC = () => {
   // Show loading state while data is being fetched
   // Only show the full-page preloader if we have NO data. If we have events, 
   // it means it's a background refresh and we should keep showing the page.
-  const hasCriticalData = events.length > 0 || (homepageSettings as any)?.hero_title;
-  if (loading && !hasCriticalData) {
-    return (
-      <div className="stranger-things-theme min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="stranger-spinner mb-6"></div>
-          <h2 className="text-2xl font-bold stranger-title mb-4 tracking-tighter">ENTERING THE EXPERIENCE</h2>
-          <p className="text-red-500 font-serif brightness-75">Initializing performance...</p>
-        </div>
-        
-        <style>{`
-          .stranger-things-theme {
-            background: #050000;
-            color: #ffffff;
-            font-family: 'Benguiat', 'Crimson Text', serif;
-          }
+  // The loading state is now handled globally by the Preloader component in App.tsx.
+  // We no longer need a separate per-page loader here to avoid visual conflicts.
 
-          .stranger-title {
-            background: linear-gradient(180deg, #ff0000, #7f0000);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.5));
-            text-transform: uppercase;
-          }
-
-          .stranger-spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid transparent;
-            border-top: 4px solid #ff0000;
-            border-right: 4px solid #450a0a;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-            filter: drop-shadow(0 0 15px #ff0000);
-          }
-
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
 
   // Filter for featured content
   const featuredEvents = events.filter(event => event.featured && event.visible !== false);
@@ -418,26 +353,26 @@ export const Home: React.FC = () => {
     <div className="stranger-mesh-glow min-h-screen text-white overflow-x-hidden">
       <style>{`
         .stranger-mesh-glow {
-          background-color: #000000;
+          background-color: #020617;
           background-image: 
-            radial-gradient(at 0% 0%, rgba(153, 27, 27, 0.2) 0px, transparent 50%),
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
             radial-gradient(at 100% 0%, rgba(0, 0, 0, 0.9) 0px, transparent 50%),
-            radial-gradient(at 50% 100%, rgba(69, 10, 10, 0.15) 0px, transparent 50%);
+            radial-gradient(at 50% 100%, rgba(30, 27, 75, 0.2) 0px, transparent 50%);
         }
         .stranger-title-gradient {
-          background: linear-gradient(to bottom, #ffffff 0%, #ff0000 40%, #7f0000 100%);
+          background: linear-gradient(to bottom, #ffffff 0%, #a855f7 45%, #3b82f6 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
-          filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.4));
+          filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.4));
           font-family: serif;
         }
         .stranger-btn-glass {
-          @apply relative px-8 py-4 rounded-lg bg-black/40 backdrop-blur-3xl border border-red-900/30 
+          @apply relative px-8 py-4 rounded-lg bg-black/40 backdrop-blur-3xl border border-indigo-900/30 
                  text-white font-serif tracking-widest uppercase text-sm transition-all duration-500 shadow-[0_8px_32px_rgba(0,0,0,0.8)]
-                 hover:bg-red-950/20 hover:border-red-600/50 hover:shadow-[0_0_30px_rgba(255,0,0,0.3)] hover:-translate-y-1;
+                 hover:bg-indigo-950/20 hover:border-indigo-600/50 hover:shadow-[0_0_30px_rgba(99,102,241,0.3)] hover:-translate-y-1;
         }
         .stranger-btn-primary {
-          @apply bg-red-950/40 border-red-600/40 hover:bg-red-900/60 hover:border-red-500 hover:shadow-[0_0_40px_rgba(255,0,0,0.4)];
+          @apply bg-indigo-950/40 border-indigo-600/40 hover:bg-indigo-900/60 hover:border-indigo-500 hover:shadow-[0_0_40px_rgba(99,102,241,0.4)];
         }
       `}</style>
       <SEO />
@@ -553,7 +488,6 @@ export const Home: React.FC = () => {
           enabledFacultyHeads={enabledFacultyHeads as any}
           sortedFacultyHeads={sortedFacultyHeads as any}
           sortedCommitteeHeads={sortedCommitteeHeads as any}
-          windowWidth={windowWidth}
           facultyPaused={facultyPaused}
           committeePaused={committeePaused}
           setFacultyPaused={setFacultyPaused}

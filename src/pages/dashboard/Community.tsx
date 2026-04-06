@@ -94,14 +94,14 @@ const Community: React.FC = () => {
         <div>
           <h1 className="text-4xl font-black text-white tracking-tight flex items-center gap-3">
             RICO COMMUNITY
-            <span className="px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] uppercase tracking-[0.2em] animate-pulse">Live</span>
+            <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 text-[10px] uppercase tracking-[0.2em] animate-pulse">Live</span>
           </h1>
           <p className="text-gray-500 text-sm font-medium mt-1">Connect with {participants.length} verified RICO Stars.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-red-500 transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-500 transition-colors" />
             <input 
               type="text" 
               placeholder="Search stars..."
@@ -181,7 +181,7 @@ const Community: React.FC = () => {
                     </div>
 
                     <div className="text-center space-y-1">
-                      <h4 className="text-lg font-black text-white truncate group-hover:text-red-400 transition-colors">{star.full_name}</h4>
+                      <h4 className="text-lg font-black text-white truncate group-hover:text-indigo-400 transition-colors">{star.full_name}</h4>
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{star.batch || 'Participant'}</p>
                     </div>
 
@@ -193,7 +193,7 @@ const Community: React.FC = () => {
                       <div className="bg-white/5 rounded-2xl p-3 text-center border border-white/5">
                         <span className="block text-[8px] text-gray-500 font-black uppercase tracking-tighter mb-1">Love</span>
                         <div className="flex items-center justify-center gap-1">
-                          <Heart className="w-3 h-3 text-red-500 fill-current" />
+                          <Heart className="w-3 h-3 text-indigo-500 fill-current" />
                           <span className="text-sm font-black text-white">{star.likes_count}</span>
                         </div>
                       </div>

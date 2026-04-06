@@ -976,6 +976,9 @@ export interface Database {
           enabled: boolean
           is_head: boolean
           phone: string | null
+          email: string | null
+          is_council: boolean
+          color: string | null
           social_links: any
           created_at: string
           updated_at: string
@@ -993,6 +996,9 @@ export interface Database {
           enabled?: boolean
           is_head?: boolean
           phone?: string | null
+          email?: string | null
+          is_council?: boolean
+          color?: string | null
           social_links?: any
           created_at?: string
           updated_at?: string
@@ -1010,6 +1016,9 @@ export interface Database {
           enabled?: boolean
           is_head?: boolean
           phone?: string | null
+          email?: string | null
+          is_council?: boolean
+          color?: string | null
           social_links?: any
           created_at?: string
           updated_at?: string

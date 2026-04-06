@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, GripVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Users, Eye, EyeOff, Crown, Instagram, Youtube, Facebook, GripVertical, Mail, Phone, Linkedin } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
 import type { CoreCommittee, CoreTeamMember } from '../../types/data';
@@ -7,11 +7,13 @@ import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
-import PreserveNewlines from '../PreserveNewlines';
-
-// Spotify icon component since it's not in lucide-react
-// Spotify icon component removed
 import { AdminModal } from './layout/AdminModal';
+
+const Spotify = ({ size = 20, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" className={className}>
+    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.503 17.306c-.216.353-.679.464-1.031.248-2.859-1.748-6.458-2.143-10.697-1.176-.403.092-.809-.161-.901-.564-.092-.403.161-.809.564-.901 4.636-1.06 8.62-.6 11.815 1.353.353.216.464.679.249 1.031zm1.468-3.26c-.272.443-.848.583-1.291.311-3.272-2.012-8.258-2.592-12.126-1.417-.5.152-1.026-.131-1.178-.631-.152-.5.131-1.026.631-1.178 4.417-1.34 9.909-.693 13.652 1.603.444.271.583.848.312 1.292zm.126-3.411c-3.924-2.33-10.384-2.545-14.152-1.4c-.604.183-1.248-.166-1.432-.77-.184-.604.166-1.248.77-1.432 4.331-1.314 11.458-1.057 15.98 1.625.541.321.716 1.022.395 1.564-.32.541-1.022.716-1.563.395z"/>
+  </svg>
+);
 import { AICoreTeamScanner, type ExtractedCoreTeamData } from './AICoreTeamScanner';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
@@ -119,10 +121,7 @@ export const CoreTeamManagement: React.FC = () => {
               role: member.role,
               is_head: (member as any).is_head,
               phone: (member as any).phone,
-              specialty: (member as any).specialty,
-              description: member.description,
               image: imageUrl,
-              achievements: [],
               order_position: 99,
               enabled: true,
               social_links: { 
@@ -157,7 +156,6 @@ export const CoreTeamManagement: React.FC = () => {
           try {
             const result = await addCoreCommittee({
               name: committee.name,
-              description: committee.description,
               is_core: committee.is_core,
               color: '#' + Math.floor(Math.random()*16777215).toString(16),
               order_position: coreCommittees.length + 1,
@@ -206,10 +204,7 @@ export const CoreTeamManagement: React.FC = () => {
               role: member.role,
               is_head: member.is_head,
               phone: member.phone,
-              specialty: member.specialty,
-              description: member.description,
               image: imageUrl,
-              achievements: [],
               order_position: 99,
               enabled: true,
               social_links: { 
@@ -249,7 +244,6 @@ export const CoreTeamManagement: React.FC = () => {
 
   const [committeeForm, setCommitteeForm] = useLocalStorage('admin_core_committee_form_draft', {
     name: '',
-    description: '',
     color: '#3B82F6',
     is_core: false,
     order_position: 1,
@@ -261,27 +255,25 @@ export const CoreTeamManagement: React.FC = () => {
     name: '',
     role: '',
     image: '',
-    description: '',
-    specialty: '',
-    achievements: [] as string[],
     order_position: 1,
     enabled: true,
-  is_head: false,
-  isCouncil: false,
+    is_head: false,
+    isCouncil: false,
+    color: '#3B82F6',
     phone: '',
+    email: '',
     social_links: {
       instagram: '',
       linkedin: '',
-      twitter: '',
       youtube: '',
-      facebook: ''
+      facebook: '',
+      spotify: ''
     }
   });
 
   const resetCommitteeForm = () => {
     setCommitteeForm({
       name: '',
-      description: '',
       color: '#3B82F6',
       is_core: false,
       order_position: coreCommittees.length + 1,
@@ -295,20 +287,19 @@ export const CoreTeamManagement: React.FC = () => {
       name: '',
       role: '',
       image: '',
-      description: '',
-      specialty: '',
-      achievements: [],
       order_position: coreTeamMembers.length + 1,
       enabled: true,
       is_head: false,
       isCouncil: false,
+      color: '#3B82F6',
       phone: '',
+      email: '',
       social_links: {
         instagram: '',
         linkedin: '',
-        twitter: '',
         youtube: '',
-        facebook: ''
+        facebook: '',
+        spotify: ''
       }
     });
   };
@@ -327,7 +318,6 @@ export const CoreTeamManagement: React.FC = () => {
           'create',
           {
             name: committeeForm.name,
-            description: committeeForm.description,
             color: committeeForm.color,
             is_core: committeeForm.is_core,
             order_position: committeeForm.order_position,
@@ -363,7 +353,6 @@ export const CoreTeamManagement: React.FC = () => {
           'update',
           {
             name: committeeForm.name,
-            description: committeeForm.description,
             color: committeeForm.color,
             is_core: committeeForm.is_core,
             order_position: committeeForm.order_position,
@@ -425,7 +414,6 @@ export const CoreTeamManagement: React.FC = () => {
   const startEditingCommittee = (committee: CoreCommittee) => {
     setCommitteeForm({
       name: committee.name,
-      description: committee.description || '',
       color: committee.color,
       is_core: committee.is_core,
       order_position: committee.order_position,
@@ -442,6 +430,7 @@ export const CoreTeamManagement: React.FC = () => {
     const payload = {
       ...memberForm,
       is_council: memberForm.isCouncil,
+      color: memberForm.color,
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
     delete payload.isCouncil;
@@ -460,12 +449,11 @@ export const CoreTeamManagement: React.FC = () => {
             is_head: memberForm.is_head,
             order_position: memberForm.order_position,
             enabled: memberForm.enabled,
-            description: memberForm.description,
-            specialty: memberForm.specialty,
-            achievements: memberForm.achievements,
             is_council: memberForm.isCouncil,
             phone: memberForm.phone,
-            social_links: memberForm.social_links
+            email: memberForm.email,
+            social_links: memberForm.social_links,
+            color: memberForm.color
           }
         );
         alert('Request submitted for approval. An owner will review your changes.');
@@ -493,6 +481,7 @@ export const CoreTeamManagement: React.FC = () => {
     const payload = {
       ...memberForm,
       is_council: memberForm.isCouncil,
+      color: memberForm.color,
       committee_id: memberForm.committee_id && memberForm.committee_id !== 0 ? memberForm.committee_id : null,
     } as any;
     delete payload.isCouncil; // Remove camelCase field
@@ -511,12 +500,11 @@ export const CoreTeamManagement: React.FC = () => {
             is_head: memberForm.is_head,
             order_position: memberForm.order_position,
             enabled: memberForm.enabled,
-            description: memberForm.description,
-            specialty: memberForm.specialty,
-            achievements: memberForm.achievements,
             is_council: memberForm.isCouncil,
             phone: memberForm.phone,
-            social_links: memberForm.social_links
+            email: memberForm.email,
+            social_links: memberForm.social_links,
+            color: memberForm.color
           },
           id
         );
@@ -571,44 +559,23 @@ export const CoreTeamManagement: React.FC = () => {
       role: member.role,
       image: member.image,
       committee_id: member.committee_id,
-      description: member.description || '',
       order_position: member.order_position,
       is_head: member.is_head,
       enabled: member.enabled || true, // Default to true if undefined
-      specialty: member.specialty || '', // Add specialty
       social_links: {
         instagram: (member.social_links as any)?.instagram || '',
         linkedin: (member.social_links as any)?.linkedin || '',
-        twitter: (member.social_links as any)?.twitter || '',
         youtube: (member.social_links as any)?.youtube || '',
         facebook: (member.social_links as any)?.facebook || '', 
+        spotify: (member.social_links as any)?.spotify || '',
       },
-      achievements: member.achievements || [], // Add achievements
-      isCouncil: ((member as any).isCouncil ?? false) || false,
+      isCouncil: ((member as any).isCouncil ?? false) || (member as any).is_council || false,
+      color: (member as any).color || '#3B82F6',
       phone: (member as any).phone || '',
+      email: (member as any).email || '',
     });
   };
 
-  const addAchievement = () => {
-    setMemberForm(prev => ({
-      ...prev,
-      achievements: [...prev.achievements, '']
-    }));
-  };
-
-  const updateAchievement = (index: number, value: string) => {
-    setMemberForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.map((a, i) => i === index ? value : a)
-    }));
-  };
-
-  const removeAchievement = (index: number) => {
-    setMemberForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter((_, i) => i !== index)
-    }));
-  };
 
   const predefinedColors = [
     '#3B82F6', '#8B5CF6', '#EF4444', '#F59E0B', '#10B981', 
@@ -885,16 +852,7 @@ export const CoreTeamManagement: React.FC = () => {
                     <p className="mt-2 text-xs text-red-400">Committee name is required.</p>
                   )}
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
-                  <textarea
-                    value={committeeForm.description}
-                    onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Brief description of the committee's responsibilities"
-                    rows={3}
-                    className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                  />
-                </div>
+                {/* Description field removed */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
@@ -1022,16 +980,7 @@ export const CoreTeamManagement: React.FC = () => {
                             className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
                           />
                         </div>
-                        <div>
-                          <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description (optional)</label>
-                          <textarea
-                            value={committeeForm.description}
-                            onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                            placeholder="Brief description of the committee's responsibilities"
-                            rows={3}
-                            className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-                          />
-                        </div>
+                        {/* Description field removed */}
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Display Order</label>
@@ -1144,9 +1093,7 @@ export const CoreTeamManagement: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className="text-gray-400 text-sm mb-6 line-clamp-2 min-h-[40px]">
-                      {committee.description || <span className="text-gray-600 italic">No description provided</span>}
-                    </p>
+                    <div className="min-h-[40px]" />
                     
                     {/* Meta & Stats */}
                     <div className="flex items-center justify-between mb-6 p-3 rounded-xl bg-black/20 border border-white/5">
@@ -1425,6 +1372,34 @@ export const CoreTeamManagement: React.FC = () => {
                       className="w-4 h-4 rounded border-gray-600 bg-black/40 text-red-500 focus:ring-red-500/50 transition-all cursor-pointer" 
                     />
                   </label>
+
+                  {memberForm.isCouncil && (
+                    <>
+                      <div className="h-px bg-white/5 my-1" />
+                      <div className="p-2 space-y-3">
+                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wide">Theme Color</label>
+                        <div className="flex flex-wrap gap-2">
+                          {predefinedColors.map((color) => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setMemberForm(prev => ({ ...prev, color }))}
+                              className={`w-6 h-6 rounded-full border-2 transition-all ${
+                                memberForm.color === color ? 'border-white scale-110' : 'border-white/20'
+                              }`}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                          <input 
+                            type="color"
+                            value={memberForm.color}
+                            onChange={(e) => setMemberForm(prev => ({ ...prev, color: e.target.value }))}
+                            className="w-6 h-6 rounded-full bg-transparent border-none cursor-pointer p-0 overflow-hidden"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1454,97 +1429,93 @@ export const CoreTeamManagement: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Phone & Email Section */}
                 <div className="grid md:grid-cols-2 gap-5">
                   <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone Number (Hidden)</label>
-                     <input
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                      <Phone size={12} className="text-emerald-500" /> Phone Number
+                    </label>
+                    <input
                       type="tel"
                       value={memberForm.phone}
                       onChange={(e) => setMemberForm(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+91..."
-                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
+                      placeholder="e.g. +91 9876543210"
+                      className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all"
                     />
                   </div>
-                   <div className="space-y-2">
-                     <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Specialty Tag</label>
-                     <input
-                      type="text"
-                      value={memberForm.specialty}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                      placeholder="e.g. Developer"
-                       className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Bio / Description</label>
-                  <textarea
-                    value={memberForm.description}
-                    onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Share a brief description of their role and contributions..."
-                    rows={3}
-                     className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all resize-none"
-                  />
-                </div>
-
-                <div className="space-y-3 pt-2">
-                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
-                     Social Profiles <span className="text-[10px] font-normal opacity-50 lowercase">(optional)</span>
-                   </label>
-                   <div className="grid md:grid-cols-2 gap-4">
-                      <div className="relative group">
-                        <Instagram className="absolute left-3 top-3.5 text-pink-500 transition-transform group-focus-within:scale-110" size={16} />
-                         <input
-                          type="url"
-                          value={memberForm.social_links.instagram}
-                          onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))}
-                          placeholder="Instagram URL"
-                           className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all"
-                        />
-                      </div>
-                      <div className="relative group">
-                        <Youtube className="absolute left-3 top-3.5 text-red-500 transition-transform group-focus-within:scale-110" size={16} />
-                         <input
-                          type="url"
-                          value={memberForm.social_links.youtube}
-                          onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))}
-                          placeholder="YouTube URL"
-                           className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
-                        />
-                      </div>
-
-                   </div>
-                </div>
-
-                {/* Achievements */}
-                <div className="space-y-3 pt-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Key Achievements</label>
                   <div className="space-y-2">
-                     {memberForm.achievements.map((achievement, index) => (
-                      <div key={index} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-300">
-                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50 flex-shrink-0" />
-                        <input
-                          type="text"
-                          value={achievement}
-                          onChange={(e) => updateAchievement(index, e.target.value)}
-                          placeholder="e.g. Best Organizer 2025"
-                           className="flex-1 bg-transparent border-b border-white/10 py-1.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-amber-500 transition-all"
-                        />
-                         <button onClick={() => removeAchievement(index)} className="p-1.5 hover:bg-white/10 rounded-full text-red-400/70 hover:text-red-400 transition-colors">
-                          <X size={14} />
-                         </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addAchievement}
-                      className="mt-2 text-xs font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-amber-500/30 hover:border-amber-500/60 hover:bg-amber-500/10 transition-all"
-                    >
-                      <Plus size={12} /> Add Achievement
-                    </button>
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                      <Mail size={12} className="text-blue-500" /> Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={memberForm.email}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="e.g. rahul@example.com"
+                      className="w-full bg-[#0f0f13] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                    />
                   </div>
                 </div>
+
+
+                 <div className="space-y-3 pt-2">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1 flex items-center gap-2">
+                      Social Profiles <span className="text-[10px] font-normal opacity-50 lowercase">(optional)</span>
+                    </label>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                       <div className="relative group">
+                         <Instagram className="absolute left-3 top-3.5 text-pink-500 transition-transform group-focus-within:scale-110" size={16} />
+                          <input
+                           type="url"
+                           value={memberForm.social_links.instagram}
+                           onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))}
+                           placeholder="Instagram URL"
+                            className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-pink-500/50 transition-all"
+                         />
+                       </div>
+                       <div className="relative group">
+                         <Facebook className="absolute left-3 top-3.5 text-blue-500 transition-transform group-focus-within:scale-110" size={16} />
+                          <input
+                           type="url"
+                           value={memberForm.social_links.facebook}
+                           onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, facebook: e.target.value } }))}
+                           placeholder="Facebook URL"
+                            className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-all"
+                         />
+                       </div>
+                       <div className="relative group">
+                          <Linkedin className="absolute left-3 top-3.5 text-cyan-500 transition-transform group-focus-within:scale-110" size={16} />
+                           <input
+                            type="url"
+                            value={memberForm.social_links.linkedin}
+                            onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, linkedin: e.target.value } }))}
+                            placeholder="LinkedIn URL"
+                             className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-all"
+                          />
+                       </div>
+                       <div className="relative group">
+                         <Youtube className="absolute left-3 top-3.5 text-red-500 transition-transform group-focus-within:scale-110" size={16} />
+                          <input
+                           type="url"
+                           value={memberForm.social_links.youtube}
+                           onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))}
+                           placeholder="YouTube URL"
+                            className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-red-500/50 transition-all"
+                         />
+                       </div>
+                       <div className="relative group">
+                         <Spotify className="absolute left-3 top-3.5 text-green-500 transition-transform group-focus-within:scale-110" size={16} />
+                          <input
+                           type="url"
+                           value={memberForm.social_links.spotify}
+                           onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))}
+                           placeholder="Spotify URL"
+                            className="w-full bg-[#0f0f13] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-green-500/50 transition-all"
+                         />
+                       </div>
+                    </div>
+                 </div>
+
 
               </div>
             </div>
@@ -1635,11 +1606,6 @@ export const CoreTeamManagement: React.FC = () => {
 
                           <div className="mb-4 flex-grow">
                             <div className="flex flex-wrap gap-2 mb-3">
-                              {member.specialty && (
-                                <span className="text-[10px] bg-amber-500/10 text-amber-500 px-2 py-1 rounded-lg border border-amber-500/20 font-medium truncate max-w-full">
-                                  {member.specialty}
-                                </span>
-                              )}
                               {!member.enabled && (
                                 <span className="text-[10px] bg-red-500/10 text-red-400 px-2 py-1 rounded-lg border border-red-500/20 font-medium flex items-center gap-1">
                                   <EyeOff size={10} /> Hidden
@@ -1647,12 +1613,8 @@ export const CoreTeamManagement: React.FC = () => {
                               )}
                             </div>
                             
-                            {member.description && (
-                              <div className="relative">
-                                <PreserveNewlines text={member.description} className="text-gray-400 text-xs leading-relaxed line-clamp-3" />
-                              </div>
-                            )}
                           </div>
+
                           
                           {/* Footer Actions */}
                           <div className="mt-auto pt-4 border-t border-white/5 flex items-center justify-between gap-2">

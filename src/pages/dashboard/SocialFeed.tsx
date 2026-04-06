@@ -16,7 +16,7 @@ const SocialFeed: React.FC = () => {
       <section className="relative overflow-hidden rounded-[3rem] p-12 rico-glass-card border border-white/10 bg-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-red-600/10 opacity-30" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] -mr-48 -mt-48" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-red-500/10 rounded-full blur-[120px] -ml-48 -mb-48" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] -ml-48 -mb-48" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 text-center md:text-left">
           <div className="space-y-4">
@@ -39,7 +39,7 @@ const SocialFeed: React.FC = () => {
                     {String.fromCharCode(64 + i)}
                   </div>
                 ))}
-                <div className="w-12 h-12 rounded-full border-2 border-[#1a1a1a] bg-red-600 flex items-center justify-center text-xs font-black text-white">+99</div>
+                <div className="w-12 h-12 rounded-full border-2 border-[#1a1a1a] bg-indigo-600 flex items-center justify-center text-xs font-black text-white">+99</div>
              </div>
              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Active Competitors</p>
           </div>
@@ -67,8 +67,8 @@ const SocialFeed: React.FC = () => {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2">
             <div className="flex items-center gap-4 mb-8 px-6">
-              <div className="w-12 h-12 rounded-2xl bg-red-600/20 flex items-center justify-center border border-red-600/20">
-                <Trophy className="w-6 h-6 text-red-500" />
+              <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 flex items-center justify-center border border-indigo-600/20">
+                <Trophy className="w-6 h-6 text-indigo-500" />
               </div>
               <div className="space-y-1">
                 <h3 className="text-2xl font-black text-white uppercase tracking-tight">Batch Hierarchy</h3>

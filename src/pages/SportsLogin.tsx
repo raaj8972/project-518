@@ -64,7 +64,7 @@ export const SportsLogin: React.FC = () => {
     <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-4">
       {/* Decorative Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/20 rounded-full blur-[120px]"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[120px]"></div>
       </div>
 
       <div className="w-full max-w-md relative z-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
@@ -78,11 +78,11 @@ export const SportsLogin: React.FC = () => {
             Back to Login
           </button>
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/20">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/20">
               <ShieldCheck className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-black text-white tracking-tight">Sports Admin</h1>
-            <p className="text-emerald-400 font-medium tracking-widest uppercase text-sm mt-2">Authorized Access Only</p>
+            <p className="text-cyan-400 font-medium tracking-widest uppercase text-sm mt-2">Authorized Access Only</p>
           </div>
 
           {error && (
@@ -96,13 +96,13 @@ export const SportsLogin: React.FC = () => {
             <div>
               <label className="block text-sm font-medium text-neutral-400 mb-2 ml-1">Secure Passcode</label>
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-emerald-500 transition-colors" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-indigo-500 transition-colors" />
                 <input
                   type="password"
                   value={passcode}
                   onChange={(e) => setPasscode(e.target.value)}
                   placeholder="Enter your passcode"
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-white placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-12 pr-4 py-4 text-white placeholder-neutral-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
                   required
                 />
               </div>
@@ -111,7 +111,7 @@ export const SportsLogin: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting || !passcode}
-              className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold rounded-xl py-4 flex items-center justify-center gap-2 hover:from-emerald-400 hover:to-teal-500 transform hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-gradient-to-r from-indigo-500 to-cyan-600 text-white font-bold rounded-xl py-4 flex items-center justify-center gap-2 hover:from-indigo-400 hover:to-cyan-500 transform hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isSubmitting ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

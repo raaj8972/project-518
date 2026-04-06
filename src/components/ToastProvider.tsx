@@ -1,4 +1,5 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState, ReactNode } from 'react';
+
 import { Toaster } from 'react-hot-toast';
 
 export interface Toast {
@@ -21,7 +22,7 @@ export const useToast = () => {
   return ctx;
 };
 
-export const ToastProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const remove = useCallback((id: string) => {
@@ -46,7 +47,7 @@ export const ToastProvider: React.FC<React.PropsWithChildren<{}>> = ({ children 
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`px-4 py-3 rounded shadow text-sm font-medium flex items-start gap-3 border backdrop-blur bg-white/90 animate-slide-in-right ${t.type==='error' ? 'border-red-300 text-red-800 bg-red-50/80' : t.type==='success' ? 'border-green-300 text-green-800 bg-green-50/80' : 'border-blue-300 text-blue-800 bg-blue-50/80'}`}
+            className={`px-4 py-3 rounded shadow text-sm font-medium flex items-start gap-3 border backdrop-blur bg-white/95 animate-slide-in-right ${t.type==='error' ? 'border-indigo-400 text-indigo-900 bg-indigo-50/90' : t.type==='success' ? 'border-cyan-400 text-cyan-900 bg-cyan-50/90' : 'border-violet-300 text-violet-900 bg-violet-50/90'}`}
           >
             <span className="flex-1">{t.message}</span>
             <button onClick={() => remove(t.id)} className="text-xs opacity-60 hover:opacity-100">✕</button>

@@ -1,19 +1,20 @@
 /* src/styles/Home.css */
 
 .stranger-mesh-glow {
-  background-color: #000000;
+  background-color: #020617;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(153, 27, 27, 0.2) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
     radial-gradient(at 100% 0%, rgba(0, 0, 0, 0.9) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(69, 10, 10, 0.15) 0px, transparent 50%);
+    radial-gradient(at 50% 100%, rgba(30, 27, 75, 0.2) 0px, transparent 50%);
 }
 
 .stranger-title-gradient {
-  background: linear-gradient(to bottom, #ffffff 0%, #ff0000 40%, #7f0000 100%);
+  background: linear-gradient(to bottom, #ffffff 0%, #a855f7 45%, #3b82f6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.4));
+  filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.4));
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stranger-btn-glass {
@@ -22,48 +23,56 @@
   border-radius: 0.5rem;
   background-color: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(24px);
-  border: 1px solid rgba(153, 27, 27, 0.3);
+  border: 1px solid rgba(99, 102, 241, 0.2);
   color: #ffffff;
-  font-family: serif;
+  font-family: inherit;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   font-size: 0.875rem;
-  transition: all 0.5s;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
 }
 
 .stranger-btn-glass:hover {
-  background-color: rgba(69, 10, 10, 0.2);
-  border-color: rgba(220, 38, 38, 0.5);
-  box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+  background-color: rgba(30, 27, 75, 0.3);
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.3);
   transform: translateY(-4px);
 }
 
 .stranger-btn-primary {
-  background-color: rgba(69, 10, 10, 0.4);
-  border-color: rgba(220, 38, 38, 0.4);
+  background-color: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.4);
 }
 
 .stranger-btn-primary:hover {
-  background-color: rgba(127, 29, 29, 0.6);
-  border-color: #ef4444;
-  box-shadow: 0 0 40px rgba(255, 0, 0, 0.4);
+  background-color: rgba(99, 102, 241, 0.4);
+  border-color: #818cf8;
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.4);
 }
 
-.stranger-things-theme {
-  background: #050000;
+.nebula-theme {
+  background: #020617;
   color: #ffffff;
-  font-family: 'Benguiat', 'Crimson Text', serif;
+  font-family: inherit;
 }
 
 .stranger-title {
-  background: linear-gradient(180deg, #ff4d4d, #cc0000);
+  background: linear-gradient(180deg, #a855f7, #6366f1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  filter: drop-shadow(0 0 15px rgba(255, 0, 0, 0.6));
+  filter: drop-shadow(0 0 15px rgba(168, 85, 247, 0.6));
   text-transform: uppercase;
-  color: #ff4d4d; /* Fallback */
+  color: #a855f7; /* Fallback */
+}
+
+.stranger-title-glow {
+  background: linear-gradient(to bottom, #ffffff 0%, #a855f7 45%, #6366f1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.5));
 }
 
 .stranger-title span {
@@ -74,12 +83,12 @@
   width: 60px;
   height: 60px;
   border: 4px solid transparent;
-  border-top: 4px solid #ff0000;
-  border-right: 4px solid #450a0a;
+  border-top: 4px solid #8b5cf6;
+  border-right: 4px solid #312e81;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto;
-  filter: drop-shadow(0 0 15px #ff0000);
+  filter: drop-shadow(0 0 15px #8b5cf6);
 }
 
 @keyframes spin {
@@ -103,7 +112,7 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(90deg, #b91c1c, #f97316, #b91c1c);
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #6366f1);
   transform: translateX(-100%);
   transition: transform 0.5s ease;
 }
@@ -113,10 +122,10 @@
 }
 
 .stranger-card:hover {
-  border-color: rgba(185, 28, 28, 0.6);
+  border-color: rgba(99, 102, 241, 0.4);
   box-shadow: 
     0 10px 30px rgba(0, 0, 0, 0.5),
-    0 0 15px rgba(185, 28, 28, 0.1);
+    0 0 20px rgba(99, 102, 241, 0.1);
   transform: translateY(-5px);
 }
 
@@ -158,7 +167,7 @@
   left: 50%;
   width: 100%;
   height: 100%;
-  border: 2px solid rgba(185, 28, 28, 0.3);
+  border: 2px solid rgba(99, 102, 241, 0.3);
   border-radius: 50%;
   transform: translate(-50%, -50%);
   animation: pulseRing 2s ease-out infinite;
@@ -233,4 +242,58 @@
     padding: 8px 16px;
     font-size: 0.8rem;
   }
+}
+/* Vaporwave Theme Overrides */
+body.theme-vaporwave .stranger-mesh-glow {
+  background-color: #0b0b1a;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.2) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.2) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+}
+
+body.theme-vaporwave .stranger-title-gradient {
+  background: linear-gradient(to bottom, #ffffff 0%, #bc13fe 40%, #00ffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(188, 19, 254, 0.4));
+}
+
+body.theme-vaporwave .stranger-btn-glass {
+  border-color: rgba(188, 19, 254, 0.3);
+  font-family: inherit;
+}
+
+body.theme-vaporwave .stranger-btn-glass:hover {
+  background-color: rgba(124, 58, 237, 0.2);
+  border-color: rgba(188, 19, 254, 0.5);
+  box-shadow: 0 0 30px rgba(188, 19, 254, 0.3);
+}
+
+body.theme-vaporwave .stranger-btn-primary {
+  background-color: rgba(124, 58, 237, 0.4);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+body.theme-vaporwave .stranger-btn-primary:hover {
+  background-color: rgba(139, 92, 246, 0.6);
+  border-color: #a855f7;
+  box-shadow: 0 0 40px rgba(168, 85, 247, 0.4);
+}
+
+body.theme-vaporwave .stranger-card::before {
+  background: linear-gradient(90deg, #7c3aed, #3b82f6, #7c3aed);
+}
+
+body.theme-vaporwave .stranger-card:hover {
+  border-color: rgba(124, 58, 237, 0.6);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(124, 58, 237, 0.1);
+}
+
+body.theme-vaporwave .nebula-theme {
+  background: #0b0b1a;
+  font-family: inherit;
 }

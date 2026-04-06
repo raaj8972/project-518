@@ -248,8 +248,8 @@ export const CoordinatorDashboard: React.FC = () => {
     })();
 
     const themeColor = (() => {
-      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500';
-      return 'from-indigo-600 via-purple-700 to-slate-900';
+      if (hour >= 5 && hour < 17) return 'from-indigo-600 via-violet-600 to-cyan-600';
+      return 'from-indigo-900 via-violet-950 to-black';
     })();
 
     // Try to use the event poster as a background hint if available
@@ -272,7 +272,7 @@ export const CoordinatorDashboard: React.FC = () => {
             <h2 className="text-4xl sm:text-6xl font-black text-white tracking-tighter drop-shadow-lg">
               {greeting},
               {eventCoordinators.length > 0 ? (
-                <span className="text-purple-300"> {eventCoordinators.map(c => c.name.split(' ')[0]).join(' & ')}</span>
+                <span className="text-cyan-300"> {eventCoordinators.map(c => c.name.split(' ')[0]).join(' & ')}</span>
               ) : (
                 <span className="text-white/80"> Coordinator</span>
               )}
@@ -284,7 +284,7 @@ export const CoordinatorDashboard: React.FC = () => {
 
           <div className="mt-12 flex flex-col items-center gap-6">
             <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
-              <Shield className="w-4 h-4 text-green-400" />
+              <Shield className="w-4 h-4 text-cyan-400" />
               Coordinator Gateway Active
             </div>
             
@@ -470,11 +470,11 @@ export const CoordinatorDashboard: React.FC = () => {
           {/* Event identity */}
           <div className="p-6 border-b border-white/[0.08]">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0">
-                <Shield className="w-5 h-5 text-purple-400" />
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
+                <Shield className="w-5 h-5 text-indigo-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-widest text-purple-400 leading-none">Coordinator Portal</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-400 leading-none">Coordinator Portal</p>
                 <h1 className="text-sm font-black text-white truncate leading-tight mt-0.5">{session.eventTitle}</h1>
               </div>
             </div>
@@ -495,7 +495,7 @@ export const CoordinatorDashboard: React.FC = () => {
             {([
               { label: 'Approved', count: approvedCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
               { label: 'Pending', count: pendingCount, color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
-              { label: 'Rejected', count: rejectedCount, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' },
+              { label: 'Rejected', count: rejectedCount, color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20' },
             ] as const).map(s => (
               <div key={s.label} className={`rounded-xl border p-2.5 text-center ${s.bg}`}>
                 <div className={`text-xl font-black ${s.color}`}>{s.count}</div>
@@ -507,16 +507,16 @@ export const CoordinatorDashboard: React.FC = () => {
           {/* Registration pill */}
           {registrationOpen !== null && (
             <div className="px-4 pt-4">
-              <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${registrationOpen ? 'bg-green-500/[0.08] border-green-500/20' : 'bg-red-500/[0.08] border-red-500/20'}`}>
+              <div className={`flex items-center justify-between rounded-xl border px-4 py-3 ${registrationOpen ? 'bg-indigo-500/[0.08] border-indigo-500/20' : 'bg-violet-500/[0.08] border-violet-500/20'}`}>
                 <div className="flex items-center gap-2 min-w-0">
-                  {registrationOpen ? <Unlock className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Lock className="w-4 h-4 text-red-400 flex-shrink-0" />}
+                  {registrationOpen ? <Unlock className="w-4 h-4 text-indigo-400 flex-shrink-0" /> : <Lock className="w-4 h-4 text-violet-400 flex-shrink-0" />}
                   <div>
                     <div className="text-xs font-black text-white leading-none">Registration</div>
-                    <div className={`text-[10px] font-black mt-0.5 ${registrationOpen ? 'text-green-400' : 'text-red-400'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</div>
+                    <div className={`text-[10px] font-black mt-0.5 ${registrationOpen ? 'text-indigo-400' : 'text-violet-400'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</div>
                   </div>
                 </div>
                 <button onClick={handleToggleRegistration} disabled={isTogglingReg}
-                  className={`flex-shrink-0 text-xs font-black px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${registrationOpen ? 'bg-red-500/15 border-red-500/30 text-red-300 hover:bg-red-500/25' : 'bg-green-500/15 border-green-500/30 text-green-300 hover:bg-green-500/25'}`}>
+                  className={`flex-shrink-0 text-xs font-black px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${registrationOpen ? 'bg-violet-500/15 border-violet-500/30 text-violet-300 hover:bg-violet-500/25' : 'bg-indigo-500/15 border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25'}`}>
                   {isTogglingReg ? <RefreshCw className="w-3 h-3 animate-spin" /> : registrationOpen ? 'Close' : 'Open'}
                 </button>
               </div>
@@ -532,7 +532,7 @@ export const CoordinatorDashboard: React.FC = () => {
               { key: 'settings', label: 'Event Settings', icon: LinkIcon },
             ] as const).map(({ key, label, icon: Icon }) => (
               <button key={key} onClick={() => setActiveSection(key)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
                 {key === 'participants' && pendingCount > 0 && (
@@ -545,7 +545,7 @@ export const CoordinatorDashboard: React.FC = () => {
           {/* Logout */}
           <div className="p-4 border-t border-white/[0.08]">
             <button onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-red-300 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all">
+              className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-gray-400 hover:text-indigo-300 hover:bg-indigo-500/10 border border-transparent hover:border-indigo-500/20 transition-all">
               <LogOut className="w-4 h-4" />Logout
             </button>
           </div>
@@ -564,11 +564,11 @@ export const CoordinatorDashboard: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {registrationOpen !== null && (
-              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${registrationOpen ? 'bg-green-500/15 border-green-500/30 text-green-400' : 'bg-red-500/15 border-red-500/30 text-red-400'}`}>
+              <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg border ${registrationOpen ? 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400' : 'bg-violet-500/15 border-violet-500/30 text-violet-400'}`}>
                 Reg {registrationOpen ? 'Open' : 'Closed'}
               </span>
             )}
-            <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-red-500/20 border border-white/10 transition-all text-gray-400 hover:text-red-300">
+            <button onClick={handleLogout} className="w-8 h-8 flex items-center justify-center rounded-lg bg-white/5 hover:bg-indigo-500/20 border border-white/10 transition-all text-gray-400 hover:text-indigo-300">
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -581,12 +581,12 @@ export const CoordinatorDashboard: React.FC = () => {
             {/* Alert banners */}
             <div className="space-y-3">
               {tokenWarning && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-amber-400 text-sm font-bold">
+                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-cyan-400 text-sm font-bold">
                     <AlertTriangle className="w-4 h-4 animate-pulse flex-shrink-0" />
                     Session expires in &lt;5 min. Save your work.
                   </div>
-                  <button onClick={handleLogout} className="flex-shrink-0 text-xs font-black text-white bg-amber-500/30 hover:bg-amber-500/50 px-3 py-1.5 rounded-xl border border-amber-500/30 transition-all">Re-Login</button>
+                  <button onClick={handleLogout} className="flex-shrink-0 text-xs font-black text-white bg-cyan-500/30 hover:bg-cyan-500/50 px-3 py-1.5 rounded-xl border border-cyan-500/30 transition-all">Re-Login</button>
                 </div>
               )}
               {newRegsCount > 0 && (
@@ -599,9 +599,9 @@ export const CoordinatorDashboard: React.FC = () => {
                 </div>
               )}
               {errorMsg && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2 text-red-400 text-sm"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />{errorMsg}</div>
-                  <button onClick={handleRetry} disabled={isRetrying} className="flex-shrink-0 flex items-center gap-1.5 text-xs font-black text-red-300 border border-red-500/30 hover:bg-red-500/20 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50">
+                <div className="bg-violet-500/10 border border-violet-500/20 rounded-2xl p-4 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2 text-violet-400 text-sm"><AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />{errorMsg}</div>
+                  <button onClick={handleRetry} disabled={isRetrying} className="flex-shrink-0 flex items-center gap-1.5 text-xs font-black text-violet-300 border border-violet-500/30 hover:bg-violet-500/20 px-3 py-1.5 rounded-xl transition-all disabled:opacity-50">
                     <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />{isRetrying ? 'Retrying...' : 'Retry'}
                   </button>
                 </div>
@@ -628,7 +628,7 @@ export const CoordinatorDashboard: React.FC = () => {
                     {(['approved', 'pending', 'rejected'] as const).map((tab) => {
                       const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : rejectedCount;
                       const active = activeTab === tab;
-                      const colorActive = tab === 'approved' ? 'text-green-400 bg-green-500/20 border-green-500/30' : tab === 'pending' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30' : 'text-red-400 bg-red-500/20 border-red-500/30';
+                      const colorActive = tab === 'approved' ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' : tab === 'pending' ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' : 'text-violet-400 bg-violet-500/20 border-violet-500/30';
                       return (
                         <button key={tab} onClick={() => setActiveTab(tab)}
                           className={`relative px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap capitalize flex items-center gap-2 border ${active ? colorActive : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border-transparent'}`}>
@@ -642,16 +642,16 @@ export const CoordinatorDashboard: React.FC = () => {
                     <div className="relative flex-1">
                       <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                       <input type="text" placeholder="Search name, phone, or ID..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm" />
+                        className="w-full pl-10 pr-4 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-sm" />
                     </div>
                     
                     {/* Batch Filter Dropdown */}
                     <div className="relative group min-w-[140px]">
-                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 group-focus-within:text-purple-400 transition-colors" />
+                      <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                       <select 
                         value={selectedBatch} 
                         onChange={(e) => setSelectedBatch(e.target.value)}
-                        className="w-full pl-9 pr-6 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all text-sm font-bold truncate"
+                        className="w-full pl-9 pr-6 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all text-sm font-bold truncate"
                       >
                         <option value="all">All Batches</option>
                         {batchOptions.map((opt: string) => (
@@ -667,7 +667,7 @@ export const CoordinatorDashboard: React.FC = () => {
                           registrationOpen ? 'bg-white/5 border-white/10 text-gray-500 opacity-60 cursor-not-allowed' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
                         }`}
                       >
-                        {registrationOpen ? <Lock className="w-4 h-4 text-gray-500" /> : <Download className="w-4 h-4 text-purple-400" />}
+                        {registrationOpen ? <Lock className="w-4 h-4 text-gray-500" /> : <Download className="w-4 h-4 text-cyan-400" />}
                         <span className="hidden sm:inline">{registrationOpen ? 'Close Reg to Export' : 'Export PDF'}</span>
                         <span className="sm:hidden">{registrationOpen ? 'Locked' : 'PDF'}</span>
                       </button>
@@ -702,10 +702,10 @@ export const CoordinatorDashboard: React.FC = () => {
                     <div className="block md:hidden space-y-2">
                       {filteredRegs.map((reg: any, index: number) => (
                         <div key={reg.reg_id}
-                          className={`bg-black/50 backdrop-blur-xl rounded-2xl border transition-all cursor-pointer hover:border-purple-500/30 ${activeTab === 'pending' ? 'border-yellow-500/25' : 'border-white/[0.08]'}`}
+                          className={`bg-black/50 backdrop-blur-xl rounded-2xl border transition-all cursor-pointer hover:border-indigo-500/30 ${activeTab === 'pending' ? 'border-amber-500/25' : 'border-white/[0.08]'}`}
                           onClick={() => setSelectedReg(reg)}>
                           <div className="p-4 flex items-start gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/25 flex items-center justify-center flex-shrink-0 text-sm font-black text-purple-300">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/25 flex items-center justify-center flex-shrink-0 text-sm font-black text-indigo-300">
                               {reg.full_name?.charAt(0) || '#'}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -734,7 +734,7 @@ export const CoordinatorDashboard: React.FC = () => {
                                 <CheckCircle className="w-3.5 h-3.5" /> Approve
                               </button>
                               <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'rejected'); }}
-                                className="flex-1 flex items-center justify-center gap-1.5 bg-red-500/15 text-red-400 hover:bg-red-500/25 border border-red-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                                className="flex-1 flex items-center justify-center gap-1.5 bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 border border-violet-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
                                 <XCircle className="w-3.5 h-3.5" /> Reject
                               </button>
                             </div>
@@ -760,11 +760,11 @@ export const CoordinatorDashboard: React.FC = () => {
                               <td className="px-5 py-4 text-sm text-gray-500 font-black">{index + 1}</td>
                               <td className="px-5 py-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/20 flex items-center justify-center text-sm font-black text-purple-300 flex-shrink-0">
+                                  <div className="w-9 h-9 rounded-xl bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center text-sm font-black text-indigo-300 flex-shrink-0">
                                     {reg.full_name?.charAt(0)}
                                   </div>
                                   <div>
-                                    <div className="font-black text-white group-hover:text-purple-300 transition-colors text-sm">{reg.full_name}</div>
+                                    <div className="font-black text-white group-hover:text-cyan-300 transition-colors text-sm">{reg.full_name}</div>
                                     <div className="text-xs text-gray-400 font-bold truncate max-w-xs mt-0.5 tracking-wide">{reg.batch || 'No batch listed'}</div>
                                   </div>
                                 </div>
@@ -787,9 +787,9 @@ export const CoordinatorDashboard: React.FC = () => {
                                 <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                                   <div className="flex justify-end gap-2">
                                     <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
-                                      className="px-3 py-1.5 bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
+                                      className="px-3 py-1.5 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
                                     <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
-                                      className="px-3 py-1.5 bg-red-500/15 text-red-400 border border-red-500/25 hover:bg-red-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
+                                      className="px-3 py-1.5 bg-violet-500/15 text-violet-400 border border-violet-500/25 hover:bg-violet-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
                                   </div>
                                 </td>
                               )}
@@ -811,7 +811,7 @@ export const CoordinatorDashboard: React.FC = () => {
                   <p className="text-sm text-gray-400 mt-0.5">Chat with registered students</p>
                 </div>
                 <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden">
-                  <ChatPanel themeAccent="purple" eventId={session?.eventId?.toString()} />
+                  <ChatPanel themeAccent="indigo" eventId={session?.eventId?.toString()} />
                 </div>
               </div>
             )}
@@ -839,19 +839,19 @@ export const CoordinatorDashboard: React.FC = () => {
 
                 {/* WhatsApp card */}
                 <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] p-5 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/[0.06] rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/[0.06] rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                   <h3 className="text-sm font-black text-white mb-1 flex items-center gap-2 uppercase tracking-wider">
-                    <MessageCircle size={15} className="text-green-500" />WhatsApp Group Link
+                    <MessageCircle size={15} className="text-cyan-500" />WhatsApp Group Link
                   </h3>
                   <p className="text-xs text-gray-500 mb-4">This link is sent to approved participants when you invite them.</p>
                   <div className="flex gap-2 items-center">
                     <div className="relative flex-1">
                       <LinkIcon size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" />
                       <input type="url" value={whatsappLink} onChange={(e) => setWhatsappLink(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all text-sm"
+                        className="block w-full pl-10 pr-3 py-2.5 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all text-sm"
                         placeholder="https://chat.whatsapp.com/..." />
                     </div>
-                    <button onClick={handleSaveLink} disabled={linkSaving} className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-xl text-white bg-green-600 hover:bg-green-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(22,163,74,0.25)]">
+                    <button onClick={handleSaveLink} disabled={linkSaving} className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-black rounded-xl text-white bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(6,182,212,0.25)]">
                       <Save size={15} />{linkSaving ? 'Saving...' : 'Save'}
                     </button>
                     {whatsappLink && (
@@ -865,21 +865,21 @@ export const CoordinatorDashboard: React.FC = () => {
 
                 {/* Registration toggle */}
                 {registrationOpen !== null && (
-                  <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${registrationOpen ? 'bg-green-500/[0.08] border-green-500/20' : 'bg-red-500/[0.08] border-red-500/20'}`}>
+                  <div className={`rounded-2xl border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${registrationOpen ? 'bg-cyan-500/[0.08] border-cyan-500/20' : 'bg-violet-500/[0.08] border-violet-500/20'}`}>
                     <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl ${registrationOpen ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
-                        {registrationOpen ? <Unlock className="w-5 h-5 text-green-400" /> : <Lock className="w-5 h-5 text-red-400" />}
+                      <div className={`p-2.5 rounded-xl ${registrationOpen ? 'bg-cyan-500/20' : 'bg-violet-500/20'}`}>
+                        {registrationOpen ? <Unlock className="w-5 h-5 text-cyan-400" /> : <Lock className="w-5 h-5 text-violet-400" />}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-black text-white text-sm">Registration Gate</h3>
-                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${registrationOpen ? 'bg-green-400 text-green-900' : 'bg-red-400 text-red-900'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${registrationOpen ? 'bg-cyan-400 text-cyan-950' : 'bg-violet-400 text-violet-950'}`}>{registrationOpen ? 'OPEN' : 'CLOSED'}</span>
                         </div>
                         <p className="text-xs text-gray-400 mt-0.5">{registrationOpen ? 'Participants can currently register.' : 'Registrations are closed.'}</p>
                       </div>
                     </div>
                     <button onClick={handleToggleRegistration} disabled={isTogglingReg}
-                      className={`flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all border disabled:opacity-50 ${registrationOpen ? 'bg-red-500/15 border-red-500/25 text-red-300 hover:bg-red-500/25' : 'bg-green-500/15 border-green-500/25 text-green-300 hover:bg-green-500/25'}`}>
+                      className={`flex-shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all border disabled:opacity-50 ${registrationOpen ? 'bg-violet-500/15 border-violet-500/25 text-violet-300 hover:bg-violet-500/25' : 'bg-cyan-500/15 border-cyan-500/25 text-cyan-300 hover:bg-cyan-500/25'}`}>
                       {isTogglingReg ? <RefreshCw className="w-4 h-4 animate-spin" /> : registrationOpen ? <><ToggleRight className="w-5 h-5" />Close Registration</> : <><ToggleLeft className="w-5 h-5" />Open Registration</>}
                     </button>
                   </div>
@@ -900,8 +900,8 @@ export const CoordinatorDashboard: React.FC = () => {
           { key: 'settings', label: 'Settings', icon: LinkIcon },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => setActiveSection(key)}
-            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[10px] font-black uppercase tracking-wider transition-all relative ${activeSection === key ? 'text-purple-400' : 'text-gray-600 hover:text-gray-400'}`}>
-            {activeSection === key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-purple-500" />}
+            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-[10px] font-black uppercase tracking-wider transition-all relative ${activeSection === key ? 'text-indigo-400' : 'text-gray-600 hover:text-gray-400'}`}>
+            {activeSection === key && <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full bg-indigo-500" />}
             <Icon className="w-5 h-5" />
             {label}
             {key === 'participants' && pendingCount > 0 && (
@@ -917,7 +917,7 @@ export const CoordinatorDashboard: React.FC = () => {
           <div className="bg-gray-950/95 backdrop-blur-xl border border-white/10 sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl max-h-[95svh] sm:max-h-[90vh] overflow-hidden flex flex-col rounded-t-2xl">
             <div className="px-5 py-4 border-b border-white/10 flex justify-between items-center bg-white/5">
               <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/25 flex items-center justify-center text-sm font-black text-purple-300 flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/25 flex items-center justify-center text-sm font-black text-indigo-300 flex-shrink-0">
                   {selectedReg.full_name?.charAt(0)}
                 </div>
                 <div className="min-w-0">
@@ -932,7 +932,7 @@ export const CoordinatorDashboard: React.FC = () => {
             <div className="px-5 py-5 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 pb-2 border-b border-white/[0.08]">Basic Info</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 pb-2 border-b border-white/[0.08]">Basic Info</h3>
                   {[
                     { label: 'Email', val: selectedReg.email },
                     { label: 'Phone', val: selectedReg.phone },
@@ -946,14 +946,14 @@ export const CoordinatorDashboard: React.FC = () => {
                   ))}
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 pb-2 border-b border-white/[0.08]">Registration</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 pb-2 border-b border-white/[0.08]">Registration</h3>
                   <div className="bg-white/5 rounded-xl p-3 border border-white/5 space-y-3">
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Status</p>
                       <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                        selectedReg.status?.toLowerCase() === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/25' :
-                        selectedReg.status?.toLowerCase() === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/25' :
-                        'bg-red-500/20 text-red-400 border border-red-500/25'
+                        selectedReg.status?.toLowerCase() === 'approved' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/25' :
+                        selectedReg.status?.toLowerCase() === 'pending' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/25' :
+                        'bg-violet-500/20 text-violet-400 border border-violet-500/25'
                       }`}>{selectedReg.status}</span>
                     </div>
                     <div>
@@ -965,7 +965,7 @@ export const CoordinatorDashboard: React.FC = () => {
               </div>
               {selectedReg.custom_answers && Object.keys(selectedReg.custom_answers).length > 0 && (
                 <div className="mt-5 pt-5 border-t border-white/[0.08]">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3">Additional Info</h3>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3">Additional Info</h3>
                   <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {Object.entries(selectedReg.custom_answers).map(([key, value]) => (
                       <div key={key} className="bg-white/5 p-3 rounded-xl border border-white/5">
@@ -978,7 +978,7 @@ export const CoordinatorDashboard: React.FC = () => {
               )}
               {selectedReg.team_members && Array.isArray(selectedReg.team_members) && selectedReg.team_members.length > 0 && (
                 <div className="mt-5 pt-5 border-t border-white/[0.08]">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-purple-400 mb-3 flex items-center gap-2">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 flex items-center gap-2">
                     <Users className="w-3.5 h-3.5" />Team Members ({selectedReg.team_members.length})
                   </h3>
                   <div className="bg-white/5 rounded-2xl border border-white/[0.08] overflow-hidden divide-y divide-white/5">
@@ -1002,11 +1002,11 @@ export const CoordinatorDashboard: React.FC = () => {
               {selectedReg.status?.toLowerCase() === 'pending' && (
                 <>
                   <button disabled={isUpdatingStatus === selectedReg.reg_id} onClick={() => handleUpdateStatus(selectedReg.reg_id, 'rejected')}
-                    className="px-5 py-2.5 bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2">
+                    className="px-5 py-2.5 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/30 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2">
                     <X className="w-4 h-4" />Reject
                   </button>
                   <button disabled={isUpdatingStatus === selectedReg.reg_id} onClick={() => handleUpdateStatus(selectedReg.reg_id, 'approved')}
-                    className="px-5 py-2.5 bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/40 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_20px_rgba(34,197,94,0.15)]">
+                    className="px-5 py-2.5 bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/40 rounded-xl text-sm font-black transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_20px_rgba(6,182,212,0.15)]">
                     <CheckCircle className="w-4 h-4" />Approve
                   </button>
                 </>
@@ -1040,7 +1040,7 @@ export const CoordinatorDashboard: React.FC = () => {
                   <span className={sentCount === eligible.length && eligible.length > 0 ? 'text-green-400' : 'text-white'}>{sentCount} / {eligible.length} sent</span>
                 </div>
                 <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                  <div className="h-full bg-gradient-to-r from-cyan-500 to-indigo-400 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                 </div>
               </div>
               <div className="overflow-y-auto flex-1 divide-y divide-white/5">
@@ -1060,13 +1060,13 @@ export const CoordinatorDashboard: React.FC = () => {
                         </div>
                       </div>
                       {isSent ? (
-                        <span className="flex-shrink-0 flex items-center gap-1 text-xs font-black text-green-400 bg-green-500/10 border border-green-500/20 px-3 py-1.5 rounded-xl">
+                        <span className="flex-shrink-0 flex items-center gap-1 text-xs font-black text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-3 py-1.5 rounded-xl">
                           <CheckCircle className="w-3.5 h-3.5" />Sent
                         </span>
                       ) : (
                         <a href={waLink} target="_blank" rel="noopener noreferrer"
                           onClick={() => setInvitedSet(prev => new Set([...prev, reg.reg_id]))}
-                          className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-black text-white bg-green-600 hover:bg-green-500 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_12px_rgba(22,163,74,0.25)]">
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-black text-white bg-cyan-600 hover:bg-cyan-500 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_12px_rgba(6,182,212,0.25)]">
                           <WhatsAppLogo className="w-3.5 h-3.5" />Send
                         </a>
                       )}

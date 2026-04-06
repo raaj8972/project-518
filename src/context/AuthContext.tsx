@@ -1,5 +1,5 @@
 import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
-import React, { createContext, useContext, ReactNode, FC, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 console.log('[AuthContext.tsx] Module execution started. React available:', !!React, 'useState available:', !!useState);
 import { supabase } from '../lib/supabase';
 import { AdminService } from '../lib/adminService';
@@ -28,10 +28,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryAuthContext = ((typeof window !== 'undefined') 
   ? ((window as any).__AUTH_CONTEXT__ || ((window as any).__AUTH_CONTEXT__ = AuthContext))
   : AuthContext) as React.Context<AuthContextType | undefined>;
+
 
 const isMasterBypassUser = (u: any | null | undefined): boolean => {
   if (!u) return false;
@@ -49,7 +50,7 @@ const buildOtpAuthUri = (secret: string, email: string): string => {
   return authenticator.keyuri(email || 'admin', issuer, secret);
 };
 
-export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   console.log('[AuthProvider] Rendering');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<any | null>(null);
@@ -578,28 +579,30 @@ export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [user]);
 
+  const value: AuthContextType = {
+    isAuthenticated,
+    user,
+    login,
+    logout,
+    loading,
+    setupTOTP,
+    verifyTOTP,
+    enableTOTP,
+    disableTOTP,
+    isTOTPEnabled,
+    updatePassword,
+    loginWithGoogle,
+    getValidToken,
+    lastAuthError,
+    isLoggingOut
+  };
+
   return (
-    <PrimaryAuthContext.Provider value={{ 
-      isAuthenticated, 
-      user, 
-      login, 
-      logout, 
-      loading,
-      setupTOTP,
-      verifyTOTP,
-      enableTOTP,
-      disableTOTP,
-      isTOTPEnabled,
-      updatePassword,
-      loginWithGoogle,
-      getValidToken,
-      lastAuthError,
-      isLoggingOut
-    }}>
+    <PrimaryAuthContext.Provider value={value}>
       {children}
     </PrimaryAuthContext.Provider>
   );
-};
+}
 
 export const useAuth = () => {
   const context = useContext(PrimaryAuthContext);

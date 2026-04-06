@@ -28,7 +28,7 @@ const Events: React.FC = () => {
         </div>
         <button 
           onClick={() => navigate('/events')}
-          className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-500/20 text-sm flex items-center gap-2 w-fit"
+          className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20 text-sm flex items-center gap-2 w-fit"
         >
           Discover More <ChevronRight className="w-4 h-4" />
         </button>
@@ -45,7 +45,7 @@ const Events: React.FC = () => {
           {registrations.map((reg) => (
             <div key={reg.id} className="relative pl-8 sm:pl-12">
               {/* Timeline node */}
-              <div className="absolute left-[-9px] sm:left-[-9px] top-10 w-4 h-4 rounded-full bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.8)] border-[3px] border-[#050508] z-10" />
+              <div className="absolute left-[-9px] sm:left-[-9px] top-10 w-4 h-4 rounded-full bg-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.8)] border-[3px] border-[#050508] z-10" />
               
               <div 
                 className="rico-glass-card rounded-3xl border border-white/10 hover:border-red-500/30 transition-all duration-500 group overflow-hidden block"
@@ -61,7 +61,7 @@ const Events: React.FC = () => {
                    
                    {/* Live Countdown Badge */}
                    <div className="absolute top-4 right-4 z-20 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
-                     <Clock className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                     <Clock className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
                      <span className="text-white text-[10px] uppercase font-black tracking-widest">Starts in 2h 15m</span>
                    </div>
                 </div>
@@ -71,7 +71,7 @@ const Events: React.FC = () => {
                     {reg.event?.title || reg.event_title || 'Untitled Event'}
                   </h3>
                   <div className="flex flex-wrap items-center gap-y-3 gap-x-4 mb-8">
-                    <span className="text-red-400 font-bold uppercase tracking-widest text-[10px]">{reg.event?.category?.name || reg.registration_type}</span>
+                    <span className="text-indigo-400 font-bold uppercase tracking-widest text-[10px]">{reg.event?.category?.name || reg.registration_type}</span>
                     {reg.teams && (
                       <span className="text-gray-400 text-[10px] uppercase tracking-widest font-bold">
                         Team: <span className="text-white">{reg.teams.name}</span>
@@ -115,7 +115,7 @@ const Events: React.FC = () => {
           </p>
           <button 
             onClick={() => navigate('/events')}
-            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-red-500/20"
+            className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
           >
             Explore Cultural Events
           </button>

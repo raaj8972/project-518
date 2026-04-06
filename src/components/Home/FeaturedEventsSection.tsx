@@ -1,6 +1,5 @@
 import React from 'react';
 import { Zap, Crown, ArrowRight } from 'lucide-react';
-import { ScrollReveal } from '../ui/ScrollReveal';
 const AutoCarousel = React.lazy(() => import('../AutoCarousel'));
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
 
@@ -31,11 +30,11 @@ class ChunkErrorBoundary extends React.Component<{ fallback?: React.ReactNode; c
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="p-4 text-sm text-red-300 bg-red-900/30 border border-red-800 rounded">
+        <div className="p-4 text-sm text-indigo-300 bg-indigo-900/30 border border-indigo-800 rounded">
           Failed to load module. This can happen after a rebuild. Please reload the page.
           <button
             onClick={() => window.location.reload()}
-            className="ml-3 inline-flex items-center px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-white"
+            className="ml-3 inline-flex items-center px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white"
           >Reload</button>
         </div>
       );
@@ -52,14 +51,14 @@ const FeaturedEventsSection: React.FC<FeaturedEventsSectionProps> = ({
 
   return (
     <section className="py-12 relative overflow-hidden gsap-fade-up">
-      <div className="absolute inset-0 bg-gradient-to-br from-red-950/30 via-black to-red-950/30"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/30 via-black to-indigo-950/30"></div>
       <div className="container mx-auto px-0 relative z-10">
         <div className="scroll-animate-3d">
           <div className="text-center mb-14">
             <h2 className="text-4xl md:text-6xl font-black mb-6 stranger-title-gradient">
               FEATURED EVENTS
             </h2>
-            <div className="w-24 h-1 bg-red-600/50 mx-auto mb-8 rounded-full"></div>
+            <div className="w-24 h-1 bg-indigo-500/50 mx-auto mb-8 rounded-full"></div>
             <p className="text-xl text-white/60 max-w-3xl mx-auto font-light">
               Don't miss these highlighted experiences at {BRAND_NAME} {BRAND_YEAR}
             </p>
@@ -73,7 +72,7 @@ const FeaturedEventsSection: React.FC<FeaturedEventsSectionProps> = ({
           </div>
         </div>
 
-        <ChunkErrorBoundary fallback={<div className="h-[200px] flex items-center justify-center text-red-300 bg-red-900/30 border border-red-800 rounded">Failed to load slider. <button onClick={() => window.location.reload()} className="ml-2 underline">Reload</button></div>}>
+        <ChunkErrorBoundary fallback={<div className="h-[200px] flex items-center justify-center text-indigo-300 bg-indigo-900/30 border border-indigo-800 rounded">Failed to load slider. <button onClick={() => window.location.reload()} className="ml-2 underline">Reload</button></div>}>
           <React.Suspense fallback={<div className="h-[200px] flex items-center justify-center text-gray-400">Loading events…</div>}>
             <AutoCarousel
               intervalMs={4200}
@@ -101,7 +100,7 @@ const FeaturedEventsSection: React.FC<FeaturedEventsSectionProps> = ({
                       
                       <div className="absolute top-4 left-4">
                         <div className="px-4 py-1.5 rounded-xl bg-[#030712]/60 backdrop-blur-xl border border-white/10 text-[9px] font-black text-white uppercase tracking-widest flex items-center gap-2">
-                          <Zap size={10} className="text-amber-400" />
+                          <Zap size={10} className="text-indigo-400" />
                           {event.category || 'EVENT'}
                         </div>
                       </div>
@@ -116,7 +115,7 @@ const FeaturedEventsSection: React.FC<FeaturedEventsSectionProps> = ({
                       </p>
                       
                       <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                        <div className="flex items-center gap-2 text-red-600">
+                        <div className="flex items-center gap-2 text-indigo-400">
                           <Crown size={14} />
                           <span className="text-[10px] font-black uppercase tracking-widest">Compete Now</span>
                         </div>

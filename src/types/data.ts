@@ -3,7 +3,10 @@ import type { Database } from '../lib/supabase';
 // Define types for your data based on Supabase schema
 export type Event = Database['public']['Tables']['events']['Row'];
 export type EventCoordinator = Database['public']['Tables']['event_coordinators']['Row'];
-export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'];
+export type GalleryImage = Database['public']['Tables']['gallery_images']['Row'] & { 
+  daily_views?: number;
+  last_view_date?: string;
+};
 export type Sponsor = Database['public']['Tables']['sponsors']['Row'];
 export type ScheduleDay = Database['public']['Tables']['schedule_days']['Row'] & { events: ScheduleEvent[], schedule_type?: 'prelims' | 'mains' };
 export type ScheduleEvent = Database['public']['Tables']['schedule_events']['Row'];
@@ -180,7 +183,7 @@ export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] 
     }>;
   };
   annual_sports_mode_enabled?: boolean;
-  batch_options?: string[]; // Deprecated: use registration_participant_types
+  batch_options?: any; // Used as a flexible JSON blob for theme and other settings
   registration_participant_types?: string[];
   registration_participant_quotas?: Record<string, number>;
   registration_institution_visible?: boolean;
@@ -192,6 +195,8 @@ export type SiteSettings = Database['public']['Tables']['site_settings']['Row'] 
   site_version?: string | null;
   locked_pages?: Record<string, boolean>;
   locked_pages_until?: Record<string, string | null>;
+  default_landing_page?: string;
+  navigation_order?: string[] | null;
 };
 
 export interface Admirer {

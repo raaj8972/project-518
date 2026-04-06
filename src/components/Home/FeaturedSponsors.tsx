@@ -33,16 +33,16 @@ const FeaturedSponsors: React.FC<FeaturedSponsorsProps> = ({
               {homepageSettings?.sponsor_section_title ? (
                 <>{homepageSettings.sponsor_section_title}</>
               ) : (
-                <>OUR <span className="stranger-flicker-text text-red-600">PARTNERS</span></>
+                <>OUR <span className="stranger-flicker-text text-indigo-400">PARTNERS</span></>
               )}
             </h2>
-            <div className="w-32 h-1 bg-gradient-to-r from-red-600 to-orange-600 mx-auto mb-8 expand-width"></div>
+            <div className="w-32 h-1 bg-gradient-to-r from-indigo-500 to-violet-500 mx-auto mb-8 expand-width"></div>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               {homepageSettings?.sponsor_section_subtitle ?? 'Powered by industry leaders who believe in our vision'}
             </p>
             {hasManySponsors && (
               <div className="mt-6">
-                <a href="/sponsors" className="inline-flex items-center text-red-400 hover:text-red-300 font-semibold stranger-flicker">
+                <a href="/sponsors" className="inline-flex items-center text-indigo-400 hover:text-indigo-300 font-semibold stranger-flicker">
                   View all partners <ArrowRight className="ml-1 h-4 w-4" />
                 </a>
               </div>

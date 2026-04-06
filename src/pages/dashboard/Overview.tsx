@@ -58,8 +58,8 @@ const Overview: React.FC = () => {
           <>
             <div className="rico-glass-card p-6 rounded-2xl border border-white/10 bg-white/5">
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-red-500" />
+                <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                  <Calendar className="w-6 h-6 text-indigo-500" />
                 </div>
                 <span className="text-2xl font-bold text-white">{registrations.length}</span>
               </div>
@@ -112,7 +112,7 @@ const Overview: React.FC = () => {
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             RICO STARS
-            <span className="px-2 py-0.5 rounded-full bg-red-500 text-[10px] text-white uppercase tracking-widest animate-pulse">Live</span>
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500 text-[10px] text-white uppercase tracking-widest animate-pulse">Live</span>
           </h2>
           <button 
             onClick={() => navigate('/dashboard/community')}

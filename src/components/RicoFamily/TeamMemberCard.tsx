@@ -1,17 +1,12 @@
 import React from 'react';
-import { Star, AlignJustify as Spotify } from 'lucide-react';
-import Instagram3DButtonLink from '../Instagram3DButtonLink';
+import { AlignJustify as Spotify, Activity, Instagram, Facebook, Linkedin } from 'lucide-react';
 import YouTube3DButtonLink from '../YouTube3DButtonLink';
 import Email3DButtonLink from '../Email3DButtonLink';
 import Phone3DButtonLink from '../Phone3DButtonLink';
-import PreserveNewlines from '../PreserveNewlines';
 
 interface TeamMemberCardProps {
   member: any;
   committee: any;
-  isExpanded: boolean;
-  isBooting: boolean;
-  toggleMemberExpanded: (id: number) => void;
   isMobile: boolean;
   committeeIndex: number;
   memberIndex: number;
@@ -20,139 +15,116 @@ interface TeamMemberCardProps {
 export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
   member,
   committee,
-  isExpanded,
-  isBooting,
-  toggleMemberExpanded,
   isMobile,
   committeeIndex,
   memberIndex
 }) => {
+  const themeColor = member.color || committee?.color || '#06b6d4'; // Fallback to cyan
+  
   return (
     <div
-      className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""} transition-all duration-500 ${isExpanded ? 'z-20' : 'hover:-translate-y-1 hover:z-10'}`}
-      style={!isMobile ? { animationDelay: `${(committeeIndex * 0.3) + (memberIndex * 0.15)}s` } : {}}
+      className={`${!isMobile ? "scroll-animate opacity-0 transform translate-y-10" : ""} transition-all duration-300 hover:-translate-y-1 hover:z-10`}
+      style={!isMobile ? { animationDelay: `${(committeeIndex * 0.1) + (memberIndex * 0.05)}s` } : {}}
     >
-      <div className={`group h-full overflow-hidden bg-white/[0.02] border backdrop-blur-xl transition-all duration-500 rounded-2xl ${isExpanded ? 'scale-105 border-red-400/50 shadow-2xl shadow-red-900/20' : 'border-white/5'} stranger-card stranger-flicker ${isBooting ? 'stranger-booting' : ''}`}>
-        <div className={`hologram-scanline ${isBooting ? 'opacity-100 scale-y-150 brightness-200' : 'opacity-50'}`}></div>
-        <div className={`relative z-10 h-full flex flex-col ${isBooting ? 'hologram-glitch-active' : ''}`}>
-          {/* Member Image (always visible) */}
-          <div className={`relative overflow-hidden ${isExpanded ? 'h-80' : 'h-64'}`}>
-            <img
-              loading="lazy"
-              src={member.image}
-              alt={member.name}
-              className={`w-full h-full object-cover object-top transition-transform duration-700 ${isExpanded ? 'scale-105' : 'group-hover:scale-110'} team-member-image hologram-tint`}
-            />
-            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-            {/* Specialty Badge (overlay) */}
-            {member.specialty && (
-              <div
-                className="absolute top-2 left-2 opacity-0 translate-y-1 pointer-events-none transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto"
-                title={member.specialty}
-              >
-                <span
-                  className="text-white px-2 py-1 rounded-full text-[10px] font-bold backdrop-blur-sm border shadow-lg"
-                  style={{
-                    backgroundColor: committee.color + 'CC',
-                    borderColor: committee.color,
-                    boxShadow: `0 0 6px ${committee.color}, 0 0 14px ${committee.color}55`
-                  }}
-                >
-                  {member.specialty}
-                </span>
-              </div>
+      <div 
+        className="group h-full overflow-hidden bg-black border transition-all duration-300 clip-angular-sm relative"
+        style={{ borderColor: `${themeColor}1a` }} // 10% opacity
+        onMouseEnter={(e) => e.currentTarget.style.borderColor = `${themeColor}4d`} // 30% opacity
+        onMouseLeave={(e) => e.currentTarget.style.borderColor = `${themeColor}1a`}
+      >
+        
+        <div className={`relative z-10 h-full flex flex-col`}>
+          {/* Decorative Corner lines */}
+          <div className="absolute top-1 left-1 w-4 h-4 border-t border-l pointer-events-none z-20" style={{ borderColor: `${themeColor}66` }}></div>
+
+          {/* Member Image */}
+          <div className={`relative overflow-hidden h-48`}>
+            {member.image && (
+              <>
+                <img src={member.image} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-30 blur-xl scale-125 saturate-150 pointer-events-none" />
+                <img
+                  loading="lazy" decoding="async"
+                  src={member.image}
+                  alt={member.name}
+                  className="absolute inset-0 w-full h-full object-cover object-top relative z-10 grayscale opacity-80 transition-all duration-500 group-hover:grayscale-0 group-hover:opacity-100"
+                />
+              </>
             )}
-            {/* Floating Icon */}
-            <div className="absolute top-2 right-2 floating-icon">
-              <Star className="w-4 h-4 text-yellow-400 animate-pulse" />
-            </div>
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.2] mix-blend-overlay pointer-events-none"></div>
           </div>
 
-          {/* Collapsed Basic Info */}
-          <div className="p-4 flex-1">
-            <h4 className="text-base font-bold text-white mb-0.5 member-name">
+          {/* Name + Role + Instagram */}
+          <div className="px-4 pb-4 pt-3 flex-1 relative z-10 flex flex-col bg-black">
+            <h4 className="text-sm font-bold mcu-title-text text-white mb-1 leading-tight tracking-wider text-center">
               {member.name}
             </h4>
-            <p className="text-red-400 font-semibold mb-2 text-xs">
-              {member.role}
-            </p>
-            {/* Social Links + More/Less button row */}
-            {((member.social_links && Object.values(member.social_links).some(link => Boolean(link))) || Boolean((member as any).phone)) ? (
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                {member.social_links?.instagram && (
-                  <Instagram3DButtonLink href={member.social_links.instagram} iconSize={24} buttonSize={40} ariaLabel={`Instagram of ${member.name}`} />
-                )}
-                {member.social_links?.youtube && (
-                  <YouTube3DButtonLink href={member.social_links.youtube} iconSize={22} buttonSize={38} ariaLabel={`YouTube of ${member.name}`} />
-                )}
-                {member.social_links?.spotify && (
-                  <a
-                    href={member.social_links.spotify}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-green-400 hover:text-green-300 transition-colors hover:scale-110"
-                  >
-                    <Spotify size={22} />
-                  </a>
-                )}
-                {Boolean((member as any).phone) && (
-                  <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={18} buttonSize={30} ariaLabel={`Call ${member.name}`} variant="ring" />
-                )}
-                {/* Spacer pushes button to right */}
-                <button
-                  type="button"
-                  onClick={() => toggleMemberExpanded(member.id)}
-                  className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
-                  aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                >
-                  {isExpanded ? 'Less' : 'More'}
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center mb-3">
-                <button
-                  type="button"
-                  onClick={() => toggleMemberExpanded(member.id)}
-                  className="ml-auto text-[10px] uppercase tracking-wider px-3 py-1 rounded-full bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all"
-                  aria-label={isExpanded ? `Show less about ${member.name}` : `Show more about ${member.name}`}
-                >
-                  {isExpanded ? 'Less' : 'More'}
-                </button>
-              </div>
-            )}
 
-            {/* Expanded Details */}
-            {isExpanded && (
-              <div className="text-xs text-gray-300 space-y-3 mb-4 animate-fade-in">
-                {member.description && (
-                  <PreserveNewlines text={member.description} className="leading-relaxed" />
-                )}
-                {member.specialty && (
-                  <p><span className="text-cyan-400 font-semibold">Specialty:</span> {member.specialty}</p>
-                )}
-                {Boolean((member as any).email) && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={20} buttonSize={32} ariaLabel={`Email ${member.name}`} variant="ring" />
+            {/* Hover-expand: role + Instagram */}
+            <div className="grid grid-rows-[0fr] group-hover:grid-rows-[1fr] transition-[grid-template-rows] duration-500 w-full">
+              <div className="overflow-hidden">
+                <div className="pt-2 flex flex-col items-center w-full">
+                  <p className="text-[9px] font-bold hud-monospace tracking-widest uppercase mb-3 flex items-center gap-1.5" style={{ color: themeColor }}>
+                    <Activity className="w-3 h-3" />
+                    {member.role || 'OPERATIVE'}
+                  </p>
+                  
+                    {/* Social row — only show if data exists */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-2 border-t w-full" style={{ borderColor: `${themeColor}26` }}>
+                      {member.social_links?.instagram && (
+                        <a
+                          href={member.social_links.instagram}
+                          target="_blank" rel="noopener noreferrer"
+                          className="w-7 h-7 clip-angular-sm flex items-center justify-center bg-[#E1306C]/10 border border-[#E1306C]/30 text-[#E1306C] hover:bg-[#E1306C]/20 hover:border-[#E1306C] shadow-[0_0_10px_rgba(225,48,108,0.3)] hover:shadow-[0_0_15px_rgba(225,48,108,0.5)] transition-all"
+                        >
+                          <Instagram size={13} />
+                        </a>
+                      )}
+                    {member.social_links?.youtube && (
+                      <YouTube3DButtonLink href={member.social_links.youtube} iconSize={13} buttonSize={28} ariaLabel={`YouTube of ${member.name}`} />
+                    )}
+                    {member.social_links?.facebook && (
+                      <a
+                        href={member.social_links.facebook}
+                        target="_blank" rel="noopener noreferrer"
+                        className="w-7 h-7 clip-angular-sm flex items-center justify-center bg-[#1877F2]/10 border border-[#1877F2]/30 text-[#1877F2] hover:bg-[#1877F2]/20 hover:border-[#1877F2] shadow-[0_0_10px_rgba(24,119,242,0.3)] hover:shadow-[0_0_15px_rgba(24,119,242,0.5)] transition-all"
+                      >
+                        <Facebook size={13} />
+                      </a>
+                    )}
+                    {member.social_links?.linkedin && (
+                      <a
+                        href={member.social_links.linkedin}
+                        target="_blank" rel="noopener noreferrer"
+                        className="w-7 h-7 clip-angular-sm flex items-center justify-center bg-[#0077B5]/10 border border-[#0077B5]/30 text-[#0077B5] hover:bg-[#0077B5]/20 hover:border-[#0077B5] shadow-[0_0_10px_rgba(0,119,181,0.3)] hover:shadow-[0_0_15px_rgba(0,119,181,0.5)] transition-all"
+                      >
+                        <Linkedin size={13} />
+                      </a>
+                    )}
+                    {member.social_links?.spotify && (
+                      <a
+                        href={member.social_links.spotify}
+                        target="_blank" rel="noopener noreferrer"
+                        className="w-7 h-7 clip-angular-sm flex items-center justify-center bg-[#1DB954]/10 border border-[#1DB954]/30 text-[#1DB954] hover:bg-[#1DB954]/20 hover:border-[#1DB954] shadow-[0_0_10px_rgba(29,185,84,0.3)] hover:shadow-[0_0_15px_rgba(29,185,84,0.5)] transition-all"
+                      >
+                        <Spotify size={13} />
+                      </a>
+                    )}
+                    {Boolean((member as any).phone) && (
+                      <Phone3DButtonLink href={`tel:${(member as any).phone}`} iconSize={12} buttonSize={28} ariaLabel={`Call ${member.name}`} variant="ring" />
+                    )}
+                    {Boolean((member as any).email) && (
+                      <Email3DButtonLink href={`mailto:${(member as any).email}`} iconSize={12} buttonSize={28} ariaLabel={`Email ${member.name}`} variant="ring" />
+                    )}
                   </div>
-                )}
-                {member.achievements && member.achievements.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
-                      Achievements
-                    </p>
-                    <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-400">
-                      {member.achievements.map((ach: string, i: number) => (
-                        <li key={i}>{ach}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                </div>
               </div>
-            )}
+            </div>
+
           </div>
         </div>
-        <div className={`hologram-projection-light ${isExpanded ? 'hologram-projection-light-expanded' : ''}`}></div>
       </div>
     </div>
   );
 };
+
+

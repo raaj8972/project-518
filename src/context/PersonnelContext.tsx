@@ -57,7 +57,7 @@ interface PersonnelContextType {
 
 const PersonnelContext = createContext<PersonnelContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryPersonnelContext = ((typeof window !== 'undefined') 
   ? ((window as any).__PERSONNEL_CONTEXT__ || ((window as any).__PERSONNEL_CONTEXT__ = PersonnelContext))
   : PersonnelContext) as React.Context<PersonnelContextType | undefined>;
@@ -70,7 +70,7 @@ export const usePersonnelData = () => {
   return context;
 };
 
-export const PersonnelProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function PersonnelProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   const [facultyHeads, setFacultyHeads] = useState<FacultyHead[]>([]);
@@ -245,5 +245,5 @@ export const PersonnelProvider = ({ children, enabled = true }: { children: Reac
     }
   };
 
-  return <PrimaryPersonnelContext.Provider value={value}>{children}</PrimaryPersonnelContext.Provider>;
-};
+  return <PersonnelContext.Provider value={value}>{children}</PersonnelContext.Provider>;
+}

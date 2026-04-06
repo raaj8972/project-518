@@ -1,6 +1,11 @@
 import React from 'react';
 
-export const NoiseOverlay: React.FC = () => {
+/**
+ * Performance-optimized NoiseOverlay.
+ * Wrapped in React.memo to prevent unnecessary re-renders when the parent App shell
+ * updates from context changes.
+ */
+export const NoiseOverlay: React.FC = React.memo(() => {
   return (
     <>
       <svg
@@ -26,4 +31,6 @@ export const NoiseOverlay: React.FC = () => {
       />
     </>
   );
-};
+});
+
+export default NoiseOverlay;

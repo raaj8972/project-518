@@ -58,16 +58,16 @@ export const StudentResetPassword = () => {
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
-        <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
+        <div className="absolute inset-0 bg-cyan-500/5 pointer-events-none" />
         <div className="max-w-md w-full relative z-10 text-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl"
           >
-            <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-8 relative">
-              <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full" />
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 relative z-10" />
+            <div className="w-24 h-24 bg-cyan-500/20 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+              <div className="absolute inset-0 bg-cyan-500/20 blur-2xl rounded-full" />
+              <CheckCircle2 className="w-12 h-12 text-cyan-400 relative z-10" />
             </div>
             <h1 className="text-3xl font-extrabold text-white mb-4 tracking-tight">All Set!</h1>
             <p className="text-gray-400 mb-10 leading-relaxed text-sm">
@@ -89,8 +89,8 @@ export const StudentResetPassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
       {/* Background Decor */}
-      <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-blue-600/10 blur-[150px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] left-[-20%] w-[50%] h-[50%] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-600/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-20%] w-[50%] h-[50%] bg-violet-600/10 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="max-w-md w-full relative z-10">
         <motion.div
@@ -99,8 +99,8 @@ export const StudentResetPassword = () => {
           className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
         >
           <div className="mb-10 text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-              <ShieldCheck className="w-8 h-8 text-blue-400" />
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-cyan-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <ShieldCheck className="w-8 h-8 text-indigo-400" />
             </div>
             <h1 className="text-3xl font-bold text-white mb-3">New Password</h1>
             <p className="text-gray-400 text-sm">
@@ -111,17 +111,17 @@ export const StudentResetPassword = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-blue-400/80 uppercase tracking-widest mb-3 ml-1">
+                <label className="block text-[10px] font-bold text-indigo-400/80 uppercase tracking-widest mb-3 ml-1">
                   New Password
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-all text-sm font-medium"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-12 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm font-medium"
                     placeholder="Min. 6 characters"
                     disabled={loading}
                   />
@@ -136,17 +136,17 @@ export const StudentResetPassword = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-blue-400/80 uppercase tracking-widest mb-3 ml-1">
+                <label className="block text-[10px] font-bold text-indigo-400/80 uppercase tracking-widest mb-3 ml-1">
                   Confirm Password
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 transition-all text-sm font-medium"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 transition-all text-sm font-medium"
                     placeholder="Repeat new password"
                     disabled={loading}
                   />
@@ -157,7 +157,7 @@ export const StudentResetPassword = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+              className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 disabled:opacity-50 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98]"
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Update Password'}
             </button>

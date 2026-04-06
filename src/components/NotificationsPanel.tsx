@@ -4,12 +4,12 @@ import { useData } from '../context/DataContext';
 type Variant = 'info' | 'success' | 'warning' | 'error' | 'urgent' | 'custom';
 
 const variantAccent: Record<Variant, { ring: string; glowFrom: string; glowTo: string; label: string }> = {
-  info:    { ring: 'ring-cyan-400/60',   glowFrom: 'from-cyan-400/25',    glowTo: 'to-fuchsia-500/20', label: 'text-cyan-300' },
-  success: { ring: 'ring-emerald-400/60',glowFrom: 'from-emerald-400/25', glowTo: 'to-cyan-400/20',   label: 'text-emerald-300' },
-  warning: { ring: 'ring-amber-400/70',  glowFrom: 'from-amber-400/25',   glowTo: 'to-pink-500/20',   label: 'text-amber-300' },
-  error:   { ring: 'ring-rose-500/70',   glowFrom: 'from-rose-500/25',    glowTo: 'to-fuchsia-500/20',label: 'text-rose-300' },
-  urgent:  { ring: 'ring-fuchsia-500/80',glowFrom: 'from-fuchsia-500/30', glowTo: 'to-rose-500/25',   label: 'text-fuchsia-300' },
-  custom:  { ring: 'ring-violet-400/60',glowFrom: 'from-violet-400/25', glowTo: 'to-indigo-500/20', label: 'text-violet-300' },
+  info:    { ring: 'ring-cyan-400/60',   glowFrom: 'from-cyan-400/25',    glowTo: 'to-violet-500/20', label: 'text-cyan-300' },
+  success: { ring: 'ring-cyan-500/60',   glowFrom: 'from-cyan-500/25',    glowTo: 'to-indigo-500/20', label: 'text-cyan-400' },
+  warning: { ring: 'ring-violet-400/70',  glowFrom: 'from-violet-400/25',   glowTo: 'to-indigo-500/20', label: 'text-violet-300' },
+  error:   { ring: 'ring-indigo-600/70',   glowFrom: 'from-indigo-600/25',    glowTo: 'to-violet-600/20',label: 'text-indigo-400' },
+  urgent:  { ring: 'ring-violet-600/80', glowFrom: 'from-violet-600/30',  glowTo: 'to-cyan-400/25',   label: 'text-violet-400' },
+  custom:  { ring: 'ring-violet-400/60', glowFrom: 'from-violet-400/25',  glowTo: 'to-indigo-500/20', label: 'text-violet-300' },
 };
 
 // Configure default auto-dismiss per type (ms). Omit or set to 0/undefined to disable.
@@ -91,7 +91,7 @@ export const NotificationsPanel: React.FC = () => {
       {/* Cyberpunk backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(closest-side,rgba(255,255,255,0.06),transparent_60%)]" />
-      <div className="absolute -top-24 -left-16 w-[22rem] h-[22rem] rounded-full bg-fuchsia-500/15 blur-3xl" />
+      <div className="absolute -top-24 -left-16 w-[22rem] h-[22rem] rounded-full bg-indigo-600/15 blur-3xl" />
       <div className="absolute -bottom-24 -right-20 w-[24rem] h-[24rem] rounded-full bg-cyan-400/15 blur-3xl" />
 
       {/* Modal card with neon ring */}
@@ -130,12 +130,12 @@ export const NotificationsPanel: React.FC = () => {
                 const textColor = (n as any).text_color as string | null | undefined;
                 const glowColor = (n as any).glow_color as string | null | undefined;
                 const fallbackGlow = (
-                  v === 'info' ? 'rgba(34,211,238,0.8)' :
-                  v === 'success' ? 'rgba(52,211,153,0.8)' :
-                  v === 'warning' ? 'rgba(245,158,11,0.85)' :
-                  v === 'urgent' ? 'rgba(217,70,239,0.85)' :
-                  v === 'custom' ? 'rgba(124,58,237,0.85)' :
-                  'rgba(244,63,94,0.85)'
+                  v === 'info' ? 'rgba(34,211,238,0.8)' : // Cyan
+                  v === 'success' ? 'rgba(6,182,212,0.8)' : // Cyan-500
+                  v === 'warning' ? 'rgba(167,139,250,0.85)' : // Violet-400
+                  v === 'urgent' ? 'rgba(139,92,246,0.85)' : // Violet-600
+                  v === 'custom' ? 'rgba(124,58,237,0.85)' : // Violet-600
+                  'rgba(79,70,229,0.85)' // Indigo-600 (Error fallback)
                 );
                 const glow = glowColor || fallbackGlow;
                   // Softer radius and spread per type
@@ -151,7 +151,7 @@ export const NotificationsPanel: React.FC = () => {
                 return (
                   <div key={n.id} className="relative rounded-lg p-3 bg-white/3 animate-notifPop" style={{ color: textColor || undefined }}>
                     <div className="flex items-start gap-3">
-                      <div className={`mt-0.5 w-2 h-2 rounded-full shadow ${v==='info'?'bg-cyan-400': v==='success'?'bg-emerald-400': v==='warning'?'bg-amber-400': v==='urgent'?'bg-fuchsia-500':'bg-rose-500'}`}/>
+                      <div className={`mt-0.5 w-2 h-2 rounded-full shadow ${v==='info'?'bg-cyan-400': v==='success'?'bg-cyan-500': v==='warning'?'bg-violet-400': v==='urgent'?'bg-violet-600':'bg-indigo-600'}`}/>
                       <div className="flex-1 min-w-0">
                         {n.title && (
                           <div className="align-top max-w-full font-extrabold leading-snug text-[24px] whitespace-pre-wrap break-words">

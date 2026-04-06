@@ -56,22 +56,19 @@ interface SportsContextType {
 const SportsContext = createContext<SportsContextType | undefined>(undefined);
 
 // [DEDUPE] Use window bridge for singleton Context
-if (typeof window !== 'undefined') {
-  if (!(window as any).__SPORTS_CONTEXT__) {
-    (window as any).__SPORTS_CONTEXT__ = SportsContext;
-  }
-}
+const PrimarySportsContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__SPORTS_CONTEXT__ || ((window as any).__SPORTS_CONTEXT__ = SportsContext))
+  : SportsContext) as React.Context<SportsContextType | undefined>;
 
 export const useSportsData = () => {
-  const primaryContext = (typeof window !== 'undefined' ? (window as any).__SPORTS_CONTEXT__ : null) as React.Context<SportsContextType | undefined> || SportsContext;
-  const context = useContext(primaryContext);
+  const context = useContext(PrimarySportsContext);
   if (context === undefined) {
     throw new Error('useSportsData must be used within a SportsProvider');
   }
   return context;
 };
 
-export const SportsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function SportsProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const { user } = useAuth();
   
@@ -229,4 +226,4 @@ export const SportsProvider = ({ children, enabled = true }: { children: ReactNo
   };
 
   return <SportsContext.Provider value={value}>{children}</SportsContext.Provider>;
-};
+}

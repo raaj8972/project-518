@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2, Users, Eye, EyeOff, Crown } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { SportsCommittee, SportsTeamMember } from '../../context/DataContext';
+import type { SportsCommittee, SportsTeamMember } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useAuth } from '../../context/AuthContext';
 import { useSavingProgress } from '../../context/SavingProgressContext';
@@ -66,7 +66,6 @@ export const SportsTeamManagement: React.FC = () => {
 
   const [committeeForm, setCommitteeForm] = useLocalStorage('admin_sports_committee_form_draft', {
     name: '',
-    description: '',
     color: '#22C55E',
     order_position: 1,
     enabled: true,
@@ -77,12 +76,10 @@ export const SportsTeamManagement: React.FC = () => {
     name: '',
     role: '',
     image: '',
-    description: '',
-    specialty: '',
-    achievements: [] as string[],
     order_position: 1,
     enabled: true,
     is_head: false,
+    specialty: '',
     phone: '',
     social_links: { instagram: '', youtube: '', spotify: '' },
   });
@@ -90,7 +87,6 @@ export const SportsTeamManagement: React.FC = () => {
   const resetCommitteeForm = () => {
     setCommitteeForm({
       name: '',
-      description: '',
       color: '#22C55E',
       order_position: sportsCommittees.length + 1,
       enabled: true,
@@ -103,12 +99,10 @@ export const SportsTeamManagement: React.FC = () => {
       name: '',
       role: '',
       image: '',
-      description: '',
-      specialty: '',
-      achievements: [],
       order_position: sportsTeamMembers.length + 1,
       enabled: true,
       is_head: false,
+      specialty: '',
       phone: '',
       social_links: { instagram: '', youtube: '', spotify: '' },
     });
@@ -156,7 +150,6 @@ export const SportsTeamManagement: React.FC = () => {
   const startEditingCommittee = (c: SportsCommittee) => {
     setCommitteeForm({
       name: c.name,
-      description: c.description,
       color: c.color,
       order_position: c.order_position,
       enabled: c.enabled,
@@ -215,22 +208,16 @@ export const SportsTeamManagement: React.FC = () => {
       name: m.name,
       role: m.role,
       image: m.image,
-      description: m.description,
-      // Specialty may not exist in schema; treat as optional
-      specialty: (m as any).specialty || '',
-      achievements: m.achievements,
       order_position: m.order_position,
       enabled: m.enabled,
       is_head: m.is_head,
+      specialty: (m as any).specialty || '',
       phone: (m as any).phone || '',
       social_links: m.social_links || { instagram: '', youtube: '', spotify: '' },
     });
     setEditingMember(m.id);
   };
 
-  const addAchievement = () => setMemberForm(prev => ({ ...prev, achievements: [...prev.achievements, ''] }));
-  const updateAchievement = (i: number, v: string) => setMemberForm(prev => ({ ...prev, achievements: prev.achievements.map((a, idx) => idx === i ? v : a) }));
-  const removeAchievement = (i: number) => setMemberForm(prev => ({ ...prev, achievements: prev.achievements.filter((_, idx) => idx !== i) }));
 
   const sortedCommittees = [...sportsCommittees].sort((a, b) => a.order_position - b.order_position);
   const sortedMembers = [...sportsTeamMembers].sort((a, b) => a.order_position - b.order_position);
@@ -371,16 +358,6 @@ export const SportsTeamManagement: React.FC = () => {
                       className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-600"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Description (optional)</label>
-                    <textarea
-                      value={committeeForm.description}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Brief description of this sport/committee"
-                      rows={3}
-                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white placeholder-gray-600"
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Display Order</label>
@@ -456,12 +433,6 @@ export const SportsTeamManagement: React.FC = () => {
                       onChange={(e) => setCommitteeForm(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-yellow-500 text-white font-bold"
                     />
-                    <textarea
-                      value={committeeForm.description}
-                      onChange={(e) => setCommitteeForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-yellow-500 text-white text-sm"
-                      rows={2}
-                    />
                     <div className="flex items-center gap-6">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Order</span>
@@ -506,7 +477,6 @@ export const SportsTeamManagement: React.FC = () => {
                           <span className="text-[10px] px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/20 rounded-full font-bold uppercase tracking-widest">Disabled</span>
                         )}
                       </div>
-                      <div className="text-sm text-gray-400 line-clamp-2 leading-relaxed mb-3 pr-4">{c.description || 'No description provided.'}</div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-2 py-1 rounded-md border border-white/5">
                           <Plus size={10} className="text-yellow-500" />
@@ -596,26 +566,16 @@ export const SportsTeamManagement: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Description</label>
-                    <textarea
-                      value={memberForm.description}
-                      onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Specialty / Achievements</label>
+                    <input
+                      type="text"
+                      value={memberForm.specialty}
+                      onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
                       className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
-                      placeholder="Brief bio or stats..."
+                      placeholder="e.g., Best Striker, National Level Player"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Specialty</label>
-                      <input
-                        type="text"
-                        value={memberForm.specialty}
-                        onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))}
-                        className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500 text-white"
-                        placeholder="e.g., Bowler"
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Position</label>
                       <input
@@ -675,27 +635,10 @@ export const SportsTeamManagement: React.FC = () => {
                   <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Social Links</label>
                     <div className="grid grid-cols-3 gap-3">
-                      <input type="url" placeholder="Instagram" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-pink-500 text-white text-xs" title="Instagram" />
+                      <input type="url" placeholder="Instagram" value={memberForm.social_links.instagram} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, instagram: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-violet-500 text-white text-xs" title="Instagram" />
                       <input type="url" placeholder="YouTube" value={memberForm.social_links.youtube} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, youtube: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 text-white text-xs" title="YouTube" />
                       <input type="url" placeholder="Spotify" value={memberForm.social_links.spotify} onChange={(e) => setMemberForm(prev => ({ ...prev, social_links: { ...prev.social_links, spotify: e.target.value } }))} className="p-2.5 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-green-500 text-white text-xs" title="Spotify" />
                     </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">Achievements List</label>
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-                      {memberForm.achievements.map((a, i) => (
-                        <div key={i} className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-200">
-                          <input 
-                            value={a} 
-                            onChange={(e) => updateAchievement(i, e.target.value)} 
-                            className="flex-1 p-2 bg-black/20 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" 
-                            placeholder={`Achievement ${i+1}`}
-                          />
-                          <button type="button" onClick={() => removeAchievement(i)} className="text-red-400 hover:text-white p-2 hover:bg-white/5 rounded-lg transition-all"><Trash2 size={16} /></button>
-                        </div>
-                      ))}
-                    </div>
-                    <button type="button" onClick={addAchievement} className="text-xs font-bold text-yellow-500 hover:text-yellow-400 flex items-center gap-1.5 transition-colors uppercase tracking-widest">+ New Achievement</button>
                   </div>
                   <div className="flex gap-3 pt-6 border-t border-white/5">
                     <button 
@@ -725,9 +668,8 @@ export const SportsTeamManagement: React.FC = () => {
                     <div className="space-y-3">
                       <input type="text" value={memberForm.name} onChange={(e) => setMemberForm(prev => ({ ...prev, name: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white font-bold focus:ring-1 focus:ring-yellow-500 focus:outline-none" placeholder="Name" />
                       <input type="text" value={memberForm.role} onChange={(e) => setMemberForm(prev => ({ ...prev, role: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" placeholder="Role" />
-                      <textarea value={memberForm.description} onChange={(e) => setMemberForm(prev => ({ ...prev, description: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-sm focus:ring-1 focus:ring-yellow-500 focus:outline-none" rows={2} placeholder="Bio" />
-                      <div className="grid grid-cols-2 gap-2">
-                        <input type="text" placeholder="Specialty" value={memberForm.specialty} onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs focus:ring-1 focus:ring-yellow-500 focus:outline-none" />
+                      <input type="text" value={memberForm.specialty} onChange={(e) => setMemberForm(prev => ({ ...prev, specialty: e.target.value }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-[10px] focus:ring-1 focus:ring-yellow-500 focus:outline-none" placeholder="Specialty" />
+                      <div className="grid grid-cols-1 gap-2">
                         <input type="number" placeholder="Order" value={memberForm.order_position} onChange={(e) => setMemberForm(prev => ({ ...prev, order_position: parseInt(e.target.value) || 1 }))} className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-white text-xs font-mono focus:ring-1 focus:ring-yellow-500 focus:outline-none" />
                       </div>
                       <div className="flex items-center gap-4">
@@ -780,19 +722,14 @@ export const SportsTeamManagement: React.FC = () => {
                         )}
                       </div>
                       <div className="text-sm font-medium text-yellow-500/80 mb-1">{m.role}</div>
+                      {m.specialty && (
+                        <div className="text-[10px] text-gray-400 font-medium mb-2 italic line-clamp-1">"{m.specialty}"</div>
+                      )}
                       <div className="flex items-center gap-2 text-[10px] font-bold text-gray-500 uppercase tracking-widest bg-black/20 px-2 py-1 rounded-md border border-white/5 inline-flex mb-3">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: sortedCommittees.find(c => c.id === m.committee_id)?.color || '#444' }} />
                         {sortedCommittees.find(c => c.id === m.committee_id)?.name || 'Unassigned'}
                       </div>
                       
-                      {m.achievements?.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {m.achievements.slice(0, 2).map((a: string, i: number) => (
-                            <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded-md border border-white/5 truncate max-w-[100px]">{a}</span>
-                          ))}
-                          {m.achievements.length > 2 && <span className="text-[9px] text-gray-600">+{m.achievements.length - 2}</span>}
-                        </div>
-                      )}
                     </div>
                     <div className="flex flex-col items-center gap-1 bg-black/20 p-1.5 rounded-xl border border-white/5 opacity-40 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => startEditingMember(m)} className="p-2 text-gray-400 hover:text-white hover:bg-white/5 rounded-lg transition-all" title="Edit"><Edit size={16} /></button>

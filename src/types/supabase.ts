@@ -937,12 +937,14 @@ export type Database = {
       core_team_members: {
         Row: {
           achievements: string[]
+          color: string | null
           committee_id: number | null
           created_at: string
           description: string | null
           enabled: boolean
           id: number
           image: string | null
+          is_council: boolean
           is_head: boolean | null
           name: string | null
           order_position: number
@@ -954,12 +956,14 @@ export type Database = {
         }
         Insert: {
           achievements?: string[]
+          color?: string | null
           committee_id?: number | null
           created_at?: string
           description?: string | null
           enabled?: boolean
           id?: number
           image?: string | null
+          is_council?: boolean
           is_head?: boolean | null
           name?: string | null
           order_position?: number
@@ -971,12 +975,14 @@ export type Database = {
         }
         Update: {
           achievements?: string[]
+          color?: string | null
           committee_id?: number | null
           created_at?: string
           description?: string | null
           enabled?: boolean
           id?: number
           image?: string | null
+          is_council?: boolean
           is_head?: boolean | null
           name?: string | null
           order_position?: number

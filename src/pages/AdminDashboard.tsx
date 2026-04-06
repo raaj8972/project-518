@@ -50,6 +50,7 @@ const SocialMediaManagement = React.lazy(() => import('../components/admin/Socia
 const SecuritySettings = React.lazy(() => import('../components/admin/SecuritySettings').then(m => ({ default: m.SecuritySettings })));
 const FacultyHeadsManagement = React.lazy(() => import('../components/admin/FacultyHeadsManagement').then(m => ({ default: m.FacultyHeadsManagement })));
 const CoreTeamManagement = React.lazy(() => import('../components/admin/CoreTeamManagement').then(m => ({ default: m.CoreTeamManagement })));
+const RicoFamilyManagement = React.lazy(() => import('../components/admin/RicoFamilyManagement').then(m => ({ default: m.RicoFamilyManagement })));
 const SportsTeamManagement = React.lazy(() => import('../components/admin/SportsTeamManagement').then(m => ({ default: m.SportsTeamManagement })));
 const SportsSeasonAdmin = React.lazy(() => import('../components/admin/SportsSeasonAdmin').then(m => ({ default: m.SportsSeasonAdmin })));
 const SportsTeamsAdmin = React.lazy(() => import('../components/admin/SportsTeamsAdmin').then(m => ({ default: m.SportsTeamsAdmin })));
@@ -265,16 +266,16 @@ export const AdminDashboard: React.FC = () => {
 
             if (pass?.pass_type === 'vip') {
               toast.custom((t) => (
-                <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-gray-800 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden border-2 border-yellow-500`}>
+                <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white dark:bg-gray-800 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden border-2 border-indigo-500`}>
                   <div className="flex-1 w-0 p-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0 pt-0.5">
-                        <div className="h-12 w-12 rounded-full bg-yellow-500 flex items-center justify-center">
+                        <div className="h-12 w-12 rounded-full bg-indigo-500 flex items-center justify-center">
                           <PartyPopper className="h-6 w-6 text-white" />
                         </div>
                       </div>
                       <div className="ml-3 flex-1">
-                        <p className="text-sm font-black text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">
+                        <p className="text-sm font-black text-indigo-600 dark:text-cyan-400 uppercase tracking-widest">
                           VIP ARRIVAL
                         </p>
                         <p className="mt-1 text-xl font-bold text-gray-900 dark:text-white">
@@ -414,8 +415,7 @@ export const AdminDashboard: React.FC = () => {
     { id: 'annual-registration-model' as TabType, name: 'Annual Model', icon: Settings, group: 'SPORTS LEAGUE' },
 
     // PEOPLE
-    { id: 'faculty' as TabType, name: 'Faculty Heads', icon: Users, group: 'PEOPLE' },
-    { id: 'core-team' as TabType, name: 'Core Team', icon: Users, group: 'PEOPLE' },
+    { id: 'rico-family' as TabType, name: 'Rico Family', icon: Users, group: 'PEOPLE' },
     { id: 'band' as TabType, name: 'Band', icon: Users, group: 'PEOPLE' },
     { id: 'sports-team' as TabType, name: 'Legacy Teams', icon: Users, group: 'PEOPLE' },
     { id: 'guest-artists' as TabType, name: 'Artists', icon: Star, group: 'PEOPLE' },
@@ -482,8 +482,7 @@ export const AdminDashboard: React.FC = () => {
       allowedIds.add('student-system');
     }
     if (myPermissions?.can_registration_photos) allowedIds.add('reg-photos');
-    if (myPermissions?.can_faculty) allowedIds.add('faculty');
-    if (myPermissions?.can_core_team) allowedIds.add('core-team');
+    if (myPermissions?.can_faculty || myPermissions?.can_core_team) allowedIds.add('rico-family');
     if (myPermissions?.can_sports || (isCouncil && user?.email?.toLowerCase().includes('sports'))) {
       allowedIds.add('sports-team');
       allowedIds.add('sports-seasons');
@@ -501,7 +500,7 @@ export const AdminDashboard: React.FC = () => {
 
     if (isCouncil) {
        const forbiddenForCouncil: TabType[] = [
-         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'faculty', 'core-team', 'homebound', 'band', 'announcements'
+         'events', 'schedule', 'gallery', 'sponsors', 'registrations', 'reg-photos', 'rico-family', 'homebound', 'band', 'announcements'
        ];
        forbiddenForCouncil.forEach(id => allowedIds.delete(id));
     }
@@ -527,7 +526,7 @@ export const AdminDashboard: React.FC = () => {
     return (
       <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center animate-fade-in">
         <div className="text-center">
-          <div className="w-16 h-16 border-t-4 border-yellow-400/60 rounded-full animate-spin mx-auto mb-6" />
+          <div className="w-16 h-16 border-t-4 border-indigo-400/60 rounded-full animate-spin mx-auto mb-6" />
           <p className="text-white/40 text-xs font-bold tracking-[0.3em] uppercase">Signing out...</p>
         </div>
       </div>
@@ -539,8 +538,8 @@ export const AdminDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-6 text-center">
         <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-rose-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-rose-500/20">
-            <AlertTriangle className="w-10 h-10 text-rose-500 animate-pulse" />
+          <div className="w-20 h-20 bg-indigo-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
+            <AlertTriangle className="w-10 h-10 text-indigo-500 animate-pulse" />
           </div>
           <h2 className="text-2xl font-black text-white mb-2 tracking-tighter uppercase">Security Handshake Timeout</h2>
           <p className="text-gray-500 text-sm mb-8 leading-relaxed">
@@ -549,7 +548,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="space-y-4">
             <button 
               onClick={() => window.location.reload()}
-              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-yellow-400 transition-all active:scale-95"
+              className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-2xl hover:bg-indigo-400 transition-all active:scale-95"
             >
               Reboot Terminal
             </button>
@@ -576,9 +575,9 @@ export const AdminDashboard: React.FC = () => {
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="text-center animate-in fade-in duration-1000">
           <div className="w-24 h-24 mb-8 mx-auto relative">
-            <div className="absolute inset-0 bg-yellow-400/20 rounded-full animate-ping"></div>
-            <div className="relative w-24 h-24 border-t-4 border-r-4 border-yellow-400 rounded-full animate-spin shadow-lg shadow-yellow-400/20"></div>
-            <Shield className="absolute inset-0 m-auto w-10 h-10 text-yellow-400 animate-pulse" />
+            <div className="absolute inset-0 bg-indigo-400/20 rounded-full animate-ping"></div>
+            <div className="relative w-24 h-24 border-t-4 border-r-4 border-indigo-500 rounded-full animate-spin shadow-lg shadow-indigo-400/20"></div>
+            <Shield className="absolute inset-0 m-auto w-10 h-10 text-cyan-400 animate-pulse" />
           </div>
           <p className="text-white/60 font-black tracking-widest uppercase text-xs mb-2">Connecting to Admin Node...</p>
           <p className="text-white/20 text-[10px] uppercase tracking-[0.2em]">Verifying Security Clearances</p>
@@ -593,7 +592,7 @@ export const AdminDashboard: React.FC = () => {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <div className="text-center animate-in fade-in duration-1000">
-          <div className="w-20 h-20 border-t-4 border-r-4 border-yellow-400 rounded-full animate-spin mx-auto mb-8 shadow-lg shadow-yellow-400/20"></div>
+          <div className="w-20 h-20 border-t-4 border-r-4 border-indigo-500 rounded-full animate-spin mx-auto mb-8 shadow-lg shadow-indigo-400/20"></div>
           <p className="text-white/60 font-black tracking-widest uppercase text-xs">Authenticating Access...</p>
         </div>
       </div>
@@ -638,7 +637,7 @@ export const AdminDashboard: React.FC = () => {
 
       <React.Suspense fallback={
         <div className="flex flex-col items-center justify-center min-h-[50vh] text-gray-500">
-               <div className="w-10 h-10 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mb-4"></div>
+               <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                <p>Loading panel...</p>
             </div>
           }>
@@ -654,14 +653,14 @@ export const AdminDashboard: React.FC = () => {
                 <div className="rico-glass-card rounded-[3rem] p-8 sm:p-12 relative overflow-hidden group">
                    {/* Decorative background effects */}
                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-[80px] group-hover:bg-indigo-500/15 transition-all duration-1000"></div>
-                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
+                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-violet-500/5 rounded-full translate-y-1/2 -translate-x-1/2 blur-[60px]"></div>
 
                    <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-10">
                       <div className="space-y-4">
                          <div className="flex items-center gap-3">
                             <div className="w-1 h-12 bg-gradient-to-b from-indigo-500 to-transparent rounded-full"></div>
                             <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tighter">
-                               {getGreeting()}, <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-amber-400 bg-clip-text text-transparent">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
+                               {getGreeting()}, <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Admin'}</span>
                             </h2>
                          </div>
                          <div className="flex items-center gap-4 pl-4">
@@ -676,7 +675,7 @@ export const AdminDashboard: React.FC = () => {
 
                       <div className="flex flex-wrap items-center gap-4">
                          <div className="bg-white/[0.03] backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 flex items-center gap-3 shadow-2xl">
-                            <div className={`w-2.5 h-2.5 rounded-full ${connectionStatus === 'ok' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse' : 'bg-rose-400'}`}></div>
+                            <div className={`w-2.5 h-2.5 rounded-full ${connectionStatus === 'ok' ? 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.6)] animate-pulse' : 'bg-indigo-400'}`}></div>
                             <span className="text-white/80 text-xs font-black uppercase tracking-[0.2em]">Neural Link: Active</span>
                          </div>
                          {isTOTPEnabled && (
@@ -701,7 +700,7 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* ─── ADMIN ANNOUNCEMENTS BROADCAST ─── */}
                  <div className="rico-glass-card rounded-[2.5rem] p-8 relative overflow-hidden">
-                   <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                    <div className="relative z-10">
                     <AnnouncementsPanel 
                       mode="admin" 
@@ -716,12 +715,12 @@ export const AdminDashboard: React.FC = () => {
 
                 {/* Priority Attention Vector */}
                 {(pendingRegistrations > 0 || pendingAuditions > 0 || pendingMemberships > 0) && (
-                   <div className="rico-glass-card rounded-[2.5rem] p-8 border-rose-500/10 relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-rose-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
+                   <div className="rico-glass-card rounded-[2.5rem] p-8 border-indigo-500/10 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full translate-x-1/4 -translate-y-1/4 blur-[50px]"></div>
 
                       <div className="flex items-center gap-4 mb-8 relative z-10">
-                         <div className="p-3 bg-rose-500/10 rounded-2xl border border-rose-500/20 shadow-lg shadow-rose-500/5">
-                            <Bell className="w-6 h-6 text-rose-400 animate-bounce" />
+                         <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+                            <Bell className="w-6 h-6 text-indigo-400 animate-bounce" />
                          </div>
                          <div>
                             <h3 className="text-2xl font-black text-white tracking-tighter">Priority Intercepts</h3>
@@ -749,14 +748,14 @@ export const AdminDashboard: React.FC = () => {
                          )}
                          {pendingAuditions > 0 && (
                             <div
-                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-purple-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
+                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
                                onClick={() => navigate('/admin/auditions')}
                             >
                                <div className="flex items-center justify-between mb-4">
-                                  <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400 group-hover/action:scale-110 transition-transform">
+                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
                                      <Users size={24} />
                                   </div>
-                                  <span className="px-3 py-1 bg-purple-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-purple-500/20">{pendingAuditions}</span>
+                                  <span className="px-3 py-1 bg-violet-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-violet-500/20">{pendingAuditions}</span>
                                </div>
                                <h4 className="text-white font-black tracking-tight mb-1">Auditions</h4>
                                <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
@@ -766,14 +765,14 @@ export const AdminDashboard: React.FC = () => {
                          )}
                          {pendingMemberships > 0 && (
                             <div
-                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-amber-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
+                               className="group/action bg-white/[0.02] hover:bg-white/[0.05] border border-white/5 hover:border-violet-500/30 rounded-3xl p-6 transition-all duration-500 cursor-pointer shadow-xl"
                                onClick={() => navigate('/admin/memberships')}
                             >
                                <div className="flex items-center justify-between mb-4">
-                                  <div className="p-3 bg-amber-500/10 rounded-xl text-amber-400 group-hover/action:scale-110 transition-transform">
+                                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400 group-hover/action:scale-110 transition-transform">
                                      <Star size={24} />
                                   </div>
-                                  <span className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-amber-500/20">{pendingMemberships}</span>
+                                  <span className="px-3 py-1 bg-indigo-500 text-white text-[10px] font-black rounded-lg shadow-lg shadow-indigo-500/20">{pendingMemberships}</span>
                                </div>
                                <h4 className="text-white font-black tracking-tight mb-1">Memberships</h4>
                                <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest flex items-center gap-2">
@@ -821,7 +820,7 @@ export const AdminDashboard: React.FC = () => {
                               style={{ animationDelay: `${300 + idx * 100}ms` }}
                             >
                               <div className="flex items-center gap-5">
-                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center font-black text-indigo-400 text-xl border border-white/5 group-hover:scale-110 transition-transform shadow-xl">
+                                <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl flex items-center justify-center font-black text-indigo-400 text-xl border border-white/5 group-hover:scale-110 transition-transform shadow-xl">
                                   {registration.full_name.charAt(0)}
                                 </div>
                                 <div>
@@ -831,9 +830,9 @@ export const AdminDashboard: React.FC = () => {
                               </div>
                               <div className="text-right">
                                 <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg ${
-                                  registration.status === 'pending' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
-                                  registration.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' :
-                                  'bg-rose-500/10 text-rose-500 border border-rose-500/20'
+                                  registration.status === 'pending' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' :
+                                  registration.status === 'approved' ? 'bg-cyan-500/10 text-cyan-500 border border-cyan-500/20' :
+                                  'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20'
                                 }`}>
                                   {registration.status}
                                 </span>
@@ -866,9 +865,9 @@ export const AdminDashboard: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                           {[
                             { label: 'Core Team', val: coreTeamMembers?.length || 0, color: 'text-blue-400' },
-                            { label: 'Committees', val: coreCommittees?.length || 0, color: 'text-purple-400' },
-                            { label: 'Live Band', val: bandMembers?.length || 0, color: 'text-amber-400' },
-                            { label: 'Guest Artists', val: guestArtists?.length || 0, color: 'text-pink-400' },
+                            { label: 'Committees', val: coreCommittees?.length || 0, color: 'text-indigo-400' },
+                            { label: 'Live Band', val: bandMembers?.length || 0, color: 'text-indigo-400' },
+                            { label: 'Guest Artists', val: guestArtists?.length || 0, color: 'text-violet-400' },
                           ].map((item) => (
                             <div key={item.label} className="p-5 bg-white/[0.02] border border-white/5 rounded-3xl group-hover:bg-white/[0.05] transition-all duration-500 shadow-lg">
                               <div className={`text-3xl font-black ${item.color} drop-shadow-[0_0_15px_rgba(0,0,0,0.5)] mb-1`}>{item.val}</div>
@@ -880,8 +879,8 @@ export const AdminDashboard: React.FC = () => {
 
                       <div className="rico-glass-card rounded-[2.5rem] p-8 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-400">
                         <h3 className="text-lg font-black text-white mb-8 flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 shadow-lg shadow-amber-500/5">
-                            <Star className="w-6 h-6 text-amber-400" />
+                          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+                            <Star className="w-6 h-6 text-indigo-400" />
                           </div>
                           Application HUD
                         </h3>
@@ -889,10 +888,10 @@ export const AdminDashboard: React.FC = () => {
                            <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/aud cursor-pointer" onClick={() => navigate('/admin/auditions')}>
                             <div>
                                <div className="text-[9px] text-gray-500 font-black uppercase tracking-[0.2em] mb-2">Band Auditions</div>
-                               <div className="text-2xl font-black text-white group-hover/aud:text-amber-400 transition-colors">{auditions?.length || 0}</div>
+                               <div className="text-2xl font-black text-white group-hover/aud:text-indigo-400 transition-colors">{auditions?.length || 0}</div>
                             </div>
                             {pendingAuditions > 0 && (
-                              <div className="bg-rose-500/20 text-rose-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-rose-500/20 animate-pulse shadow-lg shadow-rose-500/10">{pendingAuditions} Pending</div>
+                              <div className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-indigo-500/20 animate-pulse shadow-lg shadow-indigo-500/10">{pendingAuditions} Pending</div>
                             )}
                           </div>
                            <div className="flex items-center justify-between p-6 bg-white/[0.02] border border-white/5 rounded-[2rem] hover:bg-white/[0.05] transition-all group/mem cursor-pointer" onClick={() => navigate('/admin/memberships')}>
@@ -901,7 +900,7 @@ export const AdminDashboard: React.FC = () => {
                                <div className="text-2xl font-black text-white group-hover/mem:text-indigo-400 transition-colors">{memberships?.length || 0}</div>
                             </div>
                             {pendingMemberships > 0 && (
-                              <div className="bg-rose-500/20 text-rose-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-rose-500/20 animate-pulse shadow-lg shadow-rose-500/10">{pendingMemberships} Pending</div>
+                              <div className="bg-indigo-500/20 text-indigo-400 text-[10px] font-black px-4 py-1.5 rounded-xl uppercase border border-indigo-500/20 animate-pulse shadow-lg shadow-indigo-500/10">{pendingMemberships} Pending</div>
                             )}
                           </div>
                         </div>
@@ -917,8 +916,8 @@ export const AdminDashboard: React.FC = () => {
                       <div className="grid grid-cols-2 gap-5">
                         {[
                           { id: 'events', label: 'Events', icon: Calendar, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-amber-400', bg: 'bg-amber-500/10' },
+                          { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
+                          { id: 'sponsors', label: 'Sponsors', icon: Building, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
                           { id: 'security', label: 'Security', icon: Shield, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
                         ]
                         .filter(item => visibleTabs.some(vt => vt.id === item.id))
@@ -940,7 +939,7 @@ export const AdminDashboard: React.FC = () => {
 
                     {/* Security Card */}
                     {!isTOTPEnabled && (
-                      <div className="bg-gradient-to-br from-rose-500 to-pink-600 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden group animate-in fade-in zoom-in duration-700 delay-700">
+                      <div className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-[2.5rem] p-8 shadow-2xl text-white relative overflow-hidden group animate-in fade-in zoom-in duration-700 delay-700">
                         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
                         <div className="relative z-10">
                           <h4 className="text-xl font-black mb-3 flex items-center gap-3">
@@ -950,7 +949,7 @@ export const AdminDashboard: React.FC = () => {
                           <p className="text-white/80 text-sm mb-8 leading-relaxed font-medium">Your operator profile is unprotected. Enable Tier-1 Authentication to secure system data.</p>
                           <button
                             onClick={() => navigate('/admin/security')}
-                            className="w-full bg-white text-rose-600 font-black py-4 rounded-3xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3 group/btn shadow-xl"
+                            className="w-full bg-white text-indigo-600 font-black py-4 rounded-3xl hover:bg-gray-50 transition-all flex items-center justify-center gap-3 group/btn shadow-xl"
                           >
                             Shield Upgrade <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-2 transition-transform" />
                           </button>
@@ -998,7 +997,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'sports-announcements' && (
               <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                   <div className="relative z-10">
                     <AnnouncementsPanel mode="admin" defaultCategory="sports" />
                   </div>
@@ -1034,7 +1033,7 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'announcements' && (
               <div className="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="rico-glass-card rounded-[2rem] p-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-[80px] translate-x-1/4 -translate-y-1/4" />
                   <div className="relative z-10">
                     <AnnouncementsPanel mode="admin" />
                   </div>
@@ -1072,8 +1071,10 @@ export const AdminDashboard: React.FC = () => {
             {activeTab === 'registration-modal' && <RegistrationModalSettings />}
             {activeTab === 'categories' && <EventCategoriesManagement />}
             {activeTab === 'social' && <SocialMediaManagement />}
-            {activeTab === 'faculty' && <FacultyHeadsManagement />}
-            {activeTab === 'core-team' && <CoreTeamManagement />}
+            {activeTab === 'rico-family' && <RicoFamilyManagement />}
+            {/* Legacy routes for backward compatibility */}
+            {activeTab === 'faculty' && <RicoFamilyManagement />}
+            {activeTab === 'core-team' && <RicoFamilyManagement />}
             {activeTab === 'band' && <BandManagement />}
             {activeTab === 'guest-artists' && <GuestArtistManagement />}
             {activeTab === 'chief-guests' && <ChiefGuestManagement />}

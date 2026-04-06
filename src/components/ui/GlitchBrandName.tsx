@@ -86,13 +86,15 @@ export const GlitchBrandName: React.FC<{ className?: string }> = ({ className = 
             <>
               <motion.div
                 animate={{ x: [-1, 1, -0.5, 0], opacity: [0.6, 0.4, 0] }}
-                className="absolute inset-0 text-cyan-500/40 pointer-events-none mix-blend-screen whitespace-nowrap blur-[1px]"
+                style={{ color: 'rgba(var(--dynamic-accent-rgb), 0.4)' }}
+                className="absolute inset-0 pointer-events-none mix-blend-screen whitespace-nowrap blur-[1px]"
               >
                 {currentText}
               </motion.div>
               <motion.div
                 animate={{ x: [1, -1, 0.5, 0], opacity: [0.6, 0.4, 0] }}
-                className="absolute inset-0 text-red-500/40 pointer-events-none mix-blend-screen whitespace-nowrap blur-[1px]"
+                style={{ color: 'rgba(var(--dynamic-accent-rgb), 0.4)', filter: 'hue-rotate(180deg)' }}
+                className="absolute inset-0 pointer-events-none mix-blend-screen whitespace-nowrap blur-[1px]"
               >
                 {currentText}
               </motion.div>

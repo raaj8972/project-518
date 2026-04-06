@@ -527,13 +527,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       />
 
       {(error || missingBucket) && (
-        <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="mb-3 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-5 h-5 text-indigo-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm text-red-100 font-medium">{error || `Bucket '${missingBucket}' missing`}</p>
-            {missingBucket && <p className="text-xs text-red-300 mt-1">Please contact admin to initialize storage.</p>}
+            <p className="text-sm text-indigo-100 font-medium">{error || `Bucket '${missingBucket}' missing`}</p>
+            {missingBucket && <p className="text-xs text-indigo-300 mt-1">Please contact admin to initialize storage.</p>}
           </div>
-          <button onClick={() => { setError(''); }} className="text-red-400 hover:text-red-200"><X size={16} /></button>
+          <button onClick={() => { setError(''); }} className="text-indigo-400 hover:text-indigo-200"><X size={16} /></button>
         </div>
       )}
 
@@ -542,8 +542,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
            displayImage 
             ? 'border border-white/10 bg-black/40 shadow-xl' 
             : dragOver 
-              ? 'border-2 border-dashed border-purple-500 bg-purple-500/10 shadow-[0_0_30px_rgba(147,51,234,0.15)]' 
-              : 'border-2 border-dashed border-white/10 bg-white/5 hover:border-purple-500/50 hover:bg-white/10 hover:shadow-lg'
+              ? 'border-2 border-dashed border-indigo-500 bg-indigo-500/10 shadow-[0_0_30px_rgba(79,70,229,0.15)]' 
+              : 'border-2 border-dashed border-white/10 bg-white/5 hover:border-indigo-500/50 hover:bg-white/10 hover:shadow-lg'
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
@@ -559,7 +559,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         {(isProcessing || uploading) && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <div className="relative w-16 h-16 mb-4">
-               <svg className="animate-spin w-full h-full text-purple-500" viewBox="0 0 24 24">
+               <svg className="animate-spin w-full h-full text-indigo-500" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                </svg>
@@ -568,11 +568,11 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                )}
             </div>
             {batchProgress ? (
-              <p className="text-sm font-medium text-purple-200">
+              <p className="text-sm font-medium text-indigo-200">
                 Uploading {batchProgress.current} of {batchProgress.total}...
               </p>
             ) : (
-              <p className="text-sm font-medium text-purple-200">{uploading ? 'Uploading media...' : 'Optimizing...'}</p>
+              <p className="text-sm font-medium text-indigo-200">{uploading ? 'Uploading media...' : 'Optimizing...'}</p>
             )}
             {uploadHint && <p className="text-xs text-gray-400 mt-2 text-center max-w-[80%]">{uploadHint}</p>}
           </div>
@@ -599,7 +599,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                      <button onClick={() => fileInputRef.current?.click()} className="p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white transition-all hover:scale-110 shadow-lg" title="Change">
                        <RotateCcw size={18} />
                      </button>
-                     <button onClick={() => setShowDeleteConfirm(true)} className="p-3 rounded-full bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md border border-red-500/30 text-red-200 transition-all hover:scale-110 shadow-lg" title="Delete">
+                     <button onClick={() => setShowDeleteConfirm(true)} className="p-3 rounded-full bg-indigo-500/20 hover:bg-indigo-500/40 backdrop-blur-md border border-indigo-500/30 text-indigo-200 transition-all hover:scale-110 shadow-lg" title="Delete">
                         <Trash2 size={18} />
                      </button>
                   </div>
@@ -612,7 +612,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <button onClick={() => fileInputRef.current?.click()} type="button" className="text-xs font-bold text-gray-200 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors">
                     <RotateCcw size={14} /> Change
                   </button>
-                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-red-400 flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-colors">
+                  <button onClick={() => setShowDeleteConfirm(true)} type="button" className="text-xs font-bold text-indigo-400 flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">
                     <Trash2 size={14} /> Remove
                   </button>
                </div>
@@ -624,7 +624,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
               </div>
               
               {isDirty && (
-                <div className="px-2.5 py-1.5 bg-yellow-500/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-lg backdrop-blur-sm flex items-center gap-1.5">
+                <div className="px-2.5 py-1.5 bg-indigo-500/90 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-lg backdrop-blur-sm flex items-center gap-1.5">
                   <AlertCircle size={12} />
                   Unsaved
                 </div>
@@ -641,8 +641,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
              onClick={() => fileInputRef.current?.click()}
              className="flex flex-col items-center justify-center py-10 px-4 cursor-pointer text-center min-h-[160px]"
           >
-            <div className={`p-4 rounded-2xl mb-4 transition-all duration-300 ${dragOver ? 'bg-purple-500/20 scale-110 shadow-[0_0_30px_rgba(147,51,234,0.3)] border border-purple-500/30' : 'bg-white/5 border border-white/10 group-hover:bg-white/10 group-hover:scale-105 group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}>
-               {isVideoUpload ? <Play className="w-8 h-8 text-purple-400 transform group-hover:scale-110 transition-transform" /> : <UploadCloud className="w-8 h-8 text-purple-400 transform group-hover:-translate-y-1 transition-transform" />}
+            <div className={`p-4 rounded-2xl mb-4 transition-all duration-300 ${dragOver ? 'bg-indigo-500/20 scale-110 shadow-[0_0_30px_rgba(79,70,229,0.3)] border border-indigo-500/30' : 'bg-white/5 border border-white/10 group-hover:bg-white/10 group-hover:scale-105 group-hover:shadow-[0_4px_20px_rgba(0,0,0,0.2)]'}`}>
+               {isVideoUpload ? <Play className="w-8 h-8 text-indigo-400 transform group-hover:scale-110 transition-transform" /> : <UploadCloud className="w-8 h-8 text-indigo-400 transform group-hover:-translate-y-1 transition-transform" />}
             </div>
             <h3 className="text-sm font-bold text-white mb-1.5">
               Click to upload or drag & drop
@@ -657,8 +657,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
       {showDeleteConfirm && createPortal(
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-zinc-900 border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-              <Trash2 className="w-6 h-6 text-red-500" />
+            <div className="w-12 h-12 rounded-full bg-indigo-500/20 flex items-center justify-center mb-4">
+              <Trash2 className="w-6 h-6 text-indigo-500" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">Delete File?</h3>
             <p className="text-sm text-zinc-400 mb-6">This action cannot be undone. The file will be permanently removed from storage.</p>
@@ -723,20 +723,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
             {/* Right/Bottom Area: Controls */}
             <div className="w-full lg:w-[400px] bg-zinc-900/50 backdrop-blur-xl flex flex-col flex-1 lg:h-auto lg:max-h-full rounded-t-3xl lg:rounded-none border-t lg:border-t-0 lg:border-l border-white/10 relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-500/10 to-transparent pointer-events-none" />
+              <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
               
               <div className="flex-1 overflow-y-auto px-5 py-6 lg:p-8 space-y-6 lg:gap-8 pb-safe">
                 <div className="hidden lg:block relative z-10">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">Adjust Image</h3>
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent mb-2">Adjust Image</h3>
                   <p className="text-sm text-zinc-400">Position, rotate, and crop for your template.</p>
                 </div>
 
               {/* Templates / Ratio (Accessible to all admins) */}
               {isAdminUser && (
                 <div className="space-y-4 relative z-10">
-                  <label className="text-[11px] font-bold text-purple-400 uppercase tracking-widest flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center justify-between">
                     <span>Template Settings</span>
-                    <span className="bg-purple-500/20 text-purple-300 px-2.5 py-1 rounded-md text-[10px] normal-case tracking-wide border border-purple-500/20">
+                    <span className="bg-indigo-500/20 text-indigo-300 px-2.5 py-1 rounded-md text-[10px] normal-case tracking-wide border border-indigo-500/20">
                       {bucket}
                     </span>
                   </label>
@@ -747,7 +747,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                         onClick={() => setCropAspectLocal(ratio.value || 0)} // react-easy-crop takes undefined for free aspect, we'll map below
                         className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-medium transition-all w-full flex items-center justify-between border ${
                           (!cropAspectLocal && !ratio.value) || (cropAspectLocal === ratio.value)
-                            ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-[0_4px_20px_rgba(147,51,234,0.3)] border-purple-400/50 scale-[1.02]'
+                            ? 'bg-gradient-to-r from-indigo-600/90 to-violet-600/90 text-white shadow-[0_4px_20px_rgba(79,70,229,0.3)] border-indigo-400/50 scale-[1.02]'
                             : 'bg-white/5 text-zinc-300 border-white/10 hover:bg-white/10 hover:border-white/20 hover:text-white'
                         }`}
                       >
@@ -776,7 +776,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                     value={zoom}
                     onChange={(e) => setZoom(parseFloat(e.target.value))}
                     disabled={isProcessing}
-                    className="flex-1 accent-purple-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                   />
                   <ZoomIn className="text-zinc-500" size={16} />
                 </div>
@@ -788,14 +788,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
                     Rotation
                   </label>
-                  <span className="text-[11px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-md border border-purple-500/20">
+                  <span className="text-[11px] font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
                     {Math.round(rotation)}°
                   </span>
                 </div>
                 
                 <div className="flex items-center gap-4 bg-black/30 p-3 rounded-xl border border-zinc-800">
                   <RotateCcw 
-                    className="text-zinc-500 cursor-pointer hover:text-purple-400 transition-colors" 
+                    className="text-zinc-500 cursor-pointer hover:text-indigo-400 transition-colors" 
                     size={16} 
                     onClick={() => handleRotate90('ccw')}
                   />
@@ -807,10 +807,10 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                     value={Math.round(rotation)}
                     onChange={(e) => setRotation(parseFloat(e.target.value))}
                     disabled={isProcessing}
-                    className="flex-1 accent-purple-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
+                    className="flex-1 accent-indigo-500 h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                   />
                   <RotateCw 
-                    className="text-zinc-500 cursor-pointer hover:text-purple-400 transition-colors" 
+                    className="text-zinc-500 cursor-pointer hover:text-indigo-400 transition-colors" 
                     size={16} 
                     onClick={() => handleRotate90('cw')}
                   />
@@ -832,7 +832,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <button
                     onClick={onConfirmFull}
                     disabled={isProcessing}
-                    className="text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                    className="text-xs font-medium text-cyan-400 hover:text-cyan-300 transition-colors"
                   >
                     Use Original
                   </button>
@@ -848,7 +848,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   <button
                     onClick={onConfirmCrop}
                     disabled={isProcessing}
-                    className="flex-[2] py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-500 hover:to-indigo-500 shadow-[0_4px_20px_rgba(147,51,234,0.4)] hover:shadow-[0_4px_25px_rgba(147,51,234,0.6)] disabled:opacity-50 font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
+                    className="flex-[2] py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-xl hover:from-indigo-500 hover:to-violet-500 shadow-[0_4px_20px_rgba(79,70,229,0.4)] hover:shadow-[0_4px_25px_rgba(79,70,229,0.6)] disabled:opacity-50 font-bold transition-all flex items-center justify-center gap-2 hover:scale-[1.02]"
                   >
                     {isProcessing ? (
                       <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24">

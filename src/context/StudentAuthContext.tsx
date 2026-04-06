@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -30,12 +30,20 @@ interface StudentAuthContextType {
 
 const StudentAuthContext = createContext<StudentAuthContextType | undefined>(undefined);
 
-// [DEDUPE] Ensure singleton Context across module duplication
+// [DEDUPE] Use window bridge for singleton Context
 const PrimaryStudentAuthContext = ((typeof window !== 'undefined') 
   ? ((window as any).__STUDENT_AUTH_CONTEXT__ || ((window as any).__STUDENT_AUTH_CONTEXT__ = StudentAuthContext))
   : StudentAuthContext) as React.Context<StudentAuthContextType | undefined>;
 
-export const StudentAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const useStudentAuth = () => {
+  const context = useContext(PrimaryStudentAuthContext);
+  if (context === undefined) {
+    throw new Error('useStudentAuth must be used within a StudentAuthProvider');
+  }
+  return context;
+};
+
+export function StudentAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -211,16 +219,9 @@ export const StudentAuthProvider: React.FC<{ children: ReactNode }> = ({ childre
   };
 
   return (
-    <PrimaryStudentAuthContext.Provider value={value}>
+    <StudentAuthContext.Provider value={value}>
       {children}
-    </PrimaryStudentAuthContext.Provider>
+    </StudentAuthContext.Provider>
   );
-};
+}
 
-export const useStudentAuth = () => {
-  const context = useContext(PrimaryStudentAuthContext);
-  if (context === undefined) {
-    throw new Error('useStudentAuth must be used within a StudentAuthProvider');
-  }
-  return context;
-};

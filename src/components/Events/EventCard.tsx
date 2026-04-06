@@ -180,7 +180,7 @@ export const EventCard: React.FC<EventCardProps> = ({
             })()}
             <div className="h-full overflow-hidden flex flex-col">
               <div className="p-6 overflow-y-auto flex-1">
-                <h3 className="text-xl font-bold text-white mb-3 stranger-text" style={{ transform: 'translateX(16px)', textShadow: '0 0 10px rgba(255, 0, 0, 0.5), 0 0 20px rgba(220, 38, 38, 0.4)' }}>{event.title}</h3>
+                <h3 className="text-xl font-bold text-white mb-3 nebula-title-text" style={{ transform: 'translateX(16px)', textShadow: '0 0 10px rgba(99, 102, 241, 0.5), 0 0 20px rgba(79, 70, 229, 0.4)' }}>{event.title}</h3>
                 <PreserveNewlines text={event.description} className="text-sm sm:text-base text-gray-300 mb-4" />
                 <div className="space-y-2 mb-4">
                   {(() => {
@@ -190,29 +190,29 @@ export const EventCard: React.FC<EventCardProps> = ({
                     return (
                       <>
                         <div className="flex items-center text-sm text-gray-400">
-                          <Calendar size={16} className={`mr-2 ${dateInfo.isUnannounced ? 'text-red-500' : 'text-red-400'}`} />
-                          <span className={dateInfo.isUnannounced ? 'text-red-500 font-medium' : 'text-gray-300'}
+                          <Calendar size={16} className={`mr-2 ${dateInfo.isUnannounced ? 'text-violet-500' : 'text-indigo-400'}`} />
+                          <span className={dateInfo.isUnannounced ? 'text-violet-500 font-medium' : 'text-gray-300'}
                             style={dateInfo.isUnannounced 
-                              ? { filter: 'drop-shadow(0 0 8px rgba(220, 38, 38, 0.4))' } 
-                              : { filter: 'drop-shadow(0 0 6px rgba(220, 38, 38, 0.3))' }}>
+                              ? { filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))' } 
+                              : { filter: 'drop-shadow(0 0 6px rgba(79, 70, 229, 0.3))' }}>
                             {dateInfo.text}
                           </span>
                         </div>
                         <div className="flex items-center text-sm text-gray-400">
-                          <Clock size={16} className={`mr-2 ${timeInfo.isUnannounced ? 'text-red-500' : 'text-orange-400'}`} />
-                          <span className={timeInfo.isUnannounced ? 'text-red-500 font-medium' : 'text-gray-300'}
+                          <Clock size={16} className={`mr-2 ${timeInfo.isUnannounced ? 'text-violet-500' : 'text-cyan-400'}`} />
+                          <span className={timeInfo.isUnannounced ? 'text-violet-500 font-medium' : 'text-gray-300'}
                             style={timeInfo.isUnannounced 
-                              ? { filter: 'drop-shadow(0 0 8px rgba(220, 38, 38, 0.4))' } 
-                              : { filter: 'drop-shadow(0 0 6px rgba(234, 88, 12, 0.3))' }}>
+                              ? { filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))' } 
+                              : { filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.3))' }}>
                             {timeInfo.text}
                           </span>
                         </div>
                         <div className="flex items-center text-sm text-gray-400">
-                          <MapPin size={16} className={`mr-2 ${venueInfo.isUnannounced ? 'text-red-500' : 'text-orange-400'}`} />
-                          <span className={venueInfo.isUnannounced ? 'text-red-500 font-medium' : 'text-gray-300'}
+                          <MapPin size={16} className={`mr-2 ${venueInfo.isUnannounced ? 'text-violet-500' : 'text-cyan-400'}`} />
+                          <span className={venueInfo.isUnannounced ? 'text-violet-500 font-medium' : 'text-gray-300'}
                             style={venueInfo.isUnannounced 
-                              ? { filter: 'drop-shadow(0 0 8px rgba(220, 38, 38, 0.4))' } 
-                              : { filter: 'drop-shadow(0 0 6px rgba(220, 38, 38, 0.3))' }}>
+                              ? { filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))' } 
+                              : { filter: 'drop-shadow(0 0 6px rgba(34, 211, 238, 0.3))' }}>
                             {venueInfo.text}
                           </span>
                         </div>
@@ -220,7 +220,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                     );
                   })()}
                   {event.participants && String(event.participants).trim() && String(event.participants).trim() !== '0' && (
-                    <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-red-400" />{event.participants} participants</div>
+                    <div className="flex items-center text-sm text-gray-400"><Users size={16} className="mr-2 text-indigo-400" />{event.participants} participants</div>
                   )}
                   {coordinators.length > 0 ? (
                     <div className="mt-2 text-sm text-gray-300">
@@ -233,12 +233,12 @@ export const EventCard: React.FC<EventCardProps> = ({
                           if (!n && !p) return null;
                           return (
                             <div key={c.id} className="flex items-center flex-wrap gap-x-2">
-                              <span className="text-red-500 font-medium">{n}</span>
+                              <span className="text-cyan-500 font-medium">{n}</span>
                               {p && (
                                 <>
                                   <span className="text-white/20">·</span>
-                                  <a href={`tel:${p}`} className="inline-flex items-center gap-1 text-red-600/70 hover:text-red-500 transition-colors" onClick={(e) => e.stopPropagation()}>
-                                    <Phone size={12} className="text-red-600" />
+                                  <a href={`tel:${p}`} className="inline-flex items-center gap-1 text-cyan-600/70 hover:text-cyan-500 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                    <Phone size={12} className="text-cyan-600" />
                                     {p}
                                   </a>
                                 </>
@@ -258,12 +258,12 @@ export const EventCard: React.FC<EventCardProps> = ({
                       <div className="mt-2 text-sm text-gray-300">
                         <div className="font-semibold text-gray-200">Coordinator</div>
                         <div className="text-gray-400 flex items-center flex-wrap gap-x-2">
-                          <span className="text-red-300 font-medium" style={{ textShadow: '0 0 8px rgba(220, 38, 38, 0.6)' }}>{(n && n !== '0' && n !== '-' && n !== '—' && n !== 'Ø' && n !== '∅') ? n : ''}</span>
+                          <span className="text-cyan-300 font-medium" style={{ textShadow: '0 0 8px rgba(34, 211, 238, 0.6)' }}>{(n && n !== '0' && n !== '-' && n !== '—' && n !== 'Ø' && n !== '∅') ? n : ''}</span>
                           {(p && p !== '0' && p !== '-' && p !== '—' && p !== 'Ø' && p !== '∅') && (
                             <>
                               <span className="text-white/20">·</span>
-                              <a href={`tel:${p}`} className="inline-flex items-center gap-1 text-red-600/70 hover:text-red-500 transition-colors" onClick={(e) => e.stopPropagation()}>
-                                <Phone size={12} className="text-red-600" />
+                              <a href={`tel:${p}`} className="inline-flex items-center gap-1 text-cyan-600/70 hover:text-cyan-500 transition-colors" onClick={(e) => e.stopPropagation()}>
+                                <Phone size={12} className="text-cyan-600" />
                                 {p}
                               </a>
                             </>
@@ -304,9 +304,9 @@ export const EventCard: React.FC<EventCardProps> = ({
                         {grouped.map(g => (
                           <div key={g.pos} className="flex items-start gap-2">
                             <div
-                              className={`px-3 py-1 rounded-lg font-black uppercase tracking-tighter ${g.pos === 1 ? 'bg-red-700 text-white' : g.pos === 2 ? 'bg-zinc-400 text-black shadow-[0_0_10px_rgba(161,161,170,0.3)]' : g.pos === 3 ? 'bg-amber-600 text-black shadow-[0_0_10px_rgba(217,119,6,0.3)]' : 'bg-gray-800 text-gray-400'}`}
+                              className={`px-3 py-1 rounded-lg font-black uppercase tracking-tighter ${g.pos === 1 ? 'bg-violet-700 text-white' : g.pos === 2 ? 'bg-zinc-400 text-black shadow-[0_0_10px_rgba(161,161,170,0.3)]' : g.pos === 3 ? 'bg-amber-600 text-black shadow-[0_0_10px_rgba(217,119,6,0.3)]' : 'bg-gray-800 text-gray-400'}`}
                               style={{ 
-                                boxShadow: g.pos === 1 ? '0 0 15px rgba(220, 38, 38, 0.4)' : 'none',
+                                boxShadow: g.pos === 1 ? '0 0 15px rgba(139, 92, 246, 0.4)' : 'none',
                                 fontFamily: "'Crimson Text', serif"
                               }}
                             >
@@ -335,7 +335,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                     <div className="flex items-center justify-between w-full mb-2">
                       <button
                         onClick={handleToggleRules}
-                        className="flex items-center text-left font-semibold text-gray-300 hover:text-red-400 transition-colors px-2 py-1"
+                        className="flex items-center text-left font-semibold text-gray-300 hover:text-indigo-400 transition-colors px-2 py-1"
                       >
                         <FileText size={16} className="mr-2" />
                         <span>Event Rules {rulesCount > 0 ? `(${rulesCount})` : ''}</span>
@@ -427,7 +427,7 @@ export const EventCard: React.FC<EventCardProps> = ({
                       const isUrgent = secsToClose !== null && secsToClose <= 86400;
                       return (
                         <div
-                          className={`mt-2 w-full py-2 px-3 rounded-lg text-center text-sm font-medium ${isUrgent ? 'bg-red-600/20 text-red-300' : 'bg-yellow-600/20 text-yellow-300'}`}
+                          className={`mt-2 w-full py-2 px-3 rounded-lg text-center text-sm font-medium ${isUrgent ? 'bg-violet-600/20 text-violet-300' : 'bg-cyan-600/20 text-cyan-300'}`}
                           title={getClosesAtTooltip(event)}
                         >
                           <Clock size={14} className="inline mr-1.5 mb-0.5" />
@@ -440,13 +440,13 @@ export const EventCard: React.FC<EventCardProps> = ({
                   <div className="w-full py-3 px-4 rounded-lg bg-gray-700 text-gray-400 text-center font-medium">REGISTRATION CLOSED</div>
                 ) : getCountdown(event) ? (
                   getCountdown(event) === 'now' ? (
-                    <div className="w-full py-3 px-4 rounded-lg bg-red-600/20 text-red-400 text-center font-black uppercase tracking-widest border border-red-600/30" title="Open now">REGISTRATION IS OPEN</div>
+                    <div className="w-full py-3 px-4 rounded-lg bg-cyan-600/20 text-cyan-400 text-center font-black uppercase tracking-widest border border-cyan-600/30" title="Open now">REGISTRATION IS OPEN</div>
                   ) : (() => {
                     const secs = getSecondsToOpen(event);
                     const isBoundary = typeof secs === 'number' && secs > 0 && secs <= 3;
                     return (
                       <div
-                        className={`w-full py-3 px-4 rounded-lg text-center font-medium ${isBoundary ? 'bg-red-600/20 text-red-300 animate-pulse' : 'bg-orange-600/20 text-orange-300'}`}
+                        className={`w-full py-3 px-4 rounded-lg text-center font-medium ${isBoundary ? 'bg-violet-600/20 text-violet-300 animate-pulse' : 'bg-indigo-600/20 text-indigo-300'}`}
                         title={getOpensAtTooltip(event)}
                       >
                         {isBoundary ? `Starting in ${secs}s` : `Opens in ${getCountdown(event)}`}

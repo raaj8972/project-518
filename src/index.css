@@ -26,7 +26,7 @@
   pointer-events: none;
   z-index: 0; /* sits behind the logo content */
     background:
-      radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.22), rgba(236,72,153,0.34) 42%, rgba(147,51,234,0.28) 64%, rgba(0,0,0,0) 76%);
+      radial-gradient(60% 60% at 50% 50%, rgba(255,255,255,0.22), rgba(0,255,255,0.34) 42%, rgba(255,0,255,0.28) 64%, rgba(0,0,0,0) 76%);
     opacity: var(--bglo-base, 0.32);
   filter: blur(var(--bglo-blur, 16px));
   transform: scale(0.98);
@@ -263,25 +263,25 @@
     100% { background-position: 100% 50%; }
   }
   .btn-shimmer {
-    background-image: linear-gradient(90deg, rgba(236,72,153,0.9), rgba(147,51,234,0.9), rgba(236,72,153,0.9));
+    background-image: linear-gradient(90deg, rgba(139, 92, 246, 0.9), rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
     background-size: 200% 200%;
     animation: shimmer-x 2.5s linear infinite;
-    box-shadow: 0 8px 24px rgba(236,72,153,0.25);
+    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25);
   }
-  .btn-shimmer:hover { box-shadow: 0 8px 28px rgba(236,72,153,0.35); }
+  .btn-shimmer:hover { box-shadow: 0 8px 28px rgba(139, 92, 246, 0.35); }
 
   /* Solid-to-gradient fade on hover */
   .btn-fade-gradient {
-    background-color: rgba(236,72,153,0.9); /* pink-500 */
-    box-shadow: 0 6px 18px rgba(236,72,153,0.25);
+    background-color: rgba(139, 92, 246, 0.9); /* violet-500 */
+    box-shadow: 0 6px 18px rgba(139, 92, 246, 0.25);
     transition: background 320ms ease, box-shadow 320ms ease, color 320ms ease;
     background-image: none;
     background-size: 200% 200%;
   }
   .btn-fade-gradient:hover,
   .btn-fade-gradient:focus-visible {
-    background-image: linear-gradient(90deg, rgba(236,72,153,1), rgba(147,51,234,1), rgba(236,72,153,1));
-    box-shadow: 0 8px 26px rgba(236,72,153,0.35);
+    background-image: linear-gradient(90deg, rgba(139, 92, 246, 1), rgba(99, 102, 241, 1), rgba(139, 92, 246, 1));
+    box-shadow: 0 8px 26px rgba(139, 92, 246, 0.35);
   }
 
   /* Sponsor logo white faded hover glow utility */
@@ -620,19 +620,51 @@ body {
 /* Global theme variables (used by LogoLoop and other accents) */
 :root {
   /* default dark theme - ST5 inspired */
-  --theme-accent: rgb(220, 38, 38); /* Blood red accent */
-  --theme-glow-spread: rgba(18, 6, 12, 0.60);
-  --theme-card-bg: linear-gradient(180deg, #0f0f0f 0%, #050505 100%);
+  --theme-accent: rgb(99, 102, 241); /* Professional Indigo-500 */
+  --theme-glow-spread: rgba(30, 27, 75, 0.60); /* Deep Indigo */
+  --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #020617 100%);
   /* Featured Artists carousel stage height (default/mobile) */
   --featured-stage-height: clamp(520px, 82svh, 760px);
+  --dynamic-accent: rgb(139, 92, 246); /* Violet-500 */
+  --dynamic-accent-rgb: 139, 92, 246;
 }
 
 /* Prefer dark scheme by default for our cyberpunk pages */
 @media (prefers-color-scheme: dark) {
   :root {
-    --theme-accent: rgb(217, 176, 255);
+    --theme-accent: rgb(139, 92, 246);
     --theme-glow-spread: rgba(11, 15, 26, 0.60);
-    --theme-card-bg: linear-gradient(180deg, #151a24 0%, #0b0f1a 100%);
+    --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #020617 100%);
+    /* Default dynamic values matched to theme */
+    --dynamic-accent: rgb(34, 211, 238);
+    --dynamic-accent-rgb: 34, 211, 238;
+  }
+}
+
+html[data-theme="bollywood"] {
+  --dynamic-accent: rgb(139, 92, 246);
+  --dynamic-accent-rgb: 139, 92, 246;
+}
+
+@layer utilities {
+  /* Premium Dynamic Text coloring */
+  .text-dynamic {
+    color: var(--dynamic-accent);
+    transition: color 0.6s ease;
+  }
+  .bg-dynamic {
+    background-color: var(--dynamic-accent);
+    transition: background-color 0.6s ease;
+  }
+  .border-dynamic {
+    border-color: var(--dynamic-accent);
+    transition: border-color 0.6s ease;
+  }
+  .text-glow-dynamic {
+    text-shadow: 
+      0 0 10px rgba(var(--dynamic-accent-rgb), 0.6),
+      0 0 20px rgba(var(--dynamic-accent-rgb), 0.3),
+      0 0 40px rgba(var(--dynamic-accent-rgb), 0.15);
   }
 }
 
@@ -652,38 +684,38 @@ body {
 
 /* Page-specific theme hooks via data-theme on <html> */
 html[data-theme="home"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241); /* Indigo */
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="events"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="schedule"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="gallery"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="homebound"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="ricofamily"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 html[data-theme="sponsors"] {
-  --theme-accent: rgb(220, 38, 38); /* Blood red */
-  --theme-glow-spread: rgba(18, 6, 12, 0.70);
+  --theme-accent: rgb(99, 102, 241);
+  --theme-glow-spread: rgba(30, 27, 75, 0.70);
   --theme-card-bg: linear-gradient(180deg, #0a0a0a 0%, #000000 100%);
 }
 
@@ -1155,71 +1187,43 @@ body.theme-bollywood, body.theme-bollywood * { transition: background-color 220m
   }
 }
 
-/* BOLLYWOOD THEME TARGETED OVERRIDES */
-body.theme-bollywood {
+/* CYBERPUNK THEME GLOBAL UTILITIES */
+body.theme-bollywood,
+body.theme-cyberpunk,
+body.theme-vaporwave {
   background-color: #000000 !important;
-  color: #fef08a !important;
+  color: #ffffff !important;
 }
 
-body.theme-bollywood .bg-\[\#0a0a0a\],
-body.theme-bollywood .bg-\[\#070707\] {
-  background-color: #000000 !important;
+body.theme-vaporwave {
+  --dynamic-accent: #bc13fe;
+  --dynamic-accent-rgb: 188, 19, 254;
+  background-color: #0b0b1a !important; /* Original 1st Theme Dark Indigo */
 }
 
-body.theme-bollywood .bg-\[\#111\],
-body.theme-bollywood .bg-\[\#1a1a1a\] {
-  background-color: #0a0a0a !important;
+/* Neon Glow Utilities */
+.neon-text-cyan {
+  color: #22d3ee;
+  text-shadow: 0 0 10px rgba(34, 211, 238, 0.5), 0 0 20px rgba(34, 211, 238, 0.3);
 }
 
-/* Turn common neon pink/purple texts into gold/amber */
-body.theme-bollywood .text-pink-500,
-body.theme-bollywood .text-purple-500,
-body.theme-bollywood .text-rose-500,
-body.theme-bollywood .text-red-500 {
-  color: #fbbf24 !important;
-  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+.neon-text-fuchsia {
+  color: #d946ef;
+  text-shadow: 0 0 10px rgba(217, 70, 239, 0.5), 0 0 20px rgba(217, 70, 239, 0.3);
 }
 
-/* Gradients overriding for buttons/icons */
-body.theme-bollywood .bg-gradient-to-r,
-body.theme-bollywood .bg-gradient-to-br {
-  background-image: linear-gradient(to right, #b45309, #fbbf24) !important;
-  -webkit-background-clip: inherit;
-  background-clip: inherit;
+.neon-border-cyan {
+  border-color: rgba(34, 211, 238, 0.4);
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
 }
 
-body.theme-bollywood .bg-gradient-to-r.text-transparent {
-  -webkit-background-clip: text;
-  background-clip: text;
+.neon-border-fuchsia {
+  border-color: rgba(217, 70, 239, 0.4);
+  box-shadow: 0 0 15px rgba(217, 70, 239, 0.2);
 }
 
-/* Cards and borders */
-body.theme-bollywood .border-pink-500\/30,
-body.theme-bollywood .border-purple-500\/30,
-body.theme-bollywood .border-rose-500\/30,
-body.theme-bollywood .border-white\/10 {
-  border-color: rgba(251, 191, 36, 0.2) !important;
+.cyberpunk-glass {
+  background: rgba(10, 10, 10, 0.7) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
-
-body.theme-bollywood .rico-glass,
-body.theme-bollywood .rico-glass-card {
-  background: rgba(15, 12, 10, 0.7) !important;
-  border-color: rgba(251, 191, 36, 0.2) !important;
-  box-shadow: 0 0 20px rgba(251, 191, 36, 0.1);
-}
-
-body.theme-bollywood .bg-pink-500\/10,
-body.theme-bollywood .bg-purple-500\/10,
-body.theme-bollywood .bg-rose-500\/10 {
-  background-color: rgba(251, 191, 36, 0.1) !important;
-}
-
-/* Glow effects */
-body.theme-bollywood .glow-strong,
-body.theme-bollywood .glow-medium,
-body.theme-bollywood .glow-soft {
-  filter: hue-rotate(-60deg) saturate(1.5) brightness(1.2);
-}
-
-/* Additional thematic touches */
-/* Removed dark overlay mask */

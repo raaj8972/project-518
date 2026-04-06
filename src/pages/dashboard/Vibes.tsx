@@ -13,11 +13,11 @@ const Vibes: React.FC = () => {
       {/* Immersive Header */}
       <section className="relative overflow-hidden rounded-[3rem] p-12 rico-glass-card border border-white/10 bg-white/5">
         <div className="absolute inset-0 bg-gradient-to-br from-red-600/10 via-transparent to-orange-600/10 opacity-30" />
-        <div className="absolute top-0 right-0 w-96 h-96 bg-red-600/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] -mr-48 -mt-48 animate-pulse" />
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8 text-center md:text-left">
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-[0.2em]">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-[0.2em]">
               <Sparkles className="w-3 h-3" />
               <span>Collective Resonance Hub</span>
             </div>
@@ -32,7 +32,7 @@ const Vibes: React.FC = () => {
           <div className="flex flex-wrap justify-center md:justify-end gap-4">
             <div className="px-8 py-5 bg-white/5 rounded-[2rem] border border-white/10 backdrop-blur-md text-center">
               <div className="flex items-center gap-3 mb-1 justify-center">
-                <Users className="w-6 h-6 text-red-500" />
+                <Users className="w-6 h-6 text-indigo-500" />
                 <span className="text-3xl font-black text-white uppercase tracking-tighter">Live</span>
               </div>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Channel Active</p>

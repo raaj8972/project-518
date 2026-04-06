@@ -25,26 +25,26 @@ export const WinnersSection: React.FC<WinnersSectionProps> = ({ eventWinners }) 
     <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col items-center mb-16 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-600/10 border border-red-600/20 text-red-500 text-sm font-bold tracking-widest uppercase mb-4 animate-bounce">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-600/10 border border-violet-600/20 text-violet-400 text-sm font-bold tracking-widest uppercase mb-4 animate-bounce">
             <Trophy size={14} /> Event Champions
           </div>
-          <h2 className="text-4xl md:text-6xl font-black text-white stranger-text mb-6">
-            HALL OF <span className="text-red-600">FAME</span>
+          <h2 className="text-4xl md:text-6xl font-black text-white nebula-title-text mb-6">
+            HALL OF <span className="text-cyan-500">FAME</span>
           </h2>
-          <div className="w-24 h-1 bg-red-600 rounded-full mb-8 shadow-[0_0_15px_rgba(220,38,38,0.8)]" />
+          <div className="w-24 h-1 bg-cyan-500 rounded-full mb-8 shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {Object.entries(eventsWithWinners).map(([eventId, data]: [string, any]) => (
             <div 
               key={eventId}
-              className="group relative bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-red-600/50 transition-all duration-500 hover:shadow-[0_0_30px_rgba(220,38,38,0.15)] scroll-animate"
+              className="group relative bg-[#0a0a0a]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 hover:border-violet-600/50 transition-all duration-500 hover:shadow-[0_0_30px_rgba(139,92,246,0.15)] scroll-animate"
             >
-              <div className="absolute -top-3 -right-3 w-12 h-12 bg-red-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
+              <div className="absolute -top-3 -right-3 w-12 h-12 bg-violet-600 rounded-xl flex items-center justify-center shadow-lg transform rotate-12 group-hover:rotate-0 transition-transform duration-500">
                 <Flame className="text-white" size={24} />
               </div>
 
-              <h3 className="text-xl font-bold text-white mb-6 pr-8 group-hover:text-red-500 transition-colors">
+              <h3 className="text-xl font-bold text-white mb-6 pr-8 group-hover:text-cyan-400 transition-colors">
                 {data.title}
               </h3>
 
@@ -57,7 +57,7 @@ export const WinnersSection: React.FC<WinnersSectionProps> = ({ eventWinners }) 
                     <div key={pos} className="flex items-start gap-3">
                       <div className={`
                         w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0
-                        ${pos === 1 ? 'bg-red-600 text-white shadow-[0_0_12px_rgba(220,38,38,0.5)]' : 
+                        ${pos === 1 ? 'bg-violet-600 text-white shadow-[0_0_12px_rgba(139, 92, 246, 0.5)]' : 
                           pos === 2 ? 'bg-zinc-400 text-black' : 
                           'bg-amber-600 text-black'}
                       `}>
@@ -81,7 +81,7 @@ export const WinnersSection: React.FC<WinnersSectionProps> = ({ eventWinners }) 
               </div>
 
               {/* Decorative corner accent */}
-              <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-br from-transparent to-red-600/10 rounded-br-2xl pointer-events-none" />
+              <div className="absolute bottom-0 right-0 w-16 h-16 bg-gradient-to-br from-transparent to-violet-600/10 rounded-br-2xl pointer-events-none" />
             </div>
           ))}
         </div>

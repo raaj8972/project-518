@@ -10,8 +10,6 @@ export interface SportsPerson {
   name: string;
   role?: string;
   image?: string;
-  description?: string;
-  achievements?: string[];
   email?: string | null;
   phone?: string | null;
   social_links?: Partial<Record<'instagram' | 'youtube' | 'twitter' | 'linkedin', string>> | null;
@@ -60,15 +58,6 @@ const SportsProfileModal: React.FC<SportsProfileModalProps> = ({ open, onClose, 
         <div className="p-6">
           <h3 className="text-2xl font-bold text-white mb-1">{person.name}</h3>
           {person.role && <div className="text-green-400 mb-4">{person.role}</div>}
-          {person.description && <p className="text-gray-300 leading-relaxed mb-4 whitespace-pre-line">{person.description}</p>}
-          {person.achievements && person.achievements.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-green-400 mb-2">Achievements</h4>
-              <ul className="list-disc list-inside text-gray-300 space-y-1">
-                {person.achievements.map((a, i) => (<li key={i}>{a}</li>))}
-              </ul>
-            </div>
-          )}
           {(person.email || person.phone) && (
             <div className="mb-4">
               <div className="flex flex-wrap items-center gap-3">

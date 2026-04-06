@@ -133,14 +133,14 @@ export function QRCodeGenerator({
       <div className="flex gap-3">
         <button
           onClick={downloadQR}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
         >
           <Download className="w-4 h-4" />
           Download
         </button>
         <button
           onClick={printQR}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition-colors"
         >
           <Printer className="w-4 h-4" />
           Print

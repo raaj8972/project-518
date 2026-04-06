@@ -201,9 +201,10 @@ export const Navbar = React.memo(function Navbar() {
         <nav className={`hidden lg:flex glass-pill pointer-events-auto items-center h-12 md:h-14 px-2 gap-0.5 xl:gap-1 overflow-visible ${
           scrolled ? 'bg-black/80 shadow-[0_8px_32px_rgba(0,0,0,0.6)]' : 'bg-black/40'
         }`}>
-          {navItems.filter(i => i.name !== 'Login' && i.name !== 'Admin').map((item) => {
+          {navItems.filter(i => i.name !== 'Login' && i.name !== 'Admin').map((item, index) => {
             const Icon = item.icon;
-            const isPriority = ['Home', 'Events', 'Schedule', 'Sports'].includes(item.name);
+            // Dynamic Priority: First 5 items in the user-defined order are always visible
+            const isPriority = index < 5;
             return (
               <Link
                 key={item.path}

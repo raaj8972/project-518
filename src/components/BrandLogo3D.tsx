@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import LottieComponent from 'lottie-react';
+
+const Lottie = (LottieComponent as any).default || LottieComponent;
 
 type Props = {
   src?: string | null;
+  prioritySrc?: string; // force a specific logo asset (e.g. static favicon)
   alt?: string;
   size?: number; // height in px; width auto
   glowStrength?: number; // 0..2 typical; scales neon glow
@@ -11,10 +15,31 @@ type Props = {
 };
 
 // A lightweight 3D-styled logo renderer that adapts to the site's neon theme
+// - Adds support for Lottie JSON animations
 // - Adds subtle perspective/tilt on hover
 // - Applies a soft pink→cyan glow by default (respects transparency for PNGs)
 // - Falls back to text logo if src missing
-export const BrandLogo3D: React.FC<Props> = ({ src, alt = 'Brand', size = 32, glowStrength = 1, glowColor, className = '', animated = true }) => {
+export function BrandLogo3D({ src, prioritySrc, alt = 'Brand', size = 32, glowStrength = 1, glowColor, className = '', animated = true }: Props) {
+  const [animationData, setAnimationData] = useState<any>(null);
+  const [isLottie, setIsLottie] = useState(false);
+
+  useEffect(() => {
+    const finalSrc = prioritySrc || src;
+    if (finalSrc && finalSrc.toLowerCase().includes('.json')) {
+      setIsLottie(true);
+      fetch(finalSrc)
+        .then(res => res.json())
+        .then(data => setAnimationData(data))
+        .catch(err => {
+          console.error('[BrandLogo3D] Failed to load lottie:', err);
+          setIsLottie(false);
+        });
+    } else {
+      setIsLottie(false);
+      setAnimationData(null);
+    }
+  }, [src, prioritySrc]);
+
   const height = Math.max(20, size);
   const styleVars: React.CSSProperties = {
     ['--brand-glow-a' as any]: glowColor ? glowColor : 'rgba(255,0,255,0.55)',
@@ -23,26 +48,49 @@ export const BrandLogo3D: React.FC<Props> = ({ src, alt = 'Brand', size = 32, gl
     ['--brand-glow-scale' as any]: String(Math.max(0, Math.min(2, glowStrength)))
   };
 
-  return (
-    <span className={`inline-flex items-center select-none ${className}`} style={styleVars}>
-      {src ? (
-        <span className={`brand3d-wrap ${animated ? 'brand3d-animated' : ''}`} style={{ height, width: height, '--h': `${height}px` } as any}>
-          <img
-            src={src}
-            alt={alt}
-            decoding="sync"
-            loading="eager"
-            // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
-            fetchpriority="high"
-            className="brand3d-img"
-            style={{ height, width: 'auto' }}
-          />
-        </span>
-      ) : (
-        <span className="brand3d-fallback" style={{ fontSize: Math.round(height*0.8) }}>
+  const renderContent = () => {
+    const finalSrc = prioritySrc || src;
+    if (!finalSrc) {
+      return (
+        <span className="brand3d-fallback" style={{ fontSize: Math.round(height * 0.8) }}>
           R
         </span>
-      )}
+      );
+    }
+
+    if (isLottie && animationData) {
+      return (
+        <span className={`brand3d-wrap ${animated ? 'brand3d-animated' : ''}`} style={{ height, width: height, '--h': `${height}px` } as any}>
+          <div className="brand3d-img" style={{ height, width: height }}>
+            <Lottie 
+              animationData={animationData} 
+              loop={true} 
+              style={{ height: '100%', width: '100%' }}
+            />
+          </div>
+        </span>
+      );
+    }
+
+    return (
+      <span className={`brand3d-wrap ${animated ? 'brand3d-animated' : ''}`} style={{ height, width: height, '--h': `${height}px` } as any}>
+        <img
+          src={finalSrc}
+          alt={alt}
+          decoding="sync"
+          loading="eager"
+          // @ts-expect-error fetchpriority is valid HTML but React types use camelCase
+          fetchpriority="high"
+          className="brand3d-img"
+          style={{ height, width: 'auto' }}
+        />
+      </span>
+    );
+  };
+
+  return (
+    <span className={`inline-flex items-center select-none ${className}`} style={styleVars}>
+      {renderContent()}
       <style>{`
         .brand3d-wrap { position: relative; display: inline-flex; align-items:center; justify-content:center; aspect-ratio:1/1; perspective: 700px; }
     .brand3d-img { display:block; filter:
@@ -73,6 +121,7 @@ export const BrandLogo3D: React.FC<Props> = ({ src, alt = 'Brand', size = 32, gl
       `}</style>
     </span>
   );
-};
+}
 
 export default BrandLogo3D;
+

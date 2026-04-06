@@ -371,7 +371,7 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         {/* Tap to Focus Indicator */}
         <div 
           id="focus-box"
-          className="absolute top-1/2 left-1/2 w-20 h-20 border-2 border-yellow-400/50 rounded-lg pointer-events-none transition-all duration-500 opacity-0 -translate-x-1/2 -translate-y-1/2 transform scale-150"
+          className="absolute top-1/2 left-1/2 w-20 h-20 border-2 border-indigo-400/50 rounded-lg pointer-events-none transition-all duration-500 opacity-0 -translate-x-1/2 -translate-y-1/2 transform scale-150"
         />
         
         {/* Loading Overlay */}
@@ -389,12 +389,12 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
         {error && (
           <div className="absolute inset-0 bg-gray-900/90 backdrop-blur-sm flex items-center justify-center">
             <div className="text-center p-6">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-red-400 font-semibold mb-2">Camera Error</p>
+              <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+              <p className="text-rose-400 font-semibold mb-2">Camera Error</p>
               <p className="text-gray-300 text-sm mb-4">{error}</p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm font-semibold"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors text-sm font-semibold"
               >
                 Retry
               </button>
@@ -426,7 +426,7 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
                       e.stopPropagation();
                       onClose();
                     }}
-                    className="p-4 bg-red-600/80 hover:bg-red-600 text-white rounded-2xl transition-all active:scale-90 shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 touch-manipulation"
+                    className="p-4 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded-2xl transition-all active:scale-90 shadow-2xl backdrop-blur-md border border-white/20 flex items-center gap-2 touch-manipulation"
                     style={{ minWidth: '44px', minHeight: '44px' }}
                     aria-label="Exit Scanner"
                   >
@@ -470,12 +470,12 @@ export function QRScanner({ onScanSuccess, onScanError, onClose }: QRScannerProp
                 }}
                 className={`absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 px-8 py-4 rounded-full transition-all duration-300 shadow-[0_0_30px_rgba(0,0,0,0.5)] border touch-manipulation active:scale-95 ${
                   isTorchOn
-                    ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_50px_rgba(251,191,36,0.4)]'
+                    ? 'bg-indigo-400 text-black border-indigo-300 shadow-[0_0_50px_rgba(129,140,248,0.4)]'
                     : 'bg-black/60 text-white border-white/20 hover:bg-black/80 backdrop-blur-md'
                 }`}
                 style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
               >
-                <Zap className={`w-6 h-6 ${isTorchOn ? 'fill-current' : 'text-yellow-400'}`} />
+                <Zap className={`w-6 h-6 ${isTorchOn ? 'fill-current' : 'text-cyan-400'}`} />
                 {isTorchOn ? 'Flashlight ON' : 'Night Vision'}
               </button>
             )}

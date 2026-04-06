@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
+
 
 // Lightweight wrapper around threejs-toys particlesCursor
 // Loads only on client and skips on devices without fine pointer
@@ -6,11 +7,11 @@ import React from 'react';
 const isClient = typeof window !== 'undefined';
 
 export const ParticlesCursor: React.FC = () => {
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const destroyRef = React.useRef<(() => void) | null>(null);
-  const pcRef = React.useRef<any | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const destroyRef = useRef<(() => void) | null>(null);
+  const pcRef = useRef<any | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isClient) return;
     // Respect reduced motion
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -81,7 +82,7 @@ export const ParticlesCursor: React.FC = () => {
 
             const pc = particlesCursor({
               el: containerRef.current,
-              gpgpuSize: 512,
+              gpgpuSize: 256,
               // Match requested palette and parameters
               colors: [0x00ff00, 0x0000ff],
               color: 0xff0000,
@@ -108,14 +109,27 @@ export const ParticlesCursor: React.FC = () => {
             }
 
             // Click-to-randomize behavior (matches provided sample)
+            const hexToRgb = (hex: number) => {
+              const r = (hex >> 16) & 255;
+              const g = (hex >> 8) & 255;
+              const b = hex & 255;
+              return `${r}, ${g}, ${b}`;
+            };
+
             const handleClick = () => {
               try {
                 const ref = pcRef.current;
                 if (!ref || !ref.uniforms) return;
-                ref.uniforms.uColor.value.set(Math.random() * 0xffffff);
+                const newColor = Math.random() * 0xffffff;
+                ref.uniforms.uColor.value.set(newColor);
                 ref.uniforms.uCoordScale.value = 0.001 + Math.random() * 2;
                 ref.uniforms.uNoiseIntensity.value = 0.0001 + Math.random() * 0.001;
                 ref.uniforms.uPointSize.value = 1 + Math.random() * 10;
+                
+                // Update global CSS variables for synchronized text color changes
+                const rgb = hexToRgb(newColor);
+                document.documentElement.style.setProperty('--dynamic-accent', `rgb(${rgb})`);
+                document.documentElement.style.setProperty('--dynamic-accent-rgb', rgb);
               } catch {}
             };
             document.body.addEventListener('click', handleClick);

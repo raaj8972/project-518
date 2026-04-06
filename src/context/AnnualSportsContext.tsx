@@ -25,22 +25,19 @@ interface AnnualSportsContextType {
 const AnnualSportsContext = createContext<AnnualSportsContextType | undefined>(undefined);
 
 // [DEDUPE] Use window bridge for singleton Context
-if (typeof window !== 'undefined') {
-  if (!(window as any).__ANNUAL_SPORTS_CONTEXT__) {
-    (window as any).__ANNUAL_SPORTS_CONTEXT__ = AnnualSportsContext;
-  }
-}
+const PrimaryAnnualSportsContext = ((typeof window !== 'undefined') 
+  ? ((window as any).__ANNUAL_SPORTS_CONTEXT__ || ((window as any).__ANNUAL_SPORTS_CONTEXT__ = AnnualSportsContext))
+  : AnnualSportsContext) as React.Context<AnnualSportsContextType | undefined>;
 
 export const useAnnualSports = () => {
-  const primaryContext = (typeof window !== 'undefined' ? (window as any).__ANNUAL_SPORTS_CONTEXT__ : null) as React.Context<AnnualSportsContextType | undefined> || AnnualSportsContext;
-  const context = useContext(primaryContext);
+  const context = useContext(PrimaryAnnualSportsContext);
   if (context === undefined) {
     throw new Error('useAnnualSports must be used within an AnnualSportsProvider');
   }
   return context;
 };
 
-export const AnnualSportsProvider = ({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) => {
+export function AnnualSportsProvider({ children, enabled = true }: { children: ReactNode, enabled?: boolean }) {
   const { refreshTrigger } = useCoreData();
   const [annualEvents, setAnnualEvents] = useState<AnnualSportsEvent[]>([]);
   const [annualRegistrations, setAnnualRegistrations] = useState<AnnualSportsRegistration[]>([]);
@@ -145,4 +142,4 @@ export const AnnualSportsProvider = ({ children, enabled = true }: { children: R
   };
 
   return <AnnualSportsContext.Provider value={value}>{children}</AnnualSportsContext.Provider>;
-};
+}

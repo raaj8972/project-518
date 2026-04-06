@@ -13,10 +13,9 @@ const handler: Handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS, DELETE'
-      },
+      } as Record<string, string | number | boolean>,
       body: ''
     };
   }

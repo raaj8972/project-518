@@ -36,7 +36,7 @@ const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
             <h2 className="text-4xl md:text-6xl font-black mb-6 stranger-title-gradient">
               FEATURED ARTISTS
             </h2>
-            <div className="w-24 h-1 bg-red-600/50 mx-auto mb-8 rounded-full"></div>
+            <div className="w-24 h-1 bg-indigo-500/50 mx-auto mb-8 rounded-full"></div>
             <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto font-light">
               Meet the incredible artists who will light up {BRAND_NAME} {BRAND_YEAR}
             </p>

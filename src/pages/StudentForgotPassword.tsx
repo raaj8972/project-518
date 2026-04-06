@@ -78,8 +78,8 @@ export const StudentForgotPassword = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#050505] p-6 relative overflow-hidden font-inter">
       {/* Background Animated Elements */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 blur-[120px] rounded-full animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-violet-600/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
 
       <div className="max-w-md w-full relative z-10">
         <motion.div
@@ -109,13 +109,13 @@ export const StudentForgotPassword = () => {
               className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden"
             >
               {/* Subtle light streak */}
-              <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-blue-500/10 to-transparent rotate-45 pointer-events-none" />
+              <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-gradient-to-br from-indigo-500/10 to-transparent rotate-45 pointer-events-none" />
 
               <div className="mb-10 text-center relative">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
-                  <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-                  <Mail className="w-8 h-8 text-blue-400 relative z-10" />
-                  <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-purple-400 animate-pulse" />
+                <div className="w-16 h-16 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6 relative">
+                  <div className="absolute inset-0 bg-indigo-500/20 blur-xl rounded-full" />
+                  <Mail className="w-8 h-8 text-indigo-400 relative z-10" />
+                  <Sparkles className="absolute -top-2 -right-2 w-4 h-4 text-violet-400 animate-pulse" />
                 </div>
                 <h1 className="text-3xl font-extrabold text-white mb-3 tracking-tight">Recover Account</h1>
                 <p className="text-gray-400 text-sm leading-relaxed max-w-[280px] mx-auto">
@@ -125,18 +125,18 @@ export const StudentForgotPassword = () => {
 
               <form onSubmit={handleSubmit} className="space-y-6 relative">
                 <div>
-                  <label htmlFor="email" className="block text-[10px] font-bold text-blue-400/80 uppercase tracking-[0.2em] mb-3 ml-1">
+                  <label htmlFor="email" className="block text-[10px] font-bold text-indigo-400/80 uppercase tracking-[0.2em] mb-3 ml-1">
                     Email Address
                   </label>
                   <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
                     <input
                       id="email"
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/20 transition-all text-sm font-medium"
+                      className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all text-sm font-medium"
                       placeholder="Enter your student email"
                       disabled={loading}
                     />
@@ -157,7 +157,7 @@ export const StudentForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-blue-600/20 active:scale-[0.98] group"
+                  className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98] group"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -178,8 +178,8 @@ export const StudentForgotPassword = () => {
               exit={{ opacity: 0, x: -20 }}
               className="rico-glass-card rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden text-center"
             >
-              <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <LockKeyhole className="w-8 h-8 text-blue-400" />
+              <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <LockKeyhole className="w-8 h-8 text-indigo-400" />
               </div>
               <h1 className="text-2xl font-bold text-white mb-2">Verify it's you</h1>
               <p className="text-gray-400 text-sm mb-8">
@@ -195,7 +195,7 @@ export const StudentForgotPassword = () => {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                     placeholder="000000"
-                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 text-white placeholder-gray-700 focus:outline-none focus:border-blue-500/50 transition-all text-center text-2xl tracking-[0.5em] font-mono"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl py-4 text-white placeholder-gray-700 focus:outline-none focus:border-indigo-500/50 transition-all text-center text-2xl tracking-[0.5em] font-mono"
                     disabled={loading}
                   />
                 </div>
@@ -212,7 +212,7 @@ export const StudentForgotPassword = () => {
                     type="button"
                     onClick={handleResendOtp}
                     disabled={loading || resendTimer > 0}
-                    className="text-xs text-blue-400 hover:text-blue-300 disabled:text-gray-600 font-medium transition-colors"
+                    className="text-xs text-cyan-400 hover:text-cyan-300 disabled:text-gray-600 font-medium transition-colors"
                   >
                     {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend Code'}
                   </button>
@@ -227,7 +227,7 @@ export const StudentForgotPassword = () => {
                 <button
                   type="submit"
                   disabled={loading || otp.length !== 6}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg disabled:opacity-50"
+                  className="w-full bg-gradient-to-r from-indigo-600 to-cyan-600 text-white font-bold py-4 rounded-2xl shadow-lg disabled:opacity-50"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Verify Code'}
                 </button>
@@ -241,11 +241,11 @@ export const StudentForgotPassword = () => {
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="rico-glass-card rounded-[2.5rem] p-10 text-center border border-white/10 shadow-2xl relative overflow-hidden"
             >
-               <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none" />
+               <div className="absolute inset-0 bg-cyan-500/5 pointer-events-none" />
               
-              <div className="w-24 h-24 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-8 relative">
-                <div className="absolute inset-0 bg-emerald-500/20 blur-2xl rounded-full animate-pulse" />
-                <CheckCircle2 className="w-12 h-12 text-emerald-400 relative z-10" />
+              <div className="w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+                <div className="absolute inset-0 bg-cyan-500/20 blur-2xl rounded-full animate-pulse" />
+                <CheckCircle2 className="w-12 h-12 text-cyan-400 relative z-10" />
               </div>
               
               <h1 className="text-3xl font-extrabold text-white mb-4 tracking-tight">Verified!</h1>
@@ -255,7 +255,7 @@ export const StudentForgotPassword = () => {
               
               <Link
                 to="/student/reset-password"
-                className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl transition-all font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 group"
+                className="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-2xl transition-all font-bold text-sm shadow-lg shadow-cyan-500/20 active:scale-95 group"
               >
                 Set New Password
                 <Send className="w-4 h-4 transition-transform group-hover:translate-x-1" />

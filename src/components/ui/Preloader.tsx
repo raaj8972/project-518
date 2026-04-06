@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MODULE-LEVEL CONSTANTS  (computed once, never recreated)
-// ─────────────────────────────────────────────────────────────────────────────
+import { motion, AnimatePresence } from 'framer-motion';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PRELOADER COMPONENT
@@ -40,36 +38,24 @@ export const Preloader: React.FC<PreloaderProps> = ({
   loading, 
   stage = 0,
   onComplete, 
-  logoUrl 
 }) => {
   const [progress, setProgress] = useState(0);
   const [phase, setPhase] = useState<'run' | 'hold' | 'fadeout'>('run');
-  const [pulse, setPulse] = useState(0);
 
   // Stable refs — avoids stale-closure issues in callbacks
   const onCompleteRef = useRef(onComplete);
   useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
   const progressRef  = useRef(0);
   const animationRef = useRef<number | undefined>(undefined);
-  const pulseFrameRef = useRef<number | undefined>(undefined);
-
-  // Fixed Red hue for Stranger Things / RICO brand consistency
-  const baseHue = useRef(0); 
 
   // ── Progress animation ────────────────────────────────────────────────────
   useEffect(() => {
-    // Duration extended to 3.5s to align with CombinedDataProvider's ~3.6s orchestrated load
-    const DURATION = 3500;
-    const start = performance.now();
-
-    const animate = (now: number) => {
-      const elapsed = now - start;
+    const animate = (_now: number) => {
       const target = loading ? getTargetProgress(stage) : 100;
       
       const current = progressRef.current;
       const diff = target - current;
       
-      // Internal progress uses high-precision floats to avoid Math.floor deadlocks
       const increment = diff > 0 ? Math.max(0.15, diff * 0.08) : 0;
       const nextFloat = Math.min(current + increment, target);
       const nextDisplay = Math.floor(nextFloat);
@@ -79,18 +65,12 @@ export const Preloader: React.FC<PreloaderProps> = ({
       }
       progressRef.current = nextFloat;
 
-      // Keep animating if:
-      // 1. Mandatory minimum duration not met (now 800ms for visual weight)
-      // 2. Data is still hard-loading
-      // 3. Precision progress hasn't hit 100
-      const MIN_DUR = loading ? 3500 : 800;
-      const isStillAnimating = elapsed < MIN_DUR || loading || nextFloat < 100;
+      const isStillAnimating = loading || nextFloat < 100;
 
       if (isStillAnimating) {
         animationRef.current = requestAnimationFrame(animate);
       } else {
         setProgress(100);
-        // Hold at 100% for a brief "ready" beat before transition
         setTimeout(() => setPhase('hold'), 300);
       }
     };
@@ -101,13 +81,11 @@ export const Preloader: React.FC<PreloaderProps> = ({
 
   // ── Phase transitions ─────────────────────────────────────────────────────
   useEffect(() => {
-    // Failsafe timer: if loading gets stuck for > 15s, allow continuing
     const timer = setTimeout(() => {
       if (progressRef.current < 100) {
         console.warn('[Preloader] Failsafe triggered');
       }
     }, 15000);
-
     return () => clearTimeout(timer);
   }, []);
 
@@ -122,37 +100,15 @@ export const Preloader: React.FC<PreloaderProps> = ({
     }
   }, [phase]);
 
-  // ── Ambient glow pulse (low frequency update) ─────────────────────────────
-  useEffect(() => {
-    const origin = performance.now();
-    let lastUpdate = 0;
-    const tick = (now: number) => {
-      // Throttle pulse update to ~30fps to save CPU/GPU
-      if (now - lastUpdate > 32) {
-        const t = ((now - origin) % 3000) / 3000; // Slower, calmer pulse
-        setPulse(Math.sin(t * Math.PI * 2) * 0.5 + 0.5);
-        lastUpdate = now;
-      }
-      pulseFrameRef.current = requestAnimationFrame(tick);
-    };
-    pulseFrameRef.current = requestAnimationFrame(tick);
-    return () => { if (pulseFrameRef.current) cancelAnimationFrame(pulseFrameRef.current); };
-  }, []);
-
   // ── Global cleanup on unmount ─────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      if (animationRef.current)   cancelAnimationFrame(animationRef.current);
-      if (pulseFrameRef.current)  cancelAnimationFrame(pulseFrameRef.current);
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
     };
   }, []);
 
   // ── Derived render values ─────────────────────────────────────────────────
-  const isFading       = phase === 'fadeout';
-  const glowIntensity  = (progress / 100) + (phase === 'hold' ? pulse * 0.4 : 0);
-  const hue            = Math.round(baseHue.current + progress * 0.6);
-  const glowColor      = `hsl(${hue}, 100%, 65%)`;
-  const glowAlpha      = (o: number) => `hsla(${hue}, 100%, 65%, ${o})`;
+  const isFading = phase === 'fadeout';
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -162,159 +118,141 @@ export const Preloader: React.FC<PreloaderProps> = ({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-label="Loading"
-      className="fixed inset-0 z-[9999] bg-[#030303] flex flex-col items-center justify-center overflow-hidden"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden select-none"
       style={{
-        height: '100dvh',  /* dynamic viewport — accounts for mobile address bar */
+        height: '100dvh',
         opacity: isFading ? 0 : 1,
         transition: isFading ? 'opacity 0.85s cubic-bezier(0.4,0,0.2,1)' : 'none',
         willChange: isFading ? 'opacity' : 'auto',
+        background: 'rgba(0, 0, 0, 0.6)',
+        backdropFilter: 'blur(20px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(160%)',
       }}
     >
-      {/* CRT scanline texture */}
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,255,255,0.015) 2px,rgba(255,255,255,0.015) 4px)',
-          zIndex: 1,
-        }}
-      />
+      {/* ── Spotlight Beams from Top ── */}
+      <div className="absolute top-0 left-0 right-0 h-full overflow-hidden pointer-events-none opacity-40">
+        {/* Left beam — Cyan */}
+        <motion.div 
+          className="absolute -top-20 left-[15%] w-32 h-[150%] bg-gradient-to-b from-cyan-400/40 via-cyan-400/10 to-transparent blur-2xl origin-top"
+          animate={{ rotate: [-15, 10, -15], opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+        {/* Right beam — Indigo */}
+        <motion.div 
+          className="absolute -top-20 right-[15%] w-32 h-[150%] bg-gradient-to-b from-indigo-500/40 via-indigo-500/10 to-transparent blur-2xl origin-top"
+          animate={{ rotate: [15, -10, 15], opacity: [0.4, 0.8, 0.4] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
+        {/* Center wash */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-white/5 to-transparent blur-3xl opacity-30" />
+      </div>
 
-      {/* Ambient glow bloom behind logo */}
-      <div
-        aria-hidden
-        className="absolute rounded-full pointer-events-none"
-        style={{
-          width: 'clamp(300px,60vw,600px)',
-          height: 'clamp(300px,60vw,600px)',
-          background: `radial-gradient(circle, ${glowAlpha(0.12 * glowIntensity)} 0%, transparent 70%)`,
-          transition: 'background 0.3s ease',
-          zIndex: 1,
-        }}
-      />
 
-      {/* ── Content ── */}
-      {/* Content column — constrained so it never overflows on small/landscape phones */}
-      <div
-        className="relative flex flex-col items-center w-full px-4"
-        style={{
-          zIndex: 3,
-          gap: 'clamp(12px, 3vh, 32px)',
-          maxHeight: '90dvh',
-          justifyContent: 'center',
-        }}
-      >
+      {/* ── Main Content ── */}
+      <div className="relative z-10 flex flex-col items-center w-full px-4 text-center" style={{ gap: 'clamp(8px, 2vh, 20px)' }}>
+        
+        {/* ── Lottie Animation ── */}
+        <motion.div
+          className="relative z-20"
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {/* Lottie player */}
+          <div className="
+            w-[85vw] h-[42vw]
+            sm:w-[70vw] sm:h-[35vw]
+            md:w-[500px] md:h-[250px]
+            lg:w-[580px] lg:h-[290px]
+            xl:w-[640px] xl:h-[320px]
+            relative
+          ">
+            <dotlottie-player
+              src="https://lottie.host/80801fd7-1bc7-4a51-acaf-41b1974afb85/8dfsbfpvRj.lottie"
+              background="transparent"
+              speed="1"
+              loop
+              autoplay
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            />
+          </div>
+        </motion.div>
 
-        {/* Holographic logo fill */}
-        {/* Logo — smaller on phones, grows with viewport, capped on desktop */}
-        <div className="relative" style={{ width: 'clamp(120px, min(45vw, 38vh), 480px)' }}>
-          {logoUrl ? (
-            <>
-              {/* Ghost (dim full outline) */}
-              <img
-                src={logoUrl}
-                alt=""
-                aria-hidden
-                draggable={false}
-                className="block w-full h-auto object-contain select-none"
-                style={{ filter: 'grayscale(1) brightness(0.18)', pointerEvents: 'none' }}
-              />
+        {/* ── Stage Message ── */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={stage}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 0.7, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.4 }}
+            className="text-center font-serif tracking-[0.25em] uppercase"
+            style={{
+              fontSize: 'clamp(0.55rem, 1.4vw, 0.75rem)',
+              color: '#a5b4fc',
+              textShadow: '0 0 12px rgba(165, 180, 252, 0.3)',
+            }}
+          >
+            {STAGE_MESSAGES[stage] || 'PREPARING YOUR EXPERIENCE...'}
+          </motion.div>
+        </AnimatePresence>
 
-              {/* Glowing fill — clips from bottom upward with progress */}
-              <img
-                src={logoUrl}
-                alt="Logo"
-                draggable={false}
-                className="absolute inset-0 block w-full h-auto object-contain select-none"
+        {/* ── Progress Bar ── */}
+        <div className="w-full max-w-xs mx-auto" style={{ width: 'clamp(200px, 60vw, 320px)' }}>
+          {/* Bar track */}
+          <div className="relative h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            {/* Fill */}
+            <motion.div
+              className="absolute inset-y-0 left-0 rounded-full"
+              style={{
+                width: `${progress}%`,
+                background: 'linear-gradient(90deg, #6366f1, #0ea5e9, #14b8a6)',
+                boxShadow: '0 0 12px rgba(99, 102, 241, 0.5), 0 0 24px rgba(14, 165, 233, 0.3)',
+                transition: 'width 0.15s linear',
+              }}
+            />
+            {/* Shimmer scan */}
+            {progress > 2 && progress < 99 && (
+              <motion.div
+                className="absolute inset-y-0 w-16 pointer-events-none"
                 style={{
-                  clipPath: `inset(${100 - progress}% 0 0 0)`,
-                  filter: [
-                    `drop-shadow(0 0 ${12 + glowIntensity * 24}px ${glowColor})`,
-                    `drop-shadow(0 0 ${24 + glowIntensity * 48}px ${glowAlpha(0.7)})`,
-                    `brightness(${1 + glowIntensity * 0.5})`,
-                  ].join(' '),
-                  transition: 'clip-path 0.12s linear, filter 0.3s ease',
-                  pointerEvents: 'none',
+                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                  left: `${progress - 8}%`,
                 }}
+                animate={{ opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 1.2, repeat: Infinity }}
               />
+            )}
+          </div>
 
-              {/* Horizontal scan-line at the fill boundary */}
-              <div
-                aria-hidden
-                className="absolute left-0 right-0 pointer-events-none"
-                style={{
-                  top: `${100 - progress}%`,
-                  height: '2px',
-                  background: `linear-gradient(to right,transparent,${glowColor} 30%,white 50%,${glowColor} 70%,transparent)`,
-                  boxShadow: `0 0 12px 3px ${glowAlpha(0.8)}`,
-                  opacity: progress > 2 && progress < 99 ? 1 : 0,
-                  transition: 'opacity 0.3s ease',
-                }}
-              />
-            </>
-          ) : (
-            /* No logo yet — show the 'RICORRENZA' title in high-fidelity Stranger Things style */
-            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'clamp(160px,35vw,320px)' }}>
-              <span
-                className="font-black tracking-widest"
-                style={{
-                  fontSize: 'clamp(2.5rem, 8vw, 6rem)',
-                  color: 'white',
-                  textTransform: 'uppercase',
-                  fontFamily: 'serif',
-                  textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowAlpha(0.6)}`,
-                  animation: 'sk-glow-pulse 2s ease-in-out infinite',
-                  transition: 'text-shadow 0.3s ease',
-                }}
-              >
-                RICORRENZA
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* % counter */}
-        {/* % — matches logo width for visual cohesion */}
-        <div className="flex flex-col items-center gap-1" style={{ width: 'clamp(180px, min(80vw, 55vh), 520px)' }}>
-          <div className="flex items-baseline gap-0.5">
+          {/* Percentage counter */}
+          <div className="mt-3 flex items-baseline justify-center gap-0.5">
             <span
               className="font-mono font-black tabular-nums tracking-widest"
               style={{
-                fontSize: 'clamp(0.9rem, min(3.5vw, 3vh), 2rem)',
-                color: glowColor,
-                textShadow: `0 0 14px ${glowColor}, 0 0 28px ${glowAlpha(0.4)}`,
-                transition: 'color 0.3s ease, text-shadow 0.3s ease',
+                fontSize: 'clamp(0.85rem, 2.5vw, 1.4rem)',
+                background: 'linear-gradient(135deg, #818cf8, #22d3ee)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 0 8px rgba(99, 102, 241, 0.4))',
               }}
             >
               {String(progress).padStart(3, '0')}
             </span>
             <span
               style={{
-                color: glowColor,
-                opacity: 0.45,
-                fontSize: 'clamp(0.65rem,1.8vw,0.95rem)',
+                color: '#818cf8',
+                opacity: 0.5,
+                fontSize: 'clamp(0.55rem, 1.5vw, 0.85rem)',
                 fontFamily: 'monospace',
               }}
             >
               %
             </span>
           </div>
-
-          {/* Stage Message */}
-          <div 
-            className="mt-4 text-center font-serif tracking-[0.2em] uppercase transition-all duration-700 h-6"
-            style={{
-              fontSize: 'clamp(0.6rem, 1.5vw, 0.8rem)',
-              color: glowColor,
-              opacity: progress > 5 ? 0.6 : 0,
-              textShadow: `0 0 8px ${glowAlpha(0.3)}`,
-            }}
-          >
-            {STAGE_MESSAGES[stage] || 'STRANGER THINGS AWAIT...'}
-          </div>
         </div>
+
       </div>
+
 
     </div>
   );

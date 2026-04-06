@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, startTransition } from 'react';
-import { Heart, Crown, UsersRound, Star, Users, Zap, Shield, ArrowRight } from 'lucide-react';
+import { Heart, Users, Zap, Shield, ArrowRight, Instagram, Phone, Facebook } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import type { FacultyHead } from '../types/data';
 
 import { MembershipModal } from '../components/MembershipModal';
 import ScrollHint from '../components/ScrollHint';
@@ -9,7 +10,7 @@ import { BRAND_NAME, BRAND_YEAR } from '../constants/brand';
 
 // RicoFamily Sub-components
 import { FounderCard } from '../components/RicoFamily/FounderCard';
-import { CouncilMemberCard } from '../components/RicoFamily/CouncilMemberCard';
+
 import { CommitteeSection } from '../components/RicoFamily/CommitteeSection';
 
 import '../styles/RicoFamily.css';
@@ -42,7 +43,7 @@ export const RicoFamily: React.FC = () => {
 
   const [membershipModal, setMembershipModal] = useState(false);
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
-  const [selectedFaculty, setSelectedFaculty] = useState<any | null>(null);
+  const [selectedFaculty, setSelectedFaculty] = useState<FacultyHead | null>(null);
   const [facultyPaused, setFacultyPaused] = useState(false);
   const committeeHeadsMarqueeRef = useRef<HTMLDivElement | null>(null);
 
@@ -56,33 +57,14 @@ export const RicoFamily: React.FC = () => {
     .filter(committee => committee.enabled)
     .sort((a, b) => a.order_position - b.order_position);
 
-  // Track expanded member cards (non-head)
-  const [expandedMembers, setExpandedMembers] = useState<Set<number>>(new Set());
-  const [bootingMembers, setBootingMembers] = useState<Set<number>>(new Set());
+  // Track open committee for accordion layout
+  const [openCommitteeId, setOpenCommitteeId] = useState<number | null>(null);
 
-  const toggleMemberExpanded = (id: number) => {
-    const isExpanding = !expandedMembers.has(id);
-    
-    if (isExpanding) {
-      setBootingMembers(prev => new Set(prev).add(id));
-      setTimeout(() => {
-        setBootingMembers(prev => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-      }, 400); // Match hologram-boot animation duration
-    }
-
-    setExpandedMembers(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
+  // All team data is managed via Admin → Core Team Management
+  const allTeamMembersCombined = [...(coreTeamMembers || [])];
 
   // Group members by committee
-  const membersByCommittee = (coreTeamMembers || []).reduce((acc, member) => {
+  const membersByCommittee = allTeamMembersCombined.reduce((acc, member) => {
     if (member.enabled && member.committee_id) {
       if (!acc[member.committee_id]) {
         acc[member.committee_id] = [];
@@ -90,7 +72,7 @@ export const RicoFamily: React.FC = () => {
       acc[member.committee_id].push(member);
     }
     return acc;
-  }, {} as Record<string, typeof coreTeamMembers>);
+  }, {} as Record<string, any[]>);
 
   // Sort members within each committee by order position
   Object.keys(membersByCommittee).forEach(committee_id => {
@@ -98,34 +80,26 @@ export const RicoFamily: React.FC = () => {
   });
 
   // Committee heads across all committees (for marquee)
-  const committeeHeads = (coreTeamMembers || [])
+  const committeeHeads = allTeamMembersCombined
     .filter(m => m.enabled && m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
-  // Council members (non-head)
+  // Council members (non-head) — fully database-driven
   const councilMembers = (coreTeamMembers || [])
-    .filter(m => m.enabled && ((m as any).isCouncil || (m as any).is_council) && !m.is_head)
+    .filter(m => m.enabled && (m as any).is_council && !m.is_head)
     .sort((a, b) => a.order_position - b.order_position);
 
-  // Founders extraction (Hardcoded + Dynamic)
-  const HARDCODED_FOUNDERS = [
+  // Founders extraction (Curated + Dynamic)
+  const founders = [
     {
       id: 'founder-raaj-legacy',
       name: 'RAAJ',
       role: 'Founder of Website',
-      // Using the provided photo
-      // Using the high-quality portrait provided by the founder
       image: '/storage/uploads/raaj_founder.png', 
-      description: '',
-      specialty: 'Platform Architect',
       social_links: {
         instagram: 'https://www.instagram.com/i_amraaj__?igsh=a2ZxaTBubnpmYmhu&utm_source=qr'
       }
-    }
-  ];
-
-  const founders = [
-    ...HARDCODED_FOUNDERS,
+    },
     ...(coreTeamMembers || [])
       .filter(m => 
         m.enabled && 
@@ -184,7 +158,9 @@ export const RicoFamily: React.FC = () => {
 
 
   return (
-  <div className="bg-[#030712] text-[#e2e8f0] selection:bg-red-500/30 min-h-screen font-sans antialiased overflow-x-hidden">
+  <div className="bg-[#030712] bg-hex-grid text-[#e2e8f0] selection:bg-cyan-500/30 min-h-screen font-sans antialiased overflow-x-hidden relative">
+    {/* Global Top J.A.R.V.I.S. HUD Scanline */}
+    <div className="animate-scanline absolute inset-0 pointer-events-none z-50"></div>
     <SEO 
       title={`Rico Family — ${BRAND_NAME} ${BRAND_YEAR}`} 
       description={`Meet the team behind ${BRAND_NAME} ${BRAND_YEAR} - Faculty, Council, and Committee members.`} 
@@ -205,12 +181,9 @@ export const RicoFamily: React.FC = () => {
           <div className="container mx-auto px-4 relative z-10">
             {/* Section Header */}
             <div className="scroll-animate opacity-0 transform translate-y-10 flex flex-col items-center mb-12 md:mb-16">
-              <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full bg-red-500/5 border border-red-500/20 backdrop-blur-xl mb-6 md:mb-8 group hover:border-red-500/40 transition-all duration-500 focus-within:border-red-500/40">
-                <Crown className="w-4 h-4 text-red-500 group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] md:text-xs font-black tracking-[0.3em] uppercase text-red-50/90 whitespace-nowrap">The Visionary Backend</span>
-              </div>
-              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black mb-2 tracking-tighter text-center leading-none font-serif">
-                FOUNDER OF <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-white to-white/20">WEBSITE</span>
+
+              <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl mb-2 text-center leading-none mcu-title-text mcu-title-glow">
+                INITIATIVE <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-red-400 to-red-600">CREATOR</span>
               </h2>
             </div>
 
@@ -243,19 +216,19 @@ export const RicoFamily: React.FC = () => {
 
       {/* Faculty Head Section — 3D coverflow autoplay */}
       {enabledFacultyHeads.length > 0 && (
-        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
-          <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-indigo-900/10 rounded-full blur-[150px] pointer-events-none"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+          {/* S.H.I.E.L.D Tech Glows */}
+          <div className="absolute top-0 right-1/4 w-[800px] h-[800px] bg-cyan-500/5 rounded-full blur-[200px] pointer-events-none mix-blend-screen"></div>
+          <div className="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
+          
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
               <div className="text-center mb-12 md:mb-16">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                   <Star className="w-4 h-4 text-indigo-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-indigo-50">Leadership</span>
-                </div>
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white font-serif">
-                  FACULTY <span className="text-white/50 font-light">LEADERSHIP</span>
+
+                <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+                  FACULTY
                 </h2>
-                <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">
+                <p className="text-sm md:text-lg text-cyan-100/50 max-w-2xl mx-auto font-light hud-monospace">
                   Guiding the vision of {BRAND_NAME}
                 </p>
               </div>
@@ -280,12 +253,51 @@ export const RicoFamily: React.FC = () => {
               showArrows={true}
               className="py-6"
               renderItem={(head: any) => (
-                <div className="w-72 md:w-80 p-6 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
-                  <div className="aspect-square w-full overflow-hidden rounded-xl mb-6 bg-black/50 border border-white/10">
-                    <img loading="lazy" decoding="async" src={isMobile && head.image?.includes('supabase') ? `${head.image}?width=400&resize=cover` : head.image} alt={head.name} className="w-full h-full object-cover" />
+                <div className="w-72 md:w-[22rem] p-6 shield-dossier clip-angular-br border-cyan-500/30 backdrop-blur-2xl box-glow-cyan transition-all duration-500 hover:-translate-y-2 bg-black">
+                  <div className="aspect-[4/5] w-full overflow-hidden clip-angular-sm mb-6 bg-black/80 border border-cyan-500/40 relative group">
+                    <img src={isMobile && head.image?.includes('supabase') ? `${head.image}?width=400` : head.image} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-40 blur-xl scale-125 saturate-150 pointer-events-none" />
+                    <img loading="lazy" decoding="async" src={isMobile && head.image?.includes('supabase') ? `${head.image}?width=400` : head.image} alt={head.name} className="absolute inset-0 w-full h-full object-cover object-top relative z-10  grayscale opacity-80 transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100" />
+                    <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.2] mix-blend-overlay"></div>
+                    {/* Corner Targeting Brackets */}
+                    <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-cyan-500"></div>
+                    <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-cyan-500"></div>
+                    <div className="absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 border-cyan-500"></div>
+                    <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-cyan-500"></div>
+                    
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                       <div className="w-8 h-8 clip-angular-br bg-cyan-500/20 border border-cyan-500/60 flex items-center justify-center backdrop-blur-md shadow-[0_0_15px_rgba(0,240,255,0.8)]">
+                          <Shield className="w-4 h-4 text-cyan-300" />
+                       </div>
+                    </div>
                   </div>
-                  <div className="font-bold text-white text-center">{head.name}</div>
-                  <div className="text-sm text-gray-300 text-center">{head.title}</div>
+                  <div className="mcu-title-text text-xl md:text-2xl text-center glow-text text-cyan-50 mt-2">{head.name}</div>
+                  <div className="text-xs text-cyan-400 font-mono text-center mt-3 tracking-[0.2em] uppercase font-bold hud-monospace mb-4">{head.title}</div>
+                  
+                  {/* Social Links Centered — only show if data exists */}
+                  {((head.social_links?.instagram || (head as any).phone || head.social_links?.facebook || (head as any).email)) && (
+                    <div onClick={(e) => e.stopPropagation()} className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-cyan-500/20 w-full relative z-20">
+                       {head.social_links?.instagram && (
+                         <a
+                           href={head.social_links.instagram}
+                           target="_blank" rel="noopener noreferrer"
+                           className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-[#E1306C]/10 border border-[#E1306C]/30 text-[#E1306C] hover:bg-[#E1306C]/20 hover:border-[#E1306C] shadow-[0_0_15px_rgba(225,48,108,0.3)] hover:shadow-[0_0_20px_rgba(225,48,108,0.5)] transition-all"
+                         >
+                           <Instagram size={16} />
+                         </a>
+                       )}
+                       {(head as any).phone && (
+                         <a
+                           href={`tel:${(head as any).phone}`}
+                           className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-green-500/10 border border-green-500/30 text-green-500 hover:bg-green-500/20 hover:border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_20px_rgba(34,197,94,0.5)] transition-all"
+                         >
+                           <Phone size={16} />
+                         </a>
+                       )}
+                       {head.social_links?.facebook && (
+                         <a href={head.social_links.facebook} target="_blank" rel="noopener noreferrer" className="w-10 h-10 clip-angular-sm flex items-center justify-center bg-[#1877F2]/10 border border-[#1877F2]/30 text-[#1877F2] hover:bg-[#1877F2]/20 hover:border-[#1877F2] shadow-[0_0_15px_rgba(24,119,242,0.3)] hover:shadow-[0_0_20px_rgba(24,119,242,0.5)] transition-all"><Facebook size={16} /></a>
+                       )}
+                    </div>
+                  )}
                 </div>
               )}
             />
@@ -295,54 +307,94 @@ export const RicoFamily: React.FC = () => {
 
       {/* Council Section (restored) */}
       {councilMembers.length > 0 && (
-        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712]">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-900/10 rounded-full blur-[150px] pointer-events-none"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-red-500/20">
+          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-red-600/5 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
               <div className="text-center mb-16 flex flex-col items-center">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                   <Crown className="w-4 h-4 text-red-500" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-red-50">Core Team</span>
-                </div>
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
-                  THE <span className="text-white/50 font-light">COUNCIL</span>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+                  THE <span className="text-red-500/80 font-light">COUNCIL</span>
                 </h2>
-                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto mt-2 font-light">
-                  Strategic leadership and executive oversight
+                <p className="text-sm md:text-lg text-red-100/50 max-w-3xl mx-auto mt-2 font-light hud-monospace">
+                  Strategic leadership and global oversight
                 </p>
               </div>
-              <div className="grid md:grid-cols-2 gap-10">
-              {councilMembers.map((member, idx) => (
-                <CouncilMemberCard 
-                  key={member.id} 
-                  member={member} 
-                  idx={idx} 
-                  isLeadWebDevRole={isLeadWebDevRole} 
-                  isMobile={isMobile}
-                />
-              ))}
+
+              <CoverflowCarousel
+                items={councilMembers}
+                intervalMs={3000}
+                visibleRange={2}
+                stepPx={240}
+                rotateYDeg={38}
+                scaleStep={0.15}
+                translateZStep={-100}
+                stageHeight={400}
+                pauseOnTouch={true}
+                blurPerStep={2.5}
+                edgeFades={true}
+                centerGlow={true}
+                arrowSize={48}
+                pauseOnHover={true}
+                showArrows={true}
+                className="py-6"
+                renderItem={(member: any) => {
+                  const getCouncilTheme = (colorKey: string) => {
+                    const themes: Record<string, { color: string; border: string; glow: string; accent: string; bg: string }> = {
+                      red:     { color: 'red',     border: 'border-red-500/30',     glow: 'box-glow-red',     accent: 'text-red-500',     bg: 'from-red-600/10' },
+                      emerald: { color: 'emerald', border: 'border-emerald-500/30', glow: 'box-glow-emerald', accent: 'text-emerald-500', bg: 'from-emerald-600/10' },
+                      blue:    { color: 'blue',    border: 'border-blue-500/30',    glow: 'box-glow-blue',    accent: 'text-blue-500',    bg: 'from-blue-600/10' },
+                      amber:   { color: 'amber',   border: 'border-amber-500/30',   glow: 'box-glow-amber',   accent: 'text-amber-500',   bg: 'from-amber-600/10' },
+                      violet:  { color: 'violet',  border: 'border-violet-500/30',  glow: 'box-glow-violet',  accent: 'text-violet-500',  bg: 'from-violet-600/10' },
+                      cyan:    { color: 'cyan',    border: 'border-cyan-500/30',    glow: 'box-glow-cyan',    accent: 'text-cyan-500',    bg: 'from-cyan-600/10' },
+                      rose:    { color: 'rose',    border: 'border-rose-500/30',    glow: 'box-glow-rose',    accent: 'text-rose-500',    bg: 'from-rose-600/10' },
+                      orange:  { color: 'orange',  border: 'border-orange-500/30',  glow: 'box-glow-orange',  accent: 'text-orange-500',  bg: 'from-orange-600/10' },
+                    };
+                    return themes[colorKey] || themes.red;
+                  };
+                  const theme = getCouncilTheme(member.color || 'red');
+                  return (
+                    <div className={`w-72 md:w-[22rem] p-6 shield-dossier clip-angular-br ${theme.border} backdrop-blur-2xl ${theme.glow} transition-all duration-500 hover:-translate-y-2 group bg-black`}>
+                      <div className={`aspect-[4/5] w-full overflow-hidden clip-angular-sm mb-6 bg-black/80 border ${theme.border.replace('/30', '/40')} relative`}>
+                        <img src={member.image} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-40 blur-xl scale-125 saturate-150 pointer-events-none" />
+                    <img loading="lazy" decoding="async" src={member.image} alt={member.name} className="absolute inset-0 w-full h-full object-cover object-top relative z-10  grayscale opacity-80 transition-all duration-700 group-hover:grayscale-0 group-hover:scale-105 group-hover:opacity-100" />
+                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.2] mix-blend-overlay"></div>
+                        
+                        {/* Corner Targeting Brackets */}
+                        <div className={`absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 ${theme.accent.replace('text-', 'border-')}`}></div>
+                        <div className={`absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 ${theme.accent.replace('text-', 'border-')}`}></div>
+                        <div className={`absolute bottom-2 left-2 w-4 h-4 border-b-2 border-l-2 ${theme.accent.replace('text-', 'border-')}`}></div>
+                        <div className={`absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 ${theme.accent.replace('text-', 'border-')}`}></div>
+                        
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+                           <div className={`w-8 h-8 clip-angular-br ${theme.accent.replace('text-', 'bg-')}/20 border ${theme.accent.replace('text-', 'border-')}/60 flex items-center justify-center backdrop-blur-md shadow-[0_0_15px_rgba(239,68,68,0.8)]`}>
+                              <Shield className={`w-4 h-4 ${theme.accent.replace('text-', 'text-').replace('-500', '-300')}`} />
+                           </div>
+                        </div>
+                      </div>
+                      <div className={`mcu-title-text text-xl md:text-2xl text-center glow-text text-white mt-2`}>{member.name}</div>
+                      <div className={`text-xs ${theme.accent} font-mono text-center mt-3 tracking-[0.2em] uppercase font-bold hud-monospace`}>{member.role}</div>
+                    </div>
+                  );
+                }}
+              />
             </div>
-   </div>
           </div>
         </section>
       )}
 
     {/* Committee Heads marquee */}
       {committeeHeads.length > 0 && (
-        <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-white/5">
-          <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-[#030712] to-blue-900/10"></div>
+        <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+          <div className="absolute inset-0 bg-transparent"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
               <div className="text-center mb-12">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 font-mono">
-                   <UsersRound className="w-4 h-4 text-red-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-red-50">Team Leaders</span>
-                </div>
-                <h2 className="text-4xl sm:text-5xl font-bold mb-4 tracking-tighter text-white">
-                  COMMITTEE <span className="text-white/50 font-light">HEADS</span>
+
+                <h2 className="text-4xl sm:text-5xl mb-4 mcu-title-text mcu-title-glow">
+                  COMMITTEE
                 </h2>
-                <p className="text-sm md:text-lg text-white/50 max-w-2xl mx-auto font-light">
-                  Leading the specialized teams driving {BRAND_NAME}'s innovation
+                <p className="text-sm md:text-lg text-blue-100/50 max-w-2xl mx-auto font-light hud-monospace">
+                  Commanding the specialized squads of {BRAND_NAME}
                 </p>
               </div>
             </div>
@@ -360,14 +412,17 @@ export const RicoFamily: React.FC = () => {
                 className="py-2"
                 instantPause={true}
                 renderItem={(m: any) => (
-                  <div className="w-64 p-5 bg-white/[0.02] border border-white/5 backdrop-blur-xl rounded-[2rem] shadow-2xl transition-all duration-300 hover:bg-white/[0.05]">
-                    <div className="aspect-square w-full overflow-hidden rounded-xl mb-4 bg-black/50 border border-white/10">
-                      <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="w-full h-full object-cover" />
+                  <div className="w-64 p-5 shield-dossier clip-angular-sm box-glow-cyan transition-all duration-300">
+                    <div className="aspect-square w-full overflow-hidden clip-angular-br mb-4 bg-black/50 border border-cyan-500/20 relative">
+                      <img src={m.image} aria-hidden="true" className="absolute inset-0 w-full h-full object-cover opacity-40 blur-xl scale-125 saturate-150 pointer-events-none" />
+                    <img loading="lazy" decoding="async" src={m.image} alt={m.name} className="absolute inset-0 w-full h-full object-cover object-top relative z-10  grayscale opacity-90" />
+                      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.2] mix-blend-overlay"></div>
+                      <div className="tech-divider absolute bottom-0 left-0 w-full"></div>
                     </div>
-                    <div className="font-bold text-white flex items-center mb-1">
-                      <Crown className="w-3.5 h-3.5 text-red-400 mr-2" /> {m.name}
+                    <div className="font-bold text-cyan-50 flex items-center mb-1 mcu-title-text text-lg">
+                      <Zap className="w-3.5 h-3.5 text-cyan-400 mr-2" /> {m.name}
                     </div>
-                    <div className="text-xs text-white/50 tracking-widest uppercase font-semibold">{m.role}</div>
+                    <div className="text-xs text-cyan-300/70 tracking-widest uppercase font-semibold hud-monospace">{m.role}</div>
                   </div>
                 )}
               />
@@ -381,27 +436,24 @@ export const RicoFamily: React.FC = () => {
 
       {/* Core Committees Section */}
       {enabledCommittees.length > 0 && (
-        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-white/5">
-          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-purple-900/10 rounded-full blur-[150px] pointer-events-none translate-y-[-50%]"></div>
-          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-cyan-900/10 rounded-full blur-[150px] pointer-events-none"></div>
+        <section className="py-20 md:py-32 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-purple-500/5 rounded-full blur-[150px] pointer-events-none translate-y-[-50%]"></div>
+          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20 flex flex-col items-center">
               <div className="text-center mb-16 md:mb-24">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-6 md:mb-8 font-mono">
-                   <Star className="w-4 h-4 text-purple-400" />
-                   <span className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-purple-50">Operations</span>
-                </div>
-                <h2 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 tracking-tighter text-white">
-                  CORE <span className="text-white/50 font-light">COMMITTEES</span>
+
+                <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+                  CORE <span className="text-purple-500/80 font-light">DIVISIONS</span>
                 </h2>
-                <p className="text-sm md:text-lg text-white/50 max-w-3xl mx-auto font-light">
-                  The specialized teams managing {BRAND_NAME}'s operations
+                <p className="text-sm md:text-lg text-purple-100/50 max-w-3xl mx-auto font-light hud-monospace">
+                  The operative wings managing {BRAND_NAME}'s global presence
                 </p>
               </div>
             </div>
 
-            {/* Committees */}
-            <div className="space-y-16">
+            {/* Committees Accordion */}
+            <div className="space-y-4">
               {enabledCommittees.map((committee, committeeIndex) => (
                 <CommitteeSection 
                   key={committee.id}
@@ -410,9 +462,8 @@ export const RicoFamily: React.FC = () => {
                   isMobile={isMobile}
                   committeeIndex={committeeIndex}
                   isLeadWebDevRole={isLeadWebDevRole}
-                  expandedMembers={expandedMembers}
-                  bootingMembers={bootingMembers}
-                  toggleMemberExpanded={toggleMemberExpanded}
+                  isOpen={openCommitteeId === committee.id}
+                  onToggle={() => setOpenCommitteeId(prev => (prev === committee.id ? null : committee.id))}
                 />
               ))}
             </div>
@@ -422,27 +473,33 @@ export const RicoFamily: React.FC = () => {
 
       {/* Legacy Core Team Section (fallback if no committees) */}
       {enabledCommittees.length === 0 && (
-        <section className="py-20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/30 to-pink-900/20"></div>
+        <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]"></div>
           <div className="container mx-auto px-4 relative z-10">
             <div className="scroll-animate opacity-0 transform translate-y-20">
               <div className="text-center mb-16">
-                <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                  CORE <span className="neon-blue">TEAM</span>
+                <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+                  CORE <span className="text-cyan-500/80 font-light">TEAM</span>
                 </h2>
-                <div className="w-32 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mb-8 expand-width"></div>
-                <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-                  Team information will be managed through the admin dashboard
+                <div className="w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mx-auto mb-8 expand-width"></div>
+                <p className="text-sm md:text-lg text-cyan-100/50 max-w-3xl mx-auto hud-monospace">
+                  Team information will be managed through the admin dashboard. Pending S.H.I.E.L.D. clearance.
                 </p>
               </div>
             </div>
 
             <div className="text-center py-12">
-              <div className="neon-card max-w-md mx-auto p-8">
-                <Users size={64} className="mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">No Committees Yet</h3>
-                <p className="text-gray-500">
-                  Core team committees will be managed through the admin dashboard
+              <div className="shield-dossier clip-angular-br border-cyan-500/30 bg-black/60 backdrop-blur-md box-glow-cyan max-w-md mx-auto p-8 relative">
+                {/* Corner Targets */}
+                <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-500/50"></div>
+                <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-500/50"></div>
+                
+                <div className="inline-flex items-center justify-center w-16 h-16 mb-4 bg-cyan-500/10 border border-cyan-500/50 clip-angular-sm">
+                  <Users className="text-cyan-500 w-8 h-8 pulse-glow" />
+                </div>
+                <h3 className="mcu-title-text text-xl text-cyan-50 tracking-widest mb-2">NO COMMITTEES ACTIVE</h3>
+                <p className="text-cyan-100/50 text-xs font-mono tracking-widest">
+                  Core team directives are awaiting admin initialization.
                 </p>
               </div>
             </div>
@@ -584,15 +641,15 @@ export const RicoFamily: React.FC = () => {
       `}</style>
 
       {/* Values Section */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-blue-900/20 to-pink-900/20"></div>
+      <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.02]"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}>
             <div className="text-center mb-16">
-              <h2 className="text-5xl md:text-6xl font-black mb-6 neon-title">
-                OUR <span className="neon-pink">VALUES</span>
+              <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+                CORE <span className="text-cyan-500/80 font-light">DIRECTIVES</span>
               </h2>
-              <div className="w-32 h-1 bg-gradient-to-r from-purple-500 to-pink-500 mx-auto mb-8 expand-width"></div>
+              <div className="w-32 h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent mx-auto mb-8 expand-width"></div>
             </div>
           </div>
 
@@ -615,12 +672,17 @@ export const RicoFamily: React.FC = () => {
               }
             ].map((value, index) => (
               <div key={index} className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20 hover-float" : "hover-float"} style={{ animationDelay: `${index * 0.2}s` }}>
-                <div className="neon-card group text-center p-8">
-                  <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-gradient-to-r from-pink-500 to-purple-500 group-hover:scale-110 transition-transform pulse-ring">
-                    <value.icon size={32} className="text-white" />
+                <div className="shield-dossier clip-angular-br border-cyan-500/30 bg-black/60 backdrop-blur-md box-glow-cyan p-8 group transition-all duration-300 relative">
+                  <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.2] mix-blend-overlay"></div>
+                  {/* Corner Target Markers */}
+                  <div className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-500/50"></div>
+                  <div className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-500/50"></div>
+                  
+                  <div className="inline-flex items-center justify-center w-16 h-16 mb-6 bg-cyan-500/10 border border-cyan-500/50 clip-angular-sm group-hover:bg-cyan-500/20 transition-colors">
+                    <value.icon size={32} className="text-cyan-400 group-hover:text-cyan-300 pulse-glow" />
                   </div>
-                  <h3 className="text-2xl font-bold mb-4 neon-text">{value.title}</h3>
-                  <p className="text-gray-300 leading-relaxed">{value.desc}</p>
+                  <h3 className="text-xl font-bold mb-4 mcu-title-text text-cyan-50 tracking-wider">{value.title}</h3>
+                  <p className="text-cyan-100/60 font-light font-mono text-sm leading-relaxed">{value.desc}</p>
                 </div>
               </div>
             ))}
@@ -629,14 +691,14 @@ export const RicoFamily: React.FC = () => {
       </section>
 
       {/* Join the Family CTA */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-pink-900/40 via-purple-900/60 to-blue-900/40"></div>
+      <section className="py-20 relative overflow-hidden bg-[#030712] border-t border-cyan-500/20">
+        <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px] pointer-events-none mix-blend-screen"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className={!isMobile ? "scroll-animate opacity-0 transform translate-y-20" : ""}>
-            <h2 className="text-5xl md:text-7xl font-black mb-6 neon-title">
-              JOIN THE <span className="neon-pink">FAMILY</span>
+            <h2 className="text-4xl sm:text-5xl md:text-7xl mb-4 mcu-title-text mcu-title-glow">
+              JOIN THE <span className="text-cyan-500/80 font-light">INITIATIVE</span>
             </h2>
-            <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-sm md:text-lg text-cyan-100/50 mb-8 max-w-3xl mx-auto font-light hud-monospace">
               Become part of the RICORRENZA legacy and help shape the future of medical education
             </p>
             
@@ -644,19 +706,21 @@ export const RicoFamily: React.FC = () => {
               {formSettings?.membership_form_enabled ? (
                 <button 
                   onClick={() => startTransition(() => setMembershipModal(true))}
-                  className="neon-btn neon-btn-primary group text-lg px-8 py-4 hover-float"
+                  className="relative px-8 py-4 bg-cyan-500/10 border border-cyan-500 text-cyan-400 font-bold tracking-[0.2em] uppercase box-glow-cyan clip-angular-sm transition-all hover:bg-cyan-500/30 hover:text-white group hover:-translate-y-1"
                 >
                   <span className="relative z-10 flex items-center">
-                    <Users className="mr-2 group-hover:animate-pulse" size={24} />
-                    BECOME A MEMBER
-                    <ArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" size={24} />
+                    <Users className="mr-3 w-5 h-5 text-cyan-300" />
+                    ENLIST NOW
+                    <ArrowRight className="ml-3 w-5 h-5 text-cyan-300 group-hover:translate-x-2 transition-transform" />
                   </span>
                 </button>
               ) : (
-                <div className="neon-card p-6 text-center max-w-md">
-                  <Users className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <h3 className="text-lg font-semibold text-gray-300 mb-2">Membership Closed</h3>
-                  <p className="text-gray-500 text-sm">
+                <div className="shield-dossier clip-angular-br border-red-500/30 bg-black/60 backdrop-blur-md box-glow-red p-8 max-w-md mx-auto">
+                  <div className="inline-flex items-center justify-center w-12 h-12 mb-4 bg-red-500/10 border border-red-500/50 clip-angular-sm">
+                    <Shield className="w-6 h-6 text-red-500" />
+                  </div>
+                  <h3 className="mcu-title-text text-red-400 text-xl mb-2">ACCESS RESTRICTED</h3>
+                  <p className="text-red-300/70 hud-monospace text-xs">
                     {formSettings?.membership_form_message || 'Membership applications are currently closed. Please check back later.'}
                   </p>
                 </div>
@@ -682,525 +746,11 @@ export const RicoFamily: React.FC = () => {
           name: selectedFaculty.name,
           title: selectedFaculty.title,
           image: selectedFaculty.image,
-          description: selectedFaculty.description,
-          specialty: (selectedFaculty as any).specialty,
           email: (selectedFaculty as any).email,
           phone: (selectedFaculty as any).phone,
-          achievements: selectedFaculty.achievements,
           social_links: (selectedFaculty as any).social_links,
         } : null}
       />
-
-      <style>{`
-        .neon-theme {
-          background: #0a0a0a;
-          color: #ffffff;
-          font-family: 'Orbitron', 'Rajdhani', sans-serif;
-          min-height: 100vh;
-        }
-
-        .hero-section {
-          position: relative;
-          background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-        }
-
-        .neon-grid {
-          background-image: 
-            linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
-          background-size: 50px 50px;
-          animation: gridMove 20s linear infinite;
-        }
-
-        @keyframes gridMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(50px, 50px); }
-        }
-
-        /* particles CSS removed */
-            opacity: 1;
-          }
-          90% {
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100px) scale(1);
-            opacity: 0;
-          }
-        }
-
-        .neon-title {
-          background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-          background-size: 200% 200%;
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradientShift 3s ease-in-out infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-
-        .neon-text {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .neon-pink {
-          color: #ff00ff;
-          text-shadow: 
-            0 0 2px #ff00ff,
-            0 0 4px #ff00ff;
-        }
-
-        .neon-blue {
-          color: #00ffff;
-          text-shadow: 
-            0 0 2px #00ffff,
-            0 0 4px #00ffff;
-        }
-
-        .neon-purple {
-          color: #8a2be2;
-          text-shadow: 
-            0 0 2px #8a2be2,
-            0 0 4px #8a2be2;
-        }
-
-        .neon-yellow {
-          color: #ffff00;
-          text-shadow: 
-            0 0 2px #ffff00,
-            0 0 4px #ffff00;
-        }
-
-        .glow-text {
-          text-shadow: 
-            0 0 2px currentColor,
-            0 0 4px currentColor;
-        }
-
-        .glitch-active {
-          animation: glitch 0.3s ease-in-out;
-        }
-
-        @keyframes glitch {
-          0% { transform: translate(0); }
-          20% { transform: translate(-2px, 2px); }
-          40% { transform: translate(-2px, -2px); }
-          60% { transform: translate(2px, 2px); }
-          80% { transform: translate(2px, -2px); }
-          100% { transform: translate(0); }
-        }
-
-        .glitch-overlay {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(
-            90deg,
-            transparent 0%,
-            rgba(255, 0, 255, 0.1) 50%,
-            transparent 100%
-          );
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity 0.3s ease;
-        }
-
-        .glitch-overlay.active {
-          opacity: 1;
-          animation: glitchSweep 0.3s ease-in-out;
-        }
-
-        @keyframes glitchSweep {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        .neon-btn {
-          position: relative;
-          padding: 12px 32px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          border: 2px solid;
-          background: transparent;
-          overflow: hidden;
-          transition: all 0.3s ease;
-          clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 100%, 20px 100%);
-        }
-
-        .neon-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .neon-btn:hover::before {
-          left: 100%;
-        }
-
-        .neon-btn-primary {
-          border-color: #ff00ff;
-          color: #ff00ff;
-          box-shadow: 
-            0 0 10px rgba(255, 0, 255, 0.2),
-            inset 0 0 10px rgba(255, 0, 255, 0.05);
-        }
-
-        .neon-btn-primary:hover {
-          background: rgba(255, 0, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(255, 0, 255, 0.4),
-            inset 0 0 20px rgba(255, 0, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .neon-btn-secondary {
-          border-color: #00ffff;
-          color: #00ffff;
-          box-shadow: 
-            0 0 10px rgba(0, 255, 255, 0.2),
-            inset 0 0 10px rgba(0, 255, 255, 0.05);
-        }
-
-        .neon-btn-secondary:hover {
-          background: rgba(0, 255, 255, 0.1);
-          box-shadow: 
-            0 0 20px rgba(0, 255, 255, 0.4),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-          transform: translateY(-2px);
-        }
-
-        .neon-card {
-          background: rgba(20, 20, 40, 0.8);
-          border: 1px solid rgba(0, 255, 255, 0.3);
-          border-radius: 8px;
-          backdrop-filter: blur(10px);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .neon-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #ff00ff, #00ffff, #ff00ff);
-          transform: translateX(-100%);
-          transition: transform 0.5s ease;
-        }
-
-        .neon-card:hover::before {
-          transform: translateX(0);
-        }
-
-        .neon-card:hover {
-          border-color: rgba(255, 0, 255, 0.6);
-          box-shadow: 
-            0 10px 30px rgba(0, 0, 0, 0.5),
-            0 0 15px rgba(255, 0, 255, 0.1);
-          transform: translateY(-5px);
-        }
-
-        /* Borderless variant for marquee cards */
-        .neon-card.borderless {
-          border: none !important;
-          box-shadow: none !important;
-        }
-        .neon-card.borderless::before {
-          display: none !important;
-        }
-        .neon-card.borderless:hover {
-          border: none !important;
-          box-shadow: none !important;
-          transform: none !important;
-        }
-
-        .scroll-animate {
-          transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        }
-
-        .scroll-animate.animate-in {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
-        }
-
-        .hover-float:hover {
-          animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-10px); }
-        }
-
-        .expand-width {
-          animation: expandWidth 1s ease-out 0.8s both;
-        }
-
-        @keyframes expandWidth {
-          from {
-            width: 0;
-          }
-          to {
-            width: 8rem;
-          }
-        }
-
-        .pulse-ring {
-          position: relative;
-        }
-
-        .pulse-ring::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 100%;
-          height: 100%;
-          border: 2px solid rgba(255, 0, 255, 0.3);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          animation: pulseRing 2s ease-out infinite;
-        }
-
-        @keyframes pulseRing {
-          0% {
-            transform: translate(-50%, -50%) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(2);
-            opacity: 0;
-          }
-        }
-
-        /* Faculty Head Specific Styles */
-        .faculty-spotlight {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .faculty-spotlight::after {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 0, 0.05) 50%, transparent 70%);
-          animation: facultyShine 4s ease-in-out infinite;
-          pointer-events: none;
-        }
-
-        @keyframes facultyShine {
-          0%, 100% { transform: translateX(-100%) rotate(45deg); }
-          50% { transform: translateX(100%) rotate(45deg); }
-        }
-
-        .faculty-image {
-          transition: all 0.5s ease;
-          filter: grayscale(20%) contrast(110%);
-        }
-
-        .faculty-spotlight:hover .faculty-image {
-          filter: grayscale(0%) contrast(120%);
-          transform: scale(1.05);
-        }
-
-        .faculty-name { animation: nameGlowYellow 3s ease-in-out infinite alternate; }
-        .faculty-name.webdev { animation: nameGlowCyan 3s ease-in-out infinite alternate; }
-        .faculty-name.tech-lead-raaj-name { animation: nameGlowGreen 3s ease-in-out infinite alternate; }
-
-        @keyframes nameGlowYellow {
-          from { text-shadow: 0 0 2px #ffff00, 0 0 4px #ffff00; }
-          to { text-shadow: 0 0 4px #ffff00, 0 0 8px #ffff00, 0 0 12px #ffff00; }
-        }
-        @keyframes nameGlowCyan {
-          from { text-shadow: 0 0 2px #22d3ee, 0 0 4px #22d3ee; }
-          to { text-shadow: 0 0 4px #22d3ee, 0 0 8px #06b6d4, 0 0 14px #0891b2; }
-        }
-        @keyframes nameGlowGreen {
-          from { text-shadow: 0 0 2px #22c55e, 0 0 4px #22c55e; }
-          to { text-shadow: 0 0 4px #22c55e, 0 0 8px #16a34a, 0 0 14px #15803d; }
-        }
-
-        /* Council red glow */
-        .council-name { animation: nameGlowRed 3s ease-in-out infinite alternate; }
-        @keyframes nameGlowRed {
-          from { text-shadow: 0 0 2px #f87171, 0 0 4px #f87171; }
-          to { text-shadow: 0 0 4px #f87171, 0 0 8px #ef4444, 0 0 14px #dc2626; }
-        }
-
-        .achievement-item {
-          opacity: 0;
-          animation: achievementSlideIn 0.6s ease-out forwards;
-        }
-
-        @keyframes achievementSlideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        /* Core Team Specific Styles */
-        .team-card {
-          position: relative;
-        }
-
-        .team-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(45deg, transparent, rgba(0, 255, 255, 0.1), transparent);
-          opacity: 0;
-          transition: opacity 0.5s ease;
-          pointer-events: none;
-          z-index: 1;
-        }
-
-        .team-card:hover::before {
-          opacity: 1;
-          animation: teamCardSweep 1s ease-in-out;
-        }
-
-        @keyframes teamCardSweep {
-          0% { transform: translateX(-100%) rotate(45deg); }
-          100% { transform: translateX(100%) rotate(45deg); }
-        }
-
-        .team-member-image {
-          filter: grayscale(30%) contrast(110%);
-          transition: all 0.5s ease;
-        }
-
-        .team-card:hover .team-member-image {
-          filter: grayscale(0%) contrast(120%);
-        }
-
-        .member-name {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .member-name::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 0;
-          height: 2px;
-          background: linear-gradient(90deg, #00ffff, #ff00ff);
-          transition: width 0.5s ease;
-        }
-
-        .team-card:hover .member-name::after {
-          width: 100%;
-        }
-
-        .floating-icon {
-          animation: floatingIcon 3s ease-in-out infinite;
-        }
-
-        @keyframes floatingIcon {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-10px) rotate(180deg); }
-        }
-
-        .pulse-glow {
-          animation: pulseGlow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes pulseGlow {
-          from {
-            box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
-          }
-          to {
-            box-shadow: 0 0 15px rgba(59, 130, 246, 0.6);
-          }
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 768px) {
-          .neon-title {
-            font-size: 2rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 2.5rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 1rem !important;
-          }
-          
-          /* particles CSS removed */
-          
-          .neon-btn {
-            padding: 10px 24px;
-            font-size: 0.9rem;
-            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 100%, 10px 100%);
-          }
-          
-          .neon-card {
-            margin: 0 4px;
-          }
-          
-          .container {
-            padding-left: 1rem;
-            padding-right: 1rem;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .neon-title {
-            font-size: 1.5rem;
-          }
-          
-          .hero-section h1 {
-            font-size: 2rem !important;
-          }
-          
-          .hero-section p {
-            font-size: 0.9rem !important;
-          }
-          
-          .neon-btn {
-            padding: 8px 16px;
-            font-size: 0.8rem;
-            clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 100%, 5px 100%);
-          }
-          
-          .container {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-          }
-        }
-      `}</style>
     </div>
   );
 };

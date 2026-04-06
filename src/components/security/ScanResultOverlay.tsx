@@ -31,33 +31,33 @@ export function ScanResultOverlay({
   const getResultStyle = () => {
     if (isValid) {
       return {
-        bg: 'bg-green-500/95',
-        border: 'border-green-300',
+        bg: 'bg-cyan-600/95',
+        border: 'border-cyan-300',
         icon: CheckCircle2,
-        iconColor: 'text-green-100',
+        iconColor: 'text-cyan-100',
         title: 'PASS ✓',
-        titleColor: 'text-green-50',
-        gradient: 'from-green-600 to-green-400'
+        titleColor: 'text-cyan-50',
+        gradient: 'from-cyan-700 to-cyan-500'
       };
     } else if (isAlreadyUsed) {
       return {
-        bg: 'bg-orange-500/95',
-        border: 'border-orange-300',
+        bg: 'bg-indigo-600/95',
+        border: 'border-indigo-300',
         icon: AlertTriangle,
-        iconColor: 'text-orange-100',
+        iconColor: 'text-indigo-100',
         title: 'ALREADY USED ⚠',
-        titleColor: 'text-orange-50',
-        gradient: 'from-orange-600 to-orange-400'
+        titleColor: 'text-indigo-50',
+        gradient: 'from-indigo-700 to-indigo-500'
       };
     } else {
       return {
-        bg: 'bg-red-500/95',
-        border: 'border-red-300',
+        bg: 'bg-rose-600/95',
+        border: 'border-rose-300',
         icon: XCircle,
-        iconColor: 'text-red-100',
+        iconColor: 'text-rose-100',
         title: 'REJECT ✗',
-        titleColor: 'text-red-50',
-        gradient: 'from-red-600 to-red-400'
+        titleColor: 'text-rose-50',
+        gradient: 'from-rose-700 to-rose-500'
       };
     }
   };
@@ -108,7 +108,7 @@ export function ScanResultOverlay({
     >
       {/* Backdrop */}
       <div className={`absolute inset-0 backdrop-blur-md transition-colors duration-500 ${
-        isValid ? 'bg-green-600/40 animate-pulse' : 'bg-red-900/40'
+        isValid ? 'bg-cyan-600/20 animate-pulse' : 'bg-rose-900/30'
       }`} />
       <div className="absolute inset-0 bg-black/60" />
 
@@ -117,7 +117,7 @@ export function ScanResultOverlay({
         className={`relative w-full h-full md:h-auto md:max-w-2xl md:min-h-[600px] md:rounded-3xl border-0 md:border-4 ${style.border} shadow-2xl overflow-hidden transform transition-all duration-300 flex flex-col justify-center ${
           isExiting ? 'scale-110' : 'scale-100'
         }`}
-        style={{ backgroundColor: isValid ? '#065f46' : '#991b1b' }} 
+        style={{ backgroundColor: isValid ? '#0891b2' : '#9d174d' }} 
       >
         {/* Progress Bar (Visual feedback of time remaining) */}
         {autoDismissMs > 0 && (
@@ -165,8 +165,8 @@ export function ScanResultOverlay({
                   {result.name}
                 </p>
                 {result.pass_type === 'vip' && (
-                  <div className="bg-yellow-400 text-yellow-900 px-4 py-2 rounded-xl border-2 border-yellow-200 flex items-center gap-2 shadow-xl animate-pulse transform scale-90 sm:scale-100">
-                    <Crown className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <div className="bg-gradient-to-r from-violet-600 to-indigo-600 text-white px-4 py-2 rounded-xl border-2 border-violet-400/50 flex items-center gap-2 shadow-xl animate-pulse transform scale-90 sm:scale-100">
+                    <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-300" />
                     <span className="font-black text-xs sm:text-sm uppercase tracking-tighter">VIP ELITE</span>
                   </div>
                 )}

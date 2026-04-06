@@ -4,7 +4,6 @@ import { AIChatScanner } from './AIChatScanner';
 export interface ExtractedCoreTeamData {
   committees: {
     name: string;
-    description: string;
     is_core: boolean;
   }[];
   members: {
@@ -12,10 +11,8 @@ export interface ExtractedCoreTeamData {
     committee_name: string;
     role: string;
     is_head: boolean;
-    specialty: string;
     phone: string;
     instagram: string;
-    description: string;
     image_index?: number;
   }[];
 }
@@ -29,7 +26,6 @@ Your goal is to extract committees and their members from organizational charts,
 
 MANDATORY FIELDS FOR COMMITTEES:
 - "name": Official name of the committee.
-- "description": A short summary of the committee's purpose.
 - "is_core": boolean.
 
 MANDATORY FIELDS FOR MEMBERS:
@@ -49,7 +45,6 @@ STRICT PROTOCOL:
   "committees": [
     {
       "name": "...",
-      "description": "...",
       "is_core": true
     }
   ],
@@ -59,18 +54,15 @@ STRICT PROTOCOL:
       "committee_name": "...",
       "role": "...",
       "is_head": true,
-      "specialty": "...",
       "phone": "...",
       "instagram": "https://instagram.com/...",
-      "image_index": 0,
-      "description": "..."
+      "image_index": 0
     }
   ]
 }
 \`\`\`
 7. Do not guess mandatory information. If unclear, ASK. For non-mandatory fields like images and contact info, just use placeholders or omit.
-8. If the user tells you to "extract what you can" or "proceed without missing info", use placeholders for missing mandatory fields and generate JSON.
-9. If a committee description is missing, use "Core Committee".`;
+8. If the user tells you to "extract what you can" or "proceed without missing info", use placeholders for missing mandatory fields and generate JSON.`;
 
 interface AICoreTeamScannerProps {
   onScanComplete: (data: ExtractedCoreTeamData, images: string[]) => void;

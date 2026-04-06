@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { CountdownTimer } from '../components/CountdownTimer';
 import { SEO } from '../components/SEO';
-import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
-import { Camera, Clapperboard, Film, Sparkles, Star, Music, Award } from 'lucide-react';
-import { CinemaMaintenanceScene } from '../components/CinemaMaintenanceScene';
-import '../components/CinemaMaintenanceScene.css';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Cpu, Activity, Zap, Terminal, Database, ShieldCheck, Github } from 'lucide-react';
+import { ConcertMaintenanceScene } from '../components/ui/ConcertMaintenanceScene';
 
 interface ComingSoonProps {
   previewSettings?: {
@@ -19,8 +18,8 @@ interface ComingSoonProps {
   isMaintenance?: boolean;
 }
 
-export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaintenance }) => {
-  const { siteSettings: globalSettings } = useData();
+export const ComingSoon: React.FC<ComingSoonProps> = React.memo(({ previewSettings, isMaintenance }) => {
+  const { siteSettings: globalSettings, isAdmin } = useData();
   const [isWrap, setIsWrap] = useState(false);
   
   // Use preview settings if provided, otherwise fall back to global settings
@@ -29,32 +28,12 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaint
   const until = settings?.coming_soon_until ? new Date(settings.coming_soon_until) : null;
   const enabled = !!settings?.coming_soon_enabled;
   const hardClosed = !!settings?.site_closed;
-  const endedText = (settings as any)?.coming_soon_ended_text || "We'll be back soon";
+  const endedText = (settings as any)?.coming_soon_ended_text || "System Restoration Complete";
   const csTitle = (settings as any)?.coming_soon_title || null;
   const csMessage = (settings as any)?.coming_soon_message || null;
   const showTimer = enabled && !!until;
 
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  
-  // Create smooth springs for the 3D tilt
-  const springX = useSpring(mouseX, { stiffness: 60, damping: 25 });
-  const springY = useSpring(mouseY, { stiffness: 60, damping: 25 });
-
-  // Map mouse positions to 3D rotation
-  const rotateX = useTransform(springY, [-0.5, 0.5], [12, -12]);
-  const rotateY = useTransform(springX, [-0.5, 0.5], [-12, 12]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseX.set((e.clientX / window.innerWidth) - 0.5);
-      mouseY.set((e.clientY / window.innerHeight) - 0.5);
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY]);
-
-  // Check for Wrap state — poll every second
+  // Check for Link state — poll every second
   useEffect(() => {
     const check = () => {
       if (until && Date.now() >= until.getTime()) {
@@ -70,100 +49,105 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaint
 
   if (isMaintenance) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center relative overflow-hidden font-serif select-none" style={{ perspective: '1200px' }}>
+      <div className="min-h-screen bg-[#030303] text-white flex flex-col items-center justify-center relative overflow-hidden font-mono select-none" style={{ perspective: '1200px' }}>
         <SEO 
-          title={isWrap ? "It's a Wrap! | Success" : "Bollywood Film Set | Maintenance"} 
-          description={csMessage || "Lights, Camera, Action! System stabilization in progress on the Ricorrenza film set."}
+          title={isWrap ? "Neural Link Established | Ricorrenza" : "System Patching | Maintenance Mode"} 
+          description={csMessage || "Ricorrenza neural interface is currently under construction. Please wait for the uplink."}
         />
         
         <AnimatePresence mode="wait">
           {!isWrap ? (
             <motion.div 
-              key="shooting"
+              key="maintenance-active"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 1.1 }}
               transition={{ duration: 0.8 }}
               className="absolute inset-0 flex flex-col items-center justify-center"
             >
-              {/* New Cinema Production Maintenance Scene */}
-              <CinemaMaintenanceScene
-                title={csTitle || 'Production in Progress'}
-                message={csMessage || 'Our crew is setting up the stage — the show will begin shortly!'}
+              <ConcertMaintenanceScene
+                title={csTitle || undefined}
+                message={csMessage || undefined}
+                timerTarget={showTimer ? (until as Date) : undefined}
+                onTimerDone={() => setIsWrap(true)}
               />
               
-              {/* Countdown Timer Overlay */}
-              {showTimer && (
-                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-                  <div className="bg-black/70 backdrop-blur-xl border border-[#d4af37]/30 rounded-2xl px-6 py-3 flex flex-col items-center gap-2 shadow-2xl">
-                    <span className="text-[9px] uppercase tracking-[0.5em] text-[#d4af37] font-bold">Release In</span>
-                    <CountdownTimer 
-                      target={until as Date} 
-                      size="lg" 
-                      className="text-white font-black italic" 
-                      endedText={endedText} 
-                      showEnded 
-                      onDone={() => setIsWrap(true)} 
-                    />
-                  </div>
-                </div>
-              )}
+              {/* Admin Portal Gateway */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2 }}
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4"
+              >
+                 {!isAdmin() ? (
+                   <a href="/login" className="px-6 py-2.5 bg-[#0a0a0a]/40 border border-white/10 rounded-full hover:bg-white/10 hover:border-cyan-500/50 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl shadow-2xl">
+                     <ShieldCheck size={14} className="group-hover:rotate-12 transition-transform text-cyan-400" /> Authorized Personnel Access
+                   </a>
+                 ) : (
+                   <button 
+                    onClick={() => setIsWrap(true)} 
+                    className="px-6 py-2.5 bg-cyan-500/10 border border-cyan-500/30 rounded-full hover:bg-cyan-500/20 transition-all text-[10px] tracking-widest uppercase font-bold flex items-center gap-2 group backdrop-blur-xl text-cyan-400 shadow-2xl shadow-cyan-500/10"
+                   >
+                     <Zap size={14} className="group-hover:scale-125 transition-transform" /> Skip Maintenance Timer (Admin Override)
+                   </button>
+                 )}
+              </motion.div>
             </motion.div>
           ) : (
             <motion.div 
-              key="wrap"
+              key="maintenance-complete"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 50 }}
               className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden"
             >
-              {/* Celebratory Purple & Gold Backdrop */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#2d004d_0%,#000_100%)]" />
+              {/* High-Tech Celebratory Backdrop */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#082f49_0%,#000_100%)]" />
               
-              {/* Confetti Star Spray */}
-              {[...Array(40)].map((_, i) => (
+              {/* Digital Data Rain fragments (Optimized count) */}
+              {[...Array(12)].map((_, i) => (
                 <motion.div
-                  key={`star-${i}`}
+                  key={`data-${i}`}
                   initial={{ 
                     x: Math.random() * window.innerWidth - window.innerWidth/2, 
                     y: window.innerHeight,
-                    opacity: 1
+                    opacity: 0
                   }}
                   animate={{ 
                     y: [null, -1000],
                     x: [null, Math.random() * 400 - 200],
-                    rotate: [0, 720]
+                    opacity: [0, 1, 0]
                   }}
                   transition={{ 
-                    duration: 2 + Math.random() * 4, 
+                    duration: 1.5 + Math.random() * 3, 
                     repeat: Infinity,
                     delay: Math.random() * 5
                   }}
-                  className="absolute pointer-events-none"
+                  className="absolute pointer-events-none text-[8px] font-mono whitespace-nowrap overflow-hidden text-cyan-500/40"
                 >
-                  <Star fill="#d4af37" color="#d4af37" size={10 + Math.random() * 15} />
+                  {Math.random().toString(16).slice(2, 10).toUpperCase()}
                 </motion.div>
               ))}
 
-              <div className="relative z-10 space-y-12 text-center" style={{ transformStyle: 'preserve-3d' }}>
-                {/* Snap Clapperboard Animation */}
+              <div className="relative z-10 space-y-12 text-center">
+                {/* Massive Animated Success Icon */}
                 <motion.div 
-                  initial={{ rotateX: -60 }}
-                  animate={{ rotateX: 0 }}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
                   className="flex justify-center mb-8"
                 >
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="relative w-48 h-48 flex items-center justify-center">
                     <motion.div 
-                      animate={{ rotateX: [-20, 0] }}
-                      transition={{ duration: 0.2, delay: 0.5 }}
-                      className="w-32 md:w-48 h-8 bg-black border-2 border-white/20 rounded-t-lg origin-bottom flex items-center justify-around"
-                    >
-                      {[...Array(6)].map((_, i) => <div key={i} className="w-4 h-full bg-white/10 -skew-x-12" />)}
-                    </motion.div>
-                    <div className="w-40 md:w-60 h-24 bg-black border-2 border-white/20 rounded-sm flex flex-col items-center justify-center font-black">
-                       <span className="text-[#d4af37] text-2xl md:text-3xl">IT'S A WRAP!</span>
-                       <span className="text-white/40 text-[10px] tracking-widest mt-2 uppercase">Take 01 • Scene 01 • OK</span>
-                    </div>
+                      className="absolute inset-0 border-2 border-dynamic/30 rounded-full"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <motion.div 
+                      className="absolute inset-4 border border-dynamic/20 rounded-full"
+                      animate={{ rotate: -360 }}
+                      transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+                    />
+                    <ShieldCheck size={100} className="text-dynamic drop-shadow-[0_0_25px_rgba(var(--dynamic-accent-rgb),0.6)]" />
                   </div>
                 </motion.div>
 
@@ -171,18 +155,18 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaint
                   <motion.h3 
                     animate={{ scale: [0.95, 1.05, 0.95] }}
                     transition={{ duration: 3, repeat: Infinity }}
-                    className="text-white/40 text-xs md:text-sm uppercase tracking-[1em] font-bold"
+                    className="text-dynamic text-xs md:text-sm uppercase tracking-[0.8em] font-bold"
                   >
-                    Shooting Completed Successfully
+                    Neural Link Established Successfully
                   </motion.h3>
-                  <h1 className="text-7xl md:text-[10rem] font-black tracking-tighter uppercase text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]">
-                    Ricorrenza
+                  <h1 className="text-6xl md:text-9xl font-black tracking-tighter uppercase text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.4)]">
+                    RICORRENZA
                   </h1>
-                  <div className="flex justify-center gap-8 text-[#d4af37]">
-                     <motion.div animate={{ y: [-10, 10] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2 }}><Camera size={32} /></motion.div>
-                     <motion.div animate={{ y: [10, -10] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2.2 }}><Film size={32} /></motion.div>
-                     <motion.div animate={{ y: [-10, 10] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 1.8 }}><Music size={32} /></motion.div>
-                     <motion.div animate={{ y: [10, -10] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2.5 }}><Award size={32} /></motion.div>
+                  <div className="flex justify-center gap-12 text-cyan-400/60">
+                     <motion.div animate={{ y: [-5, 5] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2 }}><Cpu size={32} /></motion.div>
+                     <motion.div animate={{ y: [5, -5] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2.2 }}><Activity size={32} /></motion.div>
+                     <motion.div animate={{ y: [-5, 5] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 1.8 }}><Database size={32} /></motion.div>
+                     <motion.div animate={{ y: [5, -5] }} transition={{ repeat: Infinity, repeatType: "mirror", duration: 2.5 }}><Terminal size={32} /></motion.div>
                   </div>
                 </div>
 
@@ -192,8 +176,8 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaint
                   transition={{ delay: 1 }}
                   className="pt-12"
                 >
-                  <a href="/" className="inline-flex items-center gap-4 bg-white text-black px-12 py-4 rounded-full font-black text-xl hover:scale-110 transition-all group">
-                    ENTER PREMIERE <Sparkles className="group-hover:rotate-12 transition-transform" />
+                  <a href="/" className="inline-flex items-center gap-4 bg-cyan-500 text-black px-12 py-4 rounded-full font-black text-xl hover:scale-105 transition-all group shadow-[0_0_40px_rgba(34,211,238,0.4)]">
+                    INITIALIZE INTERFACE <Zap className="group-hover:scale-125 transition-transform" />
                   </a>
                 </motion.div>
               </div>
@@ -202,95 +186,103 @@ export const ComingSoon: React.FC<ComingSoonProps> = ({ previewSettings, isMaint
         </AnimatePresence>
 
         <style dangerouslySetInnerHTML={{ __html: `
-          body { background-color: #0a0a0a !important; cursor: crosshair; }
-          @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;900&display=swap');
-          h1 { font-family: 'Cinzel', serif !important; }
+          body { background-color: #030303 !important; cursor: crosshair; }
         ` }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden font-mono">
       <SEO 
-        title="Coming Soon" 
-        description={csMessage || "Something big is coming. Stay tuned for updates."}
+        title="Access Denied | Ricorrenza" 
+        description={csMessage || "Neural link offline. Re-establishing connection."}
       />
       {/* Cyber grid + glow backdrop */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(closest-side,rgba(255,255,255,0.08),transparent_60%)]" />
-      <div className="absolute -top-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-fuchsia-500/15 blur-3xl" />
-      <div className="absolute -bottom-32 -right-24 w-[30rem] h-[30rem] rounded-full bg-cyan-400/15 blur-3xl" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(closest-side,rgba(34,211,238,0.1),transparent_60%)]" />
+      <div className="absolute -top-40 -left-32 w-[28rem] h-[28rem] rounded-full bg-indigo-500/10 blur-3xl opacity-30" />
+      <div className="absolute -bottom-32 -right-24 w-[30rem] h-[30rem] rounded-full bg-cyan-400/10 blur-3xl opacity-30" />
+
+      {/* Subtle Scanlines */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
+           style={{ 
+             backgroundImage: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(18, 16, 16, 0.25) 50%), linear-gradient(90deg, rgba(99, 102, 241, 0.05), rgba(6, 182, 212, 0.02), rgba(139, 92, 246, 0.05))',
+             backgroundSize: '100% 4px, 3px 100%'
+           }} 
+      />
 
       <div className="relative z-10 px-6 text-center max-w-4xl">
 
-        {/* Big Ricorrenza neon with 3D-ish layers */}
-        <div className="relative inline-block select-none">
-          <div className="absolute inset-0 blur-md opacity-60" style={{textShadow: '0 0 30px rgba(236,72,153,0.45), 0 0 60px rgba(34,211,238,0.35)'}}>
-            <span className="text-[clamp(40px,12vw,140px)] font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-pink-400 via-white to-cyan-300">Ricorrenza</span>
+        {/* Big Ricorrenza neon HUD titles */}
+        <div className="relative inline-block select-none group">
+          <div className="absolute inset-0 blur-xl opacity-40 group-hover:opacity-70 transition-opacity" style={{textShadow: '0 0 40px rgba(var(--dynamic-accent-rgb),0.6)'}}>
+            <span className="text-[clamp(40px,12vw,160px)] font-black tracking-tight bg-clip-text text-transparent transition-all duration-700" style={{ backgroundImage: 'linear-gradient(to right, var(--dynamic-accent), #fff, var(--dynamic-accent))' }}>RICORRENZA</span>
           </div>
           <h1
-            className="relative text-[clamp(40px,12vw,140px)] font-black tracking-tight leading-none bg-clip-text text-transparent bg-gradient-to-r from-pink-300 via-white to-cyan-200 drop-shadow-[0_2px_8px_rgba(255,255,255,0.35)]"
+            className="relative text-[clamp(40px,12vw,160px)] font-black tracking-tighter leading-none bg-clip-text text-transparent transition-all duration-700"
             style={{
-              WebkitTextStroke: '1px rgba(255,255,255,0.15)',
-              textShadow: '0 0 12px rgba(236,72,153,0.35), 0 0 22px rgba(34,211,238,0.25)'
+              backgroundImage: 'linear-gradient(to right, var(--dynamic-accent), #fff, #fff)',
+              textShadow: '0 0 20px rgba(var(--dynamic-accent-rgb),0.4)'
             }}
           >
-            Ricorrenza
+            RICORRENZA
           </h1>
           {/* Subtle animated scanline sheen */}
           <div className="pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_bottom,transparent,black_40%,black_60%,transparent)] overflow-hidden">
-            <div className="w-full h-[140%] -translate-y-[20%] bg-gradient-to-b from-transparent via-white/10 to-transparent animate-[sheen_2.5s_linear_infinite]" />
+            <div className="w-full h-[140%] -translate-y-[20%] bg-gradient-to-b from-transparent via-cyan-400/20 to-transparent animate-[sheen_2.5s_linear_infinite]" />
           </div>
         </div>
 
-        {/* Optional owner-configured title/message */}
+        {/* Neural Link Status HUD */}
         {(csTitle || csMessage) && (
-          <div className="mt-6">
-            {csTitle && <h2 className="text-2xl md:text-4xl font-semibold tracking-tight">{csTitle}</h2>}
-            {csMessage && <p className="mt-3 text-lg text-white/80 max-w-3xl mx-auto">{csMessage}</p>}
+          <div className="mt-8 space-y-4">
+            {csTitle && <h2 className="text-2xl md:text-4xl font-bold tracking-widest text-[#a0a0a0] uppercase">{csTitle}</h2>}
+            {csMessage && <p className="mt-4 text-lg text-white/50 max-w-3xl mx-auto leading-relaxed border-l-2 border-cyan-500/40 pl-6">{csMessage}</p>}
           </div>
         )}
 
-        {/* Owner-configured timer (when an end time is set) */}
+        {/* System Uplink Timer */}
         {showTimer && (
-          <div className="mt-8 animate-[fadeInUp_600ms_ease-out_100ms_both]">
-            <CountdownTimer
-              target={until as Date}
-              neon
-              size="xl"
-              className="scale-110"
-              endedText={hardClosed ? endedText : 'We\'re live!'}
-              showEnded
-            />
+          <div className="mt-12 animate-[fadeInUp_600ms_ease-out_100ms_both]">
+            <div className="inline-block p-1 bg-dynamic/20 rounded-2xl">
+              <div className="bg-[#050505] rounded-[14px] px-10 py-6">
+                <CountdownTimer
+                  target={until as Date}
+                  neon
+                  size="xl"
+                  className="scale-110"
+                  endedText={hardClosed ? endedText : 'UPLINK STABLE'}
+                  showEnded
+                />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* If there's no timer but the site is gated (enabled) or hard-closed, show the configured message/ended text */}
         {!showTimer && (enabled || hardClosed) && (
-          <div className="mt-8 animate-[fadeInUp_600ms_ease-out_100ms_both]">
-            <div className="text-lg md:text-2xl font-medium text-white/90">
+          <div className="mt-12 animate-[fadeInUp_600ms_ease-out_100ms_both]">
+            <div className="text-xl md:text-3xl font-black text-cyan-400 tracking-[0.4em] uppercase">
               {csMessage || endedText}
             </div>
           </div>
         )}
 
-        {/* Helper */}
-        <div className="mt-10 flex flex-col items-center gap-3">
-          <div className="text-sm text-white/80">Admin can still access the dashboard and login.</div>
-          <a href="/login" className="inline-flex items-center gap-2 bg-white text-black px-4 py-2 rounded shadow hover:shadow-lg hover:translate-y-[-1px] transition-all">
-            Go to Admin Login
+        {/* System Access Portal */}
+        <div className="mt-16 flex flex-col items-center gap-6">
+          <div className="text-[10px] text-white/30 tracking-[0.5em] uppercase">Manual Override Available for Authorized Personnel</div>
+          <a href="/login" className="px-8 py-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 hover:border-cyan-500/50 transition-all text-xs tracking-widest uppercase font-bold flex items-center gap-3 group">
+            <Github size={16} className="group-hover:rotate-12 transition-transform" /> Access Node Control
           </a>
         </div>
       </div>
 
-      {/* Keyframes for sheen */}
       <style>{`
         @keyframes sheen { 0% { transform: translateY(-60%); } 100% { transform: translateY(60%); } }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
       `}
       </style>
     </div>
   );
-};
+});
 
 export default ComingSoon;

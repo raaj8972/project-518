@@ -1,5 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { Instagram, Youtube, AlignJustify as Spotify } from 'lucide-react';
+import React from 'react';
+import { Instagram, Youtube, Play } from 'lucide-react';
+// Changed Spotify icon import since lucide-react doesn't have a dedicated one that looks right, using standard or text
 import PreserveNewlines from '../PreserveNewlines';
 
 interface BandMemberProps {
@@ -21,88 +22,58 @@ interface BandMemberProps {
   index: number;
 }
 
-export const ArtistScrollSection: React.FC<BandMemberProps> = ({ member, index }) => {
-  const sectionRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    // Scroll animations simplified to ensure absolute visibility. 
-    // IntersectionObserver removed to prevent opacity-0 lock in snap containers.
-  }, []);
-
-  // Stagger layout: even index = image left, odd index = image right
-  const isEven = index % 2 === 0;
-
+export const ArtistCard: React.FC<BandMemberProps> = ({ member }) => {
   return (
-    <section 
-      ref={sectionRef}
-      className="relative w-full flex items-center justify-center font-sans antialiased"
-    >
-        <div className={`w-full max-w-7xl mx-auto px-6 lg:px-12 flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12 md:gap-20`}>
-          
-          {/* PHOTO CACHE */}
-          <div className="w-full md:w-1/2 flex justify-center perspective-1000">
-             <div className="relative w-full aspect-[3/4] max-w-md overflow-hidden rounded-[2rem] bg-white/5 border border-white/10 group">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 pointer-events-none opacity-60"></div>
-                
-                <img 
-                  src={member.image} 
-                  alt={member.name} 
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover transition-transform duration-[1.5s] ease-out group-hover:scale-105"
-                />
-             </div>
-          </div>
-
-          {/* ARTIST DOSSIER */}
-          <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left">
-             
-             {/* Role Badge */}
-             <div className="inline-flex items-center justify-center gap-3 px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-6 md:mb-8">
-               <span className={`w-2 h-2 rounded-full ${member.category === 'Vocalist' ? 'bg-cyan-400' : 'bg-blue-400'}`}></span>
-               <span className="text-[10px] md:text-xs font-semibold uppercase tracking-widest text-white/80">{member.role}</span>
-             </div>
-
-             {/* Name */}
-             <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter leading-[0.9] mb-4 md:mb-6">
-               {member.name}
-             </h2>
-
-             {/* Description */}
-             <div className="mb-8 md:mb-12 max-w-lg mx-auto md:mx-0">
-                <PreserveNewlines 
-                  text={member.description} 
-                  className="text-sm sm:text-base md:text-lg text-white/60 font-light leading-relaxed" 
-                />
-             </div>
-
-             {/* Social Links */}
-             {member.social_links && (Object.values(member.social_links).some(Boolean)) && (
-               <div className="flex flex-col gap-4">
-                 <div className="text-[10px] text-white/30 font-semibold tracking-widest uppercase mb-1">Connect</div>
-                 <div className="flex gap-4 justify-center md:justify-start">
-                    {member.social_links?.instagram && (
-                      <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/30 hover:scale-110 transition-all text-white/70 hover:text-white">
-                        <Instagram size={18} />
-                      </a>
-                    )}
-                    {member.social_links?.youtube && (
-                      <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/30 hover:scale-110 transition-all text-white/70 hover:text-white">
-                        <Youtube size={18} />
-                      </a>
-                    )}
-                    {member.social_links?.spotify && (
-                       <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center hover:bg-white/10 hover:border-white/30 hover:scale-110 transition-all text-white/70 hover:text-white">
-                        <Spotify size={18} />
-                      </a>
-                    )}
-                 </div>
-               </div>
-             )}
-
-          </div>
-
+    <div className="group relative flex flex-col bg-[#181818] hover:bg-[#282828] transition-all duration-300 rounded-xl p-4 sm:p-5 cursor-pointer shadow-lg overflow-hidden border border-white/5 h-full">
+      {/* Image Container with 1:1 Aspect Ratio */}
+      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-[#242424] mb-4 shadow-[0_8px_24px_rgba(0,0,0,0.5)] flex-shrink-0">
+        <img 
+          src={member.image} 
+          alt={member.name}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
+        {/* Play Button Overlay (Spotify Style) */}
+        <div className="absolute right-3 bottom-3 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-20">
+          <button className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-black shadow-xl hover:bg-green-400 hover:scale-105 transition-all">
+            <Play fill="black" size={24} className="ml-1" />
+          </button>
         </div>
-    </section>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col flex-grow">
+        <h3 className="text-white font-bold text-lg sm:text-xl truncate tracking-tight mb-1">
+          {member.name}
+        </h3>
+        <p className="text-[#a7a7a7] text-sm font-medium uppercase tracking-wider mb-2">
+          {member.role}
+        </p>
+        <div className="text-[#a7a7a7] text-xs sm:text-sm line-clamp-2 mt-1">
+          <PreserveNewlines text={member.description} />
+        </div>
+      </div>
+
+      {/* Social Links inside Card */}
+      {member.social_links && Object.values(member.social_links).some(Boolean) && (
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-white/5 opacity-60 group-hover:opacity-100 transition-opacity">
+          {member.social_links.instagram && (
+            <a href={member.social_links.instagram} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="Instagram">
+              <Instagram size={18} />
+            </a>
+          )}
+          {member.social_links.youtube && (
+            <a href={member.social_links.youtube} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors" title="YouTube">
+              <Youtube size={18} />
+            </a>
+          )}
+          {member.social_links.spotify && (
+            <a href={member.social_links.spotify} target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors text-xs font-bold tracking-widest border border-white/20 px-2 py-0.5 rounded-full" title="Spotify">
+              SPOTIFY
+            </a>
+          )}
+        </div>
+      )}
+    </div>
   );
 };

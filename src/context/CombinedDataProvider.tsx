@@ -85,7 +85,7 @@ const StageAdvancer = ({ stage, setStage }: { stage: number, setStage: (n: numbe
   return null;
 };
 
-export const CombinedDataProvider = ({ children }: { children: ReactNode }) => {
+export function CombinedDataProvider({ children }: { children: ReactNode }) {
   const [stage, setStage] = useState(0);
 
   const value = {
@@ -113,4 +113,4 @@ export const CombinedDataProvider = ({ children }: { children: ReactNode }) => {
       </CoreDataProvider>
     </SystemStatusContext.Provider>
   );
-};
+}

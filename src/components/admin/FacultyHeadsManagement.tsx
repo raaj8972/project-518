@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2, Save, X, Users, Crown, Eye, EyeOff } from 'lucide-r
 import { AdminModal } from './layout/AdminModal';
 import { useData } from '../../context/DataContext';
 import { ImageUpload } from '../ImageUpload';
-import type { FacultyHead } from '../../context/DataContext';
+import type { FacultyHead } from '../../types/data';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 import { useSavingProgress } from '../../context/SavingProgressContext';
 import { useApprovals } from '../../hooks/useApprovals';
@@ -33,13 +33,13 @@ export const FacultyHeadsManagement: React.FC = () => {
     name: '',
     title: '',
     image: '',
-    description: '',
     email: '',
     phone: '',
     instagram: '',
     youtube: '',
     facebook: '',
-    achievements: [] as string[],
+    linkedin: '',
+    spotify: '',
     order_position: 1,
     enabled: true
   });
@@ -49,13 +49,13 @@ export const FacultyHeadsManagement: React.FC = () => {
       name: '',
       title: '',
       image: '',
-      description: '',
       email: '',
       phone: '',
-        instagram: '',
+      instagram: '',
       youtube: '',
-        facebook: '',
-      achievements: [],
+      facebook: '',
+      linkedin: '',
+      spotify: '',
       order_position: facultyHeads.length + 1,
       enabled: true
     });
@@ -73,11 +73,16 @@ export const FacultyHeadsManagement: React.FC = () => {
       const social_links: Record<string, string> = {};
       if (form.instagram?.trim()) social_links.instagram = form.instagram.trim();
       if (form.youtube?.trim()) social_links.youtube = form.youtube.trim();
-  if ((form as any).facebook?.trim()) social_links.facebook = (form as any).facebook.trim();
+      if (form.facebook?.trim()) social_links.facebook = form.facebook.trim();
+      if (form.linkedin?.trim()) social_links.linkedin = form.linkedin.trim();
+      if (form.spotify?.trim()) social_links.spotify = form.spotify.trim();
+      
       const payload: any = { ...form };
       delete payload.instagram;
       delete payload.youtube;
-  delete payload.facebook;
+      delete payload.facebook;
+      delete payload.linkedin;
+      delete payload.spotify;
       if (Object.keys(social_links).length > 0) payload.social_links = social_links;
       if (requiresApproval) {
         await submitForApproval(
@@ -87,13 +92,11 @@ export const FacultyHeadsManagement: React.FC = () => {
             name: form.name,
             title: form.title,
             image: form.image,
-            description: form.description,
             email: form.email,
             phone: form.phone,
             order_position: form.order_position,
             enabled: form.enabled,
-            social_links: Object.keys(social_links).length > 0 ? social_links : undefined,
-            achievements: form.achievements
+            social_links: Object.keys(social_links).length > 0 ? social_links : undefined
           }
         );
         alert('Request submitted for approval. An owner will review your changes.');
@@ -139,9 +142,17 @@ export const FacultyHeadsManagement: React.FC = () => {
         if (form.youtube.trim()) merged.youtube = form.youtube.trim();
         else delete merged.youtube;
       }
-      if ((form as any).facebook !== undefined) {
-        if ((form as any).facebook.trim()) merged.facebook = (form as any).facebook.trim();
+      if (form.facebook !== undefined) {
+        if (form.facebook.trim()) merged.facebook = form.facebook.trim();
         else delete merged.facebook;
+      }
+      if (form.linkedin !== undefined) {
+        if (form.linkedin.trim()) merged.linkedin = form.linkedin.trim();
+        else delete merged.linkedin;
+      }
+      if (form.spotify !== undefined) {
+        if (form.spotify.trim()) merged.spotify = form.spotify.trim();
+        else delete merged.spotify;
       }
       if (Object.keys(merged).length > 0) {
         payload.social_links = merged;
@@ -157,13 +168,11 @@ export const FacultyHeadsManagement: React.FC = () => {
             name: form.name,
             title: form.title,
             image: form.image,
-            description: form.description,
             email: form.email,
             phone: form.phone,
             order_position: form.order_position,
             enabled: form.enabled,
-            social_links: Object.keys(merged).length > 0 ? merged : undefined,
-            achievements: form.achievements
+            social_links: Object.keys(merged).length > 0 ? merged : undefined
           },
           id
         );
@@ -241,39 +250,19 @@ export const FacultyHeadsManagement: React.FC = () => {
       name: facultyHead.name,
       title: facultyHead.title,
       image: facultyHead.image,
-      description: facultyHead.description,
       email: (facultyHead as any).email || '',
       phone: (facultyHead as any).phone || '',
       instagram: ((facultyHead as any).social_links?.instagram) || '',
       youtube: ((facultyHead as any).social_links?.youtube) || '',
       facebook: ((facultyHead as any).social_links?.facebook) || '',
-      achievements: facultyHead.achievements,
+      linkedin: ((facultyHead as any).social_links?.linkedin) || '',
+      spotify: ((facultyHead as any).social_links?.spotify) || '',
       order_position: facultyHead.order_position,
       enabled: facultyHead.enabled
     });
     setEditing(facultyHead.id);
   };
 
-  const addAchievement = () => {
-    setForm(prev => ({
-      ...prev,
-      achievements: [...prev.achievements, '']
-    }));
-  };
-
-  const updateAchievement = (index: number, value: string) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.map((a, i) => i === index ? value : a)
-    }));
-  };
-
-  const removeAchievement = (index: number) => {
-    setForm(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter((_, i) => i !== index)
-    }));
-  };
 
   // Sort faculty heads by order position
   const sortedFacultyHeads = [...facultyHeads].sort((a: any, b: any) => a.order_position - b.order_position);
@@ -359,16 +348,6 @@ export const FacultyHeadsManagement: React.FC = () => {
                 className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Brief description about the faculty head..."
-                rows={4}
-                className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-white placeholder-gray-500"
-              />
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Email (optional)</label>
@@ -394,27 +373,41 @@ export const FacultyHeadsManagement: React.FC = () => {
             {/* Social Links */}
             <div>
               <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Social Links (optional)</label>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <input
                   type="url"
                   value={form.instagram}
                   onChange={(e) => setForm(prev => ({ ...prev, instagram: e.target.value }))}
-                  placeholder="Instagram URL"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-white placeholder-gray-500"
+                  placeholder="Insta"
+                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500 text-white text-xs placeholder-gray-600"
+                />
+                <input
+                  type="url"
+                  value={form.facebook}
+                  onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
+                  placeholder="FB"
+                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-xs placeholder-gray-600"
+                />
+                <input
+                  type="url"
+                  value={form.linkedin}
+                  onChange={(e) => setForm(prev => ({ ...prev, linkedin: e.target.value }))}
+                  placeholder="In"
+                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white text-xs placeholder-gray-600"
                 />
                 <input
                   type="url"
                   value={form.youtube}
                   onChange={(e) => setForm(prev => ({ ...prev, youtube: e.target.value }))}
-                  placeholder="YouTube URL"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-500"
+                  placeholder="YT"
+                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 text-white text-xs placeholder-gray-600"
                 />
                 <input
                   type="url"
-                  value={(form as any).facebook}
-                  onChange={(e) => setForm(prev => ({ ...prev, facebook: e.target.value }))}
-                  placeholder="Facebook URL"
-                  className="w-full p-3 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-500"
+                  value={form.spotify}
+                  onChange={(e) => setForm(prev => ({ ...prev, spotify: e.target.value }))}
+                  placeholder="Sp"
+                  className="w-full p-2.5 bg-black/20 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-white text-xs placeholder-gray-600"
                 />
               </div>
             </div>
@@ -439,37 +432,6 @@ export const FacultyHeadsManagement: React.FC = () => {
                   />
                   <span className="text-sm font-medium text-gray-300 group-hover:text-white transition-colors">Visible on website</span>
                 </label>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-300 mb-2 uppercase tracking-wide">Achievements</label>
-              <div className="space-y-2">
-                {form.achievements.map((achievement, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={achievement}
-                      onChange={(e) => updateAchievement(index, e.target.value)}
-                      placeholder="Achievement or accomplishment"
-                      className="flex-1 p-2 bg-black/20 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 text-white placeholder-gray-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeAchievement(index)}
-                      className="text-red-400 hover:text-red-300 p-1"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  onClick={addAchievement}
-                  className="text-amber-400 hover:text-amber-300 text-sm flex items-center font-medium"
-                >
-                  <Plus size={16} className="mr-1" />
-                  Add Achievement
-                </button>
               </div>
             </div>
           </div>
@@ -527,27 +489,7 @@ export const FacultyHeadsManagement: React.FC = () => {
                   <div className="text-amber-500/80 font-bold text-[10px] uppercase tracking-[0.2em]">{facultyHead.title}</div>
                 </div>
                 
-                <p className="text-gray-400 text-sm mb-6 line-clamp-2 leading-relaxed h-10 italic">"{facultyHead.description}"</p>
                 
-                {facultyHead.achievements.length > 0 && (
-                  <div className="mb-6 space-y-2">
-                    <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-4 h-[1px] bg-gray-600" /> Key Achievements
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {facultyHead.achievements.slice(0, 2).map((achievement: string, index: number) => (
-                        <div key={index} className="px-3 py-1 bg-white/5 border border-white/5 rounded-full text-[10px] text-gray-400 font-medium truncate max-w-[140px]">
-                          {achievement}
-                        </div>
-                      ))}
-                      {facultyHead.achievements.length > 2 && (
-                        <div className="px-3 py-1 bg-white/5 text-gray-500 rounded-full text-[10px] font-bold">
-                          +{facultyHead.achievements.length - 2} more
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
                 
                 <div className="flex justify-between items-center pt-4 border-t border-white/5">
                   <div className="flex gap-2">
@@ -610,7 +552,7 @@ export const FacultyHeadsManagement: React.FC = () => {
 
       {/* Stats */}
       <div className="bg-[#181824]/60 backdrop-blur-md border border-white/5 rounded-2xl p-6 sm:p-8 mt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center divide-white/5 md:divide-x">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center divide-white/5 md:divide-x">
           <div className="p-2">
             <div className="text-3xl font-black text-amber-500 mb-1">{facultyHeads.length}</div>
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Faculty Heads</div>
@@ -620,12 +562,6 @@ export const FacultyHeadsManagement: React.FC = () => {
               {facultyHeads.filter((f: any) => f.enabled).length}
             </div>
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Visible on Website</div>
-          </div>
-          <div className="p-2">
-            <div className="text-3xl font-black text-blue-500 mb-1">
-              {facultyHeads.reduce((total: number, f: any) => total + (f.achievements?.length || 0), 0)}
-            </div>
-            <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">Total Achievements</div>
           </div>
         </div>
       </div>

@@ -50,14 +50,14 @@ const ChiefGuestSection: React.FC<ChiefGuestSectionProps> = ({
 
   return (
     <section className="py-16 relative overflow-hidden gsap-fade-up">
-      <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-black to-red-950/20"></div>
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/20 via-black to-indigo-950/20"></div>
       <div className="container mx-auto px-0 relative z-10">
         <ScrollReveal animation="fadeUp">
           <div className="text-center mb-12">
             <h2 className="text-4xl md:text-6xl font-black mb-6 stranger-title-gradient">
               CHIEF GUEST{multi ? 'S' : ''}
             </h2>
-            <div className="w-24 h-1 bg-red-600/40 mx-auto mb-8 rounded-full" />
+            <div className="w-24 h-1 bg-indigo-500/40 mx-auto mb-8 rounded-full" />
             <p className="text-lg md:text-xl text-white/60 max-w-3xl mx-auto font-light">
               {multi
                 ? 'Honoring our distinguished chief guests'
@@ -95,7 +95,7 @@ const ChiefGuestSection: React.FC<ChiefGuestSectionProps> = ({
                         handleOpenModal(cg);
                       }
                     }}
-                    className="cursor-pointer w-[260px] sm:w-[300px] md:w-[340px] flex flex-col bg-gradient-to-br from-red-950/40 via-black/80 to-red-950/40 backdrop-blur-md rounded-xl shadow-xl ring-1 ring-red-900/30 overflow-hidden group relative hover:ring-red-600/50 transition"
+                    className="cursor-pointer w-[260px] sm:w-[300px] md:w-[340px] flex flex-col bg-gradient-to-br from-indigo-950/40 via-black/80 to-indigo-950/40 backdrop-blur-md rounded-xl shadow-xl ring-1 ring-indigo-900/30 overflow-hidden group relative hover:ring-indigo-600/50 transition"
                   >
                     <div className="relative h-56 sm:h-60 overflow-hidden">
                       <img
@@ -159,7 +159,7 @@ const ChiefGuestSection: React.FC<ChiefGuestSectionProps> = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-red-600/70 hover:bg-red-600 text-white transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-indigo-600/70 hover:bg-indigo-600 text-white transition-colors"
                           >
                             <Youtube className="w-3 h-3" />
                             <span className="hidden sm:inline">YouTube</span>
@@ -189,7 +189,7 @@ const ChiefGuestSection: React.FC<ChiefGuestSectionProps> = ({
           <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-10 items-center">
             {enabledChiefs.map((cg) => (
               <React.Fragment key={cg.id}>
-                <div className="relative group overflow-hidden rounded-xl shadow-xl ring-1 ring-red-900/30 bg-gradient-to-br from-red-950/40 via-black/80 to-red-950/40 backdrop-blur-md">
+                <div className="relative group overflow-hidden rounded-xl shadow-xl ring-1 ring-indigo-900/30 bg-gradient-to-br from-indigo-950/40 via-black/80 to-indigo-950/40 backdrop-blur-md">
                   <div className="relative h-80 overflow-hidden">
                     <img
                       loading="lazy"
@@ -248,7 +248,7 @@ const ChiefGuestSection: React.FC<ChiefGuestSectionProps> = ({
                         href={cg.social_links.youtube}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-3 py-1.5 rounded-full text-xs font-semibold bg-red-600/70 hover:bg-red-600 text-white transition-colors inline-flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-600/70 hover:bg-indigo-600 text-white transition-colors inline-flex items-center gap-1"
                       >
                         <Youtube className="w-4 h-4" /> YouTube
                       </a>

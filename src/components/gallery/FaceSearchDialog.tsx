@@ -156,17 +156,17 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-[#0a0a0a] w-full max-w-lg rounded-lg overflow-hidden shadow-2xl border border-red-950/30 animate-in zoom-in-95 duration-300 relative stranger-things-theme">
+      <div className="bg-[#0a0a0a] w-full max-w-lg rounded-lg overflow-hidden shadow-2xl border border-violet-950/30 animate-in zoom-in-95 duration-300 relative nebula-theme">
         
         {/* Header */}
-        <div className="p-6 border-b border-red-950/20 flex items-center justify-between bg-red-950/10 backdrop-blur-md sticky top-0 z-10">
+        <div className="p-6 border-b border-violet-950/20 flex items-center justify-between bg-violet-950/10 backdrop-blur-md sticky top-0 z-10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-600/10 flex items-center justify-center text-red-500">
+            <div className="w-10 h-10 rounded-lg bg-cyan-600/10 flex items-center justify-center text-cyan-500">
               <Scan size={24} />
             </div>
             <div>
-              <h3 className="text-xl font-serif font-bold text-red-50 uppercase tracking-wider">Find Your Face_</h3>
-              <p className="text-[10px] text-red-900/60 uppercase tracking-widest">Neural Archive Search</p>
+              <h3 className="text-xl font-serif font-bold text-cyan-50 uppercase tracking-wider">Find Your Face_</h3>
+              <p className="text-[10px] text-cyan-900/60 uppercase tracking-widest">Neural Archive Search</p>
             </div>
           </div>
           <button 
@@ -182,39 +182,39 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
           {searching ? (
             <div className="py-12 flex flex-col items-center justify-center text-center">
               <div className="relative mb-8">
-                <div className="w-24 h-24 rounded-full border-4 border-red-950/30 flex items-center justify-center">
-                  <Scan className="w-12 h-12 text-red-600 animate-pulse" />
+                <div className="w-24 h-24 rounded-full border-4 border-cyan-950/30 flex items-center justify-center">
+                  <Scan className="w-12 h-12 text-cyan-500 animate-pulse" />
                 </div>
-                <div className="absolute inset-0 border-4 border-red-600 rounded-full animate-spin border-t-transparent"></div>
+                <div className="absolute inset-0 border-4 border-cyan-500 rounded-full animate-spin border-t-transparent"></div>
               </div>
-              <h4 className="text-xl font-serif text-red-100 mb-2 uppercase tracking-widest animate-pulse">Scanning Archives_</h4>
-              <p className="text-sm text-red-900/60 font-serif italic max-w-[200px] mx-auto">
+              <h4 className="text-xl font-serif text-cyan-100 mb-2 uppercase tracking-widest animate-pulse">Scanning Archives_</h4>
+              <p className="text-sm text-cyan-900/60 font-serif italic max-w-[200px] mx-auto">
                 Searching the records for your match...
               </p>
             </div>
           ) : cameraActive ? (
-              <div className="relative w-full h-[400px] bg-black rounded-lg overflow-hidden flex flex-col border border-red-950/30">
+              <div className="relative w-full h-[400px] bg-black rounded-lg overflow-hidden flex flex-col border border-violet-950/30">
                  <video 
                    ref={videoRef} 
                    autoPlay 
                    playsInline
                    className="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-70 grayscale contrast-125"
                  />
-                 <div className="absolute inset-0 pointer-events-none border-[3px] border-red-600/20 rounded-lg"></div>
+                 <div className="absolute inset-0 pointer-events-none border-[3px] border-cyan-600/20 rounded-lg"></div>
                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                   <div className="w-48 h-64 border-2 border-red-600/30 rounded-full border-dashed opacity-40"></div>
+                   <div className="w-48 h-64 border-2 border-cyan-600/30 rounded-full border-dashed opacity-40"></div>
                  </div>
                  
                  <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-6 z-20">
                    <button 
                      onClick={stopCamera}
-                     className="p-3 bg-black/60 text-red-500 rounded-full backdrop-blur-md border border-red-950/30 hover:bg-red-600/20 transition-colors"
+                     className="p-3 bg-black/60 text-cyan-500 rounded-full backdrop-blur-md border border-violet-950/30 hover:bg-cyan-600/20 transition-colors"
                    >
                      <X size={24} />
                    </button>
                    <button 
                      onClick={capturePhoto}
-                     className="w-16 h-16 rounded-full bg-red-600 border-4 border-red-950 flex items-center justify-center shadow-[0_0_20px_rgba(220,38,38,0.5)] hover:scale-110 transition-transform active:scale-95 group"
+                     className="w-16 h-16 rounded-full bg-cyan-600 border-4 border-violet-950 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:scale-110 transition-transform active:scale-95 group"
                    >
                      <div className="w-12 h-12 rounded-full border-2 border-white/20 group-hover:border-white/40 transition-colors"></div>
                    </button>
@@ -223,18 +223,18 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
               </div>
           ) : error ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-20 h-20 bg-red-950/20 rounded-full flex items-center justify-center border border-red-900/30">
-                <AlertCircle className="w-10 h-10 text-red-600" />
+              <div className="w-20 h-20 bg-violet-950/20 rounded-full flex items-center justify-center border border-violet-900/30">
+                <AlertCircle className="w-10 h-10 text-violet-500" />
               </div>
               <div className="space-y-2">
-                <h4 className="text-xl font-serif text-red-100 uppercase tracking-widest">Search Failed_</h4>
-                <p className="text-sm text-red-900/60 font-serif italic max-w-[250px] mx-auto">
+                <h4 className="text-xl font-serif text-violet-100 uppercase tracking-widest">Search Failed_</h4>
+                <p className="text-sm text-violet-900/60 font-serif italic max-w-[250px] mx-auto">
                   {error}
                 </p>
               </div>
               <button 
                 onClick={() => setError(null)}
-                className="mt-6 px-8 py-2 bg-red-600 hover:bg-red-700 text-white font-serif uppercase tracking-widest rounded transition-all shadow-lg shadow-red-900/40 active:scale-95 cursor-pointer"
+                className="mt-6 px-8 py-2 bg-violet-600 hover:bg-violet-700 text-white font-serif uppercase tracking-widest rounded transition-all shadow-lg shadow-violet-900/40 active:scale-95 cursor-pointer"
               >
                 Try Again_
               </button>
@@ -244,24 +244,24 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="flex flex-col items-center justify-center p-8 bg-red-950/10 border-2 border-dashed border-red-900/30 rounded-xl hover:border-red-600/50 hover:bg-red-600/5 transition-all group group-hover:cursor-pointer"
+                  className="flex flex-col items-center justify-center p-8 bg-violet-950/10 border-2 border-dashed border-violet-900/30 rounded-xl hover:border-violet-600/50 hover:bg-violet-600/5 transition-all group group-hover:cursor-pointer"
                 >
-                  <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Upload className="w-6 h-6 text-red-500" /> {/* Changed from ImagePlus to Upload */}
+                  <div className="w-12 h-12 bg-indigo-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Upload className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <span className="text-sm font-serif uppercase tracking-widest text-red-200">Upload Dossier</span>
-                  <span className="text-[10px] text-red-900/60 mt-1 uppercase">from your drive</span>
+                  <span className="text-sm font-serif uppercase tracking-widest text-indigo-200">Upload Dossier</span>
+                  <span className="text-[10px] text-indigo-900/60 mt-1 uppercase">from your drive</span>
                 </button>
 
                 <button
-                  onClick={startCamera} // Changed from setShowCamera(true) to startCamera
-                  className="flex flex-col items-center justify-center p-8 bg-red-950/10 border-2 border-dashed border-red-900/30 rounded-xl hover:border-red-600/50 hover:bg-red-600/5 transition-all group group-hover:cursor-pointer"
+                  onClick={startCamera}
+                  className="flex flex-col items-center justify-center p-8 bg-violet-950/10 border-2 border-dashed border-violet-900/30 rounded-xl hover:border-violet-600/50 hover:bg-violet-600/5 transition-all group group-hover:cursor-pointer"
                 >
-                  <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Camera className="w-6 h-6 text-red-500" />
+                  <div className="w-12 h-12 bg-indigo-600/10 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Camera className="w-6 h-6 text-indigo-400" />
                   </div>
-                  <span className="text-sm font-serif uppercase tracking-widest text-red-200">Live Capture</span>
-                  <span className="text-[10px] text-red-900/60 mt-1 uppercase">using webcam</span>
+                  <span className="text-sm font-serif uppercase tracking-widest text-indigo-200">Live Capture</span>
+                  <span className="text-[10px] text-indigo-900/60 mt-1 uppercase">using webcam</span>
                 </button>
               </div>
 
@@ -273,10 +273,10 @@ export const FaceSearchDialog: React.FC<FaceSearchDialogProps> = ({ onResults, o
                 className="hidden" 
               />
 
-              <div className="p-4 bg-amber-950/10 border border-amber-900/20 rounded-lg flex gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" /> {/* Changed from ShieldAlert to AlertCircle */}
-                <p className="text-xs text-amber-700/80 leading-relaxed font-serif uppercase tracking-tight">
-                  <span className="font-bold text-amber-600">Confidentiality Notice:</span> Face data is handled locally. No temporary facial vectors are stored in the archive after search completion.
+              <div className="p-4 bg-indigo-950/10 border border-indigo-900/20 rounded-lg flex gap-3">
+                <AlertCircle className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                <p className="text-xs text-indigo-400/80 leading-relaxed font-serif uppercase tracking-tight">
+                  <span className="font-bold text-indigo-500">Confidentiality Notice:</span> Face data is handled locally. No temporary facial vectors are stored in the archive after search completion.
                 </p>
               </div>
             </div>

@@ -233,8 +233,8 @@ export default function CouncilDashboard() {
     })();
 
     const themeColor = (() => {
-      if (hour >= 5 && hour < 17) return 'from-amber-400 via-orange-500 to-rose-500';
-      return 'from-indigo-600 via-purple-700 to-slate-900';
+      if (hour >= 5 && hour < 17) return 'from-indigo-600 via-violet-600 to-cyan-600';
+      return 'from-slate-900 via-indigo-950 to-black';
     })();
 
     return (
@@ -243,7 +243,7 @@ export default function CouncilDashboard() {
         <div className="relative text-center px-4">
           <div className="mb-8 inline-block animate-bounce duration-[2000ms]">
             <div className="w-24 h-24 sm:w-32 sm:h-32 bg-white/20 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center shadow-2xl border border-white/30">
-               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-white drop-shadow-md" />
+               <GreetingIcon className="w-12 h-12 sm:w-16 sm:h-16 text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]" />
             </div>
           </div>
           
@@ -258,7 +258,7 @@ export default function CouncilDashboard() {
 
           <div className="mt-12 flex flex-col items-center gap-6">
             <div className="flex items-center gap-3 px-6 py-3 bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 text-white/90 text-sm font-black tracking-widest uppercase">
-              <Shield className="w-4 h-4 text-purple-400" />
+              <Shield className="w-4 h-4 text-indigo-400" />
               Council Access Secured
             </div>
             
@@ -274,7 +274,7 @@ export default function CouncilDashboard() {
   if (loading && !stats) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
       </div>
     );
   }
@@ -283,16 +283,16 @@ export default function CouncilDashboard() {
   const eventStats = stats?.event_stats || [];
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 md:p-8 font-sans selection:bg-purple-500/30">
+    <div className="min-h-screen bg-black text-white p-4 md:p-8 font-sans selection:bg-indigo-500/30">
       <WelcomeSplash />
       {/* Header */}
       <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex-1">
            <div className="flex items-center gap-3 mb-2">
-             <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20 flex-shrink-0">
+             <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-indigo-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 flex-shrink-0">
                <LayoutDashboard className="w-6 h-6 md:w-7 md:h-7 text-white" />
              </div>
-             <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400 flex-1">
+             <h1 className="text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400 flex-1">
                Council Dashboard
              </h1>
            </div>
@@ -300,19 +300,19 @@ export default function CouncilDashboard() {
         </div>
         <div className="flex flex-wrap items-center gap-2 md:gap-3">
           <div className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 md:px-4 md:py-2 flex items-center text-[10px] md:text-xs text-gray-400">
-            <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+            <span className="w-2 h-2 bg-cyan-400 rounded-full mr-2 animate-pulse shadow-[0_0_8px_rgba(34,211,238,0.8)]"></span>
             LIVE
           </div>
           <button 
             onClick={() => setShowVipModal(true)}
-            className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105"
+            className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105"
           >
             <ShieldAlert className="w-4 h-4" />
             VIP Passes
           </button>
           <button 
             onClick={handleLogout}
-            className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105 active:scale-95"
+            className="bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 px-3 py-1.5 md:px-4 md:py-2 rounded-lg flex items-center gap-2 text-xs md:text-sm transition-all hover:scale-105 active:scale-95"
           >
             <LogOut className="w-4 h-4" />
             Sign Out
@@ -325,9 +325,9 @@ export default function CouncilDashboard() {
         <div className="lg:col-span-2 space-y-8">
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-purple-500/50 transition-all">
+            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-indigo-500/50 transition-all">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 group-hover:scale-110 transition-transform">
+                <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 group-hover:scale-110 transition-transform">
                   <Users className="w-5 h-5" />
                 </div>
               </div>
@@ -335,9 +335,9 @@ export default function CouncilDashboard() {
               <div className="text-gray-400 text-sm font-medium">Total Registrations</div>
             </div>
 
-            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-pink-500/50 transition-all">
+            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-violet-500/50 transition-all">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400 group-hover:scale-110 transition-transform">
+                <div className="p-2 bg-violet-500/10 rounded-lg text-violet-400 group-hover:scale-110 transition-transform">
                   <QrCode className="w-5 h-5" />
                 </div>
               </div>
@@ -345,9 +345,9 @@ export default function CouncilDashboard() {
               <div className="text-gray-400 text-sm font-medium">Scans Today</div>
             </div>
 
-            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-blue-500/50 transition-all">
+            <div className="bg-gray-900/50 border border-gray-800 p-6 rounded-3xl backdrop-blur-sm group hover:border-cyan-500/50 transition-all">
               <div className="flex justify-between items-start mb-4">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 group-hover:scale-110 transition-transform">
+                <div className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400 group-hover:scale-110 transition-transform">
                   <QrCode className="w-5 h-5" />
                 </div>
               </div>
@@ -360,7 +360,7 @@ export default function CouncilDashboard() {
           <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-5 md:p-8 backdrop-blur-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
               <h2 className="text-xl font-bold text-white flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-blue-400" />
+                <BarChart3 className="w-6 h-6 text-cyan-400" />
                 Event Analysis
               </h2>
               <span className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Registration Counts</span>
@@ -371,17 +371,17 @@ export default function CouncilDashboard() {
                   <div 
                     key={idx} 
                     onClick={() => setExpandedEvent(expandedEvent === item.event_name ? null : item.event_name)}
-                    className={`bg-black/40 border rounded-2xl p-5 cursor-pointer group transition-all duration-500 ${expandedEvent === item.event_name ? 'border-blue-500/50 bg-black/80 shadow-2xl shadow-blue-500/10 ring-1 ring-blue-500/20' : 'border-gray-800 hover:bg-black/60 hover:border-gray-700'}`}
+                    className={`bg-black/40 border rounded-2xl p-5 cursor-pointer group transition-all duration-500 ${expandedEvent === item.event_name ? 'border-indigo-500/50 bg-black/80 shadow-2xl shadow-indigo-500/10 ring-1 ring-indigo-500/20' : 'border-gray-800 hover:bg-black/60 hover:border-gray-700'}`}
                   >
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={`p-1.5 rounded-lg transition-colors ${expandedEvent === item.event_name ? 'bg-blue-500/20 text-blue-400' : 'bg-gray-800 text-gray-500 group-hover:text-gray-300'}`}>
+                        <div className={`p-1.5 rounded-lg transition-colors ${expandedEvent === item.event_name ? 'bg-cyan-500/20 text-cyan-400' : 'bg-gray-800 text-gray-500 group-hover:text-gray-300'}`}>
                           {expandedEvent === item.event_name ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </div>
                         <span className={`font-semibold transition-colors ${expandedEvent === item.event_name ? 'text-white text-lg' : 'text-gray-300 group-hover:text-white'}`}>{item.event_name}</span>
                       </div>
                       <div className="text-right">
-                        <span className={`text-2xl font-black font-mono transition-all ${expandedEvent === item.event_name ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'}`}>
+                        <span className={`text-2xl font-black font-mono transition-all ${expandedEvent === item.event_name ? 'text-cyan-400' : 'text-gray-400 group-hover:text-cyan-400'}`}>
                           {item.count}
                         </span>
                       </div>
@@ -389,7 +389,7 @@ export default function CouncilDashboard() {
                     
                     <div className="h-1.5 w-full bg-gray-900 rounded-full overflow-hidden mb-1">
                        <div 
-                         className={`h-full rounded-full transition-all duration-1000 ${expandedEvent === item.event_name ? 'bg-gradient-to-r from-blue-500 to-cyan-400 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-gray-700'}`} 
+                         className={`h-full rounded-full transition-all duration-1000 ${expandedEvent === item.event_name ? 'bg-gradient-to-r from-indigo-500 to-cyan-400 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'bg-gray-700'}`} 
                          style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }} 
                        ></div>
                     </div>
@@ -399,7 +399,7 @@ export default function CouncilDashboard() {
                       <div className="mt-6 pt-6 border-t border-gray-800/50 space-y-5 animate-in fade-in slide-in-from-top-4 duration-500">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Batch breakdown for this event</span>
-                          <span className="text-[10px] text-blue-400 font-bold bg-blue-500/10 px-2 py-0.5 rounded">DYNAMIC VIEW</span>
+                          <span className="text-[10px] text-cyan-400 font-bold bg-cyan-500/10 px-2 py-0.5 rounded">DYNAMIC VIEW</span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
                           {item.batch_breakdown?.map((batch, bidx) => (
@@ -410,7 +410,7 @@ export default function CouncilDashboard() {
                               </div>
                               <div className="h-1 w-full bg-gray-900 rounded-full overflow-hidden">
                                 <div 
-                                  className="bg-gradient-to-r from-blue-600/60 to-cyan-500/60 h-full rounded-full transition-all duration-1000 delay-300"
+                                  className="bg-gradient-to-r from-indigo-600/60 to-cyan-500/60 h-full rounded-full transition-all duration-1000 delay-300"
                                   style={{ width: `${Math.min((batch.count / (item.count || 1)) * 100, 100)}%` }}
                                 ></div>
                               </div>
@@ -436,7 +436,7 @@ export default function CouncilDashboard() {
           {/* Global Batches */}
           <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-8 backdrop-blur-sm">
             <h2 className="text-xl font-bold text-white mb-8 flex items-center gap-3">
-              <Users className="w-6 h-6 text-purple-400" />
+              <Users className="w-6 h-6 text-indigo-400" />
               Global Batches
             </h2>
             
@@ -444,12 +444,12 @@ export default function CouncilDashboard() {
                {batchStats.map((item, idx) => (
                   <div key={idx} className="group">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-400 group-hover:text-purple-400 transition-colors uppercase tracking-tight font-bold text-[11px]">{item.batch || 'Other'}</span>
+                      <span className="text-gray-400 group-hover:text-indigo-400 transition-colors uppercase tracking-tight font-bold text-[11px]">{item.batch || 'Other'}</span>
                       <span className="text-lg font-bold text-white">{item.count}</span>
                     </div>
                     <div className="h-2 w-full bg-gray-900 rounded-full overflow-hidden">
                        <div 
-                         className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-1000" 
+                         className="bg-gradient-to-r from-indigo-600 to-violet-600 h-full rounded-full transition-all duration-1000" 
                          style={{ width: `${Math.min((item.count / (stats?.total_registrations || 1)) * 100, 100)}%` }} 
                        ></div>
                     </div>
@@ -461,15 +461,15 @@ export default function CouncilDashboard() {
           {/* Recent Activity */}
           <div className="bg-gray-900/50 border border-gray-800 rounded-3xl p-8 backdrop-blur-sm">
             <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-              <Clock className="w-6 h-6 text-pink-500" />
+              <Clock className="w-6 h-6 text-cyan-400" />
               Recent Valid Entries
             </h2>
             
             <div className="space-y-4">
                {(stats?.recent_scans || []).map((scan, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-black/40 border border-gray-800 rounded-2xl group hover:border-pink-500/30 transition-all">
+                  <div key={idx} className="flex items-center justify-between p-4 bg-black/40 border border-gray-800 rounded-2xl group hover:border-cyan-500/30 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-green-500/10 rounded-lg text-green-500">
+                      <div className="p-2 bg-cyan-400/10 rounded-lg text-cyan-400">
                         <CheckCircle2 className="w-4 h-4" />
                       </div>
                       <div>
@@ -480,7 +480,7 @@ export default function CouncilDashboard() {
                       </div>
                     </div>
                     {scan.pass_type === 'vip' && (
-                      <span className="text-[9px] bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 px-1.5 py-0.5 rounded font-black tracking-widest">VIP</span>
+                      <span className="text-[9px] bg-indigo-500/10 text-indigo-400 border border-yellow-500/20 px-1.5 py-0.5 rounded font-black tracking-widest">VIP</span>
                     )}
                   </div>
                ))}
@@ -499,7 +499,7 @@ export default function CouncilDashboard() {
           <div className="relative bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
             <div className="p-4 md:p-6 border-b border-gray-800 flex items-center justify-between bg-black/20">
               <h2 className="text-lg md:text-xl font-bold flex items-center gap-3">
-                <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-purple-400" />
+                <ShieldAlert className="w-5 h-5 md:w-6 md:h-6 text-indigo-400" />
                 VIP Management
               </h2>
               <button 
@@ -516,7 +516,7 @@ export default function CouncilDashboard() {
                 <p className="text-gray-400 text-xs md:text-sm">Create and manage exclusive VIP entry passes.</p>
                 <button
                   onClick={() => setShowCreateVip(!showCreateVip)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-600/20"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-purple-600/20"
                 >
                   <Plus className="w-4 h-4" />
                   Generate VIP
@@ -524,7 +524,7 @@ export default function CouncilDashboard() {
               </div>
 
               {showCreateVip && (
-                <form onSubmit={handleCreateVIP} className="bg-black/40 border border-purple-500/20 rounded-2xl p-6 space-y-4 animate-in fade-in slide-in-from-top-4">
+                <form onSubmit={handleCreateVIP} className="bg-black/40 border border-indigo-500/20 rounded-2xl p-6 space-y-4 animate-in fade-in slide-in-from-top-4">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">VIP Name</label>
                     <input
@@ -532,7 +532,7 @@ export default function CouncilDashboard() {
                       placeholder="e.g. John Doe"
                       value={newVip.name}
                       onChange={(e) => setNewVip({ ...newVip, name: e.target.value })}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:border-purple-500 outline-none transition-all"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none transition-all"
                     />
                   </div>
                   <div className="space-y-2">
@@ -543,7 +543,7 @@ export default function CouncilDashboard() {
                         onClick={() => setNewVip({ ...newVip, validDate: '' })}
                         className={`px-3 py-2 rounded-lg text-sm font-bold border transition-all ${
                           newVip.validDate === '' 
-                            ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-500/20' 
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
                             : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
                         }`}
                       >
@@ -577,14 +577,14 @@ export default function CouncilDashboard() {
                       placeholder="Context for this VIP pass..."
                       value={newVip.notes}
                       onChange={(e) => setNewVip({ ...newVip, notes: e.target.value })}
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:border-purple-500 outline-none transition-all resize-none h-24"
+                      className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none transition-all resize-none h-24"
                     />
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
                       type="submit"
                       disabled={vipLoading}
-                      className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
                     >
                       {vipLoading ? 'Generating...' : 'Confirm Generation'}
                     </button>
@@ -633,21 +633,21 @@ export default function CouncilDashboard() {
                     }
 
                     return (
-                      <div key={pass.pass_id} className="bg-black/40 border border-gray-800 rounded-2xl p-4 flex items-center justify-between group hover:border-purple-500/30 transition-all">
+                      <div key={pass.pass_id} className="bg-black/40 border border-gray-800 rounded-2xl p-4 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <p className="font-bold text-gray-200 truncate">{pass.participant_name || 'Unnamed VIP'}</p>
                             <span className={`text-[9px] md:text-[10px] px-2 py-0.5 rounded-full font-black tracking-widest ${
                               (currentDayNum && usedDays.includes(currentDayNum)) 
-                                ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                                : 'bg-green-500/10 text-green-500 border border-green-500/20'
+                                ? 'bg-violet-500/10 text-violet-500 border border-violet-500/20' 
+                                : 'bg-cyan-400/10 text-cyan-400 border border-cyan-500/20'
                             }`}>
                               {(currentDayNum && usedDays.includes(currentDayNum)) ? 'CHECKED IN' : 'VALID'}
                             </span>
                             {usedDays.length > 0 && (
                               <div className="flex gap-1">
                                 {usedDays.sort((a, b) => a - b).map((day) => (
-                                  <span key={day} className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-black">
+                                  <span key={day} className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-black">
                                     Day {day}
                                   </span>
                                 ))}
@@ -656,12 +656,12 @@ export default function CouncilDashboard() {
                           </div>
                           <p className="text-[10px] md:text-xs text-gray-500 truncate">Token: <span className="font-mono">{pass.pass_token}</span></p>
                           {pass.valid_date ? (
-                             <p className="text-[10px] font-bold text-amber-500 mt-1 flex items-center gap-1">
+                             <p className="text-[10px] font-bold text-violet-400 mt-1 flex items-center gap-1">
                                <Clock className="w-3 h-3" />
                                Valid: {new Date(pass.valid_date).toLocaleDateString()}
                              </p>
                           ) : (
-                             <p className="text-[10px] font-bold text-green-500 mt-1 flex items-center gap-1">
+                             <p className="text-[10px] font-bold text-cyan-400 mt-1 flex items-center gap-1">
                                <CheckCircle2 className="w-3 h-3" />
                                All-Day Access
                              </p>
@@ -670,14 +670,14 @@ export default function CouncilDashboard() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setSelectedPass(pass)}
-                            className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-all"
+                            className="p-2 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 rounded-lg transition-all"
                             title="View & Download QR"
                           >
                             <Eye className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteVIPPass(pass.pass_id, pass.participant_name)}
-                            className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-all"
+                            className="p-2 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 rounded-lg transition-all"
                             title="Delete Pass"
                           >
                             <Trash className="w-5 h-5" />

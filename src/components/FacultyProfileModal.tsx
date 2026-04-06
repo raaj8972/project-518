@@ -13,12 +13,11 @@ interface FacultyProfileModalProps {
     name: string;
     title?: string;
     image?: string;
-    description?: string;
     specialty?: string;
     email?: string;
     phone?: string;
-    achievements?: string[];
     social_links?: Partial<Record<'instagram' | 'youtube' | 'spotify' | 'twitter' | 'linkedin', string>>;
+
   } | null;
 }
 
@@ -75,7 +74,8 @@ const FacultyProfileModal: React.FC<FacultyProfileModalProps> = ({ open, onClose
           {person.specialty && (
             <div className="inline-block bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs px-3 py-1 rounded-full mb-4">{person.specialty}</div>
           )}
-          {person.description && <p className="text-gray-300 leading-relaxed mb-4 whitespace-pre-line">{person.description}</p>}
+        
+
           {(person.email || person.phone) && (
             <div className="mb-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -89,14 +89,8 @@ const FacultyProfileModal: React.FC<FacultyProfileModalProps> = ({ open, onClose
               </div>
             </div>
           )}
-          {person.achievements && person.achievements.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-cyan-400 mb-2">Achievements</h4>
-              <ul className="list-disc list-inside text-gray-300 space-y-1">
-                {person.achievements.map((a, i) => (<li key={i}>{a}</li>))}
-              </ul>
-            </div>
-          )}
+        
+
           {person.social_links && Object.values(person.social_links).some(Boolean) && (
             <div className="flex flex-wrap items-center gap-4 mt-2">
               <span className="text-sm font-semibold text-cyan-400">Social Media:</span>
