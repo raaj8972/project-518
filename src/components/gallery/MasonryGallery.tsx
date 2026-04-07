@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Download, Share2, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import gsap from 'gsap';
+import { useCoreData } from '../../context/CoreDataContext';
 
 interface GalleryImage {
   id: number;
@@ -18,6 +19,9 @@ interface MasonryGalleryProps {
 }
 
 export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
+  const { homepageSettings } = useCoreData();
+  const brandYear = homepageSettings?.brand_year || new Date().getFullYear();
+
   const [visibleCount, setVisibleCount] = useState(100);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [scale, setScale] = useState(1);
@@ -276,7 +280,7 @@ export const MasonryGallery: React.FC<MasonryGalleryProps> = ({ images }) => {
       try {
         await navigator.share({
           title: img.alt || 'RICORRENZA Gallery',
-          text: `Check out this photo from RICORRENZA 2026!`,
+          text: `Check out this photo from RICORRENZA ${brandYear}!`,
           url: window.location.href
         });
       } catch (err) { console.error('Share failed', err); }

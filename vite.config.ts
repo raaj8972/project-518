@@ -33,12 +33,11 @@ export default defineConfig({
   },
   server: {
     host: 'localhost',
-    port: 5173,
-    strictPort: true,
+    port: 8081,
+    strictPort: false,
     hmr: {
       protocol: 'ws',
       host: 'localhost',
-      port: 5173,
     },
   },
   preview: {

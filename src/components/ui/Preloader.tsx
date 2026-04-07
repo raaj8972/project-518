@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
-
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN PRELOADER COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
@@ -157,7 +155,7 @@ export const Preloader: React.FC<PreloaderProps> = ({
           animate={{ y: [0, -8, 0] }}
           transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
         >
-          {/* Lottie player */}
+          {/* Lottie player - using native web component for instant, non-blocking render */}
           <div className="
             w-[85vw] h-[42vw]
             sm:w-[70vw] sm:h-[35vw]
@@ -166,12 +164,13 @@ export const Preloader: React.FC<PreloaderProps> = ({
             xl:w-[640px] xl:h-[320px]
             relative
           ">
-            <DotLottieReact
+            {/* @ts-ignore - Custom Web Component */}
+            <dotlottie-player
               src="/animations/preloader.lottie"
-              loop
-              autoplay
+              loop="true"
+              autoplay="true"
               style={{ width: '100%', height: '100%', display: 'block' }}
-            />
+            ></dotlottie-player>
           </div>
         </motion.div>
 

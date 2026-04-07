@@ -18,9 +18,15 @@ const R2_ACCESS_KEY  = process.env.R2_ACCESS_KEY_ID || '';
 const R2_SECRET_KEY  = process.env.R2_SECRET_ACCESS_KEY || '';
 const R2_BUCKET      = process.env.R2_BUCKET_NAME || '';
 const R2_PUBLIC_HOST = process.env.R2_PUBLIC_DOMAIN || '';
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY || ''; // 👈 Added official API key support
+if (GOOGLE_API_KEY) {
+  console.log('[DriveProxy] GOOGLE_API_KEY initialized.');
+} else {
+  console.warn('[DriveProxy] GOOGLE_API_KEY missing. Falling back to public endpoints.');
+}
 
 const CORS_HEADERS: Record<string, string> = {
-  // 'Access-Control-Allow-Origin': '*' // Restricted by policy,
+  'Access-Control-Allow-Origin': '*', // Relaxed for images
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
@@ -94,16 +100,19 @@ export const handler: Handler = async (event) => {
 
   // ── 2. Fetch from Google Drive ─────────────────────────────────
   const urlCandidates = [
-    ...(safeWidth < 1600 ? [`https://drive.google.com/thumbnail?id=${fileId}&sz=w${safeWidth}`] : []),
+    // Primary: Official API (Best reliability, but limited quota)
+    ...(GOOGLE_API_KEY ? [`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${GOOGLE_API_KEY}`] : []),
+    // Fallbacks: Common thumbnail & viewer patterns (High rate limit, bypass auth)
     `https://lh3.googleusercontent.com/u/0/d/${fileId}`,
     `https://drive.google.com/thumbnail?id=${fileId}&sz=w${safeWidth}`,
     `https://drive.google.com/uc?export=view&id=${fileId}`,
+    `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`, // Try a standard large size as last resort
   ];
 
   for (const driveUrl of urlCandidates) {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 12000); // 12s timeout for Drive (slower than before)
 
       const response = await fetch(driveUrl, {
         headers: { 'User-Agent': USER_AGENT },
@@ -113,18 +122,25 @@ export const handler: Handler = async (event) => {
       clearTimeout(timeout);
 
       if (!response.ok) {
-        console.warn(`[DriveProxy] ${driveUrl} returned ${response.status}`);
+        console.warn(`[DriveProxy] ${driveUrl.split('?')[0]} returned ${response.status}`);
+        // If 429, we might want to break, but let's try other candidates just in case they use different backends
         continue;
       }
 
       const contentType = response.headers.get('content-type') || 'image/jpeg';
-      if (contentType.includes('text/html')) {
-        console.warn(`[DriveProxy] ${driveUrl} returned HTML, skipping`);
-        continue;
+      if (contentType.includes('text/html') || contentType.includes('json')) {
+         const preview = (await (await response.clone().text())).substring(0, 50);
+         console.warn(`[DriveProxy] ${driveUrl.split('?')[0]} returned ${contentType} (Preview: ${preview}), skipping`);
+         continue;
       }
 
       const arrayBuffer = await response.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
+
+      if (buffer.length < 500) {
+        console.warn(`[DriveProxy] File too small (${buffer.length} bytes), likely an error page or spacer.`);
+        continue;
+      }
 
       // ── 3. Upload to R2 (fire-and-forget if R2 is configured) ──
       if (R2_ACCOUNT_ID && R2_ACCESS_KEY && R2_SECRET_KEY && R2_BUCKET) {

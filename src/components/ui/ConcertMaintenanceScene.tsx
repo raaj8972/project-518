@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { CountdownTimer } from '../CountdownTimer';
 
 interface ConcertMaintenanceSceneProps {
@@ -73,11 +72,13 @@ export const ConcertMaintenanceScene: React.FC<ConcertMaintenanceSceneProps> = (
             lg:w-[700px] lg:h-[350px]
             xl:w-[800px] xl:h-[400px]
           ">
-            <DotLottieReact
+            {/* @ts-ignore - Custom Web Component */}
+            <dotlottie-player
               src="/animations/maintenance.lottie"
-              loop
-              autoplay
-            />
+              loop="true"
+              autoplay="true"
+              style={{ width: '100%', height: '100%', display: 'block' }}
+            ></dotlottie-player>
           </div>
 
           {/* ── Glassmorphic Timer Overlay — floats on top of the animation ── */}

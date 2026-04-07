@@ -8,6 +8,7 @@ import { useSportsData } from './SportsContext';
 import { usePersonnelData } from './PersonnelContext';
 import { useManagementData } from './ManagementContext';
 import { supabase } from '../lib/supabase';
+import { sanitizeUrl } from '../utils/dataUtils';
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
@@ -272,6 +273,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     computeAllBucketsUsage: async () => ({ totalBytes: 0, count: 0 }),
 
     // Utils/Misc
+    sanitizeUrl,
     publicUrlFor: (bucket, path) => supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl,
     isAdmin: () => (auth.user?.user_metadata?.role === 'admin' || auth.user?.user_metadata?.role === 'owner'),
     isOwner: () => auth.user?.user_metadata?.role === 'owner',

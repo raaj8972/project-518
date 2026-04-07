@@ -74,7 +74,15 @@ export const sanitizeUrl = (url?: string | null, options?: ImageOptions): string
   // Handle drive:// protocol for Google Drive images
   if (s.startsWith('drive://')) {
     const fileId = s.replace('drive://', '');
-    const width = options?.width || 1600;
+    const width = options?.width || 1280;
+    
+    // If running locally without Netlify Proxy, use direct Google Drive thumbnails as fallback
+    if (typeof window !== 'undefined' && 
+       (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ) {
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w${width}`;
+    }
+    
     return `/api/drive-proxy?id=${fileId}&width=${width}`;
   }
   
