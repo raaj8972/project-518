@@ -314,7 +314,16 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
     setLightboxStatus('loading');
     setLightboxFallbackStage(0);
     setScale(1);
+    
+    // Sturdy scroll lock for iOS and all devices
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     document.body.classList.add('modal-open');
+    
     const img = group[imgIndex];
     if (img?.id && onPhotoView) {
       const key = `tracked_img_view_${img.id}`;
@@ -327,7 +336,18 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
 
   const closeLightbox = useCallback(() => {
     setLightboxIndex(null);
+    
+    // Restore scroll lock
+    const scrollY = document.body.style.top;
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
     document.body.classList.remove('modal-open');
+    if (scrollY) {
+      window.scrollTo(0, parseInt(scrollY || '0') * -1);
+    }
   }, []);
 
   const nextImage = (e?: React.MouseEvent) => {
@@ -345,6 +365,17 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
     setLightboxFallbackStage(0);
     setLightboxIndex(prev => prev !== null ? (prev > 0 ? prev - 1 : currentGroup.length - 1) : null);
   };
+
+  useEffect(() => {
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+      document.body.classList.remove('modal-open');
+    };
+  }, []);
 
   useEffect(() => {
     if (lightboxIndex !== null && lightboxRef.current) {
@@ -645,7 +676,7 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
       </div>
 
       {lightboxIndex !== null && (
-        <div ref={lightboxRef} className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050505]/98 backdrop-blur-3xl" onClick={closeLightbox}>
+        <div ref={lightboxRef} className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#050505]/98 backdrop-blur-3xl m-0 p-0 top-0 left-0 h-[100dvh] w-[100dvw]" onClick={closeLightbox}>
           <div className="absolute top-4 left-4 z-50 flex items-center gap-4">
             <div className="text-indigo-100/80 font-serif font-bold text-xs tracking-[0.2em] bg-indigo-950/40 px-5 py-2.5 rounded-sm border border-indigo-900/30 uppercase">{lightboxIndex + 1} / {currentGroup.length}</div>
           </div>
@@ -795,7 +826,7 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
               {/* Clean Bottom Branding Bar — shareable on Instagram */}
               <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-lg flex flex-col justify-end">
                 <div className="w-full bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-14 pb-3 px-4 flex justify-between items-end">
-                   <div className="text-white/60 text-[8px] md:text-sm font-medium hidden sm:block">ricorrenza.in</div>
+                   {/* <div className="text-white/60 text-[8px] md:text-sm font-medium hidden sm:block">ricorrenza.in</div> */}
                    <div className="text-white/90 text-xs md:text-lg font-bold tracking-wider drop-shadow-md">RICORRENZA {brandYear}</div>
                 </div>
               </div>
@@ -823,7 +854,11 @@ export const NetflixGallery: React.FC<NetflixGalleryProps> = ({ images: initialI
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        .modal-open { overflow: hidden; }
+        body.modal-open { 
+          overflow: hidden !important; 
+          overscroll-behavior: none;
+          touch-action: none;
+        }
         img { -webkit-user-drag: none; -webkit-touch-callout: none; }
       `}</style>
     </div>
