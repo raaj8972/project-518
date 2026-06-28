@@ -110,8 +110,8 @@ const StudentLogin: React.FC = () => {
   };
 
   const overlayVariants = {
-    login: { x: '100%', borderTopLeftRadius: '100px', borderBottomLeftRadius: '100px', borderTopRightRadius: '0px', borderBottomRightRadius: '0px' },
-    signup: { x: '0%', borderTopLeftRadius: '0px', borderBottomLeftRadius: '0px', borderTopRightRadius: '100px', borderBottomRightRadius: '100px' }
+    login: { x: '0%', borderTopLeftRadius: '0px', borderBottomLeftRadius: '0px', borderTopRightRadius: '100px', borderBottomRightRadius: '100px' },
+    signup: { x: '100%', borderTopLeftRadius: '100px', borderBottomLeftRadius: '100px', borderTopRightRadius: '0px', borderBottomRightRadius: '0px' }
   };
 
   // 1. Loading State
@@ -279,19 +279,19 @@ const StudentLogin: React.FC = () => {
           <div className="relative z-40 w-full px-6">
             <AnimatePresence mode="wait">
               {isLogin ? (
-                <motion.div key="w-login" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
-                  <Sparkles className="w-12 h-12 text-yellow-300 mx-auto mb-6" />
-                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
-                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Sign in to your student dashboard using Google for a 2-click experience.</p>
+                <motion.div key="w-signup" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
+                  <div className="w-20 h-2 bg-white rounded-full mx-auto mb-10" />
+                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
+                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Start your journey with {BRAND_NAME} {BRAND_YEAR}. Instant signup with Google.</p>
                   <button onClick={() => setIsLogin(false)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-[#4c1d95] transition-all hover:scale-105 active:scale-[0.98]">
                     NEED ACCOUNT?
                   </button>
                 </motion.div>
               ) : (
-                <motion.div key="w-signup" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
-                  <div className="w-20 h-2 bg-white rounded-full mx-auto mb-10" />
-                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
-                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Start your journey with {BRAND_NAME} {BRAND_YEAR}. Instant signup with Google.</p>
+                <motion.div key="w-login" initial={{opacity:0, scale:0.9, y: 30}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -30, position:'absolute', top:0, left:0, width:'100%'}}>
+                  <Sparkles className="w-12 h-12 text-yellow-300 mx-auto mb-6" />
+                  <h2 className="text-5xl font-black mb-8 leading-[1.1] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
+                  <p className="mb-12 text-[#d8b4fe] leading-relaxed font-bold text-xl">Sign in to your student dashboard using Google for a 2-click experience.</p>
                   <button onClick={() => setIsLogin(true)} className="px-14 py-4 rounded-full border-4 border-white font-black text-xl hover:bg-white hover:text-[#4c1d95] transition-all hover:scale-105 active:scale-[0.98]">
                     ALREADY MEMBER?
                   </button>
@@ -359,10 +359,10 @@ const StudentLogin: React.FC = () => {
             <div className="relative z-30 w-full flex flex-col items-center">
               <AnimatePresence mode="wait">
                 {isLogin ? (
-                  <motion.div key="m-login-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
-                    <Sparkles className="w-10 h-10 text-yellow-300 mx-auto mb-5" />
-                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
-                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Sign in to your student dashboard using Google for a 2-click experience.</p>
+                  <motion.div key="m-join-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
+                    <div className="w-16 h-1.5 bg-white/20 rounded-full mx-auto mb-7" />
+                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
+                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Start your journey with {BRAND_NAME}. Global tech leaderboard is waiting.</p>
                     
                     <button 
                       onClick={() => setIsLogin(false)}
@@ -372,10 +372,10 @@ const StudentLogin: React.FC = () => {
                     </button>
                   </motion.div>
                 ) : (
-                  <motion.div key="m-join-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
-                    <div className="w-16 h-1.5 bg-white/20 rounded-full mx-auto mb-7" />
-                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Join the <br/> Revolution</h2>
-                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Start your journey with {BRAND_NAME}. Global tech leaderboard is waiting.</p>
+                  <motion.div key="m-login-slogan" initial={{opacity:0, scale:0.9, y: 10}} animate={{opacity:1, scale:1, y: 0}} exit={{opacity:0, scale:0.9, y: -10, position:'absolute'}} className="w-full flex flex-col items-center">
+                    <Sparkles className="w-10 h-10 text-yellow-300 mx-auto mb-5" />
+                    <h2 className="text-3xl font-black mb-4 leading-[0.9] tracking-tighter uppercase italic">Stay Ahead <br/> Secure Faster</h2>
+                    <p className="text-[#d8b4fe] leading-tight font-bold text-[13px] px-4 mb-6 max-w-[260px] mx-auto opacity-80">Sign in to your student dashboard using Google for a 2-click experience.</p>
                     
                     <button 
                       onClick={() => setIsLogin(true)}

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useData } from '../../context/DataContext';
 import { useEventsData } from '../../context/EventsContext';
 import { Lock, Save, Eye, EyeOff, Wand2, Search, Filter, ShieldCheck, ChevronDown } from 'lucide-react';
@@ -12,13 +13,14 @@ interface ExtractedPasswordData {
 }
 
 export const CoordinatorPasswordManagement: React.FC = () => {
-  const { events, updateEvent, isOwner: checkIsOwner } = useData() as any;
+  const { events, refreshAll, isOwner: checkIsOwner } = useData() as any;
   const { eventCoordinators } = useEventsData();
   const { push } = useToast();
   
-  const isOwner = checkIsOwner();
+  const isOwner = typeof checkIsOwner === 'function' ? checkIsOwner() : false;
 
-  const [stagedPasswords, setStagedPasswords] = useState<{ [key: number]: string }>({});
+  const [stagedPasswords, setStagedPasswords] = useState<{ [key: string]: string }>({});
+  const [stagedGrouping, setStagedGrouping] = useState<{ [key: string]: boolean }>({});
   const [isSaving, setIsSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   
@@ -26,7 +28,7 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('all');
 
-  const [showPasswords, setShowPasswords] = useState<{ [key: number]: boolean }>({});
+  const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
 
   const categories = useMemo(() => {
     if (!events) return [];
@@ -35,51 +37,77 @@ export const CoordinatorPasswordManagement: React.FC = () => {
   }, [events]);
 
   // Get coordinators for a specific event from the normalized table
-  const getCoordinatorsForEvent = (eventId: number) =>
-    eventCoordinators.filter((c: any) => c.event_id === eventId);
+  const getCoordinatorsForEvent = (eventId: string | number) =>
+    (eventCoordinators || []).filter((c: any) => String(c.event_id) === String(eventId));
 
   const filteredEvents = useMemo(() => {
     if (!events) return [];
     return events.filter((event: any) => {
-      const coordNames = eventCoordinators
-        .filter((c: any) => c.event_id === event.id)
-        .map((c: any) => c.name?.toLowerCase())
+      const coordNames = (eventCoordinators || [])
+        .filter((c: any) => String(c.event_id) === String(event.id))
+        .map((c: any) => c.name?.toLowerCase() || '')
         .join(' ');
       const matchesSearch =
-        event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (event.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
         coordNames.includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategory === 'all' || event.category === filterCategory;
       return matchesSearch && matchesCategory;
     });
   }, [events, eventCoordinators, searchQuery, filterCategory]);
 
-  const handlePasswordChange = (eventId: number, value: string) => {
-    setStagedPasswords(prev => ({ ...prev, [eventId]: value }));
+  const handlePasswordChange = (eventId: string | number, value: string) => {
+    setStagedPasswords(prev => ({ ...prev, [String(eventId)]: value }));
   };
 
-  const toggleShowPassword = (eventId: number) => {
-    setShowPasswords(prev => ({ ...prev, [eventId]: !prev[eventId] }));
+  const handleGroupingToggle = (eventId: string | number, value: boolean) => {
+    setStagedGrouping(prev => ({ ...prev, [String(eventId)]: value }));
+  };
+
+  const toggleShowPassword = (eventId: string | number) => {
+    setShowPasswords(prev => ({ ...prev, [String(eventId)]: !prev[String(eventId)] }));
   };
 
   const getCurrentPassword = (event: any) => {
-    return stagedPasswords[event.id] !== undefined ? stagedPasswords[event.id] : (event.coordinator_password || '');
+    return stagedPasswords[String(event.id)] !== undefined ? stagedPasswords[String(event.id)] : (event.coordinator_password || '');
   };
 
-  const hasUnsavedChanges = (eventId: number) => {
-    const original = events.find((e: any) => e.id === eventId)?.coordinator_password || '';
-    const staged = stagedPasswords[eventId];
+  const getCurrentGrouping = (event: any) => {
+    return stagedGrouping[String(event.id)] !== undefined ? stagedGrouping[String(event.id)] : (event.special_grouping_enabled || false);
+  };
+
+  const hasUnsavedChanges = (eventId: string | number) => {
+    const original = events?.find((e: any) => String(e.id) === String(eventId))?.coordinator_password || '';
+    const staged = stagedPasswords[String(eventId)];
     return staged !== undefined && staged !== original;
   };
 
-  const totalUnsavedChanges = Object.keys(stagedPasswords).filter(id => hasUnsavedChanges(Number(id))).length;
+  const hasUnsavedChangesGrouping = (eventId: string | number) => {
+    const original = events?.find((e: any) => String(e.id) === String(eventId))?.special_grouping_enabled || false;
+    const staged = stagedGrouping[String(eventId)];
+    return staged !== undefined && staged !== original;
+  };
+
+  const hasAnyUnsavedChanges = (eventId: string | number) => {
+    return hasUnsavedChanges(eventId) || hasUnsavedChangesGrouping(eventId);
+  };
+
+  const totalUnsavedChanges = 
+    Object.keys(stagedPasswords).filter(id => hasUnsavedChanges(id)).length + 
+    Object.keys(stagedGrouping).filter(id => hasUnsavedChangesGrouping(id)).length;
+
+  const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZnFoYXNjcmR6YW9lYmh1b2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzUwMDE0MSwiZXhwIjoyMDczMDc2MTQxfQ.RiLXG5KPvN62KlnW1v8c2mVbg6Nu3bEYHjKUhvlSYJM';
+  const SUPA_URL = 'https://isfqhascrdzaoebhuohs.supabase.co';
 
   const handleBulkSave = async () => {
-    const changesToApply = Object.entries(stagedPasswords).filter(([id]) => hasUnsavedChanges(Number(id)));
-    
-    if (changesToApply.length === 0) return;
+    const changedEventIds = Array.from(new Set([
+      ...Object.keys(stagedPasswords).filter(id => hasUnsavedChanges(id)),
+      ...Object.keys(stagedGrouping).filter(id => hasUnsavedChangesGrouping(id))
+    ]));
+
+    if (changedEventIds.length === 0) return;
 
     // Validation
-    const emptyPasswords = changesToApply.filter(([_, pwd]) => !pwd.trim());
+    const emptyPasswords = changedEventIds.filter(id => hasUnsavedChanges(id) && !stagedPasswords[id]?.trim());
     if (emptyPasswords.length > 0) {
       push({ message: 'Passwords cannot be empty', type: 'error' });
       return;
@@ -87,20 +115,45 @@ export const CoordinatorPasswordManagement: React.FC = () => {
 
     try {
       setIsSaving(true);
-      push({ message: `Saving ${changesToApply.length} passwords...`, type: 'info' });
+      push({ message: `Saving changes for ${changedEventIds.length} event${changedEventIds.length > 1 ? 's' : ''}...`, type: 'info' });
 
-      // Ensure save sequentially to prevent race conditions or overloading the DB
-      for (const [eventIdStr, newPassword] of changesToApply) {
-        await updateEvent(Number(eventIdStr), { coordinator_password: newPassword } as any);
+      // Use service-role key to bypass RLS (admin-only page, owner-gated)
+      for (const eventId of changedEventIds) {
+        const payload: any = {};
+        if (hasUnsavedChanges(eventId)) {
+          payload.coordinator_password = stagedPasswords[eventId];
+        }
+        if (hasUnsavedChangesGrouping(eventId)) {
+          payload.special_grouping_enabled = stagedGrouping[eventId];
+        }
+
+        const resp = await fetch(
+          `${SUPA_URL}/rest/v1/events?id=eq.${eventId}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'apikey': SERVICE_KEY,
+              'Authorization': `Bearer ${SERVICE_KEY}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=representation',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(errText || `Failed to save event ${eventId}`);
+        }
       }
 
-      push({ message: `Successfully updated ${changesToApply.length} passwords!`, type: 'success' }); // replaced toastId logic with a simple push as the ToastProvider interface might be custom
-      
-      // Clear staged changes after successful save
+      push({ message: `✅ Successfully saved changes for ${changedEventIds.length} event${changedEventIds.length > 1 ? 's' : ''}!`, type: 'success' });
       setStagedPasswords({});
-    } catch (error) {
+      setStagedGrouping({});
+      // Refresh events so the table reflects the newly saved changes
+      if (typeof refreshAll === 'function') refreshAll();
+    } catch (error: any) {
       console.error('Error updating passwords:', error);
-      push({ message: 'Failed to update some passwords', type: 'error' });
+      push({ message: error?.message || 'Failed to update some passwords', type: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -267,12 +320,13 @@ export const CoordinatorPasswordManagement: React.FC = () => {
                 <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Event Name</th>
                 <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Category</th>
                 <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Assigned Coordinator</th>
+                <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20">Manual Grouping</th>
                 <th className="py-4 px-6 text-xs font-bold text-emerald-400/80 uppercase tracking-widest bg-emerald-950/20 w-[350px]">Login Password</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredEvents.map((event: any) => {
-                const isUnsaved = hasUnsavedChanges(event.id);
+                const isUnsaved = hasAnyUnsavedChanges(event.id);
                 const passwordVal = getCurrentPassword(event);
                 const showPwd = showPasswords[event.id];
 
@@ -326,6 +380,25 @@ export const CoordinatorPasswordManagement: React.FC = () => {
                           </div>
                         );
                       })()}
+                    </td>
+                    
+                    <td className="py-4 px-6">
+                      <button
+                        type="button"
+                        onClick={() => handleGroupingToggle(event.id, !getCurrentGrouping(event))}
+                        className={`w-11 h-6 rounded-full transition-all flex items-center p-1 cursor-pointer outline-none ${
+                          getCurrentGrouping(event)
+                            ? 'bg-emerald-500 justify-end'
+                            : 'bg-white/10 justify-start'
+                        }`}
+                        title={getCurrentGrouping(event) ? 'Grouping enabled' : 'Grouping disabled'}
+                      >
+                        <motion.div 
+                          layout
+                          className="w-4 h-4 rounded-full bg-white shadow-md"
+                          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        />
+                      </button>
                     </td>
                     
                     <td className="py-4 px-6">

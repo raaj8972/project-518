@@ -8,9 +8,11 @@ import {
   ChevronDown,
   Camera,
   Upload,
+  AtSign,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { ImageCropper } from '../../components/ImageCropper';
+import { supabase } from '../../lib/supabase';
 
 interface DashboardContextType {
   user: any;
@@ -44,6 +46,7 @@ const Settings: React.FC = () => {
   const [phone, setPhone] = useState(profile?.phone || '');
   const [college, setCollege] = useState(profile?.college || '');
   const [batch, setBatch] = useState(profile?.batch || '');
+  const [username, setUsername] = useState(profile?.username || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,6 +55,7 @@ const Settings: React.FC = () => {
       setPhone(profile.phone || '');
       setCollege(profile.college || '');
       setBatch(profile.batch || '');
+      setUsername(profile.username || '');
     }
   }, [profile]);
 
@@ -59,12 +63,31 @@ const Settings: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     try {
+      const cleanUsername = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (cleanUsername) {
+        // Validate uniqueness
+        const { data: existingUser, error: checkErr } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', cleanUsername)
+          .neq('id', profile?.id)
+          .maybeSingle();
+
+        if (checkErr) throw checkErr;
+        if (existingUser) {
+          toast.error('This username is already taken!');
+          setSaving(false);
+          return;
+        }
+      }
+
       const { error } = await updateProfile({
         full_name: fullName,
         phone: phone,
         college: showCollege ? college : 'N/A',
         batch,
-        participant_type: batch
+        participant_type: batch,
+        username: cleanUsername || null
       });
       if (error) throw error;
       toast.success('Profile updated successfully!');
@@ -89,8 +112,29 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="rico-glass-card p-8 rounded-3xl border border-white/10 bg-white/5 space-y-10">
+        {/* Prominent Username Field at the Absolute Top */}
+        <div className="p-5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
+          <div className="flex items-center gap-2">
+            <AtSign className="w-4.5 h-4.5 text-indigo-400" />
+            <h3 className="text-xs font-black text-white uppercase tracking-widest">Set Your Username Handle</h3>
+          </div>
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Teammates will use this unique handle to search and invite you to their group registrations. Make sure to choose a handle and click save at the bottom of the page!
+          </p>
+          <div className="relative">
+            <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+              className="w-full bg-[#121620]/80 border border-white/10 rounded-xl px-10 py-3 text-xs text-white focus:border-indigo-500 outline-none transition-all placeholder-white/20"
+              placeholder="choose_a_username (letters, numbers, underscore)"
+            />
+          </div>
+        </div>
+
         {/* Photo Section */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center border-t border-white/[0.04] pt-8">
           <div 
             onClick={() => fileInputRef.current?.click()}
             className="w-32 h-32 rounded-3xl bg-gradient-to-br from-red-500/20 to-orange-600/20 flex items-center justify-center relative group cursor-pointer overflow-hidden border-2 border-dashed border-white/20 hover:border-red-500/50 transition-all"
@@ -130,6 +174,7 @@ const Settings: React.FC = () => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-300">Full Name</label>
             <div className="relative">

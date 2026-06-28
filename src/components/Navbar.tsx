@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import BrandLogo3D from './BrandLogo3D';
 import { BRAND_YEAR } from '../constants/brand';
+import { CartButton } from './CartDrawer';
+
 
 interface NavItem {
   name: string;
@@ -175,7 +177,8 @@ export const Navbar = React.memo(function Navbar() {
   const isAdminRoute = location.pathname.startsWith('/admin');
   const isSecurityRoute = location.pathname.startsWith('/security-');
   const isCoordinatorRoute = location.pathname.startsWith('/coordinator/dashboard');
-  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute) return null;
+  const isDashboardRoute = location.pathname.startsWith('/dashboard');
+  if (isAdminRoute || isSecurityRoute || isCoordinatorRoute || isDashboardRoute) return null;
 
   return (
     <div className={`cyberpunk-navbar fixed inset-x-0 z-[100] transition-all duration-500 ease-in-out flex justify-center w-full pointer-events-none p-2 sm:p-4 pt-[calc(env(safe-area-inset-top,8px)+4px)] ${
@@ -233,6 +236,7 @@ export const Navbar = React.memo(function Navbar() {
 
         {/* Right: Actions Pill */}
         <div className="flex items-center gap-2 pointer-events-auto">
+          <CartButton />
           <div className={`hidden lg:flex glass-pill items-center h-12 md:h-14 px-2 gap-2 ${
             scrolled ? 'bg-black/80' : 'bg-black/40'
           }`}>

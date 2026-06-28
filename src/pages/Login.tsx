@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, ChevronRight, Trophy, Lock, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Shield, Users, Zap, Key, BarChart3, Eye, EyeOff, ChevronRight, Trophy, Lock, ArrowLeft, UserCheck } from 'lucide-react';
 import BrandLogo3D from '../components/BrandLogo3D';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -34,7 +34,7 @@ export const Login: React.FC = () => {
   const formRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
-  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated, loading: authLoading, lastAuthError, user } = useAuth();
   const navigate = useNavigate();
   const { homepageSettings, isAdmin, isOwner, loading: dataLoading } = useData();
   const supabaseHost = (useData() as any)?.supabaseHost as string | undefined;
@@ -206,8 +206,9 @@ export const Login: React.FC = () => {
 
   // Auto-redirect if already authenticated as Admin
   useEffect(() => {
-    if (!authLoading && !dataLoading && isAuthenticated) {
-      if (isAdmin() || isOwner()) {
+    if (!authLoading && isAuthenticated && user) {
+      const role = user.user_metadata?.role;
+      if (role === 'admin' || role === 'owner') {
         console.log('[Login] User already authenticated as Admin/Owner, redirecting to Dashboard...');
         const timer = setTimeout(() => {
           navigate('/admin', { replace: true });
@@ -215,7 +216,7 @@ export const Login: React.FC = () => {
         return () => clearTimeout(timer);
       }
     }
-  }, [authLoading, dataLoading, isAuthenticated, isAdmin, isOwner, navigate]);
+  }, [authLoading, isAuthenticated, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -314,6 +315,7 @@ export const Login: React.FC = () => {
     { label: 'Admin Panel', sub: 'High-level orchestration', icon: Zap, color: 'cyan', action: () => setIsFormOpen(true) },
     { label: 'Security Node', sub: 'Scan & Entry verification', icon: Shield, color: 'purple', action: () => navigate('/security-login') },
     { label: 'Coordinators', sub: 'Event management', icon: Users, color: 'blue', action: () => navigate('/coordinator') },
+    { label: 'CR Portal', sub: 'Batch profile verification', icon: UserCheck, color: 'blue', action: () => navigate('/cr/login') },
     { label: 'Council', sub: 'Analytics dashboard', icon: BarChart3, color: 'emerald', action: () => navigate('/council') },
     { label: 'Sports Admin', sub: 'Tournament & Player management', icon: Trophy, color: 'indigo', action: () => navigate('/sports-admin') },
   ];

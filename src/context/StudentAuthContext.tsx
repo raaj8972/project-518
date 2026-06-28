@@ -10,6 +10,7 @@ export interface StudentProfile {
   batch: string | null;
   participant_type: string | null;
   avatar_url: string | null;
+  username: string | null;
   is_approved: boolean;
   created_at: string;
   updated_at: string;
@@ -108,24 +109,32 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
     }, 5000);
 
     // Check active sessions and sets the user
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('[StudentAuth] getSession complete:', session?.user?.id || 'no user');
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[StudentAuth] getSession complete:', session?.user?.id || 'no user');
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          await fetchProfile(session.user.id);
+        }
+      } catch (err) {
+        console.error('[StudentAuth] getSession error:', err);
+      } finally {
+        setLoading(false);
+        clearTimeout(initTimer);
       }
-      setLoading(false);
-      clearTimeout(initTimer);
-    }).catch(err => {
-      console.error('[StudentAuth] getSession error:', err);
-      setLoading(false);
-      clearTimeout(initTimer);
-    });
+    };
+    checkSession();
 
     // Listen for changes on auth state (logged in, signed out, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('[StudentAuth] Auth state change:', _event, session?.user?.id);
       const currentUser = session?.user ?? null;
+      
+      if (currentUser && (!profile || profile.id !== currentUser.id)) {
+        setLoading(true);
+      }
+
       setUser(currentUser);
       
       if (currentUser) {
@@ -141,6 +150,34 @@ export function StudentAuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Realtime subscription for profile changes (approval, update, etc.)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`profile-changes-${user.id}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'profiles', 
+          filter: `id=eq.${user.id}` 
+        },
+        (payload) => {
+          console.log('[StudentAuth] Realtime profile update:', payload.new);
+          if (payload.new) {
+            setProfile(payload.new as StudentProfile);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const isProfileComplete = !!(profile?.full_name && profile?.phone && profile?.batch);
 

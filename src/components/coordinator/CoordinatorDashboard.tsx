@@ -1,14 +1,16 @@
 import { BRAND_NAME, BRAND_YEAR } from '../../constants/brand';
+import { EventRoundsSection } from './EventRoundsSection';
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../ToastProvider';
 import { dualRead, dualUpdate } from '../../lib/dualDb';
-import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown } from 'lucide-react';
+import { LogOut, Save, MessageCircle, Link as LinkIcon, ExternalLink, Users, Sunrise, Sun, Sunset, Moon, Shield, Search, Download, X, CheckCircle, XCircle, RefreshCw, AlertTriangle, Wifi, SendHorizonal, Mail, Phone, ToggleLeft, ToggleRight, Lock, Unlock, Filter, ChevronDown, Trophy, Loader2, Sparkles, Plus, Trash2, UserCheck, Image } from 'lucide-react';
 import { exportCoordinatorRegistrationsToPDF } from '../../utils/pdfExport';
 import { AnnouncementsPanel } from '../shared/AnnouncementsPanel';
 import { ChatPanel } from '../shared/ChatPanel';
 import { sanitizeUrl } from '../../utils/dataUtils';
+import { supabase } from '../../lib/supabase';
 
 // WhatsApp Logo SVG Component
 const WhatsAppLogo = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -35,7 +37,7 @@ export const CoordinatorDashboard: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // New features state
-  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'rejected'>('approved');
+  const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'rejected' | 'groups'>('approved');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReg, setSelectedReg] = useState<any | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
@@ -50,8 +52,21 @@ export const CoordinatorDashboard: React.FC = () => {
   const [showBulkInvite, setShowBulkInvite] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [isTogglingReg, setIsTogglingReg] = useState(false);
-  const [activeSection, setActiveSection] = useState<'participants' | 'chat' | 'announcements' | 'settings'>('participants');
+  const [activeSection, setActiveSection] = useState<'participants' | 'rounds' | 'chat' | 'announcements' | 'settings'>('participants');
+  const [pageSize, setPageSize] = useState(30);
   const [selectedBatch, setSelectedBatch] = useState<string>('all');
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [oldestUnansweredHrs, setOldestUnansweredHrs] = useState<number | null>(null);
+
+  // Manual & AI Grouping states
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [customGroupName, setCustomGroupName] = useState('');
+  const [isGrouping, setIsGrouping] = useState(false);
+  const [isExtractingAI, setIsExtractingAI] = useState(false);
+  const [matchedGroupsPreview, setMatchedGroupsPreview] = useState<any[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [unassignedSearch, setUnassignedSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
 
   // Load session and fetch data (with offline-first caching)
   const fetchData = useCallback(async (sessionData: any, mounted: { current: boolean }) => {
@@ -102,10 +117,16 @@ export const CoordinatorDashboard: React.FC = () => {
           reg_id: r.id,
           full_name: r.full_name,
           phone: r.phone,
+          email: r.email,
+          username: r.username,
           college: r.college || r.institution,
           batch: r.participant_type || r.batch || '',
           status: r.status,
-          created_at: r.created_at
+          is_active: r.is_active || false,
+          created_at: r.created_at,
+          is_team_registration: r.is_team_registration,
+          team_name: r.team_name,
+          team_id: r.team_id
         }));
         setRpcRegistrations(fresh);
         setErrorMsg(null);
@@ -195,15 +216,31 @@ export const CoordinatorDashboard: React.FC = () => {
           (payload) => {
             if (payload.eventType === 'INSERT') {
               const newReg = payload.new;
+              const mapped = {
+                reg_id: newReg.id,
+                full_name: newReg.full_name,
+                phone: newReg.phone,
+                college: newReg.college,
+                batch: newReg.participant_type || newReg.batch || '',
+                status: newReg.status,
+                is_active: newReg.is_active || false,
+                created_at: newReg.created_at,
+                is_team_registration: newReg.is_team_registration,
+                team_name: newReg.team_name,
+                team_id: newReg.team_id
+              };
               setRpcRegistrations(prev => {
-                // Avoid duplicates
-                if (prev.some((r: any) => r.reg_id === newReg.id)) return prev;
+                if (prev.some((r: any) => r.reg_id === mapped.reg_id)) return prev;
                 setNewRegsCount(n => n + 1);
-                return [newReg, ...prev];
+                return [mapped, ...prev];
               });
             } else if (payload.eventType === 'UPDATE') {
               setRpcRegistrations(prev =>
-                prev.map((r: any) => r.reg_id === payload.new.id ? { ...r, status: payload.new.status } : r)
+                prev.map((r: any) => r.reg_id === payload.new.id ? { ...r, status: payload.new.status, is_active: payload.new.is_active } : r)
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setRpcRegistrations(prev =>
+                prev.filter((r: any) => r.reg_id !== payload.old.id)
               );
             }
           }
@@ -228,6 +265,97 @@ export const CoordinatorDashboard: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [isLoadingData, session]);
+
+  // SLA Alert — runs once when dashboard loads (after splash)
+  useEffect(() => {
+    if (showSplash || !session?.eventId) return;
+
+    const checkSLABreach = async () => {
+      try {
+        // Get all conversations for this event
+        const { data: convos } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('event_id', session.eventId.toString());
+
+        if (!convos || convos.length === 0) return;
+        const convoIds = convos.map((c: any) => c.id);
+
+        // Get latest student message per conversation
+        const { data: msgs } = await supabase
+          .from('chat_messages')
+          .select('conversation_id, created_at, sender_role')
+          .in('conversation_id', convoIds)
+          .eq('sender_role', 'student')
+          .order('created_at', { ascending: false });
+
+        if (!msgs || msgs.length === 0) return;
+
+        // For each conversation, check if last message from student has no coordinator reply after it
+        const convoLastStudentMsg: Record<string, string> = {};
+        msgs.forEach((m: any) => {
+          if (!convoLastStudentMsg[m.conversation_id]) {
+            convoLastStudentMsg[m.conversation_id] = m.created_at;
+          }
+        });
+
+        // Get last coordinator reply per conversation
+        const { data: coordReplies } = await supabase
+          .from('chat_messages')
+          .select('conversation_id, created_at, sender_role')
+          .in('conversation_id', convoIds)
+          .eq('sender_role', 'coordinator')
+          .order('created_at', { ascending: false });
+
+        const convoLastCoordReply: Record<string, string> = {};
+        (coordReplies || []).forEach((m: any) => {
+          if (!convoLastCoordReply[m.conversation_id]) {
+            convoLastCoordReply[m.conversation_id] = m.created_at;
+          }
+        });
+
+        // Find unanswered conversations and compute max wait time
+        const now = Date.now();
+        let maxHrs = 0;
+        let breachCount = 0;
+        Object.entries(convoLastStudentMsg).forEach(([cid, studentTs]) => {
+          const coordTs = convoLastCoordReply[cid];
+          const studentTime = new Date(studentTs).getTime();
+          // Only unanswered = no coord reply OR coord reply is BEFORE the last student message
+          if (!coordTs || new Date(coordTs).getTime() < studentTime) {
+            const hrs = (now - studentTime) / (1000 * 60 * 60);
+            if (hrs > maxHrs) maxHrs = hrs;
+            if (hrs >= 5) breachCount++;
+          }
+        });
+
+        setOldestUnansweredHrs(maxHrs > 0 ? maxHrs : null);
+
+        // Show alert if SLA breach (>5 hrs)
+        if (breachCount > 0) {
+          push({
+            type: 'error',
+            message: `⏰ SLA Breach! ${breachCount} student${breachCount > 1 ? 's have' : ' has'} been waiting over 5 hours for a reply. Go to Student Chat now.`,
+          });
+        } else if (maxHrs >= 3) {
+          push({
+            type: 'info',
+            message: `⚠️ ${Math.round(5 - maxHrs)}h left to reply — a student has been waiting ${Math.round(maxHrs)}h. Check Student Chat.`,
+          });
+        }
+      } catch (e) {
+        console.error('[SLA Check]', e);
+      }
+    };
+
+    checkSLABreach();
+  }, [showSplash, session?.eventId]);
+
+  useEffect(() => {
+    if (activeTab === 'groups' && eventDetails && !eventDetails.special_grouping_enabled) {
+      setActiveTab('approved');
+    }
+  }, [eventDetails, activeTab]);
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -331,20 +459,595 @@ export const CoordinatorDashboard: React.FC = () => {
     if (!session) return;
     try {
       setIsUpdatingStatus(regId);
-      await dualUpdate('registrations', regId, { status: newStatus });
-      setRpcRegistrations(prev =>
-        prev.map(r => r.reg_id === regId ? { ...r, status: newStatus } : r)
-      );
-      push({ message: `Registration ${newStatus} successfully!`, type: 'success' });
-      if (selectedReg && selectedReg.reg_id === regId) {
-        setSelectedReg((prev: any) => ({ ...prev, status: newStatus }));
+      if (newStatus === 'approved') {
+        // Approving/Restoring = set status back to approved AND activate!
+        await dualUpdate('registrations', regId, { status: 'approved', is_active: true });
+        setRpcRegistrations(prev =>
+          prev.map(r => r.reg_id === regId ? { ...r, status: 'approved', is_active: true } : r)
+        );
+        push({ message: 'Participant restored and activated successfully!', type: 'success' });
+        if (selectedReg && selectedReg.reg_id === regId) {
+          setSelectedReg((prev: any) => ({ ...prev, status: 'approved', is_active: true }));
+        }
+      } else {
+        // Rejecting/Kicking out = deactivating or setting status to rejected!
+        await dualUpdate('registrations', regId, { status: 'rejected', is_active: false });
+        setRpcRegistrations(prev =>
+          prev.map(r => r.reg_id === regId ? { ...r, status: 'rejected', is_active: false } : r)
+        );
+        push({ message: 'Participant kicked out successfully!', type: 'info' });
+        if (selectedReg && selectedReg.reg_id === regId) {
+          setSelectedReg((prev: any) => ({ ...prev, status: 'rejected', is_active: false }));
+        }
       }
     } catch (e: any) {
-      push({ message: e.message || `Failed to mark as ${newStatus}`, type: 'error' });
+      push({ message: e.message || `Failed to update status`, type: 'error' });
     } finally {
       setIsUpdatingStatus(null);
     }
   }, [session, selectedReg, push]);
+
+  // Grouping handlers
+  const handleBulkGroup = async (groupName: string, studentIds: string[]) => {
+    const cleanGroupName = groupName.trim();
+    if (!cleanGroupName) {
+      push({ message: 'Please enter a group name', type: 'error' });
+      return;
+    }
+    if (studentIds.length === 0) {
+      push({ message: 'No students selected for grouping', type: 'error' });
+      return;
+    }
+    setIsGrouping(true);
+    try {
+      for (const id of studentIds) {
+        await dualUpdate('registrations', id, {
+          is_team_registration: true,
+          team_name: cleanGroupName
+        });
+      }
+      setRpcRegistrations(prev =>
+        prev.map(r => studentIds.includes(r.reg_id) ? { ...r, is_team_registration: true, team_name: cleanGroupName } : r)
+      );
+      push({ message: `Group "${cleanGroupName}" created with ${studentIds.length} members!`, type: 'success' });
+      setSelectedStudentIds([]);
+      setCustomGroupName('');
+    } catch (err: any) {
+      push({ message: err.message || 'Failed to group students', type: 'error' });
+    } finally {
+      setIsGrouping(false);
+    }
+  };
+
+  const handleUngroupStudent = async (regId: string) => {
+    try {
+      await dualUpdate('registrations', regId, {
+        is_team_registration: false,
+        team_name: null
+      });
+      setRpcRegistrations(prev =>
+        prev.map(r => r.reg_id === regId ? { ...r, is_team_registration: false, team_name: null } : r)
+      );
+      push({ message: 'Student removed from group successfully!', type: 'success' });
+    } catch (err: any) {
+      push({ message: err.message || 'Failed to remove student from group', type: 'error' });
+    }
+  };
+
+  const handleUngroupWholeGroup = async (groupName: string) => {
+    if (!window.confirm(`Are you sure you want to disband group "${groupName}"? All members will return to individual registrations.`)) return;
+    try {
+      const groupRegs = rpcRegistrations.filter(r => r.team_name === groupName);
+      for (const reg of groupRegs) {
+        await dualUpdate('registrations', reg.reg_id, {
+          is_team_registration: false,
+          team_name: null
+        });
+      }
+      setRpcRegistrations(prev =>
+        prev.map(r => r.team_name === groupName ? { ...r, is_team_registration: false, team_name: null } : r)
+      );
+      push({ message: `Group "${groupName}" disbanded successfully!`, type: 'success' });
+    } catch (err: any) {
+      push({ message: err.message || 'Failed to disband group', type: 'error' });
+    }
+  };
+
+  // AI Image Extractor logic
+  const handleAIExtractImage = async (file: File) => {
+    setIsExtractingAI(true);
+    setAiError(null);
+    setMatchedGroupsPreview([]);
+    try {
+      // 1. Convert file to base64
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          const raw = reader.result as string;
+          resolve(raw.split(',')[1]); // remove data:image/...;base64, prefix
+        };
+        reader.onerror = (err) => reject(err);
+      });
+
+      // 2. Call Gemini Vision API
+      const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+      if (!apiKey) {
+        throw new Error('VITE_GOOGLE_API_KEY is not configured in settings. Check your .env.local file.');
+      }
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Analyze this image containing lists of students grouped together. 
+                    Identify all groups and the student names or registration IDs (e.g. RICO1001) in each group. 
+                    Output ONLY as a JSON array of objects, with no markdown code blocks, no backticks, and no extra text. 
+                    The format MUST be:
+                    [
+                      { "group_name": "Group A", "members": ["Student Name 1", "RICO1002"] }
+                    ]
+                    `
+                  },
+                  {
+                    inlineData: {
+                      mimeType: file.type,
+                      data: base64Data
+                    }
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseMimeType: "application/json"
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errTxt = await response.text();
+        throw new Error(`Gemini API error: ${response.status} - ${errTxt}`);
+      }
+
+      const respData = await response.json();
+      const rawText = respData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      
+      let parsedJson: any[] = [];
+      try {
+        const cleanJsonText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsedJson = JSON.parse(cleanJsonText);
+      } catch (jsonErr) {
+        console.error('Failed to parse Gemini output:', rawText);
+        throw new Error('AI output was not in valid JSON format. Try uploading a clearer image.');
+      }
+
+      if (!Array.isArray(parsedJson)) {
+        throw new Error('AI output must be an array of groups.');
+      }
+
+      // 3. Match parsed students with active registrations
+      const mappedPreviews = parsedJson.map((gp: any) => {
+        const members = Array.isArray(gp.members) ? gp.members : [];
+        return {
+          group_name: gp.group_name || 'Group',
+          members: members.map((mName: string) => {
+            const cleanName = mName.trim().toLowerCase();
+            
+            // Search match in event registrations
+            let match = rpcRegistrations.find(r => r.reg_id?.toLowerCase() === cleanName);
+            if (!match) {
+              match = rpcRegistrations.find(r => r.username?.toLowerCase() === cleanName);
+            }
+            if (!match) {
+              match = rpcRegistrations.find(r => r.full_name?.toLowerCase().includes(cleanName));
+            }
+            if (!match) {
+              // Try split name match
+              const firstPart = cleanName.split(' ')[0];
+              if (firstPart && firstPart.length > 2) {
+                match = rpcRegistrations.find(r => r.full_name?.toLowerCase().includes(firstPart));
+              }
+            }
+
+            return {
+              rawName: mName,
+              matchedReg: match ? { id: match.reg_id, name: match.full_name, username: match.username } : null
+            };
+          })
+        };
+      });
+
+      setMatchedGroupsPreview(mappedPreviews);
+      push({ message: 'AI parsed image successfully! Review matches below.', type: 'success' });
+
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || 'Failed to extract groups');
+      push({ message: err.message || 'AI Extraction failed', type: 'error' });
+    } finally {
+      setIsExtractingAI(false);
+    }
+  };
+
+  const renderGroupManager = () => {
+    // 1. Filter approved and active students
+    const approvedActiveRegs = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === true);
+    
+    // 2. Filter unassigned students
+    const unassigned = approvedActiveRegs.filter((r: any) => !r.is_team_registration || !r.team_name);
+    
+    // 3. Apply search filter to unassigned
+    const filteredUnassigned = unassigned.filter((r: any) => {
+      const q = unassignedSearch.toLowerCase();
+      return (
+        (r.full_name && r.full_name.toLowerCase().includes(q)) ||
+        (r.reg_id && r.reg_id.toLowerCase().includes(q))
+      );
+    });
+
+    // 4. Group remaining students
+    const grouped = approvedActiveRegs.filter((r: any) => r.is_team_registration && r.team_name);
+    const groupsMap: Record<string, any[]> = {};
+    grouped.forEach((r: any) => {
+      if (!groupsMap[r.team_name]) groupsMap[r.team_name] = [];
+      groupsMap[r.team_name].push(r);
+    });
+
+    // 5. Apply search filter to groups
+    const filteredGroupNames = Object.keys(groupsMap).filter(name => {
+      const q = groupSearch.toLowerCase();
+      return (
+        name.toLowerCase().includes(q) ||
+        groupsMap[name].some((r: any) => r.full_name && r.full_name.toLowerCase().includes(q))
+      );
+    });
+
+    // 6. Action to save AI preview matches
+    const saveAIMatches = async () => {
+      setIsGrouping(true);
+      try {
+        let savedCount = 0;
+        for (const gp of matchedGroupsPreview) {
+          const matchedIds = gp.members
+            .map((m: any) => m.matchedReg?.id)
+            .filter(Boolean);
+          
+          if (matchedIds.length > 0) {
+            for (const id of matchedIds) {
+              await dualUpdate('registrations', id, {
+                is_team_registration: true,
+                team_name: gp.group_name
+              });
+              savedCount++;
+            }
+          }
+        }
+        
+        // Reload in-memory state
+        setRpcRegistrations(prev =>
+          prev.map(r => {
+            // Find if this reg_id was matched to any group
+            const matchedGroup = matchedGroupsPreview.find(g =>
+              g.members.some((m: any) => m.matchedReg?.id === r.reg_id)
+            );
+            if (matchedGroup) {
+              return {
+                ...r,
+                is_team_registration: true,
+                team_name: matchedGroup.group_name
+              };
+            }
+            return r;
+          })
+        );
+
+        push({ message: `Successfully grouped ${savedCount} students with AI! 🎉`, type: 'success' });
+        setMatchedGroupsPreview([]);
+      } catch (err: any) {
+        push({ message: err.message || 'Failed to save AI groups', type: 'error' });
+      } finally {
+        setIsGrouping(false);
+      }
+    };
+
+    return (
+      <div className="space-y-6 animate-in fade-in duration-300">
+        
+        {/* AI IMAGE EXTRACTOR PANEL */}
+        <div className="bg-black/50 border border-purple-500/20 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-600/5 rounded-full blur-[100px] pointer-events-none" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-white leading-tight">🤖 AI Group Auto-Extractor</h3>
+                <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mt-1">Upload a WhatsApp screenshot, photo of list, or sheets snapshot to auto-group students!</p>
+              </div>
+            </div>
+            
+            <div className="relative shrink-0">
+              <input 
+                type="file" 
+                accept="image/*"
+                id="ai-group-upload"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleAIExtractImage(file);
+                }}
+              />
+              <label 
+                htmlFor="ai-group-upload"
+                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 border border-purple-500/30 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-purple-600/20"
+              >
+                {isExtractingAI ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Image className="w-3.5 h-3.5" />}
+                {isExtractingAI ? 'AI Extracting...' : 'Upload Image List'}
+              </label>
+            </div>
+          </div>
+
+          {/* AI Match Review step */}
+          {matchedGroupsPreview.length > 0 && (
+            <div className="mt-6 border-t border-purple-500/15 pt-6 space-y-4 animate-in slide-in-from-top-3 duration-300">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 text-purple-400">
+                  <UserCheck size={14} /> AI Matching Preview & Review
+                </h4>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={saveAIMatches}
+                    disabled={isGrouping}
+                    className="px-4 py-2 bg-green-500 hover:bg-green-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all disabled:opacity-50"
+                  >
+                    Confirm & Apply Groups
+                  </button>
+                  <button 
+                    onClick={() => setMatchedGroupsPreview([])}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 font-black text-xs uppercase tracking-widest rounded-xl transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {aiError && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs font-bold leading-relaxed flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> {aiError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {matchedGroupsPreview.map((g, gIdx) => (
+                  <div key={gIdx} className="bg-black/40 border border-white/10 rounded-xl p-4">
+                    <h5 className="text-xs font-black text-white tracking-tight border-b border-white/5 pb-2 mb-3">Group Name: {g.group_name}</h5>
+                    <div className="space-y-2">
+                      {g.members.map((member: any, mIdx: number) => (
+                        <div key={mIdx} className="flex items-center justify-between gap-3 bg-white/[0.02] p-2 rounded-lg border border-white/[0.03]">
+                          <div className="min-w-0">
+                            <p className="text-[11px] text-gray-500 leading-none">Extracted: "{member.rawName}"</p>
+                            <p className="text-xs font-black text-white truncate mt-1">
+                              {member.matchedReg ? member.matchedReg.name : <span className="text-rose-400">No match found</span>}
+                            </p>
+                          </div>
+                          
+                          {/* Matching Dropdown override */}
+                          <div className="shrink-0">
+                            <select 
+                              value={member.matchedReg?.id || ''} 
+                              onChange={(e) => {
+                                const selectedId = e.target.value;
+                                const matched = rpcRegistrations.find(r => r.reg_id === selectedId);
+                                setMatchedGroupsPreview(prev =>
+                                  prev.map(group => group.group_name === g.group_name ? {
+                                    ...group,
+                                    members: group.members.map((m: any) => m.rawName === member.rawName ? {
+                                      ...m,
+                                      matchedReg: matched ? { id: matched.reg_id, name: matched.full_name, username: matched.username } : null
+                                    } : m)
+                                  } : group)
+                                );
+                              }}
+                              className="bg-[#121620] border border-white/10 rounded-lg p-1.5 text-[10px] font-bold text-white focus:outline-none focus:border-purple-500/40 w-[140px] cursor-pointer"
+                            >
+                              <option value="">Unmatched (Select...)</option>
+                              {approvedActiveRegs.map((r: any) => (
+                                <option key={r.reg_id} value={r.reg_id}>{r.full_name} ({r.reg_id})</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* TWO COLUMN WORKSPACE */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* COLUMN 1: UNASSIGNED PARTICIPANTS */}
+          <div className="lg:col-span-6 bg-black/40 border border-white/[0.08] rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <Users size={14} className="text-indigo-400" /> Individual Students ({filteredUnassigned.length})
+              </h4>
+              
+              <div className="relative w-full sm:w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                <input 
+                  type="text" 
+                  placeholder="Filter name or ID..."
+                  value={unassignedSearch}
+                  onChange={(e) => setUnassignedSearch(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500/40"
+                />
+              </div>
+            </div>
+
+            {/* Quick manual grouping form */}
+            {selectedStudentIds.length > 0 && (
+              <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-3 animate-in slide-in-from-top-3 duration-300">
+                <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest pl-0.5">{selectedStudentIds.length} student{selectedStudentIds.length !== 1 ? 's' : ''} selected</p>
+                <div className="flex gap-2">
+                  <input 
+                    type="text"
+                    placeholder="Enter Group Name (e.g. Group Alpha)"
+                    value={customGroupName}
+                    onChange={(e) => setCustomGroupName(e.target.value)}
+                    className="flex-1 bg-[#121620] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500/40"
+                  />
+                  <button
+                    disabled={isGrouping}
+                    onClick={() => handleBulkGroup(customGroupName, selectedStudentIds)}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                  >
+                    Group Selected
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Students list */}
+            <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {filteredUnassigned.length > 0 ? (
+                filteredUnassigned.map((student: any) => {
+                  const isChecked = selectedStudentIds.includes(student.reg_id);
+                  return (
+                    <div 
+                      key={student.reg_id}
+                      onClick={() => {
+                        setSelectedStudentIds(prev =>
+                          isChecked ? prev.filter(id => id !== student.reg_id) : [...prev, student.reg_id]
+                        );
+                      }}
+                      className={`flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer ${
+                        isChecked 
+                          ? 'bg-indigo-500/10 border-indigo-500/30' 
+                          : 'bg-white/[0.02] border-white/[0.04] hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      <input 
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        className="rounded border-white/10 text-indigo-600 focus:ring-indigo-600 bg-black/40"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black text-white truncate">{student.full_name}</p>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mt-0.5">ID: {student.reg_id} • {student.batch || 'Student'}</p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-gray-500 text-xs font-bold uppercase tracking-widest border border-dashed border-white/10 rounded-xl">
+                  No individual students
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* COLUMN 2: CREATED GROUPS LIST */}
+          <div className="lg:col-span-6 bg-black/40 border border-white/[0.08] rounded-2xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+              <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <Users size={14} className="text-purple-400" /> Active Groups ({filteredGroupNames.length})
+              </h4>
+              
+              <div className="relative w-full sm:w-48">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                <input 
+                  type="text" 
+                  placeholder="Filter group name..."
+                  value={groupSearch}
+                  onChange={(e) => setGroupSearch(e.target.value)}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500/40"
+                />
+              </div>
+            </div>
+
+            {/* Created groups grid */}
+            <div className="max-h-[460px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+              {filteredGroupNames.length > 0 ? (
+                filteredGroupNames.map(groupName => {
+                  const members = groupsMap[groupName] || [];
+                  return (
+                    <div key={groupName} className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4 space-y-3">
+                      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                        <div>
+                          <h5 className="text-xs font-black text-white tracking-tight leading-none">{groupName}</h5>
+                          <p className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mt-1">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <button
+                          onClick={() => handleUngroupWholeGroup(groupName)}
+                          className="p-1.5 rounded-lg border border-rose-500/25 hover:bg-rose-500/10 text-rose-400 transition-colors"
+                          title="Disband Group"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {members.map((m: any) => (
+                          <div key={m.reg_id} className="flex items-start justify-between gap-3 bg-black/30 p-2.5 rounded-lg border border-white/[0.03]">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black text-white truncate leading-none">{m.full_name}</p>
+                              <p className="text-[9px] text-gray-500 font-bold truncate mt-1">ID: {m.reg_id} • {m.batch || 'Student'}</p>
+                              <div className="flex flex-col gap-0.5 mt-1.5 text-[10px] text-gray-400 font-medium space-y-0.5">
+                                {m.phone && <span className="truncate flex items-center gap-1">📞 <span className="select-all">{m.phone}</span></span>}
+                                {m.email && <span className="truncate flex items-center gap-1">✉️ <span className="select-all">{m.email}</span></span>}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              {m.phone && (
+                                <a 
+                                  href={`https://wa.me/91${m.phone.replace(/[^0-9]/g, '').replace(/^91/, '')}?text=${encodeURIComponent(`Hello ${m.full_name.split(' ')[0]}! I am the Event Coordinator for ${session?.eventTitle || ''}.`)}`}
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 text-green-400 hover:text-green-300 hover:bg-green-500/10 rounded-lg transition-colors border border-transparent"
+                                  title="WhatsApp contact"
+                                >
+                                  <WhatsAppLogo className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+                              <button
+                                onClick={() => handleUngroupStudent(m.reg_id)}
+                                className="p-1.5 text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors border border-transparent hover:border-rose-500/10"
+                                title="Remove member"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-gray-500 text-xs font-bold uppercase tracking-widest border border-dashed border-white/10 rounded-xl">
+                  No groups matched
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
 
   // Registration open/close toggle
   const handleToggleRegistration = useCallback(async () => {
@@ -375,8 +1078,8 @@ export const CoordinatorDashboard: React.FC = () => {
 
   // Process registrations stats & filters
   const stats = useMemo(() => {
-    const approved = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved');
-    const pending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'pending');
+    const approved = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === true);
+    const pending = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved' && r.is_active === false);
     const rejected = rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'rejected');
     
     let baseList = [];
@@ -409,6 +1112,15 @@ export const CoordinatorDashboard: React.FC = () => {
   }, [rpcRegistrations, activeTab, searchQuery, selectedBatch]);
 
   const { filteredRegs, approvedCount, pendingCount, rejectedCount, batchOptions } = stats;
+
+  // Reset pagination on filter or search change
+  useEffect(() => {
+    setPageSize(30);
+  }, [activeTab, searchQuery, selectedBatch]);
+
+  const displayedRegs = useMemo(() => {
+    return filteredRegs.slice(0, pageSize);
+  }, [filteredRegs, pageSize]);
 
   const handleExportPDF = () => {
     if (registrationOpen === true) {
@@ -527,16 +1239,23 @@ export const CoordinatorDashboard: React.FC = () => {
           <nav className="p-4 space-y-1 flex-1 pt-4">
             {([
               { key: 'participants', label: 'Participants', icon: Users },
+              { key: 'rounds', label: 'Event Rounds', icon: Trophy },
               { key: 'chat', label: 'Student Chat', icon: MessageCircle },
               { key: 'announcements', label: 'Announcements', icon: Mail },
               { key: 'settings', label: 'Event Settings', icon: LinkIcon },
             ] as const).map(({ key, label, icon: Icon }) => (
-              <button key={key} onClick={() => setActiveSection(key)}
+              <button key={key} onClick={() => { setActiveSection(key); if (key === 'chat') setUnreadChatCount(0); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-left border ${activeSection === key ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5 border-transparent'}`}>
                 <Icon className="w-4 h-4 flex-shrink-0" />
                 {label}
                 {key === 'participants' && pendingCount > 0 && (
                   <span className="ml-auto text-[10px] font-black bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded-full animate-pulse">{pendingCount}</span>
+                )}
+                {key === 'chat' && unreadChatCount > 0 && (
+                  <span className="ml-auto text-[10px] font-black bg-red-500 text-white px-1.5 py-0.5 rounded-full animate-pulse">{unreadChatCount}</span>
+                )}
+                {key === 'chat' && oldestUnansweredHrs !== null && oldestUnansweredHrs >= 4 && unreadChatCount === 0 && (
+                  <span className="ml-auto text-[9px] font-black bg-orange-500/80 text-white px-1.5 py-0.5 rounded-full">⏰ SLA</span>
                 )}
               </button>
             ))}
@@ -625,18 +1344,27 @@ export const CoordinatorDashboard: React.FC = () => {
                 {/* Filters bar */}
                 <div className="bg-black/40 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3 space-y-3">
                   <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-1">
-                    {(['approved', 'pending', 'rejected'] as const).map((tab) => {
-                      const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : rejectedCount;
-                      const active = activeTab === tab;
-                      const colorActive = tab === 'approved' ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' : tab === 'pending' ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' : 'text-violet-400 bg-violet-500/20 border-violet-500/30';
-                      return (
-                        <button key={tab} onClick={() => setActiveTab(tab)}
-                          className={`relative px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap capitalize flex items-center gap-2 border ${active ? colorActive : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border-transparent'}`}>
-                          {tab}
-                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${tab === 'pending' && count > 0 ? 'bg-yellow-400 text-yellow-900 animate-pulse' : 'bg-white/10 text-gray-300'}`}>{count}</span>
-                        </button>
-                      );
-                    })}
+                    {(['approved', 'pending', 'rejected', 'groups'] as const)
+                      .filter(tab => tab !== 'groups' || eventDetails?.special_grouping_enabled === true)
+                      .map((tab) => {
+                        const groupsCount = Array.from(new Set(rpcRegistrations.filter((r: any) => r.is_team_registration && r.team_name).map((r: any) => r.team_name))).length;
+                        const count = tab === 'approved' ? approvedCount : tab === 'pending' ? pendingCount : tab === 'rejected' ? rejectedCount : groupsCount;
+                        const active = activeTab === tab;
+                        const colorActive = tab === 'approved' 
+                          ? 'text-indigo-400 bg-indigo-500/20 border-indigo-500/30' 
+                          : tab === 'pending' 
+                          ? 'text-cyan-400 bg-cyan-500/20 border-cyan-500/30' 
+                          : tab === 'rejected' 
+                          ? 'text-violet-400 bg-violet-500/20 border-violet-500/30' 
+                          : 'text-purple-400 bg-purple-500/20 border-purple-500/30';
+                        return (
+                          <button key={tab} onClick={() => setActiveTab(tab)}
+                            className={`relative px-4 py-2 rounded-xl text-sm font-black transition-all whitespace-nowrap capitalize flex items-center gap-2 border ${active ? colorActive : 'text-gray-500 hover:text-gray-300 hover:bg-white/5 border-transparent'}`}>
+                            {tab === 'groups' ? 'Group Manager' : tab}
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${tab === 'pending' && count > 0 ? 'bg-yellow-400 text-yellow-900 animate-pulse' : 'bg-white/10 text-gray-300'}`}>{count}</span>
+                          </button>
+                        );
+                      })}
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2">
                     <div className="relative flex-1">
@@ -681,8 +1409,30 @@ export const CoordinatorDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Bulk Approve button — only shown on pending tab with results */}
+                {activeTab === 'pending' && filteredRegs.length > 0 && (
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-xs text-gray-500">{filteredRegs.length} pending registration{filteredRegs.length !== 1 ? 's' : ''} shown</p>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Approve all ${filteredRegs.length} pending registrations?`)) return;
+                        for (const reg of filteredRegs) {
+                          await handleUpdateStatus(reg.reg_id, 'approved');
+                        }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black text-green-400 border border-green-500/25 hover:bg-green-500/15 transition-all"
+                      style={{ background: 'rgba(34,197,94,0.06)' }}
+                    >
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      Bulk Approve All ({filteredRegs.length})
+                    </button>
+                  </div>
+                )}
+
                 {/* List */}
-                {isLoadingData && rpcRegistrations.length === 0 ? (
+                {activeTab === 'groups' ? (
+                  renderGroupManager()
+                ) : isLoadingData && rpcRegistrations.length === 0 ? (
                   <div className="space-y-2">{[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 animate-pulse">
                       <div className="w-10 h-10 rounded-full bg-white/10 flex-shrink-0" />
@@ -700,7 +1450,7 @@ export const CoordinatorDashboard: React.FC = () => {
                   <>
                     {/* Mobile cards */}
                     <div className="block md:hidden space-y-2">
-                      {filteredRegs.map((reg: any, index: number) => (
+                      {displayedRegs.map((reg: any, index: number) => (
                         <div key={reg.reg_id}
                           className={`bg-black/50 backdrop-blur-xl rounded-2xl border transition-all cursor-pointer hover:border-indigo-500/30 ${activeTab === 'pending' ? 'border-amber-500/25' : 'border-white/[0.08]'}`}
                           onClick={() => setSelectedReg(reg)}>
@@ -739,6 +1489,22 @@ export const CoordinatorDashboard: React.FC = () => {
                               </button>
                             </div>
                           )}
+                          {activeTab === 'approved' && (
+                            <div className="px-4 pb-4 border-t border-white/[0.04]">
+                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'rejected'); }}
+                                className="w-full flex items-center justify-center gap-1.5 bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 border border-rose-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                                <XCircle className="w-3.5 h-3.5" /> Kick Out
+                              </button>
+                            </div>
+                          )}
+                          {activeTab === 'rejected' && (
+                            <div className="px-4 pb-4 border-t border-white/[0.04]">
+                              <button disabled={isUpdatingStatus === reg.reg_id} onClick={(e) => { e.stopPropagation(); handleUpdateStatus(reg.reg_id, 'approved'); }}
+                                className="w-full flex items-center justify-center gap-1.5 bg-green-500/15 text-green-400 hover:bg-green-500/25 border border-green-500/25 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-50 mt-3">
+                                <CheckCircle className="w-3.5 h-3.5" /> Restore
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -751,11 +1517,11 @@ export const CoordinatorDashboard: React.FC = () => {
                             <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">#</th>
                             <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Participant</th>
                             <th className="px-5 py-3.5 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">Contact</th>
-                            {activeTab === 'pending' && <th className="px-5 py-3.5 text-right text-[10px] font-black text-gray-500 uppercase tracking-widest">Actions</th>}
+                            <th className="px-5 py-3.5 text-right text-[10px] font-black text-gray-500 uppercase tracking-widest">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-white/5">
-                          {filteredRegs.map((reg: any, index: number) => (
+                          {displayedRegs.map((reg: any, index: number) => (
                             <tr key={reg.reg_id} className="hover:bg-white/[0.04] transition-colors cursor-pointer group" onClick={() => setSelectedReg(reg)}>
                               <td className="px-5 py-4 text-sm text-gray-500 font-black">{index + 1}</td>
                               <td className="px-5 py-4">
@@ -783,32 +1549,75 @@ export const CoordinatorDashboard: React.FC = () => {
                                   )}
                                 </div>
                               </td>
-                              {activeTab === 'pending' && (
-                                <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex justify-end gap-2">
-                                    <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
-                                      className="px-3 py-1.5 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
+                              <td className="px-5 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-end gap-2">
+                                  {activeTab === 'pending' && (
+                                    <>
+                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
+                                        className="px-3 py-1.5 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Approve</button>
+                                      <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
+                                        className="px-3 py-1.5 bg-violet-500/15 text-violet-400 border border-violet-500/25 hover:bg-violet-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
+                                    </>
+                                  )}
+                                  {activeTab === 'approved' && (
                                     <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'rejected')}
-                                      className="px-3 py-1.5 bg-violet-500/15 text-violet-400 border border-violet-500/25 hover:bg-violet-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Reject</button>
-                                  </div>
-                                </td>
-                              )}
+                                      className="px-3 py-1.5 bg-rose-500/15 text-rose-400 border border-rose-500/25 hover:bg-rose-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Kick Out</button>
+                                  )}
+                                  {activeTab === 'rejected' && (
+                                    <button disabled={isUpdatingStatus === reg.reg_id} onClick={() => handleUpdateStatus(reg.reg_id, 'approved')}
+                                      className="px-3 py-1.5 bg-green-500/15 text-green-400 border border-green-500/25 hover:bg-green-500/25 rounded-xl text-xs font-black transition-all disabled:opacity-50">Restore</button>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
+
+                    {filteredRegs.length > pageSize && (
+                      <div className="flex justify-center pt-6 pb-2">
+                        <button
+                          onClick={() => setPageSize(prev => prev + 50)}
+                          className="px-6 py-2.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                        >
+                          Load More ({filteredRegs.length - pageSize} remaining)
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
             )}
 
+            {/* ══ EVENT ROUNDS ══ */}
+            {activeSection === 'rounds' && (
+              <EventRoundsSection session={session} approvedRegs={rpcRegistrations.filter((r: any) => r.status?.toLowerCase() === 'approved')} push={push} />
+            )}
+
             {/* ══ CHAT ══ */}
             {activeSection === 'chat' && (
               <div className="space-y-4">
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-tight">Student Inbox</h2>
-                  <p className="text-sm text-gray-400 mt-0.5">Chat with registered students</p>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-white tracking-tight">Student Inbox</h2>
+                    <p className="text-sm text-gray-400 mt-0.5">Chat with students registered in your event</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {oldestUnansweredHrs !== null && oldestUnansweredHrs >= 5 && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-black animate-pulse">
+                        ⏰ SLA BREACH — oldest unanswered: {Math.round(oldestUnansweredHrs)}h
+                      </div>
+                    )}
+                    {oldestUnansweredHrs !== null && oldestUnansweredHrs >= 3 && oldestUnansweredHrs < 5 && (
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-black">
+                        ⚠️ Reply soon — {Math.round(5 - oldestUnansweredHrs)}h left
+                      </div>
+                    )}
+                    <div className="px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-wider">
+                      ⏱ Reply within 5 hrs
+                    </div>
+                  </div>
                 </div>
                 <div className="bg-black/40 backdrop-blur-xl rounded-2xl border border-white/[0.08] overflow-hidden">
                   <ChatPanel themeAccent="indigo" eventId={session?.eventId?.toString()} />

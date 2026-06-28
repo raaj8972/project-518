@@ -1,14 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Zap, AlertCircle } from 'lucide-react';
+
+// Supabase
+import { supabase } from '../lib/supabase';
 
 // Context
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 
 // Components
-import { RegistrationModal } from '../components/RegistrationModal';
-import { SEO } from '../components/SEO';
 import { CategoryFilter } from '../components/Events/CategoryFilter';
 import { CyberpunkHeroContent } from '../components/ui/CyberpunkHeroContent';
 import { useTheme } from '../context/ThemeContext';
@@ -19,6 +20,11 @@ import { AuthRequiredModal } from '../components/Events/AuthRequiredModal';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { useToast } from '../components/ToastProvider';
 import { useNavigate } from 'react-router-dom';
+import ProfileModal from '../components/dashboard/ProfileModal';
+import { useEventCart } from '../context/EventCartContext';
+import { CartDrawer } from '../components/CartDrawer';
+
+
 
 // Utils
 import { 
@@ -43,12 +49,14 @@ export const Events: React.FC = () => {
     updateEvent 
   } = useData() as any;
   const { user: firebaseUser, isAuthenticated: isFirebaseAuthenticated } = useAuth();
-  const { isAuthenticated: isSupabaseAuthenticated, isProfileComplete, isApproved } = useStudentAuth();
+  const { isAuthenticated: isSupabaseAuthenticated } = useStudentAuth();
   
   const isAnyAuthenticated = isFirebaseAuthenticated || isSupabaseAuthenticated;
   const { push } = useToast();
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { addToCart, removeFromCart, openDrawer, isInCart } = useEventCart();
+
 
   const isOwner = (() => {
     try {
@@ -69,25 +77,216 @@ export const Events: React.FC = () => {
   }, [events, registerIdParam]);
 
   const registrationEventId = registrationEvent?.id || 0;
-  
-  const registrationModal = React.useMemo(() => ({
-    isOpen: !!registrationEvent,
-    eventId: registrationEventId,
-    eventTitle: registrationEvent?.title || ''
-  }), [registrationEvent, registrationEventId]);
+
 
   const [expandedRules, setExpandedRules] = useState<Set<number>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [flippedCards, setFlippedCards] = useState<Set<number>>(new Set());
   const [rulesModalFor, setRulesModalFor] = useState<number | null>(null);
   const [authModalEventId, setAuthModalEventId] = useState<number | null>(null);
+  const [userRegistrations, setUserRegistrations] = useState<string[]>([]);
   const scrollSaveRef = useRef<number>(0);
+
+  const fetchUserRegistrations = useCallback(async () => {
+    if (!isAnyAuthenticated) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const uid = sessionData.session?.user?.id;
+    if (!uid) return;
+
+    const { data } = await supabase
+      .from('registrations')
+      .select('event_id')
+      .eq('user_id', uid);
+    
+    if (data) {
+      setUserRegistrations(data.map((r: any) => String(r.event_id)));
+    }
+  }, [isAnyAuthenticated]);
+
+  useEffect(() => {
+    fetchUserRegistrations();
+  }, [fetchUserRegistrations]);
+
   
   const [pageJustLoaded, setPageJustLoaded] = useState(true);
   useEffect(() => {
     const timer = setTimeout(() => setPageJustLoaded(false), 2000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Round winners state & fetch
+  const [roundWinners, setRoundWinners] = useState<any[]>([]);
+  const [selectedWinnerProfile, setSelectedWinnerProfile] = useState<any | null>(null);
+
+  const fetchRoundWinners = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('registration_rounds')
+        .select(`
+          id,
+          status,
+          prize_rank,
+          feedback,
+          registration:registrations(
+            id,
+            event_id,
+            full_name,
+            team_name,
+            is_team_registration,
+            team_members,
+            user_id
+          )
+        `)
+        .not('prize_rank', 'is', null);
+      if (data) {
+        setRoundWinners(data);
+      }
+    } catch (err) {
+      console.error('[Events] Error fetching round winners:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoundWinners();
+
+    const channel = supabase
+      .channel('public-winners-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registration_rounds' }, () => {
+        fetchRoundWinners();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchRoundWinners]);
+
+  const handleOpenWinnerProfile = async (userId: string) => {
+    try {
+      const { data: p } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          full_name,
+          avatar_url,
+          aura_color,
+          background_url,
+          batch,
+          likes_count,
+          student_xp(tier, xp_total)
+        `)
+        .eq('id', userId)
+        .single();
+        
+      if (p) {
+        const xpRecord = Array.isArray(p.student_xp) ? p.student_xp[0] : p.student_xp;
+        
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('id, likes_count, student_xp(xp_total)');
+          
+        let calculatedRank = 100;
+        if (allProfiles) {
+          const sorted = allProfiles
+            .map((prof: any) => {
+              const xpRec = Array.isArray(prof.student_xp) ? prof.student_xp[0] : prof.student_xp;
+              const xpTotal = xpRec?.xp_total || 0;
+              return {
+                id: prof.id,
+                hype_score: ((prof.likes_count || 0) * 500) + xpTotal
+              };
+            })
+            .sort((a, b) => b.hype_score - a.hype_score);
+            
+          const foundIdx = sorted.findIndex(item => item.id === userId);
+          if (foundIdx !== -1) {
+            calculatedRank = foundIdx + 1;
+          }
+        }
+
+        setSelectedWinnerProfile({
+          id: p.id,
+          full_name: p.full_name,
+          avatar_url: p.avatar_url,
+          aura_color: p.aura_color,
+          background_url: p.background_url,
+          batch: p.batch,
+          tier: xpRecord?.tier || 'bronze',
+          xp: xpRecord?.xp_total || 0,
+          likes_count: p.likes_count || 0,
+          hype_score: ((p.likes_count || 0) * 500) + (xpRecord?.xp_total || 0),
+          rank: calculatedRank
+        });
+      }
+    } catch (err) {
+      console.error('[Events] Error loading winner profile:', err);
+    }
+  };
+
+  const mergedWinners = useMemo(() => {
+    const legacy = (eventWinners || []).map((w: any) => ({
+      ...w,
+      id: w.id,
+      event_id: Number(w.event_id),
+      name: w.name,
+      position: Number(w.position),
+      year: w.year,
+      registration_id: w.registration_id
+    }));
+
+    const newWinners: any[] = [];
+    roundWinners.forEach((rw: any) => {
+      const reg = rw.registration;
+      if (!reg) return;
+
+      const posMap: Record<string, number> = {
+        '1st': 1,
+        '2nd': 2,
+        '3rd': 3,
+        'Special Mention': 4
+      };
+      const position = posMap[rw.prize_rank] || 4;
+
+      if (reg.is_team_registration && reg.team_members) {
+        try {
+          const members = Array.isArray(reg.team_members) ? reg.team_members : JSON.parse(reg.team_members);
+          members.forEach((m: any) => {
+            newWinners.push({
+              id: `${rw.id}-${m.name || m.full_name}`,
+              event_id: Number(reg.event_id),
+              name: m.name || m.full_name || reg.full_name,
+              position,
+              year: m.batch || m.participant_type || reg.participant_type || '',
+              registration_id: reg.id,
+              user_id: m.user_id || reg.user_id
+            });
+          });
+        } catch (e) {
+          newWinners.push({
+            id: rw.id,
+            event_id: Number(reg.event_id),
+            name: reg.team_name || reg.full_name,
+            position,
+            year: reg.participant_type || '',
+            registration_id: reg.id,
+            user_id: reg.user_id
+          });
+        }
+      } else {
+        newWinners.push({
+          id: rw.id,
+          event_id: Number(reg.event_id),
+          name: reg.full_name,
+          position,
+          year: reg.participant_type || '',
+          registration_id: reg.id,
+          user_id: reg.user_id
+        });
+      }
+    });
+
+    return [...legacy, ...newWinners];
+  }, [eventWinners, roundWinners]);
 
   React.useLayoutEffect(() => {
     if (rulesModalFor === null && scrollSaveRef.current > 0) {
@@ -157,17 +356,32 @@ export const Events: React.FC = () => {
       return;
     }
 
+    const event = events.find((e: any) => e.id === eventId);
+    if (!event) return;
+
+    if (userRegistrations.includes(String(eventId))) {
+      push({ type: 'error', message: 'Already registered for this event!' });
+      return;
+    }
+
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       navigator.vibrate(50);
     }
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('register', eventId.toString());
-    setSearchParams(newParams, { replace: true });
-  };
-  const closeRegistration = () => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('register');
-    setSearchParams(newParams, { replace: true });
+
+    if (isInCart(event.id.toString())) {
+      removeFromCart(event.id.toString());
+      push({ type: 'success', message: 'Removed from cart' });
+    } else {
+      addToCart({
+        id: event.id.toString(),
+        title: event.title,
+        category: typeof event.category === 'object' ? event.category.name : event.category,
+        isTeam: (event.team_max_members && event.team_max_members > 1) || (event.max_team_size && event.max_team_size > 1) || event.registration_default_mode === 'team',
+        min_team: event.team_min_members || 1,
+        max_team: event.team_max_members || 1
+      });
+      openDrawer();
+    }
   };
   const toggleRules = (id: number) => setExpandedRules((prev: Set<number>) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleFlip = (id: number) => setFlippedCards((prev: Set<number>) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -308,15 +522,18 @@ export const Events: React.FC = () => {
                 onOpenRules={openRulesModal}
                 isRulesExpanded={expandedRules.has(event.id)}
                 onToggleRules={toggleRules}
-                eventWinners={eventWinners}
+                eventWinners={mergedWinners}
                 coordinators={getCoordinators(event.id, eventCoordinators)}
                 posterFit={posterFit}
                 updateEvent={updateEvent}
+                onOpenProfile={handleOpenWinnerProfile}
+                isInCart={isInCart(event.id.toString())}
+                isRegistered={userRegistrations.includes(event.id.toString())}
               />
             ))}
           </div>
 
-          <WinnersSection eventWinners={eventWinners} />
+          <WinnersSection eventWinners={mergedWinners} />
         </div>
       </main>
 
@@ -329,25 +546,26 @@ export const Events: React.FC = () => {
         />
       )}
 
-      {registrationModal.isOpen && (
-        <RegistrationModal
-          isOpen={registrationModal.isOpen}
-          onClose={closeRegistration}
-          eventId={registrationModal.eventId}
-          eventTitle={registrationModal.eventTitle}
-        />
-      )}
-      <AuthRequiredModal
+       <AuthRequiredModal
         isOpen={authModalEventId !== null}
         onClose={() => setAuthModalEventId(null)}
         onConfirm={() => {
           if (authModalEventId) {
-            navigate(`/student/login?mode=signup&redirect=/events?register=${authModalEventId}`);
+            navigate(`/student/login?mode=signup&redirect=/events`);
           }
           setAuthModalEventId(null);
         }}
         eventTitle={events.find((e: any) => e.id === authModalEventId)?.title || 'this event'}
       />
+      {selectedWinnerProfile && (
+        <ProfileModal
+          profile={selectedWinnerProfile}
+          onClose={() => setSelectedWinnerProfile(null)}
+          onLike={() => {}}
+          isLiked={false}
+        />
+      )}
+      <CartDrawer onRegisterSuccess={fetchUserRegistrations} />
     </div>
   );
 };

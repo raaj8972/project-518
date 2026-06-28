@@ -76,13 +76,27 @@ const realtimeEnabled = (() => {
   }
 })();
 
+const getStorageKey = () => {
+  if (typeof window === 'undefined') return `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_auth`;
+  const path = window.location.pathname;
+  if (
+    path.startsWith('/coordinator') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/security') ||
+    path.startsWith('/council')
+  ) {
+    return `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_staff_auth`;
+  }
+  return `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_student_auth`;
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, ({
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
     // Use a stable, app-specific storage key to avoid collisions between previews/prod
-    storageKey: `${BRAND_NAME.toLowerCase()}_${BRAND_YEAR}_auth`,
+    storageKey: getStorageKey(),
   },
   realtime: {
     enabled: realtimeEnabled,

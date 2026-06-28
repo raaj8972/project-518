@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Key, ShieldAlert } from 'lucide-react';
+import { Key, ShieldAlert, Users, Trash2, Plus } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { supabase } from '../../lib/supabase';
 
@@ -15,6 +15,63 @@ export const AdminPasscodesPanel: React.FC = () => {
 
   const isOwner = React.useMemo(() => checkIsOwner(), [checkIsOwner]);
 
+  const [batchCRs, setBatchCRs] = useState<any[]>([]);
+  const [loadingCRs, setLoadingCRs] = useState(false);
+  const [newBatch, setNewBatch] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [addingCR, setAddingCR] = useState(false);
+
+  const fetchCRs = async () => {
+    setLoadingCRs(true);
+    try {
+      const { data, error } = await supabase
+        .from('batch_crs')
+        .select('*')
+        .order('batch', { ascending: true });
+      if (error) throw error;
+      setBatchCRs(data || []);
+    } catch (err: any) {
+      console.error('Error fetching batch CRs:', err);
+    } finally {
+      setLoadingCRs(false);
+    }
+  };
+
+  const handleSaveCR = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBatch || !newPassword) return;
+    setAddingCR(true);
+    try {
+      const { error } = await supabase
+        .from('batch_crs')
+        .upsert({ batch: newBatch.trim(), password: newPassword.trim() });
+      if (error) throw error;
+      setMessage({ type: 'success', text: `CR password for ${newBatch} saved successfully!` });
+      setNewBatch('');
+      setNewPassword('');
+      fetchCRs();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Failed to save CR password: ' + err.message });
+    } finally {
+      setAddingCR(false);
+    }
+  };
+
+  const handleDeleteCR = async (batch: string) => {
+    if (!window.confirm(`Are you sure you want to remove CR credentials for ${batch}?`)) return;
+    try {
+      const { error } = await supabase
+        .from('batch_crs')
+        .delete()
+        .eq('batch', batch);
+      if (error) throw error;
+      setMessage({ type: 'success', text: `CR credentials for ${batch} removed successfully.` });
+      fetchCRs();
+    } catch (err: any) {
+      setMessage({ type: 'error', text: 'Failed to delete: ' + err.message });
+    }
+  };
+
   React.useEffect(() => {
     if (securitySettings?.council_passcode) {
       setCouncilPasscode(securitySettings.council_passcode);
@@ -22,6 +79,7 @@ export const AdminPasscodesPanel: React.FC = () => {
     if (securitySettings?.sports_passcode) {
       setSportsPasscode(securitySettings.sports_passcode);
     }
+    fetchCRs();
   }, [securitySettings]);
 
   if (!isOwner) {
@@ -218,6 +276,100 @@ export const AdminPasscodesPanel: React.FC = () => {
             </button>
           </form>
         </div>
+      </div>
+
+      {/* Batch CR Passwords Section */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mt-6">
+        <div className="flex items-center justify-between mb-4 pb-4 border-b">
+          <div className="flex items-center">
+            <Users className="w-6 h-6 text-indigo-600 mr-3" />
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Batch Class Representative (CR) Passwords</h3>
+              <p className="text-xs text-gray-500">Allot passwords to batch CRs so they can approve profiles for their specific batch.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Add/Edit Form */}
+        <form onSubmit={handleSaveCR} className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Batch Name</label>
+            <input
+              type="text"
+              value={newBatch}
+              onChange={(e) => setNewBatch(e.target.value)}
+              placeholder="e.g. Batch 2025"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-gray-900"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5">CR Access Password</label>
+            <input
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter CR password"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-gray-900"
+              required
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="submit"
+              disabled={addingCR || !newBatch || !newPassword}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg disabled:opacity-50 font-bold text-sm transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              Save / Update
+            </button>
+          </div>
+        </form>
+
+        {/* List of Batch CRs */}
+        {loadingCRs ? (
+          <div className="py-8 text-center text-xs font-bold uppercase tracking-widest text-gray-400">Loading CR configurations...</div>
+        ) : batchCRs.length === 0 ? (
+          <div className="py-8 text-center text-sm text-gray-500">No Batch CR passwords allotted yet. Create one above!</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Batch</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">CR Password</th>
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Action</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {batchCRs.map((cr) => (
+                  <tr key={cr.batch} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">{cr.batch}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">{cr.password}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewBatch(cr.batch);
+                          setNewPassword(cr.password);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-900 font-bold mr-4 transition-colors cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCR(cr.batch)}
+                        className="text-red-600 hover:text-red-900 font-bold transition-colors cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

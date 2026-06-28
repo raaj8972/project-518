@@ -7,7 +7,13 @@
   }
 }
   .rico-glass-card {
-    @apply bg-gradient-to-br from-white/[0.03] to-white/[0.01] backdrop-blur-3xl border border-white/5 shadow-[0_24px_48px_rgba(0,0,0,0.6)];
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow:
+      -4px -4px 12px rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
   .animate-rico-float {
     animation: ricoFloat 6s ease-in-out infinite;
@@ -1227,3 +1233,148 @@ body.theme-vaporwave {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* =====================================================
+   NEUMORPHISM / NEO MORPHISM — Student Dashboard
+   ===================================================== */
+
+.neu-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-radius: 20px;
+  box-shadow:
+    8px 8px 24px rgba(0, 0, 0, 0.55),
+    -4px -4px 12px rgba(255, 255, 255, 0.015) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.neu-inset {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border-radius: 20px;
+  box-shadow:
+    inset 4px 4px 12px rgba(0, 0, 0, 0.7),
+    inset -2px -2px 6px rgba(255, 255, 255, 0.01) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+.neu-nav-item {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 14px;
+  box-shadow:
+    5px 5px 16px rgba(0, 0, 0, 0.55),
+    -2px -2px 8px rgba(255, 255, 255, 0.01) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  transition: all 0.2s ease;
+}
+
+.neu-nav-item-active {
+  background: rgba(99, 102, 241, 0.08) !important;
+  border-radius: 14px;
+  box-shadow:
+    inset 3px 3px 10px rgba(0, 0, 0, 0.7),
+    inset -1px -1px 4px rgba(255, 255, 255, 0.01) !important;
+  border: 1px solid rgba(99, 102, 241, 0.3) !important;
+}
+
+.neu-icon-btn {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 12px;
+  box-shadow:
+    4px 4px 12px rgba(0, 0, 0, 0.5),
+    -2px -2px 6px rgba(255, 255, 255, 0.01) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+}
+
+.neu-stat-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-radius: 20px;
+  box-shadow:
+    8px 8px 24px rgba(0, 0, 0, 0.55),
+    -4px -4px 12px rgba(255, 255, 255, 0.015) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.neu-bottom-bar {
+  background: rgba(19, 23, 32, 0.8) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.8) !important;
+}
+
+.neu-accent-indigo::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.neu-accent-cyan::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.neu-accent-violet::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.neu-accent-amber::before {
+  content: '';
+  position: absolute;
+  top: -20px; right: -20px;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.neu-sidebar {
+  background: rgba(255, 255, 255, 0.01) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.neu-header {
+  background: rgba(19, 23, 32, 0.8) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.neu-bg {
+  background: #060608;
+}
+
+.neu-section-label {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.18);
+  padding: 0 4px;
+}
+
+.neu-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  margin: 4px 0;
+}
+

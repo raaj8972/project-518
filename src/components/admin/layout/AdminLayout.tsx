@@ -196,7 +196,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({
           {/* Navigation - V3 Grouped Layout */}
           <nav 
             data-lenis-prevent
-            className="flex-1 overflow-y-auto px-4 pb-8 space-y-10 scrollbar-thin scrollbar-thumb-white/5 hover:scrollbar-thumb-white/10 scrollbar-track-transparent"
+            className="flex-1 overflow-y-auto px-4 pb-8 space-y-10 min-h-0 custom-scrollbar"
           >
             {groupOrder.map(groupName => {
               const items = groups[groupName];

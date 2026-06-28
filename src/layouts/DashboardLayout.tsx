@@ -3,8 +3,8 @@ import { useNavigate, Outlet, NavLink } from 'react-router-dom';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { useXPEngine } from '../hooks/useXPEngine';
 import { supabase } from '../lib/supabase';
-import { motion } from 'framer-motion';
-import { 
+import { motion, AnimatePresence } from 'framer-motion';
+import {
   User, 
   Calendar, 
   Trophy, 
@@ -14,11 +14,15 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Bell,
-  Menu,
   QrCode,
   Sparkles,
   Zap,
   Crown,
+  Star,
+  ChevronRight,
+  Home,
+  Users,
+  AtSign,
 } from 'lucide-react';
 import { useCoreData } from '../context/CoreDataContext';
 import { toast } from 'react-hot-toast';
@@ -26,7 +30,61 @@ import { BRAND_NAME } from '../constants/brand';
 import WalletPassModal from '../components/dashboard/WalletPassModal';
 import XPRing from '../components/dashboard/XPRing';
 import AnnouncementsTicker from '../components/dashboard/AnnouncementsTicker';
-import NextUpTimeline from '../components/dashboard/NextUpTimeline';
+import { CartButton, CartDrawer } from '../components/CartDrawer';
+
+
+// ─── Navigation Menu (Properly Ordered) ─────────────────────────────────────
+const NAV_SECTIONS = [
+  {
+    label: 'MAIN MENU',
+    items: [
+      { id: 'overview',      label: 'My Dashboard',      icon: LayoutDashboard, path: '/dashboard' },
+      { id: 'passes',        label: 'Entry Pass',        icon: QrCode,          path: '/dashboard/passes' },
+      { id: 'events',        label: 'Cultural Events',   icon: Calendar,        path: '/dashboard/events' },
+      { id: 'active-events', label: 'Active Events',      icon: Star,            path: '/dashboard/active-events' },
+      { id: 'teams',         label: 'My Teams',           icon: Users,           path: '/dashboard/teams' },
+      { id: 'sports',        label: 'Sports Events',     icon: Trophy,          path: '/dashboard/sports' },
+    ],
+  },
+  {
+    label: 'SOCIAL CONNECT',
+    items: [
+      { id: 'vibes',         label: 'Student Stories',   icon: Sparkles,        path: '/dashboard/vibes' },
+      { id: 'socialfeed',    label: 'Social Media',      icon: Zap,             path: '/dashboard/socialfeed' },
+      { id: 'community',     label: 'RICO Community',    icon: Crown,           path: '/dashboard/community' },
+    ],
+  },
+  {
+    label: 'NOTICES & CHATS',
+    items: [
+      { id: 'announcements', label: 'Notice Board',      icon: Bell,            path: '/dashboard/announcements' },
+      { id: 'messages',      label: 'Support Chat',      icon: MessageSquare,   path: '/dashboard/messages' },
+    ],
+  },
+  {
+    label: 'ACCOUNT SETTINGS',
+    items: [
+      { id: 'settings',      label: 'My Profile',        icon: User,            path: '/dashboard/settings' },
+    ],
+  },
+];
+
+// Flat list for mobile bottom bar (top 5 only)
+const MOBILE_NAV = [
+  { id: 'overview',   label: 'Dashboard',   icon: Home,            path: '/dashboard' },
+  { id: 'events',     label: 'Cultural',    icon: Calendar,        path: '/dashboard/events' },
+  { id: 'passes',     label: 'Entry Pass',  icon: QrCode,          path: '/dashboard/passes' },
+  { id: 'vibes',      label: 'Stories',     icon: Sparkles,        path: '/dashboard/vibes' },
+  { id: 'settings',   label: 'Profile',     icon: User,            path: '/dashboard/settings' },
+];
+
+const TIER_COLORS: Record<string, string> = {
+  Rookie:   '#6366f1',
+  Rising:   '#22d3ee',
+  Star:     '#f59e0b',
+  Legend:   '#a855f7',
+  Elite:    '#ec4899',
+};
 
 const DashboardLayout: React.FC = () => {
   const { user, profile, loading, signOut, isApproved, updateProfile, isProfileComplete } = useStudentAuth();
@@ -42,14 +100,14 @@ const DashboardLayout: React.FC = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [selectedPass, setSelectedPass] = useState<any>(null);
   const [dataLoading, setDataLoading] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [rankInfo, setRankInfo] = useState<{ rank: number; auraGradient: string; auraColor: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
 
-  // Day/Night Theme
   const hour = new Date().getHours();
   const isNightMode = hour >= 18 || hour < 6;
+  const greeting = hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening';
 
   // Profile completion form state
   const [compFullName, setCompFullName] = useState(profile?.full_name || '');
@@ -63,7 +121,6 @@ const DashboardLayout: React.FC = () => {
   const batchOptions = useMemo(() => {
     const pt = Array.isArray(rawPt) ? rawPt.filter(Boolean) : [];
     const bo = Array.isArray(rawBo) ? rawBo.filter(Boolean) : [];
-    
     if (pt.length > 0) return pt;
     if (bo.length > 0) return bo;
     return ['Batch 2024', 'Batch 2025', 'Batch 2026', 'Batch 2027'];
@@ -81,9 +138,7 @@ const DashboardLayout: React.FC = () => {
   }, [profile]);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/student/login');
-    }
+    if (!loading && !user) navigate('/student/login');
   }, [user, loading, navigate]);
 
   useEffect(() => {
@@ -93,100 +148,89 @@ const DashboardLayout: React.FC = () => {
     }
   }, [user, isApproved, isProfileComplete]);
 
-  // Listen for likes received by the current user
   useEffect(() => {
     if (!user) return;
-    const likesChannel = supabase
-      .channel(`user-likes-${user.id}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'profile_likes',
-        filter: `profile_id=eq.${user.id}`
-      }, async (payload) => {
-        const { data: likerProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', payload.new.liker_id)
-          .single();
-
-        if (likerProfile) {
-          toast.success(`${likerProfile.full_name} liked your profile! ❤️`, {
-            duration: 4000,
-            icon: '🔥',
-            style: { background: '#1a1a1a', color: '#fff', border: '1px solid rgba(99, 102, 241, 0.2)' }
-          });
+    const ch = supabase
+      .channel(`user-updates-${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profile_likes', filter: `profile_id=eq.${user.id}` }, async (payload) => {
+        const { data: lp } = await supabase.from('profiles').select('full_name').eq('id', payload.new.liker_id).single();
+        if (lp) {
+          toast.success(`${lp.full_name} liked your profile! ❤️`, { duration: 4000, icon: '🔥', style: { background: '#131720', color: '#fff', border: '1px solid rgba(99,102,241,0.3)' } });
           fetchUserRegistrations();
         }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'registrations', filter: `user_id=eq.${user.id}` }, () => {
+        fetchUserRegistrations();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'annual_sports_registrations', filter: `user_id=eq.${user.id}` }, () => {
+        fetchUserRegistrations();
+      })
+      .subscribe();
+    return () => { ch.unsubscribe(); };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Fetch initial count of pending invitations
+    const fetchInvitesCount = async () => {
+      const { count, error } = await supabase
+        .from('group_invitations')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', user.id)
+        .eq('status', 'pending');
+      
+      if (!error && count !== null) {
+        setPendingInvitesCount(count);
+      }
+    };
+    
+    fetchInvitesCount();
+
+    // Subscribe to realtime updates on group_invitations
+    const channel = supabase
+      .channel('student-invites-changes')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'group_invitations'
+      }, () => {
+        fetchInvitesCount();
+      })
       .subscribe();
 
-    return () => { likesChannel.unsubscribe(); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const fetchUserRegistrations = async () => {
     if (!user) return;
     setDataLoading(true);
     try {
-      const [
-        { data: regData, error: regErr },
-        { data: sportsData, error: sportsErr },
-        { data: passesData, error: passesErr },
-        xpResult
-      ] = await Promise.all([
-        supabase.from('registrations').select('*, event:events(title, image_url, category:event_categories(name)), teams(name, code)').eq('user_id', user.id),
+      const [{ data: regData, error: regErr }, { data: sportsData, error: sportsErr }, { data: passesData, error: passesErr }, xpResult] = await Promise.all([
+        supabase.from('registrations').select('*, event:events(id, title, image, category), teams(name, code)').eq('user_id', user.id),
         supabase.from('annual_sports_registrations').select('*, event:annual_sports_events(name, category, image_url), teams(name, code)').eq('user_id', user.id),
         supabase.from('entry_passes').select('*').eq('user_id', user.id).eq('is_active', true).order('day_number', { ascending: true }),
         supabase.from('student_xp').select('xp_total, tier').eq('id', user.id).single()
       ]);
-
       if (regErr) console.error('[DashboardLayout] registrations error:', regErr.message);
       if (sportsErr) console.error('[DashboardLayout] sports error:', sportsErr.message);
       if (passesErr) console.error('[DashboardLayout] passes error:', passesErr.message);
-
       setRegistrations(regData || []);
       setSportsRegistrations(sportsData || []);
       setEntryPasses(passesData || []);
-      if (!xpResult.error && xpResult.data) {
-        setXpData({
-          total_xp: (xpResult.data as any).xp_total,
-          tier: (xpResult.data as any).tier
-        });
-      }
+      if (!xpResult.error && xpResult.data) setXpData({ total_xp: (xpResult.data as any).xp_total, tier: (xpResult.data as any).tier });
 
-      const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('id, likes_count, student_xp(xp_total)')
-        .eq('is_approved', true);
-
+      const { data: allProfiles } = await supabase.from('profiles').select('id, likes_count, student_xp(xp_total)').eq('is_approved', true);
       if (allProfiles) {
-        const sorted = allProfiles.map((p: any) => ({
-          id: p.id,
-          hype_score: ((p.likes_count || 0) * 500) + (p.student_xp?.[0]?.xp_total || 0)
-        })).sort((a, b) => b.hype_score - a.hype_score);
-        
+        const sorted = allProfiles.map((p: any) => ({ id: p.id, hype_score: ((p.likes_count || 0) * 500) + (p.student_xp?.[0]?.xp_total || 0) })).sort((a, b) => b.hype_score - a.hype_score);
         const myRank = sorted.findIndex(p => p.id === user.id) + 1;
         if (myRank > 0 && myRank <= 5) {
-          const auraGradients = [
-            'from-indigo-600 via-violet-500 to-cyan-500', 
-            'from-violet-600 via-indigo-500 to-violet-400',
-            'from-indigo-700 via-violet-600 to-indigo-500',
-            'from-violet-500 via-cyan-600 to-indigo-600',
-            'from-indigo-800 via-indigo-900 to-violet-900'
-          ];
-          const auraColors = [
-            'rgba(99, 102, 241, 0.25)', 
-            'rgba(139, 92, 246, 0.2)',
-            'rgba(79, 70, 229, 0.2)',
-            'rgba(34, 211, 238, 0.15)',
-            'rgba(67, 56, 202, 0.15)'
-          ];
-          setRankInfo({
-            rank: myRank,
-            auraGradient: auraGradients[myRank - 1],
-            auraColor: auraColors[myRank - 1]
-          });
-        } else { setRankInfo(null); }
+          const auraGradients = ['from-indigo-600 via-violet-500 to-cyan-500', 'from-violet-600 via-indigo-500 to-violet-400', 'from-indigo-700 via-violet-600 to-indigo-500', 'from-violet-500 via-cyan-600 to-indigo-600', 'from-indigo-800 via-indigo-900 to-violet-900'];
+          const auraColors = ['rgba(99,102,241,0.25)', 'rgba(139,92,246,0.2)', 'rgba(79,70,229,0.2)', 'rgba(34,211,238,0.15)', 'rgba(67,56,202,0.15)'];
+          setRankInfo({ rank: myRank, auraGradient: auraGradients[myRank - 1], auraColor: auraColors[myRank - 1] });
+        } else setRankInfo(null);
       }
     } catch (err) { console.error('Error fetching dashboard data:', err); }
     finally { setDataLoading(false); }
@@ -196,27 +240,18 @@ const DashboardLayout: React.FC = () => {
     e.preventDefault();
     setSavingProfile(true);
     try {
-      const { error } = await updateProfile({
-        full_name: compFullName,
-        phone: compPhone,
-        college: showCollege ? compCollege : 'N/A',
-        batch: compBatch,
-        participant_type: compBatch
-      });
+      const { error } = await updateProfile({ full_name: compFullName, phone: compPhone, college: showCollege ? compCollege : 'N/A', batch: compBatch, participant_type: compBatch });
       if (error) throw error;
       toast.success('Profile updated successfully!');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update profile');
-    } finally {
-      setSavingProfile(false);
-    }
+    } catch (err: any) { toast.error(err.message || 'Failed to update profile'); }
+    finally { setSavingProfile(false); }
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     const reader = new FileReader();
-    reader.onload = () => { setImageToCrop(reader.result as string); };
+    reader.onload = () => setImageToCrop(reader.result as string);
     reader.readAsDataURL(file);
     e.target.value = '';
   };
@@ -226,7 +261,6 @@ const DashboardLayout: React.FC = () => {
       if (!user) return;
       setUploading(true);
       setImageToCrop(null);
-
       const finalBlob = await new Promise<Blob>((resolve, reject) => {
         const img = new Image();
         img.src = URL.createObjectURL(croppedBlob);
@@ -240,30 +274,31 @@ const DashboardLayout: React.FC = () => {
         };
         img.onerror = () => reject(new Error('Image processing failed'));
       });
-
       const fileExt = 'jpg';
       const filePath = `${user.id}-${Math.random()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, finalBlob, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
-
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
       const { error: updateError } = await updateProfile({ avatar_url: publicUrl });
       if (updateError) throw updateError;
-
       if (profile?.avatar_url && profile.avatar_url.includes('/avatars/')) {
         const oldPath = profile.avatar_url.split('/avatars/')[1];
-        if (oldPath) { await supabase.storage.from('avatars').remove([oldPath]).catch(err => console.error('Failed to delete old avatar:', err)); }
+        if (oldPath) await supabase.storage.from('avatars').remove([oldPath]).catch(() => {});
       }
       toast.success('Photo updated!');
-    } catch (error: any) {
-      toast.error(error.message || 'Error uploading photo');
-    } finally { setUploading(false); }
+    } catch (error: any) { toast.error(error.message || 'Error uploading photo'); }
+    finally { setUploading(false); }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-12 h-12 border-4 border-indigo-500/30 border-t-cyan-400 rounded-full" />
+      <div className="min-h-screen neu-bg flex items-center justify-center">
+        <div className="flex flex-col items-center gap-6">
+          <div className="neu-card p-8 rounded-3xl flex items-center justify-center">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }} className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-400 rounded-full" />
+          </div>
+          <p className="text-gray-500 text-sm tracking-widest uppercase font-bold">Loading Dashboard</p>
+        </div>
       </div>
     );
   }
@@ -273,35 +308,47 @@ const DashboardLayout: React.FC = () => {
   // Profile Completion Gate
   if (!isProfileComplete) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] pt-24 pb-12 px-4 flex items-center justify-center relative overflow-hidden">
-        <div className="absolute top-1/4 -left-20 w-80 h-80 bg-indigo-600/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-violet-800/10 rounded-full blur-[100px]" />
+      <div className="min-h-screen neu-bg flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-violet-800/10 rounded-full blur-[120px] pointer-events-none" />
         
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5">
-            <div className="w-20 h-20 bg-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8 relative">
-              <User className="w-10 h-10 text-indigo-400" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full z-10">
+          <div className="neu-card p-10 rounded-3xl">
+            <div className="neu-icon-btn w-20 h-20 flex items-center justify-center mx-auto mb-8">
+              <User className="w-9 h-9 text-indigo-400" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-4">Complete Your Profile</h1>
-            <p className="text-gray-400 text-lg mb-8">Welcome! We need a few more details to get you started with {BRAND_NAME}.</p>
-            <form onSubmit={handleCompleteProfile} className="space-y-6 text-left">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Full Name</label>
-                <input type="text" required value={compFullName} onChange={(e) => setCompFullName(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" placeholder="Enter your full name" />
+            <h1 className="text-2xl font-black text-white text-center mb-2 tracking-tight">Complete Your Profile</h1>
+            <p className="text-gray-500 text-center mb-8 text-sm">Welcome! Fill in a few details to unlock {BRAND_NAME}.</p>
+            
+            <form onSubmit={handleCompleteProfile} className="space-y-5">
+              {[
+                { label: 'Full Name', value: compFullName, set: setCompFullName, type: 'text', placeholder: 'Your full name' },
+                { label: 'Phone Number', value: compPhone, set: setCompPhone, type: 'tel', placeholder: '+91 XXXXXXXXXX' },
+              ].map((field) => (
+                <div key={field.label}>
+                  <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">{field.label}</label>
+                  <div className="neu-inset rounded-xl">
+                    <input type={field.type} required value={field.value} onChange={(e) => field.set(e.target.value)} className="w-full bg-transparent px-4 py-3 text-white text-sm outline-none placeholder-gray-600" placeholder={field.placeholder} />
+                  </div>
+                </div>
+              ))}
+              
+              <div>
+                <label className="block text-[11px] font-black text-gray-500 uppercase tracking-widest mb-2">Batch / Year</label>
+                <div className="neu-inset rounded-xl">
+                  <select required value={compBatch} onChange={(e) => setCompBatch(e.target.value)} className="w-full bg-transparent px-4 py-3 text-white text-sm outline-none appearance-none cursor-pointer">
+                    <option value="" disabled className="bg-[#131720]">Select your batch</option>
+                    {batchOptions.map((opt: string) => <option key={opt} value={opt} className="bg-[#131720]">{opt}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Phone Number</label>
-                <input type="tel" required value={compPhone} onChange={(e) => setCompPhone(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" placeholder="Enter your phone number" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300">Batch / Year</label>
-                <select required value={compBatch} onChange={(e) => setCompBatch(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none">
-                  <option value="" disabled className="bg-[#1a1a1a]">Select your batch</option>
-                  {batchOptions.map((opt: string) => (<option key={opt} value={opt} className="bg-[#1a1a1a]">{opt}</option>))}
-                </select>
-              </div>
-              <button type="submit" disabled={savingProfile} className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold">{savingProfile ? 'Saving...' : 'Complete Profile'}</button>
-              <button type="button" onClick={() => signOut()} className="w-full py-3 text-gray-400">Sign Out</button>
+              
+              <button type="submit" disabled={savingProfile} className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-sm tracking-widest uppercase transition-all shadow-[0_8px_24px_rgba(99,102,241,0.4)] mt-2">
+                {savingProfile ? 'Saving...' : 'Complete Profile →'}
+              </button>
+              <button type="button" onClick={() => signOut()} className="w-full py-3 text-gray-600 hover:text-gray-400 transition-colors text-sm font-medium">
+                Sign Out
+              </button>
             </form>
           </div>
         </motion.div>
@@ -309,18 +356,25 @@ const DashboardLayout: React.FC = () => {
     );
   }
 
-  // Not Approved Gate
+  // Verification Pending Gate
   if (!isApproved) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] pt-24 pb-12 px-4 flex items-center justify-center relative overflow-hidden">
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-xl w-full text-center z-10">
-          <div className="rico-glass-card p-12 rounded-3xl border border-white/10 backdrop-blur-2xl bg-white/5 text-center">
-            <div className="w-20 h-20 bg-violet-500/20 rounded-2xl flex items-center justify-center mx-auto mb-8"><Clock className="w-10 h-10 text-violet-400" /></div>
-            <h1 className="text-3xl font-bold text-white mb-4">Verification in Progress</h1>
-            <p className="text-gray-400 text-lg mb-8">Our admins are currently verifying your profile details. Stay tuned!</p>
-            <div className="flex gap-4 justify-center">
-              <button onClick={() => window.location.reload()} className="px-8 py-3 bg-white/10 text-white rounded-xl transition-all border border-white/5">Check Status</button>
-              <button onClick={() => signOut()} className="px-8 py-3 text-gray-400 flex items-center gap-2"><LogOut className="w-4 h-4" /> Sign Out</button>
+      <div className="min-h-screen neu-bg flex items-center justify-center px-4 relative overflow-hidden">
+        <div className="absolute top-1/3 -left-32 w-96 h-96 bg-violet-600/8 rounded-full blur-[120px] pointer-events-none" />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full z-10">
+          <div className="neu-card p-10 rounded-3xl text-center">
+            <div className="neu-icon-btn w-20 h-20 flex items-center justify-center mx-auto mb-8">
+              <Clock className="w-9 h-9 text-violet-400 animate-pulse" />
+            </div>
+            <h1 className="text-2xl font-black text-white mb-3 tracking-tight">Verification in Progress</h1>
+            <p className="text-gray-500 mb-8 text-sm leading-relaxed">Our admins are verifying your profile. This usually takes a few minutes. Stay tuned!</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => window.location.reload()} className="px-6 py-3 neu-card rounded-xl text-white text-sm font-bold hover:shadow-lg transition-all">
+                Refresh Status
+              </button>
+              <button onClick={() => signOut()} className="px-6 py-3 text-gray-500 hover:text-gray-300 text-sm flex items-center gap-2 transition-colors">
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
             </div>
           </div>
         </motion.div>
@@ -328,30 +382,24 @@ const DashboardLayout: React.FC = () => {
     );
   }
 
-  const menuItems = [
-    { id: 'overview', label: 'Overview', icon: LayoutDashboard, path: '/dashboard' },
-    { id: 'announcements', label: 'Announcements', icon: Bell, path: '/dashboard/announcements' },
-    { id: 'messages', label: 'Coordinator Chat', icon: MessageSquare, path: '/dashboard/messages' },
-    { id: 'passes', label: 'My Pass', icon: QrCode, path: '/dashboard/passes' },
-    { id: 'events', label: 'My Events', icon: Calendar, path: '/dashboard/events' },
-    { id: 'sports', label: 'My Sports', icon: Trophy, path: '/dashboard/sports' },
-    { id: 'vibes', label: 'Vibe Feed', icon: Sparkles, path: '/dashboard/vibes' },
-    { id: 'socialfeed', label: 'Social Feed', icon: Zap, path: '/dashboard/socialfeed' },
-    { id: 'community', label: 'Stars Hub', icon: Crown, path: '/dashboard/community' },
-    { id: 'settings', label: 'Profile Settings', icon: User, path: '/dashboard/settings' },
-  ];
+  const tierColor = TIER_COLORS[xpData?.tier || 'Rookie'] || '#6366f1';
+  const firstName = profile?.full_name?.split(' ')[0] || 'Student';
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] pt-20 pb-28 lg:pb-10 px-3 sm:px-5 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen neu-bg flex flex-col pt-6 lg:pt-8 pb-28 lg:pb-10 px-3 sm:px-5 lg:px-8 relative overflow-x-hidden">
       
-      {/* Aurora Background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-[#060608]" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
-        <motion.div className="absolute rounded-full" style={{ width: 700, height: 700, top: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)' }} animate={{ x: [0, 40, -20, 0], y: [0, -30, 20, 0], scale: [1, 1.1, 0.95, 1] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} />
-        <motion.div className="absolute rounded-full" style={{ width: rankInfo ? 1200 : 500, height: rankInfo ? 1200 : 500, top: '40%', left: '40%', transform: 'translate(-50%, -50%)', background: rankInfo ? `radial-gradient(circle, ${rankInfo.auraColor} 0%, transparent 70%)` : 'radial-gradient(circle, rgba(139, 92, 246, 0.07) 0%, transparent 70%)' }} animate={{ x: [0, 60, -40, 0], y: [0, -40, 30, 0], scale: [1, 1.15, 0.9, 1] }} transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut', delay: 7 }} />
+
+
+      {/* Ambient background glows */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%)' }} />
+        <div className="absolute top-1/2 -left-40 w-[400px] h-[400px] rounded-full" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%)' }} />
+        {rankInfo && (
+          <motion.div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full" style={{ background: `radial-gradient(circle, ${rankInfo.auraColor} 0%, transparent 70%)` }} animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }} />
+        )}
       </div>
 
+      {/* Pass Modal */}
       {selectedPass && (
         <WalletPassModal
           pass={{ ...selectedPass, event_name: registrations.find(r => r.id === selectedPass.registration_id)?.event_title || sportsRegistrations.find(r => r.id === selectedPass.registration_id)?.name || 'Event Entry' }}
@@ -359,72 +407,174 @@ const DashboardLayout: React.FC = () => {
         />
       )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
+      <div className="max-w-7xl mx-auto w-full space-y-6 relative z-10">
         
-        {/* Header Greeting */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-4 sm:p-6 md:p-10 rico-glass-card border border-white/10">
-          <div className="relative z-10 flex items-center justify-between gap-3">
-            <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden p-2 -ml-2 text-white"><Menu className="w-6 h-6" /></button>
-            <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-              <XPRing profile={profile as any} registrationsCount={registrations.length} sportsCount={sportsRegistrations.length} realXP={xpData?.total_xp} realTier={xpData?.tier} rank={rankInfo?.rank} />
+        {/* Header Greeting Banner — Perfect placement & full height space for XPRing */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="relative overflow-hidden rounded-2xl lg:rounded-3xl p-6 sm:p-8 md:p-10 neu-card border border-white/5"
+        >
+          <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-4 sm:gap-6 min-w-0">
+              <XPRing 
+                profile={profile as any} 
+                registrationsCount={registrations.length} 
+                sportsCount={sportsRegistrations.length} 
+                realXP={xpData?.total_xp} 
+                realTier={xpData?.tier} 
+                rank={rankInfo?.rank} 
+              />
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium mb-1.5"><ShieldCheck className="w-3 h-3" /> <span>{isNightMode ? '🌙 Night Mode' : 'Verified'}</span></div>
-                <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-white truncate">
-                  {hour < 12 ? 'Morning' : hour < 18 ? 'Afternoon' : 'Evening'}, <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rankInfo ? rankInfo.auraGradient : 'from-indigo-400 via-white to-cyan-400'}`}>{profile?.full_name?.split(' ')[0] || 'Student'}!</span>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold mb-2">
+                  <ShieldCheck className="w-3.5 h-3.5" /> <span>{isNightMode ? '🌙 Night Mode' : 'Verified Student'}</span>
+                </div>
+                <h1 className="text-xl sm:text-2xl md:text-4xl font-black text-white truncate tracking-tight">
+                  {greeting}, <span className={`text-transparent bg-clip-text bg-gradient-to-r ${rankInfo ? rankInfo.auraGradient : 'from-indigo-400 via-white to-cyan-400'}`}>{firstName}!</span>
                 </h1>
+                {profile?.username ? (
+                  <p className="text-xs text-indigo-400 font-bold mt-1 tracking-wider">@{profile.username}</p>
+                ) : (
+                  <button 
+                    onClick={() => navigate('/dashboard/settings')} 
+                    className="inline-flex items-center gap-1.5 px-3 py-1 mt-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[10px] font-black uppercase tracking-widest animate-pulse hover:bg-rose-500/20 transition-all"
+                  >
+                    ⚠️ Set @username handle for team invites
+                  </button>
+                )}
               </div>
             </div>
-            <button onClick={() => signOut()} className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white border border-white/5 transition-all text-sm flex items-center gap-2"><LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span></button>
+            <div className="flex items-center gap-3">
+              {/* Event Cart Button */}
+              <CartButton />
+
+              {/* Notification Bell for Team Invites */}
+              <button 
+                onClick={() => navigate('/dashboard/teams')}
+                className="relative w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/5 transition-all flex items-center justify-center group"
+                title="View Team Invitations"
+              >
+                <Bell className="w-5 h-5 group-hover:animate-bounce" />
+                {pendingInvitesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-rose-500 border-2 border-[#0e1117] text-[10px] font-black text-white flex items-center justify-center animate-pulse">
+                    {pendingInvitesCount}
+                  </span>
+                )}
+              </button>
+
+              <button 
+                onClick={() => signOut()} 
+                className="px-5 py-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 hover:text-white border border-white/5 transition-all text-sm flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" /> <span>Sign Out</span>
+              </button>
+            </div>
           </div>
         </motion.div>
 
+        {/* Announcements */}
         <AnnouncementsTicker />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8">
-          {/* Desktop Sidebar */}
-          <div className="hidden lg:block lg:col-span-3 space-y-2">
-            {menuItems.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.path}
-                end={item.path === '/dashboard'}
-                className={({ isActive }) => `w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
-                  isActive ? 'bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 shadow-sm shadow-indigo-900/20' : 'text-gray-400 hover:bg-white/5 hover:text-white border border-transparent'
-                }`}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium truncate">{item.label}</span>
-              </NavLink>
-            ))}
-            <div className="mt-4"><NextUpTimeline onBrowseEvents={() => navigate('/events')} /></div>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+          
+          {/* Desktop Sidebar — sticky at top-6/8 below viewport edge */}
+          <aside className="hidden lg:flex flex-col lg:col-span-3 sticky top-6 lg:top-8 h-[calc(100vh-4rem)] space-y-4">
+            <div className="neu-card p-4 rounded-2xl flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 neu-icon-btn flex items-center justify-center">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-indigo-400 font-black text-sm">{firstName[0]}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-white text-sm font-black truncate tracking-tight">{profile?.full_name || 'Student'}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: tierColor }} />
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: tierColor }}>{xpData?.tier || 'Rookie'}</span>
+                  {rankInfo && <span className="text-[10px] text-gray-600 ml-1">#{rankInfo.rank}</span>}
+                </div>
+              </div>
+            </div>
 
-          {/* Sub-page Content */}
-          <div className="lg:col-span-9">
-            <Outlet context={{ 
-              user, profile, registrations, sportsRegistrations, entryPasses, 
-              xpData, dataLoading, rankInfo, isNightMode, updateProfile, 
-              batchOptions, showCollege, handlePhotoUpload, handleCropComplete, 
-              imageToCrop, setImageToCrop, uploading, fileInputRef, setSelectedPass 
-            }} />
-          </div>
+            <nav className="flex-1 min-h-0 space-y-5 overflow-y-auto pr-1 custom-scrollbar">
+              {NAV_SECTIONS.map((section) => (
+                <div key={section.label}>
+                  <p className="neu-section-label mb-2 px-2">{section.label}</p>
+                  <div className="space-y-1">
+                    {section.items.map((item) => (
+                      <NavLink
+                        key={item.id}
+                        to={item.path}
+                        end={item.path === '/dashboard'}
+                        className={({ isActive }) =>
+                          `w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-200 ${
+                            isActive ? 'neu-nav-item-active' : 'neu-nav-item hover:opacity-90'
+                          }`
+                        }
+                      >
+                        {({ isActive }) => (
+                          <>
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${isActive ? 'bg-indigo-500/20' : 'bg-transparent'}`}>
+                              <item.icon className={`w-4 h-4 transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-500'}`} />
+                            </div>
+                            <span className={`text-sm font-bold truncate transition-colors ${isActive ? 'text-white' : 'text-gray-500'}`}>{item.label}</span>
+                            {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.8)]" />}
+                          </>
+                        )}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </aside>
+
+          {/* Main Content Area */}
+          <main className="lg:col-span-9 min-w-0">
+            <AnimatePresence mode="wait">
+              <Outlet context={{ 
+                user, profile, registrations, sportsRegistrations, entryPasses, 
+                xpData, dataLoading, rankInfo, isNightMode, updateProfile, 
+                batchOptions, showCollege, handlePhotoUpload, handleCropComplete, 
+                imageToCrop, setImageToCrop, uploading, fileInputRef, setSelectedPass,
+                tierColor, firstName, pendingInvitesCount, setPendingInvitesCount, fetchUserRegistrations
+              }} />
+            </AnimatePresence>
+          </main>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/80 lg:hidden" onClick={() => setIsMobileMenuOpen(false)}>
-          <motion.div initial={{ x: -300 }} animate={{ x: 0 }} className="w-64 h-full bg-[#0d0d0d] p-6 space-y-2" onClick={e => e.stopPropagation()}>
-            {menuItems.map((item) => (
-              <NavLink key={item.id} to={item.path} end={item.path === '/dashboard'} onClick={() => setIsMobileMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-xl ${isActive ? 'bg-indigo-600/10 text-cyan-400' : 'text-gray-400'}`}>
-                <item.icon className="w-5 h-5" /> {item.label}
-              </NavLink>
-            ))}
-          </motion.div>
-        </div>
-      )}
+      {/* Mobile Bottom Navigation */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 neu-bottom-bar h-16 flex items-center justify-around px-2">
+        {MOBILE_NAV.map((item) => (
+          <NavLink
+            key={item.id}
+            to={item.path}
+            end={item.path === '/dashboard'}
+            className={({ isActive }) =>
+              `flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
+                isActive ? 'text-indigo-400' : 'text-gray-600 hover:text-gray-400'
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isActive ? 'bg-indigo-500/20 shadow-[0_0_12px_rgba(99,102,241,0.4)]' : ''}`}>
+                  <item.icon className={`w-4 h-4 transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-600'}`} />
+                </div>
+                <span className={`text-[9px] font-black uppercase tracking-widest transition-colors ${isActive ? 'text-indigo-400' : 'text-gray-700'}`}>{item.label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Cart Drawer Overlay */}
+      <CartDrawer onRegisterSuccess={fetchUserRegistrations} />
     </div>
   );
 };
+
 
 export default DashboardLayout;

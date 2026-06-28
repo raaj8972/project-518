@@ -156,7 +156,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const errMsg = `Access Denied: ${email} is not whitelisted for Admin access.`;
           console.error(`[AuthContext] [${initId}] ${errMsg}`);
           setLastAuthError(errMsg);
-          await supabase.auth.signOut();
+          
+          // Check if we are on an admin or management route before signing out.
+          // This prevents regular students logging in from being signed out by the Admin provider.
+          const isAdminPath = window.location.pathname.startsWith('/admin') ||
+                              window.location.pathname.startsWith('/coordinator') ||
+                              window.location.pathname.startsWith('/council') ||
+                              window.location.pathname.startsWith('/security') ||
+                              window.location.pathname.startsWith('/sports-admin');
+
+          if (isAdminPath) {
+            await supabase.auth.signOut();
+          } else {
+            console.log(`[AuthContext] Non-admin path (${window.location.pathname}). Clearing admin auth state without signing out of Supabase.`);
+            clearAuthState();
+          }
           return;
         }
 

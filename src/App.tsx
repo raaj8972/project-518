@@ -25,6 +25,7 @@ import { SmoothScroll } from './components/ui/SmoothScroll';
 
 import LockedPageGuard from './components/LockedPageGuard';
 import { ThemeProvider } from './context/ThemeContext';
+import { EventCartProvider } from './context/EventCartContext';
 import { Preloader } from './components/ui/Preloader';
 
 // lazy loads
@@ -51,6 +52,8 @@ const DashboardSettings = lazy(() => import('./pages/dashboard/Settings')) as un
 const DashboardVibes = lazy(() => import('./pages/dashboard/Vibes')) as unknown as React.ComponentType<any>;
 const DashboardSocialFeed = lazy(() => import('./pages/dashboard/SocialFeed')) as unknown as React.ComponentType<any>;
 const DashboardCommunity = lazy(() => import('./pages/dashboard/Community')) as unknown as React.ComponentType<any>;
+const DashboardActiveEvents = lazy(() => import('./pages/dashboard/ActiveEvents')) as unknown as React.ComponentType<any>;
+const DashboardTeams = lazy(() => import('./pages/dashboard/Teams')) as unknown as React.ComponentType<any>;
 const StudentLogin = lazy(() => import('./pages/StudentLogin')) as unknown as React.ComponentType<any>;
 const CouncilLogin = lazy(() => import('./pages/CouncilLogin').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
 const CouncilDashboard = lazy(() => import('./pages/CouncilDashboard').then(m => ({ default: (m as any).default }))) as unknown as React.ComponentType<any>;
@@ -64,6 +67,8 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword')) as unknown a
 const StudentForgotPassword = lazy(() => import('./pages/StudentForgotPassword').then(m => ({ default: m.StudentForgotPassword }))) as unknown as React.ComponentType<any>;
 const StudentResetPassword = lazy(() => import('./pages/StudentResetPassword').then(m => ({ default: m.StudentResetPassword }))) as unknown as React.ComponentType<any>;
 const ResetPassword = lazy(() => import('./pages/ResetPassword')) as unknown as React.ComponentType<any>;
+const CRLogin = lazy(() => import('./pages/CRLogin').then(m => ({ default: m.CRLogin }))) as unknown as React.ComponentType<any>;
+const CRDashboard = lazy(() => import('./pages/CRDashboard').then(m => ({ default: m.CRDashboard }))) as unknown as React.ComponentType<any>;
 
 // Minimal Error Boundary
 class RouteErrorBoundary extends React.Component<PropsWithChildren<{}>, { hasError: boolean; message?: string; isChunkError?: boolean }> {
@@ -267,11 +272,15 @@ const InnerRouter: React.FC = () => {
             { path: 'vibes', element: <React.Suspense fallback={null}><DashboardVibes /></React.Suspense> },
             { path: 'socialfeed', element: <React.Suspense fallback={null}><DashboardSocialFeed /></React.Suspense> },
             { path: 'community', element: <React.Suspense fallback={null}><DashboardCommunity /></React.Suspense> },
+            { path: 'active-events', element: <React.Suspense fallback={null}><DashboardActiveEvents /></React.Suspense> },
+            { path: 'teams', element: <React.Suspense fallback={null}><DashboardTeams /></React.Suspense> },
             { path: 'settings', element: <React.Suspense fallback={null}><DashboardSettings /></React.Suspense> },
           ]
         },
         { path: 'coordinator', element: <React.Suspense fallback={null}><CoordinatorLogin /></React.Suspense> },
         { path: 'coordinator/dashboard', element: <React.Suspense fallback={null}><CoordinatorDashboard /></React.Suspense> },
+        { path: 'cr/login', element: <React.Suspense fallback={null}><CRLogin /></React.Suspense> },
+        { path: 'cr/dashboard', element: <React.Suspense fallback={null}><CRDashboard /></React.Suspense> },
         { path: 'admin/*', element: <React.Suspense fallback={null}><AdminDashboard /></React.Suspense> },
         { path: 'sports-admin', element: <React.Suspense fallback={null}><SportsLogin /></React.Suspense> },
         { path: 'security-login', element: <React.Suspense fallback={null}><SecurityLogin /></React.Suspense> },
@@ -294,8 +303,20 @@ const InnerRouter: React.FC = () => {
   const { isReady, stage } = useSystemStatus();
   const [showPreloader, setShowPreloader] = useState(true);
 
-  // If system is ready but preloader is still showing, we'll keep it until onComplete
-  const actuallyShowLoader = showPreloader || !isReady;
+  // Bypass preloader completely for staff portals, login pages, and dashboards to make them load instantly
+  const isDashboardOrPortal = typeof window !== 'undefined' && (() => {
+    const path = window.location.pathname;
+    return path.startsWith('/dashboard') ||
+      path.startsWith('/admin') ||
+      path.startsWith('/coordinator') ||
+      path.startsWith('/cr') ||
+      path.startsWith('/security') ||
+      path.startsWith('/council') ||
+      path === '/login' ||
+      path === '/student/login';
+  })();
+
+  const actuallyShowLoader = !isDashboardOrPortal && (showPreloader || !isReady);
 
   return (
     <>
@@ -336,6 +357,7 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <StudentAuthProvider>
+          <EventCartProvider>
           <CombinedDataProvider>
             <DataProvider>
 
@@ -353,6 +375,7 @@ export default function App() {
               </ToastProvider>
             </DataProvider>
           </CombinedDataProvider>
+          </EventCartProvider>
         </StudentAuthProvider>
       </AuthProvider>
     </ErrorBoundary>

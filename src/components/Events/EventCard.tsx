@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Phone, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, MapPin, Clock, Users, UserPlus, FileText, AlertCircle, Phone, ChevronDown, ChevronUp, CheckCircle, ShoppingCart, Trash2 } from 'lucide-react';
 import { SpotlightCard } from '../ui/SpotlightCard';
 import WatchLiveButton from '../WatchLiveButton';
 import PreserveNewlines from '../PreserveNewlines';
@@ -36,6 +36,9 @@ interface EventCardProps {
   coordinators: any[];
   posterFit: 'contain' | 'cover';
   updateEvent: (id: number, data: any) => Promise<void>;
+  onOpenProfile?: (userId: string) => void;
+  isInCart?: boolean;
+  isRegistered?: boolean;
 }
 
 export const EventCard: React.FC<EventCardProps> = ({
@@ -51,7 +54,10 @@ export const EventCard: React.FC<EventCardProps> = ({
   eventWinners,
   coordinators,
   posterFit,
-  updateEvent
+  updateEvent,
+  onOpenProfile,
+  isInCart = false,
+  isRegistered = false
 }) => {
   const toggleFlip = () => onFlip(event.id);
   const handleRegister = (e: React.MouseEvent) => {
@@ -318,7 +324,21 @@ export const EventCard: React.FC<EventCardProps> = ({
                                 const year = yearLabelFor(rawYear);
                                 return (
                                   <span key={w.id} className="inline">
-                                    {w.name}{year ? ` (${year})` : ''}{idx < g.items.length - 1 ? ', ' : ''}
+                                    {w.user_id ? (
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (onOpenProfile) onOpenProfile(w.user_id);
+                                        }}
+                                        className="text-cyan-400 hover:text-cyan-300 font-semibold hover:underline bg-transparent border-none p-0 inline align-baseline cursor-pointer"
+                                      >
+                                        {w.name}
+                                      </button>
+                                    ) : (
+                                      w.name
+                                    )}
+                                    {year ? ` (${year})` : ''}
+                                    {idx < g.items.length - 1 ? ', ' : ''}
                                   </span>
                                 );
                               })}
@@ -411,15 +431,31 @@ export const EventCard: React.FC<EventCardProps> = ({
                   <>
                     <button
                       onClick={handleRegister}
-                      disabled={Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0)}
-                      className={`w-full font-semibold flex items-center justify-center glow-text-btn ${event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) ? 'opacity-60 cursor-not-allowed !pointer-events-none' : ''}`}
+                      disabled={isRegistered || (Boolean(event.max_participants) && (event.current_registrations || 0) >= (event.max_participants ?? 0) && !isRegistered)}
+                      className={`w-full font-semibold flex items-center justify-center glow-text-btn ${
+                        isRegistered 
+                          ? '!bg-green-500/15 !border-green-500/30 !text-green-400 cursor-not-allowed !pointer-events-auto' 
+                          : isInCart 
+                            ? '!bg-rose-500/15 !border-rose-500/30 !text-rose-400' 
+                            : event.max_participants && (event.current_registrations || 0) >= (event.max_participants ?? 0) 
+                              ? 'opacity-60 cursor-not-allowed !pointer-events-none' 
+                              : ''
+                      }`}
                     >
-                      {event.max_participants && (event.current_registrations || 0) >= event.max_participants ? (
+                      {event.max_participants && (event.current_registrations || 0) >= event.max_participants && !isRegistered ? (
                         <>
                           <AlertCircle size={16} className="mr-2" /> EVENT FULL
                         </>
+                      ) : isRegistered ? (
+                        <span className="flex items-center gap-2 py-2">
+                          <CheckCircle size={16} className="text-green-400" /> <span>REGISTERED</span>
+                        </span>
+                      ) : isInCart ? (
+                        <span className="flex items-center gap-2 py-2">
+                          <Trash2 size={16} className="text-rose-400 animate-pulse" /> <span>REMOVE FROM CART</span>
+                        </span>
                       ) : (
-                        <span className="glow-text-btn__content"><UserPlus size={16} className="mr-2" /> <span className="glow-text-animated">REGISTER NOW</span></span>
+                        <span className="glow-text-btn__content"><ShoppingCart size={16} className="mr-2" /> <span className="glow-text-animated">ADD TO CART</span></span>
                       )}
                     </button>
                     {getClosingCountdown(event) && getClosingCountdown(event) !== 'closed' && (() => {

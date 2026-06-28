@@ -16,7 +16,7 @@ const Messages: React.FC = () => {
         <p className="text-gray-400">Direct channel to festival coordinators and technical support.</p>
       </div>
       <div className="h-full rounded-3xl overflow-hidden border border-white/10 bg-white/5">
-        <ChatPanel />
+        <ChatPanel themeAccent="red" />
       </div>
     </motion.div>
   );
