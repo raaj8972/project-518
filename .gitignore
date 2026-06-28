@@ -64,3 +64,6 @@ scratch/
 !src/**/*.js
 !src/**/*.cjs
 !src/**/*.mjs
+
+# Supabase CLI Temp
+supabase/.temp/
