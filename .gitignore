@@ -54,3 +54,13 @@ inspect_local_schema.mjs
 ricorrenza-2025@0.0.0
 vite
 .tmp_home
+
+# Local Scratch & Checks
+scratch/
+.netlify_config/
+*.js
+*.cjs
+*.mjs
+!src/**/*.js
+!src/**/*.cjs
+!src/**/*.mjs
